@@ -53,15 +53,15 @@ impl Parser {
         } else {
             (StructRepresentationDecl::Omitted, name.span.end)
         };
-        let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
+        let supertypes = self.parse_supertypes(&mut end)?;
         let where_clause = self.parse_where_clause()?;
         if let Some(clause) = &where_clause {
             end = clause.span.end;
         }
-        let methods = if matches!(self.peek().kind, TokenKind::LBrace) {
-            let (methods, body_end) = self.parse_member_body(FunctionContext::TypeBody)?;
+        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
+            let (members, body_end) = self.parse_struct_body()?;
             end = body_end;
-            methods
+            members
         } else {
             Vec::new()
         };
@@ -70,9 +70,9 @@ impl Parser {
             name,
             type_params,
             fields,
-            interfaces,
+            supertypes,
             where_clause,
-            methods,
+            members,
             span: Span::new(keyword.span.start, end),
         })
     }
@@ -95,34 +95,34 @@ impl Parser {
         let mut end = name.span.end;
         let constructor = if matches!(self.peek().kind, TokenKind::LParen) {
             self.bump(); // `(`
-            let mut properties = Vec::new();
+            let mut parameters = Vec::new();
             let mut vararg_span = None;
             if !matches!(self.peek().kind, TokenKind::RParen) {
                 loop {
                     let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                    let prop_keyword = self.peek().clone();
-                    let mutable = match prop_keyword.kind {
-                        TokenKind::Val => false,
-                        TokenKind::Var => true,
-                        _ => {
-                            return Err(Diagnostic::at(
-                                prop_keyword.span,
-                                "class constructor parameters must be properties declared with `val` or `var`",
-                            ));
+                    let first = self.peek().clone();
+                    let property = match first.kind {
+                        TokenKind::Val => {
+                            self.pos += 1;
+                            PrimaryParameterProperty::Val
                         }
+                        TokenKind::Var => {
+                            self.pos += 1;
+                            PrimaryParameterProperty::Var
+                        }
+                        _ => PrimaryParameterProperty::Plain,
                     };
-                    self.pos += 1;
-                    let prop_name = self.expect_ident("property name")?;
+                    let parameter_name = self.expect_ident("primary constructor parameter name")?;
                     self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                     let ty = self.parse_type_ref()?;
                     let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                    properties.push(ConstructorProp {
-                        mutable,
+                    parameters.push(PrimaryClassParameter {
+                        property,
                         span: Span::new(
-                            modifier_span.map_or(prop_keyword.span.start, |span| span.start),
+                            modifier_span.map_or(first.span.start, |span| span.start),
                             end,
                         ),
-                        name: prop_name,
+                        name: parameter_name,
                         ty,
                         syntax,
                     });
@@ -137,7 +137,7 @@ impl Parser {
                 .expect("`)`", |k| matches!(k, TokenKind::RParen))?
                 .span
                 .end;
-            ClassConstructorDecl::Declared(properties)
+            ClassConstructorDecl::Declared(parameters)
         } else {
             ClassConstructorDecl::Omitted
         };
@@ -146,10 +146,10 @@ impl Parser {
         if let Some(clause) = &where_clause {
             end = clause.span.end;
         }
-        let methods = if matches!(self.peek().kind, TokenKind::LBrace) {
-            let (methods, body_end) = self.parse_member_body(FunctionContext::TypeBody)?;
+        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
+            let (members, body_end) = self.parse_class_body()?;
             end = body_end;
-            methods
+            members
         } else {
             Vec::new()
         };
@@ -162,10 +162,9 @@ impl Parser {
             name,
             type_params,
             constructor,
-            base_class: supertypes.base_class,
-            interfaces: supertypes.interfaces,
+            supertypes,
             where_clause,
-            methods,
+            members,
             span: Span::new(start, end),
         })
     }
@@ -195,11 +194,13 @@ impl Parser {
     }
 
     /// `: Base(args), I1, I2` — a no-op when the next token is not `:`.
-    /// Constructor arguments are only allowed on the first supertype (the
-    /// base class); whether a bare name is a class or an interface is
-    /// HIR's call. `end` advances past the last supertype.
-    pub(super) fn parse_supertypes(&mut self, end: &mut u32) -> Result<Supertypes, Diagnostic> {
-        let mut supertypes = Supertypes::default();
+    /// Every entry retains whether its argument list was present. HIR, which
+    /// knows nominal kinds, decides which entry is the direct base.
+    pub(super) fn parse_supertypes(
+        &mut self,
+        end: &mut u32,
+    ) -> Result<Vec<SupertypeSpec>, Diagnostic> {
+        let mut supertypes = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Colon) {
             return Ok(supertypes);
         }
@@ -207,20 +208,20 @@ impl Parser {
         loop {
             let super_name = self.expect_ident("base class or interface name")?;
             let supertype = self.parse_named_type_ref_tail(super_name)?;
+            let start = supertype.span.start;
             *end = supertype.span.end;
-            if matches!(self.peek().kind, TokenKind::LParen) {
-                if supertypes.base_class.is_some() || !supertypes.interfaces.is_empty() {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "constructor arguments are only allowed on the base class (the first supertype)",
-                    ));
-                }
+            let constructor_arguments = if matches!(self.peek().kind, TokenKind::LParen) {
                 let (args, args_end) = self.parse_args()?;
-                supertypes.base_class = Some((supertype, args));
                 *end = args_end;
+                Some(args)
             } else {
-                supertypes.interfaces.push(supertype);
-            }
+                None
+            };
+            supertypes.push(SupertypeSpec {
+                ty: supertype,
+                constructor_arguments,
+                span: Span::new(start, *end),
+            });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
             } else {
@@ -240,24 +241,293 @@ impl Parser {
         let name = self.expect_ident("interface name")?;
         let type_params = self.parse_type_params()?;
         let mut end = name.span.end;
-        let parents = interfaces_only(self.parse_supertypes(&mut end)?)?;
+        let supertypes = self.parse_supertypes(&mut end)?;
         let where_clause = self.parse_where_clause()?;
         let (methods, end) = self.parse_member_body(FunctionContext::Interface)?;
         Ok(InterfaceDecl {
             annotations,
             name,
             type_params,
-            parents,
+            supertypes,
             where_clause,
             methods,
             span: Span::new(keyword.span.start, end),
         })
     }
 
-    /// `{ <member fun>, ... }` — the `{` is the current token. Only `fun`
-    /// declarations (with optional `override` / `abstract`) are members in
-    /// M6; everything else gets a dedicated "not supported" diagnostic.
-    /// Returns the methods and the closing brace's end offset.
+    fn parse_class_body(&mut self) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
+        self.bump(); // `{`
+        let body_depth = self.brace_depth();
+        let mut members = Vec::new();
+        let close = loop {
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                break self.bump();
+            }
+            if matches!(self.peek().kind, TokenKind::Eof) {
+                return self.unexpected("`}`");
+            }
+            let start = self.pos;
+            let parsed = self.parse_class_member();
+            match parsed {
+                Ok(member) => {
+                    members.push(member);
+                    if let Err(diagnostic) = self.expect_statement_end() {
+                        self.diagnostics.push(diagnostic);
+                        self.synchronize_body_item(body_depth, start);
+                    }
+                }
+                Err(diagnostic) => {
+                    if self.at_eof() {
+                        return Err(diagnostic);
+                    }
+                    self.diagnostics.push(diagnostic);
+                    self.synchronize_body_item(body_depth, start);
+                }
+            }
+        };
+        Ok((members, close.span.end))
+    }
+
+    fn parse_class_member(&mut self) -> Result<ClassMember, Diagnostic> {
+        match &self.peek().kind {
+            TokenKind::Val | TokenKind::Var => self
+                .parse_stored_property()
+                .map(ClassMember::StoredProperty),
+            TokenKind::Ident(text) if text == "init" => {
+                self.parse_init_block().map(ClassMember::InitBlock)
+            }
+            TokenKind::Ident(text) if text == "constructor" => self
+                .parse_secondary_constructor()
+                .map(ClassMember::SecondaryConstructor),
+            TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => {
+                Err(Diagnostic::at(
+                    self.peek().span,
+                    "nested type declarations are not supported yet (milestone M21)",
+                ))
+            }
+            TokenKind::Ident(text) if text == "companion" => Err(Diagnostic::at(
+                self.peek().span,
+                "companion objects are not supported yet (milestone M21)",
+            )),
+            TokenKind::Ident(text) if text == "object" => Err(Diagnostic::at(
+                self.peek().span,
+                "`object` declarations are not supported yet (milestone M21)",
+            )),
+            _ => self
+                .parse_member_function(FunctionContext::TypeBody)
+                .map(ClassMember::Function),
+        }
+    }
+
+    fn parse_struct_body(&mut self) -> Result<(Vec<StructMember>, u32), Diagnostic> {
+        self.bump(); // `{`
+        let body_depth = self.brace_depth();
+        let mut members = Vec::new();
+        let close = loop {
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                break self.bump();
+            }
+            if matches!(self.peek().kind, TokenKind::Eof) {
+                return self.unexpected("`}`");
+            }
+            let start = self.pos;
+            let parsed = match &self.peek().kind {
+                TokenKind::Ident(text) if text == "constructor" => self
+                    .parse_secondary_constructor()
+                    .map(StructMember::SecondaryConstructor),
+                TokenKind::Val | TokenKind::Var => Err(Diagnostic::at(
+                    self.peek().span,
+                    "struct body stored properties are not allowed",
+                )),
+                TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "`init` blocks are not allowed in structs",
+                )),
+                TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => {
+                    Err(Diagnostic::at(
+                        self.peek().span,
+                        "nested type declarations are not supported yet (milestone M21)",
+                    ))
+                }
+                TokenKind::Ident(text) if text == "companion" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "companion objects are not supported yet (milestone M21)",
+                )),
+                TokenKind::Ident(text) if text == "object" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "`object` declarations are not supported yet (milestone M21)",
+                )),
+                _ => self
+                    .parse_member_function(FunctionContext::TypeBody)
+                    .map(Box::new)
+                    .map(StructMember::Function),
+            };
+            match parsed {
+                Ok(member) => {
+                    members.push(member);
+                    if let Err(diagnostic) = self.expect_statement_end() {
+                        self.diagnostics.push(diagnostic);
+                        self.synchronize_body_item(body_depth, start);
+                    }
+                }
+                Err(diagnostic) => {
+                    if self.at_eof() {
+                        return Err(diagnostic);
+                    }
+                    self.diagnostics.push(diagnostic);
+                    self.synchronize_body_item(body_depth, start);
+                }
+            }
+        };
+        Ok((members, close.span.end))
+    }
+
+    fn parse_stored_property(&mut self) -> Result<StoredPropertyDecl, Diagnostic> {
+        let keyword = self.bump();
+        let mutable = matches!(keyword.kind, TokenKind::Var);
+        let name = self.expect_ident("stored property name")?;
+        if !matches!(self.peek().kind, TokenKind::Colon) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "class stored properties require an explicit type",
+            ));
+        }
+        self.bump();
+        let ty = self.parse_type_ref()?;
+        if !matches!(self.peek().kind, TokenKind::Equal) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "class stored properties require an initializer",
+            ));
+        }
+        self.bump();
+        let initializer = self.parse_expr()?;
+        Ok(StoredPropertyDecl {
+            mutable,
+            name,
+            ty,
+            span: Span::new(keyword.span.start, initializer.span().end),
+            initializer,
+        })
+    }
+
+    fn parse_init_block(&mut self) -> Result<InitBlockDecl, Diagnostic> {
+        let keyword = self.bump();
+        if !matches!(self.peek().kind, TokenKind::LBrace) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "`init` must be followed by a block",
+            ));
+        }
+        let body = self.parse_block()?;
+        Ok(InitBlockDecl {
+            span: Span::new(keyword.span.start, body.span.end),
+            body,
+        })
+    }
+
+    fn parse_secondary_constructor(&mut self) -> Result<SecondaryConstructorDecl, Diagnostic> {
+        let keyword = self.bump();
+        if matches!(self.peek().kind, TokenKind::Less) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "secondary constructors cannot declare type parameters",
+            ));
+        }
+        self.expect("`(` after `constructor`", |kind| {
+            matches!(kind, TokenKind::LParen)
+        })?;
+        let mut params = Vec::new();
+        let mut vararg_span = None;
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            loop {
+                let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
+                if matches!(self.peek().kind, TokenKind::Val | TokenKind::Var) {
+                    return Err(Diagnostic::at(
+                        self.peek().span,
+                        "secondary constructor parameters cannot declare `val` or `var` properties",
+                    ));
+                }
+                let name = self.expect_ident("constructor parameter name")?;
+                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+                let ty = self.parse_type_ref()?;
+                let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
+                params.push(Param {
+                    span: Span::new(
+                        modifier_span.map_or(name.span.start, |span| span.start),
+                        end,
+                    ),
+                    name,
+                    ty,
+                    syntax,
+                });
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let delegation = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_constructor_delegation()?)
+        } else {
+            None
+        };
+        if !matches!(self.peek().kind, TokenKind::LBrace) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "secondary constructors require a block body",
+            ));
+        }
+        let body = self.parse_block()?;
+        Ok(SecondaryConstructorDecl {
+            params,
+            delegation,
+            span: Span::new(keyword.span.start, body.span.end),
+            body,
+        })
+    }
+
+    fn parse_constructor_delegation(&mut self) -> Result<ConstructorDelegation, Diagnostic> {
+        let target = self.peek().clone();
+        let is_this = match &target.kind {
+            TokenKind::This => true,
+            TokenKind::Ident(text) if text == "super" => false,
+            _ => {
+                return Err(Diagnostic::at(
+                    target.span,
+                    "constructor delegation target must be `this` or `super`",
+                ));
+            }
+        };
+        self.bump();
+        if !matches!(self.peek().kind, TokenKind::LParen) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "constructor delegation requires an argument list",
+            ));
+        }
+        let (arguments, end) = self.parse_args()?;
+        let span = Span::new(target.span.start, end);
+        Ok(if is_this {
+            ConstructorDelegation::This {
+                target_span: target.span,
+                arguments,
+                span,
+            }
+        } else {
+            ConstructorDelegation::Super {
+                target_span: target.span,
+                arguments,
+                span,
+            }
+        })
+    }
+
+    /// Function-only type body used by interfaces. Classes and structs have
+    /// their own ordered member parsers above.
     pub(super) fn parse_member_body(
         &mut self,
         context: FunctionContext,

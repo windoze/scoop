@@ -62,7 +62,7 @@ fn generic_interface_variance_and_applied_supertype() {
         panic!("expected class");
     };
     assert!(matches!(
-        &class.interfaces[0].kind,
+        &class.supertypes[0].ty.kind,
         TypeRefKind::Generic(name, args) if name.text == "Flow" && args.len() == 3
     ));
 }

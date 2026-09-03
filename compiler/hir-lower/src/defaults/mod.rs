@@ -38,8 +38,8 @@ enum InheritedDefaultSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum SourceParameterOwner {
     Function(hir::FunctionId),
-    StructConstructor(hir::StructId),
-    ClassConstructor(hir::ClassId),
+    StructConstructor(hir::StructConstructorId),
+    ClassConstructor(hir::ClassConstructorId),
     VariantConstructor {
         enumeration: hir::EnumId,
         variant: u32,
@@ -111,7 +111,11 @@ impl Lowerer {
                 self.structs[structure].representation,
                 hir::StructRepresentation::Declared(_)
             ) {
-                let Some(callings) = self.struct_parameter_calling.get(&structure).cloned() else {
+                let Some(&constructor) = self.structs[structure].constructors.first() else {
+                    continue;
+                };
+                let Some(callings) = self.struct_parameter_calling.get(&constructor).cloned()
+                else {
                     continue;
                 };
                 let fields = self.structs[structure].semantic_fields();
@@ -136,9 +140,32 @@ impl Lowerer {
                     callable_name: self.structs[structure].name.clone(),
                 };
                 self.lower_parameter_interface(
-                    hir::ExportParameterOwner::StructConstructor(structure),
+                    hir::ExportParameterOwner::StructConstructor(constructor),
                     &sources,
                     &context,
+                );
+            }
+            let secondary_ids = self.structs[structure]
+                .constructors
+                .iter()
+                .copied()
+                .filter(|constructor| {
+                    matches!(
+                        self.struct_constructors[*constructor].kind,
+                        hir::StructConstructorKind::Secondary { .. }
+                    )
+                })
+                .collect::<Vec<_>>();
+            for (constructor, source) in secondary_ids
+                .into_iter()
+                .zip(declaration.secondary_constructors())
+            {
+                self.lower_constructor_parameter_interface(
+                    hir::ExportParameterOwner::StructConstructor(constructor),
+                    &source.params,
+                    self.struct_constructors[constructor].parameters.clone(),
+                    self.structs[structure].type_params.clone(),
+                    self.structs[structure].name.clone(),
                 );
             }
         }
@@ -146,36 +173,72 @@ impl Lowerer {
             self.current_file = file;
             if matches!(
                 self.classes[class].representation,
-                hir::ClassRepresentation::Declared(_)
+                hir::ClassRepresentation::Declared
             ) {
-                let Some(callings) = self.class_parameter_calling.get(&class).cloned() else {
-                    continue;
-                };
-                let fields = self.classes[class].semantic_constructor();
-                if declaration.constructor.len() != fields.len() || fields.len() != callings.len() {
-                    continue;
+                let primary =
+                    self.classes[class]
+                        .constructors
+                        .iter()
+                        .copied()
+                        .find(|constructor| {
+                            matches!(
+                                self.class_constructors[*constructor].kind,
+                                hir::ClassConstructorKind::Primary { .. }
+                            )
+                        });
+                if let Some(primary) = primary
+                    && let Some(callings) = self.class_parameter_calling.get(&primary).cloned()
+                {
+                    let parameters = &self.class_constructors[primary].parameters;
+                    if declaration.constructor.len() == parameters.len()
+                        && parameters.len() == callings.len()
+                    {
+                        let sources = declaration
+                            .constructor
+                            .iter()
+                            .zip(parameters.iter().zip(callings))
+                            .map(|(source, (parameter, calling))| ParameterSource {
+                                name: source.name.clone(),
+                                ty: parameter.ty,
+                                calling,
+                            })
+                            .collect::<Vec<_>>();
+                        let context = DefaultContext {
+                            type_parameters: self.classes[class].type_params.clone(),
+                            receiver: None,
+                            is_suspend: false,
+                            safety: hir::Safety::Safe,
+                            callable_name: self.classes[class].name.clone(),
+                        };
+                        self.lower_parameter_interface(
+                            hir::ExportParameterOwner::ClassConstructor(primary),
+                            &sources,
+                            &context,
+                        );
+                    }
                 }
-                let sources = declaration
-                    .constructor
-                    .iter()
-                    .zip(fields.iter().zip(callings))
-                    .map(|(source, (field, calling))| ParameterSource {
-                        name: source.name.clone(),
-                        ty: field.ty,
-                        calling,
-                    })
-                    .collect::<Vec<_>>();
-                let context = DefaultContext {
-                    type_parameters: self.classes[class].type_params.clone(),
-                    receiver: None,
-                    is_suspend: false,
-                    safety: hir::Safety::Safe,
-                    callable_name: self.classes[class].name.clone(),
-                };
-                self.lower_parameter_interface(
-                    hir::ExportParameterOwner::ClassConstructor(class),
-                    &sources,
-                    &context,
+            }
+            let secondary_ids = self.classes[class]
+                .constructors
+                .iter()
+                .copied()
+                .filter(|constructor| {
+                    matches!(
+                        self.class_constructors[*constructor].kind,
+                        hir::ClassConstructorKind::Secondary { .. }
+                    )
+                })
+                .collect::<Vec<_>>();
+            for (constructor, source) in secondary_ids
+                .into_iter()
+                .zip(declaration.secondary_constructors())
+            {
+                self.lower_constructor_parameter_interface(
+                    hir::ExportParameterOwner::ClassConstructor(constructor),
+                    &source.params,
+                    self.class_constructors[constructor].parameters.clone(),
+                    self.classes[class].type_params.clone(),
+                    self.classes[class].name.clone(),
                 );
             }
         }
@@ -241,6 +304,59 @@ impl Lowerer {
             }
         }
         self.inherit_override_parameter_interfaces(methods);
+    }
+
+    fn lower_constructor_parameter_interface(
+        &mut self,
+        owner: hir::ExportParameterOwner,
+        source_parameters: &[ast::Param],
+        parameters: Vec<hir::ConstructorParameter>,
+        type_parameters: Vec<hir::TypeParamDecl>,
+        callable_name: String,
+    ) {
+        let source_owner = match owner {
+            hir::ExportParameterOwner::StructConstructor(constructor) => {
+                SourceParameterOwner::StructConstructor(constructor)
+            }
+            hir::ExportParameterOwner::ClassConstructor(constructor) => {
+                SourceParameterOwner::ClassConstructor(constructor)
+            }
+            _ => unreachable!("constructor helper receives a constructor owner"),
+        };
+        let callings = match source_owner {
+            SourceParameterOwner::StructConstructor(constructor) => {
+                self.struct_parameter_calling.get(&constructor)
+            }
+            SourceParameterOwner::ClassConstructor(constructor) => {
+                self.class_parameter_calling.get(&constructor)
+            }
+            _ => unreachable!("constructor helper receives a constructor owner"),
+        }
+        .cloned()
+        .unwrap_or_default();
+        if source_parameters.len() != parameters.len() || parameters.len() != callings.len() {
+            return;
+        }
+        let sources = source_parameters
+            .iter()
+            .zip(parameters.iter().zip(callings))
+            .map(|(source, (parameter, calling))| ParameterSource {
+                name: source.name.clone(),
+                ty: parameter.ty,
+                calling,
+            })
+            .collect::<Vec<_>>();
+        self.lower_parameter_interface(
+            owner,
+            &sources,
+            &DefaultContext {
+                type_parameters,
+                receiver: None,
+                is_suspend: false,
+                safety: hir::Safety::Safe,
+                callable_name,
+            },
+        );
     }
 
     fn inherit_override_parameter_interfaces(

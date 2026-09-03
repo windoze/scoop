@@ -3,11 +3,7 @@ use super::*;
 mod adapters;
 
 impl BodyLowerer<'_> {
-    pub(crate) fn lower_function(
-        mut self,
-        function: &hir::Function,
-        body: &hir::Body,
-    ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
+    pub(crate) fn allocate_fragment_locals(&mut self, body: &hir::Body) {
         for (hir_id, local) in body.locals.iter() {
             let ty = self.lower_type(local.ty);
             let mir_id = self.locals.alloc(mir::Local {
@@ -17,6 +13,26 @@ impl BodyLowerer<'_> {
             });
             self.local_map.insert(hir_id, mir_id);
         }
+    }
+
+    pub(crate) fn allocate_argument_locals(&mut self, body: &hir::ConstructorArguments) {
+        for (hir_id, local) in body.locals.iter() {
+            let ty = self.lower_type(local.ty);
+            let mir_id = self.locals.alloc(mir::Local {
+                name: local.name.clone(),
+                ty,
+                mutable: local.mutable,
+            });
+            self.local_map.insert(hir_id, mir_id);
+        }
+    }
+
+    pub(crate) fn lower_function(
+        mut self,
+        function: &hir::Function,
+        body: &hir::Body,
+    ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
+        self.allocate_fragment_locals(body);
         let params = function
             .params
             .iter()

@@ -140,7 +140,7 @@ impl Harness {
         params: &[hir::Param],
         return_ty: hir::TypeId,
     ) -> Option<hir::MethodDispatch> {
-        let mut base = self.classes[class].base_class.as_ref().map(|(base, _)| {
+        let mut base = self.classes[class].base_class.as_ref().map(|base| {
             let hir::Type::Class(application) = self.types[*base] else {
                 panic!("test harness class bases are class applications")
             };
@@ -158,7 +158,7 @@ impl Harness {
             {
                 return Some(dispatch);
             }
-            base = self.classes[class].base_class.as_ref().map(|(base, _)| {
+            base = self.classes[class].base_class.as_ref().map(|base| {
                 let hir::Type::Class(application) = self.types[*base] else {
                     panic!("test harness class bases are class applications")
                 };

@@ -49,8 +49,9 @@ pub(crate) type SourceDispatch = CallableCandidateSource;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NominalConstructorSource {
-    Struct(hir::StructId),
-    Class(hir::ClassId),
+    Struct(hir::StructConstructorId),
+    Class(hir::ClassConstructorId),
+    IntrinsicClass(hir::ClassId),
     Variant {
         enumeration: hir::EnumId,
         variant: u32,
@@ -162,31 +163,33 @@ impl Lowerer {
         target: NominalConstructorSource,
     ) -> NominalConstructorView {
         match target {
-            NominalConstructorSource::Struct(structure) => {
+            NominalConstructorSource::Struct(constructor_id) => {
+                let constructor = &self.struct_constructors[constructor_id];
+                let structure = constructor.owner;
                 let declaration = &self.structs[structure];
-                let source_owner = SourceParameterOwner::StructConstructor(structure);
+                let source_owner = SourceParameterOwner::StructConstructor(constructor_id);
                 let calling = self
                     .struct_parameter_calling
-                    .get(&structure)
+                    .get(&constructor_id)
                     .cloned()
                     .unwrap_or_default();
                 NominalConstructorView {
                     target,
                     owner_parameters: declaration.type_params.clone(),
-                    value_parameters: declaration
-                        .semantic_fields()
+                    value_parameters: constructor
+                        .parameters
                         .iter()
                         .zip(&calling)
                         .enumerate()
-                        .map(|(index, (field, calling))| ValueParameter {
-                            name: field.name.clone(),
+                        .map(|(index, (parameter, calling))| ValueParameter {
+                            name: parameter.name.clone(),
                             calling: self.source_parameter_calling(
                                 source_owner,
                                 index,
-                                field.ty,
+                                parameter.ty,
                                 calling,
                             ),
-                            ty: field.ty,
+                            ty: parameter.ty,
                         })
                         .collect(),
                     argument_mode: ArgumentMode::Mixed,
@@ -195,33 +198,47 @@ impl Lowerer {
                     declaration_span: declaration.span,
                 }
             }
-            NominalConstructorSource::Class(class) => {
+            NominalConstructorSource::Class(constructor_id) => {
+                let constructor = &self.class_constructors[constructor_id];
+                let class = constructor.owner;
                 let declaration = &self.classes[class];
-                let source_owner = SourceParameterOwner::ClassConstructor(class);
+                let source_owner = SourceParameterOwner::ClassConstructor(constructor_id);
                 let calling = self
                     .class_parameter_calling
-                    .get(&class)
+                    .get(&constructor_id)
                     .cloned()
                     .unwrap_or_default();
                 NominalConstructorView {
                     target,
                     owner_parameters: declaration.type_params.clone(),
-                    value_parameters: declaration
-                        .semantic_constructor()
+                    value_parameters: constructor
+                        .parameters
                         .iter()
                         .zip(&calling)
                         .enumerate()
-                        .map(|(index, (property, calling))| ValueParameter {
-                            name: property.name.clone(),
+                        .map(|(index, (parameter, calling))| ValueParameter {
+                            name: parameter.name.clone(),
                             calling: self.source_parameter_calling(
                                 source_owner,
                                 index,
-                                property.ty,
+                                parameter.ty,
                                 calling,
                             ),
-                            ty: property.ty,
+                            ty: parameter.ty,
                         })
                         .collect(),
+                    argument_mode: ArgumentMode::Mixed,
+                    result_type: self.class_applications[declaration.self_application]
+                        .canonical_type,
+                    declaration_span: declaration.span,
+                }
+            }
+            NominalConstructorSource::IntrinsicClass(class) => {
+                let declaration = &self.classes[class];
+                NominalConstructorView {
+                    target,
+                    owner_parameters: declaration.type_params.clone(),
+                    value_parameters: Vec::new(),
                     argument_mode: ArgumentMode::Mixed,
                     result_type: self.class_applications[declaration.self_application]
                         .canonical_type,

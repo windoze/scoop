@@ -46,6 +46,10 @@ pub(super) fn dump_statements(
                         out.push_str(&format!("{pad}assign .field\n"));
                         dump_expr(module, locals, receiver, indent + 1, out);
                     }
+                    AssignTarget::InitializingClassField { field, .. } => out.push_str(&format!(
+                        "{pad}assign initializing .{}\n",
+                        module.class_fields[*field].name
+                    )),
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));
                         dump_expr(module, locals, array, indent + 1, out);

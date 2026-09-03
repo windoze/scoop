@@ -90,10 +90,15 @@ Module
             Type Any
             Local $cast.1
     bb1 if.then.1
-      call $call.1: ClassCastException = @scoop.ctor.ClassCastException direct
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call @scoop.init.ClassCastException.$c0 direct
+        Type ClassCastException
+        Local $new.1
       throw
         Type ClassCastException
-        Local $call.1
+        Local $new.1
     bb2 if.merge.2
       val $ub.2: S
         Type S
@@ -130,11 +135,16 @@ Module
         Type Option$D1_SX<S>
         Local $cast.4
       return
-  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+  fun init.ClassCastException.$c0 @scoop.init.ClassCastException.$c0(this: ClassCastException) -> Unit
     bb0 entry
       return
-        Type ClassCastException
-        ClassInit ClassCastException
+  fun ctor.S.$c0 @scoop.ctor.S.$c0(x: Int) -> S
+    bb0 entry
+      return
+        Type S
+        StructInit S
+          Type Int
+          Local x
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);

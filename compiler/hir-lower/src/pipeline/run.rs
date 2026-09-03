@@ -122,7 +122,7 @@ impl Lowerer {
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
-            let parents = self.resolve_interface_list(&decl.parents);
+            let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.interfaces[id].parents = parents
                 .into_iter()
@@ -158,7 +158,7 @@ impl Lowerer {
             self.resolve_fields(id, decl);
             self.allow_deferred_fun_ptr = false;
             self.type_params_in_scope = self.structs[id].type_params.clone();
-            let interfaces = self.resolve_interface_list(&decl.interfaces);
+            let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.structs[id].interfaces = interfaces;
         }
@@ -231,6 +231,8 @@ impl Lowerer {
             &pending_classes,
             &pending_enums,
         );
+        self.resolve_constructor_graphs(&pending_classes, &pending_structs);
+        self.lower_constructor_initialization(&pending_classes, &pending_structs);
         self.declare_derived_equality_methods();
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been
@@ -240,14 +242,9 @@ impl Lowerer {
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
-        // declaration time. Base-constructor delegation arguments are
-        // lowered in an empty scope (constructor properties are not in
-        // scope there, an M6 simplification: HIR has no body to host
-        // their locals).
-        for &(id, decl, file_index) in &pending_classes {
-            self.current_file = file_index;
-            self.lower_base_args(id, decl);
-        }
+        // declaration time. Constructor edges were resolved after source
+        // parameter interfaces so delegation shares the ordinary call
+        // protocol without depending on body declaration order.
         for (id, decl, file_index) in pending_functions {
             if matches!(
                 self.functions[id].kind,
@@ -375,10 +372,15 @@ impl Lowerer {
             generic_method_applications: self.generic_method_applications,
             derived_equality_applications: self.derived_equality_applications,
             structs: self.structs,
+            struct_constructors: self.struct_constructors,
+            struct_constructor_applications: self.struct_constructor_applications,
             struct_applications: self.struct_applications,
             enums: self.enums,
             enum_applications: self.enum_applications,
             classes: self.classes,
+            class_fields: self.class_fields,
+            class_constructors: self.class_constructors,
+            class_constructor_applications: self.class_constructor_applications,
             class_applications: self.class_applications,
             interfaces: self.interfaces,
             interface_applications: self.interface_applications,

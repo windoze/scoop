@@ -19,10 +19,45 @@ impl<'a> CfgLowerer<'a> {
                 struct_id: *struct_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
-            smir::ExprKind::ClassInit { class_id, args } => mir::ExprKind::ClassInit {
-                class_id: *class_id,
-                args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
-            },
+            smir::ExprKind::ClassNew {
+                class_id,
+                initializer,
+                args,
+            } => {
+                let mut args = args
+                    .iter()
+                    .map(|arg| self.lower_expr(arg, span))
+                    .collect::<Vec<_>>();
+                let receiver_ty = mir::Type::Class(*class_id);
+                let receiver = self.new_hidden("new", receiver_ty.clone());
+                self.push(
+                    mir::StatementKind::Assign {
+                        local: receiver,
+                        value: mir::Expr::new(
+                            receiver_ty.clone(),
+                            mir::ExprKind::ClassAlloc {
+                                class_id: *class_id,
+                            },
+                        ),
+                    },
+                    span,
+                );
+                args.insert(
+                    0,
+                    mir::Expr::new(receiver_ty.clone(), mir::ExprKind::Local(receiver)),
+                );
+                self.emit_lowered_call(
+                    mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(*initializer),
+                    },
+                    args,
+                    mir::Type::Unit,
+                    None,
+                    span,
+                );
+                return mir::Expr::new(receiver_ty, mir::ExprKind::Local(receiver));
+            }
             smir::ExprKind::ClosureAlloc { class, captures } => mir::ExprKind::ClosureAlloc {
                 class: *class,
                 captures: captures
@@ -301,11 +336,25 @@ impl<'a> CfgLowerer<'a> {
             .iter()
             .map(|arg| self.lower_expr(arg, span))
             .collect();
-        let normalized = mir::Call {
-            target: call.target.clone(),
+        self.emit_lowered_call(
+            call.target.clone(),
             args,
-        };
-        if call.return_ty == mir::Type::Unit {
+            call.return_ty.clone(),
+            destination,
+            span,
+        )
+    }
+
+    fn emit_lowered_call(
+        &mut self,
+        target: mir::CallTarget,
+        args: Vec<mir::Expr>,
+        return_ty: mir::Type,
+        destination: Option<mir::LocalId>,
+        span: Span,
+    ) -> mir::Expr {
+        let normalized = mir::Call { target, args };
+        if return_ty == mir::Type::Unit {
             assert!(
                 destination.is_none(),
                 "Unit calls do not have MIR destinations"
@@ -317,7 +366,7 @@ impl<'a> CfgLowerer<'a> {
             mir::Expr::new(mir::Type::Unit, mir::ExprKind::UnitLiteral)
         } else {
             let destination =
-                destination.unwrap_or_else(|| self.new_hidden("call", call.return_ty.clone()));
+                destination.unwrap_or_else(|| self.new_hidden("call", return_ty.clone()));
             self.push(
                 mir::StatementKind::Call(mir::CallEffect::Value {
                     destination,
@@ -325,7 +374,7 @@ impl<'a> CfgLowerer<'a> {
                 }),
                 span,
             );
-            mir::Expr::new(call.return_ty.clone(), mir::ExprKind::Local(destination))
+            mir::Expr::new(return_ty, mir::ExprKind::Local(destination))
         }
     }
 

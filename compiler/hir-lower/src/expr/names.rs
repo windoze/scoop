@@ -32,7 +32,10 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
-            if let Some(&(parameter, ty)) = self.constructor_params_in_scope.get(&name.text) {
+            if !self.capture_contexts.is_empty() && self.available_capture(&name.text).is_some() {
+                return self.lower_capture(name);
+            }
+            if let Some(&(parameter, ty, _)) = self.constructor_params_in_scope.get(&name.text) {
                 return Some(hir::Expr {
                     kind: ExprKind::ConstructorParam(parameter),
                     ty,
@@ -42,6 +45,13 @@ impl Lowerer {
             }
             if self.available_capture(&name.text).is_some() {
                 return self.lower_capture(name);
+            }
+            if self.initialization_context.is_some()
+                && self.initializing_receiver_has_field(&name.text)
+            {
+                return self
+                    .initializing_field(name, name.span)
+                    .map(|field| field.read);
             }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
@@ -115,15 +125,21 @@ impl Lowerer {
     /// of the host type (`this.x`; class properties include the base
     /// chain). Methods are not values in M6, so only fields resolve.
     pub(super) fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+        if self.initialization_context.is_some() && self.initializing_receiver_has_field(&name.text)
+        {
+            return self
+                .initializing_field(name, name.span)
+                .map(|field| field.read);
+        }
         let receiver_ty = self.current_this_ty()?;
         let (field, ty) = match self.types[receiver_ty].clone() {
             Type::Class(application) => {
-                let (declaring, index, ty, _) =
+                let (declaring, field, ty, _) =
                     self.find_class_application_field(application, &name.text)?;
                 (
                     hir::FieldRef::ClassField {
                         application: declaring,
-                        index,
+                        field,
                     },
                     ty,
                 )

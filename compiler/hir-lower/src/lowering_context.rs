@@ -129,6 +129,9 @@ impl Lowerer {
                 format!("non-suspend default expression {}", self.current_fn_name)
             }
             ForbiddenSuspendContext::ConstructorDelegation => "constructor delegation".to_string(),
+            ForbiddenSuspendContext::ConstructorInitialization => {
+                "constructor initialization".to_string()
+            }
         };
         self.error(
             span,

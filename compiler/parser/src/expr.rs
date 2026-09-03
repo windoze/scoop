@@ -245,6 +245,14 @@ impl Parser {
                 TokenKind::DoubleColon => {
                     receiver = self.parse_callable_reference(Some(receiver))?;
                 }
+                TokenKind::LParen
+                    if !self.peek().newline_before && matches!(receiver, Expr::This { .. }) =>
+                {
+                    return Err(Diagnostic::at(
+                        receiver.span(),
+                        "`this(...)` is only valid in a constructor delegation clause",
+                    ));
+                }
                 TokenKind::LParen if !self.peek().newline_before => {
                     let start = receiver.span().start;
                     let (args, end) = self.parse_args()?;
@@ -259,7 +267,10 @@ impl Parser {
                     if !self.peek().newline_before
                         && matches!(
                             &receiver,
-                            Expr::Call(_) | Expr::MethodCall { .. } | Expr::Invoke { .. }
+                            Expr::Call(_)
+                                | Expr::MethodCall { .. }
+                                | Expr::SuperMethodCall { .. }
+                                | Expr::Invoke { .. }
                         ) =>
                 {
                     let lambda = self.parse_lambda(false, None)?;
@@ -269,7 +280,9 @@ impl Parser {
                             call.args.push(scoop_ast::CallArgument::positional(lambda));
                             call.span.end = end;
                         }
-                        Expr::MethodCall { args, span, .. } | Expr::Invoke { args, span, .. } => {
+                        Expr::MethodCall { args, span, .. }
+                        | Expr::SuperMethodCall { args, span, .. }
+                        | Expr::Invoke { args, span, .. } => {
                             args.push(scoop_ast::CallArgument::positional(lambda));
                             span.end = end;
                         }

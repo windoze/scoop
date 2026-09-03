@@ -26,15 +26,10 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        ExprKind::ClassInit { class_id, args } => {
-            out.push_str(&format!(
-                "{pad}ClassInit {}\n",
-                module.classes[*class_id].name
-            ));
-            for arg in args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
-        }
+        ExprKind::ClassAlloc { class_id } => out.push_str(&format!(
+            "{pad}ClassAlloc {}\n",
+            module.classes[*class_id].name
+        )),
         ExprKind::ClosureAlloc { class, captures } => {
             out.push_str(&format!(
                 "{pad}ClosureAlloc cc{} {}\n",

@@ -102,23 +102,16 @@ pub(super) fn rewrite_intrinsic_site(
         0,
         mir::Expr::int(i64::from(site.state)),
     ));
-    current
-        .statements
-        .push(statement(mir::StatementKind::ValDecl {
-            local: adapter_local,
-            init: mir::Expr::new(
-                mir::Type::Class(adapter.class),
-                mir::ExprKind::ClassInit {
-                    class_id: adapter.class,
-                    args: vec![
-                        mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                        mir::Expr::int(ADAPTER_REGISTERING),
-                        slot_empty(&result_latch),
-                        slot_empty(&failure_latch),
-                    ],
-                },
-            ),
-        }));
+    current.statements.extend(initialized_generated_class(
+        adapter_local,
+        adapter.class,
+        vec![
+            mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
+            mir::Expr::int(ADAPTER_REGISTERING),
+            slot_empty(&result_latch),
+            slot_empty(&failure_latch),
+        ],
+    ));
     call.target.callee = mir::Callee::Monomorphized(register);
     call.args.push(mir::Expr::local(
         adapter_local,

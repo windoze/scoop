@@ -125,6 +125,7 @@ impl ReferenceCollector {
                 self.expression(receiver);
                 self.field(*field, receiver.origin.definition());
             }
+            hir::AssignTarget::InitializingClassField { .. } => {}
         }
     }
 
@@ -165,13 +166,9 @@ impl ReferenceCollector {
                 }
             }
             hir::Pattern::Struct {
-                application,
+                application: _,
                 fields,
             } => {
-                self.constructor(
-                    hir::ExportDefaultConstructorTarget::Struct(*application),
-                    self.fallback_origin,
-                );
                 for (_, field) in fields {
                     self.pattern(field);
                 }
@@ -192,19 +189,21 @@ impl ReferenceCollector {
             | hir::ExprKind::Capture(_)
             | hir::ExprKind::FunPtrNull
             | hir::ExprKind::NoneLiteral => {}
+            hir::ExprKind::InitializingClassFieldAccess { .. }
+            | hir::ExprKind::InitializingStructFieldAccess { .. } => {}
             hir::ExprKind::TupleLiteral(values) | hir::ExprKind::ArrayLiteral(values) => {
                 self.expressions(values);
             }
-            hir::ExprKind::StructInit { application, args } => {
+            hir::ExprKind::StructInit { constructor, args } => {
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Struct(*application),
+                    hir::ExportDefaultConstructorTarget::Struct(*constructor),
                     origin,
                 );
                 self.expressions(args);
             }
-            hir::ExprKind::ClassInit { application, args } => {
+            hir::ExprKind::ClassInit { constructor, args } => {
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Class(*application),
+                    hir::ExportDefaultConstructorTarget::Class(*constructor),
                     origin,
                 );
                 self.expressions(args);
@@ -312,6 +311,11 @@ impl ReferenceCollector {
                 self.field(*field, origin);
             }
             hir::ExprKind::MethodCall {
+                receiver,
+                callee,
+                args,
+            }
+            | hir::ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,

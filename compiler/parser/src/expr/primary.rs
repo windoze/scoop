@@ -58,10 +58,7 @@ impl Parser {
                     return Ok(Expr::UnitLiteral { span: token.span });
                 }
                 if text == "super" {
-                    return Err(Diagnostic::at(
-                        token.span,
-                        "`super` calls are not supported yet (milestone M6)",
-                    ));
+                    return self.parse_super_method_call(token.span);
                 }
                 let ident = Ident {
                     text,
@@ -82,6 +79,50 @@ impl Parser {
             TokenKind::LBracket => self.parse_array_literal(),
             _ => self.unexpected("expression"),
         }
+    }
+
+    fn parse_super_method_call(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::QuestionDot) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "safe navigation is not allowed on `super`",
+            ));
+        }
+        if matches!(self.peek().kind, TokenKind::DoubleColon) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "callable references cannot target `super`",
+            ));
+        }
+        if matches!(self.peek().kind, TokenKind::Less) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "`super` cannot have type arguments",
+            ));
+        }
+        if !matches!(self.peek().kind, TokenKind::Dot) {
+            return Err(Diagnostic::at(
+                super_span,
+                "`super` is only valid as the receiver of a direct base method call",
+            ));
+        }
+        self.bump();
+        let name = self.expect_ident("base method name after `super.`")?;
+        let type_args = self.parse_explicit_call_type_args();
+        if !matches!(self.peek().kind, TokenKind::LParen) {
+            return Err(Diagnostic::at(
+                name.span,
+                "`super` only supports method calls, not field access",
+            ));
+        }
+        let (args, end) = self.parse_args()?;
+        Ok(Expr::SuperMethodCall {
+            super_span,
+            name,
+            type_args,
+            args,
+            span: Span::new(super_span.start, end),
+        })
     }
 
     /// `[e1, e2, ...]` — an array literal (spec 10.2). The empty `[]`

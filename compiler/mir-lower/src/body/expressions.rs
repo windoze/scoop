@@ -6,6 +6,22 @@ impl BodyLowerer<'_> {
             return self.constructor_param_map[&parameter].clone();
         }
         let ty = self.lower_type(expr.ty);
+        if matches!(expr.kind, hir::ExprKind::ConstructorReceiver) {
+            let receiver = self
+                .constructor_receiver
+                .clone()
+                .expect("constructor receiver reads only occur in initializer bodies");
+            if receiver.ty == ty {
+                return receiver;
+            }
+            return smir::Expr::new(
+                ty.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(receiver),
+                    ty: Box::new(ty),
+                },
+            );
+        }
         let kind = match &expr.kind {
             hir::ExprKind::StringLiteral(value) => {
                 // One global constant per literal occurrence, numbered
@@ -36,19 +52,40 @@ impl BodyLowerer<'_> {
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
             }
-            // Class construction calls the class's constructor
-            // function (`scoop.ctor.<Class>`); the raw allocation and
-            // field initialization live inside it (see `lower_ctor`).
-            hir::ExprKind::ClassInit { constructor, args } => {
-                let ctor = self.ctors[constructor];
-                let return_type = self.module.class_constructors[*constructor].return_type;
+            hir::ExprKind::StructConstructorCall { constructor, args } => {
+                let ctor = self.struct_ctors[constructor];
                 smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(ctor),
                     },
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
-                    return_ty: self.lower_type(return_type),
+                    return_ty: ty.clone(),
+                })
+            }
+            hir::ExprKind::ClassNew { constructor, args } => {
+                let class = self.module.class_constructors[*constructor].class;
+                smir::ExprKind::ClassNew {
+                    class_id: self.class_map[&class],
+                    initializer: self.ctors[constructor],
+                    args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                }
+            }
+            hir::ExprKind::ClassInitializerCall {
+                receiver,
+                initializer,
+                args,
+            } => {
+                let mut lowered = Vec::with_capacity(args.len() + 1);
+                lowered.push(self.lower_expr(receiver));
+                lowered.extend(args.iter().map(|arg| self.lower_expr(arg)));
+                smir::ExprKind::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(self.ctors[initializer]),
+                    },
+                    args: lowered,
+                    return_ty: mir::Type::Unit,
                 })
             }
             hir::ExprKind::VariantConstruct { variant, args, .. } => {
@@ -77,6 +114,9 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::ConstructorParam(_) => {
                 unreachable!("constructor parameters return before expression lowering")
+            }
+            hir::ExprKind::ConstructorReceiver => {
+                unreachable!("constructor receivers return before expression lowering")
             }
             hir::ExprKind::GlobalRead(global) => {
                 smir::ExprKind::GlobalRead(self.global_map[global])
@@ -434,6 +474,11 @@ impl BodyLowerer<'_> {
                 callee,
                 args,
             } => return self.lower_method_call(receiver, *callee, args, expr.ty),
+            hir::ExprKind::DirectSuperMethodCall {
+                receiver,
+                callee,
+                args,
+            } => return self.lower_direct_super_method_call(receiver, *callee, args, expr.ty),
             // `Box` / `Unbox` / `is` stay dedicated MIR nodes; LIR
             // lowers them (the runtime box call, the payload load,
             // the `scoop_rt_is_instance` call). Boxing registers the

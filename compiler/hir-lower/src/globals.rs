@@ -121,8 +121,9 @@ impl Lowerer {
                 if Some(structure) != self.ffi_ptr {
                     return None;
                 }
+                let constructor = self.struct_primary_constructor(structure)?;
                 let view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(structure));
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
                 let (values, _) = self.global_nominal_constant(&view, call, &[pointee])?;
                 matches!(values.as_slice(), [hir::ConstantValue::Int(0)])
                     .then_some(hir::ConstantValue::NullPtr)
@@ -132,8 +133,9 @@ impl Lowerer {
                 if Some(structure) != self.ffi_fun_ptr {
                     return None;
                 }
+                let constructor = self.struct_primary_constructor(structure)?;
                 let mut view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(structure));
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
                 view.value_parameters.clear();
                 let function_ty = self.function_types[signature].canonical_type;
                 self.global_nominal_constant(&view, call, &[function_ty])?;
@@ -145,8 +147,9 @@ impl Lowerer {
                 if self.global_struct_callee(call) != Some(struct_id) {
                     return None;
                 }
+                let constructor = self.struct_primary_constructor(struct_id)?;
                 let view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(struct_id));
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
                 let (values, _) =
                     self.global_nominal_constant(&view, call, &application_value.arguments)?;
                 Some(hir::ConstantValue::Struct {

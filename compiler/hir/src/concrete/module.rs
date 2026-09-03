@@ -20,6 +20,9 @@ pub struct Module {
     /// instantiable declared class. Class construction expressions and
     /// compiler exceptions reference these ids directly.
     pub class_constructors: Arena<ClassConstructor>,
+    /// Fully specialized value-returning constructor callables. Primary and
+    /// secondary constructors retain distinct typed identities.
+    pub struct_constructors: Arena<StructConstructor>,
     pub interfaces: Arena<InterfaceDef>,
     pub top_level: Vec<FunctionId>,
     pub unit: TypeId,

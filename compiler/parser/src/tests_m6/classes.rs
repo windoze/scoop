@@ -1,4 +1,7 @@
-use scoop_ast::{ClassModifier, Decl, Expr, FunctionBody, MethodModifier, Span, TypeRefKind};
+use scoop_ast::{
+    ClassModifier, Decl, Expr, FunctionBody, MethodModifier, PrimaryParameterProperty, Span,
+    TypeRefKind,
+};
 
 use crate::tests::{err, ok};
 
@@ -16,16 +19,15 @@ fn class_decl() {
     assert_eq!(decl.span, Span::new(0, 35));
     assert_eq!(decl.constructor.len(), 2);
     let x = &decl.constructor[0];
-    assert!(!x.mutable);
+    assert_eq!(x.property, PrimaryParameterProperty::Val);
     assert_eq!(x.name.text, "x");
     assert_eq!(x.span, Span::new(12, 22));
     let y = &decl.constructor[1];
-    assert!(y.mutable);
+    assert_eq!(y.property, PrimaryParameterProperty::Var);
     assert_eq!(y.name.text, "y");
     assert_eq!(y.span, Span::new(24, 34));
-    assert!(decl.base_class.is_none());
-    assert!(decl.interfaces.is_empty());
-    assert!(decl.methods.is_empty());
+    assert!(decl.supertypes.is_empty());
+    assert_eq!(decl.functions().count(), 0);
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n  class Point(val x: Int, var y: Int)\n"
@@ -38,16 +40,20 @@ fn class_with_base_and_interfaces() {
     let Decl::Class(decl) = &file.declarations[0] else {
         panic!("expected a class declaration");
     };
-    let (base, args) = decl.base_class.as_ref().expect("a base class");
+    let base = &decl.supertypes[0].ty;
+    let args = decl.supertypes[0]
+        .constructor_arguments
+        .as_ref()
+        .expect("base arguments");
     assert!(matches!(
         &base.kind,
         TypeRefKind::Named(name) if name.text == "Shape"
     ));
     assert_eq!(args.len(), 1);
     assert!(matches!(&args[0].expression, Expr::StringLiteral { value, .. } if value == "point"));
-    assert_eq!(decl.interfaces.len(), 1);
+    assert_eq!(decl.supertypes.len(), 2);
     assert!(
-        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+        matches!(&decl.supertypes[1].ty.kind, TypeRefKind::Named(name) if name.text == "Describable")
     );
     assert_eq!(
         scoop_ast::dump(&file),
@@ -61,12 +67,11 @@ fn class_with_multiple_interfaces() {
     let Decl::Class(decl) = &file.declarations[0] else {
         panic!("expected a class declaration");
     };
-    assert!(decl.base_class.is_none());
     assert!(decl.constructor.is_empty());
     let names: Vec<&str> = decl
-        .interfaces
+        .supertypes
         .iter()
-        .map(|ty| match &ty.kind {
+        .map(|supertype| match &supertype.ty.kind {
             TypeRefKind::Named(name) => name.text.as_str(),
             _ => panic!("expected a named interface"),
         })
@@ -98,8 +103,8 @@ fn class_without_constructor_parens() {
     assert_eq!(decl.modifier, ClassModifier::Abstract);
     assert!(decl.constructor.is_empty());
     assert_eq!(decl.span, Span::new(0, 52));
-    assert_eq!(decl.methods.len(), 1);
-    let method = &decl.methods[0];
+    assert_eq!(decl.functions().count(), 1);
+    let method = decl.functions().next().expect("class method");
     assert_eq!(method.modifier, MethodModifier::Abstract);
     assert!(!method.is_override);
     assert_eq!(method.name.text, "kind");
@@ -113,10 +118,11 @@ fn class_member_functions() {
     let Decl::Class(decl) = &file.declarations[0] else {
         panic!("expected a class declaration");
     };
-    assert_eq!(decl.methods.len(), 2);
-    assert!(!decl.methods[0].is_override);
-    assert!(matches!(decl.methods[0].body, FunctionBody::Block(_)));
-    let b = &decl.methods[1];
+    let methods = decl.functions().collect::<Vec<_>>();
+    assert_eq!(methods.len(), 2);
+    assert!(!methods[0].is_override);
+    assert!(matches!(methods[0].body, FunctionBody::Block(_)));
+    let b = methods[1];
     assert!(b.is_override);
     assert_eq!(b.modifier, MethodModifier::Open);
     assert_eq!(b.span, Span::new(29, 54));
@@ -129,7 +135,7 @@ fn class_member_modifiers_in_any_order() {
     let Decl::Class(decl) = &file.declarations[0] else {
         panic!("expected a class declaration");
     };
-    let method = &decl.methods[0];
+    let method = decl.functions().next().expect("class method");
     assert_eq!(method.modifier, MethodModifier::Abstract);
     assert!(method.is_override);
     assert!(matches!(method.body, FunctionBody::None));
@@ -143,13 +149,14 @@ fn method_modality_defaults_and_explicit_forms() {
     let Decl::Class(decl) = &file.declarations[0] else {
         panic!("expected a class declaration");
     };
-    assert_eq!(decl.methods[0].modifier, MethodModifier::Final);
-    assert_eq!(decl.methods[1].modifier, MethodModifier::Open);
+    let methods = decl.functions().collect::<Vec<_>>();
+    assert_eq!(methods[0].modifier, MethodModifier::Final);
+    assert_eq!(methods[1].modifier, MethodModifier::Open);
     // An override remains open unless explicitly closed.
-    assert_eq!(decl.methods[2].modifier, MethodModifier::Open);
-    assert!(decl.methods[2].is_override);
-    assert_eq!(decl.methods[3].modifier, MethodModifier::Final);
-    assert!(decl.methods[3].is_override);
+    assert_eq!(methods[2].modifier, MethodModifier::Open);
+    assert!(methods[2].is_override);
+    assert_eq!(methods[3].modifier, MethodModifier::Final);
+    assert!(methods[3].is_override);
 }
 
 #[test]

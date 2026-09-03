@@ -183,7 +183,7 @@ impl Lowerer {
     pub(super) fn fill_class_hierarchy(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.classes.iter() {
             let mir_id = self.class_map[&hir_id];
-            let base_class = decl.base_class().map(|(base, _)| self.class_map[base]);
+            let base_class = decl.base_class().map(|base| self.class_map[&base]);
             let types = Types {
                 module,
                 struct_map: &self.struct_map,

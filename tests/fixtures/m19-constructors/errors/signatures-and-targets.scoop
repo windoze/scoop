@@ -1,0 +1,18 @@
+class Duplicate(val value: Int) {
+    constructor(other: Int) : this(other) {}
+}
+
+class Ambiguous() {
+    constructor(value: Int, text: String = "left") : this() {}
+    constructor(value: Int, flag: Boolean = true) : this() {}
+}
+
+abstract class AbstractType()
+
+open class NeedsValue(val value: Int)
+class MissingBaseArgument : NeedsValue()
+
+fun main() {
+    val ambiguous = Ambiguous(1)
+    val abstractValue = AbstractType()
+}

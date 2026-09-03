@@ -175,6 +175,18 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_call_argument(arg, indent + 1, out);
             }
         }
+        Expr::SuperMethodCall {
+            name,
+            type_args,
+            args,
+            ..
+        } => {
+            let type_args = dump_call_type_args(type_args);
+            out.push_str(&format!("{pad}SuperMethodCall {}{type_args}\n", name.text));
+            for arg in args {
+                dump_call_argument(arg, indent + 1, out);
+            }
+        }
         Expr::Is {
             operand,
             ty,

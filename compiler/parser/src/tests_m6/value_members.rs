@@ -11,9 +11,9 @@ fn struct_member_functions() {
         panic!("expected a struct declaration");
     };
     assert_eq!(decl.fields.len(), 1);
-    assert_eq!(decl.methods.len(), 1);
-    assert_eq!(decl.methods[0].name.text, "describe");
-    assert!(matches!(decl.methods[0].body, FunctionBody::Expr(_)));
+    let method = decl.functions().next().expect("struct method");
+    assert_eq!(method.name.text, "describe");
+    assert!(matches!(method.body, FunctionBody::Expr(_)));
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n  struct S\n    field v: Int\n    fun describe\n"
@@ -27,7 +27,7 @@ fn struct_without_body_still_parses() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    assert!(decl.methods.is_empty());
+    assert_eq!(decl.functions().count(), 0);
     assert_eq!(decl.span, Span::new(0, 20));
 }
 
@@ -39,7 +39,7 @@ fn struct_override_member_function() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    assert!(decl.methods[0].is_override);
+    assert!(decl.functions().next().expect("struct method").is_override);
 }
 
 #[test]
@@ -50,12 +50,12 @@ fn struct_interface_list() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    assert_eq!(decl.interfaces.len(), 1);
+    assert_eq!(decl.supertypes.len(), 1);
     assert!(
-        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+        matches!(&decl.supertypes[0].ty.kind, TypeRefKind::Named(name) if name.text == "Describable")
     );
-    assert_eq!(decl.methods.len(), 1);
-    assert!(decl.methods[0].is_override);
+    assert_eq!(decl.functions().count(), 1);
+    assert!(decl.functions().next().expect("struct method").is_override);
 }
 
 #[test]
@@ -65,29 +65,31 @@ fn struct_interface_list_without_body() {
         panic!("expected a struct declaration");
     };
     let names: Vec<&str> = decl
-        .interfaces
+        .supertypes
         .iter()
-        .map(|ty| match &ty.kind {
+        .map(|supertype| match &supertype.ty.kind {
             TypeRefKind::Named(name) => name.text.as_str(),
             _ => panic!("expected a named interface"),
         })
         .collect();
     assert_eq!(names, ["I1", "I2"]);
-    assert!(decl.methods.is_empty());
+    assert_eq!(decl.functions().count(), 0);
     assert_eq!(decl.span, Span::new(0, 29));
 }
 
 #[test]
-fn struct_base_class_is_an_error() {
-    let (span, message) = err("struct S(val v: Int) : Base(1)");
-    assert_eq!(span, Span::new(23, 27));
-    assert_eq!(message, "value types cannot have a base class (spec 4.4)");
+fn struct_argument_bearing_supertype_is_preserved_for_hir() {
+    let file = ok("struct S(val v: Int) : Base(1)");
+    let Decl::Struct(decl) = &file.declarations[0] else {
+        panic!("expected struct")
+    };
+    assert!(decl.supertypes[0].constructor_arguments.is_some());
 }
 
 #[test]
 fn enum_base_class_is_an_error() {
     let (span, message) = err("enum E : Base(1) { A }");
-    assert_eq!(span, Span::new(9, 13));
+    assert_eq!(span, Span::new(9, 16));
     assert_eq!(message, "value types cannot have a base class (spec 4.4)");
 }
 

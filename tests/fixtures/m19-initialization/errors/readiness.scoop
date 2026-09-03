@@ -1,0 +1,30 @@
+class ForwardRead(seed: Int) {
+    val first: Int = later
+    val later: Int = seed
+}
+
+class SelfRead(seed: Int) {
+    val value: Int = this.value
+}
+
+class ForwardWrite(seed: Int) {
+    init {
+        this.later = seed
+    }
+
+    var later: Int = seed
+}
+
+class ParameterScope(hidden: Int) {
+    fun reveal(): Int = hidden
+}
+
+class ParameterAssignment(value: Int) {
+    var value: Int = value
+
+    init {
+        value = 2
+    }
+}
+
+fun main() {}

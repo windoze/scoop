@@ -58,7 +58,7 @@ impl Lowerer {
             if !visited.insert(id) {
                 return false;
             }
-            current = self.classes[id].base_class.as_ref().map(|(base, _)| {
+            current = self.classes[id].base_class.as_ref().map(|base| {
                 let Type::Class(application) = self.types[*base] else {
                     unreachable!("resolved class bases are class applications")
                 };

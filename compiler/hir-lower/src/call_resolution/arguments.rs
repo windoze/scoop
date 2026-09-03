@@ -534,7 +534,9 @@ mod tests {
     #[test]
     fn exact_nominal_mapping_uses_constructor_fields() {
         let view = NominalConstructorView {
-            target: NominalConstructorSource::Struct(hir::StructId::from_raw(0_u32.into())),
+            target: NominalConstructorSource::Struct(hir::StructConstructorId::from_raw(
+                0_u32.into(),
+            )),
             owner_parameters: Vec::new(),
             value_parameters: vec![
                 ValueParameter {

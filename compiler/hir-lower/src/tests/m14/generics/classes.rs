@@ -63,8 +63,8 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
     assert!(instances.iter().all(|instance| {
         instance.origin == concrete_origin
             && instance.type_arguments.len() == 1
-            && instance.declared_constructor().len() == 1
-            && instance.declared_constructor()[0].ty == instance.type_arguments[0]
+            && instance.declared_fields().len() == 1
+            && instance.declared_fields()[0].ty == instance.type_arguments[0]
             && instance.methods.len() == 1
     }));
     assert!(instances.iter().any(|instance| {
@@ -247,10 +247,10 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
     let Decl::Class(derived_class) = &mut derived else {
         unreachable!()
     };
-    derived_class.base_class = Some((
+    derived_class.supertypes = vec![constructor_supertype(
         ty_generic("Base", vec![ty_named("T")]),
         call_arguments(vec![var("item")]),
-    ));
+    )];
 
     let output = lower_user_output(file(vec![
         base,
@@ -265,32 +265,58 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
     ]))
     .expect("generic base application and constructor delegation must lower");
 
-    let derived = output
+    let (derived_id, derived) = output
         .local
         .classes
         .iter()
         .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
-        .expect("Derived<Int> specialization")
-        .1;
-    let (base, arguments) = derived.base_class().expect("typed concrete base");
-    assert!(output.local.classes[*base].name.starts_with("Base$"));
+        .expect("Derived<Int> specialization");
+    let base = derived.base_class().expect("typed concrete base");
+    assert!(output.local.classes[base].name.starts_with("Base$"));
+    let constructor = output
+        .local
+        .class_constructors
+        .iter()
+        .find_map(|(_, constructor)| (constructor.class == derived_id).then_some(constructor))
+        .expect("derived initializer");
+    let arguments = constructor
+        .body()
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let hir::concrete::StatementKind::Expr(hir::concrete::Expr {
+                kind: hir::concrete::ExprKind::ClassInitializerCall { args, .. },
+                ..
+            }) = &statement.kind
+            else {
+                return None;
+            };
+            Some(args)
+        })
+        .expect("derived initializer calls its base initializer");
     assert!(matches!(
-        arguments.args.as_slice(),
+        arguments.as_slice(),
         [hir::concrete::Expr {
             kind: hir::concrete::ExprKind::Local(_),
             ..
         }]
     ));
-    assert!(arguments.statements.iter().any(|statement| matches!(
-        statement.kind,
-        hir::concrete::StatementKind::ValDecl {
-            init: hir::concrete::Expr {
-                kind: hir::concrete::ExprKind::ConstructorParam(parameter),
-                ..
-            },
-            ..
-        } if parameter.into_raw() == 0
-    )));
+    assert!(
+        constructor
+            .body()
+            .statements
+            .iter()
+            .any(|statement| matches!(
+                statement.kind,
+                hir::concrete::StatementKind::ValDecl {
+                    init: hir::concrete::Expr {
+                        kind: hir::concrete::ExprKind::ConstructorParam(_),
+                        ..
+                    },
+                    ..
+                }
+            ))
+    );
 }
 
 #[test]
@@ -321,10 +347,10 @@ fn generic_base_substitution_preserves_nested_application_identity() {
     let Decl::Class(derived_class) = &mut derived else {
         unreachable!()
     };
-    derived_class.base_class = Some((
+    derived_class.supertypes = vec![constructor_supertype(
         ty_generic("Base", vec![ty_generic("Wrapper", vec![ty_named("T")])]),
         call_arguments(vec![call("Wrapper", vec![var("item")])]),
-    ));
+    )];
 
     let output = lower_user_output(file(vec![
         wrapper,
@@ -348,8 +374,8 @@ fn generic_base_substitution_preserves_nested_application_identity() {
         .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
         .expect("Derived<Int> specialization")
         .1;
-    let (base, _) = derived.base_class().expect("specialized base");
-    let base_argument = output.local.classes[*base].type_arguments[0];
+    let base = derived.base_class().expect("specialized base");
+    let base_argument = output.local.classes[base].type_arguments[0];
     let hir::concrete::TypeKind::Struct(wrapper) = output.local.types[base_argument].kind else {
         panic!("Base argument must be the concrete Wrapper<Int> identity")
     };

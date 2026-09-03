@@ -86,6 +86,13 @@ impl Harness {
         let actual_type = self.types.alloc(hir::Type::Struct(application));
         assert_eq!(actual_type, canonical_type);
         self.struct_applications_by_key.insert(key, application);
+        for &constructor in &self.structs[template].constructors {
+            self.struct_constructor_applications
+                .alloc(hir::StructConstructorApplication {
+                    constructor,
+                    owner: application,
+                });
+        }
         application
     }
 
@@ -148,7 +155,7 @@ impl Harness {
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
         let representation = match self.classes[template].representation {
-            hir::ClassRepresentation::Declared(_) => hir::ClassApplicationRepresentation::Declared,
+            hir::ClassRepresentation::Declared => hir::ClassApplicationRepresentation::Declared,
             hir::ClassRepresentation::Intrinsic(declaration) => {
                 hir::ClassApplicationRepresentation::Intrinsic(declaration.kind.application(&key.1))
             }
@@ -162,6 +169,13 @@ impl Harness {
         let actual_type = self.types.alloc(hir::Type::Class(application));
         assert_eq!(actual_type, canonical_type);
         self.class_applications_by_key.insert(key, application);
+        for &constructor in &self.classes[template].constructors {
+            self.class_constructor_applications
+                .alloc(hir::ClassConstructorApplication {
+                    constructor,
+                    owner: application,
+                });
+        }
         application
     }
 

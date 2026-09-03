@@ -43,7 +43,7 @@
 //! `Function::method` records the host type and dispatch modality), override and
 //! implementation checks (value types implement interfaces too, spec
 //! 4.4.3), method calls resolved against the receiver's static type,
-//! class construction (`ExprKind::ClassInit`), class field reads and
+//! typed class construction, class field reads and
 //! `var` property stores (`FieldRef::ClassField`; object layout = base
 //! fields prefix + own fields, indices consecutive), the `Any` type
 //! with boxing at subtype crossings (`is_subtype` replaces equality
@@ -52,11 +52,8 @@
 //! lowered to `BinOp::RefEq` / `RefNe`), and smart casts
 //! (`if (x is T)` narrows an immutable local within the branch).
 //!
-//! Remaining M6 simplifications: base-constructor delegation arguments
-//! are lowered in an empty scope (constructor properties are not in
-//! scope there — HIR has no body to host their locals), and generic
-//! member functions are diagnosed (they cannot participate in virtual
-//! dispatch, spec 3.2).
+//! Generic member functions remain final-only because they cannot participate
+//! in virtual dispatch (spec 3.2).
 //!
 //! M7 (milestone7 DESIGN.md): function overloading. Top-level functions
 //! and members of one host may share a name as long as their signatures
@@ -99,6 +96,7 @@ mod call_resolution;
 mod callable_modifiers;
 mod class;
 mod concretize;
+mod constructor_resolution;
 mod core_contract;
 mod declarations;
 mod defaults;
@@ -264,6 +262,7 @@ pub(crate) struct Lowerer {
     pub(crate) next_type_param_identity: u32,
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
+    pub(crate) next_constructor_parameter_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -284,6 +283,12 @@ pub(crate) struct Lowerer {
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
+    pub(crate) struct_constructors: Arena<hir::StructConstructor>,
+    pub(crate) struct_constructor_applications: Arena<hir::StructConstructorApplication>,
+    pub(crate) struct_constructor_application_by_key: HashMap<
+        (hir::StructConstructorId, hir::StructApplicationId),
+        hir::StructConstructorApplicationId,
+    >,
     pub(crate) struct_applications: Arena<hir::StructApplication>,
     pub(crate) struct_application_by_key:
         HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
@@ -291,6 +296,13 @@ pub(crate) struct Lowerer {
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
     pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) class_fields: Arena<hir::ClassField>,
+    pub(crate) class_constructors: Arena<hir::ClassConstructor>,
+    pub(crate) class_constructor_applications: Arena<hir::ClassConstructorApplication>,
+    pub(crate) class_constructor_application_by_key: HashMap<
+        (hir::ClassConstructorId, hir::ClassApplicationId),
+        hir::ClassConstructorApplicationId,
+    >,
     pub(crate) class_applications: Arena<hir::ClassApplication>,
     pub(crate) class_application_by_key: HashMap<(ClassId, Vec<TypeId>), hir::ClassApplicationId>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
@@ -421,8 +433,8 @@ pub(crate) struct Lowerer {
     /// Source-call protocols for nominal constructor parameters. Layout
     /// fields intentionally do not carry call syntax; these typed owner maps
     /// preserve it until complete Export HIR parameter entities are built.
-    pub(crate) struct_parameter_calling: HashMap<StructId, Vec<FnParamCalling>>,
-    pub(crate) class_parameter_calling: HashMap<ClassId, Vec<FnParamCalling>>,
+    pub(crate) struct_parameter_calling: HashMap<hir::StructConstructorId, Vec<FnParamCalling>>,
+    pub(crate) class_parameter_calling: HashMap<hir::ClassConstructorId, Vec<FnParamCalling>>,
     pub(crate) variant_parameter_calling: HashMap<(EnumId, u32), Vec<FnParamCalling>>,
     /// Resolved signatures of all functions (pass 2.5), consulted by
     /// call lowering and body lowering. Method signatures exclude the
@@ -452,7 +464,16 @@ pub(crate) struct Lowerer {
     pub(crate) current_owner: Option<Owner>,
     /// Typed primary-constructor parameters visible only while lowering a
     /// base-constructor delegation expression.
-    pub(crate) constructor_params_in_scope: HashMap<String, (hir::ConstructorParamId, TypeId)>,
+    pub(crate) constructor_params_in_scope:
+        HashMap<String, (hir::ConstructorParamId, TypeId, hir::BindingId)>,
+    /// Cone-wide lexical identities for constructor parameters. They are
+    /// separate from the typed parameter ids so nested callables can capture
+    /// parameter values without turning a constructor into a function.
+    pub(crate) constructor_parameter_bindings: HashMap<hir::ConstructorParamId, hir::BindingId>,
+    /// Non-escaping receiver capability used only while checking constructor
+    /// initialization plans. Successful reads and writes are immediately
+    /// converted to typed field identities.
+    pub(crate) initialization_context: Option<InitializationContext>,
     /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
     /// immutable local → narrowed type, valid within the branch that
     /// established them. Saved and restored around branch lowering;
@@ -478,6 +499,27 @@ pub(crate) struct Lowerer {
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
     pub(crate) diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone)]
+pub(crate) struct InitializationContext {
+    pub(crate) receiver: InitializingReceiver,
+    pub(crate) step: String,
+    /// Nested callables cannot retain the receiver capability. The depth at
+    /// which initialization began distinguishes their bodies from the
+    /// constructor expression itself.
+    pub(crate) capture_depth: usize,
+}
+
+#[derive(Clone)]
+pub(crate) enum InitializingReceiver {
+    Class {
+        application: hir::ClassApplicationId,
+        initialized: HashSet<hir::ClassFieldId>,
+    },
+    Struct {
+        application: hir::StructApplicationId,
+    },
 }
 
 #[derive(Clone, Copy)]

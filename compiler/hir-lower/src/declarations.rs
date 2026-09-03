@@ -106,6 +106,7 @@ impl Lowerer {
             type_params: type_params.clone(),
             attributes: checked.attributes,
             representation,
+            constructors: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -134,7 +135,7 @@ impl Lowerer {
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
         }
-        for method in &decl.methods {
+        for method in decl.functions() {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
@@ -274,7 +275,11 @@ impl Lowerer {
                         "an intrinsic class declaration must be final".to_string(),
                     );
                 }
-                if decl.base_class.is_some() {
+                if decl
+                    .supertypes
+                    .iter()
+                    .any(|supertype| supertype.constructor_arguments.is_some())
+                {
                     self.error(
                         decl.span,
                         "an intrinsic class declaration cannot have a base class".to_string(),
@@ -285,7 +290,7 @@ impl Lowerer {
                     provider: self.current_intrinsic_provider(),
                 })
             }
-            None => hir::ClassRepresentation::Declared(Vec::new()),
+            None => hir::ClassRepresentation::Declared,
         };
         let id = self.classes.alloc(ClassDecl {
             modifier,
@@ -295,6 +300,8 @@ impl Lowerer {
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
             representation,
+            fields: Vec::new(),
+            constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -312,7 +319,7 @@ impl Lowerer {
         let ty = self.class_application(id, type_args);
         if matches!(
             self.classes[id].representation,
-            hir::ClassRepresentation::Declared(_)
+            hir::ClassRepresentation::Declared
         ) {
             assert_eq!(self.types[ty], Type::Class(self_application));
         }
@@ -325,7 +332,7 @@ impl Lowerer {
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
-        for method in &decl.methods {
+        for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));

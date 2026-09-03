@@ -10,8 +10,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let constructor = self
+            .struct_primary_constructor(struct_id)
+            .expect("validated FFI intrinsic structs have a typed primary constructor");
         let mut view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
+            crate::call_resolution::candidates::NominalConstructorSource::Struct(constructor),
         );
         if Some(struct_id) == self.ffi_ptr {
             let argument_map =

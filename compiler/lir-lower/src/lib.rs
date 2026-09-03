@@ -69,11 +69,10 @@
 //!   payload behind a stack pointer (the "临时 alloca 取地址" of the
 //!   lowering contract).
 //!
-//! A `mir::ExprKind::ClassInit` (only ever produced inside mir-lower's
-//! generated ctor functions) is the raw construction primitive:
-//! `scoop_rt_alloc(td, size)` plus one `HeapStore` per flattened
-//! field. Use-site construction already became a plain ctor call in
-//! MIR.
+//! M19's `mir::ExprKind::ClassAlloc` is the exact allocation primitive and
+//! only calls `scoop_rt_alloc(td, size)`. Initializer functions receive the
+//! resulting managed reference and emit ordinary `HeapStore`s; base and
+//! `this` edges are ordinary managed direct calls on the same rooted object.
 //!
 //! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A
 //! structured `mir::StatementKind::Try` becomes basic blocks: inside

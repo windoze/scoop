@@ -17,7 +17,9 @@ impl Lowerer {
             ArrayKind::Mutable => ArrayKind::Immutable,
         };
         let mut view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Class(target_class),
+            crate::call_resolution::candidates::NominalConstructorSource::IntrinsicClass(
+                target_class,
+            ),
         );
         let [owner_parameter] = view.owner_parameters.as_slice() else {
             unreachable!("the intrinsic array contract declares one type parameter")

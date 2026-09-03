@@ -74,7 +74,7 @@ fn struct_empty_member_body() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    assert!(decl.methods.is_empty());
+    assert_eq!(decl.functions().count(), 0);
     assert_eq!(decl.span, Span::new(0, 23));
 }
 

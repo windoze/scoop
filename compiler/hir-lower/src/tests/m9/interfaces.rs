@@ -17,7 +17,7 @@ fn class_with_interface(
     let Decl::Class(class) = &mut decl else {
         unreachable!()
     };
-    class.interfaces.push(interface);
+    class.supertypes.push(bare_supertype(interface));
     decl
 }
 

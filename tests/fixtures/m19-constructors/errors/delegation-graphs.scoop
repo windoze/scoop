@@ -1,0 +1,28 @@
+open class Base(val value: Int)
+
+class MissingThis() : Base(0) {
+    constructor(value: Int) {}
+}
+
+class WrongSuper() : Base(0) {
+    constructor(value: Int) : super(value) {}
+}
+
+class HeaderArguments : Base(1) {
+    constructor() : super(1) {}
+}
+
+class Cycle : Base {
+    constructor(value: Int) : this("cycle") {}
+    constructor(value: String) : this(1) {}
+}
+
+struct StructMissing(val value: Int) {
+    constructor() {}
+}
+
+struct StructSuper(val value: Int) {
+    constructor() : super() {}
+}
+
+fun main() {}

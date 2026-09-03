@@ -238,9 +238,10 @@ pub enum ExprKind {
     },
     /// Class instantiation; mir-lower generates a constructor
     /// function per class and this becomes a plain call to it.
-    ClassInit {
+    /// Allocate one exact class object with a zeroed complete payload.
+    /// Field initialization is performed by subsequent typed initializer calls.
+    ClassAlloc {
         class_id: ClassId,
-        args: Vec<Expr>,
     },
     ClosureAlloc {
         class: ClosureClassId,

@@ -144,6 +144,7 @@ pub(crate) enum ForbiddenSuspendContext {
     Function,
     DefaultExpression,
     ConstructorDelegation,
+    ConstructorInitialization,
 }
 
 pub(crate) fn lower_type_param_decl(
@@ -196,6 +197,8 @@ pub(crate) enum CaptureSource {
     Local(hir::LocalId),
     /// A binding already supplied by the immediately enclosing closure.
     Capture(hir::BindingId),
+    /// A value parameter of the enclosing typed constructor initializer.
+    ConstructorParam(hir::ConstructorParamId),
 }
 
 #[derive(Clone)]

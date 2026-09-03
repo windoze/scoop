@@ -125,9 +125,20 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
             name: ident(name),
             type_params: Vec::new(),
             fields: ast::StructRepresentationDecl::Omitted,
-            interfaces: vec![ty_named("ToString"), ty_named("Hash")],
+            supertypes: ["ToString", "Hash"]
+                .into_iter()
+                .map(|name| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    constructor_arguments: None,
+                    span: sp(),
+                })
+                .collect(),
             where_clause: None,
-            methods,
+            members: methods
+                .into_iter()
+                .map(Box::new)
+                .map(ast::StructMember::Function)
+                .collect(),
             span: sp(),
         })
     };
@@ -138,10 +149,9 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
             name: ident(name),
             type_params: type_params.into_iter().map(type_param).collect(),
             constructor: ast::ClassConstructorDecl::Omitted,
-            base_class: None,
-            interfaces: Vec::new(),
+            supertypes: Vec::new(),
             where_clause: None,
-            methods: Vec::new(),
+            members: Vec::new(),
             span: sp(),
         })
     };
@@ -149,7 +159,14 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     let Decl::Class(string_decl) = &mut string else {
         unreachable!()
     };
-    string_decl.interfaces = vec![ty_named("ToString"), ty_named("Hash")];
+    string_decl.supertypes = ["ToString", "Hash"]
+        .into_iter()
+        .map(|name| ast::SupertypeSpec {
+            ty: ty_named(name),
+            constructor_arguments: None,
+            span: sp(),
+        })
+        .collect();
     let mut string_equals = method_full(
         false,
         false,
@@ -178,7 +195,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         Some(ty_named("Int")),
         FunctionBody::Expr(Box::new(call("coreStringHash", vec![this_expr()]))),
     );
-    string_decl.methods = vec![
+    string_decl.members = vec![
         string_equals,
         intrinsic_operator(
             "plus",
@@ -194,7 +211,10 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         ),
         string_to_string,
         string_hash,
-    ];
+    ]
+    .into_iter()
+    .map(ast::ClassMember::Function)
+    .collect();
 
     let mut array = class("Array", "core_array", vec!["T"]);
     let Decl::Class(array_decl) = &mut array else {
@@ -209,15 +229,19 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         FunctionBody::None,
     );
     to_mutable.annotations.push(annotation("array_to_mutable"));
-    array_decl.methods.extend([
-        intrinsic_operator(
-            "get",
-            "array_get",
-            vec![("index", ty_named("Int"))],
-            ty_named("T"),
-        ),
-        to_mutable,
-    ]);
+    array_decl.members.extend(
+        [
+            intrinsic_operator(
+                "get",
+                "array_get",
+                vec![("index", ty_named("Int"))],
+                ty_named("T"),
+            ),
+            to_mutable,
+        ]
+        .into_iter()
+        .map(ast::ClassMember::Function),
+    );
 
     let mut mutable_array = class("MutableArray", "core_mutable_array", vec!["T"]);
     let Decl::Class(mutable_array_decl) = &mut mutable_array else {
@@ -234,21 +258,25 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     to_immutable
         .annotations
         .push(annotation("array_to_immutable"));
-    mutable_array_decl.methods.extend([
-        intrinsic_operator(
-            "get",
-            "mutable_array_get",
-            vec![("index", ty_named("Int"))],
-            ty_named("T"),
-        ),
-        intrinsic_operator(
-            "set",
-            "mutable_array_set",
-            vec![("index", ty_named("Int")), ("value", ty_named("T"))],
-            ty_named("Unit"),
-        ),
-        to_immutable,
-    ]);
+    mutable_array_decl.members.extend(
+        [
+            intrinsic_operator(
+                "get",
+                "mutable_array_get",
+                vec![("index", ty_named("Int"))],
+                ty_named("T"),
+            ),
+            intrinsic_operator(
+                "set",
+                "mutable_array_set",
+                vec![("index", ty_named("Int")), ("value", ty_named("T"))],
+                ty_named("Unit"),
+            ),
+            to_immutable,
+        ]
+        .into_iter()
+        .map(ast::ClassMember::Function),
+    );
 
     let mut declarations = vec![
         strukt(

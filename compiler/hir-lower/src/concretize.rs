@@ -84,7 +84,11 @@ struct Concretizer<'a> {
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
     class_constructor_slots: Vec<Option<concrete::ClassConstructor>>,
-    class_constructor_by_class: HashMap<concrete::ClassId, concrete::ClassConstructorId>,
+    class_constructor_by_key:
+        HashMap<(export::ClassConstructorId, concrete::ClassId), concrete::ClassConstructorId>,
+    struct_constructor_slots: Vec<Option<concrete::StructConstructor>>,
+    struct_constructor_by_key:
+        HashMap<(export::StructConstructorId, concrete::StructId), concrete::StructConstructorId>,
     extern_functions: Arena<concrete::ExternFunction>,
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
@@ -150,7 +154,9 @@ impl<'a> Concretizer<'a> {
             class_type: HashMap::new(),
             class_source: HashMap::new(),
             class_constructor_slots: Vec::new(),
-            class_constructor_by_class: HashMap::new(),
+            class_constructor_by_key: HashMap::new(),
+            struct_constructor_slots: Vec::new(),
+            struct_constructor_by_key: HashMap::new(),
             extern_functions: Arena::new(),
             extern_map: HashMap::new(),
             globals: Arena::new(),
@@ -249,6 +255,8 @@ impl<'a> Concretizer<'a> {
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
         let class_constructors =
             arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
+        let struct_constructors =
+            arena_from_complete_slots(self.struct_constructor_slots, "concrete struct constructor");
         let entry = self.function_by_key[&FunctionKey::Free {
             source: self.source.entry,
             arguments: Vec::new(),
@@ -258,7 +266,7 @@ impl<'a> Concretizer<'a> {
                 let class = self.class_by_key[&(exception.class(), Vec::new())];
                 concrete::ZeroArgClassConstructor {
                     class,
-                    callable: self.class_constructor_by_class[&class],
+                    callable: self.class_constructor_by_key[&(exception.callable(), class)],
                 }
             },
         };
@@ -290,6 +298,7 @@ impl<'a> Concretizer<'a> {
             enums: self.enums,
             classes: self.classes,
             class_constructors,
+            struct_constructors,
             interfaces: self.interfaces,
             top_level: self.emitted_functions,
             unit,

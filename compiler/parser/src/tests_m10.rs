@@ -29,15 +29,17 @@ fn parses_suspend_member_modifiers_in_any_order() {
     let Decl::Class(base) = &file.declarations[0] else {
         panic!("expected Base");
     };
-    assert!(base.methods[0].is_suspend);
-    assert_eq!(base.methods[0].modifier, MethodModifier::Abstract);
+    let base_method = base.functions().next().expect("Base method");
+    assert!(base_method.is_suspend);
+    assert_eq!(base_method.modifier, MethodModifier::Abstract);
 
     let Decl::Class(derived) = &file.declarations[1] else {
         panic!("expected Derived");
     };
-    assert!(derived.methods[0].is_suspend);
-    assert!(derived.methods[0].is_override);
-    assert_eq!(derived.methods[0].modifier, MethodModifier::Final);
+    let derived_method = derived.functions().next().expect("Derived method");
+    assert!(derived_method.is_suspend);
+    assert!(derived_method.is_override);
+    assert_eq!(derived_method.modifier, MethodModifier::Final);
 
     let Decl::Interface(task) = &file.declarations[2] else {
         panic!("expected Task");

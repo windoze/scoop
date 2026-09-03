@@ -168,9 +168,9 @@ fn array_conversion_intrinsics_are_required_and_shape_checked() {
             _ => None,
         })
         .expect("test core declares Array");
-    array
-        .methods
-        .retain(|method| method.name.text != "toMutableArray");
+    array.members.retain(|member| {
+        !matches!(member, ast::ClassMember::Function(method) if method.name.text == "toMutableArray")
+    });
     let errors = lower(&[missing, user()]).expect_err("the array conversion intrinsic is required");
     assert!(errors.iter().any(|error| {
         error
@@ -188,8 +188,12 @@ fn array_conversion_intrinsics_are_required_and_shape_checked() {
         })
         .expect("test core declares MutableArray");
     mutable_array
-        .methods
+        .members
         .iter_mut()
+        .filter_map(|member| match member {
+            ast::ClassMember::Function(method) => Some(method),
+            _ => None,
+        })
         .find(|method| method.name.text == "toArray")
         .expect("test core declares MutableArray.toArray")
         .return_ty = Some(ty_named("String"));

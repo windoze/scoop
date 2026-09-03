@@ -341,14 +341,23 @@ impl Lowerer {
         );
         debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
         let (declaration_span, result_type) = match view.target {
-            NominalConstructorSource::Struct(structure) => {
+            NominalConstructorSource::Struct(constructor) => {
+                let structure = self.struct_constructors[constructor].owner;
                 let declaration = &self.structs[structure];
                 (
                     declaration.span,
                     self.struct_applications[declaration.self_application].canonical_type,
                 )
             }
-            NominalConstructorSource::Class(class) => {
+            NominalConstructorSource::Class(constructor) => {
+                let class = self.class_constructors[constructor].owner;
+                let declaration = &self.classes[class];
+                (
+                    declaration.span,
+                    self.class_applications[declaration.self_application].canonical_type,
+                )
+            }
+            NominalConstructorSource::IntrinsicClass(class) => {
                 let declaration = &self.classes[class];
                 (
                     declaration.span,
@@ -435,10 +444,15 @@ impl Lowerer {
             .map(TypeTerm::from)
             .collect();
         let application = match view.target {
-            NominalConstructorSource::Struct(structure) => {
-                NominalApplication::Struct(structure, application_arguments)
-            }
-            NominalConstructorSource::Class(class) => {
+            NominalConstructorSource::Struct(constructor) => NominalApplication::Struct(
+                self.struct_constructors[constructor].owner,
+                application_arguments,
+            ),
+            NominalConstructorSource::Class(constructor) => NominalApplication::Class(
+                self.class_constructors[constructor].owner,
+                application_arguments,
+            ),
+            NominalConstructorSource::IntrinsicClass(class) => {
                 NominalApplication::Class(class, application_arguments)
             }
             NominalConstructorSource::Variant { enumeration, .. } => {

@@ -1,0 +1,27 @@
+open class Grand {
+    open fun inherited(value: Int = 2): Int = value
+}
+
+open class Base : Grand() {
+    open fun value(value: Int = 3): Int = value
+    final fun total(vararg values: Int): Int = values[0] + values[1]
+    fun <T> identity(value: T): T = value
+}
+
+fun Base.value(value: Int): Int = 1000
+
+class Derived : Base() {
+    override fun value(value: Int): Int = super.value(value) + 10
+
+    fun inheritedDirect(): Int = super.inherited()
+    fun totalDirect(): Int = super.total(4, 5)
+    fun genericDirect(): String = super.identity<String>("generic")
+}
+
+fun main() {
+    val derived = Derived()
+    println(derived.value(1))
+    println(derived.inheritedDirect())
+    println(derived.totalDirect())
+    println(derived.genericDirect())
+}

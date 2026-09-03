@@ -5,43 +5,46 @@ use crate::tests::{err, ok};
 // --- class diagnostics ---------------------------------------------------------
 
 #[test]
-fn class_constructor_parameter_must_be_a_property() {
-    let (span, message) = err("class C(x: Int)");
-    assert_eq!(span, Span::new(8, 9));
+fn ordinary_class_constructor_parameter_is_preserved() {
+    let file = ok("class C(x: Int)");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
     assert_eq!(
-        message,
-        "class constructor parameters must be properties declared with `val` or `var`"
+        class.constructor[0].property,
+        scoop_ast::PrimaryParameterProperty::Plain
     );
 }
 
 #[test]
-fn class_body_property_not_supported() {
+fn class_body_property_requires_an_explicit_type() {
     let (span, message) = err("class C {\n    val y = 1\n}\n");
-    assert_eq!(span, Span::new(14, 17));
-    assert_eq!(
-        message,
-        "member properties are not supported yet (milestone M6)"
-    );
+    assert_eq!(span, Span::new(20, 21));
+    assert_eq!(message, "class stored properties require an explicit type");
 }
 
 #[test]
-fn class_init_block_not_supported() {
-    let (span, message) = err("class C {\n    init {}\n}\n");
-    assert_eq!(span, Span::new(14, 18));
-    assert_eq!(
-        message,
-        "`init` blocks are not supported yet (milestone M6)"
-    );
+fn class_init_block_is_preserved() {
+    let file = ok("class C {\n    init {}\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert!(matches!(
+        class.members[0],
+        scoop_ast::ClassMember::InitBlock(_)
+    ));
 }
 
 #[test]
-fn secondary_constructor_not_supported() {
-    let (span, message) = err("class C {\n    constructor() {}\n}\n");
-    assert_eq!(span, Span::new(14, 25));
-    assert_eq!(
-        message,
-        "secondary constructors are not supported yet (milestone M6)"
-    );
+fn secondary_constructor_is_preserved() {
+    let file = ok("class C {\n    constructor() {}\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert!(matches!(
+        class.members[0],
+        scoop_ast::ClassMember::SecondaryConstructor(_)
+    ));
 }
 
 #[test]
@@ -50,7 +53,7 @@ fn companion_object_not_supported() {
     assert_eq!(span, Span::new(14, 23));
     assert_eq!(
         message,
-        "companion objects are not supported yet (milestone M6)"
+        "companion objects are not supported yet (milestone M21)"
     );
 }
 
@@ -60,7 +63,7 @@ fn nested_object_declaration_not_supported() {
     assert_eq!(span, Span::new(14, 20));
     assert_eq!(
         message,
-        "`object` declarations are not supported yet (milestone M6)"
+        "`object` declarations are not supported yet (milestone M21)"
     );
 }
 
@@ -70,7 +73,7 @@ fn nested_class_declaration_not_supported() {
     assert_eq!(span, Span::new(14, 19));
     assert_eq!(
         message,
-        "nested type declarations are not supported yet (milestone M6)"
+        "nested type declarations are not supported yet (milestone M21)"
     );
 }
 
@@ -106,7 +109,10 @@ fn bodyless_member_is_preserved_for_hir_validation() {
     let Decl::Class(class) = &file.declarations[0] else {
         panic!("expected class");
     };
-    assert!(matches!(class.methods[0].body, FunctionBody::None));
+    assert!(matches!(
+        class.functions().next().expect("class method").body,
+        FunctionBody::None
+    ));
 }
 
 #[test]
@@ -123,11 +129,12 @@ fn duplicate_member_modifier_is_an_error() {
 }
 
 #[test]
-fn constructor_arguments_only_on_the_base_class() {
-    let (span, message) = err("class C : I, Base(1) {}");
-    assert_eq!(span, Span::new(17, 18));
-    assert_eq!(
-        message,
-        "constructor arguments are only allowed on the base class (the first supertype)"
-    );
+fn constructor_arguments_are_preserved_until_nominal_kind_resolution() {
+    let file = ok("class C : I, Base(1) {}");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert_eq!(class.supertypes.len(), 2);
+    assert!(class.supertypes[0].constructor_arguments.is_none());
+    assert!(class.supertypes[1].constructor_arguments.is_some());
 }

@@ -142,8 +142,9 @@ fn modifiers_safe_methods_invocation_and_multi_index_are_preserved() {
     let Decl::Struct(handler) = &file.declarations[1] else {
         panic!("expected handler struct");
     };
-    assert!(handler.methods[0].operator.is_some());
-    assert!(handler.methods[0].infix.is_some());
+    let invoke = handler.functions().next().expect("handler method");
+    assert!(invoke.operator.is_some());
+    assert!(invoke.infix.is_some());
     let Decl::Function(main) = &file.declarations[2] else {
         panic!("expected main function");
     };

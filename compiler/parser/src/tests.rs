@@ -108,9 +108,9 @@ fn parser_recovers_between_type_members() {
     assert_eq!(
         messages,
         [
-            "member properties are not supported yet (milestone M6)",
+            "class stored properties require an explicit type",
             "expected parameter name, found `:`",
-            "`object` declarations are not supported yet (milestone M6)",
+            "`object` declarations are not supported yet (milestone M21)",
         ]
     );
 }

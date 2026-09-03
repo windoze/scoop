@@ -2,11 +2,13 @@
 //! classes and interfaces.
 
 use scoop_ast::{
-    Annotation, AnnotationArg, AnnotationLiteral, CallArgument, ClassConstructorDecl, ClassDecl,
-    ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, FieldDecl, FunctionBody,
-    FunctionDecl, GlobalDecl, InfixModifier, InterfaceDecl, MethodModifier, OperatorModifier,
-    Param, ParameterSyntax, Span, StructDecl, StructRepresentationDecl, TypeBound, TypeConstraint,
-    TypeParamDecl, TypeParamKindBound, VarargDefaultSyntax, Variance, VariantDecl, VariantDeclKind,
+    Annotation, AnnotationArg, AnnotationLiteral, ClassConstructorDecl, ClassDecl, ClassMember,
+    ClassModifier, ConstructorDelegation, Decl, Diagnostic, EnumDecl, FieldDecl, FunctionBody,
+    FunctionDecl, GlobalDecl, InfixModifier, InitBlockDecl, InterfaceDecl, MethodModifier,
+    OperatorModifier, Param, ParameterSyntax, PrimaryClassParameter, PrimaryParameterProperty,
+    SecondaryConstructorDecl, Span, StoredPropertyDecl, StructDecl, StructMember,
+    StructRepresentationDecl, SupertypeSpec, TypeBound, TypeConstraint, TypeParamDecl,
+    TypeParamKindBound, VarargDefaultSyntax, Variance, VariantDecl, VariantDeclKind,
     VariantFieldDecl, WhereClause,
 };
 
@@ -44,25 +46,21 @@ pub(crate) struct Modifiers {
     pub start: Option<u32>,
 }
 
-/// The parsed supertype list of a class: an optional base class with its
-/// constructor arguments (`: Base(args)`) plus the implemented interfaces.
-#[derive(Debug, Default)]
-pub(crate) struct Supertypes {
-    pub base_class: Option<(scoop_ast::TypeRef, Vec<CallArgument>)>,
-    pub interfaces: Vec<scoop_ast::TypeRef>,
-}
-
 /// Value types implement interfaces only (spec 4.4.3): a supertype with
 /// constructor arguments (a base class) is rejected, the rest are
 /// interface names.
-fn interfaces_only(supertypes: Supertypes) -> Result<Vec<scoop_ast::TypeRef>, Diagnostic> {
-    if let Some((base, _)) = supertypes.base_class {
-        return Err(Diagnostic::at(
-            base.span,
-            "value types cannot have a base class (spec 4.4)",
-        ));
+fn interfaces_only(supertypes: Vec<SupertypeSpec>) -> Result<Vec<scoop_ast::TypeRef>, Diagnostic> {
+    let mut interfaces = Vec::with_capacity(supertypes.len());
+    for supertype in supertypes {
+        if supertype.constructor_arguments.is_some() {
+            return Err(Diagnostic::at(
+                supertype.span,
+                "value types cannot have a base class (spec 4.4)",
+            ));
+        }
+        interfaces.push(supertype.ty);
     }
-    Ok(supertypes.interfaces)
+    Ok(interfaces)
 }
 
 mod annotations;

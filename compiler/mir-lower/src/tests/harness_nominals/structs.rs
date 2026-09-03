@@ -34,6 +34,26 @@ impl Harness {
         let interface_implementations = self.interface_implementation_shells(&interfaces);
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
+        let owner = hir::StructId::from_raw((self.structs.len() as u32).into());
+        let parameters = fields
+            .iter()
+            .map(|(name, ty)| {
+                let id = hir::ConstructorParamId::from_raw(self.next_constructor_param);
+                self.next_constructor_param += 1;
+                hir::ConstructorParameter {
+                    id,
+                    name: name.to_string(),
+                    ty: *ty,
+                }
+            })
+            .collect();
+        let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            owner,
+            parameters,
+            kind: hir::StructConstructorKind::Primary,
+            span: SPAN,
+            origin: definition_origin(),
+        });
         let strukt = self.structs.alloc(hir::StructDecl {
             name: name.to_string(),
             self_application,
@@ -48,6 +68,7 @@ impl Harness {
                     })
                     .collect(),
             ),
+            constructors: vec![constructor],
             interfaces,
             interface_implementations,
             methods: Vec::new(),
@@ -77,6 +98,7 @@ impl Harness {
             type_params: Vec::new(),
             attributes: hir::StructAttributes::default(),
             representation: hir::StructRepresentation::Intrinsic(declaration),
+            constructors: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -116,6 +138,8 @@ impl Harness {
             self_application,
             type_params,
             representation: hir::ClassRepresentation::Intrinsic(declaration),
+            fields: Vec::new(),
+            constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),

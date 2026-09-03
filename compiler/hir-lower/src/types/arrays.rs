@@ -26,7 +26,7 @@ impl Lowerer {
                 kind: hir::IntrinsicTypeKind::MutableArray,
                 ..
             }) => Some(ArrayKind::Mutable),
-            hir::ClassRepresentation::Declared(_)
+            hir::ClassRepresentation::Declared
             | hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
                 kind:
                     hir::IntrinsicTypeKind::Int

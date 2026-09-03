@@ -25,20 +25,22 @@ impl Concretizer<'_> {
                     .map(|element| self.lower_expr(element, substitution, locals))
                     .collect(),
             ),
-            export::ExprKind::StructInit { application, args } => {
-                let id = self.lower_struct_application(*application, substitution);
-                concrete::ExprKind::StructInit {
-                    struct_id: id,
+            export::ExprKind::StructInit { constructor, args } => {
+                let constructor =
+                    self.lower_struct_constructor_application(*constructor, substitution);
+                concrete::ExprKind::StructConstructorCall {
+                    constructor,
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))
                         .collect(),
                 }
             }
-            export::ExprKind::ClassInit { application, args } => {
-                let concrete_id = self.lower_class_application(*application, substitution);
-                concrete::ExprKind::ClassInit {
-                    constructor: self.class_constructor_by_class[&concrete_id],
+            export::ExprKind::ClassInit { constructor, args } => {
+                let constructor =
+                    self.lower_class_constructor_application(*constructor, substitution);
+                concrete::ExprKind::ClassNew {
+                    constructor,
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))
@@ -180,6 +182,45 @@ impl Concretizer<'_> {
                     field,
                 }
             }
+            export::ExprKind::InitializingClassFieldAccess { application, field } => {
+                let receiver_ty = self.lower_type(
+                    self.source.class_applications[*application].canonical_type,
+                    substitution,
+                );
+                concrete::ExprKind::FieldAccess {
+                    receiver: Box::new(concrete::Expr {
+                        kind: concrete::ExprKind::ConstructorReceiver,
+                        ty: receiver_ty,
+                        span: source.span,
+                        origin: source.origin.concrete(),
+                    }),
+                    field: self.lower_field_ref(
+                        export::FieldRef::ClassField {
+                            application: *application,
+                            field: *field,
+                        },
+                        substitution,
+                    ),
+                }
+            }
+            export::ExprKind::InitializingStructFieldAccess { application, index } => {
+                let receiver_ty = self.lower_type(
+                    self.source.struct_applications[*application].canonical_type,
+                    substitution,
+                );
+                concrete::ExprKind::FieldAccess {
+                    receiver: Box::new(concrete::Expr {
+                        kind: concrete::ExprKind::ConstructorReceiver,
+                        ty: receiver_ty,
+                        span: source.span,
+                        origin: source.origin.concrete(),
+                    }),
+                    field: concrete::FieldRef::StructField {
+                        struct_id: self.lower_struct_application(*application, substitution),
+                        index: *index,
+                    },
+                }
+            }
             export::ExprKind::MethodCall {
                 receiver,
                 callee,
@@ -203,6 +244,32 @@ impl Concretizer<'_> {
                     }
                 };
                 concrete::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    callee,
+                    args: args
+                        .iter()
+                        .map(|argument| self.lower_expr(argument, substitution, locals))
+                        .collect(),
+                }
+            }
+            export::ExprKind::DirectSuperMethodCall {
+                receiver,
+                callee,
+                args,
+            } => {
+                let receiver = self.lower_expr(receiver, substitution, locals);
+                let callee = match callee {
+                    export::MethodCallee::Callable(callable) => {
+                        self.lower_callable(*callable, substitution)
+                    }
+                    export::MethodCallee::Bound(_) => {
+                        unreachable!("super resolution never produces a bound interface target")
+                    }
+                    export::MethodCallee::DerivedEquality(_) => {
+                        unreachable!("super resolution only produces declared class methods")
+                    }
+                };
+                concrete::ExprKind::DirectSuperMethodCall {
                     receiver: Box::new(receiver),
                     callee,
                     args: args

@@ -168,6 +168,26 @@ impl Lowerer {
         self.class_application_id(source.template, arguments)
     }
 
+    pub(super) fn instantiate_default_class_constructor(
+        &mut self,
+        source: hir::ClassConstructorApplicationId,
+        context: &InstantiationContext,
+    ) -> hir::ClassConstructorApplicationId {
+        let source = self.class_constructor_applications[source].clone();
+        let owner = self.instantiate_default_class_application(source.owner, context);
+        self.class_constructor_application(source.constructor, owner)
+    }
+
+    pub(super) fn instantiate_default_struct_constructor(
+        &mut self,
+        source: hir::StructConstructorApplicationId,
+        context: &InstantiationContext,
+    ) -> hir::StructConstructorApplicationId {
+        let source = self.struct_constructor_applications[source].clone();
+        let owner = self.instantiate_default_struct_application(source.owner, context);
+        self.struct_constructor_application(source.constructor, owner)
+    }
+
     pub(super) fn instantiate_default_interface_application(
         &mut self,
         source: hir::InterfaceApplicationId,
@@ -206,9 +226,9 @@ impl Lowerer {
                 index,
             },
             hir::FieldRef::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
-            hir::FieldRef::ClassField { application, index } => hir::FieldRef::ClassField {
+            hir::FieldRef::ClassField { application, field } => hir::FieldRef::ClassField {
                 application: self.instantiate_default_class_application(application, context),
-                index,
+                field,
             },
         }
     }

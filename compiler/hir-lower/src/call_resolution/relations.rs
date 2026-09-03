@@ -315,10 +315,7 @@ impl RelationReducer<'_> {
                         origin,
                     );
                 }
-                let Some((base, _)) = self.lowerer.classes[left_application.template]
-                    .base_class
-                    .clone()
-                else {
+                let Some(base) = self.lowerer.classes[left_application.template].base_class else {
                     return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
                 };
                 let base = self

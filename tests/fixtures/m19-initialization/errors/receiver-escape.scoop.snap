@@ -1,0 +1,9 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m19-initialization/errors/receiver-escape.scoop:5:17: error: initializing receiver cannot escape before construction completes
+m19-initialization/errors/receiver-escape.scoop:6:40: error: initializing receiver cannot escape before construction completes
+m19-initialization/errors/receiver-escape.scoop:7:9: error: initializing receiver cannot escape before construction completes
+m19-initialization/errors/receiver-escape.scoop:8:9: error: initializing receiver cannot escape before construction completes

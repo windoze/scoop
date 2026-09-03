@@ -86,6 +86,14 @@ pub enum AssignTarget {
         receiver: Box<Expr>,
         field: FieldRef,
     },
+    /// Direct write through the non-escaping receiver capability while a
+    /// constructor is being checked. Concretization replaces the capability
+    /// with its hidden initializer receiver before LocalConcrete HIR.
+    InitializingClassField {
+        application: ClassApplicationId,
+        field: ClassFieldId,
+        origin: ExpressionOrigin,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -157,7 +165,7 @@ pub enum ExprKind {
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
-        application: StructApplicationId,
+        constructor: StructConstructorApplicationId,
         args: Vec<Expr>,
     },
     /// Class instantiation `Point(1, 2)`: constructor properties in
@@ -166,7 +174,7 @@ pub enum ExprKind {
     ClassInit {
         /// The allocated application remains explicit when `Expr::ty` is
         /// adapted to a base class or interface at the use site.
-        application: ClassApplicationId,
+        constructor: ClassConstructorApplicationId,
         args: Vec<Expr>,
     },
     /// Read of a primary-constructor parameter inside a base-constructor
@@ -232,9 +240,28 @@ pub enum ExprKind {
         receiver: Box<Expr>,
         field: FieldRef,
     },
+    /// Direct read through the non-escaping class initializer receiver.
+    InitializingClassFieldAccess {
+        application: ClassApplicationId,
+        field: ClassFieldId,
+    },
+    /// Direct read from the fully formed struct value owned by a secondary
+    /// constructor. The value itself never becomes an expression.
+    InitializingStructFieldAccess {
+        application: StructApplicationId,
+        index: u32,
+    },
     /// A resolved method call; the dispatch kind (direct / virtual /
     /// interface) is decided at MIR from the receiver's static type.
     MethodCall {
+        receiver: Box<Expr>,
+        callee: MethodCallee,
+        args: Vec<Expr>,
+    },
+    /// A call resolved solely against the direct base-class member layer.
+    /// The dedicated variant is the proof that downstream dispatch must stay
+    /// direct even when `callee` belongs to a virtual family.
+    DirectSuperMethodCall {
         receiver: Box<Expr>,
         callee: MethodCallee,
         args: Vec<Expr>,
@@ -386,10 +413,11 @@ pub enum FieldRef {
     },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
-    /// Constructor property `index` of one complete class application.
+    /// Source field of one complete declaring-class application. Layout is a
+    /// downstream typed mapping and is never used as source identity.
     ClassField {
         application: ClassApplicationId,
-        index: u32,
+        field: ClassFieldId,
     },
 }
 

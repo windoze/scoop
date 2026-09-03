@@ -18,10 +18,7 @@ fn throw_outside_try_is_a_throw_instruction() {
             std::mem::take(&mut ctor_locals),
             expr(
                 mir::Type::Class(my_error),
-                mir::ExprKind::ClassInit {
-                    class_id: my_error,
-                    args: Vec::new(),
-                },
+                mir::ExprKind::ClassAlloc { class_id: my_error },
             ),
         ),
     );

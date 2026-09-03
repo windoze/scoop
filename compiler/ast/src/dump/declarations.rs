@@ -82,48 +82,52 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let type_params = dump_type_params(&c.type_params);
                 let ctor = match &c.constructor {
-                    ClassConstructorDecl::Omitted => "()".to_string(),
-                    ClassConstructorDecl::Declared(properties) => format!(
+                    ClassConstructorDecl::Omitted => "()".to_owned(),
+                    ClassConstructorDecl::Declared(parameters) => format!(
                         "({})",
-                        properties
+                        parameters
                             .iter()
                             .map(|p| format!(
                                 "{}{}",
-                                if p.mutable { "var " } else { "val " },
+                                match p.property {
+                                    PrimaryParameterProperty::Plain => "",
+                                    PrimaryParameterProperty::Val => "val ",
+                                    PrimaryParameterProperty::Var => "var ",
+                                },
                                 dump_parameter(&p.name.text, &p.ty, &p.syntax)
                             ))
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
                 };
-                let base = c
-                    .base_class
-                    .as_ref()
-                    .map(|(ty, args)| format!(" : {}(<{} args>)", dump_type_ref(ty), args.len()))
-                    .unwrap_or_default();
-                let ifaces = if c.interfaces.is_empty() {
+                let supertypes = if c.supertypes.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<String> = c.interfaces.iter().map(dump_type_ref).collect();
-                    format!(", {}", names.join(", "))
+                    let separator = if c
+                        .supertypes
+                        .iter()
+                        .any(|supertype| supertype.constructor_arguments.is_some())
+                    {
+                        " : "
+                    } else {
+                        ", "
+                    };
+                    format!(
+                        "{separator}{}",
+                        c.supertypes
+                            .iter()
+                            .map(dump_supertype)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let where_clause = dump_where_clause(c.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  {modifier}class {}{}{}{}{}{}\n",
-                    c.name.text, type_params, ctor, base, ifaces, where_clause
+                    "  {modifier}class {}{}{}{}{}\n",
+                    c.name.text, type_params, ctor, supertypes, where_clause
                 ));
-                for method in &c.methods {
-                    let suspend = if method.is_suspend { "suspend " } else { "" };
-                    let operator = if method.operator.is_some() {
-                        "operator "
-                    } else {
-                        ""
-                    };
-                    let infix = if method.infix.is_some() { "infix " } else { "" };
-                    out.push_str(&format!(
-                        "    {operator}{infix}{suspend}fun {}\n",
-                        method.name.text
-                    ));
+                for member in &c.members {
+                    dump_class_member(member, 2, &mut out);
                 }
             }
             Decl::Interface(i) => {
@@ -134,14 +138,14 @@ pub fn dump(file: &SourceFile) -> String {
                     let params: Vec<String> = i.type_params.iter().map(dump_type_param).collect();
                     format!("<{}>", params.join(", "))
                 };
-                let parents = if i.parents.is_empty() {
+                let parents = if i.supertypes.is_empty() {
                     String::new()
                 } else {
                     format!(
                         " : {}",
-                        i.parents
+                        i.supertypes
                             .iter()
-                            .map(dump_type_ref)
+                            .map(dump_supertype)
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -179,10 +183,10 @@ pub fn dump(file: &SourceFile) -> String {
                             .join(", ")
                     )
                 };
-                let interfaces = if s.interfaces.is_empty() {
+                let interfaces = if s.supertypes.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<String> = s.interfaces.iter().map(dump_type_ref).collect();
+                    let names: Vec<String> = s.supertypes.iter().map(dump_supertype).collect();
                     format!(" : {}", names.join(", "))
                 };
                 let representation = if s.fields.is_omitted() {
@@ -201,18 +205,13 @@ pub fn dump(file: &SourceFile) -> String {
                         dump_parameter(&field.name.text, &field.ty, &field.syntax)
                     ));
                 }
-                for method in &s.methods {
-                    let suspend = if method.is_suspend { "suspend " } else { "" };
-                    let operator = if method.operator.is_some() {
-                        "operator "
-                    } else {
-                        ""
-                    };
-                    let infix = if method.infix.is_some() { "infix " } else { "" };
-                    out.push_str(&format!(
-                        "    {operator}{infix}{suspend}fun {}\n",
-                        method.name.text
-                    ));
+                for member in &s.members {
+                    match member {
+                        StructMember::SecondaryConstructor(constructor) => {
+                            dump_secondary_constructor(constructor, 2, &mut out)
+                        }
+                        StructMember::Function(method) => dump_member_function(method, 2, &mut out),
+                    }
                 }
             }
             Decl::Function(f) => {
@@ -288,6 +287,81 @@ pub fn dump(file: &SourceFile) -> String {
         }
     }
     out
+}
+
+fn dump_supertype(supertype: &SupertypeSpec) -> String {
+    let ty = dump_type_ref(&supertype.ty);
+    match &supertype.constructor_arguments {
+        Some(arguments) => format!("{ty}(<{} args>)", arguments.len()),
+        None => ty,
+    }
+}
+
+fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    match member {
+        ClassMember::StoredProperty(property) => {
+            out.push_str(&format!(
+                "{pad}{} {}: {} =\n",
+                if property.mutable { "var" } else { "val" },
+                property.name.text,
+                dump_type_ref(&property.ty)
+            ));
+            dump_expr(&property.initializer, indent + 1, out);
+        }
+        ClassMember::InitBlock(init) => {
+            out.push_str(&format!("{pad}init\n"));
+            dump_block(&init.body, indent + 1, out);
+        }
+        ClassMember::SecondaryConstructor(constructor) => {
+            dump_secondary_constructor(constructor, indent, out)
+        }
+        ClassMember::Function(function) => dump_member_function(function, indent, out),
+    }
+}
+
+fn dump_secondary_constructor(
+    constructor: &SecondaryConstructorDecl,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    let params = constructor
+        .params
+        .iter()
+        .map(|parameter| dump_parameter(&parameter.name.text, &parameter.ty, &parameter.syntax))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let delegation = match &constructor.delegation {
+        Some(ConstructorDelegation::This { arguments, .. }) => {
+            format!(" : this(<{} args>)", arguments.len())
+        }
+        Some(ConstructorDelegation::Super { arguments, .. }) => {
+            format!(" : super(<{} args>)", arguments.len())
+        }
+        None => String::new(),
+    };
+    out.push_str(&format!("{pad}constructor({params}){delegation}\n"));
+    dump_block(&constructor.body, indent + 1, out);
+}
+
+fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    let suspend = if function.is_suspend { "suspend " } else { "" };
+    let operator = if function.operator.is_some() {
+        "operator "
+    } else {
+        ""
+    };
+    let infix = if function.infix.is_some() {
+        "infix "
+    } else {
+        ""
+    };
+    out.push_str(&format!(
+        "{pad}{operator}{infix}{suspend}fun {}\n",
+        function.name.text
+    ));
 }
 
 fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String {

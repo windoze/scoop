@@ -432,13 +432,11 @@ Module
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      val p: Point
-        Type Point
-        StructInit Point
-          Type Int
-          IntLiteral 3
-          Type Int
-          IntLiteral 4
+      call p: Point = @scoop.ctor.Point.$c0 direct
+        Type Int
+        IntLiteral 3
+        Type Int
+        IntLiteral 4
       val $bind.2: Point
         Type Point
         Local p
@@ -448,6 +446,15 @@ Module
           Type Point
           Local $bind.2
       return
+  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point
+    bb0 entry
+      return
+        Type Point
+        StructInit Point
+          Type Int
+          Local x
+          Type Int
+          Local y
   str @scoop.str.0 \"x\"
   entry @scoop_main
 ";

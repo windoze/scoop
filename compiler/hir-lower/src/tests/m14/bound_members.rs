@@ -153,7 +153,7 @@ fn bound_member_inherits_through_exact_parent_application() {
     let Decl::Interface(child_decl) = &mut child else {
         unreachable!()
     };
-    child_decl.parents = vec![ty_named("Parent")];
+    child_decl.supertypes = vec![bare_supertype(ty_named("Parent"))];
     let implementation = struct_decl_full(
         "Implementation",
         Vec::new(),
@@ -279,12 +279,12 @@ fn interface_inheritance_cycle_is_rejected_at_hir() {
     let Decl::Interface(left_decl) = &mut left else {
         unreachable!()
     };
-    left_decl.parents = vec![ty_named("Right")];
+    left_decl.supertypes = vec![bare_supertype(ty_named("Right"))];
     let mut right = interface_decl("Right", Vec::new());
     let Decl::Interface(right_decl) = &mut right else {
         unreachable!()
     };
-    right_decl.parents = vec![ty_named("Left")];
+    right_decl.supertypes = vec![bare_supertype(ty_named("Left"))];
     let errors = lower_user(file(vec![left, right, fun("main", Vec::new())]))
         .expect_err("interface inheritance cycles must be diagnosed");
     assert!(errors.iter().any(|error| {

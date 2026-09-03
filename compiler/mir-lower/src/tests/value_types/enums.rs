@@ -259,20 +259,23 @@ Module
           Local $opt.1
       goto bb3
     bb2 if.else.2
-      call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call @scoop.init.UnwrapException.$c0 direct
+        Type UnwrapException
+        Local $new.1
       throw
         Type UnwrapException
-        Local $call.1
+        Local $new.1
     bb3 if.merge.3
       val y: Int
         Type Int
         Local $uw.2
       return
-  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+  fun init.UnwrapException.$c0 @scoop.init.UnwrapException.$c0(this: UnwrapException) -> Unit
     bb0 entry
       return
-        Type UnwrapException
-        ClassInit UnwrapException
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);

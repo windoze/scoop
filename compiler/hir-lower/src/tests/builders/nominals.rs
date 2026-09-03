@@ -30,18 +30,36 @@ pub(crate) fn class_decl(
         type_params: Vec::new(),
         constructor: ctor
             .into_iter()
-            .map(|(mutable, name, ty)| ast::ConstructorProp {
-                mutable,
+            .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
+                property: if mutable {
+                    ast::PrimaryParameterProperty::Var
+                } else {
+                    ast::PrimaryParameterProperty::Val
+                },
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
-        base_class: base.map(|(name, args)| (ty_named(name), call_arguments(args))),
-        interfaces: interfaces.into_iter().map(ty_named).collect(),
+        supertypes: base
+            .into_iter()
+            .map(|(name, args)| ast::SupertypeSpec {
+                ty: ty_named(name),
+                constructor_arguments: Some(call_arguments(args)),
+                span: sp(),
+            })
+            .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
+                ty: ty_named(name),
+                constructor_arguments: None,
+                span: sp(),
+            }))
+            .collect(),
         where_clause: None,
-        methods,
+        members: methods
+            .into_iter()
+            .map(ast::ClassMember::Function)
+            .collect(),
         span: sp(),
     })
 }
@@ -52,7 +70,7 @@ pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
         annotations: vec![],
         name: ident(name),
         type_params: Vec::new(),
-        parents: Vec::new(),
+        supertypes: Vec::new(),
         where_clause: None,
         methods,
         span: sp(),
@@ -76,7 +94,7 @@ pub(crate) fn generic_interface_decl(
                 span: sp(),
             })
             .collect(),
-        parents: Vec::new(),
+        supertypes: Vec::new(),
         where_clause: None,
         methods,
         span: sp(),
@@ -241,9 +259,20 @@ pub(crate) fn generic_struct_decl_full(
                 span: sp(),
             })
             .collect(),
-        interfaces: interfaces.into_iter().map(ty_named).collect(),
+        supertypes: interfaces
+            .into_iter()
+            .map(|name| ast::SupertypeSpec {
+                ty: ty_named(name),
+                constructor_arguments: None,
+                span: sp(),
+            })
+            .collect(),
         where_clause: None,
-        methods,
+        members: methods
+            .into_iter()
+            .map(Box::new)
+            .map(ast::StructMember::Function)
+            .collect(),
         span: sp(),
     })
 }

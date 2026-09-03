@@ -12,8 +12,8 @@ impl Lowerer {
             let mir_id = self.class_map[&hir_id];
             let decl = &module.classes[hir_id];
             let (mut vtable, mut slots) = match decl.base_class() {
-                Some((base, _)) => {
-                    let base = self.class_map[base];
+                Some(base) => {
+                    let base = self.class_map[&base];
                     (
                         clone_slots(&self.classes[base].vtable),
                         self.method_slots[&base].clone(),

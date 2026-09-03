@@ -118,10 +118,15 @@ Module
         Type Boolean
         Local $logic.1
     bb4 if.then.4
-      call $call.2: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call @scoop.init.IndexOutOfBoundsException.$c0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $call.2
+        Local $new.2
     bb5 if.merge.5
       val x: Int
         Type Int
@@ -174,10 +179,15 @@ Module
         Type Boolean
         Local $logic.3
     bb9 if.then.9
-      call $call.4: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
+      assign $new.4
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call @scoop.init.IndexOutOfBoundsException.$c0 direct
+        Type IndexOutOfBoundsException
+        Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $call.4
+        Local $new.4
     bb10 if.merge.10
       array_set MutableArray$I
         Type MutableArray<Int>
@@ -187,11 +197,9 @@ Module
         Type Int
         IntLiteral 40
       return
-  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+  fun init.IndexOutOfBoundsException.$c0 @scoop.init.IndexOutOfBoundsException.$c0(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
-        Type IndexOutOfBoundsException
-        ClassInit IndexOutOfBoundsException
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);

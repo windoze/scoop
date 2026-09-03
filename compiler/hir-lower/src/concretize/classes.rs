@@ -15,10 +15,10 @@ impl Concretizer<'_> {
         assert_eq!(source.type_params.len(), arguments.len());
         let representation = match (&source.representation, application) {
             (
-                export::ClassRepresentation::Declared(_),
+                export::ClassRepresentation::Declared,
                 ConcreteApplicationRepresentation::Declared,
             ) => concrete::ClassRepresentation::Declared {
-                constructor: Vec::new(),
+                fields: Vec::new(),
                 base_class: None,
             },
             (
@@ -61,40 +61,30 @@ impl Concretizer<'_> {
         };
         self.class_type.insert(id, ty);
 
-        // Reserve the hidden callable identity before lowering constructor
-        // expressions. A base-delegation expression may recursively mention
-        // this already-interned class, and must still see the same target.
-        let constructor_id = if source.modifier != export::ClassModifier::Abstract
-            && matches!(
-                &source.representation,
-                export::ClassRepresentation::Declared(_)
-            ) {
-            let raw = self.class_constructor_slots.len() as u32;
-            self.class_constructor_slots.push(None);
-            let constructor = concrete::ClassConstructorId::from_raw(raw.into());
-            assert!(
-                self.class_constructor_by_class
-                    .insert(id, constructor)
-                    .is_none()
-            );
-            Some(constructor)
-        } else {
-            None
-        };
+        // Reserve every initializer before lowering any body. `this` cycles
+        // have already been rejected in Export HIR, while recursive type
+        // references can still encounter these identities during lowering.
+        if matches!(source.representation, export::ClassRepresentation::Declared) {
+            for &constructor in &source.constructors {
+                let raw = self.class_constructor_slots.len() as u32;
+                self.class_constructor_slots.push(None);
+                let concrete = concrete::ClassConstructorId::from_raw(raw.into());
+                assert!(
+                    self.class_constructor_by_key
+                        .insert((constructor, id), concrete)
+                        .is_none()
+                );
+            }
+        }
 
-        let constructor: Vec<concrete::ConstructorField> = source
-            .semantic_constructor()
+        let fields: Vec<concrete::Field> = source
+            .fields
             .iter()
-            .map(|field| concrete::ConstructorField {
-                parameter: concrete::ConstructorParamId::from_raw(field.parameter.into_raw()),
+            .map(|field| &self.source.class_fields[*field])
+            .map(|field| concrete::Field {
                 name: field.name.clone(),
                 ty: self.lower_type(field.ty, &arguments),
-                mutable: field.mutable,
             })
-            .collect();
-        let constructor_params = constructor
-            .iter()
-            .map(|field: &concrete::ConstructorField| field.ty)
             .collect();
         let methods =
             self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
@@ -104,55 +94,337 @@ impl Concretizer<'_> {
             .iter()
             .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
-        let base_class = source.base_class.map(|(base, delegation)| {
+        let base_class = source.base_class.map(|base| {
             let base = self.lower_type(base, &arguments);
             let concrete::TypeKind::Class(base) = self.types[base].kind else {
                 unreachable!("class bases concretize to class identities")
             };
-            let (locals, local_map) = self.lower_locals(&delegation.locals, &arguments);
-            let statements = self.lower_statements(&delegation.statements, &arguments, &local_map);
-            let args = delegation
-                .args
-                .iter()
-                .map(|argument| self.lower_expr(argument, &arguments, &local_map))
-                .collect();
-            (
-                base,
-                concrete::ConstructorDelegation {
-                    locals,
-                    statements,
-                    args,
-                },
-            )
+            base
         });
         self.classes[id].interfaces = interfaces;
         self.classes[id].interface_implementations = interface_implementations;
         match &mut self.classes[id].representation {
             concrete::ClassRepresentation::Declared {
-                constructor: concrete_constructor,
+                fields: concrete_fields,
                 base_class: concrete_base,
             } => {
-                *concrete_constructor = constructor;
+                *concrete_fields = fields;
                 *concrete_base = base_class;
             }
             concrete::ClassRepresentation::Intrinsic { .. } => {
-                debug_assert!(constructor.is_empty() && base_class.is_none());
+                debug_assert!(fields.is_empty() && base_class.is_none());
             }
         }
         self.classes[id].methods = methods;
-        if let Some(constructor_id) = constructor_id {
-            let slot = constructor_id.into_raw().into_u32() as usize;
+        for &constructor in &source.constructors {
+            let concrete = self.lower_class_constructor(constructor, id, &arguments);
+            let target = self.class_constructor_by_key[&(constructor, id)];
+            let slot = target.into_raw().into_u32() as usize;
             assert!(
                 self.class_constructor_slots[slot]
-                    .replace(concrete::ClassConstructor {
-                        class: id,
-                        params: constructor_params,
-                        return_type: ty,
-                    })
+                    .replace(concrete)
                     .is_none()
             );
         }
         id
+    }
+
+    fn lower_class_constructor(
+        &mut self,
+        source_id: export::ClassConstructorId,
+        class: concrete::ClassId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::ClassConstructor {
+        let source = self.source.class_constructors[source_id].clone();
+        let parameters = source
+            .parameters
+            .iter()
+            .map(|parameter| concrete::ConstructorParameter {
+                id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
+                name: parameter.name.clone(),
+                ty: self.lower_type(parameter.ty, substitution),
+            })
+            .collect::<Vec<_>>();
+        let mut body = concrete::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        };
+        let class_ty = self.class_type[&class];
+        let kind = match &source.kind {
+            export::ClassConstructorKind::Primary {
+                base,
+                primary_stores,
+                common_initialization,
+            } => {
+                self.append_base_initialization(
+                    &mut body,
+                    base,
+                    substitution,
+                    source.span,
+                    source.origin,
+                );
+                for store in primary_stores {
+                    let field = self.source.class_fields[store.field].clone();
+                    let application = self.source.classes[field.owner].self_application;
+                    let receiver_ty = self.lower_type(
+                        self.source.class_applications[application].canonical_type,
+                        substitution,
+                    );
+                    let receiver =
+                        self.constructor_receiver(receiver_ty, store.span, source.origin);
+                    let value_ty = self.lower_type(field.ty, substitution);
+                    let value = concrete::Expr {
+                        kind: concrete::ExprKind::ConstructorParam(
+                            concrete::ConstructorParamId::from_raw(store.parameter.into_raw()),
+                        ),
+                        ty: value_ty,
+                        span: store.span,
+                        origin: export::ExpressionOrigin::Definition(source.origin).concrete(),
+                    };
+                    body.statements.push(concrete::Statement {
+                        kind: concrete::StatementKind::Assign {
+                            target: concrete::AssignTarget::Field {
+                                receiver: Box::new(receiver),
+                                field: concrete::FieldRef::ClassField {
+                                    class_id: self
+                                        .lower_class_application(application, substitution),
+                                    index: self.source_class_field_layout_index(store.field),
+                                },
+                            },
+                            value,
+                        },
+                        span: store.span,
+                    });
+                }
+                self.append_common_initialization(
+                    &mut body,
+                    common_initialization,
+                    substitution,
+                    source.origin,
+                );
+                concrete::ClassConstructorKind::Terminal { body }
+            }
+            export::ClassConstructorKind::Secondary {
+                delegation,
+                body: secondary_body,
+            } => match delegation {
+                export::ClassSecondaryDelegation::This { target, arguments } => {
+                    let target_id = self.lower_class_constructor_application(*target, substitution);
+                    let args =
+                        self.append_constructor_arguments(&mut body, arguments, substitution);
+                    let receiver = self.constructor_receiver(class_ty, source.span, source.origin);
+                    body.statements.push(concrete::Statement {
+                        kind: concrete::StatementKind::Expr(concrete::Expr {
+                            kind: concrete::ExprKind::ClassInitializerCall {
+                                receiver: Box::new(receiver),
+                                initializer: target_id,
+                                args,
+                            },
+                            ty: self.lower_type(self.source.unit, &[]),
+                            span: source.span,
+                            origin: export::ExpressionOrigin::Definition(source.origin).concrete(),
+                        }),
+                        span: source.span,
+                    });
+                    self.append_source_body(&mut body, secondary_body, substitution);
+                    concrete::ClassConstructorKind::This {
+                        target: target_id,
+                        body,
+                    }
+                }
+                export::ClassSecondaryDelegation::Terminal {
+                    base,
+                    common_initialization,
+                } => {
+                    self.append_base_initialization(
+                        &mut body,
+                        base,
+                        substitution,
+                        source.span,
+                        source.origin,
+                    );
+                    self.append_common_initialization(
+                        &mut body,
+                        common_initialization,
+                        substitution,
+                        source.origin,
+                    );
+                    self.append_source_body(&mut body, secondary_body, substitution);
+                    concrete::ClassConstructorKind::Terminal { body }
+                }
+            },
+        };
+        concrete::ClassConstructor {
+            class,
+            source_discriminator: source_id.into_raw().into_u32(),
+            parameters,
+            kind,
+        }
+    }
+
+    pub(super) fn lower_class_constructor_application(
+        &mut self,
+        source: export::ClassConstructorApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::ClassConstructorId {
+        let application = &self.source.class_constructor_applications[source];
+        let class = self.lower_class_application(application.owner, substitution);
+        self.class_constructor_by_key[&(application.constructor, class)]
+    }
+
+    fn append_base_initialization(
+        &mut self,
+        body: &mut concrete::Body,
+        base: &export::BaseInitialization,
+        substitution: &[concrete::TypeId],
+        span: scoop_ast::Span,
+        origin: export::DefinitionOrigin,
+    ) {
+        let export::BaseInitialization::Super { target, arguments } = base else {
+            return;
+        };
+        let target = self.lower_class_constructor_application(*target, substitution);
+        let args = self.append_constructor_arguments(body, arguments, substitution);
+        let target_class = self.class_constructors_slot(target).class;
+        let target_ty = self.class_type[&target_class];
+        let receiver = self.constructor_receiver(target_ty, span, origin);
+        body.statements.push(concrete::Statement {
+            kind: concrete::StatementKind::Expr(concrete::Expr {
+                kind: concrete::ExprKind::ClassInitializerCall {
+                    receiver: Box::new(receiver),
+                    initializer: target,
+                    args,
+                },
+                ty: self.lower_type(self.source.unit, &[]),
+                span,
+                origin: export::ExpressionOrigin::Definition(origin).concrete(),
+            }),
+            span,
+        });
+    }
+
+    fn class_constructors_slot(
+        &self,
+        constructor: concrete::ClassConstructorId,
+    ) -> &concrete::ClassConstructor {
+        self.class_constructor_slots[constructor.into_raw().into_u32() as usize]
+            .as_ref()
+            .expect("base class initializers are concretized before derived initializers")
+    }
+
+    fn append_common_initialization(
+        &mut self,
+        body: &mut concrete::Body,
+        common: &[export::ClassInitializationStep],
+        substitution: &[concrete::TypeId],
+        origin: export::DefinitionOrigin,
+    ) {
+        for step in common {
+            match step {
+                export::ClassInitializationStep::StoredProperty {
+                    field,
+                    initializer,
+                    span,
+                } => {
+                    let locals = self.append_source_locals(body, &initializer.locals, substitution);
+                    body.statements
+                        .extend(initializer.statements.iter().filter_map(|statement| {
+                            self.lower_statement(statement, substitution, &locals)
+                        }));
+                    let value = self.lower_expr(&initializer.value, substitution, &locals);
+                    let source_field = &self.source.class_fields[*field];
+                    let application = self.source.classes[source_field.owner].self_application;
+                    let class = self.lower_class_application(application, substitution);
+                    let receiver_ty = self.class_type[&class];
+                    let receiver = self.constructor_receiver(receiver_ty, *span, origin);
+                    body.statements.push(concrete::Statement {
+                        kind: concrete::StatementKind::Assign {
+                            target: concrete::AssignTarget::Field {
+                                receiver: Box::new(receiver),
+                                field: concrete::FieldRef::ClassField {
+                                    class_id: class,
+                                    index: self.source_class_field_layout_index(*field),
+                                },
+                            },
+                            value,
+                        },
+                        span: *span,
+                    });
+                }
+                export::ClassInitializationStep::InitBlock {
+                    body: source_body, ..
+                } => self.append_source_body(body, source_body, substitution),
+            }
+        }
+    }
+
+    pub(super) fn append_constructor_arguments(
+        &mut self,
+        body: &mut concrete::Body,
+        arguments: &export::ConstructorArguments,
+        substitution: &[concrete::TypeId],
+    ) -> Vec<concrete::Expr> {
+        let locals = self.append_source_locals(body, &arguments.locals, substitution);
+        body.statements.extend(
+            arguments
+                .statements
+                .iter()
+                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
+        );
+        arguments
+            .args
+            .iter()
+            .map(|argument| self.lower_expr(argument, substitution, &locals))
+            .collect()
+    }
+
+    pub(super) fn append_source_body(
+        &mut self,
+        body: &mut concrete::Body,
+        source: &export::Body,
+        substitution: &[concrete::TypeId],
+    ) {
+        let locals = self.append_source_locals(body, &source.locals, substitution);
+        body.statements.extend(
+            source
+                .statements
+                .iter()
+                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
+        );
+    }
+
+    pub(super) fn append_source_locals(
+        &mut self,
+        body: &mut concrete::Body,
+        source: &Arena<export::Local>,
+        substitution: &[concrete::TypeId],
+    ) -> Vec<concrete::LocalId> {
+        source
+            .iter()
+            .map(|(_, local)| {
+                let ty = self.lower_type(local.ty, substitution);
+                body.locals.alloc(concrete::Local {
+                    binding: concrete::BindingId::from_raw(local.binding.into_raw()),
+                    name: local.name.clone(),
+                    ty,
+                    mutable: local.mutable,
+                })
+            })
+            .collect()
+    }
+
+    fn constructor_receiver(
+        &self,
+        ty: concrete::TypeId,
+        span: scoop_ast::Span,
+        origin: export::DefinitionOrigin,
+    ) -> concrete::Expr {
+        concrete::Expr {
+            kind: concrete::ExprKind::ConstructorReceiver,
+            ty,
+            span,
+            origin: export::ExpressionOrigin::Definition(origin).concrete(),
+        }
     }
 
     pub(super) fn request_concrete_methods(

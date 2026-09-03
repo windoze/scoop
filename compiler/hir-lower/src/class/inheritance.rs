@@ -41,7 +41,7 @@ impl Lowerer {
     fn check_inheritance_cycle(&mut self, id: ClassId, decl: &ast::ClassDecl) {
         let mut seen = vec![id];
         let mut current = id;
-        while let Some((base_ty, _)) = self.classes[current].base_class {
+        while let Some(base_ty) = self.classes[current].base_class {
             let Type::Class(base_application) = self.types[base_ty] else {
                 unreachable!("resolved class bases are class applications")
             };
@@ -62,21 +62,22 @@ impl Lowerer {
     /// M6 simplification: a constructor property may not reuse the name
     /// of a base-class property (no field shadowing).
     fn check_property_shadowing(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some((base_ty, _)) = self.classes[id].base_class else {
+        let Some(base_ty) = self.classes[id].base_class else {
             return;
         };
         let Type::Class(base_application) = self.types[base_ty] else {
             unreachable!("resolved class bases are class applications")
         };
         let base = self.class_applications[base_application].template;
-        for prop in &decl.constructor {
-            if let Some((declaring, _, _, _)) = self.find_class_field(base, &prop.name.text) {
+        for &field in &self.classes[id].fields.clone() {
+            let field = self.class_fields[field].clone();
+            if let Some((declaring, _, _, _)) = self.find_class_field(base, &field.name) {
                 let base_name = self.classes[declaring].name.clone();
                 self.error(
-                    prop.name.span,
+                    field.span,
                     format!(
                         "property `{}` of class `{}` shadows a property of base class `{base_name}`",
-                        prop.name.text, decl.name.text
+                        field.name, decl.name.text
                     ),
                 );
             }

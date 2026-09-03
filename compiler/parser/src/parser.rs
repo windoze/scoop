@@ -5,7 +5,6 @@
 //! with any diagnostic does not produce an AST. Constructs that are
 //! lexically recognizable but outside the subset (`for`, `when`
 //! expressions, string interpolation, field assignment, ranges, slices,
-//! `super`, secondary constructors, `init` blocks, member properties,
 //! companion/`object` declarations, `sealed` classes, `try` expressions)
 //! get dedicated "not supported" diagnostics rather than generic syntax
 //! errors. Declaration parsing lives in `decl.rs`, type parsing in `ty.rs`,

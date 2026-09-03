@@ -132,10 +132,22 @@ pub enum ExprKind {
         struct_id: StructId,
         args: Vec<Expr>,
     },
-    ClassInit {
+    StructConstructorCall {
+        constructor: StructConstructorId,
+        args: Vec<Expr>,
+    },
+    ClassNew {
         constructor: ClassConstructorId,
         args: Vec<Expr>,
     },
+    ClassInitializerCall {
+        receiver: Box<Expr>,
+        initializer: ClassConstructorId,
+        args: Vec<Expr>,
+    },
+    /// Ordinary, fully initialized receiver value inside a checked concrete
+    /// constructor implementation. Source readiness capabilities are gone.
+    ConstructorReceiver,
     ConstructorParam(ConstructorParamId),
     VariantConstruct {
         enum_id: EnumId,
@@ -188,6 +200,11 @@ pub enum ExprKind {
         field: FieldRef,
     },
     MethodCall {
+        receiver: Box<Expr>,
+        callee: Callable,
+        args: Vec<Expr>,
+    },
+    DirectSuperMethodCall {
         receiver: Box<Expr>,
         callee: Callable,
         args: Vec<Expr>,

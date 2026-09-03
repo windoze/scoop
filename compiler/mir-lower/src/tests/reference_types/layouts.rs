@@ -27,6 +27,7 @@ fn class_fields_are_base_prefix_then_own() {
     );
     let derived_ty = h.class_ty(derived);
     let derived_application = h.class_application_of(derived_ty);
+    let b_field = h.classes[derived].fields[0];
     let mut locals = Arena::new();
     let d = locals.alloc(local("d", derived_ty));
     let b = locals.alloc(local("b", string));
@@ -41,7 +42,7 @@ fn class_fields_are_base_prefix_then_own() {
                         receiver: Box::new(local_ref(d, derived_ty)),
                         field: hir::FieldRef::ClassField {
                             application: derived_application,
-                            index: 1,
+                            field: b_field,
                         },
                     },
                     string,
