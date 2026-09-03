@@ -81,10 +81,18 @@ mod type_checks;
 use analysis::*;
 use support::*;
 
-struct InferredArguments {
-    args: Vec<Option<hir::Expr>>,
-    bindings: Vec<Option<TypeId>>,
-    sinks: Vec<Vec<hir::Statement>>,
+struct NominalArguments {
+    args: Vec<hir::Expr>,
+    type_args: Vec<TypeId>,
+}
+
+struct NominalArgumentInput<'a> {
+    view: &'a crate::call_resolution::candidates::NominalConstructorView,
+    argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
+    expressions: &'a [ast::Expr],
+    explicit_type_args: &'a [TypeId],
+    expected_type_args: Option<&'a [TypeId]>,
+    span: Span,
 }
 
 #[derive(Clone, Copy)]
@@ -106,17 +114,6 @@ struct ResolvedReference {
     source: crate::CallableCandidateSource,
     type_args: Vec<TypeId>,
     ty: TypeId,
-}
-
-impl InferredArguments {
-    fn finish(self, sink: &mut Vec<hir::Statement>) -> Vec<hir::Expr> {
-        let mut args = Vec::with_capacity(self.args.len());
-        for (arg, mut arg_sink) in self.args.into_iter().zip(self.sinks) {
-            sink.append(&mut arg_sink);
-            args.push(arg.expect("complete type bindings type every deferred argument"));
-        }
-        args
-    }
 }
 
 impl Lowerer {

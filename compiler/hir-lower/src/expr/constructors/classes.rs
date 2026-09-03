@@ -59,15 +59,15 @@ impl Lowerer {
             );
             return None;
         }
-        let type_params = self.classes[class_id].type_params.clone();
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        if type_params.is_empty() && !explicit_type_args.is_empty() {
+        let type_param_count = self.classes[class_id].type_params.len();
+        if type_param_count == 0 && !explicit_type_args.is_empty() {
             self.error(span, format!("class `{name}` is not generic"));
             return None;
         }
-        let mut bindings = vec![None; type_params.len()];
+        let mut explicit_shape = vec![None; type_param_count];
         if !self.bind_explicit_type_args(
-            &mut bindings,
+            &mut explicit_shape,
             0,
             &explicit_type_args,
             span,
@@ -75,43 +75,34 @@ impl Lowerer {
         ) {
             return None;
         }
-        if let Some(expected) = expected
-            && let Type::Class(application) = self.types[expected]
-            && self.class_applications[application].template == class_id
-            && self.class_applications[application].arguments.len() == type_params.len()
-        {
-            let expected_args = self.class_applications[application].arguments.clone();
-            for (binding, argument) in bindings.iter_mut().zip(expected_args) {
-                if binding.is_none() {
-                    *binding = Some(argument);
-                }
-            }
-        }
-        let property_types = props.iter().map(|(_, ty)| *ty).collect::<Vec<_>>();
-        let inferred = self.lower_inference_args(args, &property_types, bindings, &type_params)?;
-        let mut type_args = Vec::with_capacity(type_params.len());
-        for (binding, parameter) in inferred.bindings.iter().copied().zip(&type_params) {
-            let Some(argument) = binding else {
-                self.error(
-                    span,
-                    format!(
-                        "cannot infer type argument `{}` for class `{name}`",
-                        parameter.name
-                    ),
-                );
+        let expected_arguments = expected.and_then(|expected| {
+            let Type::Class(application) = self.types[expected] else {
                 return None;
             };
-            type_args.push(argument);
-        }
-        if !self.check_type_argument_kinds(
-            &type_params,
-            &type_args,
-            span,
-            &format!("class `{name}`"),
-        ) {
-            return None;
-        }
-        let lowered = inferred.finish(sink);
+            let application = &self.class_applications[application];
+            (application.template == class_id && application.arguments.len() == type_param_count)
+                .then(|| application.arguments.clone())
+        });
+        let view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Class(class_id),
+        );
+        let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
+            args.len(),
+            crate::call_resolution::arguments::ReceiverInput::Absent,
+        );
+        let inferred = self.lower_nominal_arguments(
+            NominalArgumentInput {
+                view: &view,
+                argument_map: &argument_map,
+                expressions: args,
+                explicit_type_args: &explicit_type_args,
+                expected_type_args: expected_arguments.as_deref(),
+                span,
+            },
+            sink,
+        )?;
+        let type_args = inferred.type_args;
+        let lowered = inferred.args;
         let mut adapted = Vec::with_capacity(lowered.len());
         for ((prop_name, prop_ty), arg) in props.iter().zip(lowered) {
             let prop_ty = self.instantiate_ty(*prop_ty, &type_args);

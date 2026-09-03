@@ -116,6 +116,108 @@ fn generic_class_constructor_requires_complete_unique_arguments_and_bounds() {
 }
 
 #[test]
+fn nominal_constructors_infer_the_unique_common_supertype() {
+    let base = class_decl(
+        ast::ClassModifier::Open,
+        "Base",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+    );
+    let left = class_decl(
+        ast::ClassModifier::Final,
+        "Left",
+        Vec::new(),
+        Some(("Base", Vec::new())),
+        Vec::new(),
+        Vec::new(),
+    );
+    let right = class_decl(
+        ast::ClassModifier::Final,
+        "Right",
+        Vec::new(),
+        Some(("Base", Vec::new())),
+        Vec::new(),
+        Vec::new(),
+    );
+    let pair_class = generic_class(
+        "PairClass",
+        vec![type_param("T")],
+        vec![
+            (false, "left", ty_named("T")),
+            (false, "right", ty_named("T")),
+        ],
+        Vec::new(),
+    );
+    let pair_struct = generic_struct_decl(
+        "PairStruct",
+        vec!["T"],
+        vec![("left", ty_named("T")), ("right", ty_named("T"))],
+    );
+    let pair_enum = enum_decl(
+        "PairEnum",
+        vec!["T"],
+        vec![variant_positional(
+            "Both",
+            vec![ty_named("T"), ty_named("T")],
+        )],
+    );
+    let output = lower_user(file(vec![
+        base,
+        left,
+        right,
+        pair_class,
+        pair_struct,
+        pair_enum,
+        fun(
+            "main",
+            vec![
+                val(
+                    "classPair",
+                    call(
+                        "PairClass",
+                        vec![call("Left", Vec::new()), call("Right", Vec::new())],
+                    ),
+                ),
+                val(
+                    "structPair",
+                    struct_init(
+                        "PairStruct",
+                        vec![call("Left", Vec::new()), call("Right", Vec::new())],
+                    ),
+                ),
+                val(
+                    "enumPair",
+                    method_call(
+                        var("PairEnum"),
+                        "Both",
+                        vec![call("Left", Vec::new()), call("Right", Vec::new())],
+                    ),
+                ),
+            ],
+        ),
+    ]))
+    .expect("all nominal constructors must use subtype constraints");
+
+    let hir::FunctionKind::User(main) = &output.functions[output.entry].kind else {
+        panic!("main is a user function")
+    };
+    let local_type = |name: &str| {
+        let local = main
+            .locals
+            .iter()
+            .map(|(_, local)| local)
+            .find(|local| local.name == name)
+            .unwrap_or_else(|| panic!("missing local `{name}`"));
+        hir::type_name(&output, local.ty)
+    };
+    assert_eq!(local_type("classPair"), "PairClass<Base>");
+    assert_eq!(local_type("structPair"), "PairStruct<Base>");
+    assert_eq!(local_type("enumPair"), "PairEnum<Base>");
+}
+
+#[test]
 fn generic_class_base_application_and_delegation_keep_typed_sources() {
     let mut base = generic_class(
         "Base",

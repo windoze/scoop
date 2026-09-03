@@ -2,74 +2,266 @@
 
 use super::*;
 
+use crate::call_resolution::applicability::NominalApplicabilityInput;
+use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
+use crate::call_resolution::constraints::{
+    ConstraintFailure, ConstraintFailureKind, ConstraintOrigin,
+};
+
 impl Lowerer {
-    /// Lower generic-call/constructor arguments to a fixed point. An
-    /// expression that intrinsically needs an expected type is postponed
-    /// while its parameter still contains an unbound type variable; other
-    /// arguments can then add bindings independently of their source order.
-    pub(super) fn lower_inference_args(
+    pub(super) fn lower_nominal_arguments(
         &mut self,
-        arg_exprs: &[ast::Expr],
-        param_tys: &[TypeId],
-        mut bindings: Vec<Option<TypeId>>,
-        type_params: &[hir::TypeParamDecl],
-    ) -> Option<InferredArguments> {
-        let mut args: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
-        let mut sinks: Vec<Vec<hir::Statement>> =
-            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
-        loop {
-            let mut progress = false;
-            for index in 0..arg_exprs.len() {
-                if args[index].is_some() {
-                    continue;
-                }
-                let hint = self.try_substitute(param_tys[index], &bindings);
-                if hint.is_none() && self.expr_requires_expected_type(&arg_exprs[index]) {
-                    continue;
-                }
-                let arg = self.lower_expr(&arg_exprs[index], &mut sinks[index], hint)?;
-                if !self.bind_type_args(
-                    param_tys[index],
-                    arg.ty,
-                    &mut bindings,
-                    type_params,
-                    arg.span,
-                ) {
-                    return None;
-                }
-                args[index] = Some(arg);
-                progress = true;
+        input: NominalArgumentInput<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<NominalArguments> {
+        let NominalArgumentInput {
+            view,
+            argument_map,
+            expressions: arg_exprs,
+            explicit_type_args: explicit_arguments,
+            expected_type_args: expected_arguments,
+            span,
+        } = input;
+        debug_assert_eq!(argument_map.parameters.len(), arg_exprs.len());
+        let mut seed = vec![None; view.owner_parameters.len()];
+        if !explicit_arguments.is_empty() {
+            for (binding, &argument) in seed.iter_mut().zip(explicit_arguments) {
+                *binding = Some(argument);
             }
-            if args.iter().all(Option::is_some) {
-                break;
-            }
-            if !progress {
-                // No later constraint could type the first deferred
-                // expression. Lower it without a hint to retain the
-                // focused diagnostic (`cannot infer the type of None`,
-                // empty-array element type, and so on).
-                let index = args
-                    .iter()
-                    .position(Option::is_none)
-                    .expect("an unresolved argument remains");
-                let arg = self.lower_expr(&arg_exprs[index], &mut sinks[index], None)?;
-                if !self.bind_type_args(
-                    param_tys[index],
-                    arg.ty,
-                    &mut bindings,
-                    type_params,
-                    arg.span,
-                ) {
-                    return None;
-                }
-                args[index] = Some(arg);
+        } else if let Some(expected_arguments) = expected_arguments {
+            for (binding, &argument) in seed.iter_mut().zip(expected_arguments) {
+                *binding = Some(argument);
             }
         }
-        Some(InferredArguments {
-            args,
-            bindings,
-            sinks,
-        })
+
+        let mut lowered = vec![None; arg_exprs.len()];
+        let mut sinks: Vec<Vec<hir::Statement>> =
+            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
+        for input in &argument_map.parameters {
+            let source_index = input.input.index();
+            let parameter = view.value_parameters[input.parameter.index()].ty;
+            let hint = self.try_substitute(parameter, &seed);
+            if hint.is_none() && self.expr_requires_expected_type(&arg_exprs[source_index]) {
+                continue;
+            }
+            lowered[source_index] =
+                Some(self.lower_expr(&arg_exprs[source_index], &mut sinks[source_index], hint)?);
+        }
+
+        let mut type_args = loop {
+            let argument_types = lowered
+                .iter()
+                .map(|argument| argument.as_ref().map(|argument| argument.ty))
+                .collect::<Vec<_>>();
+            match self.solve_nominal_applicability(NominalApplicabilityInput {
+                view,
+                argument_map,
+                explicit_arguments,
+                expected_arguments,
+                argument_types: &argument_types,
+            }) {
+                Ok(arguments) => break arguments,
+                Err(failure)
+                    if matches!(failure.kind, ConstraintFailureKind::NoUniqueSolution { .. })
+                        && lowered.iter().any(Option::is_none) =>
+                {
+                    // No other relation can type the first postponed input.
+                    // Lower it without a hint to preserve its focused source
+                    // diagnostic (`None`, `[]`, or an untyped callable).
+                    let source_index = lowered
+                        .iter()
+                        .position(Option::is_none)
+                        .expect("a postponed nominal argument remains");
+                    lowered[source_index] = Some(self.lower_expr(
+                        &arg_exprs[source_index],
+                        &mut sinks[source_index],
+                        None,
+                    )?);
+                }
+                Err(failure) => {
+                    self.diagnose_nominal_failure(view, &lowered, failure, span);
+                    return None;
+                }
+            }
+        };
+
+        for input in &argument_map.parameters {
+            let source_index = input.input.index();
+            if lowered[source_index].is_some() {
+                continue;
+            }
+            let parameter = view.value_parameters[input.parameter.index()].ty;
+            let expected = self.instantiate_ty(parameter, &type_args);
+            lowered[source_index] = Some(self.lower_expr(
+                &arg_exprs[source_index],
+                &mut sinks[source_index],
+                Some(expected),
+            )?);
+        }
+
+        let argument_types = lowered
+            .iter()
+            .map(|argument| argument.as_ref().map(|argument| argument.ty))
+            .collect::<Vec<_>>();
+        type_args = match self.solve_nominal_applicability(NominalApplicabilityInput {
+            view,
+            argument_map,
+            explicit_arguments,
+            expected_arguments,
+            argument_types: &argument_types,
+        }) {
+            Ok(arguments) => arguments,
+            Err(failure) => {
+                self.diagnose_nominal_failure(view, &lowered, failure, span);
+                return None;
+            }
+        };
+
+        let mut args = Vec::with_capacity(lowered.len());
+        for (argument, mut argument_sink) in lowered.into_iter().zip(sinks) {
+            sink.append(&mut argument_sink);
+            args.push(argument.expect("the solved nominal types every postponed argument"));
+        }
+        Some(NominalArguments { args, type_args })
+    }
+
+    fn diagnose_nominal_failure(
+        &mut self,
+        view: &NominalConstructorView,
+        arguments: &[Option<hir::Expr>],
+        failure: ConstraintFailure,
+        span: Span,
+    ) {
+        let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
+            &view.owner_parameters[variable.group_index()]
+        };
+        match failure.kind {
+            ConstraintFailureKind::Kind {
+                variable,
+                solution,
+                required,
+            } => {
+                let parameter = parameter(variable);
+                let required = match required {
+                    hir::TypeParamKind::Any => return,
+                    hir::TypeParamKind::Value => "value",
+                    hir::TypeParamKind::Ref => "ref",
+                };
+                let found = self.type_name(solution);
+                self.error(
+                    span,
+                    format!(
+                        "type argument `{found}` for `{}` of {} must satisfy `{required}`",
+                        parameter.name,
+                        self.nominal_bound_target(view.target),
+                    ),
+                );
+            }
+            ConstraintFailureKind::InterfaceBound {
+                variable,
+                solution,
+                required,
+            } => {
+                let parameter = parameter(variable);
+                let found = self.type_name(solution);
+                let required = self.type_name(required);
+                self.error(
+                    span,
+                    format!(
+                        "type argument `{found}` for `{}` of {} must satisfy interface upper bound `{required}`",
+                        parameter.name,
+                        self.nominal_bound_target(view.target),
+                    ),
+                );
+            }
+            ConstraintFailureKind::Relation { .. }
+                if matches!(failure.origin, ConstraintOrigin::Argument(_)) =>
+            {
+                let ConstraintOrigin::Argument(input) = failure.origin else {
+                    unreachable!()
+                };
+                let index = input.index();
+                let argument = arguments[index]
+                    .as_ref()
+                    .expect("a relation failure has a typed source argument");
+                let field = &view.value_parameters[index];
+                let expected = self.type_name(field.ty);
+                let found = self.type_name(argument.ty);
+                self.error(
+                    argument.span,
+                    format!(
+                        "argument for field `{}` of `{}` must be of type {expected}, found {found}",
+                        field.name,
+                        self.nominal_value_name(view.target),
+                    ),
+                );
+            }
+            ConstraintFailureKind::NoUniqueSolution { variable, .. }
+            | ConstraintFailureKind::ConflictingExactBounds { variable, .. }
+            | ConstraintFailureKind::UnresolvedTerm(
+                crate::call_resolution::constraints::TypeTerm::Variable(variable),
+            ) => {
+                let parameter = parameter(variable);
+                self.error(
+                    span,
+                    format!(
+                        "cannot infer type argument `{}` for {}",
+                        parameter.name,
+                        self.nominal_inference_target(view.target),
+                    ),
+                );
+            }
+            _ => self.error(
+                span,
+                format!(
+                    "constructor constraints for {} are not satisfied",
+                    self.nominal_inference_target(view.target)
+                ),
+            ),
+        }
+    }
+
+    fn nominal_bound_target(&self, target: NominalConstructorSource) -> String {
+        match target {
+            NominalConstructorSource::Struct(structure) => {
+                format!("struct `{}`", self.structs[structure].name)
+            }
+            NominalConstructorSource::Class(class) => {
+                format!("class `{}`", self.classes[class].name)
+            }
+            NominalConstructorSource::Variant { enumeration, .. } => {
+                format!("enum `{}`", self.enums[enumeration].name)
+            }
+        }
+    }
+
+    fn nominal_inference_target(&self, target: NominalConstructorSource) -> String {
+        match target {
+            NominalConstructorSource::Variant {
+                enumeration,
+                variant,
+            } => format!(
+                "`{}.{}`",
+                self.enums[enumeration].name,
+                self.enums[enumeration].variants[variant as usize].name,
+            ),
+            _ => self.nominal_bound_target(target),
+        }
+    }
+
+    fn nominal_value_name(&self, target: NominalConstructorSource) -> String {
+        match target {
+            NominalConstructorSource::Struct(structure) => self.structs[structure].name.clone(),
+            NominalConstructorSource::Class(class) => self.classes[class].name.clone(),
+            NominalConstructorSource::Variant {
+                enumeration,
+                variant,
+            } => format!(
+                "{}.{}",
+                self.enums[enumeration].name,
+                self.enums[enumeration].variants[variant as usize].name,
+            ),
+        }
     }
 
     /// Expressions whose type cannot be synthesized without context. Calls

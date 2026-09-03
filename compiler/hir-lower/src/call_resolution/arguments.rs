@@ -67,6 +67,19 @@ impl CandidateArgumentMap {
         if expected != supplied {
             return Err(ArityMismatch { expected, supplied });
         }
+        Ok(Self::positional(
+            expected,
+            match view.receiver {
+                ReceiverShape::None | ReceiverShape::Instance => ReceiverInput::Absent,
+                ReceiverShape::Extension(_) => ReceiverInput::Present,
+            },
+        ))
+    }
+
+    /// Build the positional prefix selected by a constructor after its own
+    /// required/default arity rules have accepted the source call.
+    pub(crate) fn positional(parameter_count: usize, receiver: ReceiverInput) -> Self {
+        let supplied = parameter_count;
         let source_order = (0..supplied).map(SourceInputId::from_index).collect();
         let parameters = (0..supplied)
             .map(|index| ParameterInput {
@@ -74,14 +87,11 @@ impl CandidateArgumentMap {
                 input: SourceInputId::from_index(index),
             })
             .collect();
-        Ok(Self {
-            receiver: match view.receiver {
-                ReceiverShape::None | ReceiverShape::Instance => ReceiverInput::Absent,
-                ReceiverShape::Extension(_) => ReceiverInput::Present,
-            },
+        Self {
+            receiver,
             parameters,
             source_order,
-        })
+        }
     }
 }
 

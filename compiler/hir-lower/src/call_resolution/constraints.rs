@@ -54,6 +54,13 @@ impl InferenceVariableId {
             Self::Callable(variable) => variable.session,
         }
     }
+
+    pub(crate) const fn group_index(self) -> usize {
+        match self {
+            Self::Owner(variable) => variable.index as usize,
+            Self::Callable(variable) => variable.index as usize,
+        }
+    }
 }
 
 impl From<OwnerInferenceVariableId> for InferenceVariableId {

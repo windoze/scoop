@@ -28,7 +28,6 @@ impl Lowerer {
             );
             return None;
         }
-        let type_params = self.structs[struct_id].type_params.clone();
         let fields: Vec<(String, TypeId)> = self.structs[struct_id]
             .semantic_fields()
             .iter()
@@ -51,9 +50,10 @@ impl Lowerer {
             return None;
         }
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let mut bindings = vec![None; type_params.len()];
+        let type_param_count = self.structs[struct_id].type_params.len();
+        let mut explicit_shape = vec![None; type_param_count];
         if !self.bind_explicit_type_args(
-            &mut bindings,
+            &mut explicit_shape,
             0,
             &explicit_type_args,
             span,
@@ -61,49 +61,34 @@ impl Lowerer {
         ) {
             return None;
         }
-        if let Some(expected) = expected {
-            if let Type::Struct(application) = self.types[expected] {
-                let application = self.struct_applications[application].clone();
-                if application.template == struct_id
-                    && application.arguments.len() == type_params.len()
-                {
-                    for (binding, arg) in bindings.iter_mut().zip(application.arguments) {
-                        if binding.is_none() {
-                            *binding = Some(arg);
-                        }
-                    }
-                }
-            }
-        }
-
-        let field_tys: Vec<TypeId> = fields.iter().map(|(_, ty)| *ty).collect();
-        let inferred = self.lower_inference_args(args, &field_tys, bindings, &type_params)?;
-
-        let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param) in inferred.bindings.iter().copied().zip(&type_params) {
-            match binding {
-                Some(ty) => type_args.push(ty),
-                None => {
-                    self.error(
-                        span,
-                        format!(
-                            "cannot infer type argument `{}` for struct `{name}`",
-                            param.name
-                        ),
-                    );
-                    return None;
-                }
-            }
-        }
-        if !self.check_type_argument_kinds(
-            &type_params,
-            &type_args,
-            span,
-            &format!("struct `{name}`"),
-        ) {
-            return None;
-        }
-        let lowered = inferred.finish(sink);
+        let expected_arguments = expected.and_then(|expected| {
+            let Type::Struct(application) = self.types[expected] else {
+                return None;
+            };
+            let application = &self.struct_applications[application];
+            (application.template == struct_id && application.arguments.len() == type_param_count)
+                .then(|| application.arguments.clone())
+        });
+        let view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
+        );
+        let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
+            args.len(),
+            crate::call_resolution::arguments::ReceiverInput::Absent,
+        );
+        let inferred = self.lower_nominal_arguments(
+            NominalArgumentInput {
+                view: &view,
+                argument_map: &argument_map,
+                expressions: args,
+                explicit_type_args: &explicit_type_args,
+                expected_type_args: expected_arguments.as_deref(),
+                span,
+            },
+            sink,
+        )?;
+        let type_args = inferred.type_args;
+        let lowered = inferred.args;
 
         let mut adapted = Vec::with_capacity(lowered.len());
         for ((field_name, field_ty), arg) in fields.iter().zip(lowered) {

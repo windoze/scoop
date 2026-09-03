@@ -36,6 +36,28 @@ pub(crate) struct CallableEffects {
 
 pub(crate) type SourceDispatch = CallableCandidateSource;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NominalConstructorSource {
+    Struct(hir::StructId),
+    Class(hir::ClassId),
+    Variant {
+        enumeration: hir::EnumId,
+        variant: u32,
+    },
+}
+
+/// Constructor and variant declarations expose the same inference surface as
+/// callables, but own only host parameters and produce a complete nominal
+/// application instead of a callable return type.
+#[derive(Debug, Clone)]
+pub(crate) struct NominalConstructorView {
+    pub(crate) target: NominalConstructorSource,
+    pub(crate) owner_parameters: Vec<hir::TypeParamDecl>,
+    pub(crate) value_parameters: Vec<ValueParameter>,
+    pub(crate) result_type: hir::TypeId,
+    pub(crate) declaration_span: Span,
+}
+
 /// Complete declaration-side information consumed by call resolution. It is
 /// deliberately a view rather than a new global identity: the target keeps
 /// the existing kind-specific id, while all information needed by the solver
@@ -112,6 +134,71 @@ impl Lowerer {
             },
             dispatch: candidate.source,
             declaration_span: self.functions[function].span,
+        }
+    }
+
+    pub(crate) fn nominal_constructor_view(
+        &self,
+        target: NominalConstructorSource,
+    ) -> NominalConstructorView {
+        match target {
+            NominalConstructorSource::Struct(structure) => {
+                let declaration = &self.structs[structure];
+                NominalConstructorView {
+                    target,
+                    owner_parameters: declaration.type_params.clone(),
+                    value_parameters: declaration
+                        .semantic_fields()
+                        .iter()
+                        .map(|field| ValueParameter {
+                            name: field.name.clone(),
+                            ty: field.ty,
+                        })
+                        .collect(),
+                    result_type: self.struct_applications[declaration.self_application]
+                        .canonical_type,
+                    declaration_span: declaration.span,
+                }
+            }
+            NominalConstructorSource::Class(class) => {
+                let declaration = &self.classes[class];
+                NominalConstructorView {
+                    target,
+                    owner_parameters: declaration.type_params.clone(),
+                    value_parameters: declaration
+                        .semantic_constructor()
+                        .iter()
+                        .map(|property| ValueParameter {
+                            name: property.name.clone(),
+                            ty: property.ty,
+                        })
+                        .collect(),
+                    result_type: self.class_applications[declaration.self_application]
+                        .canonical_type,
+                    declaration_span: declaration.span,
+                }
+            }
+            NominalConstructorSource::Variant {
+                enumeration,
+                variant,
+            } => {
+                let declaration = &self.enums[enumeration];
+                NominalConstructorView {
+                    target,
+                    owner_parameters: declaration.type_params.clone(),
+                    value_parameters: declaration.variants[variant as usize]
+                        .fields
+                        .iter()
+                        .map(|field| ValueParameter {
+                            name: field.name.clone(),
+                            ty: field.ty,
+                        })
+                        .collect(),
+                    result_type: self.enum_applications[declaration.self_application]
+                        .canonical_type,
+                    declaration_span: declaration.span,
+                }
+            }
         }
     }
 }
