@@ -117,33 +117,37 @@ impl Lowerer {
             (application.template == enum_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let inferred = self.lower_nominal_arguments(
-            NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: args,
-                explicit_type_args: &explicit_type_args,
-                expected_type_args: expected_arguments.as_deref(),
-                span,
-            },
-            sink,
-        )?;
+        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+            view: &view,
+            argument_map: &argument_map,
+            expressions: args,
+            explicit_type_args: &explicit_type_args,
+            expected_type_args: expected_arguments.as_deref(),
+            span,
+        })?;
         let type_args = inferred.type_args;
-        let lowered = if argument_map.is_identity_explicit() {
-            let mut lowered = Vec::with_capacity(inferred.args.len());
-            for (field, arg) in view.value_parameters.iter().zip(inferred.args) {
-                let expected = self.instantiate_ty(field.ty, &type_args);
-                debug_assert!(self.is_subtype(arg.ty, expected));
-                lowered.push(self.adapt_to(arg, expected));
-            }
-            lowered
+        let lowered = if argument_map.is_identity_explicit()
+            && inferred.argument_sinks.iter().all(Vec::is_empty)
+        {
+            view.value_parameters
+                .iter()
+                .zip(inferred.args)
+                .map(|(parameter, argument)| {
+                    let expected = self.instantiate_ty(parameter.ty, &type_args);
+                    debug_assert!(self.is_subtype(argument.ty, expected));
+                    self.adapt_to(argument, expected)
+                })
+                .collect()
         } else {
             self.materialize_nominal_arguments(
-                view.target,
-                &argument_map,
-                &type_args,
-                inferred.args,
-                span,
+                crate::argument_materialization::NominalArgumentMaterialization {
+                    view: &view,
+                    argument_map: &argument_map,
+                    type_args: &type_args,
+                    source_args: inferred.args,
+                    argument_sinks: inferred.argument_sinks,
+                    call_span: span,
+                },
                 sink,
             )
         };

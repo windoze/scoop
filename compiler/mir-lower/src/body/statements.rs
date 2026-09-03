@@ -1,7 +1,7 @@
 use super::*;
 
 impl BodyLowerer<'_> {
-    pub(super) fn lower_statements(
+    pub(crate) fn lower_statements(
         &mut self,
         statements: &[hir::Statement],
     ) -> Vec<smir::Statement> {

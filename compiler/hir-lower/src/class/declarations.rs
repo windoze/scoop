@@ -64,7 +64,14 @@ impl Lowerer {
                 );
             } else {
                 // Constructor arguments are lowered in pass 3.
-                self.classes[id].base_class = Some((base_ty, Vec::new()));
+                self.classes[id].base_class = Some((
+                    base_ty,
+                    hir::ConstructorDelegation {
+                        locals: la_arena::Arena::new(),
+                        statements: Vec::new(),
+                        args: Vec::new(),
+                    },
+                ));
             }
         }
 

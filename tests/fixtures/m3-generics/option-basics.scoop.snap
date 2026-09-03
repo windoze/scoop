@@ -350,82 +350,98 @@ Module
     else
       val local2
         IntLiteral 0 : Int
-    Call println<Int> : Unit
-      Local $res.1 : Int
     val local3
-      VariantConstruct Option.None<Int> : Option<Int>
+      Local $res.1 : Int
     val local4
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local5
+      VariantConstruct Option.None<Int> : Option<Int>
+    val local6
       Local b : Option<Int>
     if
       IsSome : Boolean
         Local $opt.2 : Option<Int>
-      val local5
+      val local7
         Unwrap trap=false : Int
           Local $opt.2 : Option<Int>
     else
-      val local5
+      val local7
         IntLiteral 99 : Int
-    Call println<Int> : Unit
+    val local8
       Local $res.3 : Int
-    val local6
+    val local9
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local10
       VariantConstruct Option.Some<Point> : Option<Point>
         StructInit Point : Point
           IntLiteral 10 : Int
           IntLiteral 20 : Int
-    val local7
+    val local11
       Local p : Option<Point>
     if
       IsSome : Boolean
         Local $opt.4 : Option<Point>
-      val local8
+      val local12
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.4 : Option<Point>
     else
-      val local8
+      val local12
         NoneLiteral : Option<Int>
-    val local9
+    val local13
       Local $res.5 : Option<Int>
     if
       IsSome : Boolean
         Local $opt.6 : Option<Int>
-      val local10
+      val local14
         Unwrap trap=false : Int
           Local $opt.6 : Option<Int>
     else
-      val local10
+      val local14
         IntLiteral 0 : Int
-    Call println<Int> : Unit
+    val local15
       Local $res.7 : Int
-    val local11
+    val local16
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local17
       VariantConstruct Option.None<Point> : Option<Point>
-    val local12
+    val local18
       Local q : Option<Point>
     if
       IsSome : Boolean
         Local $opt.8 : Option<Point>
-      val local13
+      val local19
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.8 : Option<Point>
     else
-      val local13
+      val local19
         NoneLiteral : Option<Int>
-    val local14
+    val local20
       Local $res.9 : Option<Int>
     if
       IsSome : Boolean
         Local $opt.10 : Option<Int>
-      val local15
+      val local21
         Unwrap trap=false : Int
           Local $opt.10 : Option<Int>
     else
-      val local15
+      val local21
         IntLiteral 0 : Int
-    Call println<Int> : Unit
+    val local22
       Local $res.11 : Int
+    val local23
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
     Call println<Int> : Unit
       Binary Add : Int
         Unwrap trap=true : Int
@@ -602,9 +618,15 @@ Module
         IntLiteral 0
       goto bb3
     bb3 if.merge.3
-      call @scoop.println$I direct
+      val $argument.0: Int
         Type Int
         Local $res.1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
       val b: Option$I<Int>
         Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
@@ -633,9 +655,15 @@ Module
         IntLiteral 99
       goto bb6
     bb6 if.merge.6
-      call @scoop.println$I direct
+      val $argument.0: Int
         Type Int
         Local $res.3
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
       val p: Option$D5_PointX<Point>
         Type Option$D5_PointX<Point>
         VariantConstruct Option$D5_PointX<Point> v0
@@ -699,9 +727,15 @@ Module
         IntLiteral 0
       goto bb12
     bb12 if.merge.12
-      call @scoop.println$I direct
+      val $argument.0: Int
         Type Int
         Local $res.7
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
       val q: Option$D5_PointX<Point>
         Type Option$D5_PointX<Point>
         VariantConstruct Option$D5_PointX<Point> v1
@@ -759,9 +793,15 @@ Module
         IntLiteral 0
       goto bb18
     bb18 if.merge.18
-      call @scoop.println$I direct
+      val $argument.0: Int
         Type Int
         Local $res.11
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
       val $opt.1: Option$I<Int>
         Type Option$I<Int>
         Local a
@@ -821,49 +861,79 @@ Module
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type UnwrapException
         ClassInit UnwrapException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.1
+          Local $parameter.message
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.2
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ClassCastException
         ClassInit ClassCastException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.2
+          Local $parameter.message
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.3
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ArithmeticException
         ClassInit ArithmeticException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.3
+          Local $parameter.message
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.4
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.4
+          Local $parameter.message
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.5
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IllegalStateException
         ClassInit IllegalStateException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.5
+          Local $parameter.message
   instance @scoop.println$I <- println
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
@@ -984,22 +1054,30 @@ Module
     local %0 a: enum1
     local %1 $opt.0: enum1
     local %2 $res.1: i64
-    local %3 b: enum1
-    local %4 $opt.2: enum1
-    local %5 $res.3: i64
-    local %6 p: enum2
-    local %7 $opt.4: enum2
-    local %8 $res.5: enum1
-    local %9 $opt.6: enum1
-    local %10 $res.7: i64
-    local %11 q: enum2
-    local %12 $opt.8: enum2
-    local %13 $res.9: enum1
-    local %14 $opt.10: enum1
-    local %15 $res.11: i64
-    local %16 $opt.1: enum1
-    local %17 $uw.2: i64
-    local %18 $call.1: ptr<managed>
+    local %3 $argument.0: i64
+    local %4 $parameter.value: i64
+    local %5 b: enum1
+    local %6 $opt.2: enum1
+    local %7 $res.3: i64
+    local %8 $argument.0: i64
+    local %9 $parameter.value: i64
+    local %10 p: enum2
+    local %11 $opt.4: enum2
+    local %12 $res.5: enum1
+    local %13 $opt.6: enum1
+    local %14 $res.7: i64
+    local %15 $argument.0: i64
+    local %16 $parameter.value: i64
+    local %17 q: enum2
+    local %18 $opt.8: enum2
+    local %19 $res.9: enum1
+    local %20 $opt.10: enum1
+    local %21 $res.11: i64
+    local %22 $argument.0: i64
+    local %23 $parameter.value: i64
+    local %24 $opt.1: enum1
+    local %25 $uw.2: i64
+    local %26 $call.1: ptr<managed>
   block entry
     poll managed-void-target5 sp40 live=[]
     t0 = enum_wrap e1 v0 (41) : enum1
@@ -1016,102 +1094,110 @@ Module
     store 0 -> local2
     br @if.merge.3
   block if.merge.3
-    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local2)
+    store local2 -> local3
+    store local3 -> local4
+    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local4)
     t4 = aggregate () : {}
     t5 = enum_wrap e1 v1 () : enum1
-    store t5 -> local3
-    store local3 -> local4
-    t6 = enum_tag e1 local4 : i64
+    store t5 -> local5
+    store local5 -> local6
+    t6 = enum_tag e1 local6 : i64
     t7 = Eq t6, 0 : i1
     cbr t7 then @if.then.4 else @if.else.5
   block if.then.4
-    t8 = enum_field e1 v0 f0 local4 : i64
-    store t8 -> local5
+    t8 = enum_field e1 v0 f0 local6 : i64
+    store t8 -> local7
     br @if.merge.6
   block if.else.5
-    store 99 -> local5
+    store 99 -> local7
     br @if.merge.6
   block if.merge.6
-    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn13(local5)
+    store local7 -> local8
+    store local8 -> local9
+    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn13(local9)
     t9 = aggregate () : {}
     t10 = aggregate (10, 20) : struct3
     t11 = enum_wrap e2 v0 (t10) : enum2
-    store t11 -> local6
-    store local6 -> local7
-    t12 = enum_tag e2 local7 : i64
+    store t11 -> local10
+    store local10 -> local11
+    t12 = enum_tag e2 local11 : i64
     t13 = Eq t12, 0 : i1
     cbr t13 then @if.then.7 else @if.else.8
   block if.then.7
-    t14 = enum_field e2 v0 f0 local7 : struct3
+    t14 = enum_field e2 v0 f0 local11 : struct3
     t15 = extract t14, 0 : i64
     t16 = enum_wrap e1 v0 (t15) : enum1
-    store t16 -> local8
+    store t16 -> local12
     br @if.merge.9
   block if.else.8
     t17 = enum_wrap e1 v1 () : enum1
-    store t17 -> local8
+    store t17 -> local12
     br @if.merge.9
   block if.merge.9
-    store local8 -> local9
-    t18 = enum_tag e1 local9 : i64
+    store local12 -> local13
+    t18 = enum_tag e1 local13 : i64
     t19 = Eq t18, 0 : i1
     cbr t19 then @if.then.10 else @if.else.11
   block if.then.10
-    t20 = enum_field e1 v0 f0 local9 : i64
-    store t20 -> local10
+    t20 = enum_field e1 v0 f0 local13 : i64
+    store t20 -> local14
     br @if.merge.12
   block if.else.11
-    store 0 -> local10
+    store 0 -> local14
     br @if.merge.12
   block if.merge.12
-    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn13(local10)
+    store local14 -> local15
+    store local15 -> local16
+    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn13(local16)
     t21 = aggregate () : {}
     t22 = enum_wrap e2 v1 () : enum2
-    store t22 -> local11
-    store local11 -> local12
-    t23 = enum_tag e2 local12 : i64
+    store t22 -> local17
+    store local17 -> local18
+    t23 = enum_tag e2 local18 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @if.then.13 else @if.else.14
   block if.then.13
-    t25 = enum_field e2 v0 f0 local12 : struct3
+    t25 = enum_field e2 v0 f0 local18 : struct3
     t26 = extract t25, 0 : i64
     t27 = enum_wrap e1 v0 (t26) : enum1
-    store t27 -> local13
+    store t27 -> local19
     br @if.merge.15
   block if.else.14
     t28 = enum_wrap e1 v1 () : enum1
-    store t28 -> local13
+    store t28 -> local19
     br @if.merge.15
   block if.merge.15
-    store local13 -> local14
-    t29 = enum_tag e1 local14 : i64
+    store local19 -> local20
+    t29 = enum_tag e1 local20 : i64
     t30 = Eq t29, 0 : i1
     cbr t30 then @if.then.16 else @if.else.17
   block if.then.16
-    t31 = enum_field e1 v0 f0 local14 : i64
-    store t31 -> local15
+    t31 = enum_field e1 v0 f0 local20 : i64
+    store t31 -> local21
     br @if.merge.18
   block if.else.17
-    store 0 -> local15
+    store 0 -> local21
     br @if.merge.18
   block if.merge.18
-    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn13(local15)
+    store local21 -> local22
+    store local22 -> local23
+    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn13(local23)
     t32 = aggregate () : {}
-    store local0 -> local16
-    t33 = enum_tag e1 local16 : i64
+    store local0 -> local24
+    t33 = enum_tag e1 local24 : i64
     t34 = Eq t33, 0 : i1
     cbr t34 then @if.then.19 else @if.else.20
   block if.then.19
-    t35 = enum_field e1 v0 f0 local16 : i64
-    store t35 -> local17
+    t35 = enum_field e1 v0 f0 local24 : i64
+    store t35 -> local25
     br @if.merge.21
   block if.else.20
     call managed-direct-target0 sp16 live=[] t36 = sig=direct0 () -> ptr<managed> local-fn16()
-    store t36 -> local18
-    throw local18
+    store t36 -> local26
+    throw local26
     unreachable
   block if.merge.21
-    t37 = Add local17, 1 : i64
+    t37 = Add local25, 1 : i64
     call managed-void-target4 sp17 live=[] sig=void4 (i64) local-fn13(t37)
     t38 = aggregate () : {}
     ret
@@ -1138,40 +1224,60 @@ Module
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp44 live=[]
-    call managed-direct-target0 sp23 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
-    t1 = enum_wrap e0 v0 (global1) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global1) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp23 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp45 live=[]
-    call managed-direct-target0 sp24 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 24)
-    t1 = enum_wrap e0 v0 (global2) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global2) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp24 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp46 live=[]
-    call managed-direct-target0 sp25 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
-    t1 = enum_wrap e0 v0 (global3) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global3) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp25 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp47 live=[]
-    call managed-direct-target0 sp26 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
-    t1 = enum_wrap e0 v0 (global4) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global4) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp26 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp48 live=[]
-    call managed-direct-target0 sp27 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
-    t1 = enum_wrap e0 v0 (global5) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global5) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp27 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    heap_store t1 +16 local1
+    ret t1
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
   td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]

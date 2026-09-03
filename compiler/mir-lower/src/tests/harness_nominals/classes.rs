@@ -14,7 +14,16 @@ impl Harness {
             .iter()
             .map(|&interface| self.interface_ty(interface))
             .collect();
-        let base = base.map(|(base, arguments)| (self.class_ty(base), arguments));
+        let base = base.map(|(base, arguments)| {
+            (
+                self.class_ty(base),
+                hir::ConstructorDelegation {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                    args: arguments,
+                },
+            )
+        });
         self.declare_class(name, modifier, constructor, base, interfaces)
     }
 
@@ -23,7 +32,7 @@ impl Harness {
         name: &str,
         modifier: hir::ClassModifier,
         constructor: &[(&str, hir::TypeId)],
-        base_class: Option<(hir::TypeId, Vec<hir::Expr>)>,
+        base_class: Option<(hir::TypeId, hir::ConstructorDelegation)>,
         interfaces: Vec<hir::TypeId>,
     ) -> hir::ClassId {
         let mut interface_implementations = base_class

@@ -8,9 +8,23 @@ impl Concretizer<'_> {
         source: &export::Body,
         substitution: &[concrete::TypeId],
     ) -> (concrete::Body, Vec<concrete::LocalId>) {
+        let (locals, local_map) = self.lower_locals(&source.locals, substitution);
+        let statements = source
+            .statements
+            .iter()
+            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
+            .collect();
+        (concrete::Body { locals, statements }, local_map)
+    }
+
+    pub(super) fn lower_locals(
+        &mut self,
+        source: &Arena<export::Local>,
+        substitution: &[concrete::TypeId],
+    ) -> (Arena<concrete::Local>, Vec<concrete::LocalId>) {
         let mut locals = Arena::new();
-        let mut local_map = Vec::with_capacity(source.locals.len());
-        for (source_id, source_local) in source.locals.iter() {
+        let mut local_map = Vec::with_capacity(source.len());
+        for (source_id, source_local) in source.iter() {
             let id = locals.alloc(concrete::Local {
                 binding: concrete::BindingId::from_raw(source_local.binding.into_raw()),
                 name: source_local.name.clone(),
@@ -20,12 +34,7 @@ impl Concretizer<'_> {
             assert_eq!(id.into_raw(), source_id.into_raw());
             local_map.push(id);
         }
-        let statements = source
-            .statements
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
-            .collect();
-        (concrete::Body { locals, statements }, local_map)
+        (locals, local_map)
     }
 
     pub(super) fn lower_statement(

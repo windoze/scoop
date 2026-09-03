@@ -4,7 +4,7 @@ use scoop_hir as hir;
 use crate::call_resolution::arguments::{
     CandidateArgumentMap, ResolvedParameterInput, ResolvedVarargInput, VarargPartKind,
 };
-use crate::call_resolution::candidates::NominalConstructorSource;
+use crate::call_resolution::candidates::NominalConstructorView;
 use crate::defaults::SourceParameterCalling;
 use crate::{Lowerer, Type};
 
@@ -13,6 +13,15 @@ pub(crate) struct CallableArgumentMaterialization<'a> {
     pub argument_map: &'a CandidateArgumentMap,
     pub type_args: &'a [hir::TypeId],
     pub receiver: Option<hir::Expr>,
+    pub source_args: Vec<hir::Expr>,
+    pub argument_sinks: Vec<Vec<hir::Statement>>,
+    pub call_span: Span,
+}
+
+pub(crate) struct NominalArgumentMaterialization<'a> {
+    pub view: &'a NominalConstructorView,
+    pub argument_map: &'a CandidateArgumentMap,
+    pub type_args: &'a [hir::TypeId],
     pub source_args: Vec<hir::Expr>,
     pub argument_sinks: Vec<Vec<hir::Statement>>,
     pub call_span: Span,
@@ -93,46 +102,52 @@ impl Lowerer {
 
     pub(crate) fn materialize_nominal_arguments(
         &mut self,
-        target: NominalConstructorSource,
-        argument_map: &CandidateArgumentMap,
-        type_args: &[hir::TypeId],
-        source_args: Vec<hir::Expr>,
-        call_span: Span,
+        request: NominalArgumentMaterialization<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Vec<hir::Expr> {
-        let source_args = source_args
+        let mut argument_sinks = request.argument_sinks;
+        let source_args = request
+            .source_args
             .into_iter()
             .enumerate()
             .map(|(index, argument)| {
-                self.materialize_temporary(format!("$argument.{index}"), argument, call_span, sink)
+                sink.append(&mut argument_sinks[index]);
+                self.materialize_temporary(
+                    format!("$argument.{index}"),
+                    argument,
+                    request.call_span,
+                    sink,
+                )
             })
             .collect::<Vec<_>>();
-        let view = self.nominal_constructor_view(target);
-        let parameters = view
+        let parameters = request
+            .view
             .value_parameters
             .iter()
             .map(|parameter| (parameter.name.clone(), parameter.ty))
             .collect::<Vec<_>>();
-        let callings = view
+        let callings = request
+            .view
             .value_parameters
             .iter()
             .map(|parameter| parameter.calling)
             .collect::<Vec<_>>();
-        let bindings = view
+        let bindings = request
+            .view
             .owner_parameters
             .iter()
-            .zip(type_args)
+            .zip(request.type_args)
             .map(|(parameter, &argument)| (parameter.id, argument))
             .collect::<Vec<_>>();
         self.materialize_parameter_inputs(
             &parameters,
             &callings,
             ParameterMaterialization {
-                argument_map,
+                argument_map: request.argument_map,
                 bindings: &bindings,
                 receiver: None,
                 source_args: &source_args,
-                call_span,
+                call_span: request.call_span,
                 sink,
             },
         )

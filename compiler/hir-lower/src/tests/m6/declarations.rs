@@ -83,12 +83,21 @@ fn class_and_interface_structure() {
 
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
-    let (base, args) = point.base_class.as_ref().expect("Point has a base");
+    let (base, delegation) = point.base_class.as_ref().expect("Point has a base");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
         if module.class_applications[application].template == shape_id
             && module.class_applications[application].arguments.is_empty()));
-    assert_eq!(args.len(), 1);
-    assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
+    assert_eq!(delegation.args.len(), 1);
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::StringLiteral(_),
+                ..
+            },
+            ..
+        }
+    )));
 
     // Methods carry owner/modality metadata and `this` as parameter 0.
     let describe = &module.functions[find_fn(&module, "Shape.describe")];

@@ -59,19 +59,17 @@ impl Lowerer {
                 .filter(|array| array.kind == target_kind)
                 .map(|array| vec![array.element])
         });
-        let inferred = self.lower_nominal_arguments(
-            NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: &call.args,
-                explicit_type_args: &explicit_type_args,
-                expected_type_args: expected_arguments.as_deref(),
-                span: call.span,
-            },
-            sink,
-        )?;
+        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+            view: &view,
+            argument_map: &argument_map,
+            expressions: &call.args,
+            explicit_type_args: &explicit_type_args,
+            expected_type_args: expected_arguments.as_deref(),
+            span: call.span,
+        })?;
         let NominalArguments {
-            mut args,
+            args,
+            argument_sinks,
             type_args,
         } = inferred;
         let [element_ty] = type_args.as_slice() else {
@@ -83,6 +81,21 @@ impl Lowerer {
         let expected_source = self.array_type(source_kind, *element_ty);
         debug_assert!(self.types_equal(arg.ty, expected_source));
         let ty = self.array_type(target_kind, *element_ty);
+        let mut args = if argument_sinks.iter().all(Vec::is_empty) {
+            args
+        } else {
+            self.materialize_nominal_arguments(
+                crate::argument_materialization::NominalArgumentMaterialization {
+                    view: &view,
+                    argument_map: &argument_map,
+                    type_args: &type_args,
+                    source_args: args,
+                    argument_sinks,
+                    call_span: call.span,
+                },
+                sink,
+            )
+        };
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(
                 args.pop()

@@ -153,12 +153,21 @@ pub struct ClassDecl {
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub representation: ClassRepresentation,
-    /// Base class and the resolved constructor argument expressions.
-    pub base_class: Option<(TypeId, Vec<Expr>)>,
+    /// Base class and the fully materialized constructor delegation.
+    pub base_class: Option<(TypeId, ConstructorDelegation)>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+/// Typed evaluation plan for one primary-constructor delegation. Source
+/// argument syntax and missing/default state have already been eliminated.
+#[derive(Debug, Clone)]
+pub struct ConstructorDelegation {
+    pub locals: Arena<Local>,
+    pub statements: Vec<Statement>,
+    pub args: Vec<Expr>,
 }
 
 impl ClassDecl {

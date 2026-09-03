@@ -428,11 +428,11 @@ Module
   fun makeLambda<T>(value: T0): () -> T0
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
-        capture value binding20 : T0
+        capture value binding30 : T0
   fun makeAnonymous<T>(value: T0): () -> T0
     return
       AnonymousFunction anonymous0 invoke=$anonymous.0 captures=1 : () -> T0
-        capture value binding22 : T0
+        capture value binding32 : T0
   fun makeLocalReference<T>(value: T0): () -> T0
     LocalFunction local0 body=$local.0.read captures=1
     return
@@ -449,14 +449,14 @@ Module
   fun makeNested<T>(value: T0): () -> () -> T0
     return
       AnonymousFunction anonymous1 invoke=$anonymous.1 captures=1 : () -> () -> T0
-        capture value binding29 : T0
+        capture value binding39 : T0
   fun makeBoxReader<T>(value: T0): () -> T0
     val local1
       StructInit GenericBox : GenericBox<T0>
         Local value : T0
     return
       Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
-        capture box binding33 : GenericBox<T0>
+        capture box binding43 : GenericBox<T0>
   fun main(): Unit
     val local0
       Call makeLambda<Int> : () -> Int
@@ -1167,49 +1167,79 @@ Module
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.10
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type UnwrapException
         ClassInit UnwrapException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.10
+          Local $parameter.message
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.11
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ClassCastException
         ClassInit ClassCastException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.11
+          Local $parameter.message
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.12
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ArithmeticException
         ClassInit ArithmeticException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.12
+          Local $parameter.message
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.13
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.13
+          Local $parameter.message
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.14
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IllegalStateException
         ClassInit IllegalStateException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.14
+          Local $parameter.message
   instance @scoop.makeLambda$I <- makeLambda
   instance @scoop.makeLambda$S <- makeLambda
   instance @scoop.makeAnonymous$I <- makeAnonymous
@@ -1781,40 +1811,60 @@ Module
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp145 live=[]
-    call managed-direct-target0 sp87 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
-    t1 = enum_wrap e0 v0 (global10) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global10) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp87 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp146 live=[]
-    call managed-direct-target0 sp88 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
-    t1 = enum_wrap e0 v0 (global11) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global11) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp88 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp147 live=[]
-    call managed-direct-target0 sp89 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
-    t1 = enum_wrap e0 v0 (global12) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global12) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp89 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp148 live=[]
-    call managed-direct-target0 sp90 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
-    t1 = enum_wrap e0 v0 (global13) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global13) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp90 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
   block entry
     poll managed-void-target0 sp149 live=[]
-    call managed-direct-target0 sp91 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
-    t1 = enum_wrap e0 v0 (global14) : enum0
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e0 v0 (global14) : enum0
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp91 live=[local1:enum0@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
+    heap_store t1 +16 local1
+    ret t1
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
   td td2 function$FRIX @scoop_td_function$FRIX type-id=4 size=0 parent=none vtable=[] itables=[]

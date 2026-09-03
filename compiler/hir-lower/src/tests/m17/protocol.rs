@@ -54,6 +54,21 @@ fn method_with_vararg(mut declaration: ast::FunctionDecl, parameter: usize) -> a
     declaration
 }
 
+fn with_constructor_syntax(
+    mut declaration: Decl,
+    parameter: usize,
+    syntax: ast::ParameterSyntax,
+) -> Decl {
+    let Decl::Class(class) = &mut declaration else {
+        unreachable!("the test helper accepts a class declaration")
+    };
+    let ast::ClassConstructorDecl::Declared(parameters) = &mut class.constructor else {
+        unreachable!("the test helper accepts an explicit primary constructor")
+    };
+    parameters[parameter].syntax = syntax;
+    declaration
+}
+
 fn identity_lambda() -> Expr {
     Expr::Lambda {
         id: ast::LambdaId(0),
@@ -278,6 +293,140 @@ fn positional_vararg_assembles_fresh_array_but_named_vararg_keeps_identity() {
         dump.contains("CopyArray\n          Local $argument.1"),
         "{dump}"
     );
+}
+
+#[test]
+fn base_constructor_delegation_uses_the_complete_source_protocol() {
+    let base = with_constructor_syntax(
+        with_constructor_syntax(
+            with_constructor_syntax(
+                class_decl(
+                    ast::ClassModifier::Open,
+                    "Base",
+                    vec![
+                        (false, "head", ty_named("Int")),
+                        (false, "values", ty_named("Int")),
+                        (false, "tail", ty_named("Int")),
+                    ],
+                    None,
+                    vec![],
+                    vec![],
+                ),
+                0,
+                ast::ParameterSyntax::Default {
+                    expression: int_lit(10),
+                    equals_span: sp(),
+                },
+            ),
+            1,
+            ast::ParameterSyntax::Vararg {
+                modifier_span: sp(),
+                default: ast::VarargDefaultSyntax::EmptyWhenOmitted,
+            },
+        ),
+        2,
+        ast::ParameterSyntax::Default {
+            expression: int_lit(30),
+            equals_span: sp(),
+        },
+    );
+    let mut derived = class_decl(
+        ast::ClassModifier::Final,
+        "Derived",
+        vec![(false, "more", ty_generic("Array", vec![ty_named("Int")]))],
+        Some(("Base", vec![])),
+        vec![],
+        vec![],
+    );
+    let Decl::Class(class) = &mut derived else {
+        unreachable!()
+    };
+    class.base_class = Some((
+        ty_named("Base"),
+        vec![
+            ast::CallArgument::positional(int_lit(1)),
+            ast::CallArgument::positional(int_lit(2)),
+            spread_argument(var("more")),
+        ],
+    ));
+    let mut whole = class_decl(
+        ast::ClassModifier::Final,
+        "Whole",
+        vec![
+            (false, "more", ty_generic("Array", vec![ty_named("Int")])),
+            (false, "last", ty_named("Int")),
+        ],
+        Some(("Base", vec![])),
+        vec![],
+        vec![],
+    );
+    let Decl::Class(class) = &mut whole else {
+        unreachable!()
+    };
+    class.base_class = Some((
+        ty_named("Base"),
+        vec![
+            named_argument("values", var("more")),
+            named_argument("tail", var("last")),
+        ],
+    ));
+
+    let module = lower_user(file(vec![base, derived, whole, fun("main", vec![])]))
+        .expect("base delegation must support defaults and positional vararg parts");
+    let (_, derived) = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "Derived")
+        .expect("derived class");
+    let (_, delegation) = derived.base_class.as_ref().expect("base delegation");
+    assert_eq!(delegation.args.len(), 3);
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::ArrayAssembly(_),
+                ..
+            },
+            ..
+        }
+    )));
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::IntLiteral(30),
+                ..
+            },
+            ..
+        }
+    )));
+
+    let (_, whole) = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "Whole")
+        .expect("whole-array derived class");
+    let (_, delegation) = whole.base_class.as_ref().expect("named base delegation");
+    assert!(!delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::ArrayAssembly(_),
+                ..
+            },
+            ..
+        }
+    )));
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::IntLiteral(10),
+                ..
+            },
+            ..
+        }
+    )));
 }
 
 #[test]

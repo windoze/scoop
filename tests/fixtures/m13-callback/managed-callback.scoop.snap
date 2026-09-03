@@ -532,7 +532,7 @@ Module
     val local1
       ForeignCallbackRegister registration0 native=function_type4 managed=function_type7 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
-          capture offset binding20 : Int
+          capture offset binding30 : Int
     val local2
       ForeignCallbackRetain : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local oneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -1441,49 +1441,79 @@ Module
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.9
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type UnwrapException
         ClassInit UnwrapException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.9
+          Local $parameter.message
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.10
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ClassCastException
         ClassInit ClassCastException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.10
+          Local $parameter.message
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.11
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type ArithmeticException
         ClassInit ArithmeticException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.11
+          Local $parameter.message
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.12
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.12
+          Local $parameter.message
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          StringConst @scoop.str.13
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
       return
         Type IllegalStateException
         ClassInit IllegalStateException
           Type Option$S<String>
-          VariantConstruct Option$S<String> v0
-            Type String
-            StringConst @scoop.str.13
+          Local $parameter.message
   fun foreign callback adapter 0 @scoop_foreign_callback_adapter_0($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> UInt
     bb0 callback.failure
       landing_pad cleanup=false
@@ -2216,40 +2246,60 @@ Module
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
+    local %0 $argument.0: enum1
+    local %1 $parameter.message: enum1
   block entry
     poll managed-void-target0 sp104 live=[]
-    call managed-direct-target0 sp66 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
-    t1 = enum_wrap e1 v0 (global9) : enum1
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e1 v0 (global9) : enum1
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp66 live=[local1:enum1@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
+    local %0 $argument.0: enum1
+    local %1 $parameter.message: enum1
   block entry
     poll managed-void-target0 sp105 live=[]
-    call managed-direct-target0 sp67 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
-    t1 = enum_wrap e1 v0 (global10) : enum1
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e1 v0 (global10) : enum1
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp67 live=[local1:enum1@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+    local %0 $argument.0: enum1
+    local %1 $parameter.message: enum1
   block entry
     poll managed-void-target0 sp106 live=[]
-    call managed-direct-target0 sp68 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
-    t1 = enum_wrap e1 v0 (global11) : enum1
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e1 v0 (global11) : enum1
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp68 live=[local1:enum1@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+    local %0 $argument.0: enum1
+    local %1 $parameter.message: enum1
   block entry
     poll managed-void-target0 sp107 live=[]
-    call managed-direct-target0 sp69 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
-    t1 = enum_wrap e1 v0 (global12) : enum1
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e1 v0 (global12) : enum1
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp69 live=[local1:enum1@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+    local %0 $argument.0: enum1
+    local %1 $parameter.message: enum1
   block entry
     poll managed-void-target0 sp108 live=[]
-    call managed-direct-target0 sp70 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
-    t1 = enum_wrap e1 v0 (global13) : enum1
-    heap_store t0 +16 t1
-    ret t0
+    t0 = enum_wrap e1 v0 (global13) : enum1
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp70 live=[local1:enum1@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
+    heap_store t1 +16 local1
+    ret t1
   fun @scoop_foreign_callback_adapter_0(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> i64
     local %0 $caught: ptr<managed>
     local %1 $value: i64

@@ -245,8 +245,6 @@ impl Lowerer {
             boxed: &mut self.boxed,
             classes: &mut self.classes,
             shell: &mut self.shell,
-            // Delegation arguments are closed (hir-lower M6 lowers
-            // them in an empty scope), so no locals are visible.
             local_map: HashMap::new(),
             constructor_param_map: HashMap::new(),
             locals: Arena::new(),
@@ -293,10 +291,13 @@ impl Lowerer {
                 ty: ty.clone(),
                 local,
             });
-            lowerer.constructor_param_map.insert(field.parameter, local);
-            own.push(smir::Expr::local(local, ty));
+            let value = smir::Expr::local(local, ty);
+            lowerer
+                .constructor_param_map
+                .insert(field.parameter, value.clone());
+            own.push(value);
         }
-        let args = flattened_ctor_args(&mut lowerer, module, hir_id, own);
+        let (mut statements, args) = flattened_ctor_args(&mut lowerer, module, hir_id, own);
         assert_eq!(
             args.len(),
             field_count,
@@ -308,20 +309,21 @@ impl Lowerer {
             mir::Type::Class(mir_id),
             "the hidden constructor returns its owning concrete class"
         );
+        statements.push(smir::Statement {
+            kind: smir::StatementKind::Return {
+                value: Some(smir::Expr::new(
+                    return_ty.clone(),
+                    smir::ExprKind::ClassInit {
+                        class_id: mir_id,
+                        args,
+                    },
+                )),
+            },
+            span: decl.span,
+        });
         let body = smir::Body {
             locals: lowerer.locals,
-            statements: vec![smir::Statement {
-                kind: smir::StatementKind::Return {
-                    value: Some(smir::Expr::new(
-                        return_ty.clone(),
-                        smir::ExprKind::ClassInit {
-                            class_id: mir_id,
-                            args,
-                        },
-                    )),
-                },
-                span: decl.span,
-            }],
+            statements,
         };
         (params, return_ty, body)
     }

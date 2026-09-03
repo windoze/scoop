@@ -13,10 +13,9 @@ use crate::call_resolution::diagnostics::{
 };
 
 impl Lowerer {
-    pub(super) fn lower_nominal_arguments(
+    pub(crate) fn lower_nominal_arguments(
         &mut self,
         input: NominalArgumentInput<'_>,
-        sink: &mut Vec<hir::Statement>,
     ) -> Option<NominalArguments> {
         let NominalArgumentInput {
             view,
@@ -166,12 +165,15 @@ impl Lowerer {
             }
         };
 
-        let mut args = Vec::with_capacity(lowered.len());
-        for (argument, mut argument_sink) in lowered.into_iter().zip(sinks) {
-            sink.append(&mut argument_sink);
-            args.push(argument.expect("the solved nominal types every postponed argument"));
-        }
-        Some(NominalArguments { args, type_args })
+        let args = lowered
+            .into_iter()
+            .map(|argument| argument.expect("the solved nominal types every postponed argument"))
+            .collect();
+        Some(NominalArguments {
+            args,
+            argument_sinks: sinks,
+            type_args,
+        })
     }
 
     pub(super) fn diagnose_nominal_failure(
@@ -194,7 +196,7 @@ impl Lowerer {
         self.nominal_candidate_diagnostic(view, diagnostic_span, &reason);
     }
 
-    pub(super) fn diagnose_nominal_shape_failure(
+    pub(crate) fn diagnose_nominal_shape_failure(
         &mut self,
         view: &NominalConstructorView,
         span: Span,

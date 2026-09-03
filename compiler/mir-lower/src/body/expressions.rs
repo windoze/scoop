@@ -2,6 +2,9 @@ use super::*;
 
 impl BodyLowerer<'_> {
     pub(crate) fn lower_expr(&mut self, expr: &hir::Expr) -> smir::Expr {
+        if let hir::ExprKind::ConstructorParam(parameter) = expr.kind {
+            return self.constructor_param_map[&parameter].clone();
+        }
         let ty = self.lower_type(expr.ty);
         let kind = match &expr.kind {
             hir::ExprKind::StringLiteral(value) => {
@@ -72,8 +75,8 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
-            hir::ExprKind::ConstructorParam(parameter) => {
-                smir::ExprKind::Local(self.constructor_param_map[parameter])
+            hir::ExprKind::ConstructorParam(_) => {
+                unreachable!("constructor parameters return before expression lowering")
             }
             hir::ExprKind::GlobalRead(global) => {
                 smir::ExprKind::GlobalRead(self.global_map[global])
