@@ -130,6 +130,7 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 #define unlock_heap scoop_heap_unlock
 #define block_base scoop_heap_block_base
 #define active_head scoop_heap_active_head
+#define require_arena scoop_heap_require_arena
 #define free_run_nodes scoop_heap_free_run_nodes
 #define free_span_insert scoop_heap_free_span_insert
 #define pointer_block_index scoop_heap_pointer_block_index
@@ -149,6 +150,7 @@ void scoop_heap_lock(void);
 void scoop_heap_unlock(void);
 void *scoop_heap_block_base(uint32_t index);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
+void scoop_heap_require_arena(void);
 void scoop_heap_free_run_nodes(void);
 void scoop_heap_free_span_insert(uint32_t first_block,
                                  uint32_t block_count);
