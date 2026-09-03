@@ -2,15 +2,15 @@ use super::*;
 
 impl Lowerer {
     /// MSC selection (step 2) over two or more applicable candidates.
-    /// Returns the winning `(prepared index, type arguments)` pair, or
-    /// records the ambiguity diagnostic and returns `None`.
+    /// Returns the winning prepared-candidate index, or records the ambiguity
+    /// diagnostic and returns `None`.
     pub(super) fn most_specific(
         &mut self,
         name: &str,
         prepared: &[Candidate],
-        applicable: &[(usize, Vec<TypeId>)],
+        applicable: &[usize],
         span: Span,
-    ) -> Option<(usize, Vec<TypeId>)> {
+    ) -> Option<usize> {
         let mut forwards = vec![vec![false; applicable.len()]; applicable.len()];
         for a in 0..applicable.len() {
             forwards[a][a] = true;
@@ -18,8 +18,8 @@ impl Lowerer {
                 if a == b {
                     continue;
                 }
-                let source = &prepared[applicable[a].0];
-                let target = &prepared[applicable[b].0];
+                let source = &prepared[applicable[a]];
+                let target = &prepared[applicable[b]];
                 forwards[a][b] = self.callable_forwards(
                     crate::call_resolution::specificity::ForwardingDeclaration {
                         view: &source.view,
@@ -47,7 +47,7 @@ impl Lowerer {
             .iter()
             .copied()
             .filter(|&a| {
-                let candidate = &prepared[applicable[a].0];
+                let candidate = &prepared[applicable[a]];
                 candidate.own_type_param_count == 0
             })
             .collect();
@@ -57,7 +57,7 @@ impl Lowerer {
             non_generic
         };
         if pool.len() == 1 {
-            Some(applicable[pool[0]].clone())
+            Some(applicable[pool[0]])
         } else {
             self.error(span, format!("call to `{name}` is ambiguous"));
             None

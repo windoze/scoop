@@ -30,15 +30,15 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 use ast::Span;
-use hir::{FunctionId, Type, TypeId};
+use hir::{FunctionId, TypeId};
 
-use crate::call_resolution::applicability::CallableApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{CallableSource, CallableView};
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
 mod inference;
+mod probe;
 mod specificity;
 
 /// The winner of overload resolution, ready to be wrapped in an
@@ -58,6 +58,7 @@ pub(crate) struct OverloadCall<'a> {
     pub(crate) explicit_type_args: &'a [TypeId],
     pub(crate) arg_exprs: &'a [ast::Expr],
     pub(crate) span: Span,
+    pub(crate) expected_result: Option<TypeId>,
 }
 
 /// A member-overload call whose arguments have already been lowered in source
@@ -68,6 +69,7 @@ pub(crate) struct LoweredOverloadCall {
     pub(crate) explicit_type_args: Vec<TypeId>,
     pub(crate) args: Vec<hir::Expr>,
     pub(crate) span: Span,
+    pub(crate) expected_result: Option<TypeId>,
 }
 
 enum OverloadArguments<'a> {
@@ -80,6 +82,7 @@ struct OverloadResolution<'a> {
     explicit_type_args: &'a [TypeId],
     arguments: OverloadArguments<'a>,
     span: Span,
+    expected_result: Option<TypeId>,
 }
 
 /// A candidate prepared for resolution: parameter and return types
@@ -99,7 +102,6 @@ struct Candidate {
     /// genericity does not make an otherwise concrete overload generic for
     /// MSC tie-breaking.
     own_type_param_count: usize,
-    initial_bindings: Vec<Option<TypeId>>,
     owner_arguments: Vec<TypeId>,
     explicit_arity_match: bool,
 }
@@ -136,6 +138,7 @@ impl Lowerer {
                 explicit_type_args: call.explicit_type_args,
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
+                expected_result: call.expected_result,
             },
             sink,
         )
@@ -156,6 +159,7 @@ impl Lowerer {
                 explicit_type_args: call.explicit_type_args,
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
+                expected_result: call.expected_result,
             },
             sink,
         )
@@ -172,6 +176,7 @@ impl Lowerer {
             explicit_type_args,
             args,
             span,
+            expected_result,
         } = call;
         self.resolve_overload_with_receiver(
             name,
@@ -181,6 +186,7 @@ impl Lowerer {
                 explicit_type_args: &explicit_type_args,
                 arguments: OverloadArguments::Lowered(args),
                 span,
+                expected_result,
             },
             sink,
         )
@@ -210,6 +216,7 @@ impl Lowerer {
                 explicit_type_args: call.explicit_type_args,
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
+                expected_result: call.expected_result,
             },
             sink,
         )
@@ -227,70 +234,17 @@ impl Lowerer {
             explicit_type_args,
             arguments,
             span,
+            expected_result,
         } = resolution;
         let arg_count = match &arguments {
             OverloadArguments::Source(args) => args.len(),
             OverloadArguments::Lowered(args) => args.len(),
         };
-        // Context-independent arguments are shared by every candidate and
-        // lowered once. `None`, empty arrays and context-dependent generic
-        // constructors are postponed until inference provides a candidate
-        // parameter type. Per-argument sinks preserve source evaluation
-        // order even when later arguments are typed first.
         let receiver = match receiver {
             OverloadReceiver::Ordinary => None,
             OverloadReceiver::Extension(receiver) => Some(receiver),
         };
         let receiver_offset = usize::from(receiver.is_some());
-        let single_hints = candidates
-            .first()
-            .filter(|_| candidates.len() == 1)
-            .map(|candidate| {
-                let signature = self.signatures[&candidate.function].clone();
-                let owner_arguments = self.callable_candidate_owner_arguments(candidate);
-                let mut bindings = vec![None; signature.type_params.len()];
-                for (binding, &argument) in bindings.iter_mut().zip(&owner_arguments) {
-                    *binding = Some(argument);
-                }
-                if explicit_type_args.len()
-                    == signature.type_params.len() - signature.owner_type_param_count
-                {
-                    for (binding, &argument) in bindings[signature.owner_type_param_count..]
-                        .iter_mut()
-                        .zip(explicit_type_args)
-                    {
-                        *binding = Some(argument);
-                    }
-                }
-                signature
-                    .params
-                    .iter()
-                    .map(|parameter| self.try_substitute(parameter.ty, &bindings))
-                    .collect::<Vec<_>>()
-            });
-        let mut lowered: Vec<Option<hir::Expr>> = Vec::with_capacity(receiver_offset + arg_count);
-        if let Some(receiver) = receiver {
-            lowered.push(Some(receiver));
-        }
-        let mut arg_sinks: Vec<Vec<hir::Statement>> = (0..arg_count).map(|_| Vec::new()).collect();
-        match &arguments {
-            OverloadArguments::Source(arg_exprs) => {
-                lowered.extend((0..arg_exprs.len()).map(|_| None));
-                for (index, arg) in arg_exprs.iter().enumerate() {
-                    let hint = single_hints
-                        .as_ref()
-                        .and_then(|hints| hints.get(index).copied().flatten());
-                    if hint.is_none() && self.expr_requires_expected_type(arg) {
-                        continue;
-                    }
-                    lowered[receiver_offset + index] =
-                        Some(self.lower_expr(arg, &mut arg_sinks[index], hint)?);
-                }
-            }
-            OverloadArguments::Lowered(args) => {
-                lowered.extend(args.iter().cloned().map(Some));
-            }
-        }
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
@@ -333,22 +287,9 @@ impl Lowerer {
                 }
                 let owner_arguments = self.callable_candidate_owner_arguments(source);
                 debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
-                let mut initial_bindings =
-                    vec![None; view.owner_parameters.len() + view.callable_parameters.len()];
-                for (binding, &ty) in initial_bindings.iter_mut().zip(&owner_arguments) {
-                    *binding = Some(ty);
-                }
                 let own_type_param_count = view.callable_parameters.len();
                 let explicit_arity_match = explicit_type_args.is_empty()
                     || explicit_type_args.len() == own_type_param_count;
-                if explicit_arity_match && !explicit_type_args.is_empty() {
-                    for (binding, &ty) in initial_bindings[view.owner_parameters.len()..]
-                        .iter_mut()
-                        .zip(explicit_type_args)
-                    {
-                        *binding = Some(ty);
-                    }
-                }
                 Candidate {
                     argument_map,
                     target: view.target,
@@ -358,7 +299,6 @@ impl Lowerer {
                     params,
                     return_ty: view.return_type,
                     own_type_param_count,
-                    initial_bindings,
                     owner_arguments,
                     explicit_arity_match,
                     view,
@@ -392,228 +332,82 @@ impl Lowerer {
             return None;
         }
 
-        // Preserve the single-candidate fixed point while all declarations
-        // migrate to the new candidate solver. In particular, a unique
-        // non-generic callable reference can synthesize its type without a
-        // hint and then bind a surrounding generic parameter.
-        if prepared.len() == 1
-            && prepared[0].explicit_arity_match
-            && prepared[0].argument_map.is_ok()
-            && let OverloadArguments::Source(arg_exprs) = &arguments
-        {
-            let candidate = &prepared[0];
-            let type_params = self.signatures[&candidate.function].type_params.clone();
-            let mut bindings = candidate.initial_bindings.clone();
-            loop {
-                for (&parameter, argument) in candidate.params.iter().zip(&lowered) {
-                    let Some(argument) = argument else {
-                        continue;
-                    };
-                    if !self.bind_type_args(
-                        parameter,
-                        argument.ty,
-                        &mut bindings,
-                        &type_params,
-                        argument.span,
-                    ) {
-                        return None;
-                    }
-                }
-                if lowered.iter().all(Option::is_some) {
-                    break;
-                }
-
-                let mut progress = false;
-                for (source_index, argument) in arg_exprs.iter().enumerate() {
-                    let parameter_index = receiver_offset + source_index;
-                    if lowered[parameter_index].is_some() {
-                        continue;
-                    }
-                    let hint = self.try_substitute(candidate.params[parameter_index], &bindings);
-                    if hint.is_none() && self.expr_requires_expected_type(argument) {
-                        continue;
-                    }
-                    lowered[parameter_index] =
-                        Some(self.lower_expr(argument, &mut arg_sinks[source_index], hint)?);
-                    progress = true;
-                }
-                if progress {
-                    continue;
-                }
-
-                let parameter_index = lowered
-                    .iter()
-                    .position(Option::is_none)
-                    .expect("a postponed source argument remains");
-                let source_index = parameter_index - receiver_offset;
-                lowered[parameter_index] = Some(self.lower_expr(
-                    &arg_exprs[source_index],
-                    &mut arg_sinks[source_index],
-                    None,
-                )?);
-            }
-        }
-
-        let arg_tys: Vec<Option<TypeId>> = lowered
-            .iter()
-            .map(|arg| arg.as_ref().map(|arg| arg.ty))
-            .collect();
-
-        // Applicability (step 1): each entry pairs a prepared-candidate
-        // index with its inferred call-level type arguments.
-        let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
-        let mut kind_failures: Vec<(usize, Vec<TypeId>)> = Vec::new();
-        let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
-        let mut _constraint_failures = Vec::new();
+        // Every candidate starts from the exact same semantic state. Its
+        // lowered expressions, generated callable entities, coercions and
+        // diagnostics remain inside that transaction until MSC chooses it.
+        let mut applicable = Vec::new();
+        let mut failures = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
-            if !candidate.explicit_arity_match {
+            if !candidate.explicit_arity_match || candidate.argument_map.is_err() {
                 continue;
             }
-            let Ok(argument_map) = &candidate.argument_map else {
-                continue;
-            };
-            let type_args = match self.solve_callable_applicability(CallableApplicabilityInput {
-                view: &candidate.view,
-                argument_map,
-                owner_arguments: &candidate.owner_arguments,
-                explicit_arguments: explicit_type_args,
-                receiver_type: (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
-                argument_types: &arg_tys[receiver_offset..],
-            }) {
-                Ok(type_args) => type_args,
-                Err(failure) => {
-                    _constraint_failures.push((index, failure));
-                    if let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) {
-                        let ordinary_args_match =
-                            candidate.params.iter().zip(&arg_tys).all(|(&param, arg)| {
-                                let expected = self.substitute_call_level(param, &type_args);
-                                arg.is_none_or(|arg| self.is_subtype(arg, expected))
-                            });
-                        if ordinary_args_match {
-                            let type_params =
-                                self.signatures[&candidate.function].type_params.clone();
-                            if !self.type_arguments_satisfy_kinds(&type_params, &type_args) {
-                                kind_failures.push((index, type_args));
-                            }
-                        }
-                    }
-                    continue;
-                }
-            };
-            let mut contextual_args_match = true;
-            for (argument, (&param, arg)) in candidate.params.iter().zip(&arg_tys).enumerate() {
-                if argument < receiver_offset {
-                    continue;
-                }
-                if arg.is_some() {
-                    continue;
-                }
-                let expected = self.substitute_call_level(param, &type_args);
-                let source_argument = argument - receiver_offset;
-                if let OverloadArguments::Source(arg_exprs) = &arguments {
-                    if let Err(reason) =
-                        self.probe_contextual_expr(&arg_exprs[source_argument], expected)
-                    {
-                        contextual_failures.push((source_argument, expected, reason));
-                        contextual_args_match = false;
-                    }
-                }
-            }
-            if contextual_args_match {
-                applicable.push((index, type_args));
+            match self.probe_overload_candidate(
+                index,
+                candidate,
+                receiver.as_ref(),
+                explicit_type_args,
+                &arguments,
+                expected_result,
+            ) {
+                Ok(candidate) => applicable.push(candidate),
+                Err(failure) => failures.push(*failure),
             }
         }
 
-        let (winner, type_args) = match applicable.len() {
+        let winner = match applicable.len() {
             0 => {
-                if kind_failures.len() == 1 {
-                    let (index, type_args) = kind_failures.pop().expect("one kind failure");
-                    let function = prepared[index].function;
-                    let type_params = self.signatures[&function].type_params.clone();
-                    self.check_type_argument_kinds(
-                        &type_params,
-                        &type_args,
-                        span,
-                        &format!("function `{}`", self.functions[function].name),
-                    );
-                    return None;
-                }
-                if let OverloadArguments::Source(arg_exprs) = &arguments {
-                    if self.contextual_no_applicable_diagnostic(
-                        name,
-                        arg_exprs,
-                        &contextual_failures,
-                    ) {
-                        return None;
-                    }
-                }
-                self.no_applicable_diagnostic(
+                self.candidate_failures_diagnostic(
                     name,
                     &prepared,
-                    &arg_tys[receiver_offset..],
-                    match &arguments {
-                        OverloadArguments::Source(args) => Some(args),
-                        OverloadArguments::Lowered(_) => None,
-                    },
-                    (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
+                    &mut failures,
+                    &arguments,
+                    receiver.as_ref(),
                     span,
                 );
                 return None;
             }
-            1 => applicable.pop().expect("one applicable candidate"),
-            _ => self.most_specific(name, &prepared, &applicable, span)?,
+            1 => applicable[0].candidate,
+            _ => {
+                let indices = applicable
+                    .iter()
+                    .map(|candidate| candidate.candidate)
+                    .collect::<Vec<_>>();
+                self.most_specific(name, &prepared, &indices, span)?
+            }
         };
 
         let candidate = &prepared[winner];
         let function = candidate.function;
-        let mut args = Vec::with_capacity(lowered.len());
-        for (index, &param) in candidate.params.iter().enumerate() {
-            let expected = self.substitute_call_level(param, &type_args);
-            let arg = match lowered[index].take() {
-                Some(arg) => arg,
-                None => {
-                    let source_index = index - receiver_offset;
-                    let OverloadArguments::Source(arg_exprs) = &arguments else {
-                        unreachable!("pre-lowered overload arguments are all present")
-                    };
-                    self.lower_expr(
-                        &arg_exprs[source_index],
-                        &mut arg_sinks[source_index],
-                        Some(expected),
-                    )?
-                }
-            };
-            if !self.is_subtype(arg.ty, expected) {
-                self.no_applicable_diagnostic(
-                    name,
-                    &prepared,
-                    &arg_tys[receiver_offset..],
-                    match &arguments {
-                        OverloadArguments::Source(args) => Some(args),
-                        OverloadArguments::Lowered(_) => None,
-                    },
-                    (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
-                    span,
-                );
-                return None;
-            }
-            args.push(self.adapt_to(arg, expected));
-        }
-        for mut arg_sink in arg_sinks {
+        let owner = candidate.owner.clone();
+        let source = candidate.source;
+        let transaction_index = applicable
+            .iter()
+            .position(|candidate| candidate.candidate == winner)
+            .expect("MSC winner has an applicability transaction");
+        let transaction = applicable.swap_remove(transaction_index);
+        let probe::ApplicableCandidate {
+            state,
+            type_args,
+            args,
+            argument_sinks,
+            return_ty,
+            ..
+        } = transaction;
+        *self = *state;
+        for mut arg_sink in argument_sinks {
             sink.append(&mut arg_sink);
         }
-        let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
         let resolved_candidate = CallableCandidate {
             function,
-            owner: candidate.owner.clone(),
-            source: candidate.source,
+            owner,
+            source,
         };
         let callee = self.materialize_candidate_callable(&resolved_candidate, &type_args);
         Some(ResolvedCallee {
             callee,
-            source: candidate.source,
+            source,
             type_args,
             args,
             return_ty,

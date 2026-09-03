@@ -127,7 +127,7 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            Constructor::Unmatched => self.lower_function_call(call, sink),
+            Constructor::Unmatched => self.lower_function_call(call, sink, expected),
         }
     }
 

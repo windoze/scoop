@@ -112,6 +112,32 @@ fn generic_inference_is_independent_of_argument_order() {
     assert!(dump.contains("VariantConstruct Option.None<Int> : Option<Int>"));
 }
 
+#[test]
+fn outer_expected_type_fixes_a_return_only_type_parameter() {
+    let file = file(vec![
+        fun_expr(
+            "empty",
+            vec!["T"],
+            vec![],
+            Some(ty_nullable(ty_named("T"))),
+            none(),
+        ),
+        fun(
+            "main",
+            vec![val_ty(
+                "value",
+                Some(ty_nullable(ty_named("Int"))),
+                call("empty", vec![]),
+            )],
+        ),
+    ]);
+
+    let module = lower_user(file).expect("the call result context must infer T as Int");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Call empty<Int> : Option<Int>"), "{dump}");
+    assert!(dump.contains("instance empty<Int>"), "{dump}");
+}
+
 /// Multiple type parameters bind independently; tuple return types
 /// substitute recursively.
 #[test]

@@ -26,6 +26,19 @@ pub(crate) struct InferenceSolution {
     bindings: Vec<(InferenceVariableId, hir::TypeId)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PartialInferenceArguments {
+    pub(crate) owner: Vec<Option<hir::TypeId>>,
+    pub(crate) callable: Vec<Option<hir::TypeId>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompletionMode {
+    Complete,
+    Satisfiable,
+    Partial,
+}
+
 impl InferenceSolution {
     pub(crate) fn type_for(&self, variable: impl Into<InferenceVariableId>) -> hir::TypeId {
         let variable = variable.into();
@@ -87,12 +100,12 @@ impl VariableState {
 
     fn failure_origin(&self) -> ConstraintOrigin {
         self.exact
-            .first()
-            .or_else(|| self.lower.first())
-            .or_else(|| self.upper.first())
-            .or_else(|| self.interfaces.first())
+            .last()
+            .or_else(|| self.lower.last())
+            .or_else(|| self.upper.last())
+            .or_else(|| self.interfaces.last())
             .map(|bound| bound.origin)
-            .or_else(|| self.kinds.first().map(|(_, origin)| *origin))
+            .or_else(|| self.kinds.last().map(|(_, origin)| *origin))
             .unwrap_or(ConstraintOrigin::Declaration)
     }
 }
@@ -102,7 +115,7 @@ impl Lowerer {
         &mut self,
         session: &InferenceSession,
     ) -> Result<InferenceSolution, ConstraintFailure> {
-        let bindings = self.solve_constraint_bindings(session, false)?;
+        let bindings = self.solve_constraint_bindings(session, CompletionMode::Complete)?;
         Ok(InferenceSolution {
             session: session.id(),
             bindings: session
@@ -120,13 +133,47 @@ impl Lowerer {
     /// concrete call application. Declaration variables absent from every
     /// forwarding parameter may therefore remain existentially unconstrained.
     pub(crate) fn constraints_are_satisfiable(&mut self, session: &InferenceSession) -> bool {
-        self.solve_constraint_bindings(session, true).is_ok()
+        self.solve_constraint_bindings(session, CompletionMode::Satisfiable)
+            .is_ok()
+    }
+
+    /// Propagate every currently decidable relation without requiring the
+    /// candidate to be complete yet. Postponed arguments consume these
+    /// bindings as expected-type hints and feed their types into the next
+    /// fixed-point round.
+    pub(crate) fn solve_constraints_partially(
+        &mut self,
+        session: &InferenceSession,
+        environment: InferenceEnvironmentId,
+    ) -> Result<PartialInferenceArguments, ConstraintFailure> {
+        let bindings = self.solve_constraint_bindings(session, CompletionMode::Partial)?;
+        let lookup = |variable: InferenceVariableId| {
+            bindings[session
+                .variable_index(variable)
+                .expect("partial solution variable belongs to its session")]
+        };
+        Ok(PartialInferenceArguments {
+            owner: session
+                .owner_variables(environment)
+                .iter()
+                .copied()
+                .map(InferenceVariableId::from)
+                .map(lookup)
+                .collect(),
+            callable: session
+                .callable_variables(environment)
+                .iter()
+                .copied()
+                .map(InferenceVariableId::from)
+                .map(lookup)
+                .collect(),
+        })
     }
 
     fn solve_constraint_bindings(
         &mut self,
         session: &InferenceSession,
-        allow_irrelevant: bool,
+        completion: CompletionMode,
     ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
         let atomic = reduce_constraints(self, session)?;
         let mut states: Vec<_> = session
@@ -163,10 +210,15 @@ impl Lowerer {
                 .variable_index(state.variable)
                 .expect("variable state belongs to its inference session");
             bindings[index].is_none()
-                && (!allow_irrelevant
-                    || !state.exact.is_empty()
-                    || !state.lower.is_empty()
-                    || !state.upper.is_empty())
+                && match completion {
+                    CompletionMode::Complete => true,
+                    CompletionMode::Satisfiable => {
+                        !state.exact.is_empty()
+                            || !state.lower.is_empty()
+                            || !state.upper.is_empty()
+                    }
+                    CompletionMode::Partial => false,
+                }
         }) {
             return Err(self.no_unique_failure(session, &bindings, state));
         }
@@ -176,16 +228,17 @@ impl Lowerer {
                 .variable_index(state.variable)
                 .expect("variable state belongs to its inference session")]
             else {
-                debug_assert!(allow_irrelevant);
-                debug_assert!(state.exact.is_empty());
-                debug_assert!(state.lower.is_empty());
-                debug_assert!(state.upper.is_empty());
+                debug_assert_ne!(completion, CompletionMode::Complete);
                 continue;
             };
-            self.validate_variable(session, &bindings, state, solution)?;
+            if completion != CompletionMode::Partial {
+                self.validate_variable(session, &bindings, state, solution)?;
+            }
         }
-        for check in &checks {
-            self.validate_check(session, &bindings, check)?;
+        if completion != CompletionMode::Partial {
+            for check in &checks {
+                self.validate_check(session, &bindings, check)?;
+            }
         }
 
         Ok(bindings)

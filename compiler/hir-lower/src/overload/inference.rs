@@ -1,6 +1,7 @@
 //! Structural type-argument binding used by overload applicability.
 
 use super::*;
+use crate::Type;
 
 impl Lowerer {
     pub(super) fn substitute_call_level(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
@@ -9,28 +10,6 @@ impl Lowerer {
         } else {
             self.instantiate_ty(ty, type_args)
         }
-    }
-
-    /// Run the M3 binding rules without diagnostics. A conflict or unbound
-    /// parameter makes the candidate inapplicable.
-    pub(super) fn try_infer_type_args(
-        &mut self,
-        candidate: &Candidate,
-        arg_tys: &[Option<TypeId>],
-    ) -> Option<Vec<TypeId>> {
-        if candidate.initial_bindings.is_empty() {
-            return Some(Vec::new());
-        }
-        let mut bindings = candidate.initial_bindings.clone();
-        for (&param, arg) in candidate.params.iter().zip(arg_tys) {
-            let Some(arg) = *arg else {
-                continue;
-            };
-            if !self.try_bind(param, arg, &mut bindings) {
-                return None;
-            }
-        }
-        bindings.into_iter().collect()
     }
 
     pub(crate) fn try_bind(

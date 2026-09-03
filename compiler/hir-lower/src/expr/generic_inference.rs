@@ -276,12 +276,15 @@ impl Lowerer {
                     && !self.host_has_property(&name.text)
             }
             ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
-            ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
+            ast::Expr::TupleLiteral { elements, .. } => {
                 elements.is_empty()
                     || elements
                         .iter()
                         .any(|element| self.expr_requires_expected_type(element))
             }
+            // The surrounding type also chooses between Array and
+            // MutableArray, even when every element is independently typed.
+            ast::Expr::ArrayLiteral { .. } => true,
             ast::Expr::Call(call) if !call.type_args.is_empty() => false,
             ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
             ast::Expr::StructInit { name, args, .. } => {
@@ -314,44 +317,6 @@ impl Lowerer {
             ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
             _ => false,
         }
-    }
-
-    /// Type one context-dependent expression in a cloned semantic state. This is
-    /// the transactional probe used by overload applicability: generated
-    /// function/closure entities, inferred types, captures, and diagnostics are
-    /// all discarded with the clone. The selected candidate is lowered once in
-    /// the original state afterwards.
-    pub(crate) fn probe_contextual_expr(
-        &self,
-        expr: &ast::Expr,
-        expected: TypeId,
-    ) -> Result<(), String> {
-        let mut probe = self.clone();
-        let diagnostics_before = probe.diagnostics.len();
-        let mut sink = Vec::new();
-        let value = probe.lower_expr(expr, &mut sink, Some(expected));
-        let diagnostics: Vec<_> = probe.diagnostics[diagnostics_before..]
-            .iter()
-            .map(|diagnostic| diagnostic.message.clone())
-            .collect();
-        let Some(value) = value else {
-            return Err(if diagnostics.is_empty() {
-                "contextual expression could not be typed".to_string()
-            } else {
-                diagnostics.join(", ")
-            });
-        };
-        if !diagnostics.is_empty() {
-            return Err(diagnostics.join(", "));
-        }
-        if !probe.is_subtype(value.ty, expected) {
-            return Err(format!(
-                "expression has type {}, expected {}",
-                probe.type_name(value.ty),
-                probe.type_name(expected)
-            ));
-        }
-        Ok(())
     }
 
     pub(super) fn constructor_requires_expected(
@@ -512,168 +477,5 @@ impl Lowerer {
                 .fields
                 .is_empty())
         .then_some((enum_id, variant))
-    }
-
-    /// Bind type arguments by matching a parameter (or variant field)
-    /// type against the argument type: `T` binds to the argument type,
-    /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
-    /// other enum applications — generic struct applications
-    /// (`PinnedPtr<T>`, M12) match by struct and recurse into their
-    /// argument lists, and tuples match elementwise. Anything
-    /// else is left to the argument type check. Returns `false` after
-    /// recording a conflict diagnostic.
-    pub(crate) fn bind_type_args(
-        &mut self,
-        param_ty: TypeId,
-        arg_ty: TypeId,
-        bindings: &mut [Option<TypeId>],
-        type_params: &[hir::TypeParamDecl],
-        span: Span,
-    ) -> bool {
-        match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
-            (Type::Param(index), _) => {
-                let index = index.into_raw() as usize;
-                match bindings[index] {
-                    Some(existing) => {
-                        if self.types_equal(existing, arg_ty) {
-                            true
-                        } else {
-                            let first = self.type_name(existing);
-                            let second = self.type_name(arg_ty);
-                            self.error(
-                                span,
-                                format!(
-                                    "conflicting types for `{}`: {first} and {second}",
-                                    type_params[index].name
-                                ),
-                            );
-                            false
-                        }
-                    }
-                    None => {
-                        bindings[index] = Some(arg_ty);
-                        true
-                    }
-                }
-            }
-            (Type::Enum(param), Type::Enum(arg)) => {
-                let param = self.enum_applications[param].clone();
-                let arg = self.enum_applications[arg].clone();
-                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Struct(param), Type::Struct(arg)) => {
-                let param = self.struct_applications[param].clone();
-                let arg = self.struct_applications[arg].clone();
-                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Class(param), Type::Class(arg)) => {
-                let param = self.class_applications[param].clone();
-                let arg = self.class_applications[arg].clone();
-                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Interface(param), Type::Interface(arg)) => {
-                let param = self.interface_applications[param].clone();
-                let arg = self.interface_applications[arg].clone();
-                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Interface(param), _) => {
-                let param = self.interface_applications[param].clone();
-                let Some(arg_args) = self.implemented_interface_application(arg_ty, param.template)
-                else {
-                    return true;
-                };
-                if param.arguments.len() != arg_args.len() {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.arguments.iter().zip(arg_args) {
-                    ok &= self.bind_type_args(*param, arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Ptr(param), Type::Ptr(arg)) => {
-                self.bind_type_args(param, arg, bindings, type_params, span)
-            }
-            (Type::Tuple(param_elements), Type::Tuple(arg_elements))
-                if param_elements.len() == arg_elements.len() =>
-            {
-                let mut ok = true;
-                for (param, arg) in param_elements.iter().zip(arg_elements.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok
-            }
-            (Type::Function(param_id), Type::Function(arg_id)) => {
-                let param = self.function_types[param_id].clone();
-                let arg = self.function_types[arg_id].clone();
-                if param.is_suspend != arg.is_suspend
-                    || param.parameter_types.len() != arg.parameter_types.len()
-                {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok &= self.bind_type_args(
-                    param.return_type,
-                    arg.return_type,
-                    bindings,
-                    type_params,
-                    span,
-                );
-                ok
-            }
-            (Type::FunPtr(param_id), Type::FunPtr(arg_id)) => {
-                let param = self.function_types[param_id].clone();
-                let arg = self.function_types[arg_id].clone();
-                if param.is_suspend != arg.is_suspend
-                    || param.parameter_types.len() != arg.parameter_types.len()
-                {
-                    return true;
-                }
-                let mut ok = true;
-                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
-                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                }
-                ok &= self.bind_type_args(
-                    param.return_type,
-                    arg.return_type,
-                    bindings,
-                    type_params,
-                    span,
-                );
-                ok
-            }
-            _ => true,
-        }
     }
 }

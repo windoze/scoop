@@ -116,7 +116,14 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self.finish_extension_call(&extensions, &name.text, receiver, call, sink);
+            return self.finish_extension_call(
+                &extensions,
+                &name.text,
+                receiver,
+                call,
+                sink,
+                expected,
+            );
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
@@ -136,6 +143,6 @@ impl Lowerer {
                 return None;
             }
         }
-        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
+        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink, expected)
     }
 }

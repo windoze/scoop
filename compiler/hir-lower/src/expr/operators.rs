@@ -198,6 +198,7 @@ impl Lowerer {
                     explicit_type_args: Vec::new(),
                     args: vec![rhs],
                     span,
+                    expected_result: None,
                 },
                 sink,
             )?;
@@ -280,6 +281,7 @@ impl Lowerer {
                 explicit_type_args: Vec::new(),
                 args: vec![literal],
                 span,
+                expected_result: None,
             },
             &mut sink,
         )?;

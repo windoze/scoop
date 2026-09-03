@@ -21,6 +21,7 @@ impl Lowerer {
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
 
@@ -44,6 +45,7 @@ impl Lowerer {
                     explicit_type_args: &explicit_type_args,
                     arg_exprs: &call.args,
                     span: call.span,
+                    expected_result: expected,
                 },
                 sink,
             )?;
@@ -82,6 +84,7 @@ impl Lowerer {
                     span: call.span,
                 },
                 sink,
+                expected,
             );
         }
 
@@ -104,6 +107,7 @@ impl Lowerer {
                         span: call.span,
                     },
                     sink,
+                    expected,
                 );
             }
         }
@@ -141,6 +145,7 @@ impl Lowerer {
                 explicit_type_args: &explicit_type_args,
                 arg_exprs: &call.args,
                 span: call.span,
+                expected_result: expected,
             },
             sink,
         )?;

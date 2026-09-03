@@ -12,6 +12,7 @@ impl Lowerer {
         receiver: hir::Expr,
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
         let resolved = self.resolve_member_overload(
@@ -21,6 +22,7 @@ impl Lowerer {
                 explicit_type_args: &explicit_type_args,
                 arg_exprs: call.args,
                 span: call.span,
+                expected_result: expected,
             },
             sink,
         )?;

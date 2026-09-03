@@ -11,7 +11,7 @@ use super::constraints::{
 };
 use crate::Lowerer;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct CallableApplicabilityInput<'a> {
     pub(crate) view: &'a CallableView,
     pub(crate) argument_map: &'a CandidateArgumentMap,
@@ -19,6 +19,7 @@ pub(crate) struct CallableApplicabilityInput<'a> {
     pub(crate) explicit_arguments: &'a [hir::TypeId],
     pub(crate) receiver_type: Option<hir::TypeId>,
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
+    pub(crate) expected_result: Option<hir::TypeId>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,33 @@ impl Lowerer {
         &mut self,
         input: CallableApplicabilityInput<'_>,
     ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
+        let (session, environment) = self.callable_applicability_session(input);
+        let solution = self.solve_constraints(&session)?;
+        let arguments = solution.arguments_for(&session, environment);
+        Ok(arguments
+            .owner
+            .into_iter()
+            .chain(arguments.callable)
+            .collect())
+    }
+
+    pub(crate) fn partially_solve_callable_applicability(
+        &mut self,
+        input: CallableApplicabilityInput<'_>,
+    ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
+        let (session, environment) = self.callable_applicability_session(input);
+        let arguments = self.solve_constraints_partially(&session, environment)?;
+        Ok(arguments
+            .owner
+            .into_iter()
+            .chain(arguments.callable)
+            .collect())
+    }
+
+    fn callable_applicability_session(
+        &self,
+        input: CallableApplicabilityInput<'_>,
+    ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let CallableApplicabilityInput {
             view,
             argument_map,
@@ -42,6 +70,7 @@ impl Lowerer {
             explicit_arguments,
             receiver_type,
             argument_types,
+            expected_result,
         } = input;
         debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
         debug_assert!(
@@ -103,14 +132,13 @@ impl Lowerer {
                 ConstraintOrigin::Argument(SourceInputId::from_index(source_index)),
             );
         }
-
-        let solution = self.solve_constraints(&session)?;
-        let arguments = solution.arguments_for(&session, environment);
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
+        if let Some(expected) = expected_result {
+            session.push(
+                Constraint::Subtype(TypeTerm::Type(view.return_type), TypeTerm::Rigid(expected)),
+                ConstraintOrigin::ExpectedResult,
+            );
+        }
+        (session, environment)
     }
 
     pub(crate) fn solve_nominal_applicability(
