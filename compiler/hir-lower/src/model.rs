@@ -142,6 +142,7 @@ pub(crate) enum SuspensionContext {
 pub(crate) enum ForbiddenSuspendContext {
     TopLevel,
     Function,
+    DefaultExpression,
     ConstructorDelegation,
 }
 

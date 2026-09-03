@@ -125,6 +125,9 @@ impl Lowerer {
             ForbiddenSuspendContext::Function => {
                 format!("non-suspend function `{}`", self.current_fn_name)
             }
+            ForbiddenSuspendContext::DefaultExpression => {
+                format!("non-suspend default expression {}", self.current_fn_name)
+            }
             ForbiddenSuspendContext::ConstructorDelegation => "constructor delegation".to_string(),
         };
         self.error(

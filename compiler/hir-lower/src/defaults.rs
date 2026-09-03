@@ -634,10 +634,7 @@ impl Lowerer {
         let outer_return_inference = self.return_inference.take();
         let outer_fn_name = std::mem::replace(
             &mut self.current_fn_name,
-            format!(
-                "{} default `{}`",
-                context.callable_name, parameter.name.text
-            ),
+            format!("`{}` of `{}`", parameter.name.text, context.callable_name),
         );
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
@@ -659,7 +656,7 @@ impl Lowerer {
         self.push_suspension_context(if context.is_suspend {
             SuspensionContext::SuspendFunction
         } else {
-            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::DefaultExpression)
         });
         self.push_safety_context(context.safety);
         self.push_scope();
