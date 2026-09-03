@@ -234,6 +234,30 @@ impl Lowerer {
             arguments.push(argument);
         }
         Ok(match application {
+            NominalApplication::Struct(template, _) if Some(*template) == self.ffi_ptr => {
+                let [pointee] = arguments.as_slice() else {
+                    return Err(ConstraintFailure {
+                        origin,
+                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+                    });
+                };
+                self.intern_type(Type::Ptr(*pointee))
+            }
+            NominalApplication::Struct(template, _) if Some(*template) == self.ffi_fun_ptr => {
+                let [function] = arguments.as_slice() else {
+                    return Err(ConstraintFailure {
+                        origin,
+                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+                    });
+                };
+                let Type::Function(function) = self.types[*function] else {
+                    return Err(ConstraintFailure {
+                        origin,
+                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+                    });
+                };
+                self.intern_type(Type::FunPtr(function))
+            }
             NominalApplication::Struct(template, _) => {
                 self.struct_application(*template, arguments)
             }

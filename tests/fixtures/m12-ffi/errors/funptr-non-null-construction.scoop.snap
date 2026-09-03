@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m12-ffi/errors/funptr-non-null-construction.scoop:2:20: error: `FunPtr` only supports the zero-argument null constructor
+m12-ffi/errors/funptr-non-null-construction.scoop:2:20: error: no applicable candidate for constructor `FunPtr` in nominal constructor candidate layer:
+  - struct FunPtr<F>() — expects 0 argument(s), but 1 were supplied

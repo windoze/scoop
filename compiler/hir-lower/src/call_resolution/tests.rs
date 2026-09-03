@@ -389,6 +389,79 @@ fn concrete_application_materializes_every_argument() {
 }
 
 #[test]
+fn pointer_concrete_application_uses_the_typed_pointer_representation() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(63, 0);
+    let pointer = add_generic_struct(&mut lowerer, "Ptr", callable.clone());
+    lowerer.ffi_ptr = Some(pointer);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    session.push(
+        Constraint::Equal(variable.into(), lowerer.int.into()),
+        ConstraintOrigin::Receiver,
+    );
+    session.push(
+        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
+            pointer,
+            vec![variable.into()],
+        )),
+        ConstraintOrigin::Specificity,
+    );
+
+    lowerer
+        .solve_constraints(&session)
+        .expect("the complete Ptr<Int> application materializes");
+    assert!(
+        lowerer
+            .types
+            .iter()
+            .any(|(_, ty)| matches!(ty, Type::Ptr(pointee) if *pointee == lowerer.int))
+    );
+    assert!(
+        !lowerer
+            .struct_application_by_key
+            .contains_key(&(pointer, vec![lowerer.int]))
+    );
+}
+
+#[test]
+fn function_pointer_concrete_application_requires_a_function_type() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(64, 0);
+    let pointer = add_generic_struct(&mut lowerer, "FunPtr", callable.clone());
+    lowerer.ffi_fun_ptr = Some(pointer);
+    let function = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    session.push(
+        Constraint::Equal(variable.into(), function.into()),
+        ConstraintOrigin::Receiver,
+    );
+    session.push(
+        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
+            pointer,
+            vec![variable.into()],
+        )),
+        ConstraintOrigin::Specificity,
+    );
+
+    lowerer
+        .solve_constraints(&session)
+        .expect("the complete FunPtr application materializes");
+    let Type::Function(signature) = lowerer.types[function] else {
+        panic!("the test function type is canonical")
+    };
+    assert!(
+        lowerer
+            .types
+            .iter()
+            .any(|(_, ty)| matches!(ty, Type::FunPtr(found) if *found == signature))
+    );
+}
+
+#[test]
 fn callable_shape_keeps_managed_and_native_categories_separate() {
     let mut lowerer = Lowerer::new();
     let signature = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
