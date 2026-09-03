@@ -1,0 +1,5 @@
+fun one(value: Array<Int>): Int = value.size
+
+fun main() {
+    one(*[1, 2])
+}

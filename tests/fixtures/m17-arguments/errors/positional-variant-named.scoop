@@ -1,0 +1,7 @@
+enum Payload {
+    Pair(Int, Int)
+}
+
+fun main() {
+    Payload.Pair(first = 1, second = 2)
+}
