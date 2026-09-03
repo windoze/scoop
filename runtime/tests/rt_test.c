@@ -10,6 +10,7 @@
  *     runtime/src/gc.c runtime/src/gc/allocation.c \
  *     runtime/src/gc/collector.c runtime/src/gc/evacuation.c \
  *     runtime/src/gc/reclamation.c runtime/src/gc/heap.c \
+ *     runtime/src/gc/heap_objects.c \
  *     runtime/src/gc/roots.c runtime/src/gc/stackmap.c \
  *     runtime/src/gc/stack_roots.c runtime/src/thread.c \
  *     runtime/src/thread/collection.c runtime/src/thread/debug.c \
@@ -19,7 +20,12 @@
  *     runtime/src/platform/arch/aarch64.c \
  *     runtime/src/platform/arch/aarch64_anchor.S \
  *     runtime/tests/rt_test/support.c \
- *     runtime/tests/rt_test/threads.c runtime/tests/rt_test/callbacks.c \
+ *     runtime/tests/rt_test/threads.c \
+ *     runtime/tests/rt_test/threads/registration.c \
+ *     runtime/tests/rt_test/threads/stw.c \
+ *     runtime/tests/rt_test/threads/allocation.c \
+ *     runtime/tests/rt_test/threads/transitions.c \
+ *     runtime/tests/rt_test/callbacks.c \
  *     runtime/tests/rt_test/core.c runtime/tests/rt_test/gc.c \
  *     runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
  */
