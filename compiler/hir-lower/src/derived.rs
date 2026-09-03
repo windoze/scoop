@@ -7,7 +7,9 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use crate::{CallableCandidate, FnParam, FnSig, Function, FunctionKind, Lowerer, Owner, Type};
+use crate::{
+    CallableCandidate, FnParam, FnParamCalling, FnSig, Function, FunctionKind, Lowerer, Owner, Type,
+};
 
 mod body;
 
@@ -134,6 +136,7 @@ impl Lowerer {
                         text: "other".to_string(),
                         span,
                     },
+                    calling: FnParamCalling::Required,
                     ty: owner_ty,
                 }],
                 return_ty: self.boolean,
@@ -262,6 +265,7 @@ impl Lowerer {
                         text: "other".to_string(),
                         span,
                     },
+                    calling: FnParamCalling::Required,
                     ty: owner_ty,
                 }],
                 return_ty: self.boolean,

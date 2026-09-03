@@ -27,7 +27,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&prop.ty) else {
+            let Some(ty) = self.resolve_parameter_type(&prop.ty, &prop.syntax) else {
                 continue; // diagnostic already recorded
             };
             props.push(hir::ConstructorField {

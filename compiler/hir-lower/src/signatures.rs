@@ -1,4 +1,5 @@
 use super::*;
+use crate::types::ArrayKind;
 
 impl Lowerer {
     /// Resolve the field types of a struct declaration. Fields with
@@ -33,7 +34,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&field.ty) else {
+            let Some(ty) = self.resolve_parameter_type(&field.ty, &field.syntax) else {
                 continue; // diagnostic already recorded
             };
             fields.push(hir::Field {
@@ -118,7 +119,7 @@ impl Lowerer {
                         );
                         return None;
                     }
-                    let ty = self.resolve_type_ref(&field.ty)?;
+                    let ty = self.resolve_parameter_type(&field.ty, &field.syntax)?;
                     let default = match &field.syntax {
                         ast::ParameterSyntax::Default {
                             expression: default,
@@ -308,11 +309,8 @@ impl Lowerer {
         for param in &decl.params {
             // On failure the diagnostic is already recorded and the
             // module is rejected; the parameter is simply dropped.
-            if let Some(ty) = self.resolve_type_ref(&param.ty) {
-                params.push(FnParam {
-                    name: param.name.clone(),
-                    ty,
-                });
+            if let Some(param) = self.resolve_fn_param(param) {
+                params.push(param);
             }
         }
         let return_ty = match &decl.return_ty {
@@ -339,6 +337,58 @@ impl Lowerer {
             self.extern_functions[extern_id].params =
                 signature.params.iter().map(|param| param.ty).collect();
             self.extern_functions[extern_id].return_type = return_ty;
+        }
+    }
+
+    pub(crate) fn resolve_fn_param(&mut self, param: &ast::Param) -> Option<FnParam> {
+        let declared_ty = self.resolve_type_ref(&param.ty)?;
+        let (ty, calling) = match &param.syntax {
+            ast::ParameterSyntax::Required => (declared_ty, FnParamCalling::Required),
+            ast::ParameterSyntax::Default { expression, .. } => (
+                declared_ty,
+                FnParamCalling::Default {
+                    expression: expression.clone(),
+                },
+            ),
+            ast::ParameterSyntax::Vararg { default, .. } => {
+                let ty = self.array_type(ArrayKind::Immutable, declared_ty);
+                let omission = match default {
+                    ast::VarargDefaultSyntax::EmptyWhenOmitted => FnVarargOmission::EmptyArray,
+                    ast::VarargDefaultSyntax::Expression { expression, .. } => {
+                        FnVarargOmission::Default {
+                            expression: expression.clone(),
+                        }
+                    }
+                };
+                (
+                    ty,
+                    FnParamCalling::Vararg {
+                        element_ty: declared_ty,
+                        omission,
+                    },
+                )
+            }
+        };
+        Some(FnParam {
+            name: param.name.clone(),
+            calling,
+            ty,
+        })
+    }
+
+    pub(crate) fn resolve_parameter_type(
+        &mut self,
+        ty: &ast::TypeRef,
+        syntax: &ast::ParameterSyntax,
+    ) -> Option<TypeId> {
+        let declared_ty = self.resolve_type_ref(ty)?;
+        match syntax {
+            ast::ParameterSyntax::Required | ast::ParameterSyntax::Default { .. } => {
+                Some(declared_ty)
+            }
+            ast::ParameterSyntax::Vararg { .. } => {
+                Some(self.array_type(ArrayKind::Immutable, declared_ty))
+            }
         }
     }
 }

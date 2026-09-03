@@ -42,11 +42,7 @@ impl Lowerer {
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {
-            let ty = self.resolve_type_ref(&param.ty)?;
-            sig_params.push(FnParam {
-                name: param.name.clone(),
-                ty,
-            });
+            sig_params.push(self.resolve_fn_param(param)?);
         }
         let return_ty = match &decl.return_ty {
             Some(ty) => self.resolve_type_ref(ty)?,
