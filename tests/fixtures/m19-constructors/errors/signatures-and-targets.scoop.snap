@@ -1,0 +1,15 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m19-constructors/errors/signatures-and-targets.scoop:2:5: error: duplicate constructor signature `Duplicate(Int)` in class `Duplicate`
+m19-constructors/errors/signatures-and-targets.scoop:2:31: error: ambiguous constructor call `Duplicate`:
+  - class Duplicate(value: Int)
+  - class Duplicate(other: Int)
+m19-constructors/errors/signatures-and-targets.scoop:13:29: error: no applicable candidate for constructor `NeedsValue` in nominal constructor candidate layer:
+  - class NeedsValue(value: Int) — expects 1 argument(s), but 0 were supplied
+m19-constructors/errors/signatures-and-targets.scoop:16:21: error: ambiguous constructor call `Ambiguous`:
+  - class Ambiguous(value: Int, text: String)
+  - class Ambiguous(value: Int, flag: Boolean)
+m19-constructors/errors/signatures-and-targets.scoop:17:25: error: abstract class `AbstractType` cannot be instantiated

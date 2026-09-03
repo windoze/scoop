@@ -1,0 +1,36 @@
+open class MovingBase(val base: String) {
+    val baseCopy: String = "base-copy-" + base
+
+    init {
+        gcCollect()
+        println(base)
+        println(baseCopy)
+    }
+}
+
+class MovingDerived(seed: String) : MovingBase("base-" + seed) {
+    val derived: String = "derived-" + seed
+
+    init {
+        gcCollect()
+        println(derived)
+    }
+
+    constructor(seed: String, secondary: String) : this(seed) {
+        gcCollect()
+        println(secondary)
+        println(base)
+        println(derived)
+    }
+
+    fun verify(): Boolean = this is MovingDerived
+}
+
+fun main() {
+    val moving = MovingDerived("seed", "secondary-alive")
+    gcCollect()
+    println(moving.base)
+    println(moving.baseCopy)
+    println(moving.derived)
+    println(moving.verify())
+}
