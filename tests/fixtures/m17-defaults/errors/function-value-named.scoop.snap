@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-defaults/errors/function-value-named.scoop:5:15: error: function values do not accept named arguments

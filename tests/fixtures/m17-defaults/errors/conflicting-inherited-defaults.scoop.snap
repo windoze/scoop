@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-defaults/errors/conflicting-inherited-defaults.scoop:10:30: error: override function `value` inherits conflicting default expressions for parameter `input`

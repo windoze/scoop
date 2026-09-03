@@ -1,0 +1,6 @@
+fun sum(left: Int, right: Int = 2): Int = left + right
+
+fun main() {
+    val reference: (Int, Int) -> Int = ::sum
+    reference(1)
+}

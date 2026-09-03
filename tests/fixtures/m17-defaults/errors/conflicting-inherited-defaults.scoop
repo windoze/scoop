@@ -1,0 +1,13 @@
+interface Left {
+    fun value(input: Int = 1): Int
+}
+
+interface Right {
+    fun value(input: Int = 2): Int
+}
+
+class Both : Left, Right {
+    final override fun value(input: Int): Int = input
+}
+
+fun main() {}
