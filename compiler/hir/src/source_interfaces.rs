@@ -76,15 +76,11 @@ impl ExpressionOrigin {
         }
     }
 
-    pub const fn instantiate(self, evaluation: Option<EvaluationOrigin>) -> Self {
-        let definition = self.definition();
-        match evaluation {
-            Some(evaluation) => Self::Instantiated(ConcreteExpressionOrigin {
-                definition,
-                evaluation,
-            }),
-            None => Self::Definition(definition),
-        }
+    pub const fn instantiate(self, evaluation: EvaluationOrigin) -> Self {
+        Self::Instantiated(ConcreteExpressionOrigin {
+            definition: self.definition(),
+            evaluation,
+        })
     }
 }
 
