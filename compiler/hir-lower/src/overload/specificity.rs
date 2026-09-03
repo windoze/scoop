@@ -11,47 +11,44 @@ impl Lowerer {
         applicable: &[(usize, Vec<TypeId>)],
         span: Span,
     ) -> Option<(usize, Vec<TypeId>)> {
-        // Dominance compares the parameter types with each candidate's
-        // own inferred type arguments applied.
-        let inst_params: Vec<Vec<TypeId>> = applicable
-            .iter()
-            .map(|(index, type_args)| {
-                prepared[*index]
-                    .params
-                    .iter()
-                    .map(|&param| self.substitute_call_level(param, type_args))
-                    .collect()
-            })
-            .collect();
-        let mut dominators = Vec::new();
+        let mut forwards = vec![vec![false; applicable.len()]; applicable.len()];
         for a in 0..applicable.len() {
-            let dominates_all = (0..applicable.len()).all(|b| {
-                b == a
-                    || inst_params[a]
-                        .iter()
-                        .zip(&inst_params[b])
-                        .all(|(&x, &y)| self.is_subtype(x, y))
-            });
-            if dominates_all {
-                dominators.push(a);
+            forwards[a][a] = true;
+            for b in 0..applicable.len() {
+                if a == b {
+                    continue;
+                }
+                let source = &prepared[applicable[a].0];
+                let target = &prepared[applicable[b].0];
+                forwards[a][b] = self.callable_forwards(
+                    crate::call_resolution::specificity::ForwardingDeclaration {
+                        view: &source.view,
+                        parameter_types: &source.params,
+                    },
+                    crate::call_resolution::specificity::ForwardingDeclaration {
+                        view: &target.view,
+                        parameter_types: &target.params,
+                    },
+                );
             }
         }
-        if dominators.len() == 1 {
-            return Some(applicable[dominators[0]].clone());
-        }
-        // A tie (mutual or no dominance): concrete candidates win over
-        // parameterized ones; anything still tied is ambiguous.
-        let pool = if dominators.is_empty() {
-            (0..applicable.len()).collect::<Vec<_>>()
-        } else {
-            dominators
-        };
+
+        // Remove a candidate only when another candidate forwards to it and
+        // the reverse direction fails. Mutually forwarding declarations stay
+        // tied until the non-parameterized preference below.
+        let pool = (0..applicable.len())
+            .filter(|&candidate| {
+                !(0..applicable.len()).any(|other| {
+                    other != candidate && forwards[other][candidate] && !forwards[candidate][other]
+                })
+            })
+            .collect::<Vec<_>>();
         let non_generic: Vec<usize> = pool
             .iter()
             .copied()
             .filter(|&a| {
                 let candidate = &prepared[applicable[a].0];
-                candidate.own_type_param_count == 0 && !candidate.parameterized
+                candidate.own_type_param_count == 0
             })
             .collect();
         let pool = if non_generic.is_empty() {

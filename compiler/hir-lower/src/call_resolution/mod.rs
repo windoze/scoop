@@ -16,6 +16,7 @@ pub(crate) mod constraints;
 mod relations;
 #[allow(dead_code)]
 pub(crate) mod solver;
+pub(crate) mod specificity;
 
 #[cfg(test)]
 mod tests;

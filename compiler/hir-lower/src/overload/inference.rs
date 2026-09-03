@@ -11,41 +11,6 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn mentions_type_param(&self, ty: TypeId) -> bool {
-        match self.types[ty].clone() {
-            Type::Param(_) => true,
-            Type::Ptr(pointee) => self.mentions_type_param(pointee),
-            Type::Enum(application) => self.enum_applications[application]
-                .arguments
-                .iter()
-                .any(|&arg| self.mentions_type_param(arg)),
-            Type::Struct(application) => self.struct_applications[application]
-                .arguments
-                .iter()
-                .any(|&arg| self.mentions_type_param(arg)),
-            Type::Class(application) => self.class_applications[application]
-                .arguments
-                .iter()
-                .any(|&arg| self.mentions_type_param(arg)),
-            Type::Interface(application) => self.interface_applications[application]
-                .arguments
-                .iter()
-                .any(|&arg| self.mentions_type_param(arg)),
-            Type::Tuple(elements) => elements
-                .iter()
-                .any(|&element| self.mentions_type_param(element)),
-            Type::Function(id) | Type::FunPtr(id) => {
-                let function = &self.function_types[id];
-                function
-                    .parameter_types
-                    .iter()
-                    .any(|&parameter| self.mentions_type_param(parameter))
-                    || self.mentions_type_param(function.return_type)
-            }
-            _ => false,
-        }
-    }
-
     /// Run the M3 binding rules without diagnostics. A conflict or unbound
     /// parameter makes the candidate inapplicable.
     pub(super) fn try_infer_type_args(

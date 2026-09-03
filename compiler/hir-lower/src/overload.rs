@@ -102,11 +102,6 @@ struct Candidate {
     initial_bindings: Vec<Option<TypeId>>,
     owner_arguments: Vec<TypeId>,
     explicit_arity_match: bool,
-    /// Whether the candidate's declared (pre-instantiation) parameter
-    /// types mention type parameters — its own or its host's. Such
-    /// candidates lose MSC ties against fully concrete ones
-    /// (DESIGN.md 1.2: non-parameterized candidates are preferred).
-    parameterized: bool,
 }
 
 enum OverloadReceiver {
@@ -336,7 +331,6 @@ impl Lowerer {
                     };
                     params.insert(0, receiver);
                 }
-                let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
                 let owner_arguments = self.callable_candidate_owner_arguments(source);
                 debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
                 let mut initial_bindings =
@@ -367,7 +361,6 @@ impl Lowerer {
                     initial_bindings,
                     owner_arguments,
                     explicit_arity_match,
-                    parameterized,
                     view,
                 }
             })

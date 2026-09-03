@@ -102,6 +102,32 @@ impl Lowerer {
         &mut self,
         session: &InferenceSession,
     ) -> Result<InferenceSolution, ConstraintFailure> {
+        let bindings = self.solve_constraint_bindings(session, false)?;
+        Ok(InferenceSolution {
+            session: session.id(),
+            bindings: session
+                .variables()
+                .iter()
+                .copied()
+                .zip(bindings.into_iter().map(|binding| {
+                    binding.expect("a complete inference solution binds every variable")
+                }))
+                .collect(),
+        })
+    }
+
+    /// MSC asks whether a forwarding relation is satisfiable, not for a
+    /// concrete call application. Declaration variables absent from every
+    /// forwarding parameter may therefore remain existentially unconstrained.
+    pub(crate) fn constraints_are_satisfiable(&mut self, session: &InferenceSession) -> bool {
+        self.solve_constraint_bindings(session, true).is_ok()
+    }
+
+    fn solve_constraint_bindings(
+        &mut self,
+        session: &InferenceSession,
+        allow_irrelevant: bool,
+    ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
         let atomic = reduce_constraints(self, session)?;
         let mut states: Vec<_> = session
             .variables()
@@ -137,34 +163,32 @@ impl Lowerer {
                 .variable_index(state.variable)
                 .expect("variable state belongs to its inference session");
             bindings[index].is_none()
+                && (!allow_irrelevant
+                    || !state.exact.is_empty()
+                    || !state.lower.is_empty()
+                    || !state.upper.is_empty())
         }) {
             return Err(self.no_unique_failure(session, &bindings, state));
         }
 
         for state in &states {
-            let solution = bindings[session
+            let Some(solution) = bindings[session
                 .variable_index(state.variable)
                 .expect("variable state belongs to its inference session")]
-            .expect("all inference variables were solved");
+            else {
+                debug_assert!(allow_irrelevant);
+                debug_assert!(state.exact.is_empty());
+                debug_assert!(state.lower.is_empty());
+                debug_assert!(state.upper.is_empty());
+                continue;
+            };
             self.validate_variable(session, &bindings, state, solution)?;
         }
         for check in &checks {
             self.validate_check(session, &bindings, check)?;
         }
 
-        Ok(InferenceSolution {
-            session: session.id(),
-            bindings: session
-                .variables()
-                .iter()
-                .copied()
-                .zip(
-                    bindings.into_iter().map(|binding| {
-                        binding.expect("a successful inference solution is complete")
-                    }),
-                )
-                .collect(),
-        })
+        Ok(bindings)
     }
 
     fn try_solve_variable(

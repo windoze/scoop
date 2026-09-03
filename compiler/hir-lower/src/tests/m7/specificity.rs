@@ -193,3 +193,30 @@ fn non_generic_wins_ties_against_generic() {
     assert!(has_instantiation(&module, generic, &[module.string]));
     assert!(!has_instantiation(&module, generic, &[module.int]));
 }
+
+#[test]
+fn generic_forwarding_does_not_read_call_inference_results() {
+    let file = file(vec![
+        fun_expr(
+            "merge",
+            vec!["T"],
+            vec![("first", ty_named("T")), ("second", ty_named("T"))],
+            Some(ty_named("String")),
+            str_lit("same"),
+        ),
+        fun_expr(
+            "merge",
+            vec!["U"],
+            vec![("first", ty_named("U")), ("second", ty_named("Any"))],
+            Some(ty_named("String")),
+            str_lit("wide"),
+        ),
+        fun(
+            "main",
+            vec![stmt(call("merge", vec![str_lit("left"), str_lit("right")]))],
+        ),
+    ]);
+    let errors = lower_user(file).expect_err("fresh declaration forwarding stays tied");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "call to `merge` is ambiguous");
+}

@@ -222,7 +222,7 @@ impl Lowerer {
         Ok(solution.arguments_for(&session, environment).owner)
     }
 
-    fn add_declaration_bounds<'a>(
+    pub(crate) fn add_declaration_bounds<'a>(
         &self,
         session: &mut InferenceSession,
         parameters: impl Iterator<Item = &'a hir::TypeParamDecl>,
