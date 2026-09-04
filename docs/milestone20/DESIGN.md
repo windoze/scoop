@@ -265,11 +265,11 @@ LocalConcrete HIR只包含：
 
 每个exact generic application继续拥有独立layout/TypeDescriptor/itable key。`is`/`as`只比较参数完整的exact target及其普通base/interface closure；不存在template-only、star或view descriptor。value application之间没有隐式重建，class application之间没有source/target member bridge。
 
-### 5.3 `.slib`
+### 5.3 Export metadata与未来`.slib`
 
 Export HIR meta新增class bound结构；`_`只存在于source call，winner commit后导出/本地实例仍只含完整concrete arguments。成功导出仍只含普通generic template、exact application与typed dependency closure。MIR/LIR meta继续导出exact dispatch/layout信息，不增加view row、capture branch、existential ABI或value reconstruction relation。
 
-下游Cone读取上游template后独立运行相同的`_`求解与bound验证，再生成完整本地实例。stage之间仍只通过各自IR/meta crate通信，不读取上游stage实现crate。
+M20锁定供未来下游Cone消费的`ExportHir`结构：class/interface bound保持typed id，generic template不含`_`，本Cone的`LocalConcreteHir`实例只含完整实参。真实`.slib`打包/reader、依赖图与下游Cone编译由M23整体实现；M23读取上游template后必须独立运行相同的`_`求解与bound验证，再生成完整本地实例。stage之间仍只通过各自IR/meta crate通信，不读取上游stage实现crate。
 
 ## 6. 诊断与恢复
 
@@ -310,7 +310,7 @@ parser以当前type/call argument list为恢复边界；HIR对非法declaration/
 - 唯一class + 多interface bound、F-bound、继承member和actual验证；
 - class bound的generic argument逐项exact；
 - duplicate class、kind冲突、value/function/`Any`/type-parameter bound negative；
-- bounded receiver的direct/virtual/interface target及跨Cone实例化golden。
+- bounded receiver的direct/virtual/interface target，以及`ExportHir` template到本地完整实例的边界golden；真实跨Cone实例化随M23验证。
 
 ### 7.4 `_`与overload
 
@@ -320,7 +320,7 @@ parser以当前type/call argument list为恢复边界；HIR对非法declaration/
 - single-candidate失败、MSC单向/双向/互不支配及完整candidate trace；
 - 失败candidate不污染application/default/lambda arena。
 
-### 7.5 Stage与跨Cone golden
+### 7.5 Stage与export边界golden
 
 AST / ExportHir / LocalConcreteHir / MIR / LIR golden锁定：
 
@@ -328,9 +328,9 @@ AST / ExportHir / LocalConcreteHir / MIR / LIR golden锁定：
 - class/interface bound typed id及`None | One`class结构；
 - inference variable和`_`在LocalConcrete前消失；
 - TypeDescriptor、itable、layout与RTTI只引用exact application；
-- `.slib`足以让下游完成`_`求解、bound检查和单态化，不含view/capture/value-conversion metadata。
+- `ExportHir`足以让未来下游完成`_`求解、bound检查和单态化，不含view/capture/value-conversion metadata；`.slib`往返与实际下游编译属于M23。
 
-组合fixture至少覆盖class bound + `_` + constructor/default/vararg + closure + suspend caller + exception + moving GC + 跨Cone template实例化。M1至M19全部回归。
+组合fixture至少覆盖class bound + `_` + constructor/default/vararg + closure + suspend caller + exception + moving GC，并在同一golden中锁定generic template的`ExportHir`与完整本地实例。真实跨Cone template实例化随M23补充。M1至M19全部回归。
 
 ## 8. 实现顺序与提交门
 
@@ -340,12 +340,12 @@ AST / ExportHir / LocalConcreteHir / MIR / LIR golden锁定：
 4. 实现class bound的typed结构、定义检查、member resolution与actual验证；
 5. 把`_`接入M16 candidate-local constraint、postponed argument、MSC及winner commit；
 6. 补齐expected-type构造、invariant LUB和首个不同argument诊断；
-7. 更新Export/MIR/LIR `.slib` schema与跨Cone golden；
+7. 更新Export/MIR/LIR的exact-only跨Cone数据结构与export/local边界golden；`.slib`打包、reader及真实跨Cone golden留给M23；
 8. 完成negative/组合fixture及M1至M19回归。
 
 每批代码变更先执行`cargo fmt --all`与`cargo clippy --workspace`，再运行对应crate test、stage golden和fixture。不得保留“interface仍variant”的core例外、只供Array使用的projection、`Option`隐式payload widening、runtime wildcard descriptor或失败时回退`Any`。
 
-M20只有在以下条件同时满足时完成：全部nominal声明/application使用同一invariant关系；class bound可与多个interface bound组合并跨Cone实例化；`_`覆盖所有generic callable/constructor入口并在HIR内完全消去；expected type足以支持直接构造目标`Option`等常见模式；RTTI、dispatch、layout和`.slib`保持exact-only；旧variance/projection/capture路径及metadata已经删除而不是成为不可达旁路。
+M20只有在以下条件同时满足时完成：全部nominal声明/application使用同一invariant关系；class bound可与多个interface bound组合并完整保存在`ExportHir` template中；`_`覆盖所有generic callable/constructor入口并在HIR内完全消去；expected type足以支持直接构造目标`Option`等常见模式；RTTI、dispatch、layout和供M23打包的metadata保持exact-only；旧variance/projection/capture路径及metadata已经删除而不是成为不可达旁路。真实`.slib`往返和跨Cone实例化是M23的完成门，不提前把其driver/import/re-export子集塞入M20。
 
 ## 9. 明确不做
 
