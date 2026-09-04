@@ -35,6 +35,7 @@ fn add_interface(
         type_params: Vec::new(),
         parents,
         methods: Vec::new(),
+        private_methods: Vec::new(),
         properties: Vec::new(),
         span: Span::new(0, 0),
     });

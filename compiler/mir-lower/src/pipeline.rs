@@ -37,13 +37,28 @@ impl Lowerer {
         // their callsites map to `Callee::Runtime` shims (see
         // `BodyLowerer::lower_call`). HIR has already closed and instantiated
         // every generic dependency before this stage starts.
-        // Member functions are declared too (hir-lower keeps them out
-        // of `top_level`); interface methods become signature-only
-        // shells (M6 interfaces have no default implementations).
+        // Member functions are declared too (hir-lower keeps them out of
+        // `top_level`). Abstract interface slots become signature-only
+        // shells; default bodies and reachable private interface helpers are
+        // emitted as ordinary functions with their typed interface owner.
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
             if !matches!(function.kind, hir::FunctionKind::User(_)) {
+                continue;
+            }
+            let id = self.declare_function(module, hir_id);
+            user_functions.push((hir_id, id));
+        }
+        for (hir_id, function) in module.functions.iter() {
+            let Some(method) = function.method else {
+                continue;
+            };
+            if !matches!(module.types[method.owner].kind, hir::TypeKind::Interface(_))
+                || !matches!(method.dispatch, hir::MethodDispatch::Direct)
+                || !matches!(function.kind, hir::FunctionKind::User(_))
+                || self.function_map.contains_key(&hir_id)
+            {
                 continue;
             }
             let id = self.declare_function(module, hir_id);
@@ -58,14 +73,20 @@ impl Lowerer {
             let Some(method) = function.method else {
                 continue;
             };
-            // Interface methods are signature-only shells: dispatch goes
-            // through the itable, so their declarations only provide the
-            // complete indirect-call signature. The typed dispatch identity
-            // is authoritative; MIR does not infer this role from the owner.
+            // The typed dispatch identity is authoritative; MIR does not
+            // infer interface ownership from a qualified source name.
             let hir::MethodDispatch::Interface { interface, slot } = method.dispatch else {
                 continue;
             };
-            let mir_id = self.declare_interface_method(module, hir_id);
+            let implementation =
+                module.interfaces[interface].methods[slot.into_raw() as usize].implementation;
+            let mir_id = if implementation == hir::InterfaceMemberImplementation::Body {
+                let id = self.declare_function(module, hir_id);
+                user_functions.push((hir_id, id));
+                id
+            } else {
+                self.declare_interface_method(module, hir_id)
+            };
             let previous = interface_methods
                 .get_mut(&interface)
                 .expect("the interface method names a local interface")[slot.into_raw() as usize]

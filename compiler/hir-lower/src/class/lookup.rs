@@ -334,6 +334,31 @@ impl Lowerer {
         }
         seen.push(application);
         let application_value = self.interface_applications[application].clone();
+        if depth == 0
+            && bound.is_none()
+            && self.current_owner == Some(Owner::Interface(application_value.template))
+        {
+            out.extend(
+                self.interfaces[application_value.template]
+                    .private_methods
+                    .iter()
+                    .copied()
+                    .map(|function| {
+                        (
+                            crate::CallableCandidate {
+                                function,
+                                owner: crate::CallableCandidateOwner::Method(
+                                    hir::MethodOwnerApplication::Interface(application),
+                                ),
+                                source: crate::CallableCandidateSource::Direct,
+                                access: crate::CallableCandidateAccess::Inheritance,
+                            },
+                            depth,
+                            root,
+                        )
+                    }),
+            );
+        }
         for &member in &self.interfaces[application_value.template].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
@@ -375,6 +400,16 @@ impl Lowerer {
     ) -> Vec<(hir::InterfaceMethodId, FunctionId, Vec<TypeId>)> {
         let mut result = Vec::new();
         self.collect_interface_member_instances(application, &mut Vec::new(), &mut result);
+        let suppressed = result
+            .iter()
+            .flat_map(|(member, _, _)| {
+                self.interface_method_entities[*member]
+                    .overrides
+                    .iter()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        result.retain(|(member, _, _)| !suppressed.contains(member));
         result
     }
 

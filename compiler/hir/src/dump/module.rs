@@ -142,15 +142,20 @@ pub fn dump(module: &Module) -> String {
             decl.name, type_params, parents
         ));
         for method in &decl.methods {
-            let function = &module.functions[module.interface_methods[*method].function];
+            let member = &module.interface_methods[*method];
+            let function = &module.functions[member.function];
             let params: Vec<String> = function
                 .params
                 .iter()
                 .skip(1)
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
+            let implementation = match member.implementation {
+                InterfaceMemberImplementation::Body => " <default>",
+                InterfaceMemberImplementation::AbstractSlot => "",
+            };
             out.push_str(&format!(
-                "    {}{}fun {}({}): {}{}\n",
+                "    {}{}fun {}({}): {}{}{}\n",
                 match function.modifiers.operator {
                     Some(_) => "operator ",
                     None => "",
@@ -159,8 +164,33 @@ pub fn dump(module: &Module) -> String {
                 function.name.rsplit('.').next().unwrap_or(&function.name),
                 params.join(", "),
                 type_name(module, function.return_ty),
-                dump_function_attributes(function.attributes)
+                dump_function_attributes(function.attributes),
+                implementation,
             ));
+            if member.implementation == InterfaceMemberImplementation::Body
+                && let FunctionKind::User(body) = &function.kind
+            {
+                dump_statements(module, &body.locals, &body.statements, 3, &mut out);
+            }
+        }
+        for &method in &decl.private_methods {
+            let function = &module.functions[method];
+            let params = function
+                .params
+                .iter()
+                .skip(1)
+                .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(
+                "    private fun {}({params}): {}{} <helper>\n",
+                function.name.rsplit('.').next().unwrap_or(&function.name),
+                type_name(module, function.return_ty),
+                dump_function_attributes(function.attributes),
+            ));
+            if let FunctionKind::User(body) = &function.kind {
+                dump_statements(module, &body.locals, &body.statements, 3, &mut out);
+            }
         }
         for &property in &decl.properties {
             dump_property(module, property, 2, &mut out);

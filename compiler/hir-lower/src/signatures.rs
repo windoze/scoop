@@ -102,7 +102,11 @@ impl Lowerer {
                 "property",
                 Owner::Struct(id),
                 self.current_file,
-                crate::visibility::MemberSlotAccess::None,
+                if property.is_override {
+                    crate::visibility::MemberSlotAccess::Override
+                } else {
+                    crate::visibility::MemberSlotAccess::None
+                },
             );
             self.allocate_value_property(Owner::Struct(id), property, ty, access);
         }
@@ -248,7 +252,11 @@ impl Lowerer {
                 "property",
                 Owner::Enum(id),
                 self.current_file,
-                crate::visibility::MemberSlotAccess::None,
+                if property.is_override {
+                    crate::visibility::MemberSlotAccess::Override
+                } else {
+                    crate::visibility::MemberSlotAccess::None
+                },
             );
             self.allocate_value_property(Owner::Enum(id), property, ty, access);
         }

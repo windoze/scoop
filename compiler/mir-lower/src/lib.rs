@@ -84,8 +84,8 @@
 //! and always becomes `CallKind::Direct`. Every value type that reaches `Any` / an
 //! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
 //! its vtable contains only ordinary virtual methods, and its itable
-//! slots point at adjust thunks that unbox `this` and
-//! tail-call the real value method. The boxed itables cover the value
+//! slots point at adjust thunks that either unbox `this` for a value method or
+//! retype the box for an interface default body. The boxed itables cover the value
 //! type's *declared* interfaces (spec 4.4.3) no matter what it was
 //! boxed to. `as` throws `ClassCastException` on failure (M8); `as?`
 //! wraps in `Option` like `!!` does. Reference identity is expressed

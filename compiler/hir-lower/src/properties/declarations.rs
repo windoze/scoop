@@ -15,6 +15,76 @@ struct AccessorFunctionAllocation {
 }
 
 impl Lowerer {
+    pub(crate) fn resolve_interface_properties(
+        &mut self,
+        owner: hir::InterfaceId,
+        declaration: &ast::InterfaceDecl,
+    ) {
+        self.type_params_in_scope = self.interfaces[owner].type_params.clone();
+        let mut names = std::collections::HashSet::new();
+        for property in &declaration.properties {
+            if !names.insert(property.name.text.clone()) {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "duplicate property `{}` in interface `{}`",
+                        property.name.text, declaration.name.text
+                    ),
+                );
+                continue;
+            }
+            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+                continue;
+            };
+            let private = matches!(
+                property.visibility,
+                ast::VisibilitySyntax::Explicit {
+                    visibility: ast::DeclaredVisibility::Private,
+                    ..
+                }
+            );
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Interface(owner),
+                self.current_file,
+                if private {
+                    crate::visibility::MemberSlotAccess::None
+                } else if property.is_override {
+                    crate::visibility::MemberSlotAccess::Override
+                } else {
+                    crate::visibility::MemberSlotAccess::Declared
+                },
+            );
+            if self.interfaces[owner].access.declared == hir::DeclaredVisibility::Public
+                && !matches!(
+                    access.declared,
+                    hir::DeclaredVisibility::Public | hir::DeclaredVisibility::Private
+                )
+            {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "member `{}` of public interface `{}` must be explicitly public",
+                        property.name.text, declaration.name.text
+                    ),
+                );
+            }
+            if private && property.is_override {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "private interface property `{}` cannot be an override",
+                        property.name.text
+                    ),
+                );
+            }
+            self.allocate_interface_property(owner, property, ty, access);
+        }
+        self.type_params_in_scope.clear();
+    }
+
     pub(crate) fn next_property_id(&self) -> hir::PropertyId {
         hir::PropertyId::from_raw((self.properties.len() as u32).into())
     }
@@ -39,6 +109,7 @@ impl Lowerer {
         };
         let computed = matches!(declaration.body, ast::PropertyBodySyntax::Computed(_));
         let abstract_property = matches!(declaration.body, ast::PropertyBodySyntax::Abstract);
+        let interface_property = matches!(owner, hir::PropertyOwner::Interface(_));
         let dispatch_storage = matches!(owner, hir::PropertyOwner::Class(_))
             && (modifier != hir::MethodModifier::Final || declaration.is_override);
 
@@ -62,7 +133,7 @@ impl Lowerer {
                     self.functions[function].attributes,
                 )
             }
-            _ if abstract_property => {
+            _ if abstract_property || interface_property => {
                 let function_declaration = self.implicit_getter_function_declaration(
                     declaration,
                     ast::AccessorBodySyntax::Omitted,
@@ -166,7 +237,7 @@ impl Lowerer {
                     self.functions[function].attributes,
                 )
             }
-            _ if abstract_property => {
+            _ if abstract_property || interface_property => {
                 let function_declaration = self.implicit_setter_function_declaration(
                     declaration,
                     ast::AccessorBodySyntax::Omitted,
@@ -510,11 +581,11 @@ impl Lowerer {
             );
             return;
         }
-        if declaration.modifier != ast::MethodModifier::Final || declaration.is_override {
+        if declaration.modifier != ast::MethodModifier::Final {
             self.error(
                 declaration.name.span,
                 format!(
-                    "value-type property `{}` cannot be open, abstract, or override before interface property lowering",
+                    "value-type property `{}` cannot be open or abstract",
                     declaration.name.text
                 ),
             );
@@ -553,7 +624,7 @@ impl Lowerer {
             name: declaration.name.text.clone(),
             access,
             modifier: hir::MethodModifier::Final,
-            is_override: false,
+            is_override: declaration.is_override,
             overrides: Vec::new(),
             override_access: Vec::new(),
             ty,
@@ -569,6 +640,101 @@ impl Lowerer {
                 unreachable!("value property owners are structs or enums")
             }
         }
+    }
+
+    pub(crate) fn allocate_interface_property(
+        &mut self,
+        owner: hir::InterfaceId,
+        declaration: &ast::PropertyDecl,
+        ty: TypeId,
+        access: hir::DeclarationAccess,
+    ) {
+        self.reject_logical_property_annotations("an interface property", &declaration.annotations);
+        if declaration.receiver_ty.is_some() || !declaration.type_params.is_empty() {
+            self.error(
+                declaration.span,
+                "extension properties may only be declared at top level".to_string(),
+            );
+            return;
+        }
+        if !matches!(
+            declaration.body,
+            ast::PropertyBodySyntax::Computed(_) | ast::PropertyBodySyntax::Abstract
+        ) {
+            self.error(
+                declaration.span,
+                format!(
+                    "interface property `{}` cannot have storage, an initializer, or a delegate",
+                    declaration.name.text
+                ),
+            );
+            return;
+        }
+        let expected = self.next_property_id();
+        let Some(capability) = self.allocate_property_accessors(
+            expected,
+            hir::PropertyOwner::Interface(owner),
+            access.clone(),
+            declaration,
+            None,
+            hir::MethodModifier::Open,
+        ) else {
+            return;
+        };
+        if access.declared == hir::DeclaredVisibility::Private {
+            let getter = self.property_getters[capability.getter()].implementation;
+            let setter = capability
+                .setter()
+                .map(|setter| self.property_setters[setter].implementation);
+            if matches!(getter, hir::PropertyAccessorImplementation::AbstractSlot(_))
+                || setter.is_some_and(|implementation| {
+                    matches!(
+                        implementation,
+                        hir::PropertyAccessorImplementation::AbstractSlot(_)
+                    )
+                })
+            {
+                self.error(
+                    declaration.name.span,
+                    format!(
+                        "private interface property `{}` must provide every accessor body",
+                        declaration.name.text
+                    ),
+                );
+            }
+        }
+        let all_abstract =
+            std::iter::once(self.property_getters[capability.getter()].implementation)
+                .chain(
+                    capability
+                        .setter()
+                        .map(|setter| self.property_setters[setter].implementation),
+                )
+                .all(|implementation| {
+                    matches!(
+                        implementation,
+                        hir::PropertyAccessorImplementation::AbstractSlot(_)
+                    )
+                });
+        let property = self.properties.alloc(hir::Property {
+            owner: hir::PropertyOwner::Interface(owner),
+            name: declaration.name.text.clone(),
+            access,
+            modifier: if all_abstract {
+                hir::MethodModifier::Abstract
+            } else {
+                hir::MethodModifier::Open
+            },
+            is_override: declaration.is_override,
+            overrides: Vec::new(),
+            override_access: Vec::new(),
+            ty,
+            capability,
+            representation: hir::PropertyRepresentation::AccessorOnly,
+            span: declaration.span,
+        });
+        assert_eq!(property, expected);
+        self.interfaces[owner].properties.push(property);
     }
 
     fn class_property_modifier(
@@ -758,7 +924,42 @@ impl Lowerer {
                 Owner::Class(owner) => self.classes[owner].methods.push(function),
                 Owner::Struct(owner) => self.structs[owner].methods.push(function),
                 Owner::Enum(owner) => self.enums[owner].methods.push(function),
-                Owner::Interface(_) => {}
+                Owner::Interface(owner) => {
+                    self.interface_methods
+                        .get_mut(&owner)
+                        .expect("the interface owner map is initialized")
+                        .push(function);
+                    if self.functions[function].access.declared != hir::DeclaredVisibility::Private
+                    {
+                        let implementation = if modifier == hir::MethodModifier::Abstract {
+                            hir::InterfaceMemberImplementation::AbstractSlot
+                        } else {
+                            hir::InterfaceMemberImplementation::Body
+                        };
+                        let member = self.interface_method_entities.alloc(hir::InterfaceMethod {
+                            owner,
+                            function,
+                            role: match kind {
+                                PropertyAccessorKind::Getter => {
+                                    hir::InterfaceMemberRole::PropertyGetter(property)
+                                }
+                                PropertyAccessorKind::Setter => {
+                                    hir::InterfaceMemberRole::PropertySetter(property)
+                                }
+                            },
+                            implementation,
+                            overrides: Vec::new(),
+                        });
+                        self.functions[function]
+                            .method
+                            .as_mut()
+                            .expect("an interface accessor is a method")
+                            .dispatch = hir::MethodDispatch::Interface(member);
+                        self.interfaces[owner].methods.push(member);
+                    } else {
+                        self.interfaces[owner].private_methods.push(function);
+                    }
+                }
             }
         } else {
             self.top_level.push(function);

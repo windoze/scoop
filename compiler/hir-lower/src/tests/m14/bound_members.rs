@@ -58,14 +58,14 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
             let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
                 return false;
             };
-            let member = output.export.interface_methods[member];
+            let member = &output.export.interface_methods[member];
             output.export.interfaces[member.owner].name == "Show"
         })
         .expect("read<T> has one non-core bound call");
     let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
         panic!("Show is an interface-bound member")
     };
-    let member = output.export.interface_methods[member];
+    let member = &output.export.interface_methods[member];
     assert_eq!(
         output.export.functions[member.function]
             .name
@@ -209,7 +209,7 @@ fn bound_member_inherits_through_exact_parent_application() {
             let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
                 return false;
             };
-            let member = output.export.interface_methods[member];
+            let member = &output.export.interface_methods[member];
             output.export.interfaces[member.owner].name == "Parent"
         })
         .expect("readParent<T> has one non-core bound call");

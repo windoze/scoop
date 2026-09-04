@@ -208,9 +208,16 @@ pub struct MethodSig {
     pub name: String,
     pub is_suspend: bool,
     pub attributes: FunctionAttributes,
+    pub implementation: InterfaceMemberImplementation,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterfaceMemberImplementation {
+    Body,
+    AbstractSlot,
 }
 
 #[derive(Debug, Clone)]

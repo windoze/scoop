@@ -7,14 +7,19 @@ impl Lowerer {
     /// methods of every interface the class (or a base class)
     /// implements; for a value type they are the methods of its own
     /// interface list (spec 4.4.3 — implementations require the
-    /// modifier there too, DESIGN.md 5.2). Interface methods have no
-    /// candidates in M6 (no superinterfaces).
+    /// modifier there too, DESIGN.md 5.2). An interface declaration checks
+    /// the complete method set of its direct superinterfaces.
     pub(super) fn check_override_rules(
         &mut self,
         id: FunctionId,
         decl: &ast::FunctionDecl,
         owner: Owner,
     ) {
+        if matches!(owner, Owner::Interface(_))
+            && self.functions[id].access.declared == hir::DeclaredVisibility::Private
+        {
+            return;
+        }
         let candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
             Owner::Class(class_id) => {
                 let mut candidates: Vec<_> = self
@@ -51,7 +56,14 @@ impl Lowerer {
             Owner::Enum(enum_id) => {
                 self.interface_method_candidates(&self.enums[enum_id].interfaces.clone())
             }
-            Owner::Interface(_) => return,
+            Owner::Interface(interface) => {
+                let parents = self.interfaces[interface]
+                    .parents
+                    .iter()
+                    .map(|parent| self.interface_applications[*parent].canonical_type)
+                    .collect::<Vec<_>>();
+                self.interface_method_candidates(&parents)
+            }
         };
         let sig = self.signatures[&id].clone();
         let short = decl.name.text.clone();
@@ -74,6 +86,28 @@ impl Lowerer {
                     .map(|(candidate, _)| *candidate)
                     .collect(),
             );
+            if matches!(owner, Owner::Interface(_)) {
+                let hir::MethodDispatch::Interface(member) = self.functions[id]
+                    .method
+                    .expect("an interface declaration is a method")
+                    .dispatch
+                else {
+                    unreachable!("a non-private interface declaration owns an interface slot")
+                };
+                let overridden = matching_overrides
+                    .iter()
+                    .filter_map(|(candidate, _)| {
+                        let method = self.functions[*candidate].method?;
+                        match method.dispatch {
+                            hir::MethodDispatch::Interface(member) => Some(member),
+                            hir::MethodDispatch::Direct
+                            | hir::MethodDispatch::Virtual(_)
+                            | hir::MethodDispatch::FinalOverride(_) => None,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                self.interface_method_entities[member].overrides = overridden;
+            }
             for (candidate, arguments) in &matching_overrides {
                 let mut default_type_arguments = arguments.clone();
                 for parameter in &sig.type_params[sig.owner_type_param_count..] {
@@ -268,13 +302,25 @@ impl Lowerer {
 
         if let Owner::Interface(interface) = owner {
             if self.interfaces[interface].access.declared == hir::DeclaredVisibility::Public
-                && access.declared != hir::DeclaredVisibility::Public
+                && !matches!(
+                    access.declared,
+                    hir::DeclaredVisibility::Public | hir::DeclaredVisibility::Private
+                )
             {
                 self.error(
                     decl.name.span,
                     format!(
                         "member `{}` of public interface `{}` must be explicitly public",
                         decl.name.text, self.interfaces[interface].name
+                    ),
+                );
+            }
+            if access.declared == hir::DeclaredVisibility::Private && decl.is_override {
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "private interface method `{}` cannot be an override",
+                        decl.name.text
                     ),
                 );
             }

@@ -406,6 +406,7 @@ impl Lowerer {
             parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
+            private_methods: Vec::new(),
             properties: Vec::new(),
             span: decl.span,
         });

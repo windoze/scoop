@@ -325,6 +325,14 @@ impl Concretizer<'_> {
                 );
                 let function =
                     &self.source.functions[self.source.interface_methods[*method].function];
+                let implementation = match self.source.interface_methods[*method].implementation {
+                    export::InterfaceMemberImplementation::Body => {
+                        concrete::InterfaceMemberImplementation::Body
+                    }
+                    export::InterfaceMemberImplementation::AbstractSlot => {
+                        concrete::InterfaceMemberImplementation::AbstractSlot
+                    }
+                };
                 concrete::MethodSig {
                     name: function
                         .name
@@ -334,6 +342,7 @@ impl Concretizer<'_> {
                         .to_string(),
                     is_suspend: function.is_suspend,
                     attributes: function.attributes,
+                    implementation,
                     params: function
                         .params
                         .iter()
@@ -398,6 +407,16 @@ impl Concretizer<'_> {
         let mut result = Vec::new();
         let mut seen = Vec::new();
         self.collect_interface_method_instances(application, substitution, &mut seen, &mut result);
+        let suppressed = result
+            .iter()
+            .flat_map(|(member, _)| {
+                self.source.interface_methods[*member]
+                    .overrides
+                    .iter()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        result.retain(|(member, _)| !suppressed.contains(member));
         result
     }
 

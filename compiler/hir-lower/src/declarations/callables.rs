@@ -14,8 +14,20 @@ impl Lowerer {
     ) {
         let checked = self.check_function_annotations(decl, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
+        let private_interface_member = matches!(owner, Owner::Interface(_))
+            && matches!(
+                decl.visibility,
+                ast::VisibilitySyntax::Explicit {
+                    visibility: ast::DeclaredVisibility::Private,
+                    ..
+                }
+            );
         let modifier = match owner {
-            Owner::Interface(_) => hir::MethodModifier::Abstract,
+            Owner::Interface(_) if private_interface_member => hir::MethodModifier::Final,
+            Owner::Interface(_) if matches!(decl.body, ast::FunctionBody::None) => {
+                hir::MethodModifier::Abstract
+            }
+            Owner::Interface(_) => hir::MethodModifier::Open,
             Owner::Struct(_) | Owner::Enum(_) => hir::MethodModifier::Final,
             Owner::Class(class_id)
                 if self.classes[class_id].modifier == hir::ClassModifier::Final
@@ -85,16 +97,28 @@ impl Lowerer {
                     .get_mut(&owner)
                     .expect("the interface owner map was initialized above")
                     .push(id);
-                let member = self.interface_method_entities.alloc(hir::InterfaceMethod {
-                    owner,
-                    function: id,
-                });
-                self.functions[id]
-                    .method
-                    .as_mut()
-                    .expect("declared interface function is a method")
-                    .dispatch = hir::MethodDispatch::Interface(member);
-                self.interfaces[owner].methods.push(member);
+                if !private_interface_member {
+                    let implementation = if matches!(decl.body, ast::FunctionBody::None) {
+                        hir::InterfaceMemberImplementation::AbstractSlot
+                    } else {
+                        hir::InterfaceMemberImplementation::Body
+                    };
+                    let member = self.interface_method_entities.alloc(hir::InterfaceMethod {
+                        owner,
+                        function: id,
+                        role: hir::InterfaceMemberRole::Function,
+                        implementation,
+                        overrides: Vec::new(),
+                    });
+                    self.functions[id]
+                        .method
+                        .as_mut()
+                        .expect("declared interface function is a method")
+                        .dispatch = hir::MethodDispatch::Interface(member);
+                    self.interfaces[owner].methods.push(member);
+                } else {
+                    self.interfaces[owner].private_methods.push(id);
+                }
             }
             Owner::Struct(owner) => self.structs[owner].methods.push(id),
             Owner::Enum(owner) => self.enums[owner].methods.push(id),

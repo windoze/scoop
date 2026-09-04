@@ -95,6 +95,14 @@ pub(crate) struct NominalArgumentInput<'a> {
     pub(crate) span: Span,
 }
 
+#[derive(Clone)]
+pub(crate) struct QualifiedInterfaceProperty {
+    pub(crate) property: hir::PropertyId,
+    pub(crate) owner: hir::InterfaceApplicationId,
+    pub(crate) receiver: hir::Expr,
+    pub(crate) ty: TypeId,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct CallSite<'a> {
     pub(crate) type_args: &'a [ast::CallTypeArgument],
@@ -373,14 +381,30 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            ast::Expr::QualifiedInterfaceSuperAccess { span, .. }
-            | ast::Expr::QualifiedInterfaceSuperMethodCall { span, .. } => {
-                self.error(
-                    *span,
-                    "qualified interface `super` requires interface default resolution".into(),
-                );
-                None
-            }
+            ast::Expr::QualifiedInterfaceSuperAccess {
+                qualifier,
+                name,
+                span,
+                ..
+            } => self.lower_qualified_interface_super_property_read(qualifier, name, *span),
+            ast::Expr::QualifiedInterfaceSuperMethodCall {
+                qualifier,
+                name,
+                type_args,
+                args,
+                span,
+                ..
+            } => self.lower_qualified_interface_super_method_call(
+                qualifier,
+                name,
+                CallSite {
+                    type_args,
+                    args,
+                    span: *span,
+                },
+                sink,
+                expected,
+            ),
             ast::Expr::Is {
                 operand,
                 ty,

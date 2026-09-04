@@ -36,12 +36,31 @@ impl Lowerer {
                 out.extend(sink);
                 Some(kind)
             }
-            ast::AssignTarget::QualifiedInterfaceSuperProperty { span, .. } => {
-                self.error(
-                    *span,
-                    "qualified interface `super` requires interface default resolution".into(),
-                );
-                None
+            ast::AssignTarget::QualifiedInterfaceSuperProperty {
+                qualifier,
+                name,
+                span,
+            } => {
+                let property =
+                    self.resolve_qualified_interface_super_property(qualifier, name, *span)?;
+                let mut sink = Vec::new();
+                let value = self.lower_expr(&assign.value, &mut sink, Some(property.ty))?;
+                if !self.is_subtype(value.ty, property.ty) {
+                    self.error(
+                        assign.value.span(),
+                        format!(
+                            "cannot assign value of type {} to property `{}` of type {}",
+                            self.type_name(value.ty),
+                            name.text,
+                            self.type_name(property.ty)
+                        ),
+                    );
+                    return None;
+                }
+                let expected = property.ty;
+                let value = self.adapt_to(value, expected);
+                out.extend(sink);
+                self.lower_direct_interface_property_write(property, value, *span)
             }
         }
     }

@@ -97,15 +97,18 @@ impl Lowerer {
         // Bodyless declarations get their parameter-only body here;
         // concrete methods are lowered in pass 3.
         let host_ty = self.owner_ty(owner);
-        if decl.modifier == ast::MethodModifier::Abstract || matches!(owner, Owner::Interface(_)) {
+        if !matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_))
+            && (decl.modifier == ast::MethodModifier::Abstract
+                || matches!(decl.body, ast::FunctionBody::None))
+        {
             let (body, _) = self.build_params_only_body(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::User(body);
         }
     }
 
     /// Body-shape rules for member declarations: `abstract` only in
-    /// abstract classes, interface methods always bodyless, concrete
-    /// methods always with a body.
+    /// abstract classes, interface methods may be abstract or default, and
+    /// concrete class/value methods always have a body.
     fn check_method_body_shape(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
         if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
             return;
@@ -113,19 +116,12 @@ impl Lowerer {
         let short = decl.name.text.clone();
         match owner {
             Owner::Interface(_) => {
-                if decl.is_override {
+                if self.functions[id].access.declared == hir::DeclaredVisibility::Private
+                    && matches!(decl.body, ast::FunctionBody::None)
+                {
                     self.error(
                         decl.name.span,
-                        format!("`{short}` is marked `override` but does not override any method"),
-                    );
-                }
-                if !matches!(decl.body, ast::FunctionBody::None) {
-                    self.error(
-                        decl.name.span,
-                        format!(
-                            "interface method `{}` must not have a body",
-                            self.functions[id].name
-                        ),
+                        format!("private interface method `{short}` must have a body"),
                     );
                 }
             }

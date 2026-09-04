@@ -152,6 +152,11 @@ impl Lowerer {
         // 11.7).
         self.validate_throwable(files);
 
+        for &(id, decl, file_index) in &pending_interfaces {
+            self.current_file = file_index;
+            self.resolve_interface_properties(id, decl);
+        }
+
         // Pass 2: resolve struct fields, enum variants, class
         // constructor properties and inheritance clauses (all type
         // names are known now, so fields may reference later-declared
@@ -259,12 +264,13 @@ impl Lowerer {
             let body = self.lower_body(id, decl);
             self.functions[id].kind = FunctionKind::User(body);
         }
-        for (id, decl, file_index, owner) in pending_methods {
-            // Interface and abstract methods are bodyless; their
-            // parameter-only body was built in pass 2.5.
+        for (id, decl, file_index, _owner) in pending_methods {
+            // Abstract methods are bodyless; their parameter-only body was
+            // built in pass 2.5. Interface methods with bodies are ordinary
+            // default implementations and lower here.
             if matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
                 || decl.modifier == ast::MethodModifier::Abstract
-                || matches!(owner, Owner::Interface(_))
+                || matches!(decl.body, ast::FunctionBody::None)
             {
                 continue;
             }

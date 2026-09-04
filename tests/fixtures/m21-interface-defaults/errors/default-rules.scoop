@@ -1,0 +1,55 @@
+interface Left {
+    fun value(): Int = 1
+}
+
+interface Right {
+    fun value(): Int = 2
+}
+
+class Conflict : Left, Right
+
+interface Parent {
+    fun number(): Int = 1
+}
+
+interface AbstractChild : Parent {
+    override fun number(): Int
+}
+
+class Missing : AbstractChild
+
+interface MutableDefault {
+    var state: Int
+        get() = 1
+        set(value) {}
+}
+
+struct InvalidValue() : MutableDefault
+
+interface PrivateBody {
+    private fun helper(): Int
+}
+
+interface NoStorage {
+    val stored: Int = 1
+}
+
+interface IndirectParent {
+    fun inherited(): Int = 3
+}
+
+interface DirectChild : IndirectParent {}
+
+class WrongQualifier : DirectChild {
+    fun read(): Int = super<IndirectParent>.inherited()
+}
+
+interface AbstractProperty {
+    val code: Int
+}
+
+abstract class AbstractCaller : AbstractProperty {
+    fun read(): Int = super<AbstractProperty>.code
+}
+
+fun main() {}

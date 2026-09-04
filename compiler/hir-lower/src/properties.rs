@@ -79,8 +79,64 @@ impl Lowerer {
                 let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
                 Some((property, hir::MethodOwnerApplication::Enum(application), ty))
             }
+            hir::Type::Interface(application) => {
+                let (property, declaring, ty) = self
+                    .find_accessible_interface_application_property(
+                        application,
+                        name,
+                        receiver_ty,
+                        &mut Vec::new(),
+                    )?;
+                Some((
+                    property,
+                    hir::MethodOwnerApplication::Interface(declaring),
+                    ty,
+                ))
+            }
             _ => None,
         }
+    }
+
+    pub(crate) fn find_accessible_interface_application_property(
+        &mut self,
+        application: hir::InterfaceApplicationId,
+        name: &str,
+        receiver_ty: TypeId,
+        seen: &mut Vec<hir::InterfaceApplicationId>,
+    ) -> Option<(hir::PropertyId, hir::InterfaceApplicationId, TypeId)> {
+        if seen.contains(&application) {
+            return None;
+        }
+        seen.push(application);
+        let value = self.interface_applications[application].clone();
+        if let Some(property) = self.interfaces[value.template]
+            .properties
+            .iter()
+            .copied()
+            .find(|&property| {
+                self.properties[property].name == name
+                    && self.access_domain_allows(
+                        &self.properties[property].access.lookup.0,
+                        Some(receiver_ty),
+                    )
+            })
+        {
+            let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
+            return Some((property, application, ty));
+        }
+        for parent in self.interfaces[value.template].parents.clone() {
+            let parent_ty = self.interface_applications[parent].canonical_type;
+            let parent_ty = self.instantiate_ty(parent_ty, &value.arguments);
+            let hir::Type::Interface(parent) = self.types[parent_ty] else {
+                unreachable!("interface parent substitutions stay interface applications")
+            };
+            if let Some(property) =
+                self.find_accessible_interface_application_property(parent, name, receiver_ty, seen)
+            {
+                return Some(property);
+            }
+        }
+        None
     }
 
     pub(crate) fn lower_property_read(

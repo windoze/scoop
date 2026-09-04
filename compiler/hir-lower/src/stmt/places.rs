@@ -1,4 +1,5 @@
 use super::*;
+use crate::expr::QualifiedInterfaceProperty;
 use crate::expr::{CallSite, RequiredCallableModifiers};
 
 pub(super) struct ResolvedPlacePlan {
@@ -15,6 +16,7 @@ pub(super) enum WriteCapability {
         owner: Option<hir::MethodOwnerApplication>,
         receiver: Option<hir::Expr>,
     },
+    DirectInterfaceProperty(QualifiedInterfaceProperty),
     OperatorSet {
         receiver: hir::Expr,
         index_arguments: Vec<ast::CallArgument>,
@@ -224,12 +226,28 @@ impl Lowerer {
                     },
                 })
             }
-            ast::PlaceExpr::QualifiedInterfaceSuperProperty { span, .. } => {
-                self.error(
-                    *span,
-                    "qualified interface `super` requires interface default resolution".into(),
-                );
-                None
+            ast::PlaceExpr::QualifiedInterfaceSuperProperty {
+                qualifier,
+                name,
+                span,
+            } => {
+                let property =
+                    self.resolve_qualified_interface_super_property(qualifier, name, *span)?;
+                let read = self.lower_direct_interface_property_read(property.clone(), *span)?;
+                let write = if self.properties[property.property]
+                    .capability
+                    .setter()
+                    .is_some()
+                {
+                    WriteCapability::DirectInterfaceProperty(property)
+                } else {
+                    WriteCapability::ReadOnly
+                };
+                Some(ResolvedPlacePlan {
+                    ty: read.ty,
+                    read,
+                    write,
+                })
             }
         }
     }
@@ -378,6 +396,9 @@ impl Lowerer {
                 owner,
                 receiver,
             } => self.lower_property_write(property, owner, receiver, value, span),
+            WriteCapability::DirectInterfaceProperty(property) => {
+                self.lower_direct_interface_property_write(property, value, span)
+            }
             WriteCapability::OperatorSet {
                 receiver,
                 mut index_arguments,
