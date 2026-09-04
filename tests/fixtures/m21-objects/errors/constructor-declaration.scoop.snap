@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-objects/errors/constructor-declaration.scoop:2:5: error: object declarations cannot declare constructors

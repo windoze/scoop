@@ -90,8 +90,15 @@ impl Concretizer<'_> {
                 ty: self.lower_type(field.ty, &arguments),
             })
             .collect();
-        let methods =
-            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
+        let method_owner = self.object_by_backing_class.get(&source_id).map_or(
+            concrete::MethodOwner::Class(id),
+            |object| {
+                concrete::MethodOwner::Object(concrete::ObjectTypeId::from_raw(
+                    self.source.objects[*object].object_type.into_raw(),
+                ))
+            },
+        );
+        let methods = self.request_concrete_methods(&source.methods, method_owner);
         let interface_implementations =
             self.lower_interface_implementations(&source.interface_implementations, &arguments);
         let interfaces = interface_implementations

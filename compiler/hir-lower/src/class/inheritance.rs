@@ -12,12 +12,22 @@ impl Lowerer {
         pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
         pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        pending_objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
         for &(id, decl, file_index) in pending_classes {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
-            self.check_inheritance_cycle(id, decl);
+            self.check_inheritance_cycle(id, decl.span, "class");
+        }
+        for &(object, declaration, file_index) in pending_objects {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Object(object));
+            self.check_inheritance_cycle(
+                self.objects[object].backing_class,
+                declaration.span,
+                "object",
+            );
         }
         for (id, _) in self.interfaces.clone().iter() {
             self.current_file = self.interface_files[&id];
@@ -28,6 +38,11 @@ impl Lowerer {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
             self.check_owner_properties(Owner::Class(id));
+        }
+        for &(id, _, file_index) in pending_objects {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Object(id));
+            self.check_owner_properties(Owner::Object(id));
         }
         for &(id, _, file_index) in pending_structs {
             self.current_file = file_index;
@@ -81,7 +96,20 @@ impl Lowerer {
         for &(id, decl, file_index) in pending_classes {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
-            self.check_interface_implementation(id, decl);
+            self.check_interface_implementation(
+                id,
+                decl.span,
+                &format!("class `{}`", decl.name.text),
+            );
+        }
+        for &(object, declaration, file_index) in pending_objects {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Object(object));
+            self.check_interface_implementation(
+                self.objects[object].backing_class,
+                declaration.span,
+                &format!("object `{}`", declaration.name.text),
+            );
         }
         for &(id, decl, file_index) in pending_structs {
             self.current_file = file_index;
@@ -97,7 +125,7 @@ impl Lowerer {
     }
 
     /// A class may not directly or indirectly inherit from itself.
-    fn check_inheritance_cycle(&mut self, id: ClassId, decl: &ast::ClassDecl) {
+    fn check_inheritance_cycle(&mut self, id: ClassId, span: ast::Span, host: &str) {
         let mut seen = vec![id];
         let mut current = id;
         while let Some(base_ty) = self.classes[current].base_class {
@@ -108,8 +136,8 @@ impl Lowerer {
             if seen.contains(&base) {
                 let name = self.classes[id].name.clone();
                 self.error(
-                    decl.span,
-                    format!("class `{name}` directly or indirectly inherits from itself"),
+                    span,
+                    format!("{host} `{name}` directly or indirectly inherits from itself"),
                 );
                 return;
             }

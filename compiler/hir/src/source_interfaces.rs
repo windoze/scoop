@@ -160,6 +160,7 @@ pub struct ExportDefaultReferences {
     pub constructors: Vec<ExportDefaultConstructorRef>,
     pub types: Vec<ExportDefaultTypeRef>,
     pub globals: Vec<ExportDefaultGlobalRef>,
+    pub singleton_values: Vec<ExportDefaultSingletonValueRef>,
     pub fields: Vec<ExportDefaultFieldRef>,
 }
 
@@ -222,6 +223,13 @@ pub struct ExportDefaultTypeRef {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultGlobalRef {
     pub target: GlobalId,
+    pub witness: ExportDefaultAccessWitness,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExportDefaultSingletonValueRef {
+    pub target: SingletonValueId,
     pub witness: ExportDefaultAccessWitness,
     pub origin: DefinitionOrigin,
 }

@@ -30,10 +30,14 @@ impl Lowerer {
     /// interfaces inherited from base classes) must have a
     /// same-signature concrete method on the class or its base chain.
     /// Abstract classes may leave methods unimplemented.
-    pub(super) fn check_interface_implementation(&mut self, id: ClassId, decl: &ast::ClassDecl) {
+    pub(super) fn check_interface_implementation(
+        &mut self,
+        id: ClassId,
+        span: ast::Span,
+        host: &str,
+    ) {
         self.classes[id].interface_implementations.clear();
         let abstract_class = self.classes[id].modifier == hir::ClassModifier::Abstract;
-        let class_name = self.classes[id].name.clone();
         let all_interfaces = self.class_interfaces_all(id);
         let mut reported_conflicts = HashSet::new();
         let mut reported_obligations = HashSet::new();
@@ -56,8 +60,10 @@ impl Lowerer {
                 let qualified = self.functions[method].name.clone();
                 let sig = self.instantiated_signature(method, &member_arguments, &[]);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
-                let own_owner =
-                    hir::MethodOwnerApplication::Class(self.classes[id].self_application);
+                let own_owner = self.object_by_backing_class.get(&id).map_or(
+                    hir::MethodOwnerApplication::Class(self.classes[id].self_application),
+                    |object| hir::MethodOwnerApplication::Object(self.objects[*object].object_type),
+                );
                 let mut candidates = self.classes[id]
                     .methods
                     .iter()
@@ -108,9 +114,9 @@ impl Lowerer {
                         let key = Self::interface_obligation_key(short, &sig);
                         if reported_obligations.insert(key) {
                             self.error(
-                                decl.span,
+                                span,
                                 format!(
-                                    "class `{class_name}` leaves interface method `{iface_name}.{short}` abstract"
+                                    "{host} leaves interface method `{iface_name}.{short}` abstract"
                                 ),
                             );
                         }
@@ -137,10 +143,8 @@ impl Lowerer {
                             let key = Self::interface_obligation_key(short, &sig);
                             if reported_obligations.insert(key) {
                                 self.error(
-                                    decl.span,
-                                    format!(
-                                        "class `{class_name}` does not implement interface method `{iface_name}.{short}`"
-                                    ),
+                                    span,
+                                    format!("{host} does not implement interface method `{iface_name}.{short}`"),
                                 );
                             }
                         }
@@ -148,8 +152,8 @@ impl Lowerer {
                             self.report_default_conflict(
                                 &mut reported_conflicts,
                                 &functions,
-                                decl.span,
-                                &format!("class `{class_name}`"),
+                                span,
+                                host,
                                 short,
                             );
                         }

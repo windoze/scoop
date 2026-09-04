@@ -124,7 +124,9 @@ impl Lowerer {
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
-                        hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
+                        hir::AssignTarget::Local(_)
+                        | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             self.collect_generic_calls_in_expr(caller, array, out);
                             self.collect_generic_calls_in_expr(caller, index, out);
@@ -230,6 +232,7 @@ impl Lowerer {
             | ExprKind::InitializingClassFieldAccess { .. }
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
+            | ExprKind::SingletonValue(_)
             | ExprKind::Capture(_)
             | ExprKind::Lambda(_)
             | ExprKind::AnonymousFunction(_)

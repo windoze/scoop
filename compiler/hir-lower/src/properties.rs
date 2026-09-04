@@ -67,6 +67,28 @@ pub(crate) enum ExtensionPropertyResolution {
 }
 
 impl Lowerer {
+    pub(crate) fn qualified_object_const_property(
+        &self,
+        receiver: &ast::Expr,
+        name: &str,
+    ) -> Option<hir::PropertyId> {
+        let crate::NominalTarget::Object(object) = self.nominal_qualifier_target(receiver)? else {
+            return None;
+        };
+        self.classes[self.objects[object].backing_class]
+            .properties
+            .iter()
+            .copied()
+            .find(|property| {
+                self.properties[*property].name == name
+                    && matches!(
+                        self.properties[*property].representation,
+                        hir::PropertyRepresentation::Const { .. }
+                    )
+                    && self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
+            })
+    }
+
     pub(crate) fn resolve_extension_property(
         &mut self,
         receiver: hir::Expr,
@@ -263,7 +285,13 @@ impl Lowerer {
                     name,
                     receiver_ty,
                 )?;
-                Some((property, hir::MethodOwnerApplication::Class(declaring), ty))
+                let owner = match self.properties[property].owner {
+                    hir::PropertyOwner::Object(object) => {
+                        hir::MethodOwnerApplication::Object(self.objects[object].object_type)
+                    }
+                    _ => hir::MethodOwnerApplication::Class(declaring),
+                };
+                Some((property, owner, ty))
             }
             hir::Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
@@ -415,8 +443,6 @@ impl Lowerer {
                 self.property_storage_read(&declaration, owner_application, receiver, ty, span)
             }
             hir::PropertyAccessorImplementation::Constant => {
-                debug_assert!(owner_application.is_none());
-                debug_assert!(receiver.is_none());
                 let hir::PropertyRepresentation::Const { value } = declaration.representation
                 else {
                     unreachable!("constant accessors belong only to const properties")
@@ -553,9 +579,16 @@ impl Lowerer {
                 }
                 hir::PropertyBacking::ClassField { field, .. } => {
                     let receiver = receiver.expect("class storage access has a receiver");
-                    let Some(hir::MethodOwnerApplication::Class(application)) = owner_application
-                    else {
-                        unreachable!("class storage access has a class owner application")
+                    let application = match owner_application {
+                        Some(hir::MethodOwnerApplication::Class(application)) => application,
+                        Some(hir::MethodOwnerApplication::Object(object)) => {
+                            self.object_types[object].representation
+                        }
+                        _ => {
+                            unreachable!(
+                                "reference storage access has a reference owner application"
+                            )
+                        }
                     };
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
@@ -613,9 +646,16 @@ impl Lowerer {
                 }
                 hir::PropertyBacking::ClassField { field, .. } => {
                     let receiver = receiver.expect("class storage write has a receiver");
-                    let Some(hir::MethodOwnerApplication::Class(application)) = owner_application
-                    else {
-                        unreachable!("class storage write has a class owner application")
+                    let application = match owner_application {
+                        Some(hir::MethodOwnerApplication::Class(application)) => application,
+                        Some(hir::MethodOwnerApplication::Object(object)) => {
+                            self.object_types[object].representation
+                        }
+                        _ => {
+                            unreachable!(
+                                "reference storage write has a reference owner application"
+                            )
+                        }
                     };
                     hir::AssignTarget::Field {
                         receiver: Box::new(receiver),

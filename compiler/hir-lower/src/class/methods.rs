@@ -199,7 +199,9 @@ impl Lowerer {
                         format!("open function `{short}` is not allowed in an object declaration"),
                     );
                 }
-                if matches!(decl.body, ast::FunctionBody::None) {
+                if matches!(decl.body, ast::FunctionBody::None)
+                    && decl.modifier != ast::MethodModifier::Abstract
+                {
                     self.error(
                         decl.name.span,
                         format!("function `{short}` must have a body"),

@@ -1,0 +1,16 @@
+// EXPECT-TRAP
+fun readLeft(): Int = Left.value
+
+fun readRight(): Int = Right.value
+
+object Left {
+    val value: Int = readRight()
+}
+
+object Right {
+    val value: Int = readLeft()
+}
+
+fun main() {
+    println(Left.value)
+}

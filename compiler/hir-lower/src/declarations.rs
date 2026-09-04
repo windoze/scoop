@@ -2,6 +2,7 @@ use super::*;
 
 mod callables;
 mod nested;
+mod objects;
 pub(crate) use nested::NestedDeclarationQueues;
 
 impl Lowerer {

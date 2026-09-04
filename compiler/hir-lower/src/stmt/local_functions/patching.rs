@@ -30,7 +30,9 @@ pub(super) fn patch_local_function_calls(
                 value,
             } => {
                 match place {
-                    hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
+                    hir::AssignTarget::Local(_)
+                    | hir::AssignTarget::Global(_)
+                    | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                     hir::AssignTarget::Index { array, index } => {
                         patch_local_function_call_expr(array, target, captures);
                         patch_local_function_call_expr(index, target, captures);
@@ -265,6 +267,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::InitializingClassFieldAccess { .. }
         | hir::ExprKind::InitializingStructFieldAccess { .. }
         | hir::ExprKind::GlobalRead(_)
+        | hir::ExprKind::SingletonValue(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)
         | hir::ExprKind::AnonymousFunction(_)

@@ -28,6 +28,16 @@ impl Lowerer {
                 {
                     return self.lower_initializing_field_assign(assign, name, out);
                 }
+                if self
+                    .qualified_object_const_property(receiver, &name.text)
+                    .is_some()
+                {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable property `{}`", name.text),
+                    );
+                    return None;
+                }
                 let mut sink = Vec::new();
                 let Some(receiver) = self.lower_expr(receiver, &mut sink, None) else {
                     return None; // diagnostic already recorded

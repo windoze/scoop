@@ -4,6 +4,11 @@ use super::*;
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
+    let object_backings = module
+        .objects
+        .iter()
+        .map(|(_, declaration)| declaration.backing_class)
+        .collect::<std::collections::HashSet<_>>();
     for (id, decl) in module.structs.iter() {
         if id == module.ffi_core.ptr
             || id == module.ffi_core.fun_ptr
@@ -72,7 +77,10 @@ pub fn dump(module: &Module) -> String {
             dump_property(module, property, 2, &mut out);
         }
     }
-    for (_, decl) in module.classes.iter() {
+    for (class, decl) in module.classes.iter() {
+        if object_backings.contains(&class) {
+            continue;
+        }
         if matches!(decl.representation, ClassRepresentation::Intrinsic(_)) {
             continue;
         }
@@ -119,6 +127,49 @@ pub fn dump(module: &Module) -> String {
             ));
         }
         for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
+    }
+    for (object, declaration) in module.objects.iter() {
+        let object_type = &module.object_types[declaration.object_type];
+        let singleton = &module.singleton_values[declaration.singleton_value];
+        let backing = &module.classes[declaration.backing_class];
+        let mut supertypes = Vec::new();
+        if let Some(base) = backing.base_class {
+            supertypes.push(type_name(module, base));
+        }
+        supertypes.extend(
+            backing
+                .interfaces
+                .iter()
+                .map(|interface| type_name(module, *interface)),
+        );
+        let supertypes = if supertypes.is_empty() {
+            String::new()
+        } else {
+            format!(" : {}", supertypes.join(", "))
+        };
+        out.push_str(&format!(
+            "  object {}{} <object{} type{} value{} root{} init{}>\n",
+            nominal_declaration_name(module, &declaration.name, declaration.owner),
+            supertypes,
+            object.into_raw(),
+            declaration.object_type.into_raw(),
+            declaration.singleton_value.into_raw(),
+            singleton.published_root.into_raw(),
+            singleton.initialization.into_raw(),
+        ));
+        debug_assert_eq!(object_type.declaration, object);
+        for &field in &backing.fields {
+            let physical = &module.class_fields[field];
+            out.push_str(&format!(
+                "    field{} property{}: {}\n",
+                field.into_raw(),
+                physical.property.into_raw(),
+                type_name(module, physical.ty)
+            ));
+        }
+        for &property in &backing.properties {
             dump_property(module, property, 2, &mut out);
         }
     }

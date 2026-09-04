@@ -268,7 +268,18 @@ impl Lowerer {
                     expected,
                 ),
                 Constructor::Unmatched => {
-                    self.error(name.span, format!("unknown struct `{}`", name.text));
+                    let object = self
+                        .lexical_nested_nominal_target(&name.text)
+                        .or_else(|| self.top_level_nominal_target(&name.text))
+                        .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)));
+                    if object {
+                        self.error(
+                            name.span,
+                            format!("object `{}` cannot be constructed", name.text),
+                        );
+                    } else {
+                        self.error(name.span, format!("unknown struct `{}`", name.text));
+                    }
                     None
                 }
             },

@@ -88,6 +88,13 @@ pub(super) fn dump_expr(
             "{pad}GlobalRead {} : {ty}\n",
             module.globals[*global].name
         )),
+        ExprKind::SingletonValue(value) => {
+            let declaration = module.singleton_values[*value].declaration;
+            out.push_str(&format!(
+                "{pad}SingletonValue {} : {ty}\n",
+                module.objects[declaration].name
+            ));
+        }
         ExprKind::Capture(binding) => {
             out.push_str(&format!(
                 "{pad}Capture binding{} : {ty}\n",

@@ -22,6 +22,11 @@ impl Lowerer {
             ty: throwable.clone(),
             mutable: false,
         });
+        let materialized = locals.alloc(mir::Local {
+            name: "$init.materialized".to_string(),
+            ty: throwable.clone(),
+            mutable: false,
+        });
         let failure = locals.alloc(mir::Local {
             name: "$init.failure".to_string(),
             ty: throwable.clone(),
@@ -69,11 +74,22 @@ impl Lowerer {
                     ty: Box::new(throwable.clone()),
                     body: vec![
                         statement(
+                            smir::StatementKind::ValDecl {
+                                local: materialized,
+                                init: runtime_call(
+                                    mir::RuntimeFn::MaterializeException,
+                                    vec![smir::Expr::local(caught, throwable.clone())],
+                                    throwable.clone(),
+                                ),
+                            },
+                            span,
+                        ),
+                        statement(
                             smir::StatementKind::Expr(runtime_call(
                                 mir::RuntimeFn::InitializationFail,
                                 vec![
                                     unit_address(unit),
-                                    smir::Expr::local(caught, throwable.clone()),
+                                    smir::Expr::local(materialized, throwable.clone()),
                                 ],
                                 mir::Type::Unit,
                             )),
@@ -81,7 +97,7 @@ impl Lowerer {
                         ),
                         statement(
                             smir::StatementKind::Throw(smir::Expr::local(
-                                caught,
+                                materialized,
                                 throwable.clone(),
                             )),
                             span,

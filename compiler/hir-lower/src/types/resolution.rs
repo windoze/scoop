@@ -374,6 +374,10 @@ impl Lowerer {
                     }
                     return Some(self.class_application(class_id, resolved));
                 }
+                if self.objects_by_name.contains_key(&name.text) {
+                    self.error(name.span, format!("object `{}` is not generic", name.text));
+                    return None;
+                }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
                     let what = if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
@@ -494,6 +498,11 @@ impl Lowerer {
                                 return None;
                             }
                             return Some(ty);
+                        }
+                        if let Some(&object) = self.objects_by_name.get(&name.text) {
+                            return Some(
+                                self.object_types[self.objects[object].object_type].canonical_type,
+                            );
                         }
                         match self.enums_by_name.get(&name.text) {
                             Some(&id) => {

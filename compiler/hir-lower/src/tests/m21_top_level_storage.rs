@@ -280,6 +280,6 @@ fn direct_top_level_dependency_cycle_is_a_stable_hir_error() {
     let errors = lower_user(source).expect_err("direct dependency cycle must be rejected");
     assert!(errors.iter().any(|diagnostic| {
         diagnostic.message
-            == "top-level initialization cycle: top-level:left -> top-level:right -> top-level:left"
+            == "initialization cycle: top-level:left -> top-level:right -> top-level:left"
     }));
 }

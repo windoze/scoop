@@ -82,6 +82,8 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m19-initialization/parameters-and-closure.scoop"
             | "m20-generics/combined.scoop"
             | "m21-initialization/top-level-runtime.scoop"
+            | "m21-objects/failure.scoop"
+            | "m21-objects/objects.scoop"
             | "m21-top-level-static/values.scoop"
     )
 }

@@ -23,6 +23,7 @@ mod m21_consts;
 mod m21_delegates;
 mod m21_interfaces;
 mod m21_nested;
+mod m21_objects;
 mod m21_properties;
 mod m21_top_level_storage;
 mod m21_visibility;

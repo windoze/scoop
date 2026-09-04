@@ -8,10 +8,7 @@ mod primitives;
 mod resolution;
 
 impl Lowerer {
-    pub(in crate::expr) fn nominal_qualifier_target(
-        &self,
-        expression: &ast::Expr,
-    ) -> Option<NominalTarget> {
+    pub(crate) fn nominal_qualifier_target(&self, expression: &ast::Expr) -> Option<NominalTarget> {
         match expression {
             ast::Expr::Var(name)
                 if self.scopes.lookup(&name.text).is_none()
@@ -239,6 +236,17 @@ impl Lowerer {
                     return None;
                 };
                 return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+            }
+            if let NominalTarget::Object(object) = qualifier {
+                let receiver = self.lower_singleton_value(object, receiver.span())?;
+                return self.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                );
             }
             self.error(
                 name.span,

@@ -201,6 +201,12 @@ impl Lowerer {
         loop {
             let application_value = self.class_applications[application].clone();
             let class = application_value.template;
+            let owner_application = self
+                .object_by_backing_class
+                .get(&class)
+                .map_or(hir::MethodOwnerApplication::Class(application), |object| {
+                    hir::MethodOwnerApplication::Object(self.objects[*object].object_type)
+                });
             out.extend(self.classes[class].methods.iter().copied().map(|function| {
                 let source = match bound {
                     Some((receiver_parameter, bound)) => {
@@ -215,9 +221,7 @@ impl Lowerer {
                 (
                     crate::CallableCandidate {
                         function,
-                        owner: crate::CallableCandidateOwner::Method(
-                            hir::MethodOwnerApplication::Class(application),
-                        ),
+                        owner: crate::CallableCandidateOwner::Method(owner_application),
                         source,
                         access: crate::CallableCandidateAccess::Inheritance,
                     },

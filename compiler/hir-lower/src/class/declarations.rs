@@ -200,11 +200,16 @@ impl Lowerer {
             self.class_parameter_calling.insert(constructor, callings);
         }
 
-        self.resolve_class_supertypes(id, &decl.supertypes);
+        self.resolve_class_supertypes(id, &decl.supertypes, "a class");
         self.type_params_in_scope.clear();
     }
 
-    fn resolve_class_supertypes(&mut self, id: ClassId, specs: &[ast::SupertypeSpec]) {
+    pub(crate) fn resolve_class_supertypes(
+        &mut self,
+        id: ClassId,
+        specs: &[ast::SupertypeSpec],
+        host: &str,
+    ) {
         let mut interfaces = Vec::new();
         let mut base = None;
         for spec in specs {
@@ -216,7 +221,7 @@ impl Lowerer {
                     if base.is_some() {
                         self.error(
                             spec.span,
-                            "a class may have only one direct base class".into(),
+                            format!("{host} may have only one direct base class"),
                         );
                         continue;
                     }

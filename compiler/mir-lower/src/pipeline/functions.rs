@@ -35,6 +35,8 @@ impl Lowerer {
             function_map: &self.function_map,
             extern_map: &self.extern_map,
             global_map: &self.global_map,
+            singleton_root_map: &self.singleton_root_map,
+            singleton_published_roots: &self.singleton_published_roots,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
             foreign_callback_adapters: &mut self.foreign_callback_adapters,

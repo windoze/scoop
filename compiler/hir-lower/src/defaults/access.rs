@@ -215,6 +215,7 @@ impl ReferenceCollector<'_> {
             hir::AssignTarget::Global(global) => {
                 self.global(*global, self.fallback_origin);
             }
+            hir::AssignTarget::SingletonPublishedRoot(_) => {}
             hir::AssignTarget::Index { array, index } => {
                 self.expression(array);
                 self.expression(index);
@@ -321,6 +322,7 @@ impl ReferenceCollector<'_> {
                 self.expressions(args);
             }
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
+            hir::ExprKind::SingletonValue(value) => self.singleton_value(*value, origin),
             hir::ExprKind::Lambda(lambda) => {
                 self.callable(hir::ExportDefaultCallableTarget::Lambda(*lambda), origin);
             }
@@ -542,6 +544,19 @@ impl ReferenceCollector<'_> {
             witness,
             origin,
         });
+    }
+
+    fn singleton_value(&mut self, target: hir::SingletonValueId, origin: hir::DefinitionOrigin) {
+        let object = self.lowerer.singleton_values[target].declaration;
+        let target_domain = self.lowerer.objects[object].access.lookup.0.clone();
+        let witness = self.witness(target_domain, origin, "an object");
+        self.references
+            .singleton_values
+            .push(hir::ExportDefaultSingletonValueRef {
+                target,
+                witness,
+                origin,
+            });
     }
 
     fn field(&mut self, target: hir::FieldRef, origin: hir::DefinitionOrigin) {

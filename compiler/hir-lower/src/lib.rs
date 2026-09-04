@@ -404,6 +404,10 @@ pub(crate) struct Lowerer {
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
     pub(crate) objects_by_name: HashMap<String, ObjectId>,
+    /// Physical class representation -> semantic singleton declaration.
+    /// The relation is typed and established when the object is declared;
+    /// constructor/body lowering never recovers it from a generated name.
+    pub(crate) object_by_backing_class: HashMap<ClassId, ObjectId>,
     /// Owner-scoped static nested nominal namespace. The owner and target
     /// retain distinct typed ids; qualified lookup never flattens this key
     /// into an FQN string.

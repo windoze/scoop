@@ -83,6 +83,7 @@ struct Concretizer<'a> {
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
+    object_by_backing_class: HashMap<export::ClassId, export::ObjectId>,
     class_constructor_slots: Vec<Option<concrete::ClassConstructor>>,
     class_constructor_by_key:
         HashMap<(export::ClassConstructorId, concrete::ClassId), concrete::ClassConstructorId>,
@@ -185,6 +186,11 @@ impl<'a> Concretizer<'a> {
     }
 
     fn new(source: &'a export::Module) -> Self {
+        let object_by_backing_class = source
+            .objects
+            .iter()
+            .map(|(object, declaration)| (declaration.backing_class, object))
+            .collect();
         Self {
             source,
             types: Arena::new(),
@@ -208,6 +214,7 @@ impl<'a> Concretizer<'a> {
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
             class_source: HashMap::new(),
+            object_by_backing_class,
             class_constructor_slots: Vec::new(),
             class_constructor_by_key: HashMap::new(),
             struct_constructor_slots: Vec::new(),

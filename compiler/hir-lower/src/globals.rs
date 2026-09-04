@@ -17,6 +17,7 @@ struct PendingConst<'a> {
     file: usize,
     access: hir::DeclarationAccess,
     ty: hir::TypeId,
+    owner: hir::PropertyOwner,
 }
 
 struct PendingOrdinary<'a> {
@@ -26,7 +27,7 @@ struct PendingOrdinary<'a> {
     ty: hir::TypeId,
 }
 
-fn stable_source_identity(name: &str) -> String {
+pub(crate) fn stable_source_identity(name: &str) -> String {
     let path = Path::new(name);
     let mut components = Vec::new();
     for component in path.components() {
@@ -57,7 +58,11 @@ pub(crate) struct PendingRuntimeInitializer {
 }
 
 impl Lowerer {
-    pub(crate) fn resolve_globals(&mut self, pending: &[(&ast::GlobalDecl, usize)]) {
+    pub(crate) fn resolve_globals(
+        &mut self,
+        pending: &[(&ast::GlobalDecl, usize)],
+        objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
+    ) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
         let mut ordinary = Vec::new();
@@ -142,6 +147,7 @@ impl Lowerer {
                     file: file_index,
                     access,
                     ty,
+                    owner: hir::PropertyOwner::TopLevel,
                 });
                 continue;
             }
@@ -384,6 +390,80 @@ impl Lowerer {
                 }
             }
         }
+        for &(object, declaration, file) in objects {
+            self.current_file = file;
+            self.current_owner = Some(crate::Owner::Object(object));
+            for property in declaration
+                .members
+                .iter()
+                .filter_map(|member| match member {
+                    ast::ClassMember::StoredProperty(property)
+                        if matches!(property.body, ast::PropertyBodySyntax::Const(_)) =>
+                    {
+                        Some(property)
+                    }
+                    _ => None,
+                })
+            {
+                let access = self.member_access(
+                    property.visibility,
+                    property.name.span,
+                    "const property",
+                    crate::Owner::Object(object),
+                    file,
+                    crate::visibility::MemberSlotAccess::None,
+                );
+                let ty = self.resolve_type_ref(&property.ty).unwrap_or(self.int);
+                if property.mutable {
+                    self.error(
+                        property.name.span,
+                        "const property must be a `val`".to_string(),
+                    );
+                    continue;
+                }
+                if property.modifier != ast::MethodModifier::Final || property.is_override {
+                    self.error(
+                        property.span,
+                        "object const properties cannot be open, abstract, or override".to_string(),
+                    );
+                    continue;
+                }
+                if property.receiver_ty.is_some() || !property.type_params.is_empty() {
+                    self.error(
+                        property.span,
+                        "object const properties cannot be extensions or declare type parameters"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                self.reject_logical_property_annotations(
+                    "an object const property",
+                    &property.annotations,
+                );
+                if !matches!(
+                    self.types[ty],
+                    hir::Type::Int | hir::Type::UInt | hir::Type::Boolean | hir::Type::String
+                ) {
+                    self.error(
+                        property.ty.span,
+                        format!(
+                            "const property `{}` has unsupported type {}",
+                            property.name.text,
+                            self.type_name(ty)
+                        ),
+                    );
+                    continue;
+                }
+                constants.push(PendingConst {
+                    declaration: property,
+                    file,
+                    access,
+                    ty,
+                    owner: hir::PropertyOwner::Object(object),
+                });
+            }
+        }
+        self.current_owner = None;
         self.resolve_const_properties(&constants, &ordinary);
         self.resolve_static_top_level_properties(&ordinary);
     }
@@ -567,7 +647,7 @@ impl Lowerer {
             });
     }
 
-    fn allocate_initialization_functions(
+    pub(crate) fn allocate_initialization_functions(
         &mut self,
         unit: hir::InitializationUnitId,
         span: ast::Span,
@@ -714,9 +794,18 @@ impl Lowerer {
                         .stable_key
                         .clone(),
                 );
+                self.current_file = match self.initialization_units[unit].kind {
+                    hir::InitializationUnitKind::EagerTopLevel { property, .. } => {
+                        self.property_files[&property]
+                    }
+                    hir::InitializationUnitKind::LazySingleton { value, .. } => {
+                        let object = self.singleton_values[value].declaration;
+                        self.object_files[&object]
+                    }
+                };
                 self.error(
                     dependency.span,
-                    format!("top-level initialization cycle: {}", path.join(" -> ")),
+                    format!("initialization cycle: {}", path.join(" -> ")),
                 );
             }
         }

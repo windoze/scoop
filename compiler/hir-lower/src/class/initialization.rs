@@ -12,6 +12,7 @@ impl Lowerer {
         &mut self,
         classes: &[(ClassId, &ast::ClassDecl, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
     ) {
         for &(class, declaration, file) in classes {
             self.current_file = file;
@@ -20,6 +21,10 @@ impl Lowerer {
         for &(structure, declaration, file) in structs {
             self.current_file = file;
             self.lower_struct_constructor_bodies(structure, declaration);
+        }
+        for &(object, declaration, file) in objects {
+            self.current_file = file;
+            self.lower_object_initialization(object, declaration);
         }
     }
 
@@ -66,9 +71,10 @@ impl Lowerer {
 
         let common = self.lower_common_initialization(
             owner,
-            declaration,
+            &declaration.members,
             context_constructor,
             primary.is_some(),
+            &format!("class `{}`", self.classes[owner].name),
         );
 
         if let Some(primary) = primary {
@@ -148,12 +154,13 @@ impl Lowerer {
     fn lower_common_initialization(
         &mut self,
         owner: ClassId,
-        declaration: &ast::ClassDecl,
+        members: &[ast::ClassMember],
         constructor: hir::ClassConstructorId,
         primary_parameters_visible: bool,
+        host: &str,
     ) -> Vec<hir::ClassInitializationStep> {
         let mut steps = Vec::new();
-        for member in &declaration.members {
+        for member in members {
             match member {
                 ast::ClassMember::StoredProperty(property) => {
                     let Some(property_id) = self.classes[owner]
@@ -186,10 +193,8 @@ impl Lowerer {
                         continue;
                     };
                     if let Some(context) = &mut self.initialization_context {
-                        context.step = format!(
-                            "initializer of field `{}` in class `{}`",
-                            property.name.text, self.classes[owner].name
-                        );
+                        context.step =
+                            format!("initializer of property `{}` in {host}", property.name.text);
                     }
                     let expected = logical.ty;
                     let initializer = match initializer {
@@ -263,8 +268,7 @@ impl Lowerer {
                 }
                 ast::ClassMember::InitBlock(init) => {
                     if let Some(context) = &mut self.initialization_context {
-                        context.step =
-                            format!("init block in class `{}`", self.classes[owner].name);
+                        context.step = format!("init block in {host}");
                     }
                     let lowered = self.with_constructor_expression_context(
                         constructor,
@@ -294,6 +298,70 @@ impl Lowerer {
             }
         }
         steps
+    }
+
+    fn lower_object_initialization(
+        &mut self,
+        object: hir::ObjectId,
+        declaration: &ast::ObjectDecl,
+    ) {
+        let backing = self.objects[object].backing_class;
+        let constructor = self.classes[backing]
+            .constructors
+            .first()
+            .copied()
+            .expect("every object has one hidden primary constructor");
+        let application = self.classes[backing].self_application;
+        self.initialization_context = Some(crate::InitializationContext {
+            receiver: InitializingReceiver::Class {
+                application,
+                initialized: self.inherited_fields(backing),
+            },
+            step: format!("initialization of object `{}`", declaration.name.text),
+            capture_depth: self.capture_contexts.len(),
+        });
+        let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
+        let previous_unit = self.current_initialization_unit.replace(unit);
+        let common = self.lower_common_initialization(
+            backing,
+            &declaration.members,
+            constructor,
+            false,
+            &format!("object `{}`", declaration.name.text),
+        );
+        self.current_initialization_unit = previous_unit;
+        let hir::ClassConstructorKind::Primary {
+            common_initialization,
+            ..
+        } = &mut self.class_constructors[constructor].kind
+        else {
+            unreachable!("the hidden object constructor is primary")
+        };
+        *common_initialization = common;
+        self.initialization_context = None;
+
+        let object_declaration = self.objects[object].clone();
+        let singleton = self.singleton_values[object_declaration.singleton_value];
+        let constructor_application = self.class_constructor_application(constructor, application);
+        let initializer = self.initialization_units[singleton.initialization].initializer;
+        self.functions[initializer].kind = hir::FunctionKind::User(hir::Body {
+            locals: la_arena::Arena::new(),
+            statements: vec![hir::Statement {
+                kind: hir::StatementKind::Assign {
+                    target: hir::AssignTarget::SingletonPublishedRoot(singleton.published_root),
+                    value: hir::Expr {
+                        kind: hir::ExprKind::ClassInit {
+                            constructor: constructor_application,
+                            args: Vec::new(),
+                        },
+                        ty: self.object_types[object_declaration.object_type].canonical_type,
+                        span: declaration.span,
+                        origin: self.expression_origin(declaration.span),
+                    },
+                },
+                span: declaration.span,
+            }],
+        });
     }
 
     fn lower_class_delegate_initialization(

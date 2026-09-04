@@ -23,6 +23,7 @@ impl Lowerer {
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
         let mut pending_interfaces = Vec::new();
+        let mut pending_objects = Vec::new();
         let mut pending_functions = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
@@ -70,10 +71,15 @@ impl Lowerer {
                             None,
                         );
                     }
-                    ast::Decl::Object(decl) => self.error(
-                        decl.span,
-                        "object declarations require M21 singleton semantic lowering".to_string(),
-                    ),
+                    ast::Decl::Object(decl) => {
+                        let _ = self.declare_object(
+                            decl,
+                            &mut pending_objects,
+                            &mut pending_methods,
+                            file_index,
+                            None,
+                        );
+                    }
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, &mut pending_functions, file_index)
                     }
@@ -89,11 +95,13 @@ impl Lowerer {
         let root_enums = pending_enums.clone();
         let root_classes = pending_classes.clone();
         let root_interfaces = pending_interfaces.clone();
+        let root_objects = pending_objects.clone();
         let mut nested_queues = crate::declarations::NestedDeclarationQueues {
             structs: &mut pending_structs,
             enums: &mut pending_enums,
             classes: &mut pending_classes,
             interfaces: &mut pending_interfaces,
+            objects: &mut pending_objects,
             methods: &mut pending_methods,
         };
         for (id, declaration, file) in root_structs {
@@ -112,6 +120,9 @@ impl Lowerer {
                 &mut nested_queues,
                 file,
             );
+        }
+        for (id, declaration, file) in root_objects {
+            self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
 
         // Type-parameter names and arities are declared in pass 1. Resolve
@@ -240,6 +251,11 @@ impl Lowerer {
             self.current_owner = Some(Owner::Class(*id));
             self.resolve_class(*id, decl);
         }
+        for &(id, decl, file_index) in &pending_objects {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Object(id));
+            self.resolve_object(id, decl);
+        }
         self.current_owner = None;
 
         // Pass 2.5: resolve function and method signatures, so calls
@@ -272,7 +288,7 @@ impl Lowerer {
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
         self.validate_pointer_type_uses();
-        self.resolve_globals(&pending_globals);
+        self.resolve_globals(&pending_globals, &pending_objects);
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
         self.validate_extern_functions();
@@ -291,6 +307,7 @@ impl Lowerer {
             &pending_classes,
             &pending_structs,
             &pending_enums,
+            &pending_objects,
             &pending_methods,
         );
         self.validate_signature_exposure();
@@ -301,8 +318,8 @@ impl Lowerer {
             &pending_classes,
             &pending_enums,
         );
-        self.resolve_constructor_graphs(&pending_classes, &pending_structs);
-        self.lower_constructor_initialization(&pending_classes, &pending_structs);
+        self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
+        self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
         self.declare_derived_equality_methods();
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been

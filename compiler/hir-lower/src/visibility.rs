@@ -24,6 +24,11 @@ impl Lowerer {
     }
 
     pub(crate) fn public_semantic_surface(&self) -> hir::PublicSemanticSurface {
+        let object_backings = self
+            .objects
+            .iter()
+            .map(|(_, declaration)| declaration.backing_class)
+            .collect::<std::collections::HashSet<_>>();
         let accessor_functions = self
             .property_accessor_sources
             .iter()
@@ -98,14 +103,18 @@ impl Lowerer {
                 .classes
                 .iter()
                 .filter_map(|(id, declaration)| {
-                    Self::nominal_is_exported(&declaration.access).then_some(id)
+                    (!object_backings.contains(&id)
+                        && Self::nominal_is_exported(&declaration.access))
+                    .then_some(id)
                 })
                 .collect(),
             class_constructors: self
                 .class_constructors
                 .iter()
                 .filter_map(|(id, constructor)| {
-                    Self::declaration_is_exported(&constructor.access).then_some(id)
+                    (!object_backings.contains(&constructor.owner)
+                        && Self::declaration_is_exported(&constructor.access))
+                    .then_some(id)
                 })
                 .collect(),
             interfaces: self

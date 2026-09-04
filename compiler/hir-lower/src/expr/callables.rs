@@ -195,7 +195,21 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            Constructor::Unmatched => self.lower_function_call(call, sink, expected),
+            Constructor::Unmatched => {
+                let object = self
+                    .lexical_nested_nominal_target(&call.callee.text)
+                    .or_else(|| self.top_level_nominal_target(&call.callee.text))
+                    .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)));
+                if object && !self.functions_by_name.contains_key(&call.callee.text) {
+                    self.error(
+                        call.span,
+                        format!("object `{}` cannot be constructed", call.callee.text),
+                    );
+                    None
+                } else {
+                    self.lower_function_call(call, sink, expected)
+                }
+            }
         }
     }
 

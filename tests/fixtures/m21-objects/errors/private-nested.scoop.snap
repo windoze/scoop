@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-objects/errors/private-nested.scoop:8:13: error: object `Secret` is not accessible here

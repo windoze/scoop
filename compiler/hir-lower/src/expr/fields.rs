@@ -7,6 +7,21 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        // A qualified nested object is a value only at the final path
+        // component. Resolving the owner chain itself is structural and must
+        // not initialize any outer object.
+        if let Some(crate::NominalTarget::Object(object)) =
+            self.nominal_qualifier_target(&ast::Expr::FieldAccess(access.clone()))
+        {
+            return self.lower_singleton_value(object, access.span);
+        }
+        if let ast::FieldSelector::Name(name) = &access.selector {
+            let property = self.qualified_object_const_property(&access.receiver, &name.text);
+            if let Some(property) = property {
+                let ty = self.properties[property].ty;
+                return self.lower_property_read(property, None, None, ty, access.span);
+            }
+        }
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).

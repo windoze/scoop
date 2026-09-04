@@ -47,6 +47,10 @@ pub(super) fn dump_statements(
                         "{pad}assign global {}\n",
                         module.globals[*global].name
                     )),
+                    AssignTarget::SingletonPublishedRoot(root) => out.push_str(&format!(
+                        "{pad}assign singleton-root#{}\n",
+                        root.into_raw().into_u32()
+                    )),
                     AssignTarget::Field { receiver, .. } => {
                         out.push_str(&format!("{pad}assign .field\n"));
                         dump_expr(module, locals, receiver, indent + 1, out);

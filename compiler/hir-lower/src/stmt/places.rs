@@ -139,6 +139,15 @@ impl Lowerer {
                         write,
                     });
                 }
+                if let Some(property) = self.qualified_object_const_property(receiver, &name.text) {
+                    let ty = self.properties[property].ty;
+                    let read = self.lower_property_read(property, None, None, ty, *span)?;
+                    return Some(ResolvedPlacePlan {
+                        read,
+                        write: WriteCapability::ReadOnly,
+                        ty,
+                    });
+                }
                 let receiver = self.lower_expr(receiver, sink, None)?;
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
                 if let Some((property, owner, ty)) =

@@ -69,6 +69,23 @@ impl Lowerer {
                     .initializing_field(name, name.span)
                     .map(|field| field.read);
             }
+            if let Some(crate::Owner::Object(object)) = self.current_owner {
+                let property = self.classes[self.objects[object].backing_class]
+                    .properties
+                    .iter()
+                    .copied()
+                    .find(|property| {
+                        self.properties[*property].name == name.text
+                            && matches!(
+                                self.properties[*property].representation,
+                                hir::PropertyRepresentation::Const { .. }
+                            )
+                    });
+                if let Some(property) = property {
+                    let ty = self.properties[property].ty;
+                    return self.lower_property_read(property, None, None, ty, name.span);
+                }
+            }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
@@ -86,6 +103,16 @@ impl Lowerer {
             if let Some(property) = self.visible_property(&name.text, None) {
                 let ty = self.properties[property].ty;
                 return self.lower_property_read(property, None, None, ty, name.span);
+            }
+            if let Some(object) = self
+                .lexical_nested_nominal_target(&name.text)
+                .or_else(|| self.top_level_nominal_target(&name.text))
+                .and_then(|target| match target {
+                    crate::NominalTarget::Object(object) => Some(object),
+                    _ => None,
+                })
+            {
+                return self.lower_singleton_value(object, name.span);
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
@@ -145,6 +172,40 @@ impl Lowerer {
             ty: declared,
             span: name.span,
             origin: self.expression_origin(name.span),
+        })
+    }
+
+    pub(in crate::expr) fn lower_singleton_value(
+        &mut self,
+        object: hir::ObjectId,
+        span: ast::Span,
+    ) -> Option<hir::Expr> {
+        let declaration = self.objects[object].clone();
+        if !self.access_domain_allows(&declaration.access.lookup.0, None) {
+            self.error(
+                span,
+                format!("object `{}` is not accessible here", declaration.name),
+            );
+            return None;
+        }
+        let value = self.singleton_values[declaration.singleton_value];
+        if let Some(current) = self.current_initialization_unit {
+            let dependencies = &mut self.initialization_units[current].dependencies;
+            if !dependencies
+                .iter()
+                .any(|dependency| dependency.unit == value.initialization)
+            {
+                dependencies.push(hir::InitializationDependency {
+                    unit: value.initialization,
+                    span,
+                });
+            }
+        }
+        Some(hir::Expr {
+            kind: hir::ExprKind::SingletonValue(declaration.singleton_value),
+            ty: self.object_types[declaration.object_type].canonical_type,
+            span,
+            origin: self.expression_origin(span),
         })
     }
 

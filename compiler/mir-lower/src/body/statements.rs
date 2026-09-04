@@ -62,6 +62,13 @@ impl BodyLowerer<'_> {
                         global: self.global_map[global],
                         value: self.lower_expr(value),
                     },
+                    hir::AssignTarget::SingletonPublishedRoot(root) => {
+                        let root = self.singleton_root_map[root];
+                        smir::StatementKind::GlobalAssign {
+                            global: self.singleton_published_roots[root].global,
+                            value: self.lower_expr(value),
+                        }
+                    }
                     // `m[i] = v` (only `MutableArray`, checked at HIR).
                     // M8: the bounds check moved here from codegen —
                     // the array and the index are evaluated once into

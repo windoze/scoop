@@ -5,6 +5,7 @@ pub(crate) struct NestedDeclarationQueues<'queues, 'source> {
     pub(crate) enums: &'queues mut Vec<(EnumId, &'source ast::EnumDecl, usize)>,
     pub(crate) classes: &'queues mut Vec<(ClassId, &'source ast::ClassDecl, usize)>,
     pub(crate) interfaces: &'queues mut Vec<(InterfaceId, &'source ast::InterfaceDecl, usize)>,
+    pub(crate) objects: &'queues mut Vec<(ObjectId, &'source ast::ObjectDecl, usize)>,
     pub(crate) methods: &'queues mut Vec<(FunctionId, &'source ast::FunctionDecl, usize, Owner)>,
 }
 
@@ -92,6 +93,30 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn declare_object_nested<'a>(
+        &mut self,
+        owner: Owner,
+        declaration: &'a ast::ObjectDecl,
+        queues: &mut NestedDeclarationQueues<'_, 'a>,
+        file: usize,
+    ) {
+        for member in &declaration.members {
+            match member {
+                ast::ClassMember::Nested(nested) => {
+                    self.declare_nested_nominal(owner, nested, queues, file)
+                }
+                ast::ClassMember::Companion(companion) => self.error(
+                    companion.span,
+                    "companion objects require M21 singleton semantic lowering".to_string(),
+                ),
+                ast::ClassMember::StoredProperty(_)
+                | ast::ClassMember::InitBlock(_)
+                | ast::ClassMember::SecondaryConstructor(_)
+                | ast::ClassMember::Function(_) => {}
+            }
+        }
+    }
+
     fn declare_nested_nominal<'a>(
         &mut self,
         owner: Owner,
@@ -143,10 +168,13 @@ impl Lowerer {
                     self.declare_interface_nested(Owner::Interface(id), source, queues, file);
                 }
             }
-            ast::NestedNominalDecl::Object(source) => self.error(
-                source.span,
-                "object declarations require M21 singleton semantic lowering".to_string(),
-            ),
+            ast::NestedNominalDecl::Object(source) => {
+                if let Some(id) =
+                    self.declare_object(source, queues.objects, queues.methods, file, Some(owner))
+                {
+                    self.declare_object_nested(Owner::Object(id), source, queues, file);
+                }
+            }
         }
     }
 }

@@ -150,6 +150,11 @@ impl Concretizer<'_> {
             export::AssignTarget::Global(global) => {
                 concrete::AssignTarget::Global(self.global_map[global])
             }
+            export::AssignTarget::SingletonPublishedRoot(root) => {
+                concrete::AssignTarget::SingletonPublishedRoot(
+                    concrete::SingletonPublishedRootId::from_raw(root.into_raw()),
+                )
+            }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
                 array: Box::new(self.lower_expr(array, substitution, locals)),
                 index: Box::new(self.lower_expr(index, substitution, locals)),

@@ -110,8 +110,11 @@ impl Lowerer {
         let computed = matches!(declaration.body, ast::PropertyBodySyntax::Computed(_));
         let abstract_property = matches!(declaration.body, ast::PropertyBodySyntax::Abstract);
         let interface_property = matches!(owner, hir::PropertyOwner::Interface(_));
-        let dispatch_storage = matches!(owner, hir::PropertyOwner::Class(_))
-            && (modifier != hir::MethodModifier::Final || declaration.is_override);
+        let dispatch_storage = matches!(
+            owner,
+            hir::PropertyOwner::Class(_) | hir::PropertyOwner::Object(_)
+        ) && (modifier != hir::MethodModifier::Final
+            || declaration.is_override);
         let runtime_storage = matches!(
             backing,
             Some(hir::PropertyBacking::TopLevelGlobal {
@@ -449,6 +452,40 @@ impl Lowerer {
         ty: TypeId,
         access: hir::DeclarationAccess,
     ) -> Option<hir::ClassFieldId> {
+        self.allocate_reference_property(
+            owner,
+            hir::PropertyOwner::Class(owner),
+            declaration,
+            ty,
+            access,
+        )
+    }
+
+    pub(crate) fn allocate_object_property(
+        &mut self,
+        owner: hir::ObjectId,
+        declaration: &ast::PropertyDecl,
+        ty: TypeId,
+        access: hir::DeclarationAccess,
+    ) -> Option<hir::ClassFieldId> {
+        let backing = self.objects[owner].backing_class;
+        self.allocate_reference_property(
+            backing,
+            hir::PropertyOwner::Object(owner),
+            declaration,
+            ty,
+            access,
+        )
+    }
+
+    fn allocate_reference_property(
+        &mut self,
+        backing_class: hir::ClassId,
+        property_owner: hir::PropertyOwner,
+        declaration: &ast::PropertyDecl,
+        ty: TypeId,
+        access: hir::DeclarationAccess,
+    ) -> Option<hir::ClassFieldId> {
         self.reject_logical_property_annotations("a class property", &declaration.annotations);
         if declaration.receiver_ty.is_some() || !declaration.type_params.is_empty() {
             self.error(
@@ -457,7 +494,29 @@ impl Lowerer {
             );
             return None;
         }
-        let modifier = self.class_property_modifier(owner, declaration);
+        if matches!(property_owner, hir::PropertyOwner::Object(_)) {
+            if declaration.modifier == ast::MethodModifier::Abstract {
+                self.error(
+                    declaration.name.span,
+                    format!(
+                        "abstract property `{}` is not allowed in an object declaration",
+                        declaration.name.text
+                    ),
+                );
+                return None;
+            }
+            if declaration.modifier == ast::MethodModifier::Open && !declaration.is_override {
+                self.error(
+                    declaration.name.span,
+                    format!(
+                        "open property `{}` is not allowed in an object declaration",
+                        declaration.name.text
+                    ),
+                );
+                return None;
+            }
+        }
+        let modifier = self.class_property_modifier(backing_class, declaration);
         let abstract_body = matches!(declaration.body, ast::PropertyBodySyntax::Abstract);
         if (modifier == hir::MethodModifier::Abstract) != abstract_body {
             self.error(
@@ -473,7 +532,7 @@ impl Lowerer {
         let (field, representation) = match &declaration.body {
             ast::PropertyBodySyntax::Initializer { .. } => {
                 let field = self.class_fields.alloc(hir::ClassField {
-                    owner,
+                    owner: backing_class,
                     property: expected_property,
                     ty,
                     source: hir::ClassFieldSource::Body,
@@ -501,7 +560,7 @@ impl Lowerer {
                     return None;
                 }
                 let field = self.class_fields.alloc(hir::ClassField {
-                    owner,
+                    owner: backing_class,
                     property: expected_property,
                     ty,
                     source: hir::ClassFieldSource::Body,
@@ -550,14 +609,14 @@ impl Lowerer {
         });
         let capability = self.allocate_property_accessors(
             expected_property,
-            hir::PropertyOwner::Class(owner),
+            property_owner,
             access.clone(),
             declaration,
             backing,
             modifier,
         )?;
         let property = self.properties.alloc(hir::Property {
-            owner: hir::PropertyOwner::Class(owner),
+            owner: property_owner,
             name: declaration.name.text.clone(),
             access,
             modifier,
@@ -570,7 +629,7 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected_property);
-        self.classes[owner].properties.push(property);
+        self.classes[backing_class].properties.push(property);
         field
     }
 
