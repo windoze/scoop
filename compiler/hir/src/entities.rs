@@ -2,6 +2,9 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Explicit public source API. Internal/private implementation entities
+    /// elsewhere in this module are not downstream declaration candidates.
+    pub public_surface: PublicSemanticSurface,
     /// Driver-provided display names and source text indexed by every typed
     /// expression origin. Keeping this relation in Export HIR lets generic
     /// concretization consume source provenance without consulting the

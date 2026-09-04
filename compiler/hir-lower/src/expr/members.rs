@@ -297,6 +297,8 @@ impl Lowerer {
 
         if let Some(failure) = first_failure {
             self.commit_layer_diagnostics(*failure);
+        } else if let Some(message) = self.inaccessible_method_message(receiver.ty, &name.text) {
+            self.error(name.span, message);
         } else {
             let found = self.type_name(receiver.ty);
             let capability = if direct_required.infix {
@@ -333,6 +335,7 @@ impl Lowerer {
             .into_iter()
             .flatten()
             .copied()
+            .filter(|function| self.function_is_accessible(*function, None))
             .filter(|function| {
                 let candidate_is_core = self.function_files[function] < self.user_file_index;
                 (candidate_is_core == call_site_is_core) == same_side
@@ -345,10 +348,14 @@ impl Lowerer {
         receiver: hir::Expr,
         name: &ast::Ident,
     ) -> Option<hir::Expr> {
-        let (field, ty) = match self.types[receiver.ty].clone() {
+        let receiver_ty = receiver.ty;
+        let (field, ty) = match self.types[receiver_ty].clone() {
             Type::Class(application) => {
-                let (application, field, ty, _) =
-                    self.find_class_application_field(application, &name.text)?;
+                let (application, field, ty, _) = self.find_accessible_class_application_field(
+                    application,
+                    &name.text,
+                    receiver_ty,
+                )?;
                 (hir::FieldRef::ClassField { application, field }, ty)
             }
             Type::Struct(application) => {

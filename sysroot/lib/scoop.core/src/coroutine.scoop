@@ -2,40 +2,40 @@
 // State machines, frames, and continuation adapters are compiler-generated;
 // these declarations provide the source-level typed boundary.
 
-interface Continuation<T> {
-    fun resume(value: T)
-    fun resumeWithException(exception: Throwable)
+public interface Continuation<T> {
+    public fun resume(value: T)
+    public fun resumeWithException(exception: Throwable)
 }
 
-interface SuspendTask<T> {
-    suspend fun run(): T
+public interface SuspendTask<T> {
+    public suspend fun run(): T
 }
 
-interface SuspendRegistration<T> {
-    fun register(continuation: Continuation<T>)
+public interface SuspendRegistration<T> {
+    public fun register(continuation: Continuation<T>)
 }
 
-struct FunctionSuspendTask<T>(val task: suspend () -> T) : SuspendTask<T> {
-    final override suspend fun run(): T = task.invoke()
+public struct FunctionSuspendTask<T>(val task: suspend () -> T) : SuspendTask<T> {
+    public final override suspend fun run(): T = task.invoke()
 }
 
-struct FunctionSuspendRegistration<T>(
+public struct FunctionSuspendRegistration<T>(
     val registration: (Continuation<T>) -> Unit
 ) : SuspendRegistration<T> {
-    final override fun register(continuation: Continuation<T>) {
+    public final override fun register(continuation: Continuation<T>) {
         registration.invoke(continuation)
     }
 }
 
 @Intrinsic("coroutine_start")
-fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
+public fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
 
 @Intrinsic("coroutine_suspend")
-suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T
+public suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T
 
-fun <T> startCoroutine(task: suspend () -> T, completion: Continuation<T>) {
+public fun <T> startCoroutine(task: suspend () -> T, completion: Continuation<T>) {
     startCoroutine(FunctionSuspendTask(task), completion)
 }
 
-suspend fun <T> suspendCoroutine(registration: (Continuation<T>) -> Unit): T =
+public suspend fun <T> suspendCoroutine(registration: (Continuation<T>) -> Unit): T =
     suspendCoroutine(FunctionSuspendRegistration(registration))

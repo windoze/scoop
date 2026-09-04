@@ -87,8 +87,11 @@ impl Lowerer {
         // without consuming unrelated lexical binding identities.
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
+        let access = self.fixed_representation_access(owner);
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", owner.describe_name(self)),
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {
@@ -183,7 +186,7 @@ impl Lowerer {
                 &mut Vec::new(),
             )?;
             return Ok(Some(DerivedEqualityCandidate::Nominal {
-                overload: CallableCandidate::method(function, owner),
+                overload: CallableCandidate::compiler_generated_method(function, owner),
                 application,
             }));
         }
@@ -230,8 +233,11 @@ impl Lowerer {
         }
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
+        let access = self.local_declaration_access();
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", self.type_name(owner_ty)),
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {

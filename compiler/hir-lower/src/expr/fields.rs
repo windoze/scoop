@@ -333,8 +333,12 @@ impl Lowerer {
                 let class_name = self.classes[class_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
-                        let Some((declaring, field, ty, _)) =
-                            self.find_class_application_field(application, &field.text)
+                        let Some((declaring, field, ty, _)) = self
+                            .find_accessible_class_application_field(
+                                application,
+                                &field.text,
+                                receiver_ty,
+                            )
                         else {
                             self.error(
                                 field.span,

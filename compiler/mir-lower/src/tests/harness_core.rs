@@ -16,6 +16,7 @@ impl Harness {
         let option_self_application = hir::EnumApplicationId::from_raw(0.into());
         let option_enum = enums.alloc(hir::EnumDecl {
             name: "Option".to_string(),
+            access: hir::NominalAccess::public(),
             self_application: option_self_application,
             type_params: vec![type_param("T")],
             no_gc: false,
@@ -119,6 +120,8 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             name: "write".to_string(),
+            access: hir::DeclarationAccess::public(),
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -154,6 +157,8 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             name: "coreIntToString".to_string(),
+            access: hir::DeclarationAccess::public(),
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -188,6 +193,8 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             name: "coreBooleanToString".to_string(),
+            access: hir::DeclarationAccess::public(),
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),

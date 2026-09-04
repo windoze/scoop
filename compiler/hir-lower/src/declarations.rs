@@ -100,8 +100,10 @@ impl Lowerer {
             }
             None => hir::StructRepresentation::Declared(Vec::new()),
         };
+        let access = self.nominal_access(decl.visibility, decl.name.span, "struct", file_index);
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
+            access,
             self_application,
             type_params: type_params.clone(),
             attributes: checked.attributes,
@@ -179,8 +181,10 @@ impl Lowerer {
         }
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
+        let access = self.nominal_access(decl.visibility, decl.name.span, "enum", file_index);
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
+            access,
             self_application,
             type_params,
             no_gc,
@@ -292,9 +296,11 @@ impl Lowerer {
             }
             None => hir::ClassRepresentation::Declared,
         };
+        let access = self.nominal_access(decl.visibility, decl.name.span, "class", file_index);
         let id = self.classes.alloc(ClassDecl {
             modifier,
             name: decl.name.text.clone(),
+            access,
             self_application,
             type_params: type_params.clone(),
             // Filled in pass 2; resolution failures are diagnosed, so
@@ -326,6 +332,18 @@ impl Lowerer {
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.class_files.insert(id, file_index);
+        self.classes[id].access.inheritance =
+            hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {
+                hir::AccessDomain::empty()
+            } else {
+                self.classes[id]
+                    .access
+                    .lookup
+                    .0
+                    .intersect(&hir::AccessDomain::from_constraints([
+                        hir::AccessConstraint::SubclassesOf(id),
+                    ]))
+            });
         if let hir::ClassRepresentation::Intrinsic(intrinsic) = self.classes[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Class(id), decl.span);
         }
@@ -376,8 +394,10 @@ impl Lowerer {
         let self_application = hir::InterfaceApplicationId::from_raw(
             (self.interface_applications.len() as u32).into(),
         );
+        let access = self.nominal_access(decl.visibility, decl.name.span, "interface", file_index);
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
+            access,
             self_application,
             type_params: type_params.clone(),
             parents: Vec::new(),

@@ -48,6 +48,9 @@ pub use body::*;
 mod intrinsics;
 pub use intrinsics::*;
 
+mod visibility;
+pub use visibility::*;
+
 mod source_interfaces;
 pub use source_interfaces::*;
 

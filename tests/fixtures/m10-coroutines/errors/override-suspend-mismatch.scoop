@@ -3,7 +3,7 @@ interface Task {
 }
 
 class TaskImpl : Task {
-    override fun run(): Int = 1
+    public override fun run(): Int = 1
 }
 
 fun main() {}

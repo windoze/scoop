@@ -1,7 +1,7 @@
 // The Option type (spec 7.2). `T?` desugars to `Option<T>`, and the
 // variant names `Some` / `None` are resolvable without a prefix
 // (spec 4.2, 5.1).
-enum Option<T> {
+public enum Option<T> {
     Some(T),
     None
 }

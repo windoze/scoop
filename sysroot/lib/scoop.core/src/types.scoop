@@ -1,165 +1,165 @@
-interface ToString {
-    fun toString(): String
+public interface ToString {
+    public fun toString(): String
 }
 
-interface Hash {
-    fun hash(): Int
+public interface Hash {
+    public fun hash(): Int
 }
 
 @Intrinsic("core_int")
-struct Int : ToString, Hash {
-    operator fun equals(other: Int): Boolean = coreIntEquals(this, other)
+public struct Int : ToString, Hash {
+    public operator fun equals(other: Int): Boolean = coreIntEquals(this, other)
 
     @Intrinsic("int_unary_plus")
-    operator fun unaryPlus(): Int
+    public operator fun unaryPlus(): Int
 
     @Intrinsic("int_unary_minus")
-    operator fun unaryMinus(): Int
+    public operator fun unaryMinus(): Int
 
     @Intrinsic("int_inc")
-    operator fun inc(): Int
+    public operator fun inc(): Int
 
     @Intrinsic("int_dec")
-    operator fun dec(): Int
+    public operator fun dec(): Int
 
     @Intrinsic("int_add")
-    operator fun plus(other: Int): Int
+    public operator fun plus(other: Int): Int
 
     @Intrinsic("int_sub")
-    operator fun minus(other: Int): Int
+    public operator fun minus(other: Int): Int
 
     @Intrinsic("int_mul")
-    operator fun times(other: Int): Int
+    public operator fun times(other: Int): Int
 
     @Intrinsic("int_div")
-    operator fun div(other: Int): Int
+    public operator fun div(other: Int): Int
 
     @Intrinsic("int_rem")
-    operator fun rem(other: Int): Int
+    public operator fun rem(other: Int): Int
 
     @Intrinsic("int_compare_to")
-    operator fun compareTo(other: Int): Int
+    public operator fun compareTo(other: Int): Int
 
-    override fun toString(): String = coreIntToString(this)
+    public override fun toString(): String = coreIntToString(this)
 
-    override fun hash(): Int = coreIntHash(this)
+    public override fun hash(): Int = coreIntHash(this)
 }
 
 @Intrinsic("core_uint")
-struct UInt : ToString, Hash {
-    operator fun equals(other: UInt): Boolean = coreUIntEquals(this, other)
+public struct UInt : ToString, Hash {
+    public operator fun equals(other: UInt): Boolean = coreUIntEquals(this, other)
 
     @Intrinsic("uint_unary_plus")
-    operator fun unaryPlus(): UInt
+    public operator fun unaryPlus(): UInt
 
     @Intrinsic("uint_inc")
-    operator fun inc(): UInt
+    public operator fun inc(): UInt
 
     @Intrinsic("uint_dec")
-    operator fun dec(): UInt
+    public operator fun dec(): UInt
 
     @Intrinsic("uint_add")
-    operator fun plus(other: UInt): UInt
+    public operator fun plus(other: UInt): UInt
 
     @Intrinsic("uint_sub")
-    operator fun minus(other: UInt): UInt
+    public operator fun minus(other: UInt): UInt
 
     @Intrinsic("uint_mul")
-    operator fun times(other: UInt): UInt
+    public operator fun times(other: UInt): UInt
 
     @Intrinsic("uint_div")
-    operator fun div(other: UInt): UInt
+    public operator fun div(other: UInt): UInt
 
     @Intrinsic("uint_rem")
-    operator fun rem(other: UInt): UInt
+    public operator fun rem(other: UInt): UInt
 
     @Intrinsic("uint_compare_to")
-    operator fun compareTo(other: UInt): Int
+    public operator fun compareTo(other: UInt): Int
 
-    override fun toString(): String = coreUIntToString(this)
+    public override fun toString(): String = coreUIntToString(this)
 
-    override fun hash(): Int = coreUIntHash(this)
+    public override fun hash(): Int = coreUIntHash(this)
 }
 
 @Intrinsic("core_boolean")
-struct Boolean : ToString, Hash {
-    operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+public struct Boolean : ToString, Hash {
+    public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
     @Intrinsic("boolean_not")
-    operator fun not(): Boolean
+    public operator fun not(): Boolean
 
-    override fun toString(): String = coreBooleanToString(this)
+    public override fun toString(): String = coreBooleanToString(this)
 
-    override fun hash(): Int = coreBooleanHash(this)
+    public override fun hash(): Int = coreBooleanHash(this)
 }
 
 @Intrinsic("core_string")
-class String : ToString, Hash {
-    operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+public class String : ToString, Hash {
+    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
     @Intrinsic("string_concat")
-    operator fun plus(other: String): String
+    public operator fun plus(other: String): String
 
     @Intrinsic("string_compare_to")
-    operator fun compareTo(other: String): Int
+    public operator fun compareTo(other: String): Int
 
-    override fun toString(): String = this
+    public override fun toString(): String = this
 
-    override fun hash(): Int = coreStringHash(this)
+    public override fun hash(): Int = coreStringHash(this)
 }
 
 @Intrinsic("core_array")
-class Array<T> {
+public class Array<T> {
     @Intrinsic("array_get")
-    operator fun get(index: Int): T
+    public operator fun get(index: Int): T
 
     @Intrinsic("array_to_mutable")
-    fun toMutableArray(): MutableArray<T>
+    public fun toMutableArray(): MutableArray<T>
 }
 
 @Intrinsic("core_mutable_array")
-class MutableArray<T> {
+public class MutableArray<T> {
     @Intrinsic("mutable_array_get")
-    operator fun get(index: Int): T
+    public operator fun get(index: Int): T
 
     @Intrinsic("mutable_array_set")
-    operator fun set(index: Int, value: T)
+    public operator fun set(index: Int, value: T)
 
     @Intrinsic("array_to_immutable")
-    fun toArray(): Array<T>
+    public fun toArray(): Array<T>
 }
 
 // Representation-level operations used by the ordinary source methods above.
 // They are regular Scoop-ABI FFI declarations, not compiler capability hooks.
 @Extern(name = "scoop_rt_int_equals", abi = "scoop")
-fun coreIntEquals(left: Int, right: Int): Boolean
+internal fun coreIntEquals(left: Int, right: Int): Boolean
 
 @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
-fun coreUIntEquals(left: UInt, right: UInt): Boolean
+internal fun coreUIntEquals(left: UInt, right: UInt): Boolean
 
 @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
-fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
 
 @Extern(name = "scoop_rt_string_eq", abi = "scoop")
-fun coreStringEquals(left: String, right: String): Boolean
+internal fun coreStringEquals(left: String, right: String): Boolean
 
 @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
-fun coreIntToString(value: Int): String
+internal fun coreIntToString(value: Int): String
 
 @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
-fun coreUIntToString(value: UInt): String
+internal fun coreUIntToString(value: UInt): String
 
 @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
-fun coreBooleanToString(value: Boolean): String
+internal fun coreBooleanToString(value: Boolean): String
 
 @Extern(name = "scoop_rt_int_hash", abi = "scoop")
-fun coreIntHash(value: Int): Int
+internal fun coreIntHash(value: Int): Int
 
 @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
-fun coreUIntHash(value: UInt): Int
+internal fun coreUIntHash(value: UInt): Int
 
 @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
-fun coreBooleanHash(value: Boolean): Int
+internal fun coreBooleanHash(value: Boolean): Int
 
 @Extern(name = "scoop_rt_string_hash", abi = "scoop")
-fun coreStringHash(value: String): Int
+internal fun coreStringHash(value: String): Int

@@ -20,6 +20,7 @@ impl Lowerer {
                 let mut candidates: Vec<_> = self
                     .base_chain_methods(class_id)
                     .into_iter()
+                    .filter(|candidate| self.function_is_accessible(candidate.function, None))
                     .map(|candidate| {
                         let arguments = match candidate.owner {
                             crate::CallableCandidateOwner::Method(owner) => {
@@ -38,6 +39,7 @@ impl Lowerer {
                         self.interface_methods[&iface]
                             .iter()
                             .copied()
+                            .filter(|method| self.function_is_accessible(*method, None))
                             .map(|method| (method, args.clone())),
                     );
                 }
@@ -62,6 +64,9 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let overrides = matching_overrides.first().cloned();
         if !matching_overrides.is_empty() {
+            if decl.is_override {
+                self.check_override_access_coverage(id, decl, &matching_overrides);
+            }
             self.override_sources.insert(
                 id,
                 matching_overrides
@@ -192,6 +197,108 @@ impl Lowerer {
                 );
             }
             _ => {}
+        }
+    }
+
+    fn check_override_access_coverage(
+        &mut self,
+        id: FunctionId,
+        decl: &ast::FunctionDecl,
+        inherited: &[(FunctionId, Vec<TypeId>)],
+    ) {
+        let Some(mut provided) = self.functions[id].access.slot.clone() else {
+            unreachable!("an overriding method always owns a slot contract")
+        };
+        if self.functions[id].access.declared == hir::DeclaredVisibility::Protected
+            && let Some(required) = self.functions[inherited[0].0].access.slot.clone()
+        {
+            // `protected override` preserves the inherited protected region;
+            // anchoring it at the concrete subclass would incorrectly narrow
+            // access for sibling descendants of the original declaring class.
+            provided = required;
+            self.functions[id].access.slot = Some(provided.clone());
+        }
+
+        let mut witnesses = Vec::new();
+        for (candidate, _) in inherited {
+            let Some(required) = self.functions[*candidate].access.slot.clone() else {
+                continue;
+            };
+            if !self.access_domain_is_subset(&required.0, &provided.0) {
+                let target = self.functions[*candidate].name.clone();
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "visibility of `{}` does not cover inherited slot `{target}`",
+                        decl.name.text
+                    ),
+                );
+                continue;
+            }
+            witnesses.push(hir::OverrideAccessWitness {
+                overriding: id,
+                inherited: *candidate,
+                required,
+                provided: provided.clone(),
+            });
+        }
+        self.functions[id].override_access = witnesses;
+    }
+
+    pub(super) fn check_member_access_contract(
+        &mut self,
+        id: FunctionId,
+        decl: &ast::FunctionDecl,
+        owner: Owner,
+    ) {
+        let access = self.functions[id].access.clone();
+        let modifier = self.functions[id]
+            .method
+            .expect("inheritance checks receive member functions")
+            .modifier;
+
+        if access.declared == hir::DeclaredVisibility::Private
+            && modifier != hir::MethodModifier::Final
+        {
+            self.error(
+                decl.name.span,
+                format!("private method `{}` must be final", decl.name.text),
+            );
+        }
+
+        if let Owner::Interface(interface) = owner {
+            if self.interfaces[interface].access.declared == hir::DeclaredVisibility::Public
+                && access.declared != hir::DeclaredVisibility::Public
+            {
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "member `{}` of public interface `{}` must be explicitly public",
+                        decl.name.text, self.interfaces[interface].name
+                    ),
+                );
+            }
+            return;
+        }
+
+        if modifier != hir::MethodModifier::Abstract {
+            return;
+        }
+        let Owner::Class(class) = owner else {
+            return;
+        };
+        let required = self.classes[class].access.inheritance.0.clone();
+        let Some(provided) = access.slot else {
+            unreachable!("an abstract method always has a slot contract")
+        };
+        if !self.access_domain_is_subset(&required, &provided.0) {
+            self.error(
+                decl.name.span,
+                format!(
+                    "abstract method `{}` is not visible throughout the inheritance domain of class `{}`",
+                    decl.name.text, self.classes[class].name
+                ),
+            );
         }
     }
 }

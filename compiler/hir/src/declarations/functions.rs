@@ -5,6 +5,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub access: DeclarationAccess,
+    pub override_access: Vec<OverrideAccessWitness>,
     /// Complete declaration identity. Generic functions carry their distinct
     /// template id directly; consumers never recover it by scanning the
     /// `generic_functions` arena or by inspecting `type_params`.

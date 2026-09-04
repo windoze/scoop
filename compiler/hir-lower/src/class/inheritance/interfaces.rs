@@ -34,10 +34,15 @@ impl Lowerer {
                     .methods
                     .iter()
                     .copied()
-                    .map(|function| crate::CallableCandidate::method(function, own_owner))
+                    .map(|function| {
+                        crate::CallableCandidate::inheritance_method(function, own_owner)
+                    })
                     .collect::<Vec<_>>();
                 candidates.extend(self.base_chain_methods(id));
                 let implemented = candidates.into_iter().find(|candidate| {
+                    if !self.function_is_accessible(candidate.function, None) {
+                        return false;
+                    }
                     let owner_arguments = match &candidate.owner {
                         crate::CallableCandidateOwner::Method(owner) => {
                             self.method_owner_arguments(*owner).to_vec()
@@ -139,6 +144,7 @@ impl Lowerer {
                 let implemented = own_methods
                     .iter()
                     .copied()
+                    .filter(|candidate| self.function_is_accessible(*candidate, None))
                     .find(|&candidate| self.same_signature(candidate, short, &sig));
                 if let Some(function) = implemented {
                     let owner_application =
@@ -196,6 +202,7 @@ impl Lowerer {
             candidates.extend(
                 self.interface_member_instances(application)
                     .into_iter()
+                    .filter(|(_, method, _)| self.function_is_accessible(*method, None))
                     .map(|(_, method, arguments)| (method, arguments)),
             );
         }

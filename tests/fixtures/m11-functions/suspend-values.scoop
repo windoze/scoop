@@ -1,19 +1,19 @@
 class Done() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }
 
 class UnitDone() : Continuation<Unit> {
-    final override fun resume(value: Unit) {
+    public final override fun resume(value: Unit) {
         println("unit-done")
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("unit-failed")
     }
 }

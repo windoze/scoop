@@ -14,6 +14,7 @@ impl Harness {
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             parents: Vec::new(),
@@ -45,6 +46,8 @@ impl Harness {
         }
         let function = self.functions.alloc(hir::Function {
             name: format!("{}.{}", declaration.name, method.name),
+            access: hir::DeclarationAccess::public(),
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: method.is_suspend,
             modifiers: hir::CallableModifiers::default(),

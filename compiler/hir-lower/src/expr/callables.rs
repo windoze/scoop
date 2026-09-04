@@ -131,7 +131,7 @@ impl Lowerer {
                 false,
             );
         }
-        if let Some(&global) = self.globals_by_name.get(&call.callee.text) {
+        if let Some(global) = self.visible_global(&call.callee.text) {
             let ty = self.globals[global].ty;
             if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
                 if matches!(

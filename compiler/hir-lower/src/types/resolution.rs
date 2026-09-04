@@ -1,12 +1,25 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+        let ty = self.resolve_type_ref_unchecked(ty_ref)?;
+        if !self.nominal_is_accessible(ty) {
+            let name = self.type_name(ty);
+            self.error(
+                ty_ref.span,
+                format!("type `{name}` is not accessible from this source location"),
+            );
+            return None;
+        }
+        Some(ty)
+    }
+
     /// Resolve a type annotation (`Int`, `Point`, `(Int, String)`,
     /// `T?`, ...). Function (or enum) type parameters shadow well-known
     /// and declared types: they only scope over one function's
     /// signature/body or one enum's variants (`type_params_in_scope`
     /// is empty everywhere else).
-    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+    fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
             ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {

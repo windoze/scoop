@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{core_file, gc_api_declarations};
+use super::{core_file, gc_api_declarations, make_core_public};
 
 /// Lower a user file together with the minimal `scoop.core`, mirroring
 /// the driver's sysroot convention (core files first, user file last).
@@ -72,5 +72,7 @@ pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module
 
 /// Lower a user file with the core GC facilities available (M9 tests).
 pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), file(gc_api_declarations()), user]).map(|output| output.export)
+    let mut gc = file(gc_api_declarations());
+    make_core_public(&mut gc);
+    lower(&[core_file(), gc, user]).map(|output| output.export)
 }

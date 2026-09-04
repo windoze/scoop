@@ -1,6 +1,6 @@
-struct Pair(val number: Int, val text: String)
+public struct Pair(val number: Int, val text: String)
 
-enum Choice {
+public enum Choice {
     Number(Int),
     Text(String)
 }
@@ -38,25 +38,25 @@ class ChoiceGate(var waiter: Continuation<Choice>?) {
 }
 
 class IntRegistration(val gate: IntGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class PairRegistration(val gate: PairGate) : SuspendRegistration<Pair> {
-    final override fun register(continuation: Continuation<Pair>) {
+    public final override fun register(continuation: Continuation<Pair>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class BooleanRegistration(val gate: BooleanGate) : SuspendRegistration<Boolean> {
-    final override fun register(continuation: Continuation<Boolean>) {
+    public final override fun register(continuation: Continuation<Boolean>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class ChoiceRegistration(val gate: ChoiceGate) : SuspendRegistration<Choice> {
-    final override fun register(continuation: Continuation<Choice>) {
+    public final override fun register(continuation: Continuation<Choice>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -75,7 +75,7 @@ class GenericTask(
     val booleanGate: BooleanGate,
     val choiceGate: ChoiceGate
 ) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         val number = awaitTop(IntRegistration(intGate))
         val pair = awaitTop(PairRegistration(pairGate))
         val awaiter = Awaiter()
@@ -91,11 +91,11 @@ class GenericTask(
 }
 
 class RecordingCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

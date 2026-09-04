@@ -1,4 +1,4 @@
-struct SourceLocation(
+public struct SourceLocation(
     val file: String,
     val line: Int,
     val column: Int,
@@ -7,4 +7,4 @@ struct SourceLocation(
 )
 
 @Intrinsic("current_source_location")
-fun getCurrentSourceLocation(): SourceLocation
+public fun getCurrentSourceLocation(): SourceLocation

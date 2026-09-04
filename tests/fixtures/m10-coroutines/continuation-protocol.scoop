@@ -30,40 +30,40 @@ class Holder(var waiter: Continuation<Int>?) {
 }
 
 class SavingRegistration(val holder: Holder) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         holder.waiter = Some(continuation)
     }
 }
 
 class ResumeThenThrowRegistration() : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         continuation.resume(1)
         throw UnwrapException()
     }
 }
 
 class SaveThenThrowRegistration(val holder: Holder) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         holder.waiter = Some(continuation)
         throw UnwrapException()
     }
 }
 
 class SynchronousFailureRegistration() : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         continuation.resumeWithException(UnwrapException())
     }
 }
 
 class WaitingTask(val holder: Holder) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         val registration: SuspendRegistration<Int> = SavingRegistration(holder)
         return suspendCoroutine(registration)
     }
 }
 
 class ResumeThenThrowTask() : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             val registration: SuspendRegistration<Int> = ResumeThenThrowRegistration()
             return suspendCoroutine(registration)
@@ -74,7 +74,7 @@ class ResumeThenThrowTask() : SuspendTask<Int> {
 }
 
 class SaveThenThrowTask(val holder: Holder) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             val registration: SuspendRegistration<Int> = SaveThenThrowRegistration(holder)
             return suspendCoroutine(registration)
@@ -85,7 +85,7 @@ class SaveThenThrowTask(val holder: Holder) : SuspendTask<Int> {
 }
 
 class SynchronousFailureTask() : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             val registration: SuspendRegistration<Int> = SynchronousFailureRegistration()
             return suspendCoroutine(registration)
@@ -96,11 +96,11 @@ class SynchronousFailureTask() : SuspendTask<Int> {
 }
 
 class RecordingCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

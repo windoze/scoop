@@ -3,11 +3,11 @@
 // static generic bound; `Any` has no implicit methods.
 
 @Extern(name = "scoop_rt_write", abi = "scoop")
-fun write(message: String)
+public fun write(message: String)
 
-fun <T : ToString> print(value: T) = write(value.toString())
+public fun <T : ToString> print(value: T) = write(value.toString())
 
-fun <T : ToString> println(value: T) {
+public fun <T : ToString> println(value: T) {
     write(value.toString())
     write("\n")
 }

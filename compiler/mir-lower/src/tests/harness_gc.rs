@@ -58,6 +58,8 @@ impl Harness {
             let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
+                access: hir::DeclarationAccess::public(),
+                override_access: Vec::new(),
                 genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
                 modifiers: hir::CallableModifiers::default(),

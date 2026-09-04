@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    pub access: NominalAccess,
     /// Application to this declaration's own type parameters (or the empty
     /// application for a parameter-free declaration).
     pub self_application: StructApplicationId,
@@ -80,6 +81,7 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    pub access: NominalAccess,
     pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub no_gc: bool,
@@ -171,6 +173,7 @@ pub enum OperatorKind {
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
+    pub access: NominalAccess,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub representation: ClassRepresentation,
@@ -216,6 +219,7 @@ pub enum ClassRepresentation {
 pub struct ClassField {
     pub owner: ClassId,
     pub name: String,
+    pub access: DeclarationAccess,
     pub ty: TypeId,
     pub mutable: bool,
     pub source: ClassFieldSource,
@@ -238,6 +242,7 @@ pub struct ConstructorParameter {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub owner: ClassId,
+    pub access: DeclarationAccess,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,
@@ -314,6 +319,7 @@ pub struct ClassConstructorApplication {
 #[derive(Debug, Clone)]
 pub struct StructConstructor {
     pub owner: StructId,
+    pub access: DeclarationAccess,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
     pub span: Span,

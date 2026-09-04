@@ -16,7 +16,7 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, |this, candidate| {
+        self.visible_method_candidates(declared, ty, |this, candidate| {
             this.functions[candidate.function].name.rsplit('.').next() == Some(name)
         })
     }
@@ -30,9 +30,41 @@ impl Lowerer {
         operator: hir::OperatorKind,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, |this, candidate| {
+        self.visible_method_candidates(declared, ty, |this, candidate| {
             this.signatures[&candidate.function].modifiers.operator == Some(operator)
         })
+    }
+
+    /// Explain an otherwise inaccessible same-name member after every lower
+    /// callable layer has failed. Keeping this separate from candidate
+    /// collection ensures an inaccessible member never blocks an applicable
+    /// extension, while protected receiver violations still get a precise
+    /// diagnostic.
+    pub(crate) fn inaccessible_method_message(
+        &mut self,
+        receiver_ty: TypeId,
+        name: &str,
+    ) -> Option<String> {
+        let candidate = self
+            .method_candidates(receiver_ty)
+            .into_iter()
+            .map(|(candidate, _, _)| candidate)
+            .find(|candidate| {
+                self.functions[candidate.function].name.rsplit('.').next() == Some(name)
+                    && !self.function_is_accessible(candidate.function, Some(receiver_ty))
+            })?;
+        let function = &self.functions[candidate.function];
+        if function.access.declared == hir::DeclaredVisibility::Protected
+            && let Some(Owner::Class(current)) = self.current_owner
+            && self.receiver_class(receiver_ty).is_some()
+        {
+            return Some(format!(
+                "protected method `{name}` cannot be accessed through receiver of static type `{}`; receiver must be `{}` or one of its subclasses",
+                self.type_name(receiver_ty),
+                self.classes[current].name
+            ));
+        }
+        Some(format!("method `{name}` is not accessible here"))
     }
 
     fn method_candidates(&mut self, ty: TypeId) -> Vec<(crate::CallableCandidate, usize, usize)> {
@@ -72,7 +104,7 @@ impl Lowerer {
                         .copied()
                         .map(|function| {
                             (
-                                crate::CallableCandidate::method(
+                                crate::CallableCandidate::inheritance_method(
                                     function,
                                     hir::MethodOwnerApplication::Struct(application),
                                 ),
@@ -87,7 +119,7 @@ impl Lowerer {
                     let application = self.struct_application_id(owner, vec![pointee]);
                     declared.extend(self.structs[owner].methods.iter().copied().map(|function| {
                         (
-                            crate::CallableCandidate::method(
+                            crate::CallableCandidate::inheritance_method(
                                 function,
                                 hir::MethodOwnerApplication::Struct(application),
                             ),
@@ -107,7 +139,7 @@ impl Lowerer {
                         .copied()
                         .map(|function| {
                             (
-                                crate::CallableCandidate::method(
+                                crate::CallableCandidate::inheritance_method(
                                     function,
                                     hir::MethodOwnerApplication::Enum(application),
                                 ),
@@ -187,6 +219,7 @@ impl Lowerer {
                             hir::MethodOwnerApplication::Class(application),
                         ),
                         source,
+                        access: crate::CallableCandidateAccess::Inheritance,
                     },
                     depth,
                     root,
@@ -223,11 +256,14 @@ impl Lowerer {
     fn visible_method_candidates(
         &mut self,
         declared: Vec<(crate::CallableCandidate, usize, usize)>,
+        receiver_ty: TypeId,
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
-        for (candidate, depth, root) in declared {
-            if !matches(self, &candidate) {
+        for (mut candidate, depth, root) in declared {
+            if !self.function_is_accessible(candidate.function, Some(receiver_ty))
+                || !matches(self, &candidate)
+            {
                 continue;
             }
             let mut duplicate = false;
@@ -241,6 +277,9 @@ impl Lowerer {
                 }
             }
             if !duplicate {
+                candidate.access = crate::CallableCandidateAccess::Lookup(
+                    self.function_lookup_witness(candidate.function),
+                );
                 visible.push((candidate, depth, root));
             }
         }
@@ -272,12 +311,13 @@ impl Lowerer {
                 hir::MethodOwnerApplication::Class(self.classes[owner].self_application),
             ),
         };
-        out.extend(
-            methods
-                .iter()
-                .copied()
-                .map(|function| (crate::CallableCandidate::method(function, owner), 0, 0)),
-        );
+        out.extend(methods.iter().copied().map(|function| {
+            (
+                crate::CallableCandidate::inheritance_method(function, owner),
+                0,
+                0,
+            )
+        }));
     }
 
     fn collect_interface_method_candidates(
@@ -313,6 +353,7 @@ impl Lowerer {
                         hir::MethodOwnerApplication::Interface(application),
                     ),
                     source,
+                    access: crate::CallableCandidateAccess::Inheritance,
                 },
                 depth,
                 root,

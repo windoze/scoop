@@ -58,8 +58,10 @@ impl Lowerer {
                 ty,
             })
             .collect();
+        let access = self.fixed_representation_access(Owner::Struct(id));
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
             owner: id,
+            access,
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: decl.span,
@@ -92,8 +94,17 @@ impl Lowerer {
                 });
                 callings.push(resolved.calling);
             }
+            let access = self.member_access(
+                source.visibility,
+                source.span,
+                "constructor",
+                Owner::Struct(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let constructor = self.struct_constructors.alloc(hir::StructConstructor {
                 owner: id,
+                access,
                 parameters,
                 kind: hir::StructConstructorKind::Secondary {
                     delegation: hir::StructConstructorDelegation {

@@ -30,6 +30,7 @@ fn add_interface(
     let application = lowerer.interface_application_id(interface, Vec::new());
     let allocated = lowerer.interfaces.alloc(hir::InterfaceDecl {
         name: name.to_string(),
+        access: hir::NominalAccess::public(),
         self_application: application,
         type_params: Vec::new(),
         parents,
@@ -65,6 +66,7 @@ fn add_generic_struct(
     let parameter_ty = lowerer.intern_type(Type::Param(parameter.id));
     let allocated = lowerer.structs.alloc(hir::StructDecl {
         name: name.to_string(),
+        access: hir::NominalAccess::public(),
         self_application,
         type_params: vec![parameter],
         attributes: hir::StructAttributes::default(),

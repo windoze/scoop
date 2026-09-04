@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
+    pub access: DeclarationAccess,
     pub ty: TypeId,
     pub mutable: bool,
     pub storage: GlobalStorage,

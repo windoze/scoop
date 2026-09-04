@@ -11,7 +11,7 @@ class OperatorGate(var waiter: Continuation<Int>?) {
 }
 
 class OperatorRegistration(val gate: OperatorGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -50,7 +50,7 @@ class OperatorTask(
     val left: AsyncNumber<Payload>,
     val right: AsyncNumber<Payload>
 ) : SuspendTask<String> {
-    final override suspend fun run(): String {
+    public final override suspend fun run(): String {
         return try {
             val total = left + right
             val selected = GenericIndex(total.payload)[0]
@@ -67,12 +67,12 @@ class OperatorTask(
 }
 
 class OperatorCompletion(val label: String) : Continuation<String> {
-    final override fun resume(value: String) {
+    public final override fun resume(value: String) {
         println(label)
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("operator-unexpected-failure")
     }
 }

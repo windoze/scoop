@@ -13,34 +13,34 @@ class Gate(var waiter: Continuation<Int>?) {
 }
 
 class Registration(val gate: Gate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class ImmediateTask() : SuspendTask<Int> {
-    final override suspend fun run(): Int = 1
+    public final override suspend fun run(): Int = 1
 }
 
 class ImmediateFailureTask() : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         throw UnwrapException()
     }
 }
 
 class WaitingTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         val registration: SuspendRegistration<Int> = Registration(gate)
         return suspendCoroutine(registration)
     }
 }
 
 class ThrowingCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         throw IllegalStateException()
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         throw IllegalStateException()
     }
 }

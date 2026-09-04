@@ -3,11 +3,11 @@ class NamedEquals() {
 }
 
 class BadToString() : ToString {
-    override fun toString(): Int = 0
+    public override fun toString(): Int = 0
 }
 
 class BadHash() : Hash {
-    override fun hash(): String = "bad"
+    public override fun hash(): String = "bad"
 }
 
 fun main() {

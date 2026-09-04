@@ -117,6 +117,7 @@ mod stmt;
 #[cfg(test)]
 mod tests;
 mod types;
+mod visibility;
 
 use std::collections::{HashMap, HashSet};
 
@@ -364,7 +365,10 @@ pub(crate) struct Lowerer {
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
     pub(crate) function_files: HashMap<FunctionId, usize>,
-    pub(crate) globals_by_name: HashMap<String, hir::GlobalId>,
+    /// Property namespace in declaration order. Multiple entries are needed
+    /// because file-private top-level properties in different source files
+    /// own distinct namespaces.
+    pub(crate) globals_by_name: HashMap<String, Vec<hir::GlobalId>>,
     pub(crate) global_files: HashMap<hir::GlobalId, usize>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.

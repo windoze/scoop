@@ -1,6 +1,6 @@
-open class Animal(val name: String)
+public open class Animal(val name: String)
 
-class Dog() : Animal("dog")
+public class Dog() : Animal("dog")
 
 class DogGate(var waiter: Continuation<Dog>?) {
     fun complete(value: Dog) {
@@ -11,25 +11,25 @@ class DogGate(var waiter: Continuation<Dog>?) {
 }
 
 class DogRegistration(val gate: DogGate) : SuspendRegistration<Dog> {
-    final override fun register(continuation: Continuation<Dog>) {
+    public final override fun register(continuation: Continuation<Dog>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class ImmediateDogTask() : SuspendTask<Dog> {
-    final override suspend fun run(): Dog = Dog()
+    public final override suspend fun run(): Dog = Dog()
 }
 
 class SuspendedDogTask(val gate: DogGate) : SuspendTask<Dog> {
-    final override suspend fun run(): Dog = suspendCoroutine(DogRegistration(gate))
+    public final override suspend fun run(): Dog = suspendCoroutine(DogRegistration(gate))
 }
 
 class AnimalCompletion() : Continuation<Animal> {
-    final override fun resume(value: Animal) {
+    public final override fun resume(value: Animal) {
         println(value.name)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

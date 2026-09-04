@@ -13,7 +13,20 @@ impl Lowerer {
         let mut initializers = Vec::new();
         for &(decl, file_index) in pending {
             self.current_file = file_index;
-            if self.globals_by_name.contains_key(&decl.name.text) {
+            let access =
+                self.top_level_access(decl.visibility, decl.name.span, "property", file_index);
+            let duplicate = self
+                .globals_by_name
+                .get(&decl.name.text)
+                .into_iter()
+                .flatten()
+                .copied()
+                .any(|other| {
+                    access.declared != hir::DeclaredVisibility::Private
+                        || self.globals[other].access.declared != hir::DeclaredVisibility::Private
+                        || self.global_files[&other] == file_index
+                });
+            if duplicate {
                 self.error(
                     decl.name.span,
                     format!("duplicate global `{}`", decl.name.text),
@@ -37,12 +50,16 @@ impl Lowerer {
             };
             let id = self.globals.alloc(hir::Global {
                 name: decl.name.text.clone(),
+                access,
                 ty,
                 mutable: decl.mutable,
                 storage,
                 span: decl.span,
             });
-            self.globals_by_name.insert(decl.name.text.clone(), id);
+            self.globals_by_name
+                .entry(decl.name.text.clone())
+                .or_default()
+                .push(id);
             self.global_files.insert(id, file_index);
             initializers.push((id, decl));
         }

@@ -178,10 +178,16 @@ impl Lowerer {
         // imported layer.
         let top_level_layers = self.top_level_candidate_layers(&name);
         if top_level_layers.is_empty() && first_failure.is_none() {
-            self.error(
-                call.callee.span,
-                format!("unknown function `{}`", call.callee.text),
-            );
+            let message = if self
+                .functions_by_name
+                .get(&name)
+                .is_some_and(|candidates| !candidates.is_empty())
+            {
+                format!("function `{}` is not accessible here", call.callee.text)
+            } else {
+                format!("unknown function `{}`", call.callee.text)
+            };
+            self.error(call.callee.span, message);
             return None;
         }
         for candidates in top_level_layers {

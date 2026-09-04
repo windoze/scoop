@@ -211,6 +211,8 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         });
     let launcher = hir_module.functions.alloc(hir::Function {
         name: "launcher".to_string(),
+        access: hir::DeclarationAccess::public(),
+        override_access: Vec::new(),
         genericity: hir::FunctionGenericity::Plain,
         is_suspend: false,
         modifiers: hir::CallableModifiers::default(),

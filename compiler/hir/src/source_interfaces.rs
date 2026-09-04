@@ -163,21 +163,20 @@ pub struct ExportDefaultReferences {
     pub fields: Vec<ExportDefaultFieldRef>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultAccessWitness {
     pub owner: ExportParameterOwner,
-    pub coverage: ExportDefaultAccessCoverage,
+    pub call_domain: CallDomain,
+    pub target_domain: AccessDomain,
 }
 
-/// M17 prepares the cross-Cone boundary before visibility syntax exists. All
-/// currently exportable declarations are Cone-wide; future visibility work
-/// extends this closed proof kind rather than making the witness optional.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExportDefaultAccessCoverage {
-    ConeWide,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallDomain {
+    pub direct: EffectiveLookupDomain,
+    pub slot: Option<SlotContractDomain>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultCallableRef {
     pub target: ExportDefaultCallableTarget,
     pub witness: ExportDefaultAccessWitness,
@@ -196,7 +195,7 @@ pub enum ExportDefaultCallableTarget {
     FunctionAddress(FunctionId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultConstructorRef {
     pub target: ExportDefaultConstructorTarget,
     pub witness: ExportDefaultAccessWitness,
@@ -213,21 +212,21 @@ pub enum ExportDefaultConstructorTarget {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultTypeRef {
     pub target: TypeId,
     pub witness: ExportDefaultAccessWitness,
     pub origin: DefinitionOrigin,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultGlobalRef {
     pub target: GlobalId,
     pub witness: ExportDefaultAccessWitness,
     pub origin: DefinitionOrigin,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultFieldRef {
     pub target: FieldRef,
     pub witness: ExportDefaultAccessWitness,

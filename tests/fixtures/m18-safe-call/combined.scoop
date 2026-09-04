@@ -11,7 +11,7 @@ class SafeGate(var waiter: Continuation<Int>?) {
 }
 
 class SafeRegistration(val gate: SafeGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -51,7 +51,7 @@ class SafeTask(
     val maybe: AsyncSafeBox<SafePayload>?,
     val prefix: String
 ) : SuspendTask<String> {
-    final override suspend fun run(): String {
+    public final override suspend fun run(): String {
         return try {
             val result = maybe?.apply(makeSafeTransform(prefix))
             when (result) {
@@ -65,12 +65,12 @@ class SafeTask(
 }
 
 class SafeCompletion(val label: String) : Continuation<String> {
-    final override fun resume(value: String) {
+    public final override fun resume(value: String) {
         println(label)
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("safe-unexpected-failure")
     }
 }

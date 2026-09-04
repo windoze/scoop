@@ -19,6 +19,13 @@ impl Lowerer {
                 self.error(name.span, format!("unknown enum `{enum_name}`"));
                 return None;
             };
+            if !self.enum_is_accessible(enum_id) {
+                self.error(
+                    name.span,
+                    format!("enum `{enum_name}` is not accessible here"),
+                );
+                return None;
+            }
             let Some(variant) = self.find_variant(enum_id, variant_name) else {
                 self.error(
                     name.span,
@@ -32,9 +39,23 @@ impl Lowerer {
             return Some(Constructor::Variant { enum_id, variant });
         }
         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
+            if !self.nominal_is_accessible(ty) {
+                self.error(
+                    name.span,
+                    format!("struct `{}` is not accessible here", name.text),
+                );
+                return None;
+            }
             return Some(Constructor::Struct { struct_id, ty });
         }
-        if let Some(&(class_id, _)) = self.classes_by_name.get(&name.text) {
+        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
+            if !self.nominal_is_accessible(ty) {
+                self.error(
+                    name.span,
+                    format!("class `{}` is not accessible here", name.text),
+                );
+                return None;
+            }
             return Some(Constructor::Class { class_id });
         }
         Some(Constructor::Unmatched)

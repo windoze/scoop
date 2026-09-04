@@ -2,7 +2,11 @@ use super::*;
 
 #[test]
 fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
-    let consume = with_default(
+    let public = ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Public,
+        span: sp(),
+    };
+    let mut consume = with_default(
         fun_sig(
             "consume",
             vec![],
@@ -13,9 +17,23 @@ fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
         0,
         struct_init("Token", vec![call("produce", vec![])]),
     );
+    let Decl::Function(consume_decl) = &mut consume else {
+        unreachable!()
+    };
+    consume_decl.visibility = public;
+    let mut token = struct_decl("Token", vec![("value", ty_named("Int"))]);
+    let Decl::Struct(token_decl) = &mut token else {
+        unreachable!()
+    };
+    token_decl.visibility = public;
+    let mut produce = fun_expr("produce", vec![], vec![], Some(ty_named("Int")), int_lit(7));
+    let Decl::Function(produce_decl) = &mut produce else {
+        unreachable!()
+    };
+    produce_decl.visibility = public;
     let output = lower_user_output(file(vec![
-        struct_decl("Token", vec![("value", ty_named("Int"))]),
-        fun_expr("produce", vec![], vec![], Some(ty_named("Int")), int_lit(7)),
+        token,
+        produce,
         consume,
         fun("main", vec![stmt(call("consume", vec![]))]),
     ]))
@@ -45,11 +63,13 @@ fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
     let expected_owner = hir::ExportParameterOwner::Function(consume);
     assert!(template.references.callables.iter().all(|reference| {
         reference.witness.owner == expected_owner
-            && reference.witness.coverage == hir::ExportDefaultAccessCoverage::ConeWide
+            && reference.witness.call_domain.slot.is_none()
+            && reference.witness.call_domain.direct.0 == reference.witness.target_domain
     }));
     assert!(template.references.constructors.iter().all(|reference| {
         reference.witness.owner == expected_owner
-            && reference.witness.coverage == hir::ExportDefaultAccessCoverage::ConeWide
+            && reference.witness.call_domain.slot.is_none()
+            && reference.witness.call_domain.direct.0 == reference.witness.target_domain
     }));
     assert!(
         template

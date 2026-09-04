@@ -56,7 +56,7 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
-            if let Some(&global) = self.globals_by_name.get(&name.text) {
+            if let Some(global) = self.visible_global(&name.text) {
                 if matches!(
                     self.globals[global].storage,
                     hir::GlobalStorage::Extern { .. }
@@ -134,8 +134,11 @@ impl Lowerer {
         let receiver_ty = self.current_this_ty()?;
         let (field, ty) = match self.types[receiver_ty].clone() {
             Type::Class(application) => {
-                let (declaring, field, ty, _) =
-                    self.find_class_application_field(application, &name.text)?;
+                let (declaring, field, ty, _) = self.find_accessible_class_application_field(
+                    application,
+                    &name.text,
+                    receiver_ty,
+                )?;
                 (
                     hir::FieldRef::ClassField {
                         application: declaring,

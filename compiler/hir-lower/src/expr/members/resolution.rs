@@ -143,9 +143,29 @@ impl Lowerer {
     /// to `this.name` is a property access, not an enum path).
     pub(in crate::expr) fn host_has_property(&self, name: &str) -> bool {
         match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-            Some(Type::Class(application)) => self
-                .find_class_field(self.class_applications[application].template, name)
-                .is_some(),
+            Some(Type::Class(application)) => {
+                let receiver_ty = self.current_this_ty().expect("member receiver type");
+                let mut class = self.class_applications[application].template;
+                let mut seen = Vec::new();
+                loop {
+                    if seen.contains(&class) {
+                        break false;
+                    }
+                    seen.push(class);
+                    if let Some(&field) = self.classes[class]
+                        .fields
+                        .iter()
+                        .find(|field| self.class_fields[**field].name == name)
+                        && self.class_field_is_accessible(field, receiver_ty)
+                    {
+                        break true;
+                    }
+                    let Some(base) = self.direct_base_class(class) else {
+                        break false;
+                    };
+                    class = base;
+                }
+            }
             Some(Type::Struct(application)) => self.structs
                 [self.struct_applications[application].template]
                 .semantic_fields()

@@ -144,8 +144,8 @@ impl Lowerer {
                         return None;
                     }
                 };
-                let Some((declaring, field_id, ty, mutable)) =
-                    self.find_class_application_field(application, &name.text)
+                let Some((declaring, field_id, ty, mutable)) = self
+                    .find_accessible_class_application_field(application, &name.text, receiver.ty)
                 else {
                     let class = self.classes[self.class_applications[application].template]
                         .name
@@ -268,8 +268,12 @@ impl Lowerer {
         }
         if let Some(Type::Class(application)) =
             self.current_this_ty().map(|ty| self.types[ty].clone())
-            && let Some((declaring, field_id, ty, mutable)) =
-                self.find_class_application_field(application, &name.text)
+            && let Some((declaring, field_id, ty, mutable)) = self
+                .find_accessible_class_application_field(
+                    application,
+                    &name.text,
+                    self.current_this_ty().expect("member receiver type"),
+                )
         {
             let receiver = self.lower_current_this(name.span)?;
             let field = hir::FieldRef::ClassField {
@@ -295,7 +299,7 @@ impl Lowerer {
             };
             return Some(ResolvedPlacePlan { read, write, ty });
         }
-        if let Some(&global) = self.globals_by_name.get(&name.text) {
+        if let Some(global) = self.visible_global(&name.text) {
             if matches!(
                 self.globals[global].storage,
                 hir::GlobalStorage::Extern { .. }

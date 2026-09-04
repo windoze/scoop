@@ -113,8 +113,9 @@ impl Lowerer {
             }
         };
         let class_id = self.class_applications[application].template;
+        let receiver_ty = receiver.ty;
         let Some((declaring, field, field_ty, mutable)) =
-            self.find_class_application_field(application, &name.text)
+            self.find_accessible_class_application_field(application, &name.text, receiver_ty)
         else {
             let class_name = self.classes[class_id].name.clone();
             self.error(
@@ -205,9 +206,11 @@ impl Lowerer {
             }
             match self.current_this_ty().map(|ty| self.types[ty].clone()) {
                 Some(Type::Class(application)) => {
-                    if let Some((_, _, _, mutable)) =
-                        self.find_class_application_field(application, &name.text)
-                    {
+                    if let Some((_, _, _, mutable)) = self.find_accessible_class_application_field(
+                        application,
+                        &name.text,
+                        self.current_this_ty().expect("member receiver type"),
+                    ) {
                         if !mutable {
                             self.error(
                                 name.span,
@@ -238,7 +241,7 @@ impl Lowerer {
                 }
                 _ => {}
             }
-            if let Some(&global) = self.globals_by_name.get(&name.text) {
+            if let Some(global) = self.visible_global(&name.text) {
                 if !self.globals[global].mutable {
                     self.error(
                         name.span,

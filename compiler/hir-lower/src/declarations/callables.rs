@@ -39,8 +39,26 @@ impl Lowerer {
                 statements: Vec::new(),
             }),
         };
+        let name = format!("{}.{}", owner.describe_name(self), decl.name.text);
+        let slot_access = if decl.is_override {
+            crate::visibility::MemberSlotAccess::Override
+        } else if modifier != hir::MethodModifier::Final || matches!(owner, Owner::Interface(_)) {
+            crate::visibility::MemberSlotAccess::Declared
+        } else {
+            crate::visibility::MemberSlotAccess::None
+        };
+        let access = self.member_access(
+            decl.visibility,
+            decl.name.span,
+            "method",
+            owner,
+            file_index,
+            slot_access,
+        );
         let id = self.functions.alloc(Function {
-            name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            name,
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             modifiers: hir::CallableModifiers::default(),
@@ -114,8 +132,11 @@ impl Lowerer {
                 statements: Vec::new(),
             }),
         };
+        let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             modifiers: hir::CallableModifiers::default(),
@@ -151,10 +172,16 @@ impl Lowerer {
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
         for (index, &(id, decl, file_index)) in pending_functions.iter().enumerate() {
-            let duplicate = pending_functions[..index].iter().any(|&(other, _, _)| {
-                self.functions[other].name == decl.name.text
-                    && self.same_parameter_signature(id, other)
-            });
+            let duplicate = pending_functions[..index]
+                .iter()
+                .any(|&(other, _, other_file)| {
+                    self.functions[other].name == decl.name.text
+                        && self.same_parameter_signature(id, other)
+                        && (self.functions[id].access.declared != hir::DeclaredVisibility::Private
+                            || self.functions[other].access.declared
+                                != hir::DeclaredVisibility::Private
+                            || file_index == other_file)
+                });
             if duplicate {
                 self.current_file = file_index;
                 self.error(

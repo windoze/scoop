@@ -49,6 +49,7 @@ impl Harness {
             .collect();
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
             owner,
+            access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: SPAN,
@@ -56,6 +57,7 @@ impl Harness {
         });
         let strukt = self.structs.alloc(hir::StructDecl {
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             attributes: hir::StructAttributes::default(),
@@ -94,6 +96,7 @@ impl Harness {
         };
         let strukt = self.structs.alloc(hir::StructDecl {
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
             attributes: hir::StructAttributes::default(),
@@ -135,6 +138,7 @@ impl Harness {
         let class = self.classes.alloc(hir::ClassDecl {
             modifier: hir::ClassModifier::Final,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             representation: hir::ClassRepresentation::Intrinsic(declaration),

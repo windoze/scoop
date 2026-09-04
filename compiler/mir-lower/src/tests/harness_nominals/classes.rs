@@ -67,6 +67,7 @@ impl Harness {
                 self.class_fields.alloc(hir::ClassField {
                     owner: class,
                     name: parameter.name.clone(),
+                    access: hir::DeclarationAccess::public(),
                     ty: parameter.ty,
                     mutable: false,
                     source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
@@ -107,6 +108,7 @@ impl Harness {
             .collect();
         let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
+            access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::ClassConstructorKind::Primary {
                 base: base_initialization,
@@ -119,6 +121,7 @@ impl Harness {
         let class = self.classes.alloc(hir::ClassDecl {
             modifier,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
             representation: hir::ClassRepresentation::Declared,

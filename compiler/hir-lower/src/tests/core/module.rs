@@ -81,5 +81,138 @@ pub(crate) fn core_file() -> SourceFile {
         print,
         println,
     ]);
-    file(declarations)
+    let mut source = file(declarations);
+    make_core_public(&mut source);
+    source
+}
+
+pub(crate) fn make_core_public(source: &mut SourceFile) {
+    for declaration in &mut source.declarations {
+        make_declaration_public(declaration);
+    }
+}
+
+fn public_visibility() -> ast::VisibilitySyntax {
+    ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Public,
+        span: sp(),
+    }
+}
+
+fn make_function_public(function: &mut ast::FunctionDecl) {
+    function.visibility = public_visibility();
+}
+
+fn make_property_public(property: &mut ast::PropertyDecl) {
+    property.visibility = public_visibility();
+}
+
+fn make_nested_public(declaration: &mut ast::NestedNominalDecl) {
+    match declaration {
+        ast::NestedNominalDecl::Struct(declaration) => make_struct_public(declaration),
+        ast::NestedNominalDecl::Enum(declaration) => make_enum_public(declaration),
+        ast::NestedNominalDecl::Class(declaration) => make_class_public(declaration),
+        ast::NestedNominalDecl::Interface(declaration) => make_interface_public(declaration),
+        ast::NestedNominalDecl::Object(declaration) => make_object_public(declaration),
+    }
+}
+
+fn make_class_members_public(members: &mut [ast::ClassMember]) {
+    for member in members {
+        match member {
+            ast::ClassMember::StoredProperty(property) => make_property_public(property),
+            ast::ClassMember::InitBlock(_) => {}
+            ast::ClassMember::SecondaryConstructor(constructor) => {
+                constructor.visibility = public_visibility();
+            }
+            ast::ClassMember::Function(function) => make_function_public(function),
+            ast::ClassMember::Nested(declaration) => make_nested_public(declaration),
+            ast::ClassMember::Companion(companion) => {
+                companion.visibility = public_visibility();
+                make_class_members_public(&mut companion.members);
+            }
+        }
+    }
+}
+
+fn make_class_public(declaration: &mut ast::ClassDecl) {
+    declaration.visibility = public_visibility();
+    if let ast::ClassConstructorDecl::Declared(constructor) = &mut declaration.constructor {
+        constructor.visibility = public_visibility();
+        for parameter in &mut constructor.parameters {
+            if parameter.property.is_property() {
+                parameter.member_visibility = Some(public_visibility());
+            }
+        }
+    }
+    make_class_members_public(&mut declaration.members);
+}
+
+fn make_interface_public(declaration: &mut ast::InterfaceDecl) {
+    declaration.visibility = public_visibility();
+    for method in &mut declaration.methods {
+        make_function_public(method);
+    }
+    for property in &mut declaration.properties {
+        make_property_public(property);
+    }
+    for nested in &mut declaration.nested {
+        make_nested_public(nested);
+    }
+    if let Some(companion) = &mut declaration.companion {
+        companion.visibility = public_visibility();
+        make_class_members_public(&mut companion.members);
+    }
+}
+
+fn make_struct_public(declaration: &mut ast::StructDecl) {
+    declaration.visibility = public_visibility();
+    for member in &mut declaration.members {
+        match member {
+            ast::StructMember::SecondaryConstructor(constructor) => {
+                constructor.visibility = public_visibility();
+            }
+            ast::StructMember::Function(function) => make_function_public(function),
+            ast::StructMember::Property(property) => make_property_public(property),
+            ast::StructMember::Nested(declaration) => make_nested_public(declaration),
+            ast::StructMember::Companion(companion) => {
+                companion.visibility = public_visibility();
+                make_class_members_public(&mut companion.members);
+            }
+        }
+    }
+}
+
+fn make_enum_public(declaration: &mut ast::EnumDecl) {
+    declaration.visibility = public_visibility();
+    for method in &mut declaration.methods {
+        make_function_public(method);
+    }
+    for property in &mut declaration.properties {
+        make_property_public(property);
+    }
+    for nested in &mut declaration.nested {
+        make_nested_public(nested);
+    }
+    if let Some(companion) = &mut declaration.companion {
+        companion.visibility = public_visibility();
+        make_class_members_public(&mut companion.members);
+    }
+}
+
+fn make_object_public(declaration: &mut ast::ObjectDecl) {
+    declaration.visibility = public_visibility();
+    make_class_members_public(&mut declaration.members);
+}
+
+fn make_declaration_public(declaration: &mut Decl) {
+    match declaration {
+        Decl::Global(property) => make_property_public(property),
+        Decl::Function(function) => make_function_public(function),
+        Decl::Struct(declaration) => make_struct_public(declaration),
+        Decl::Enum(declaration) => make_enum_public(declaration),
+        Decl::Class(declaration) => make_class_public(declaration),
+        Decl::Interface(declaration) => make_interface_public(declaration),
+        Decl::Object(declaration) => make_object_public(declaration),
+    }
 }

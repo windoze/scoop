@@ -3,30 +3,30 @@ interface Label {
 }
 
 struct Point(val x: Int, val y: Int) : ToString, Hash, Label {
-    override fun toString(): String = "Point"
-    override fun hash(): Int = x
+    public override fun toString(): String = "Point"
+    public override fun hash(): Int = x
     override fun label(): String = toString()
 }
 
 class User(val id: Int) : ToString, Hash {
-    override fun toString(): String = "User"
-    override fun hash(): Int = id
+    public override fun toString(): String = "User"
+    public override fun hash(): Int = id
     operator fun equals(other: User): Boolean = id == other.id
 }
 
 class RenderBox<T : ToString>(val value: T) : ToString {
-    override fun toString(): String = value.toString()
+    public override fun toString(): String = value.toString()
 }
 
 struct RenderPair<T : ToString>(val first: T, val second: T) : ToString {
-    override fun toString(): String = first.toString() + second.toString()
+    public override fun toString(): String = first.toString() + second.toString()
 }
 
 enum RenderState<T : ToString> : ToString {
     Value(T),
     Empty
 
-    override fun toString(): String = when (this) {
+    public override fun toString(): String = when (this) {
         Value(value) -> value.toString()
         Empty -> "Empty"
     }

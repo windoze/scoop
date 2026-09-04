@@ -58,9 +58,20 @@ impl Lowerer {
             });
             if parameter.property != ast::PrimaryParameterProperty::Plain {
                 field_names.insert(parameter.name.text.clone());
+                let access = self.member_access(
+                    parameter
+                        .member_visibility
+                        .unwrap_or(ast::VisibilitySyntax::Omitted),
+                    parameter.name.span,
+                    "primary-constructor property",
+                    Owner::Class(id),
+                    self.current_file,
+                    crate::visibility::MemberSlotAccess::None,
+                );
                 let field = self.class_fields.alloc(hir::ClassField {
                     owner: id,
                     name: parameter.name.text.clone(),
+                    access,
                     ty,
                     mutable: parameter.property.is_mutable(),
                     source: hir::ClassFieldSource::PrimaryParameter(parameter_id),
@@ -87,9 +98,18 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&property.ty) else {
                 continue;
             };
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Class(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let field = self.class_fields.alloc(hir::ClassField {
                 owner: id,
                 name: property.name.text.clone(),
+                access,
                 ty,
                 mutable: property.mutable,
                 source: hir::ClassFieldSource::Body,
@@ -103,8 +123,21 @@ impl Lowerer {
         let should_synthesize_primary =
             decl.constructor.is_omitted() && decl.secondary_constructors().next().is_none();
         if has_explicit_primary || should_synthesize_primary {
+            let visibility = match &decl.constructor {
+                ast::ClassConstructorDecl::Omitted => ast::VisibilitySyntax::Omitted,
+                ast::ClassConstructorDecl::Declared(constructor) => constructor.visibility,
+            };
+            let access = self.member_access(
+                visibility,
+                decl.span,
+                "constructor",
+                Owner::Class(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                access,
                 parameters,
                 kind: hir::ClassConstructorKind::Primary {
                     base: hir::BaseInitialization::Root,
@@ -141,8 +174,17 @@ impl Lowerer {
                 });
                 callings.push(resolved.calling);
             }
+            let access = self.member_access(
+                source.visibility,
+                source.span,
+                "constructor",
+                Owner::Class(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                access,
                 parameters,
                 kind: hir::ClassConstructorKind::Secondary {
                     delegation: hir::ClassSecondaryDelegation::Terminal {

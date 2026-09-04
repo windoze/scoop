@@ -225,6 +225,7 @@ impl Lowerer {
             &pending_enums,
             &pending_methods,
         );
+        self.validate_signature_exposure();
         self.lower_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
@@ -340,7 +341,9 @@ impl Lowerer {
             ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
+        let public_surface = self.public_semantic_surface();
         Ok(hir::Module {
+            public_surface,
             source_files: self
                 .intrinsic_sources
                 .into_iter()

@@ -26,15 +26,15 @@ class Reporter() {
 }
 
 class LocationTask() : SuspendTask<SourceLocation> {
-    final override suspend fun run(): SourceLocation = getCurrentSourceLocation()
+    public final override suspend fun run(): SourceLocation = getCurrentSourceLocation()
 }
 
 class LocationCompletion(val expectedFile: String) : Continuation<SourceLocation> {
-    final override fun resume(value: SourceLocation) {
+    public final override fun resume(value: SourceLocation) {
         printLocation("suspend-body", value, expectedFile)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

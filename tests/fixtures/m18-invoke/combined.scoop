@@ -11,7 +11,7 @@ class InvokeGate(var waiter: Continuation<Int>?) {
 }
 
 class InvokeRegistration(val gate: InvokeGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -47,7 +47,7 @@ class InvokeHolder<T>(val action: AsyncInvoker<T>)
 class InvokeTask(
     val holder: InvokeHolder<InvokePayload>
 ) : SuspendTask<String> {
-    final override suspend fun run(): String {
+    public final override suspend fun run(): String {
         val captured = "captured-"
         return try {
             holder.action({ value: InvokePayload -> captured + value.text })
@@ -58,12 +58,12 @@ class InvokeTask(
 }
 
 class InvokeCompletion(val label: String) : Continuation<String> {
-    final override fun resume(value: String) {
+    public final override fun resume(value: String) {
         println(label)
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("invoke-unexpected-failure")
     }
 }
