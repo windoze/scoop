@@ -9,7 +9,7 @@ M19 不是给现有单主构造路径增加几个语法分支。当前 MIR 把�
 ## 0. 关键决策与范围
 
 - class primary constructor 参数可以是普通参数，也可以用 `val` / `var` 同时声明属性；普通参数只在基类委托、body property initializer 和 `init` 中可见，不进入实例布局或普通成员作用域；
-- M19 的 body property 是 class body 中带显式类型、带 initializer 的 stored `val` / `var`。计算属性、自定义 accessor、delegate、无 initializer / `lateinit`、extension / interface / object property 仍归 M21；struct 继续没有 body stored state；
+- M19 的 body property 是 class body 中带显式类型、带 initializer 的 stored `val` / `var`。计算属性、自定义accessor、delegate、Option-typed initializer omission、extension/interface/object property仍归M21；M21明确不引入`lateinit`。struct继续没有body stored state；
 - class 支持任意数量 secondary constructor；struct 支持必须委托到 primary constructor 的 secondary constructor。constructor 不声明自己的类型参数，参数与调用完整复用 M17 的 required / default / `vararg`、命名 / spread、求值顺序和 candidate-local mapping；
 - 构造器形成有向委托图。class 有 primary 时每个 secondary 必须经 `this(...)` 终止于 primary；无 primary 时必须经 `this(...)` 链终止于一次 `super(...)`；struct 必须终止于 primary。自环与多节点环都是定义处错误；
 - class allocation 在调用处全部构造实参完成后发生且只发生一次。primary / secondary / base constructor initializer 都在同一 object identity 上执行；基类 initializer 不重新分配、不重写最派生 TypeDescriptor；
@@ -431,7 +431,7 @@ M19只有在以下条件同时满足时完成：每个construction / delegation�
 ## 8. 明确不做
 
 1. M20的class upper bound与partial type argument；nominal variance、projection与capture conversion已确定不进入语言；
-2. M21的计算 / extension / interface / delegated property、自定义getter/setter、无initializer / `lateinit`、object / companion、constructor/property visibility与annotation、interface default implementation；
+2. M21的计算/extension/interface/delegated property、自定义getter/setter、Option-typed initializer omission（不含`lateinit`）、object/companion、constructor/property visibility与annotation、interface default implementation；
 3. interface-qualified `super<I>.method()`；它依赖M21 interface default implementation的冲突选择；
 4. nested / inner class及捕获outer receiver的constructor；object / companion / top-level初始化顺序和循环仍由M21定义；
 5. `sealed`、class/interface delegation `by`、property delegate协议与reflection参数；
