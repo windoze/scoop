@@ -356,11 +356,18 @@ impl Lowerer {
     }
 
     pub(crate) fn check_extension_property_signatures(&mut self) {
-        let property_groups = self
+        let mut property_groups = self
             .extension_properties_by_name
             .values()
             .cloned()
             .collect::<Vec<_>>();
+        property_groups.sort_by_key(|properties| {
+            properties
+                .first()
+                .expect("an extension-property name group is non-empty")
+                .into_raw()
+                .into_u32()
+        });
         for properties in property_groups {
             for (index, property) in properties.iter().copied().enumerate() {
                 let declaration = self.properties[property].clone();
