@@ -32,32 +32,44 @@ impl Lowerer {
             for decl in &file.declarations {
                 match decl {
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
-                    ast::Decl::Struct(decl) => self.declare_struct(
-                        decl,
-                        &mut pending_structs,
-                        &mut pending_methods,
-                        file_index,
-                    ),
-                    ast::Decl::Enum(decl) => self.declare_enum(
-                        decl,
-                        is_core,
-                        &mut pending_enums,
-                        &mut pending_methods,
-                        file_index,
-                    ),
-                    ast::Decl::Class(decl) => self.declare_class(
-                        decl,
-                        is_core,
-                        &mut pending_classes,
-                        &mut pending_methods,
-                        file_index,
-                    ),
-                    ast::Decl::Interface(decl) => self.declare_interface(
-                        decl,
-                        &mut pending_interfaces,
-                        &mut pending_methods,
-                        file_index,
-                    ),
+                    ast::Decl::Struct(decl) => {
+                        let _ = self.declare_struct(
+                            decl,
+                            &mut pending_structs,
+                            &mut pending_methods,
+                            file_index,
+                            None,
+                        );
+                    }
+                    ast::Decl::Enum(decl) => {
+                        let _ = self.declare_enum(
+                            decl,
+                            is_core,
+                            &mut pending_enums,
+                            &mut pending_methods,
+                            file_index,
+                            None,
+                        );
+                    }
+                    ast::Decl::Class(decl) => {
+                        let _ = self.declare_class(
+                            decl,
+                            is_core,
+                            &mut pending_classes,
+                            &mut pending_methods,
+                            file_index,
+                            None,
+                        );
+                    }
+                    ast::Decl::Interface(decl) => {
+                        let _ = self.declare_interface(
+                            decl,
+                            &mut pending_interfaces,
+                            &mut pending_methods,
+                            file_index,
+                            None,
+                        );
+                    }
                     ast::Decl::Object(decl) => self.error(
                         decl.span,
                         "object declarations require M21 singleton semantic lowering".to_string(),
@@ -69,12 +81,46 @@ impl Lowerer {
             }
         }
 
+        // Static nested declarations share the same semantic passes as
+        // top-level nominals, but live in an owner-scoped typed namespace.
+        // Declare the complete tree before resolving any signature so
+        // sibling and forward-qualified references are order-independent.
+        let root_structs = pending_structs.clone();
+        let root_enums = pending_enums.clone();
+        let root_classes = pending_classes.clone();
+        let root_interfaces = pending_interfaces.clone();
+        let mut nested_queues = crate::declarations::NestedDeclarationQueues {
+            structs: &mut pending_structs,
+            enums: &mut pending_enums,
+            classes: &mut pending_classes,
+            interfaces: &mut pending_interfaces,
+            methods: &mut pending_methods,
+        };
+        for (id, declaration, file) in root_structs {
+            self.declare_struct_nested(Owner::Struct(id), declaration, &mut nested_queues, file);
+        }
+        for (id, declaration, file) in root_enums {
+            self.declare_enum_nested(Owner::Enum(id), declaration, &mut nested_queues, file);
+        }
+        for (id, declaration, file) in root_classes {
+            self.declare_class_nested(Owner::Class(id), declaration, &mut nested_queues, file);
+        }
+        for (id, declaration, file) in root_interfaces {
+            self.declare_interface_nested(
+                Owner::Interface(id),
+                declaration,
+                &mut nested_queues,
+                file,
+            );
+        }
+
         // Type-parameter names and arities are declared in pass 1. Resolve
         // their ordered constraints only after every nominal name is visible,
         // then validate bound applications after all constraint sets are
         // complete (F-bounds may form legal dependency cycles).
         for &(id, decl, file_index) in &pending_structs {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Struct(id));
             let declared = self.structs[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -87,6 +133,7 @@ impl Lowerer {
         }
         for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Enum(id));
             let declared = self.enums[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -99,6 +146,7 @@ impl Lowerer {
         }
         for &(id, decl, file_index) in &pending_classes {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Class(id));
             let declared = self.classes[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -111,6 +159,7 @@ impl Lowerer {
         }
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Interface(id));
             let declared = self.interfaces[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -121,10 +170,12 @@ impl Lowerer {
             );
             self.interfaces[id].type_params = params;
         }
+        self.current_owner = None;
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Interface(id));
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
             let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
@@ -136,6 +187,7 @@ impl Lowerer {
                 })
                 .collect();
         }
+        self.current_owner = None;
         self.check_interface_inheritance_cycles(&pending_interfaces);
 
         self.ffi_ptr = self.require_core_struct("Ptr", files);
@@ -154,8 +206,10 @@ impl Lowerer {
 
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Interface(id));
             self.resolve_interface_properties(id, decl);
         }
+        self.current_owner = None;
 
         // Pass 2: resolve struct fields, enum variants, class
         // constructor properties and inheritance clauses (all type
@@ -163,6 +217,7 @@ impl Lowerer {
         // types).
         for &(id, decl, file_index) in &pending_structs {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Struct(id));
             self.allow_deferred_fun_ptr = Some(id) == self.ffi_foreign_callback;
             self.resolve_fields(id, decl);
             self.allow_deferred_fun_ptr = false;
@@ -173,6 +228,7 @@ impl Lowerer {
         }
         for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
+            self.current_owner = Some(Owner::Enum(id));
             self.resolve_variants(id, decl);
             self.type_params_in_scope = self.enums[id].type_params.clone();
             let interfaces = self.resolve_interface_list(&decl.interfaces);
@@ -181,8 +237,10 @@ impl Lowerer {
         }
         for (id, decl, file_index) in &pending_classes {
             self.current_file = *file_index;
+            self.current_owner = Some(Owner::Class(*id));
             self.resolve_class(*id, decl);
         }
+        self.current_owner = None;
 
         // Pass 2.5: resolve function and method signatures, so calls
         // in any body see parameter and return types regardless of
@@ -191,12 +249,15 @@ impl Lowerer {
         // abstract methods) get their parameter-only body here.
         for &(id, decl, file_index) in &pending_functions {
             self.current_file = file_index;
+            self.current_owner = None;
             self.resolve_signature(id, decl);
         }
         for &(id, decl, file_index, owner) in &pending_methods {
             self.current_file = file_index;
+            self.current_owner = Some(owner);
             self.resolve_method_signature(id, decl, owner);
         }
+        self.current_owner = None;
 
         self.validate_core_operator_intrinsics(files);
         self.validate_array_conversion_intrinsics(files);

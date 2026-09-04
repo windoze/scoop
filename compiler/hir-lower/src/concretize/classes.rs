@@ -33,7 +33,11 @@ impl Concretizer<'_> {
         let id = self.classes.alloc(concrete::ClassDef {
             origin: concrete::ClassOriginId::from_raw(source_id.into_raw().into_u32()),
             modifier: source.modifier,
-            name: self.instance_name(&source.name, &arguments),
+            name: self.instance_name(
+                &self.source_nominal_name(&source.name, source.owner),
+                &arguments,
+            ),
+            owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             representation,
             interfaces: Vec::new(),

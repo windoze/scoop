@@ -13,6 +13,7 @@ impl Harness {
             (self.interface_applications.len() as u32).into(),
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
+            owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,

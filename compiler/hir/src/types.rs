@@ -104,10 +104,14 @@ pub(crate) fn type_name_with_params(
         Type::String => "String".to_string(),
         Type::Struct(application) => {
             let application = &module.struct_applications[*application];
-            let name = &module.structs[application.template].name;
+            let name = nominal_declaration_name(
+                module,
+                &module.structs[application.template].name,
+                module.structs[application.template].owner,
+            );
             let args = &application.arguments;
             if args.is_empty() {
-                name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -118,10 +122,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Class(application) => {
             let application = &module.class_applications[*application];
-            let name = &module.classes[application.template].name;
+            let name = nominal_declaration_name(
+                module,
+                &module.classes[application.template].name,
+                module.classes[application.template].owner,
+            );
             let args = &application.arguments;
             if args.is_empty() {
-                name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -132,10 +140,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Interface(application) => {
             let application = &module.interface_applications[*application];
-            let name = &module.interfaces[application.template].name;
+            let name = nominal_declaration_name(
+                module,
+                &module.interfaces[application.template].name,
+                module.interfaces[application.template].owner,
+            );
             let args = &application.arguments;
             if args.is_empty() {
-                name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -147,10 +159,14 @@ pub(crate) fn type_name_with_params(
         Type::Any => "Any".to_string(),
         Type::Enum(application) => {
             let application = &module.enum_applications[*application];
-            let name = &module.enums[application.template].name;
+            let name = nominal_declaration_name(
+                module,
+                &module.enums[application.template].name,
+                module.enums[application.template].owner,
+            );
             let args = &application.arguments;
             if args.is_empty() {
-                name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -200,4 +216,31 @@ pub(crate) fn type_name_with_params(
             .map(|parameter| parameter.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
+}
+
+pub(crate) fn nominal_declaration_name(
+    module: &Module,
+    name: &str,
+    owner: Option<NominalOwner>,
+) -> String {
+    let Some(owner) = owner else {
+        return name.to_string();
+    };
+    let prefix = match owner {
+        NominalOwner::Class(id) => {
+            nominal_declaration_name(module, &module.classes[id].name, module.classes[id].owner)
+        }
+        NominalOwner::Interface(id) => nominal_declaration_name(
+            module,
+            &module.interfaces[id].name,
+            module.interfaces[id].owner,
+        ),
+        NominalOwner::Struct(id) => {
+            nominal_declaration_name(module, &module.structs[id].name, module.structs[id].owner)
+        }
+        NominalOwner::Enum(id) => {
+            nominal_declaration_name(module, &module.enums[id].name, module.enums[id].owner)
+        }
+    };
+    format!("{prefix}.{name}")
 }

@@ -1,8 +1,20 @@
 use super::*;
 
+/// Lexical declaration owner of a static nested nominal. Each target keeps
+/// its own nominal id; the owner relation is typed and never reconstructed
+/// from a qualified source name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NominalOwner {
+    Class(ClassId),
+    Interface(InterfaceId),
+    Struct(StructId),
+    Enum(EnumId),
+}
+
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     /// Application to this declaration's own type parameters (or the empty
     /// application for a parameter-free declaration).
@@ -82,6 +94,7 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
@@ -175,6 +188,7 @@ pub enum OperatorKind {
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,

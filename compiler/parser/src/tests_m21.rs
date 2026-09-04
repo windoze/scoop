@@ -207,6 +207,32 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
 }
 
 #[test]
+fn static_nested_type_paths_and_extension_receiver_boundary_are_structural() {
+    let file = ok("class Outer<T> { class Nested<U> }\n\
+         fun take(value: Outer.Nested<Int>) {}\n\
+         val Outer.Nested<Int>.marker: Int get() = 1\n");
+    let Decl::Function(function) = &file.declarations[1] else {
+        panic!("expected function")
+    };
+    assert!(matches!(
+        &function.params[0].ty.kind,
+        scoop_ast::TypeRefKind::Qualified { path, arguments }
+            if path.iter().map(|segment| segment.text.as_str()).collect::<Vec<_>>()
+                == ["Outer", "Nested"]
+                && arguments.len() == 1
+    ));
+    let Decl::Global(property) = &file.declarations[2] else {
+        panic!("expected extension property")
+    };
+    assert_eq!(property.name.text, "marker");
+    assert!(matches!(
+        property.receiver_ty.as_ref().map(|receiver| &receiver.kind),
+        Some(scoop_ast::TypeRefKind::Qualified { path, arguments })
+            if path.len() == 2 && arguments.len() == 1
+    ));
+}
+
+#[test]
 fn interface_default_body_is_retained() {
     let file = ok("interface I { fun answer(): Int = 42 }");
     let Decl::Interface(interface) = &file.declarations[0] else {

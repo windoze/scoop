@@ -96,10 +96,23 @@ impl Parser {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
         let receiver_start = self.pos;
+        let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
             Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
                 self.bump();
                 Some(ty)
+            }
+            Ok(ty) if matches!(self.peek().kind, TokenKind::LParen) => {
+                match ty.split_qualified_tail() {
+                    Ok((receiver, name)) => {
+                        parsed_name = Some(name);
+                        Some(receiver)
+                    }
+                    Err(_) => {
+                        self.pos = receiver_start;
+                        None
+                    }
+                }
             }
             _ => {
                 self.pos = receiver_start;
@@ -114,7 +127,10 @@ impl Parser {
                 "extension functions may only be declared at top level",
             ));
         }
-        let name = self.expect_ident("function name")?;
+        let name = match parsed_name {
+            Some(name) => name,
+            None => self.expect_ident("function name")?,
+        };
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut params = Vec::new();
         let mut vararg_span = None;

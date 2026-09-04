@@ -10,10 +10,10 @@ impl Lowerer {
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).
-        if let ast::Expr::Var(name) = &*access.receiver {
-            if let Some(&enum_id) = self.enums_by_name.get(&name.text) {
-                return self.lower_qualified_variant(enum_id, access, expected);
-            }
+        if let Some(crate::NominalTarget::Enum(enum_id)) =
+            self.nominal_qualifier_target(&access.receiver)
+        {
+            return self.lower_qualified_variant(enum_id, access, expected);
         }
         if matches!(&*access.receiver, ast::Expr::This { .. })
             && self.initialization_context.is_some()

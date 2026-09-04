@@ -131,6 +131,48 @@ struct Concretizer<'a> {
 }
 
 impl<'a> Concretizer<'a> {
+    fn lower_nominal_owner(owner: Option<export::NominalOwner>) -> Option<concrete::NominalOwner> {
+        owner.map(|owner| match owner {
+            export::NominalOwner::Class(id) => concrete::NominalOwner::Class(
+                concrete::ClassOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Interface(id) => concrete::NominalOwner::Interface(
+                concrete::InterfaceOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Struct(id) => concrete::NominalOwner::Struct(
+                concrete::StructOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Enum(id) => concrete::NominalOwner::Enum(
+                concrete::EnumOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+        })
+    }
+
+    fn source_nominal_name(&self, name: &str, owner: Option<export::NominalOwner>) -> String {
+        let Some(owner) = owner else {
+            return name.to_string();
+        };
+        let prefix = match owner {
+            export::NominalOwner::Class(id) => {
+                let declaration = &self.source.classes[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Interface(id) => {
+                let declaration = &self.source.interfaces[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Struct(id) => {
+                let declaration = &self.source.structs[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Enum(id) => {
+                let declaration = &self.source.enums[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+        };
+        format!("{prefix}.{name}")
+    }
+
     fn new(source: &'a export::Module) -> Self {
         Self {
             source,

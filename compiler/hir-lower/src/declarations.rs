@@ -1,6 +1,8 @@
 use super::*;
 
 mod callables;
+mod nested;
+pub(crate) use nested::NestedDeclarationQueues;
 
 impl Lowerer {
     pub(super) fn require_core_struct(
@@ -32,7 +34,25 @@ impl Lowerer {
     /// Whether a type name is already taken in the shared type
     /// namespace (structs, enums, classes, interfaces). Returns the
     /// kind of the existing declaration for diagnostics.
-    pub(super) fn type_namespace_conflict(&self, name: &str) -> Option<&'static str> {
+    pub(super) fn type_namespace_conflict(
+        &self,
+        owner: Option<Owner>,
+        name: &str,
+    ) -> Option<&'static str> {
+        if let Some(target) = owner.and_then(|owner| {
+            self.nested_nominals_by_owner
+                .get(&(owner, name.to_string()))
+        }) {
+            return Some(match target {
+                NominalTarget::Struct(_) => "a struct",
+                NominalTarget::Enum(_) => "an enum",
+                NominalTarget::Class(_) => "a class",
+                NominalTarget::Interface(_) => "an interface",
+            });
+        }
+        if owner.is_some() {
+            return None;
+        }
         if self.structs_by_name.contains_key(name) {
             Some("a struct")
         } else if self.enums_by_name.contains_key(name) {
@@ -52,9 +72,17 @@ impl Lowerer {
         pending: &mut Vec<(StructId, &'a ast::StructDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
-    ) {
-        let checked = self.check_struct_annotations(decl);
-        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+        owner: Option<Owner>,
+    ) -> Option<StructId> {
+        let mut checked = self.check_struct_annotations(decl);
+        if owner.is_some() && checked.intrinsic.is_some() {
+            self.error(
+                decl.span,
+                "a static nested struct cannot define a compiler intrinsic type".to_string(),
+            );
+            checked.intrinsic = None;
+        }
+        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
             } else {
@@ -64,7 +92,7 @@ impl Lowerer {
                 )
             };
             self.error(decl.name.span, what);
-            return;
+            return None;
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
@@ -100,9 +128,19 @@ impl Lowerer {
             }
             None => hir::StructRepresentation::Declared(Vec::new()),
         };
-        let access = self.nominal_access(decl.visibility, decl.name.span, "struct", file_index);
+        let access = match owner {
+            Some(owner) => self.nested_nominal_access(
+                decl.visibility,
+                decl.name.span,
+                "struct",
+                owner,
+                file_index,
+            ),
+            None => self.nominal_access(decl.visibility, decl.name.span, "struct", file_index),
+        };
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
+            owner: owner.map(Owner::as_nominal_owner),
             access,
             self_application,
             type_params: type_params.clone(),
@@ -132,8 +170,16 @@ impl Lowerer {
         ) {
             assert_eq!(self.types[ty], Type::Struct(self_application));
         }
-        self.structs_by_name
-            .insert(decl.name.text.clone(), (id, ty));
+        match owner {
+            Some(owner) => {
+                self.nested_nominals_by_owner
+                    .insert((owner, decl.name.text.clone()), NominalTarget::Struct(id));
+            }
+            None => {
+                self.structs_by_name
+                    .insert(decl.name.text.clone(), (id, ty));
+            }
+        }
         self.struct_files.insert(id, file_index);
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
@@ -142,6 +188,7 @@ impl Lowerer {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
+        Some(id)
     }
 
     pub(super) fn declare_enum<'a>(
@@ -151,9 +198,10 @@ impl Lowerer {
         pending: &mut Vec<(EnumId, &'a ast::EnumDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
-    ) {
+        owner: Option<Owner>,
+    ) -> Option<EnumId> {
         let no_gc = self.check_enum_annotations(decl);
-        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
             let what = if kind == "an enum" {
                 format!("duplicate enum `{}`", decl.name.text)
             } else {
@@ -163,7 +211,7 @@ impl Lowerer {
                 )
             };
             self.error(decl.name.span, what);
-            return;
+            return None;
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
@@ -182,9 +230,19 @@ impl Lowerer {
         }
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
-        let access = self.nominal_access(decl.visibility, decl.name.span, "enum", file_index);
+        let access = match owner {
+            Some(owner) => self.nested_nominal_access(
+                decl.visibility,
+                decl.name.span,
+                "enum",
+                owner,
+                file_index,
+            ),
+            None => self.nominal_access(decl.visibility, decl.name.span, "enum", file_index),
+        };
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
+            owner: owner.map(Owner::as_nominal_owner),
             access,
             self_application,
             type_params,
@@ -199,7 +257,15 @@ impl Lowerer {
             derived_equality: None,
             span: decl.span,
         });
-        self.enums_by_name.insert(decl.name.text.clone(), id);
+        match owner {
+            Some(owner) => {
+                self.nested_nominals_by_owner
+                    .insert((owner, decl.name.text.clone()), NominalTarget::Enum(id));
+            }
+            None => {
+                self.enums_by_name.insert(decl.name.text.clone(), id);
+            }
+        }
         let parameter_ids = self.enums[id]
             .type_params
             .iter()
@@ -212,7 +278,7 @@ impl Lowerer {
         let ty = self.enum_application(id, type_args);
         assert_eq!(self.types[ty], Type::Enum(self_application));
         self.enum_files.insert(id, file_index);
-        if is_core && decl.name.text == "Option" {
+        if is_core && owner.is_none() && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
         }
@@ -220,6 +286,7 @@ impl Lowerer {
             self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
+        Some(id)
     }
 
     pub(super) fn declare_class<'a>(
@@ -229,9 +296,17 @@ impl Lowerer {
         pending: &mut Vec<(ClassId, &'a ast::ClassDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
-    ) {
-        let checked = self.check_class_annotations(decl);
-        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+        owner: Option<Owner>,
+    ) -> Option<ClassId> {
+        let mut checked = self.check_class_annotations(decl);
+        if owner.is_some() && checked.intrinsic.is_some() {
+            self.error(
+                decl.span,
+                "a static nested class cannot define a compiler intrinsic type".to_string(),
+            );
+            checked.intrinsic = None;
+        }
+        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
             let what = if kind == "a class" {
                 format!("duplicate class `{}`", decl.name.text)
             } else {
@@ -241,7 +316,7 @@ impl Lowerer {
                 )
             };
             self.error(decl.name.span, what);
-            return;
+            return None;
         }
         let modifier = match decl.modifier {
             ast::ClassModifier::Final => hir::ClassModifier::Final,
@@ -298,10 +373,20 @@ impl Lowerer {
             }
             None => hir::ClassRepresentation::Declared,
         };
-        let access = self.nominal_access(decl.visibility, decl.name.span, "class", file_index);
+        let access = match owner {
+            Some(owner) => self.nested_nominal_access(
+                decl.visibility,
+                decl.name.span,
+                "class",
+                owner,
+                file_index,
+            ),
+            None => self.nominal_access(decl.visibility, decl.name.span, "class", file_index),
+        };
         let id = self.classes.alloc(ClassDecl {
             modifier,
             name: decl.name.text.clone(),
+            owner: owner.map(Owner::as_nominal_owner),
             access,
             self_application,
             type_params: type_params.clone(),
@@ -332,8 +417,16 @@ impl Lowerer {
         ) {
             assert_eq!(self.types[ty], Type::Class(self_application));
         }
-        self.classes_by_name
-            .insert(decl.name.text.clone(), (id, ty));
+        match owner {
+            Some(owner) => {
+                self.nested_nominals_by_owner
+                    .insert((owner, decl.name.text.clone()), NominalTarget::Class(id));
+            }
+            None => {
+                self.classes_by_name
+                    .insert(decl.name.text.clone(), (id, ty));
+            }
+        }
         self.class_files.insert(id, file_index);
         self.classes[id].access.inheritance =
             hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {
@@ -350,13 +443,14 @@ impl Lowerer {
         if let hir::ClassRepresentation::Intrinsic(intrinsic) = self.classes[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Class(id), decl.span);
         }
-        if is_core && decl.name.text == "Throwable" {
+        if is_core && owner.is_none() && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
         for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
+        Some(id)
     }
 
     pub(super) fn declare_interface<'a>(
@@ -365,9 +459,10 @@ impl Lowerer {
         pending: &mut Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
-    ) {
+        owner: Option<Owner>,
+    ) -> Option<InterfaceId> {
         self.reject_type_annotations("an interface", &decl.annotations);
-        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
             let what = if kind == "an interface" {
                 format!("duplicate interface `{}`", decl.name.text)
             } else {
@@ -377,7 +472,7 @@ impl Lowerer {
                 )
             };
             self.error(decl.name.span, what);
-            return;
+            return None;
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
@@ -397,9 +492,19 @@ impl Lowerer {
         let self_application = hir::InterfaceApplicationId::from_raw(
             (self.interface_applications.len() as u32).into(),
         );
-        let access = self.nominal_access(decl.visibility, decl.name.span, "interface", file_index);
+        let access = match owner {
+            Some(owner) => self.nested_nominal_access(
+                decl.visibility,
+                decl.name.span,
+                "interface",
+                owner,
+                file_index,
+            ),
+            None => self.nominal_access(decl.visibility, decl.name.span, "interface", file_index),
+        };
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
+            owner: owner.map(Owner::as_nominal_owner),
             access,
             self_application,
             type_params: type_params.clone(),
@@ -420,13 +525,24 @@ impl Lowerer {
             .collect();
         let ty = self.intern_interface_application(id, type_args);
         assert_eq!(self.types[ty], Type::Interface(self_application));
-        self.interfaces_by_name
-            .insert(decl.name.text.clone(), (id, ty));
+        match owner {
+            Some(owner) => {
+                self.nested_nominals_by_owner.insert(
+                    (owner, decl.name.text.clone()),
+                    NominalTarget::Interface(id),
+                );
+            }
+            None => {
+                self.interfaces_by_name
+                    .insert(decl.name.text.clone(), (id, ty));
+            }
+        }
         self.interface_files.insert(id, file_index);
         self.interface_methods.insert(id, Vec::new());
         for method in &decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
+        Some(id)
     }
 }

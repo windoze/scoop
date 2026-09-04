@@ -144,6 +144,7 @@ impl Harness {
             origin: definition_origin(),
         });
         let class = self.classes.alloc(hir::ClassDecl {
+            owner: None,
             modifier,
             name: name.to_string(),
             access: hir::NominalAccess::public(),

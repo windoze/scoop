@@ -38,6 +38,21 @@ impl Lowerer {
         if let Some((enum_id, variant)) = self.option_variant(&name.text) {
             return Some(Constructor::Variant { enum_id, variant });
         }
+        if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+            return Some(match target {
+                crate::NominalTarget::Struct(struct_id) => {
+                    let application = self.structs[struct_id].self_application;
+                    Constructor::Struct {
+                        struct_id,
+                        ty: self.struct_applications[application].canonical_type,
+                    }
+                }
+                crate::NominalTarget::Class(class_id) => Constructor::Class { class_id },
+                crate::NominalTarget::Enum(_) | crate::NominalTarget::Interface(_) => {
+                    Constructor::Unmatched
+                }
+            });
+        }
         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
             if !self.nominal_is_accessible(ty) {
                 self.error(

@@ -399,6 +399,10 @@ pub(crate) struct Lowerer {
     pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
+    /// Owner-scoped static nested nominal namespace. The owner and target
+    /// retain distinct typed ids; qualified lookup never flattens this key
+    /// into an FQN string.
+    pub(crate) nested_nominals_by_owner: HashMap<(Owner, String), NominalTarget>,
     /// Source-file ownership for validating compiler-known core contracts.
     pub(crate) struct_files: HashMap<StructId, usize>,
     pub(crate) enum_files: HashMap<EnumId, usize>,

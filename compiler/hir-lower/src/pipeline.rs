@@ -163,6 +163,7 @@ impl Lowerer {
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),
             interfaces_by_name: HashMap::new(),
+            nested_nominals_by_owner: HashMap::new(),
             struct_files: HashMap::new(),
             enum_files: HashMap::new(),
             class_files: HashMap::new(),

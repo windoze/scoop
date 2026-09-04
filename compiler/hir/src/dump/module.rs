@@ -26,7 +26,10 @@ pub fn dump(module: &Module) -> String {
         let attributes = dump_struct_attributes(decl.attributes);
         out.push_str(&format!(
             "  struct {}{}{}{}\n",
-            decl.name, type_params, interfaces, attributes
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            interfaces,
+            attributes
         ));
         for (index, field) in decl.semantic_fields().iter().enumerate() {
             out.push_str(&format!(
@@ -52,7 +55,10 @@ pub fn dump(module: &Module) -> String {
         let attributes = if decl.no_gc { " <no-gc>" } else { "" };
         out.push_str(&format!(
             "  enum {}{}{}{}\n",
-            decl.name, type_params, interfaces, attributes
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            interfaces,
+            attributes
         ));
         for variant in &decl.variants {
             let fields: Vec<String> = variant
@@ -98,7 +104,7 @@ pub fn dump(module: &Module) -> String {
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
             "  {modifier}class {}{}({}){}\n",
-            decl.name,
+            nominal_declaration_name(module, &decl.name, decl.owner),
             type_params,
             ctor.join(", "),
             interfaces
@@ -139,7 +145,9 @@ pub fn dump(module: &Module) -> String {
         };
         out.push_str(&format!(
             "  interface {}{}{}\n",
-            decl.name, type_params, parents
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            parents
         ));
         for method in &decl.methods {
             let member = &module.interface_methods[*method];

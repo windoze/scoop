@@ -1,4 +1,5 @@
 use super::*;
+use crate::NominalTarget;
 
 mod extensions;
 mod interface_super;
@@ -7,6 +8,82 @@ mod primitives;
 mod resolution;
 
 impl Lowerer {
+    pub(in crate::expr) fn nominal_qualifier_target(
+        &self,
+        expression: &ast::Expr,
+    ) -> Option<NominalTarget> {
+        match expression {
+            ast::Expr::Var(name)
+                if self.scopes.lookup(&name.text).is_none()
+                    && !self.host_has_property(&name.text) =>
+            {
+                self.top_level_nominal_target(&name.text)
+                    .or_else(|| self.lexical_nested_nominal_target(&name.text))
+            }
+            ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Direct => {
+                let ast::FieldSelector::Name(name) = &access.selector else {
+                    return None;
+                };
+                let owner = self.nominal_qualifier_target(&access.receiver)?.owner();
+                self.nested_nominal_target(owner, &name.text)
+            }
+            _ => None,
+        }
+    }
+
+    fn lower_static_nested_constructor(
+        &mut self,
+        target: NominalTarget,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            NominalTarget::Struct(struct_id) => {
+                let application = self.structs[struct_id].self_application;
+                let ty = self.struct_applications[application].canonical_type;
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("struct `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                self.lower_struct_init(struct_id, ty, call, sink, expected)
+            }
+            NominalTarget::Class(class_id) => {
+                let application = self.classes[class_id].self_application;
+                let ty = self.class_applications[application].canonical_type;
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("class `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                self.lower_class_construct(class_id, call, sink, expected)
+            }
+            NominalTarget::Enum(_) => {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` cannot be constructed without a variant",
+                        name.text
+                    ),
+                );
+                None
+            }
+            NominalTarget::Interface(_) => {
+                self.error(
+                    name.span,
+                    format!("interface `{}` cannot be constructed", name.text),
+                );
+                None
+            }
+        }
+    }
+
     /// Resolve `super.name(...)` from the exact direct-base application. No
     /// extension, property-like, or interface layer participates, and the
     /// resulting HIR variant preserves the mandatory direct-dispatch proof.
@@ -138,21 +215,33 @@ impl Lowerer {
                 }
             };
         }
-        if let ast::Expr::Var(enum_name) = receiver {
-            if self.scopes.lookup(&enum_name.text).is_none()
-                && !self.host_has_property(&enum_name.text)
-                && self.enums_by_name.contains_key(&enum_name.text)
-            {
-                let enum_id = self.enums_by_name[&enum_name.text];
+        if let Some(qualifier) = self.nominal_qualifier_target(receiver) {
+            if let Some(target) = self.nested_nominal_target(qualifier.owner(), &name.text) {
+                return self.lower_static_nested_constructor(target, name, call, sink, expected);
+            }
+            if let NominalTarget::Enum(enum_id) = qualifier {
                 let Some(variant) = self.find_variant(enum_id, &name.text) else {
                     self.error(
                         name.span,
-                        format!("enum `{}` has no variant `{}`", enum_name.text, name.text),
+                        format!(
+                            "enum `{}` has no variant `{}`",
+                            qualifier.owner().describe_name(self),
+                            name.text
+                        ),
                     );
                     return None;
                 };
                 return self.lower_variant_construct(enum_id, variant, call, sink, expected);
             }
+            self.error(
+                name.span,
+                format!(
+                    "type `{}` has no nested type `{}`",
+                    qualifier.owner().describe_name(self),
+                    name.text
+                ),
+            );
+            return None;
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
         self.lower_explicit_named_call(

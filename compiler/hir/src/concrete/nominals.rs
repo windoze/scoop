@@ -1,9 +1,21 @@
 use super::*;
 
+/// Static declaration owner retained after concretization. Origins name the
+/// declaration template rather than an outer application, so a generic host
+/// does not replicate its nested declarations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NominalOwner {
+    Class(ClassOriginId),
+    Interface(InterfaceOriginId),
+    Struct(StructOriginId),
+    Enum(EnumOriginId),
+}
+
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub origin: StructOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub representation: StructRepresentation,
@@ -40,6 +52,7 @@ impl StructDef {
 pub struct EnumDef {
     pub origin: EnumOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
@@ -55,6 +68,7 @@ pub struct ClassDef {
     pub origin: ClassOriginId,
     pub modifier: ClassModifier,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
@@ -173,6 +187,7 @@ pub enum IntrinsicTypeRepresentation {
 pub struct InterfaceDef {
     pub origin: InterfaceOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
     pub type_arguments: Vec<TypeId>,
     pub methods: Vec<MethodSig>,

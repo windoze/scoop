@@ -202,6 +202,35 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn nested_nominal_access(
+        &mut self,
+        syntax: ast::VisibilitySyntax,
+        span: ast::Span,
+        declaration_kind: &str,
+        owner: Owner,
+        file: usize,
+    ) -> hir::NominalAccess {
+        let mut declared = Self::normalized_visibility(syntax);
+        if declared == hir::DeclaredVisibility::Protected && !matches!(owner, Owner::Class(_)) {
+            self.error(
+                span,
+                format!(
+                    "nested {declaration_kind} on {} cannot be protected",
+                    owner.describe(self)
+                ),
+            );
+            declared = hir::DeclaredVisibility::Internal;
+        }
+        let declared_domain = self.member_declared_domain(declared, owner, file);
+        let effective = declared_domain.intersect(self.owner_lookup_domain(owner));
+        hir::NominalAccess {
+            declared,
+            inheritance: hir::InheritanceDomain(effective.clone()),
+            lookup: hir::EffectiveLookupDomain(effective),
+            signature: Vec::new(),
+        }
+    }
+
     fn owner_visibility(&self, owner: Owner) -> hir::VisibilityOwner {
         match owner {
             Owner::Class(id) => hir::VisibilityOwner::Class(id),
@@ -303,8 +332,40 @@ impl Lowerer {
         }
     }
 
-    fn current_visibility_owner(&self) -> Option<hir::VisibilityOwner> {
-        self.current_owner.map(|owner| self.owner_visibility(owner))
+    fn owner_parent(&self, owner: Owner) -> Option<Owner> {
+        let parent = match owner {
+            Owner::Class(id) => self.classes[id].owner,
+            Owner::Interface(id) => self.interfaces[id].owner,
+            Owner::Struct(id) => self.structs[id].owner,
+            Owner::Enum(id) => self.enums[id].owner,
+        }?;
+        Some(Owner::from_nominal_owner(parent))
+    }
+
+    fn lexical_owner_contains(&self, mut current: Owner, required: hir::VisibilityOwner) -> bool {
+        loop {
+            if self.owner_visibility(current) == required {
+                return true;
+            }
+            let Some(parent) = self.owner_parent(current) else {
+                return false;
+            };
+            current = parent;
+        }
+    }
+
+    fn visibility_owner_is_within(
+        &self,
+        current: hir::VisibilityOwner,
+        required: hir::VisibilityOwner,
+    ) -> bool {
+        let current = match current {
+            hir::VisibilityOwner::Class(id) => Owner::Class(id),
+            hir::VisibilityOwner::Interface(id) => Owner::Interface(id),
+            hir::VisibilityOwner::Struct(id) => Owner::Struct(id),
+            hir::VisibilityOwner::Enum(id) => Owner::Enum(id),
+        };
+        self.lexical_owner_contains(current, required)
     }
 
     fn class_is_same_or_subclass_of(&self, mut class: hir::ClassId, base: hir::ClassId) -> bool {
@@ -349,9 +410,9 @@ impl Lowerer {
             .all(|constraint| match *constraint {
                 hir::AccessConstraint::Cone(provider) => site.provider == provider,
                 hir::AccessConstraint::File(file) => site == file,
-                hir::AccessConstraint::LexicalOwner(owner) => {
-                    self.current_visibility_owner() == Some(owner)
-                }
+                hir::AccessConstraint::LexicalOwner(owner) => self
+                    .current_owner
+                    .is_some_and(|current| self.lexical_owner_contains(current, owner)),
                 hir::AccessConstraint::SubclassesOf(base) => {
                     let Some(Owner::Class(current)) = self.current_owner else {
                         return false;
@@ -396,6 +457,10 @@ impl Lowerer {
             (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::File(file)) => {
                 self.owner_definition_file(owner) == file
             }
+            (
+                hir::AccessConstraint::LexicalOwner(current),
+                hir::AccessConstraint::LexicalOwner(required),
+            ) => self.visibility_owner_is_within(current, required),
             (
                 hir::AccessConstraint::SubclassesOf(derived),
                 hir::AccessConstraint::SubclassesOf(base),

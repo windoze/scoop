@@ -15,6 +15,7 @@ impl Harness {
         let mut enum_applications = Arena::new();
         let option_self_application = hir::EnumApplicationId::from_raw(0.into());
         let option_enum = enums.alloc(hir::EnumDecl {
+            owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
             self_application: option_self_application,

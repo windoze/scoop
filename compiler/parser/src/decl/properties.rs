@@ -47,10 +47,23 @@ impl Parser {
         let type_params = self.parse_type_params()?;
 
         let receiver_start = self.pos;
+        let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
             Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
                 self.bump();
                 Some(ty)
+            }
+            Ok(ty) if matches!(self.peek().kind, TokenKind::Colon) => {
+                match ty.split_qualified_tail() {
+                    Ok((receiver, name)) => {
+                        parsed_name = Some(name);
+                        Some(receiver)
+                    }
+                    Err(_) => {
+                        self.pos = receiver_start;
+                        None
+                    }
+                }
             }
             _ => {
                 self.pos = receiver_start;
@@ -72,7 +85,10 @@ impl Parser {
             ));
         }
 
-        let name = self.expect_ident("property name")?;
+        let name = match parsed_name {
+            Some(name) => name,
+            None => self.expect_ident("property name")?,
+        };
         if !matches!(self.peek().kind, TokenKind::Colon) {
             let message = match context {
                 PropertyContext::ClassOrObject => {

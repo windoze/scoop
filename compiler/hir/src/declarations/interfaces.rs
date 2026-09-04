@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
