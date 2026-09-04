@@ -26,6 +26,7 @@ pub enum PropertyOwner {
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
+    Object(ObjectId),
 }
 
 /// The receiver template and type-parameter namespace of one top-level

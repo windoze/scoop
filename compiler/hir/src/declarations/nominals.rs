@@ -9,6 +9,7 @@ pub enum NominalOwner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+    Object(ObjectId),
 }
 
 #[derive(Debug, Clone)]

@@ -36,6 +36,9 @@ impl Lowerer {
                     hir::GenericMethodOwner::Enum(owner) => hir::GenericMethodOwner::Enum(
                         self.instantiate_default_enum_application(owner, context),
                     ),
+                    hir::GenericMethodOwner::Object(owner) => {
+                        hir::GenericMethodOwner::Object(owner)
+                    }
                 };
                 let arguments = application
                     .method_arguments
@@ -134,6 +137,9 @@ impl Lowerer {
                 hir::MethodOwnerApplication::Interface(
                     self.instantiate_default_interface_application(application, context),
                 )
+            }
+            hir::MethodOwnerApplication::Object(owner) => {
+                hir::MethodOwnerApplication::Object(owner)
             }
         }
     }

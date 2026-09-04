@@ -50,7 +50,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         .alloc(scoop_lir::InitializationUnit {
             stable_key: "top-level:zed".to_string(),
             schedule: scoop_lir::InitializationSchedule::EagerStartup,
-            storage,
+            kind: scoop_lir::InitializationUnitKind::EagerTopLevel { storage },
             failure_root: failure,
             initializer: entry,
             ensure: entry,
@@ -61,7 +61,9 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         .alloc(scoop_lir::InitializationUnit {
             stable_key: "top-level:alpha".to_string(),
             schedule: scoop_lir::InitializationSchedule::LazyAccess,
-            storage: second_storage,
+            kind: scoop_lir::InitializationUnitKind::EagerTopLevel {
+                storage: second_storage,
+            },
             failure_root: second_failure,
             initializer: entry,
             ensure: entry,

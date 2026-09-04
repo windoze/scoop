@@ -15,6 +15,10 @@ pub struct Module {
     pub globals: Arena<Global>,
     pub initialization_units: Arena<InitializationUnit>,
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
+    pub objects: Arena<ObjectDecl>,
+    pub object_types: Arena<ObjectType>,
+    pub singleton_values: Arena<SingletonValue>,
+    pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
@@ -103,7 +107,13 @@ pub enum InitializationSchedule {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
-    EagerTopLevel { storage: GlobalId },
+    EagerTopLevel {
+        storage: GlobalId,
+    },
+    LazySingleton {
+        value: SingletonValueId,
+        published_root: SingletonPublishedRootId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

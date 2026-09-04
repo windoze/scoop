@@ -209,6 +209,9 @@ impl Lowerer {
                 .iter()
                 .map(|parent| self.interface_applications[*parent].canonical_type)
                 .collect(),
+            crate::Owner::Object(owner) => self.classes[self.objects[owner].backing_class]
+                .interfaces
+                .clone(),
         };
         if !direct
             .iter()

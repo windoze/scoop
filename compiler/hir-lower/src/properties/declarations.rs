@@ -625,6 +625,7 @@ impl Lowerer {
             Owner::Class(_) | Owner::Interface(_) => {
                 unreachable!("value property owners are structs or enums")
             }
+            Owner::Object(_) => unreachable!("an object is a reference-type property owner"),
         };
         let expected = self.next_property_id();
         let Some(capability) = self.allocate_property_accessors(
@@ -657,6 +658,7 @@ impl Lowerer {
             Owner::Class(_) | Owner::Interface(_) => {
                 unreachable!("value property owners are structs or enums")
             }
+            Owner::Object(_) => unreachable!("an object is a reference-type property owner"),
         }
     }
 
@@ -959,6 +961,14 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             ),
+            hir::PropertyOwner::Object(owner) => self.member_access(
+                syntax,
+                span,
+                "property setter",
+                Owner::Object(owner),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            ),
         };
         if !self.access_domain_is_subset(&access.lookup.0, &property_access.lookup.0) {
             self.error(
@@ -991,6 +1001,7 @@ impl Lowerer {
             hir::PropertyOwner::Struct(owner) => Some(Owner::Struct(owner)),
             hir::PropertyOwner::Enum(owner) => Some(Owner::Enum(owner)),
             hir::PropertyOwner::Interface(owner) => Some(Owner::Interface(owner)),
+            hir::PropertyOwner::Object(owner) => Some(Owner::Object(owner)),
         };
         let checked = self.check_function_annotations(
             &declaration,
@@ -1063,6 +1074,10 @@ impl Lowerer {
                     } else {
                         self.interfaces[owner].private_methods.push(function);
                     }
+                }
+                Owner::Object(owner) => {
+                    let backing = self.objects[owner].backing_class;
+                    self.classes[backing].methods.push(function);
                 }
             }
         } else {

@@ -27,6 +27,7 @@ pub enum VisibilityOwner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+    Object(crate::ObjectId),
 }
 
 /// One conjunct of an access set. Domains are normalized conjunctions rather
@@ -114,6 +115,9 @@ pub struct PublicSemanticSurface {
     pub class_constructors: Vec<crate::ClassConstructorId>,
     pub interfaces: Vec<InterfaceId>,
     pub interface_methods: Vec<crate::InterfaceMethodId>,
+    pub objects: Vec<crate::ObjectId>,
+    pub object_types: Vec<crate::ObjectTypeId>,
+    pub singleton_values: Vec<crate::SingletonValueId>,
 }
 
 fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u32) {
@@ -125,6 +129,7 @@ fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u32) {
             VisibilityOwner::Interface(id) => (2, 1, id.into_raw().into_u32()),
             VisibilityOwner::Struct(id) => (2, 2, id.into_raw().into_u32()),
             VisibilityOwner::Enum(id) => (2, 3, id.into_raw().into_u32()),
+            VisibilityOwner::Object(id) => (2, 4, id.into_raw().into_u32()),
         },
         AccessConstraint::SubclassesOf(id) => (3, id.into_raw().into_u32(), 0),
     }

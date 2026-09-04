@@ -48,9 +48,9 @@ impl Lowerer {
                     }
                 }
                 crate::NominalTarget::Class(class_id) => Constructor::Class { class_id },
-                crate::NominalTarget::Enum(_) | crate::NominalTarget::Interface(_) => {
-                    Constructor::Unmatched
-                }
+                crate::NominalTarget::Enum(_)
+                | crate::NominalTarget::Interface(_)
+                | crate::NominalTarget::Object(_) => Constructor::Unmatched,
             });
         }
         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {

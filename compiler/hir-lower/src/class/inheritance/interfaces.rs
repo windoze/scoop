@@ -180,7 +180,7 @@ impl Lowerer {
                 self.enums[id].methods.clone(),
             ),
             // Only called for value types.
-            Owner::Class(_) | Owner::Interface(_) => return,
+            Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => return,
         };
         let mut interfaces = Vec::new();
         for interface in declared_interfaces {
@@ -193,7 +193,7 @@ impl Lowerer {
         match owner {
             Owner::Struct(id) => self.structs[id].interface_implementations.clear(),
             Owner::Enum(id) => self.enums[id].interface_implementations.clear(),
-            Owner::Class(_) | Owner::Interface(_) => {}
+            Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => {}
         }
         for interface_ty in interfaces {
             let (iface, _args) = self.interface_application(interface_ty);
@@ -292,7 +292,7 @@ impl Lowerer {
                 Owner::Enum(id) => self.enums[id]
                     .interface_implementations
                     .push(implementation),
-                Owner::Class(_) | Owner::Interface(_) => unreachable!(),
+                Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => unreachable!(),
             }
         }
     }

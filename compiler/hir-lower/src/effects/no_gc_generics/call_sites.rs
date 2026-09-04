@@ -96,6 +96,7 @@ impl Lowerer {
             hir::GenericMethodOwner::Class(id) => &self.class_applications[id].arguments,
             hir::GenericMethodOwner::Struct(id) => &self.struct_applications[id].arguments,
             hir::GenericMethodOwner::Enum(id) => &self.enum_applications[id].arguments,
+            hir::GenericMethodOwner::Object(_) => &[],
         }
     }
 

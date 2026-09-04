@@ -31,13 +31,22 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (id, unit) in module.initialization_units.iter() {
-        let InitializationUnitKind::EagerTopLevel { storage } = unit.kind;
+        let storage = match unit.kind {
+            InitializationUnitKind::EagerTopLevel { storage } => storage,
+            InitializationUnitKind::LazySingleton { published_root, .. } => {
+                module.singleton_published_roots[published_root].global
+            }
+        };
+        let kind = match unit.kind {
+            InitializationUnitKind::EagerTopLevel { .. } => "",
+            InitializationUnitKind::LazySingleton { .. } => "singleton ",
+        };
         let schedule = match unit.schedule {
             InitializationSchedule::EagerStartup => "eager",
             InitializationSchedule::LazyAccess => "lazy",
         };
         out.push_str(&format!(
-            "  init{} {} {schedule} global{} initializer={} ensure={} failure={} deps=[{}]\n",
+            "  init{} {} {kind}{schedule} global{} initializer={} ensure={} failure={} deps=[{}]\n",
             id.into_raw().into_u32(),
             unit.stable_key,
             storage.into_raw().into_u32(),

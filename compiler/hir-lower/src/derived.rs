@@ -60,6 +60,7 @@ impl Lowerer {
             Owner::Enum(id) => &self.enums[id].methods,
             Owner::Class(id) => &self.classes[id].methods,
             Owner::Interface(id) => &self.interface_methods[&id],
+            Owner::Object(id) => &self.classes[self.objects[id].backing_class].methods,
         };
         methods.iter().copied().any(|function| {
             let signature = &self.signatures[&function];
@@ -76,6 +77,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enums[id].span,
             Owner::Class(id) => self.classes[id].span,
             Owner::Interface(id) => self.interfaces[id].span,
+            Owner::Object(id) => self.objects[id].span,
         };
         let mut attributes = hir::FunctionAttributes::default();
         if self.requires_unsafe_use(owner_ty) {
@@ -128,6 +130,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enum_files[&id],
             Owner::Class(id) => self.class_files[&id],
             Owner::Interface(id) => self.interface_files[&id],
+            Owner::Object(id) => self.object_files[&id],
         };
         self.function_files.insert(function, file);
         self.signatures.insert(

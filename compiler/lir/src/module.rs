@@ -34,11 +34,26 @@ pub struct Module {
 pub struct InitializationUnit {
     pub stable_key: String,
     pub schedule: InitializationSchedule,
-    pub storage: GlobalId,
+    pub kind: InitializationUnitKind,
     pub failure_root: GlobalId,
     pub initializer: ManagedLocalFunctionRef,
     pub ensure: ManagedLocalFunctionRef,
     pub dependencies: Vec<InitializationUnitId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationUnitKind {
+    EagerTopLevel { storage: GlobalId },
+    LazySingleton { published_root: GlobalId },
+}
+
+impl InitializationUnitKind {
+    pub const fn storage(self) -> GlobalId {
+        match self {
+            Self::EagerTopLevel { storage } => storage,
+            Self::LazySingleton { published_root } => published_root,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -60,7 +60,7 @@ pub(super) fn emit<'ctx>(
         cell.set_linkage(Linkage::Private);
         cell.set_initializer(&cell_ty.const_zero());
 
-        let storage = emitted_global(globals, unit.storage)?;
+        let storage = emitted_global(globals, unit.kind.storage())?;
         let failure = emitted_global(globals, unit.failure_root)?;
         let initializer = function_pointer(llvm, module, unit.initializer)?;
         let ensure = function_pointer(llvm, module, unit.ensure)?;

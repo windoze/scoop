@@ -120,6 +120,29 @@ impl Lowerer {
                 .iter()
                 .filter_map(|(id, method)| functions.contains(&method.function).then_some(id))
                 .collect(),
+            objects: self
+                .objects
+                .iter()
+                .filter_map(|(id, declaration)| {
+                    Self::nominal_is_exported(&declaration.access).then_some(id)
+                })
+                .collect(),
+            object_types: self
+                .objects
+                .iter()
+                .filter_map(|(_, declaration)| {
+                    Self::nominal_is_exported(&declaration.access)
+                        .then_some(declaration.object_type)
+                })
+                .collect(),
+            singleton_values: self
+                .objects
+                .iter()
+                .filter_map(|(_, declaration)| {
+                    Self::nominal_is_exported(&declaration.access)
+                        .then_some(declaration.singleton_value)
+                })
+                .collect(),
         }
     }
 
@@ -237,6 +260,7 @@ impl Lowerer {
             Owner::Interface(id) => hir::VisibilityOwner::Interface(id),
             Owner::Struct(id) => hir::VisibilityOwner::Struct(id),
             Owner::Enum(id) => hir::VisibilityOwner::Enum(id),
+            Owner::Object(id) => hir::VisibilityOwner::Object(id),
         }
     }
 
@@ -246,6 +270,7 @@ impl Lowerer {
             Owner::Interface(id) => &self.interfaces[id].access.lookup.0,
             Owner::Struct(id) => &self.structs[id].access.lookup.0,
             Owner::Enum(id) => &self.enums[id].access.lookup.0,
+            Owner::Object(id) => &self.objects[id].access.lookup.0,
         }
     }
 
@@ -338,6 +363,7 @@ impl Lowerer {
             Owner::Interface(id) => self.interfaces[id].owner,
             Owner::Struct(id) => self.structs[id].owner,
             Owner::Enum(id) => self.enums[id].owner,
+            Owner::Object(id) => self.objects[id].owner,
         }?;
         Some(Owner::from_nominal_owner(parent))
     }
@@ -364,6 +390,7 @@ impl Lowerer {
             hir::VisibilityOwner::Interface(id) => Owner::Interface(id),
             hir::VisibilityOwner::Struct(id) => Owner::Struct(id),
             hir::VisibilityOwner::Enum(id) => Owner::Enum(id),
+            hir::VisibilityOwner::Object(id) => Owner::Object(id),
         };
         self.lexical_owner_contains(current, required)
     }
@@ -435,6 +462,7 @@ impl Lowerer {
             hir::VisibilityOwner::Interface(id) => self.interface_files[&id],
             hir::VisibilityOwner::Struct(id) => self.struct_files[&id],
             hir::VisibilityOwner::Enum(id) => self.enum_files[&id],
+            hir::VisibilityOwner::Object(id) => self.object_files[&id],
         };
         self.visibility_file(file)
     }
@@ -911,6 +939,7 @@ impl Lowerer {
                 hir::PropertyOwner::Struct(owner) => self.struct_files[&owner],
                 hir::PropertyOwner::Enum(owner) => self.enum_files[&owner],
                 hir::PropertyOwner::Interface(owner) => self.interface_files[&owner],
+                hir::PropertyOwner::Object(owner) => self.object_files[&owner],
             };
             let mut signature_types = vec![ty];
             if let hir::PropertyOwner::Extension(extension) = owner {

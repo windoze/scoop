@@ -81,6 +81,13 @@ impl Lowerer {
                 );
                 None
             }
+            NominalTarget::Object(_) => {
+                self.error(
+                    name.span,
+                    format!("object `{}` cannot be constructed", name.text),
+                );
+                None
+            }
         }
     }
 

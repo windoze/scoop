@@ -130,7 +130,7 @@ use annotations::FunctionTarget;
 use ast::{Diagnostic, Span};
 use hir::{
     ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
-    GenericFunctionId, InterfaceDecl, InterfaceId, StructDecl, StructId, Type, TypeId,
+    GenericFunctionId, InterfaceDecl, InterfaceId, ObjectId, StructDecl, StructId, Type, TypeId,
 };
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
@@ -323,6 +323,10 @@ pub(crate) struct Lowerer {
     pub(crate) globals: Arena<hir::Global>,
     pub(crate) initialization_units: Arena<hir::InitializationUnit>,
     pub(crate) initialization_failure_roots: Arena<hir::InitializationFailureRoot>,
+    pub(crate) objects: Arena<hir::ObjectDecl>,
+    pub(crate) object_types: Arena<hir::ObjectType>,
+    pub(crate) singleton_values: Arena<hir::SingletonValue>,
+    pub(crate) singleton_published_roots: Arena<hir::SingletonPublishedRoot>,
     pub(crate) properties: Arena<hir::Property>,
     pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
@@ -399,6 +403,7 @@ pub(crate) struct Lowerer {
     pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
+    pub(crate) objects_by_name: HashMap<String, ObjectId>,
     /// Owner-scoped static nested nominal namespace. The owner and target
     /// retain distinct typed ids; qualified lookup never flattens this key
     /// into an FQN string.
@@ -408,6 +413,7 @@ pub(crate) struct Lowerer {
     pub(crate) enum_files: HashMap<EnumId, usize>,
     pub(crate) class_files: HashMap<ClassId, usize>,
     pub(crate) interface_files: HashMap<InterfaceId, usize>,
+    pub(crate) object_files: HashMap<ObjectId, usize>,
     /// Core pointer declarations discovered after pass 1. Applications can
     /// then normalize while pass 2/2.5 resolves fields and signatures.
     pub(crate) ffi_ptr: Option<StructId>,

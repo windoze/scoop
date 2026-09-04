@@ -9,6 +9,40 @@ pub enum NominalOwner {
     Interface(InterfaceOriginId),
     Struct(StructOriginId),
     Enum(EnumOriginId),
+    Object(ObjectOriginId),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectDecl {
+    pub origin: ObjectOriginId,
+    pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub object_type: ObjectTypeId,
+    pub singleton_value: SingletonValueId,
+    pub backing_class: ClassId,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectType {
+    pub declaration: ObjectId,
+    pub representation: ClassId,
+    pub canonical_type: TypeId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonValue {
+    pub declaration: ObjectId,
+    pub object_type: ObjectTypeId,
+    pub published_root: SingletonPublishedRootId,
+    pub initialization: InitializationUnitId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SingletonPublishedRoot {
+    pub value: SingletonValueId,
+    pub ty: TypeId,
+    pub link_name: String,
 }
 
 #[derive(Debug, Clone)]

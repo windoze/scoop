@@ -124,10 +124,13 @@ impl Lowerer {
             Owner::Struct(id) => self.structs[id].properties.clone(),
             Owner::Enum(id) => self.enums[id].properties.clone(),
             Owner::Interface(id) => self.interfaces[id].properties.clone(),
+            Owner::Object(id) => self.classes[self.objects[id].backing_class]
+                .properties
+                .clone(),
         };
         for property in properties {
             let declaration = self.properties[property].clone();
-            if matches!(owner, Owner::Class(_))
+            if matches!(owner, Owner::Class(_) | Owner::Object(_))
                 && declaration.access.declared == hir::DeclaredVisibility::Private
                 && declaration.modifier != hir::MethodModifier::Final
             {
@@ -240,6 +243,12 @@ impl Lowerer {
         {
             result.push(candidate);
         }
+        if let Owner::Object(object) = owner
+            && let Some(candidate) =
+                self.inherited_class_property(self.objects[object].backing_class, name)
+        {
+            result.push(candidate);
+        }
         let roots = match owner {
             Owner::Class(class) => self.class_interfaces_all(class),
             Owner::Struct(id) => self.structs[id].interfaces.clone(),
@@ -249,6 +258,7 @@ impl Lowerer {
                 .iter()
                 .map(|parent| self.interface_applications[*parent].canonical_type)
                 .collect(),
+            Owner::Object(id) => self.class_interfaces_all(self.objects[id].backing_class),
         };
         let mut interfaces = Vec::new();
         for interface in roots {
@@ -359,6 +369,9 @@ impl Lowerer {
             hir::PropertyOwner::Enum(owner) => format!("enum `{}`", self.enums[owner].name),
             hir::PropertyOwner::Interface(owner) => {
                 format!("interface `{}`", self.interfaces[owner].name)
+            }
+            hir::PropertyOwner::Object(owner) => {
+                format!("object `{}`", self.objects[owner].name)
             }
             hir::PropertyOwner::Extension(_) => "an extension receiver".to_string(),
             hir::PropertyOwner::TopLevel => "top level".to_string(),

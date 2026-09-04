@@ -115,6 +115,7 @@ mod lowering_support;
 mod members;
 mod nominals;
 mod pipeline;
+mod singletons;
 mod structured;
 mod symbols;
 mod types;
@@ -141,6 +142,11 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         global_map: HashMap::new(),
         initialization_units: Arena::new(),
         initialization_failure_roots: Arena::new(),
+        objects: Arena::new(),
+        object_types: Arena::new(),
+        singleton_values: Arena::new(),
+        singleton_published_roots: Arena::new(),
+        singleton_root_map: HashMap::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
@@ -190,6 +196,11 @@ struct Lowerer {
     global_map: HashMap<hir::GlobalId, mir::GlobalId>,
     initialization_units: Arena<mir::InitializationUnit>,
     initialization_failure_roots: Arena<mir::InitializationFailureRoot>,
+    objects: Arena<mir::ObjectDef>,
+    object_types: Arena<mir::ObjectType>,
+    singleton_values: Arena<mir::SingletonValue>,
+    singleton_published_roots: Arena<mir::SingletonPublishedRoot>,
+    singleton_root_map: HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,

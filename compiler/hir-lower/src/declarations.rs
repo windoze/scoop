@@ -48,6 +48,7 @@ impl Lowerer {
                 NominalTarget::Enum(_) => "an enum",
                 NominalTarget::Class(_) => "a class",
                 NominalTarget::Interface(_) => "an interface",
+                NominalTarget::Object(_) => "an object",
             });
         }
         if owner.is_some() {
@@ -61,6 +62,8 @@ impl Lowerer {
             Some("a class")
         } else if self.interfaces_by_name.contains_key(name) {
             Some("an interface")
+        } else if self.objects_by_name.contains_key(name) {
+            Some("an object")
         } else {
             None
         }

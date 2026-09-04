@@ -186,6 +186,26 @@ impl Lowerer {
                     );
                 }
             }
+            Owner::Object(_) => {
+                if decl.modifier == ast::MethodModifier::Abstract {
+                    self.error(
+                        decl.name.span,
+                        format!("abstract function `{short}` is only allowed in abstract classes"),
+                    );
+                }
+                if decl.modifier == ast::MethodModifier::Open && !decl.is_override {
+                    self.error(
+                        decl.name.span,
+                        format!("open function `{short}` is not allowed in an object declaration"),
+                    );
+                }
+                if matches!(decl.body, ast::FunctionBody::None) {
+                    self.error(
+                        decl.name.span,
+                        format!("function `{short}` must have a body"),
+                    );
+                }
+            }
         }
     }
 

@@ -7,6 +7,10 @@ pub struct Module {
     pub globals: Arena<Global>,
     pub initialization_units: Arena<InitializationUnit>,
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
+    pub objects: Arena<ObjectDef>,
+    pub object_types: Arena<ObjectType>,
+    pub singleton_values: Arena<SingletonValue>,
+    pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub callback_bridges: Arena<CallbackBridge>,
     pub foreign_callback_adapters: Arena<ForeignCallbackAdapter>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
@@ -103,11 +107,45 @@ pub struct MessageClassConstructor {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
-    EagerTopLevel { storage: GlobalId },
+    EagerTopLevel {
+        storage: GlobalId,
+    },
+    LazySingleton {
+        value: SingletonValueId,
+        published_root: SingletonPublishedRootId,
+    },
 }
 
 #[derive(Debug)]
 pub struct InitializationFailureRoot {
+    pub global: GlobalId,
+}
+
+#[derive(Debug)]
+pub struct ObjectDef {
+    pub name: String,
+    pub object_type: ObjectTypeId,
+    pub singleton_value: SingletonValueId,
+    pub backing_class: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectType {
+    pub declaration: ObjectId,
+    pub representation: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonValue {
+    pub declaration: ObjectId,
+    pub object_type: ObjectTypeId,
+    pub published_root: SingletonPublishedRootId,
+    pub initialization: InitializationUnitId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonPublishedRoot {
+    pub value: SingletonValueId,
     pub global: GlobalId,
 }
 
@@ -275,6 +313,7 @@ pub enum MonomorphizedMethodOwner {
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
+    Object(ObjectTypeId),
     Structural(Type),
 }
 

@@ -210,6 +210,7 @@ fn method_owner_arguments(module: &Module, owner: MethodOwnerApplication) -> &[T
         MethodOwnerApplication::Struct(id) => &module.struct_applications[id].arguments,
         MethodOwnerApplication::Enum(id) => &module.enum_applications[id].arguments,
         MethodOwnerApplication::Interface(id) => &module.interface_applications[id].arguments,
+        MethodOwnerApplication::Object(_) => &[],
     }
 }
 
@@ -221,5 +222,6 @@ pub(super) fn generic_method_owner_arguments(
         GenericMethodOwner::Class(id) => &module.class_applications[id].arguments,
         GenericMethodOwner::Struct(id) => &module.struct_applications[id].arguments,
         GenericMethodOwner::Enum(id) => &module.enum_applications[id].arguments,
+        GenericMethodOwner::Object(_) => &[],
     }
 }

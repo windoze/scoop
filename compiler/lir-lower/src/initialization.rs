@@ -7,7 +7,21 @@ pub(super) fn lower_initialization_units(
 ) -> Arena<lir::InitializationUnit> {
     let mut units = Arena::new();
     for (source_id, source) in module.initialization_units.iter() {
-        let mir::InitializationUnitKind::EagerTopLevel { storage } = source.kind;
+        let kind = match source.kind {
+            mir::InitializationUnitKind::EagerTopLevel { storage } => {
+                lir::InitializationUnitKind::EagerTopLevel {
+                    storage: local_global(globals, storage),
+                }
+            }
+            mir::InitializationUnitKind::LazySingleton { published_root, .. } => {
+                lir::InitializationUnitKind::LazySingleton {
+                    published_root: local_global(
+                        globals,
+                        module.singleton_published_roots[published_root].global,
+                    ),
+                }
+            }
+        };
         let failure = module.initialization_failure_roots[source.failure_root].global;
         let id = units.alloc(lir::InitializationUnit {
             stable_key: source.stable_key.clone(),
@@ -17,7 +31,7 @@ pub(super) fn lower_initialization_units(
                 }
                 mir::InitializationSchedule::LazyAccess => lir::InitializationSchedule::LazyAccess,
             },
-            storage: local_global(globals, storage),
+            kind,
             failure_root: local_global(globals, failure),
             initializer: managed_function(functions, source.initializer),
             ensure: managed_function(functions, source.ensure),

@@ -29,6 +29,10 @@ pub enum InitializationUnitKind {
         property: PropertyId,
         storage: GlobalId,
     },
+    LazySingleton {
+        value: SingletonValueId,
+        published_root: SingletonPublishedRootId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

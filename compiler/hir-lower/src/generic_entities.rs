@@ -203,6 +203,7 @@ impl Lowerer {
             Owner::Enum(id) => {
                 self.enum_applications[self.enums[id].self_application].canonical_type
             }
+            Owner::Object(id) => self.object_types[self.objects[id].object_type].canonical_type,
         }
     }
 
@@ -221,6 +222,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enum_applications[self.enums[id].self_application]
                 .arguments
                 .clone(),
+            Owner::Object(_) => Vec::new(),
         }
     }
 
@@ -242,6 +244,13 @@ impl Lowerer {
             Owner::Interface(id) => {
                 hir::MethodOwnerApplication::Interface(self.interface_application_id(id, arguments))
             }
+            Owner::Object(id) => {
+                assert!(
+                    arguments.is_empty(),
+                    "object owners cannot have type arguments"
+                );
+                hir::MethodOwnerApplication::Object(self.objects[id].object_type)
+            }
         }
     }
 
@@ -253,6 +262,7 @@ impl Lowerer {
             hir::MethodOwnerApplication::Interface(id) => {
                 &self.interface_applications[id].arguments
             }
+            hir::MethodOwnerApplication::Object(_) => &[],
         }
     }
 
@@ -277,6 +287,7 @@ impl Lowerer {
             hir::MethodOwnerApplication::Interface(_) => {
                 unreachable!("generic methods have class, struct, or enum owners")
             }
+            hir::MethodOwnerApplication::Object(id) => hir::GenericMethodOwner::Object(id),
         }
     }
 
@@ -288,6 +299,7 @@ impl Lowerer {
             Owner::Struct(id) => self.structs[id].type_params.clone(),
             Owner::Enum(id) => self.enums[id].type_params.clone(),
             Owner::Interface(id) => self.interfaces[id].type_params.clone(),
+            Owner::Object(_) => Vec::new(),
         }
     }
 }

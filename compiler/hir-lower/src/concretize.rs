@@ -95,6 +95,10 @@ struct Concretizer<'a> {
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
     initialization_units: Arena<concrete::InitializationUnit>,
     initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
+    objects: Arena<concrete::ObjectDecl>,
+    object_types: Arena<concrete::ObjectType>,
+    singleton_values: Arena<concrete::SingletonValue>,
+    singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
     function_slots: Vec<Option<concrete::Function>>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
     /// Concrete ordinary bodies supplied by typed derived-equality
@@ -145,6 +149,9 @@ impl<'a> Concretizer<'a> {
             export::NominalOwner::Enum(id) => concrete::NominalOwner::Enum(
                 concrete::EnumOriginId::from_raw(id.into_raw().into_u32()),
             ),
+            export::NominalOwner::Object(id) => concrete::NominalOwner::Object(
+                concrete::ObjectOriginId::from_raw(id.into_raw().into_u32()),
+            ),
         })
     }
 
@@ -167,6 +174,10 @@ impl<'a> Concretizer<'a> {
             }
             export::NominalOwner::Enum(id) => {
                 let declaration = &self.source.enums[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Object(id) => {
+                let declaration = &self.source.objects[id];
                 self.source_nominal_name(&declaration.name, declaration.owner)
             }
         };
@@ -207,6 +218,10 @@ impl<'a> Concretizer<'a> {
             global_map: HashMap::new(),
             initialization_units: Arena::new(),
             initialization_failure_roots: Arena::new(),
+            objects: Arena::new(),
+            object_types: Arena::new(),
+            singleton_values: Arena::new(),
+            singleton_published_roots: Arena::new(),
             function_slots: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
@@ -260,6 +275,56 @@ impl<'a> Concretizer<'a> {
                 self.lower_class_application(declaration.self_application, &[]);
             }
         }
+        for (source_id, declaration) in self.source.objects.iter() {
+            let backing_class = self.lower_class_application(
+                self.source.classes[declaration.backing_class].self_application,
+                &[],
+            );
+            let source_type = &self.source.object_types[declaration.object_type];
+            let canonical_type = self.lower_type(source_type.canonical_type, &[]);
+            let object_type = self.object_types.alloc(concrete::ObjectType {
+                declaration: concrete::ObjectId::from_raw(source_id.into_raw()),
+                representation: backing_class,
+                canonical_type,
+            });
+            assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
+            let object = self.objects.alloc(concrete::ObjectDecl {
+                origin: concrete::ObjectOriginId::from_raw(source_id.into_raw().into_u32()),
+                name: declaration.name.clone(),
+                owner: Self::lower_nominal_owner(declaration.owner),
+                object_type,
+                singleton_value: concrete::SingletonValueId::from_raw(
+                    declaration.singleton_value.into_raw(),
+                ),
+                backing_class,
+                span: declaration.span,
+            });
+            assert_eq!(source_id.into_raw(), object.into_raw());
+        }
+        for (source_id, source) in self.source.singleton_published_roots.iter() {
+            let ty = self.lower_type(source.ty, &[]);
+            let root = self
+                .singleton_published_roots
+                .alloc(concrete::SingletonPublishedRoot {
+                    value: concrete::SingletonValueId::from_raw(source.value.into_raw()),
+                    ty,
+                    link_name: source.link_name.clone(),
+                });
+            assert_eq!(source_id.into_raw(), root.into_raw());
+        }
+        for (source_id, source) in self.source.singleton_values.iter() {
+            let value = self.singleton_values.alloc(concrete::SingletonValue {
+                declaration: concrete::ObjectId::from_raw(source.declaration.into_raw()),
+                object_type: concrete::ObjectTypeId::from_raw(source.object_type.into_raw()),
+                published_root: concrete::SingletonPublishedRootId::from_raw(
+                    source.published_root.into_raw(),
+                ),
+                initialization: concrete::InitializationUnitId::from_raw(
+                    source.initialization.into_raw(),
+                ),
+            });
+            assert_eq!(source_id.into_raw(), value.into_raw());
+        }
         for (id, function) in self.source.functions.iter() {
             if function.method.is_none()
                 && function.type_param_count() == 0
@@ -306,6 +371,15 @@ impl<'a> Concretizer<'a> {
                         storage: self.global_map[&storage],
                     }
                 }
+                export::InitializationUnitKind::LazySingleton {
+                    value,
+                    published_root,
+                } => concrete::InitializationUnitKind::LazySingleton {
+                    value: concrete::SingletonValueId::from_raw(value.into_raw()),
+                    published_root: concrete::SingletonPublishedRootId::from_raw(
+                        published_root.into_raw(),
+                    ),
+                },
             };
             let function = |source| {
                 self.function_by_key[&FunctionKey::Free {
@@ -397,6 +471,10 @@ impl<'a> Concretizer<'a> {
             globals: self.globals,
             initialization_units: self.initialization_units,
             initialization_failure_roots: self.initialization_failure_roots,
+            objects: self.objects,
+            object_types: self.object_types,
+            singleton_values: self.singleton_values,
+            singleton_published_roots: self.singleton_published_roots,
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,

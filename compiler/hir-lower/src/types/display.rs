@@ -36,6 +36,7 @@ impl Lowerer {
                 enums: &self.enum_applications,
                 classes: &self.class_applications,
                 interfaces: &self.interface_applications,
+                objects: &self.objects,
             },
             type_params,
             ty,
@@ -49,6 +50,7 @@ struct NominalApplications<'a> {
     enums: &'a Arena<hir::EnumApplication>,
     classes: &'a Arena<hir::ClassApplication>,
     interfaces: &'a Arena<hir::InterfaceApplication>,
+    objects: &'a Arena<hir::ObjectDecl>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -78,6 +80,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications.objects,
                 &structs[id].name,
                 structs[id].owner,
             );
@@ -112,6 +115,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications.objects,
                 &classes[id].name,
                 classes[id].owner,
             );
@@ -147,6 +151,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications.objects,
                 &interfaces[id].name,
                 interfaces[id].owner,
             );
@@ -231,6 +236,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications.objects,
                 &enums[id].name,
                 enums[id].owner,
             );
@@ -322,6 +328,7 @@ fn nominal_name(
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
     interfaces: &Arena<InterfaceDecl>,
+    objects: &Arena<hir::ObjectDecl>,
     name: &str,
     owner: Option<hir::NominalOwner>,
 ) -> String {
@@ -334,6 +341,7 @@ fn nominal_name(
             enums,
             classes,
             interfaces,
+            objects,
             &classes[id].name,
             classes[id].owner,
         ),
@@ -342,6 +350,7 @@ fn nominal_name(
             enums,
             classes,
             interfaces,
+            objects,
             &interfaces[id].name,
             interfaces[id].owner,
         ),
@@ -350,6 +359,7 @@ fn nominal_name(
             enums,
             classes,
             interfaces,
+            objects,
             &structs[id].name,
             structs[id].owner,
         ),
@@ -358,8 +368,18 @@ fn nominal_name(
             enums,
             classes,
             interfaces,
+            objects,
             &enums[id].name,
             enums[id].owner,
+        ),
+        hir::NominalOwner::Object(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &objects[id].name,
+            objects[id].owner,
         ),
     };
     format!("{prefix}.{name}")

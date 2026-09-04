@@ -22,6 +22,12 @@ impl Lowerer {
                     .get(name)
                     .map(|(id, _)| NominalTarget::Interface(*id))
             })
+            .or_else(|| {
+                self.objects_by_name
+                    .get(name)
+                    .copied()
+                    .map(NominalTarget::Object)
+            })
     }
 
     pub(crate) fn nested_nominal_target(&self, owner: Owner, name: &str) -> Option<NominalTarget> {
@@ -36,6 +42,7 @@ impl Lowerer {
             Owner::Interface(id) => self.interfaces[id].owner,
             Owner::Struct(id) => self.structs[id].owner,
             Owner::Enum(id) => self.enums[id].owner,
+            Owner::Object(id) => self.objects[id].owner,
         }?;
         Some(Owner::from_nominal_owner(parent))
     }
@@ -56,11 +63,12 @@ impl Lowerer {
     fn outer_type_parameter_owner(&self, name: &str) -> Option<Owner> {
         let mut owner = self.nominal_parent(self.current_owner?)?;
         loop {
-            let params = match owner {
+            let params: &[hir::TypeParamDecl] = match owner {
                 Owner::Class(id) => &self.classes[id].type_params,
                 Owner::Interface(id) => &self.interfaces[id].type_params,
                 Owner::Struct(id) => &self.structs[id].type_params,
                 Owner::Enum(id) => &self.enums[id].type_params,
+                Owner::Object(_) => &[],
             };
             if params.iter().any(|parameter| parameter.name == name) {
                 return Some(owner);
@@ -81,6 +89,7 @@ impl Lowerer {
             NominalTarget::Enum(id) => ("enum", self.enums[id].type_params.clone()),
             NominalTarget::Class(id) => ("class", self.classes[id].type_params.clone()),
             NominalTarget::Interface(id) => ("interface", self.interfaces[id].type_params.clone()),
+            NominalTarget::Object(_) => ("object", Vec::new()),
         };
         let arity = params.len();
         if arity == 0 && !arguments.is_empty() {
@@ -118,6 +127,9 @@ impl Lowerer {
             NominalTarget::Enum(id) => self.enum_application(id, resolved),
             NominalTarget::Class(id) => self.class_application(id, resolved),
             NominalTarget::Interface(id) => self.intern_interface_application(id, resolved),
+            NominalTarget::Object(id) => {
+                self.object_types[self.objects[id].object_type].canonical_type
+            }
         })
     }
 

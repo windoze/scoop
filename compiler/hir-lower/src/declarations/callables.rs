@@ -29,6 +29,7 @@ impl Lowerer {
             }
             Owner::Interface(_) => hir::MethodModifier::Open,
             Owner::Struct(_) | Owner::Enum(_) => hir::MethodModifier::Final,
+            Owner::Object(_) => hir::MethodModifier::Final,
             Owner::Class(class_id)
                 if self.classes[class_id].modifier == hir::ClassModifier::Final
                     && decl.is_override
@@ -122,6 +123,10 @@ impl Lowerer {
             }
             Owner::Struct(owner) => self.structs[owner].methods.push(id),
             Owner::Enum(owner) => self.enums[owner].methods.push(id),
+            Owner::Object(owner) => {
+                let backing = self.objects[owner].backing_class;
+                self.classes[backing].methods.push(id);
+            }
         }
         pending.push((id, decl, file_index, owner));
     }

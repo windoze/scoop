@@ -52,6 +52,13 @@ impl Lowerer {
                         storage: self.global_map[&storage],
                     }
                 }
+                hir::InitializationUnitKind::LazySingleton {
+                    value,
+                    published_root,
+                } => mir::InitializationUnitKind::LazySingleton {
+                    value: mir::SingletonValueId::from_raw(value.into_raw()),
+                    published_root: self.singleton_root_map[&published_root],
+                },
             };
             let id = self.initialization_units.alloc(mir::InitializationUnit {
                 stable_key: source.stable_key.clone(),

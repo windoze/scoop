@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use scoop_ast as ast;
 use scoop_ast::Span;
 use scoop_hir as hir;
-use scoop_hir::{ClassId, EnumId, FunctionId, InterfaceId, StructId, TypeId};
+use scoop_hir::{ClassId, EnumId, FunctionId, InterfaceId, ObjectId, StructId, TypeId};
 
 use crate::Lowerer;
 
@@ -77,6 +77,7 @@ pub(crate) enum Owner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+    Object(ObjectId),
 }
 
 impl Owner {
@@ -86,6 +87,7 @@ impl Owner {
             Self::Interface(id) => hir::NominalOwner::Interface(id),
             Self::Struct(id) => hir::NominalOwner::Struct(id),
             Self::Enum(id) => hir::NominalOwner::Enum(id),
+            Self::Object(id) => hir::NominalOwner::Object(id),
         }
     }
 
@@ -95,6 +97,7 @@ impl Owner {
             hir::NominalOwner::Interface(id) => Self::Interface(id),
             hir::NominalOwner::Struct(id) => Self::Struct(id),
             hir::NominalOwner::Enum(id) => Self::Enum(id),
+            hir::NominalOwner::Object(id) => Self::Object(id),
         }
     }
 }
@@ -108,6 +111,7 @@ pub(crate) enum NominalTarget {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+    Object(ObjectId),
 }
 
 impl NominalTarget {
@@ -117,6 +121,7 @@ impl NominalTarget {
             Self::Interface(id) => Owner::Interface(id),
             Self::Struct(id) => Owner::Struct(id),
             Self::Enum(id) => Owner::Enum(id),
+            Self::Object(id) => Owner::Object(id),
         }
     }
 }
@@ -247,6 +252,7 @@ impl Owner {
             Owner::Interface(_) => format!("interface `{}`", self.describe_name(lowerer)),
             Owner::Struct(_) => format!("struct `{}`", self.describe_name(lowerer)),
             Owner::Enum(_) => format!("enum `{}`", self.describe_name(lowerer)),
+            Owner::Object(_) => format!("object `{}`", self.describe_name(lowerer)),
         }
     }
 
@@ -258,6 +264,7 @@ impl Owner {
             Owner::Interface(id) => (&lowerer.interfaces[id].name, lowerer.interfaces[id].owner),
             Owner::Struct(id) => (&lowerer.structs[id].name, lowerer.structs[id].owner),
             Owner::Enum(id) => (&lowerer.enums[id].name, lowerer.enums[id].owner),
+            Owner::Object(id) => (&lowerer.objects[id].name, lowerer.objects[id].owner),
         };
         match owner {
             Some(owner) => format!(

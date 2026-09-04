@@ -44,7 +44,7 @@ pub fn dump(module: &Module) -> String {
             "  init{} {}{schedule} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
             id.into_raw().into_u32(),
             unit.stable_key,
-            module.globals[unit.storage].symbol,
+            module.globals[unit.kind.storage()].symbol,
             module.globals[unit.failure_root].symbol,
             initializer,
             ensure,

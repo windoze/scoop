@@ -25,6 +25,7 @@ impl Lowerer {
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.lower_globals(module);
+        self.lower_singletons(module);
         self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
@@ -214,6 +215,10 @@ impl Lowerer {
             globals: self.globals,
             initialization_units: self.initialization_units,
             initialization_failure_roots: self.initialization_failure_roots,
+            objects: self.objects,
+            object_types: self.object_types,
+            singleton_values: self.singleton_values,
+            singleton_published_roots: self.singleton_published_roots,
             callback_bridges: self.callback_bridges,
             foreign_callback_adapters: self.foreign_callback_adapters,
             foreign_callback_bridges: self.foreign_callback_bridges,

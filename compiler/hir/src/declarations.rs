@@ -6,6 +6,7 @@ mod globals;
 mod initialization;
 mod interfaces;
 mod nominals;
+mod objects;
 mod properties;
 
 pub use functions::*;
@@ -14,4 +15,5 @@ pub use globals::*;
 pub use initialization::*;
 pub use interfaces::*;
 pub use nominals::*;
+pub use objects::*;
 pub use properties::*;

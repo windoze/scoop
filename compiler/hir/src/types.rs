@@ -241,6 +241,9 @@ pub(crate) fn nominal_declaration_name(
         NominalOwner::Enum(id) => {
             nominal_declaration_name(module, &module.enums[id].name, module.enums[id].owner)
         }
+        NominalOwner::Object(id) => {
+            nominal_declaration_name(module, &module.objects[id].name, module.objects[id].owner)
+        }
     };
     format!("{prefix}.{name}")
 }

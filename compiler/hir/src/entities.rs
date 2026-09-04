@@ -48,6 +48,10 @@ pub struct Module {
     pub globals: Arena<Global>,
     pub initialization_units: Arena<InitializationUnit>,
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
+    pub objects: Arena<ObjectDecl>,
+    pub object_types: Arena<ObjectType>,
+    pub singleton_values: Arena<SingletonValue>,
+    pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     /// Logical properties and their independently typed accessor identities.
     /// Physical fields/globals are reachable only through a representation.
     pub properties: Arena<Property>,
@@ -420,6 +424,7 @@ pub enum MethodOwnerApplication {
     Struct(StructApplicationId),
     Enum(EnumApplicationId),
     Interface(InterfaceApplicationId),
+    Object(ObjectTypeId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -467,6 +472,7 @@ pub enum GenericMethodOwner {
     Class(ClassApplicationId),
     Struct(StructApplicationId),
     Enum(EnumApplicationId),
+    Object(ObjectTypeId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

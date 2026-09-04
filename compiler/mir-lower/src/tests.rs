@@ -13,6 +13,7 @@ mod harness_nominals;
 mod operators;
 mod overloads;
 mod reference_types;
+mod singletons;
 mod value_types;
 
 fn lower(module: &hir::Module) -> mir::Module {

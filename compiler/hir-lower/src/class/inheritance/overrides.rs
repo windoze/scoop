@@ -50,6 +50,36 @@ impl Lowerer {
                 }
                 candidates
             }
+            Owner::Object(object) => {
+                let class_id = self.objects[object].backing_class;
+                let mut candidates: Vec<_> = self
+                    .base_chain_methods(class_id)
+                    .into_iter()
+                    .filter(|candidate| self.function_is_accessible(candidate.function, None))
+                    .map(|candidate| {
+                        let arguments = match candidate.owner {
+                            crate::CallableCandidateOwner::Method(owner) => {
+                                self.method_owner_arguments(owner).to_vec()
+                            }
+                            crate::CallableCandidateOwner::Function { owner_arguments } => {
+                                owner_arguments
+                            }
+                        };
+                        (candidate.function, arguments)
+                    })
+                    .collect();
+                for interface_ty in self.class_interfaces_all(class_id) {
+                    let (iface, args) = self.interface_application(interface_ty);
+                    candidates.extend(
+                        self.interface_methods[&iface]
+                            .iter()
+                            .copied()
+                            .filter(|method| self.function_is_accessible(*method, None))
+                            .map(|method| (method, args.clone())),
+                    );
+                }
+                candidates
+            }
             Owner::Struct(struct_id) => {
                 self.interface_method_candidates(&self.structs[struct_id].interfaces.clone())
             }
