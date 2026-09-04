@@ -188,10 +188,12 @@ impl Lowerer {
         if !self.types_equal(inner, rhs.ty) {
             let expected = self.type_name(inner);
             let found = self.type_name(rhs.ty);
-            self.error(
-                rhs.span,
+            let message = self.with_nominal_invariance_detail(
                 format!("right-hand side of `?:` must be of type {expected}, found {found}"),
+                rhs.ty,
+                inner,
             );
+            self.error(rhs.span, message);
             return None;
         }
         let origin = self.expression_origin(span);

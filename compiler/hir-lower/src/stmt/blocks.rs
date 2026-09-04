@@ -118,10 +118,12 @@ impl Lowerer {
             {
                 let expected = self.type_name(result_ty);
                 let found = self.type_name(value.ty);
-                self.error(
-                    value.span,
+                let message = self.with_nominal_invariance_detail(
                     format!("{kind} branch result must be of type {expected}, found {found}"),
+                    value.ty,
+                    result_ty,
                 );
+                self.error(value.span, message);
                 return None;
             }
         }

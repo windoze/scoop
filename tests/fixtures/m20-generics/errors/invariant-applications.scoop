@@ -1,0 +1,40 @@
+interface Producer<T> {}
+
+open class Animal() {}
+class Cat : Animal() {}
+
+class RefBox<T>(val value: T)
+struct Pair<A, B>(val first: A, val second: B)
+
+open class Base<T>() {}
+class Derived : Base<Cat>() {}
+
+class CatProducer : Producer<Cat> {}
+
+fun catOption(): Option<Cat> = Some(Cat())
+
+fun invalidReturn(): Option<Animal> = catOption()
+
+fun main() {
+    val option: Option<Animal> = catOption()
+
+    val catBox = RefBox(Cat())
+    val animalBox: RefBox<Animal> = catBox
+
+    val pair = Pair(Cat(), "value")
+    val widerPair: Pair<Animal, Int> = pair
+
+    val producer: Producer<Cat> = CatProducer()
+    val widerProducer: Producer<Animal> = producer
+
+    val base: Base<Animal> = Derived()
+
+    var assigned: Option<Animal> = None
+    assigned = catOption()
+
+    val branch: Option<Animal> = if (true) {
+        catOption()
+    } else {
+        None
+    }
+}

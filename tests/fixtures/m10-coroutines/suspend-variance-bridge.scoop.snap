@@ -3,7 +3,7 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m10-coroutines/suspend-variance-bridge.scoop:38:42: error: initializer of `immediate` must be of type SuspendTask<Animal>, found ImmediateDogTask
+m10-coroutines/suspend-variance-bridge.scoop:38:42: error: initializer of `immediate` must be of type SuspendTask<Animal>, found ImmediateDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly
 m10-coroutines/suspend-variance-bridge.scoop:39:20: error: unknown variable `immediate`
-m10-coroutines/suspend-variance-bridge.scoop:42:42: error: initializer of `suspended` must be of type SuspendTask<Animal>, found SuspendedDogTask
+m10-coroutines/suspend-variance-bridge.scoop:42:42: error: initializer of `suspended` must be of type SuspendTask<Animal>, found SuspendedDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly
 m10-coroutines/suspend-variance-bridge.scoop:43:20: error: unknown variable `suspended`

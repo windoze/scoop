@@ -66,6 +66,7 @@ mod arrays;
 mod constraints;
 mod display;
 mod interning;
+mod invariance;
 mod kinds;
 mod relations;
 mod resolution;
