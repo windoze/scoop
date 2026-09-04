@@ -58,6 +58,10 @@ impl Lowerer {
                         &mut pending_methods,
                         file_index,
                     ),
+                    ast::Decl::Object(decl) => self.error(
+                        decl.span,
+                        "object declarations require M21 singleton semantic lowering".to_string(),
+                    ),
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, &mut pending_functions, file_index)
                     }

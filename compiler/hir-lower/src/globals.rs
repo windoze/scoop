@@ -72,7 +72,7 @@ impl Lowerer {
                             ),
                         );
                     }
-                    if let Some(expr) = &decl.init {
+                    if let Some(expr) = decl.initializer() {
                         if let Some(initializer) = self.global_constant(expr, global.ty) {
                             self.globals[id].storage = hir::GlobalStorage::Local {
                                 thread_local,

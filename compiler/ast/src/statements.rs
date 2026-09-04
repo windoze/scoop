@@ -31,6 +31,10 @@ pub enum StatementKind {
     /// `throw expr` (spec 11.7).
     Throw(Expr),
     ValDecl(ValDecl),
+    /// A reflection-free local delegated binding: `val/var name: T? by expr`.
+    /// Unlike an ordinary local declaration it keeps the delegate expression
+    /// syntactically distinct from a value initializer.
+    LocalDelegatedProperty(LocalDelegatedPropertyDecl),
     Assign(Assign),
     If(If),
     While(While),
@@ -138,6 +142,16 @@ pub struct ValDecl {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocalDelegatedPropertyDecl {
+    pub mutable: bool,
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+    pub expression: Expr,
+    pub by_span: Span,
+    pub span: Span,
+}
+
 /// Assignment. `Local` targets a `var`; `Index` targets a
 /// `MutableArray` element (spec 10.5).
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +174,12 @@ pub enum PlaceExpr {
     /// `receiver.field = value` (only `var` properties of classes).
     Field {
         receiver: Box<Expr>,
+        name: Ident,
+        span: Span,
+    },
+    /// `super<I>.property = value` — direct interface default setter access.
+    QualifiedInterfaceSuperProperty {
+        qualifier: TypeRef,
         name: Ident,
         span: Span,
     },

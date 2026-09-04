@@ -95,10 +95,7 @@ impl Parser {
             ));
         }
         if matches!(self.peek().kind, TokenKind::Less) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "`super` cannot have type arguments",
-            ));
+            return self.parse_qualified_interface_super(super_span);
         }
         if !matches!(self.peek().kind, TokenKind::Dot) {
             return Err(Diagnostic::at(
@@ -122,6 +119,42 @@ impl Parser {
             type_args,
             args,
             span: Span::new(super_span.start, end),
+        })
+    }
+
+    fn parse_qualified_interface_super(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        self.bump(); // `<`
+        let qualifier = self.parse_type_ref()?;
+        self.expect("`>` after qualified `super` interface", |kind| {
+            matches!(kind, TokenKind::Greater)
+        })?;
+        self.expect("`.` after qualified `super` interface", |kind| {
+            matches!(kind, TokenKind::Dot)
+        })?;
+        let name = self.expect_ident("interface member name after qualified `super`")?;
+        let type_args = self.parse_explicit_call_type_args()?;
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            let (args, end) = self.parse_args()?;
+            return Ok(Expr::QualifiedInterfaceSuperMethodCall {
+                super_span,
+                qualifier,
+                name,
+                type_args,
+                args,
+                span: Span::new(super_span.start, end),
+            });
+        }
+        if !type_args.is_empty() {
+            return Err(Diagnostic::at(
+                name.span,
+                "qualified `super` member type arguments require a method call",
+            ));
+        }
+        Ok(Expr::QualifiedInterfaceSuperAccess {
+            super_span,
+            qualifier,
+            span: Span::new(super_span.start, name.span.end),
+            name,
         })
     }
 

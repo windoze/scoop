@@ -25,6 +25,7 @@ pub(crate) fn class_decl(
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
         annotations: vec![],
+        visibility: ast::VisibilitySyntax::Omitted,
         modifier,
         name: ident(name),
         type_params: Vec::new(),
@@ -36,6 +37,8 @@ pub(crate) fn class_decl(
                 } else {
                     ast::PrimaryParameterProperty::Val
                 },
+                member_visibility: Some(ast::VisibilitySyntax::Omitted),
+                is_override: false,
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
@@ -68,11 +71,15 @@ pub(crate) fn class_decl(
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
         annotations: vec![],
+        visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         type_params: Vec::new(),
         supertypes: Vec::new(),
         where_clause: None,
         methods,
+        properties: Vec::new(),
+        nested: Vec::new(),
+        companion: None,
         span: sp(),
     })
 }
@@ -84,6 +91,7 @@ pub(crate) fn generic_interface_decl(
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
         annotations: vec![],
+        visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         type_params: type_params
             .into_iter()
@@ -96,6 +104,9 @@ pub(crate) fn generic_interface_decl(
         supertypes: Vec::new(),
         where_clause: None,
         methods,
+        properties: Vec::new(),
+        nested: Vec::new(),
+        companion: None,
         span: sp(),
     })
 }
@@ -111,6 +122,7 @@ pub(crate) fn method_full(
 ) -> FunctionDecl {
     FunctionDecl {
         annotations: Vec::new(),
+        visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
         is_override,
         operator: None,
@@ -247,6 +259,7 @@ pub(crate) fn generic_struct_decl_full(
 ) -> Decl {
     Decl::Struct(AstStructDecl {
         annotations: vec![],
+        visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         type_params: type_params.into_iter().map(type_param).collect(),
         fields: fields
@@ -296,12 +309,16 @@ pub(crate) fn enum_decl_full(
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
         annotations: vec![],
+        visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: interfaces.into_iter().map(ty_named).collect(),
         where_clause: None,
         methods,
+        properties: Vec::new(),
+        nested: Vec::new(),
+        companion: None,
         span: sp(),
     })
 }

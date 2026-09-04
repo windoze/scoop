@@ -67,6 +67,16 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             ));
             dump_expr(&decl.init, indent + 1, out);
         }
+        StatementKind::LocalDelegatedProperty(decl) => {
+            let keyword = if decl.mutable { "var" } else { "val" };
+            let ty = decl
+                .ty
+                .as_ref()
+                .map(|ty| format!(": {}", dump_type_ref(ty)))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}{keyword} {}{ty} by\n", decl.name.text));
+            dump_expr(&decl.expression, indent + 1, out);
+        }
         StatementKind::When(when) => {
             out.push_str(&format!("{pad}when\n"));
             dump_expr(&when.subject, indent + 1, out);
@@ -99,6 +109,16 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 (AssignmentOp::Assign, PlaceExpr::Field { name, .. }) => {
                     out.push_str(&format!("{pad}assign .{}\n", name.text));
                 }
+                (
+                    AssignmentOp::Assign,
+                    PlaceExpr::QualifiedInterfaceSuperProperty {
+                        qualifier, name, ..
+                    },
+                ) => out.push_str(&format!(
+                    "{pad}assign super<{}>.{}\n",
+                    dump_type_ref(qualifier),
+                    name.text
+                )),
                 (AssignmentOp::Compound(op), _) => {
                     out.push_str(&format!("{pad}compound-assign {op:?}\n"));
                 }
@@ -114,6 +134,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                         dump_expr(index, indent + 1, out);
                     }
                 }
+                PlaceExpr::QualifiedInterfaceSuperProperty { .. } => {}
             }
             dump_expr(&assign.value, indent + 1, out);
         }

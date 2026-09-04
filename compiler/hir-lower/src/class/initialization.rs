@@ -156,6 +156,9 @@ impl Lowerer {
         for member in &declaration.members {
             match member {
                 ast::ClassMember::StoredProperty(property) => {
+                    let Some(property_initializer) = property.initializer() else {
+                        continue;
+                    };
                     let Some(field) = self.classes[owner]
                         .fields
                         .iter()
@@ -179,7 +182,7 @@ impl Lowerer {
                                 this.constructor_params_in_scope.clear();
                             }
                             let value =
-                                this.lower_expr(&property.initializer, sink, Some(expected))?;
+                                this.lower_expr(property_initializer, sink, Some(expected))?;
                             if !this.is_subtype(value.ty, expected) {
                                 let message = this.with_nominal_invariance_detail(
                                     format!(
@@ -191,7 +194,7 @@ impl Lowerer {
                                     value.ty,
                                     expected,
                                 );
-                                this.error(property.initializer.span(), message);
+                                this.error(property_initializer.span(), message);
                                 return None;
                             }
                             Some(this.adapt_to(value, expected))
@@ -242,7 +245,10 @@ impl Lowerer {
                         });
                     }
                 }
-                ast::ClassMember::SecondaryConstructor(_) | ast::ClassMember::Function(_) => {}
+                ast::ClassMember::SecondaryConstructor(_)
+                | ast::ClassMember::Function(_)
+                | ast::ClassMember::Nested(_)
+                | ast::ClassMember::Companion(_) => {}
             }
         }
         steps

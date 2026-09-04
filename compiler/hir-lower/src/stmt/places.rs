@@ -219,6 +219,13 @@ impl Lowerer {
                     },
                 })
             }
+            ast::PlaceExpr::QualifiedInterfaceSuperProperty { span, .. } => {
+                self.error(
+                    *span,
+                    "qualified interface `super` requires interface default resolution".into(),
+                );
+                None
+            }
         }
     }
 

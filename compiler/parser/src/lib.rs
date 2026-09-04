@@ -1,7 +1,8 @@
 //! Parser stage: source text -> AST.
 //!
-//! Hand-written lexer + recursive-descent parser through the M11 subset; see
-//! `docs/milestone11/DESIGN.md` (function types and values) and
+//! Hand-written lexer + recursive-descent parser for the implemented language
+//! surface, including the M21 declaration syntax; see
+//! `docs/milestone21/DESIGN.md` and
 //! `docs/specs/SCOOP-IMPL-SPEC.md` section 2.1. Depends only on
 //! `scoop-ast` (the output data channel).
 
@@ -31,6 +32,8 @@ mod tests_m19;
 mod tests_m2;
 #[cfg(test)]
 mod tests_m20;
+#[cfg(test)]
+mod tests_m21;
 #[cfg(test)]
 mod tests_m3;
 #[cfg(test)]

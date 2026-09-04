@@ -31,6 +31,7 @@ pub(crate) fn fun_sig(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
         is_override: false,
         operator: None,
@@ -81,6 +82,7 @@ pub(crate) fn fun_expr(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
         is_override: false,
         operator: None,
@@ -149,6 +151,7 @@ pub(crate) fn intrinsic_generic_fun(
             }],
             span: sp(),
         }],
+        visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
         is_override: false,
         operator: None,

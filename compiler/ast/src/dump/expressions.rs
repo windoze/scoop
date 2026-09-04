@@ -187,6 +187,30 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_call_argument(arg, indent + 1, out);
             }
         }
+        Expr::QualifiedInterfaceSuperAccess {
+            qualifier, name, ..
+        } => out.push_str(&format!(
+            "{pad}QualifiedInterfaceSuperAccess {}.{}\n",
+            dump_type_ref(qualifier),
+            name.text
+        )),
+        Expr::QualifiedInterfaceSuperMethodCall {
+            qualifier,
+            name,
+            type_args,
+            args,
+            ..
+        } => {
+            let type_args = dump_call_type_args(type_args);
+            out.push_str(&format!(
+                "{pad}QualifiedInterfaceSuperMethodCall {}.{}{type_args}\n",
+                dump_type_ref(qualifier),
+                name.text
+            ));
+            for arg in args {
+                dump_call_argument(arg, indent + 1, out);
+            }
+        }
         Expr::Is {
             operand,
             ty,
@@ -280,6 +304,13 @@ pub(super) fn dump_place(place: &PlaceExpr, indent: usize, out: &mut String) {
                 dump_expr(index, indent + 1, out);
             }
         }
+        PlaceExpr::QualifiedInterfaceSuperProperty {
+            qualifier, name, ..
+        } => out.push_str(&format!(
+            "{pad}Place super<{}>.{}\n",
+            dump_type_ref(qualifier),
+            name.text
+        )),
     }
 }
 

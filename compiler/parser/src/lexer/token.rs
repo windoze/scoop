@@ -2,7 +2,7 @@
 
 use scoop_ast::Span;
 
-/// Token kinds through the M11 subset. Reserved words are dedicated variants;
+/// Token kinds for the implemented language surface. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,

@@ -137,6 +137,13 @@ impl Lowerer {
                 self.lower_val_decl(decl, out);
                 return;
             }
+            ast::StatementKind::LocalDelegatedProperty(decl) => {
+                self.error(
+                    decl.span,
+                    "local delegated properties require delegate protocol resolution".into(),
+                );
+                return;
+            }
             ast::StatementKind::When(when) => {
                 let Some(kind) = self.lower_when(when, out) else {
                     return;

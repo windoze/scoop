@@ -6,6 +6,7 @@ impl Parser {
     pub(crate) fn parse_non_member_function(
         &mut self,
         annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
         let mut modifiers = Modifiers::default();
@@ -73,7 +74,7 @@ impl Parser {
                 "function modifiers must be followed by `fun`",
             ));
         }
-        self.parse_function(annotations, modifiers, context)
+        self.parse_function(annotations, visibility, modifiers, context)
     }
 
     /// `(open|final|abstract|override)* fun <T, ...>? (<receiver>.)?<name>(<param>, ...)?: <ret>? <body>?`
@@ -88,6 +89,7 @@ impl Parser {
     pub(crate) fn parse_function(
         &mut self,
         annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
         modifiers: Modifiers,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
@@ -179,12 +181,6 @@ impl Parser {
                     "`abstract` functions must not have a body",
                 ));
             }
-            TokenKind::LBrace | TokenKind::Equal if context == FunctionContext::Interface => {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "interface method bodies are not supported yet (milestone M6)",
-                ));
-            }
             TokenKind::LBrace => {
                 let block = self.parse_block()?;
                 let end = block.span.end;
@@ -206,11 +202,21 @@ impl Parser {
         let start = annotations
             .first()
             .map(|annotation| annotation.span.start)
-            .or(modifiers.start)
+            .into_iter()
+            .chain(modifiers.start)
+            .chain(match visibility {
+                VisibilitySyntax::Explicit { span, .. } => Some(span.start),
+                VisibilitySyntax::Omitted => None,
+            })
+            .min()
             .unwrap_or(fun.span.start);
         let modifier = modifiers.method_modifier.unwrap_or_else(|| {
             if context == FunctionContext::Interface {
-                MethodModifier::Abstract
+                if matches!(&body, FunctionBody::None) {
+                    MethodModifier::Abstract
+                } else {
+                    MethodModifier::Open
+                }
             } else if modifiers.is_override {
                 // Kotlin-compatible rule (spec 9.1): overrides stay
                 // open unless explicitly closed with `final`.
@@ -221,6 +227,7 @@ impl Parser {
         });
         Ok(FunctionDecl {
             annotations,
+            visibility,
             is_suspend: modifiers.is_suspend,
             is_override: modifiers.is_override,
             operator: modifiers.operator,

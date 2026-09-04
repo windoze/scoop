@@ -15,13 +15,13 @@ fn parses_typed_top_level_storage_declarations() {
         panic!("expected global");
     };
     assert!(counter.mutable);
-    assert!(counter.init.is_some());
+    assert!(counter.initializer().is_some());
     assert_eq!(counter.annotations[0].name.text, "Global");
     let Decl::Global(limit) = &file.declarations[1] else {
         panic!("expected extern global");
     };
     assert!(!limit.mutable);
-    assert!(limit.init.is_none());
+    assert!(limit.initializer().is_none());
     assert_eq!(limit.annotations[0].name.text, "Extern");
 }
 

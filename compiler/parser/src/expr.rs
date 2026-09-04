@@ -270,6 +270,7 @@ impl Parser {
                             Expr::Call(_)
                                 | Expr::MethodCall { .. }
                                 | Expr::SuperMethodCall { .. }
+                                | Expr::QualifiedInterfaceSuperMethodCall { .. }
                                 | Expr::Invoke { .. }
                         ) =>
                 {
@@ -282,6 +283,7 @@ impl Parser {
                         }
                         Expr::MethodCall { args, span, .. }
                         | Expr::SuperMethodCall { args, span, .. }
+                        | Expr::QualifiedInterfaceSuperMethodCall { args, span, .. }
                         | Expr::Invoke { args, span, .. } => {
                             args.push(scoop_ast::CallArgument::positional(lambda));
                             span.end = end;
@@ -469,6 +471,16 @@ impl Parser {
             } => Ok(PlaceExpr::Index {
                 receiver,
                 indices,
+                span,
+            }),
+            Expr::QualifiedInterfaceSuperAccess {
+                qualifier,
+                name,
+                span,
+                ..
+            } => Ok(PlaceExpr::QualifiedInterfaceSuperProperty {
+                qualifier,
+                name,
                 span,
             }),
             _ => Err(Diagnostic::at(

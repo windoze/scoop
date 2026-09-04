@@ -373,6 +373,14 @@ impl Lowerer {
                 sink,
                 expected,
             ),
+            ast::Expr::QualifiedInterfaceSuperAccess { span, .. }
+            | ast::Expr::QualifiedInterfaceSuperMethodCall { span, .. } => {
+                self.error(
+                    *span,
+                    "qualified interface `super` requires interface default resolution".into(),
+                );
+                None
+            }
             ast::Expr::Is {
                 operand,
                 ty,

@@ -9,6 +9,7 @@ impl Parser {
     pub(super) fn parse_enum(
         &mut self,
         annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
     ) -> Result<EnumDecl, Diagnostic> {
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
@@ -20,6 +21,10 @@ impl Parser {
         let body_depth = self.brace_depth();
         let mut variants = Vec::new();
         let mut methods = Vec::new();
+        let mut properties = Vec::new();
+        let mut nested = Vec::new();
+        let mut companion = None;
+        let mut saw_member = false;
         let close = loop {
             if matches!(self.peek().kind, TokenKind::RBrace) {
                 break self.bump();
@@ -28,29 +33,58 @@ impl Parser {
                 return self.unexpected("`}`");
             }
             let start = self.pos;
-            let parsed = match &self.peek().kind {
-                TokenKind::Fun | TokenKind::Suspend | TokenKind::Infix | TokenKind::At => self
-                    .parse_member_function(FunctionContext::TypeBody)
-                    .map(|method| methods.push(method))
-                    .and_then(|()| self.expect_statement_end()),
-                TokenKind::Ident(text)
-                    if matches!(
-                        text.as_str(),
-                        "override" | "abstract" | "open" | "final" | "operator"
-                    ) =>
-                {
-                    self.parse_member_function(FunctionContext::TypeBody)
-                        .map(|method| methods.push(method))
-                        .and_then(|()| self.expect_statement_end())
-                }
-                TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
-                    self.peek().span,
-                    "`init` blocks are not supported yet (milestone M6)",
-                )),
-                _ => self
-                    .parse_variant()
+            let member_start = saw_member || self.enum_member_starts_here();
+            let parsed = if member_start {
+                saw_member = true;
+                self.parse_member_prefix().and_then(|prefix| match &self.peek().kind {
+                    TokenKind::Fun => self
+                        .parse_prefixed_member_function(prefix, FunctionContext::TypeBody)
+                        .map(|method| methods.push(method)),
+                    TokenKind::Val | TokenKind::Var => self
+                        .parse_property(prefix, PropertyContext::ValueType)
+                        .map(|property| properties.push(property)),
+                    TokenKind::Struct
+                    | TokenKind::Enum
+                    | TokenKind::Class
+                    | TokenKind::Interface => self
+                        .parse_nested_nominal(prefix)
+                        .map(|declaration| nested.push(declaration)),
+                    TokenKind::Ident(text) if text == "object" => {
+                        self.require_unmodified_nominal_prefix(&prefix, "object")?;
+                        self.parse_object(prefix.annotations, prefix.visibility)
+                            .map(Box::new)
+                            .map(NestedNominalDecl::Object)
+                            .map(|declaration| nested.push(declaration))
+                    }
+                    TokenKind::Ident(text) if text == "companion" => {
+                        self.require_unmodified_nominal_prefix(&prefix, "companion object")?;
+                        if companion.is_some() {
+                            return Err(Diagnostic::at(
+                                self.peek().span,
+                                "a nominal declaration may contain at most one companion object",
+                            ));
+                        }
+                        self.parse_companion_object(prefix.annotations, prefix.visibility)
+                            .map(|declaration| companion = Some(declaration))
+                    }
+                    TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
+                        self.peek().span,
+                        "`init` blocks are not allowed in enums",
+                    )),
+                    TokenKind::Ident(text) if text == "constructor" => Err(Diagnostic::at(
+                        self.peek().span,
+                        "secondary constructors are not allowed in enums",
+                    )),
+                    _ => Err(Diagnostic::at(
+                        self.peek().span,
+                        "expected an enum property, function, nested declaration, or companion object",
+                    )),
+                })
+                .and_then(|()| self.expect_statement_end())
+            } else {
+                self.parse_variant()
                     .map(|variant| variants.push(variant))
-                    .and_then(|()| self.expect_variant_end()),
+                    .and_then(|()| self.expect_variant_end())
             };
             if let Err(diagnostic) = parsed {
                 if self.at_eof() {
@@ -60,16 +94,64 @@ impl Parser {
                 self.synchronize_body_item(body_depth, start);
             }
         };
+        let start = annotations
+            .first()
+            .map(|annotation| annotation.span.start)
+            .into_iter()
+            .chain(match visibility {
+                VisibilitySyntax::Explicit { span, .. } => Some(span.start),
+                VisibilitySyntax::Omitted => None,
+            })
+            .min()
+            .unwrap_or(keyword.span.start);
         Ok(EnumDecl {
             annotations,
+            visibility,
             name,
             type_params,
             variants,
             interfaces,
             where_clause,
             methods,
-            span: Span::new(keyword.span.start, close.span.end),
+            properties,
+            nested,
+            companion,
+            span: Span::new(start, close.span.end),
         })
+    }
+
+    fn enum_member_starts_here(&self) -> bool {
+        match &self.peek().kind {
+            TokenKind::Fun
+            | TokenKind::Suspend
+            | TokenKind::Infix
+            | TokenKind::At
+            | TokenKind::Val
+            | TokenKind::Var
+            | TokenKind::Struct
+            | TokenKind::Enum
+            | TokenKind::Class
+            | TokenKind::Interface => true,
+            TokenKind::Ident(text) => matches!(
+                text.as_str(),
+                "public"
+                    | "internal"
+                    | "private"
+                    | "protected"
+                    | "override"
+                    | "abstract"
+                    | "open"
+                    | "final"
+                    | "operator"
+                    | "const"
+                    | "lateinit"
+                    | "object"
+                    | "companion"
+                    | "init"
+                    | "constructor"
+            ),
+            _ => false,
+        }
     }
 
     fn expect_variant_end(&mut self) -> Result<(), Diagnostic> {

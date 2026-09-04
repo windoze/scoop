@@ -132,6 +132,24 @@ pub enum Expr {
         args: Vec<CallArgument>,
         span: Span,
     },
+    /// `super<I>.name` — a direct access to one direct interface default
+    /// property. The qualifier is kept distinct from ordinary type arguments.
+    QualifiedInterfaceSuperAccess {
+        super_span: Span,
+        qualifier: TypeRef,
+        name: Ident,
+        span: Span,
+    },
+    /// `super<I>.name<TypeArgs>(arguments...)` — a direct call to one
+    /// interface default implementation.
+    QualifiedInterfaceSuperMethodCall {
+        super_span: Span,
+        qualifier: TypeRef,
+        name: Ident,
+        type_args: Vec<CallTypeArgument>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
     /// `expr is T` / `expr !is T`.
     Is {
         operand: Box<Expr>,
@@ -194,6 +212,8 @@ impl Expr {
             | Expr::This { span }
             | Expr::MethodCall { span, .. }
             | Expr::SuperMethodCall { span, .. }
+            | Expr::QualifiedInterfaceSuperAccess { span, .. }
+            | Expr::QualifiedInterfaceSuperMethodCall { span, .. }
             | Expr::Is { span, .. }
             | Expr::Cast { span, .. }
             | Expr::ArrayLiteral { span, .. }

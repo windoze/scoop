@@ -36,6 +36,13 @@ impl Lowerer {
                 out.extend(sink);
                 Some(kind)
             }
+            ast::AssignTarget::QualifiedInterfaceSuperProperty { span, .. } => {
+                self.error(
+                    *span,
+                    "qualified interface `super` requires interface default resolution".into(),
+                );
+                None
+            }
         }
     }
 

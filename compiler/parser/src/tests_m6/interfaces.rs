@@ -1,6 +1,6 @@
 use scoop_ast::{Decl, FunctionBody, MethodModifier, Span, TypeRefKind};
 
-use crate::tests::{err, ok};
+use crate::tests::ok;
 
 // --- interface declarations ---------------------------------------------------
 
@@ -62,21 +62,22 @@ fn generic_interface_and_applied_supertype() {
 }
 
 #[test]
-fn interface_method_body_not_supported() {
-    let (span, message) = err("interface I {\n    fun f() = 1\n}\n");
-    assert_eq!(span, Span::new(26, 27));
-    assert_eq!(
-        message,
-        "interface method bodies are not supported yet (milestone M6)"
-    );
+fn interface_method_body_is_preserved() {
+    let file = ok("interface I {\n    fun f() = 1\n}\n");
+    let Decl::Interface(interface) = &file.declarations[0] else {
+        panic!("expected interface")
+    };
+    assert!(matches!(interface.methods[0].body, FunctionBody::Expr(_)));
 }
 
 #[test]
-fn interface_property_not_supported() {
-    let (span, message) = err("interface I {\n    val x: Int\n}\n");
-    assert_eq!(span, Span::new(18, 21));
-    assert_eq!(
-        message,
-        "member properties are not supported yet (milestone M6)"
-    );
+fn interface_property_is_preserved() {
+    let file = ok("interface I {\n    val x: Int\n}\n");
+    let Decl::Interface(interface) = &file.declarations[0] else {
+        panic!("expected interface")
+    };
+    assert!(matches!(
+        interface.properties[0].body,
+        scoop_ast::PropertyBodySyntax::Computed(_)
+    ));
 }

@@ -110,7 +110,6 @@ fn parser_recovers_between_type_members() {
         [
             "class stored properties require an explicit type",
             "expected parameter name, found `:`",
-            "`object` declarations are not supported yet (milestone M21)",
         ]
     );
 }

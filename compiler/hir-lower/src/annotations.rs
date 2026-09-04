@@ -92,7 +92,7 @@ impl Lowerer {
                     "an extern global supports only the C data ABI".to_string(),
                 );
             }
-            if decl.init.is_some() {
+            if decl.initializer().is_some() {
                 self.error(
                     decl.span,
                     "an `@Extern` global must not have an initializer".to_string(),
@@ -126,7 +126,7 @@ impl Lowerer {
                         .to_string(),
                 );
             }
-            if decl.init.is_none() {
+            if decl.initializer().is_none() {
                 self.error(
                     decl.span,
                     "a local global requires a compile-time constant initializer".to_string(),

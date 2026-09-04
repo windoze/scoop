@@ -9,14 +9,7 @@ pub fn dump(file: &SourceFile) -> String {
     for decl in &file.declarations {
         match decl {
             Decl::Global(g) => {
-                dump_annotations(&g.annotations, 2, &mut out);
-                out.push_str(&format!(
-                    "  {} {}: {}{}\n",
-                    if g.mutable { "var" } else { "val" },
-                    g.name.text,
-                    dump_type_ref(&g.ty),
-                    if g.init.is_some() { " = <expr>" } else { "" }
-                ));
+                dump_global_property(g, &mut out);
             }
             Decl::Enum(e) => {
                 dump_annotations(&e.annotations, 2, &mut out);
@@ -40,8 +33,12 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(e.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  enum {}{}{}{}\n",
-                    e.name.text, type_params, interfaces, where_clause
+                    "  {}enum {}{}{}{}\n",
+                    dump_visibility(e.visibility),
+                    e.name.text,
+                    type_params,
+                    interfaces,
+                    where_clause
                 ));
                 for variant in &e.variants {
                     match &variant.kind {
@@ -72,6 +69,15 @@ pub fn dump(file: &SourceFile) -> String {
                         }
                     }
                 }
+                for property in &e.properties {
+                    dump_property(property, 2, &mut out);
+                }
+                for declaration in &e.nested {
+                    dump_nested_nominal(declaration, 2, &mut out);
+                }
+                if let Some(companion) = &e.companion {
+                    dump_companion(companion, 2, &mut out);
+                }
             }
             Decl::Class(c) => {
                 dump_annotations(&c.annotations, 2, &mut out);
@@ -83,9 +89,10 @@ pub fn dump(file: &SourceFile) -> String {
                 let type_params = dump_type_params(&c.type_params);
                 let ctor = match &c.constructor {
                     ClassConstructorDecl::Omitted => "()".to_owned(),
-                    ClassConstructorDecl::Declared(parameters) => format!(
+                    ClassConstructorDecl::Declared(constructor) => format!(
                         "({})",
-                        parameters
+                        constructor
+                            .parameters
                             .iter()
                             .map(|p| format!(
                                 "{}{}",
@@ -123,8 +130,13 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(c.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  {modifier}class {}{}{}{}{}\n",
-                    c.name.text, type_params, ctor, supertypes, where_clause
+                    "  {}{modifier}class {}{}{}{}{}\n",
+                    dump_visibility(c.visibility),
+                    c.name.text,
+                    type_params,
+                    ctor,
+                    supertypes,
+                    where_clause
                 ));
                 for member in &c.members {
                     dump_class_member(member, 2, &mut out);
@@ -152,8 +164,12 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(i.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  interface {}{}{}{}\n",
-                    i.name.text, params, parents, where_clause
+                    "  {}interface {}{}{}{}\n",
+                    dump_visibility(i.visibility),
+                    i.name.text,
+                    params,
+                    parents,
+                    where_clause
                 ));
                 for method in &i.methods {
                     let suspend = if method.is_suspend { "suspend " } else { "" };
@@ -167,6 +183,15 @@ pub fn dump(file: &SourceFile) -> String {
                         "    {operator}{infix}{suspend}fun {}\n",
                         method.name.text
                     ));
+                }
+                for property in &i.properties {
+                    dump_property(property, 2, &mut out);
+                }
+                for declaration in &i.nested {
+                    dump_nested_nominal(declaration, 2, &mut out);
+                }
+                if let Some(companion) = &i.companion {
+                    dump_companion(companion, 2, &mut out);
                 }
             }
             Decl::Struct(s) => {
@@ -196,8 +221,13 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(s.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  struct {}{}{}{}{}\n",
-                    s.name.text, type_params, representation, interfaces, where_clause
+                    "  {}struct {}{}{}{}{}\n",
+                    dump_visibility(s.visibility),
+                    s.name.text,
+                    type_params,
+                    representation,
+                    interfaces,
+                    where_clause
                 ));
                 for field in &s.fields {
                     out.push_str(&format!(
@@ -211,7 +241,25 @@ pub fn dump(file: &SourceFile) -> String {
                             dump_secondary_constructor(constructor, 2, &mut out)
                         }
                         StructMember::Function(method) => dump_member_function(method, 2, &mut out),
+                        StructMember::Property(property) => dump_property(property, 2, &mut out),
+                        StructMember::Nested(declaration) => {
+                            dump_nested_nominal(declaration, 2, &mut out)
+                        }
+                        StructMember::Companion(companion) => {
+                            dump_companion(companion, 2, &mut out)
+                        }
                     }
+                }
+            }
+            Decl::Object(object) => {
+                dump_annotations(&object.annotations, 2, &mut out);
+                out.push_str(&format!(
+                    "  {}object {}\n",
+                    dump_visibility(object.visibility),
+                    object.name.text
+                ));
+                for member in &object.members {
+                    dump_class_member(member, 2, &mut out);
                 }
             }
             Decl::Function(f) => {
@@ -265,7 +313,8 @@ pub fn dump(file: &SourceFile) -> String {
                     .map(|ty| format!("{}.", dump_type_ref(ty)))
                     .unwrap_or_default();
                 out.push_str(&format!(
-                    "  {flags}fun {receiver}{}{}({}){}{}\n",
+                    "  {}{flags}fun {receiver}{}{}({}){}{}\n",
+                    dump_visibility(f.visibility),
                     f.name.text,
                     type_params,
                     params.join(", "),
@@ -301,13 +350,29 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match member {
         ClassMember::StoredProperty(property) => {
-            out.push_str(&format!(
-                "{pad}{} {}: {} =\n",
-                if property.mutable { "var" } else { "val" },
-                property.name.text,
-                dump_type_ref(&property.ty)
-            ));
-            dump_expr(&property.initializer, indent + 1, out);
+            if let PropertyBodySyntax::Initializer {
+                expression,
+                accessors,
+            } = &property.body
+                && property.annotations.is_empty()
+                && matches!(property.visibility, VisibilitySyntax::Omitted)
+                && property.modifier == MethodModifier::Final
+                && !property.is_override
+                && property.receiver_ty.is_none()
+                && property.type_params.is_empty()
+                && accessors.getter.is_none()
+                && accessors.setter.is_none()
+            {
+                out.push_str(&format!(
+                    "{pad}{} {}: {} =\n",
+                    if property.mutable { "var" } else { "val" },
+                    property.name.text,
+                    dump_type_ref(&property.ty)
+                ));
+                dump_expr(expression, indent + 1, out);
+            } else {
+                dump_property(property, indent, out);
+            }
         }
         ClassMember::InitBlock(init) => {
             out.push_str(&format!("{pad}init\n"));
@@ -317,6 +382,8 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
             dump_secondary_constructor(constructor, indent, out)
         }
         ClassMember::Function(function) => dump_member_function(function, indent, out),
+        ClassMember::Nested(declaration) => dump_nested_nominal(declaration, indent, out),
+        ClassMember::Companion(companion) => dump_companion(companion, indent, out),
     }
 }
 
@@ -359,9 +426,200 @@ fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String
         ""
     };
     out.push_str(&format!(
-        "{pad}{operator}{infix}{suspend}fun {}\n",
+        "{pad}{}{operator}{infix}{suspend}fun {}\n",
+        dump_visibility(function.visibility),
         function.name.text
     ));
+}
+
+fn dump_nested_nominal(declaration: &NestedNominalDecl, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    match declaration {
+        NestedNominalDecl::Struct(declaration) => out.push_str(&format!(
+            "{pad}{}nested struct {}\n",
+            dump_visibility(declaration.visibility),
+            declaration.name.text
+        )),
+        NestedNominalDecl::Enum(declaration) => out.push_str(&format!(
+            "{pad}{}nested enum {}\n",
+            dump_visibility(declaration.visibility),
+            declaration.name.text
+        )),
+        NestedNominalDecl::Class(declaration) => out.push_str(&format!(
+            "{pad}{}nested class {}\n",
+            dump_visibility(declaration.visibility),
+            declaration.name.text
+        )),
+        NestedNominalDecl::Interface(declaration) => out.push_str(&format!(
+            "{pad}{}nested interface {}\n",
+            dump_visibility(declaration.visibility),
+            declaration.name.text
+        )),
+        NestedNominalDecl::Object(declaration) => out.push_str(&format!(
+            "{pad}{}nested object {}\n",
+            dump_visibility(declaration.visibility),
+            declaration.name.text
+        )),
+    }
+}
+
+fn dump_companion(companion: &CompanionObjectDecl, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    let name = match &companion.name {
+        CompanionNameSyntax::Default { .. } => String::new(),
+        CompanionNameSyntax::Named(name) => format!(" {}", name.text),
+    };
+    out.push_str(&format!(
+        "{pad}{}companion object{name}\n",
+        dump_visibility(companion.visibility)
+    ));
+    for member in &companion.members {
+        dump_class_member(member, indent + 1, out);
+    }
+}
+
+fn dump_property(property: &PropertyDecl, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    dump_annotations(&property.annotations, indent, out);
+    let modality = match (property.modifier, property.is_override) {
+        (MethodModifier::Final, false) => "",
+        (MethodModifier::Final, true) => "final ",
+        (MethodModifier::Open, _) => "open ",
+        (MethodModifier::Abstract, _) => "abstract ",
+    };
+    let override_ = if property.is_override {
+        "override "
+    } else {
+        ""
+    };
+    let const_ = if matches!(property.body, PropertyBodySyntax::Const(_)) {
+        "const "
+    } else {
+        ""
+    };
+    let type_params = dump_type_params(&property.type_params);
+    let receiver = property
+        .receiver_ty
+        .as_ref()
+        .map(|ty| format!("{}.", dump_type_ref(ty)))
+        .unwrap_or_default();
+    out.push_str(&format!(
+        "{pad}{}{modality}{override_}{const_}{} {type_params}{receiver}{}: {}{}{}\n",
+        dump_visibility(property.visibility),
+        if property.mutable { "var" } else { "val" },
+        property.name.text,
+        dump_type_ref(&property.ty),
+        dump_where_clause(property.where_clause.as_ref()),
+        dump_property_body_suffix(&property.body)
+    ));
+    match &property.body {
+        PropertyBodySyntax::Initializer {
+            expression,
+            accessors,
+        } => {
+            dump_expr(expression, indent + 1, out);
+            dump_accessors(accessors, indent + 1, out);
+        }
+        PropertyBodySyntax::Delegated { expression, .. }
+        | PropertyBodySyntax::Const(expression) => dump_expr(expression, indent + 1, out),
+        PropertyBodySyntax::Computed(accessors) => dump_accessors(accessors, indent + 1, out),
+        PropertyBodySyntax::OptionalOmitted
+        | PropertyBodySyntax::Abstract
+        | PropertyBodySyntax::ExternStorage => {}
+    }
+}
+
+fn dump_global_property(property: &PropertyDecl, out: &mut String) {
+    dump_annotations(&property.annotations, 2, out);
+    let type_params = dump_type_params(&property.type_params);
+    let receiver = property
+        .receiver_ty
+        .as_ref()
+        .map(|ty| format!("{}.", dump_type_ref(ty)))
+        .unwrap_or_default();
+    let body = match &property.body {
+        PropertyBodySyntax::Initializer { .. } => " = <expr>",
+        PropertyBodySyntax::OptionalOmitted | PropertyBodySyntax::ExternStorage => "",
+        PropertyBodySyntax::Computed(_) => " <computed>",
+        PropertyBodySyntax::Delegated { .. } => " by <expr>",
+        PropertyBodySyntax::Abstract => " <abstract>",
+        PropertyBodySyntax::Const(_) => " <const> = <expr>",
+    };
+    out.push_str(&format!(
+        "  {}{} {type_params}{receiver}{}: {}{}{}\n",
+        dump_visibility(property.visibility),
+        if property.mutable { "var" } else { "val" },
+        property.name.text,
+        dump_type_ref(&property.ty),
+        dump_where_clause(property.where_clause.as_ref()),
+        body
+    ));
+}
+
+fn dump_accessors(accessors: &AccessorSyntax, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    if let Some(getter) = &accessors.getter {
+        dump_annotations(&getter.annotations, indent, out);
+        out.push_str(&format!("{pad}get()\n"));
+        dump_accessor_body(&getter.body, indent + 1, out);
+    }
+    if let Some(setter) = &accessors.setter {
+        dump_annotations(&setter.annotations, indent, out);
+        let visibility = match setter.visibility {
+            SetterVisibilitySyntax::Explicit { visibility, span } => {
+                dump_visibility(VisibilitySyntax::Explicit { visibility, span })
+            }
+            SetterVisibilitySyntax::Inherited => "",
+        };
+        let parameter = match &setter.parameter {
+            SetterParameterSyntax::Default { .. } => "value",
+            SetterParameterSyntax::Named(name) => &name.text,
+        };
+        out.push_str(&format!("{pad}{visibility}set({parameter})\n"));
+        dump_accessor_body(&setter.body, indent + 1, out);
+    }
+}
+
+fn dump_accessor_body(body: &AccessorBodySyntax, indent: usize, out: &mut String) {
+    match body {
+        AccessorBodySyntax::Block(block) => dump_block(block, indent, out),
+        AccessorBodySyntax::Expr(expression) => dump_expr(expression, indent, out),
+        AccessorBodySyntax::Omitted => {}
+    }
+}
+
+fn dump_property_body_suffix(body: &PropertyBodySyntax) -> &'static str {
+    match body {
+        PropertyBodySyntax::Initializer { .. } => " = <expr>",
+        PropertyBodySyntax::OptionalOmitted => " <optional omitted>",
+        PropertyBodySyntax::Computed(_) => " <computed>",
+        PropertyBodySyntax::Delegated { .. } => " by <expr>",
+        PropertyBodySyntax::Abstract => " <abstract>",
+        PropertyBodySyntax::ExternStorage => " <extern>",
+        PropertyBodySyntax::Const(_) => " <const> = <expr>",
+    }
+}
+
+fn dump_visibility(visibility: VisibilitySyntax) -> &'static str {
+    match visibility {
+        VisibilitySyntax::Explicit {
+            visibility: DeclaredVisibility::Public,
+            ..
+        } => "public ",
+        VisibilitySyntax::Explicit {
+            visibility: DeclaredVisibility::Internal,
+            ..
+        } => "internal ",
+        VisibilitySyntax::Explicit {
+            visibility: DeclaredVisibility::Private,
+            ..
+        } => "private ",
+        VisibilitySyntax::Explicit {
+            visibility: DeclaredVisibility::Protected,
+            ..
+        } => "protected ",
+        VisibilitySyntax::Omitted => "",
+    }
 }
 
 fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String {

@@ -319,6 +319,7 @@ fn named_variant_default_is_an_error() {
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
             annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
             name: ident("Shape"),
             type_params: vec![],
             methods: vec![],
@@ -337,6 +338,9 @@ fn named_variant_default_is_an_error() {
                 }]),
                 span: sp(),
             }],
+            properties: Vec::new(),
+            nested: Vec::new(),
+            companion: None,
             span: sp(),
         }),
         fun("main", vec![]),

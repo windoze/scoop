@@ -201,6 +201,7 @@ fn unknown_annotation_is_an_error() {
             args: vec![],
             span: sp(),
         }],
+        visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
         is_override: false,
         operator: None,
