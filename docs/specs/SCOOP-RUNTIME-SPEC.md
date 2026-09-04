@@ -237,7 +237,7 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 ### 5.3 Catch 状态、结束与重抛
 
 - landing pad先捕获opaque exception record/raw pointer，再由普通dispatch块调`scoop_rt_begin_catch(raw)`验证`exception_class`、把对应record压入当前`ScoopThreadState`的caught-exception栈并返回其payload managed ref。该ref指向heap外稳定对象，但其对象头、TypeDescriptor和出站引用遵守普通Scoop对象与3.3 stable external root契约。
-- 每条正常离开handler的路径必须调一次`scoop_rt_end_catch()`。入口只操作当前线程栈顶并弹栈：普通caught record立即调`_Unwind_DeleteException`，标记为rethrow的record则恢复为in-flight而不删除；同一active record不得重复`BeginCatch`。cleanup callback是撤销root和释放record的唯一最终出口。begin/end/rethrow都不得分配managed对象、触发GC或把异常记录地址暴露给Scoop源码。
+- 每条正常离开handler的路径必须调一次`scoop_rt_end_catch()`。入口只操作当前线程栈顶并弹栈：普通caught record立即调`_Unwind_DeleteException`，标记为rethrow的record则恢复为in-flight而不删除；同一active record不得重复`BeginCatch`。cleanup callback是撤销root和释放record的唯一最终出口；runtime以active registry/state保证只调用一次Delete，callback在解引用record前也按raw地址检查active membership并拒绝重复回调。释放后的raw header不再是private ABI或Level-I API的有效输入。begin/end/rethrow都不得分配managed对象、触发GC或把异常记录地址暴露给Scoop源码。
 - `scoop_rt_rethrow()`只在存在active catch时合法。它在当前record上标记rethrow并对同一个`_Unwind_Exception`重新调用`_Unwind_RaiseException`；随后原handler的cleanup chain调用`EndCatch`时只弹出catch状态而不得删除record，外层`BeginCatch`重新接管同一payload identity。handler内抛出另一异常时，cleanup chain先结束旧catch，再以LLVM `resume`传播新record。
 - Scoop不提供`exception_ptr`、跨线程exception record共享或C++式公开引用计数；语言可跨线程/挂起保存的是managed `Throwable`，不是native unwind record。
 

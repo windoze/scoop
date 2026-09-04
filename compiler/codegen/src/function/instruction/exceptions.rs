@@ -103,7 +103,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::BeginCatch { out, raw } => {
                 let begin_catch = self.gc_leaf_fn(
-                    "__cxa_begin_catch",
+                    "scoop_rt_begin_catch",
                     managed_ptr_ty(context, self.managed_address_space)
                         .fn_type(&[ptr_ty(context).into()], false),
                 );
@@ -118,12 +118,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?
                     .try_as_basic_value()
                     .basic()
-                    .ok_or_else(|| CodegenError("__cxa_begin_catch returned void".to_string()))?;
+                    .ok_or_else(|| {
+                        CodegenError("scoop_rt_begin_catch returned void".to_string())
+                    })?;
                 self.temps.insert(*out, object);
             }
             Instruction::EndCatch => {
-                let end_catch =
-                    self.gc_leaf_fn("__cxa_end_catch", context.void_type().fn_type(&[], false));
+                let end_catch = self.gc_leaf_fn(
+                    "scoop_rt_end_catch",
+                    context.void_type().fn_type(&[], false),
+                );
                 builder
                     .build_call(end_catch, &[], "")
                     .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol)))?;

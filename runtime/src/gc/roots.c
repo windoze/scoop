@@ -156,6 +156,24 @@ bool scoop_gc_is_external_object_locked(const void *object) {
     return false;
 }
 
+bool scoop_gc_is_published_object(const void *object) {
+    if (object == NULL) {
+        return false;
+    }
+
+    /* Collection takes these locks in heap -> roots order while classifying
+     * stable targets.  Keep the same order here so a NoGC runtime entry can
+     * validate a throw source without racing root-table mutation. */
+    scoop_gc_heap_lock();
+    bool published = scoop_gc_is_object_start_locked(object);
+    scoop_gc_roots_lock();
+    published = published || scoop_gc_is_immortal_object_locked(object) ||
+                scoop_gc_is_external_object_locked(object);
+    scoop_gc_roots_unlock();
+    scoop_gc_heap_unlock();
+    return published;
+}
+
 void scoop_rt_gc_add_root(void **slot) {
     if (slot == NULL) {
         scoop_gc_roots_fatal("process root has a null slot address");

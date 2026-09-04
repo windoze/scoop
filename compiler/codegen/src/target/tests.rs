@@ -42,11 +42,28 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
                 "-fno-optimize-sibling-calls",
             ]
         );
-        assert_eq!(profile.linker_args(), ["-pthread", "-lc++abi"]);
+        assert_eq!(profile.linker_args(), ["-pthread"]);
+        assert_eq!(
+            profile.eh_profile(),
+            EhProfile {
+                unwind_model: UnwindModel::ItaniumDwarf,
+                personality_abi: PersonalityAbi::ScoopLsdaSubsetV1,
+                exception_data_registers: 2,
+                encodings: LsdaEncodingProfile {
+                    lp_start: 0xff,
+                    type_table: 0x9b,
+                    call_site: 0x01,
+                },
+                unwind_provider: UnwindProvider::DarwinLibSystem,
+                artifact_inspection: EhArtifactInspection::MachO,
+            }
+        );
         assert_eq!(
             profile.runtime_sources(),
             [
                 "runtime/src/rt.c",
+                "runtime/src/eh.c",
+                "runtime/src/eh_personality.c",
                 "runtime/src/initialization.c",
                 "runtime/src/gc.c",
                 "runtime/src/gc/allocation.c",

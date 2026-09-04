@@ -26,6 +26,7 @@ inkwell = { version = "0.10", features = ["llvm22-1"] }
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
 la-arena = { version = "0.3" }
+object = { version = "0.37", default-features = false, features = ["read"] }
 cc = { version = "1" }
 toml = { version = "0.8" }
 

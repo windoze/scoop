@@ -53,7 +53,7 @@ class / 继承 / interface / 方法、vtable / itable 分派、装箱（spec 3�
 
 ### M8 异常 ✅（2026-08-30 完成，设计见 `docs/milestone8/DESIGN.md`）
 
-try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。四条 trap 路径已全部改接真实异常：`!!` → `UnwrapException`、数组越界 → `IndexOutOfBoundsException`、`as` → `ClassCastException`、整数除零 → `ArithmeticException`（spec 11.7 已同步新增后者）。`scoop_rt_throw` 按 `__cxa_allocate_exception` + 拷贝的 ABI 正确形态实现。
+try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。四条 trap 路径已全部改接真实异常：`!!` → `UnwrapException`、数组越界 → `IndexOutOfBoundsException`、`as` → `ClassCastException`、整数除零 → `ArithmeticException`（spec 11.7 已同步新增后者）。M8首版的`scoop_rt_throw`使用`__cxa_allocate_exception` + 拷贝；M25已在不改变语言语义和显式CFG的前提下用Scoop自有exception record与Level-I personality替换该实现。
 
 ### M9 真 GC ✅（2026-08-30 完成，设计见 `docs/milestone9/DESIGN.md`）
 
@@ -181,7 +181,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 在 M22 完成 UInt8/Byte 后，补齐 String byte API 与普通 class StringBuilder 的底层能力，再重新设计字符串插值。原 M16 字符串设计已删除，不作为后续实现依据。
 
-### M25 自有异常 ABI 与 libc++abi 退役（设计见 `docs/milestone25/DESIGN.md`）
+### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 
 - 以 Scoop 私有 exception record、稳定 `exception_class`、per-thread caught 栈和 begin/end/rethrow 协议替换 `__cxa_*`，异常 payload 继续按值复制并作为 stable external object root 接受 moving GC 更新；
 - 实现只接受 LLVM 22.1 catch-all/cleanup 封闭 LSDA 子集的 `scoop_eh_personality`，直接通过 Itanium Level I `_Unwind_*` 完成 search、landing-pad install、resume 与 record 删除，不借用 C/C++ personality；
@@ -203,6 +203,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 2026-09-04 M21设计决定：Scoop不提供`lateinit`；延后初始化必须显式使用`Option<T>`/`T?`，其中无accessor的`var Option<T>`省略initializer等价于`None`。同时固定logical property/accessor、reflection-free delegate、interface default、singleton/global exactly-once初始化与typed access domain。
 - 2026-09-04 M21可见性修订：默认visibility由Kotlin式public改为internal；public API、public interface contract、public override与public constructor都要求源码显式标记，`main`仍可internal。sysroot不享有默认public特权，计划导出的core API也必须显式标记。
 - 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
+- 2026-09-05 完成M25：Scoop runtime自有record/personality/caught栈与moving-GC external payload生命周期落地；object与最终Mach-O门禁锁定LLVM 22.1封闭LSDA、八个Level-I导入及`libSystem` provider，生成程序不再链接`libc++abi`。
 
 ## 4. 待补齐清单（backlog）
 

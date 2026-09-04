@@ -8,6 +8,7 @@ pub fn emit_object(
     profile: TargetProfile,
 ) -> Result<(), CodegenError> {
     let expected_safepoints = statepoint::expectations(module)?;
+    let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     let context = Context::create();
     let llvm = emit_llvm_module(&context, module, &machine, profile)?;
@@ -27,7 +28,7 @@ pub fn emit_object(
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
-    if let Err(error) = profile.verify_object(output, &expected_safepoints) {
+    if let Err(error) = profile.verify_object(output, &expected_safepoints, &expected_eh) {
         if let Err(remove_error) = std::fs::remove_file(output) {
             return Err(CodegenError(format!(
                 "{error}; also failed to discard invalid object {}: {remove_error}",

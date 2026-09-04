@@ -111,10 +111,11 @@ static void require_detachable(const ScoopThreadState *state,
         state->native_region_roots != NULL || state->caller_roots != NULL ||
         state->compiler_roots != NULL || state->initialization_stack_len != 0 ||
         state->initialization_wait != NULL ||
-        state->current_transition != NULL || state->managed_anchor != NULL ||
+        state->current_transition != NULL ||
+        state->caught_exception_top != NULL || state->managed_anchor != NULL ||
         state->allocation.cursor != NULL || state->allocation.limit != NULL) {
         scoop_thread_fatal(
-            "thread detach with active managed frames, callbacks, roots, or transitions");
+            "thread detach with active managed frames, callbacks, roots, exceptions, or transitions");
     }
 }
 

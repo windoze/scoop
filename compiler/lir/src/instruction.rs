@@ -207,7 +207,7 @@ pub enum Instruction {
         out: TempId,
         raw: Value,
     },
-    /// End the innermost active catch (`__cxa_end_catch()`).
+    /// End the innermost active catch (`scoop_rt_end_catch()`).
     EndCatch,
     /// Throw an exception object (does not return). Terminator-like:
     /// must be the last instruction of its block, which ends

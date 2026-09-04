@@ -31,6 +31,10 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_box;
     (void)scoop_rt_gc_collect;
     (void)scoop_rt_materialize_exception;
+    (void)scoop_rt_throw;
+    (void)scoop_rt_rethrow;
+    (void)scoop_rt_begin_catch;
+    (void)scoop_rt_end_catch;
     (void)scoop_rt_init_enter;
     (void)scoop_rt_init_succeed;
     (void)scoop_rt_init_fail;
@@ -50,7 +54,5 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_gc_add_root;
     (void)scoop_rt_gc_add_root_object;
     (void)scoop_rt_gc_remove_root_object;
-    (void)scoop_rt_init_eh;
-    (void)scoop_eh_personality;
     (void)scoop_main;
 }

@@ -51,9 +51,9 @@ pub(super) fn exceptions_module() -> Module {
     //   entry:  t0 = invoke_indirect table[0]() normal @normal unwind @lpad
     //   normal: t1 = invoke @scoop.may_throw() normal @done unwind @lpad
     //   done:   t2 = t0 + t1; ret t2
-    //   lpad:   t3 = landingpad : ptr
-    //           end_catch
-    //           ret 0
+    //   lpad:   t3 = landingpad; t5 = begin_catch(t3.raw)
+    //           t8 = invoke @scoop.may_throw() normal @handler_done unwind @cleanup
+    //   handler_done: end_catch; ret 0
     //   cleanup: t4 = cleanup_pad; end_catch; resume t4
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: LirType::I64 });
@@ -68,6 +68,7 @@ pub(super) fn exceptions_module() -> Module {
         ty: LirType::ExceptionRecord,
     });
     let t7 = temps.alloc(Temp { ty: RAW_PTR });
+    let t8 = temps.alloc(Temp { ty: LirType::I64 });
     let mut blocks = Arena::default();
     let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
         blocks.alloc(BasicBlock {
@@ -80,6 +81,7 @@ pub(super) fn exceptions_module() -> Module {
     let normal = placeholder(&mut blocks, "normal");
     let done = placeholder(&mut blocks, "done");
     let lpad = placeholder(&mut blocks, "lpad");
+    let handler_done = placeholder(&mut blocks, "handler_done");
     let cleanup = placeholder(&mut blocks, "cleanup");
     let mut call_targets = CallTargets::default();
     let dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
@@ -103,6 +105,17 @@ pub(super) fn exceptions_module() -> Module {
         Vec::new(),
         (LirType::I64, RefScan::None),
         t1,
+        Vec::new(),
+    );
+    let handler_invoke = direct_site(
+        &mut call_targets,
+        TestCallProtocol::Managed {
+            safepoint: 3,
+            destination: managed_local(1),
+        },
+        Vec::new(),
+        (LirType::I64, RefScan::None),
+        t8,
         Vec::new(),
     );
     blocks[entry] = BasicBlock {
@@ -142,8 +155,15 @@ pub(super) fn exceptions_module() -> Module {
                 out: t5,
                 raw: Value::Temp(t4),
             },
-            Instruction::EndCatch,
+            Instruction::Invoke {
+                site: managed_invoke(handler_invoke, handler_done, cleanup),
+            },
         ],
+        terminator: Terminator::Br(handler_done),
+    };
+    blocks[handler_done] = BasicBlock {
+        name: "handler_done".to_string(),
+        instructions: vec![Instruction::EndCatch],
         terminator: Terminator::Return {
             value: Some(Value::IntConst(0)),
         },
@@ -193,8 +213,13 @@ pub(super) fn exceptions_module() -> Module {
 fn emits_m8_exceptions() {
     let module = exceptions_module();
     let ir = ir_of(&module);
-    assert!(ir.contains("@__cxa_begin_catch"));
-    assert!(ir.contains("@__cxa_end_catch"));
+    assert!(ir.contains("declare ptr addrspace(1) @scoop_rt_begin_catch(ptr)"));
+    assert!(ir.contains("@scoop_rt_end_catch"));
+    assert!(!ir.contains("@__cxa_begin_catch"));
+    assert!(!ir.contains("@__cxa_end_catch"));
+    assert!(ir.contains("personality ptr @scoop_eh_personality"));
+    assert!(ir.contains("catch ptr null"));
+    assert!(ir.contains("cleanup"));
     assert!(ir.contains("resume { ptr, i32 }"));
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));
@@ -206,15 +231,52 @@ fn emits_m8_exceptions() {
     emit_object(&module, &output, host_profile()).expect("emit object");
     let bytes = std::fs::read(&output).expect("read object");
     assert!(!bytes.is_empty(), "object file is empty");
-    // The landing pad function must carry an exception table.
-    let text = String::from_utf8_lossy(&bytes);
-    assert!(
-        text.contains("gcc_except_tab"),
-        "object file lacks exception tables"
-    );
-    assert!(
-        text.contains("__llvm_stackmaps"),
-        "object file lacks the __llvm_stackmaps section"
-    );
     std::fs::remove_file(&output).ok();
+}
+
+#[test]
+fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
+    let module = exceptions_module();
+    let expected_safepoints =
+        statepoint::expectations(&module).expect("complete safepoint manifest");
+    let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
+    assert_eq!(expected_eh.function_count(), 1);
+    assert_eq!(
+        expected_eh.action_count("scoop.eh_test", artifact::EhActionKind::CatchAll),
+        2
+    );
+    assert_eq!(
+        expected_eh.action_count("scoop.eh_test", artifact::EhActionKind::Cleanup),
+        1
+    );
+
+    let profile = host_profile();
+    for (name, optimization) in [
+        ("o0", OptimizationLevel::None),
+        ("o2", OptimizationLevel::Default),
+    ] {
+        let machine = profile
+            .create_qualification_target_machine(optimization)
+            .expect("qualified target machine");
+        let context = Context::create();
+        let llvm =
+            emit_llvm_module(&context, &module, &machine, profile).expect("emit LLVM module");
+        llvm.verify().expect("valid LLVM module");
+        statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+        llvm.verify().expect("valid post-RS4GC module");
+        statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
+            .expect("statepoint manifest matches");
+
+        let output = std::env::temp_dir().join(format!(
+            "scoop_codegen_eh_qualification_{name}_{}.o",
+            std::process::id()
+        ));
+        machine
+            .write_to_file(&llvm, FileType::Object, &output)
+            .expect("write object");
+        profile
+            .verify_object(&output, &expected_safepoints, &expected_eh)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+        std::fs::remove_file(&output).ok();
+    }
 }

@@ -9,10 +9,14 @@ use crate::statepoint::ExpectedSafepoints;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod aarch64;
+mod eh;
 mod macho;
 
 use aarch64::{validate_aarch64_frame_chain, validate_aarch64_return_pc};
-pub(crate) use macho::verify_macho_stackmaps;
+#[cfg(test)]
+pub(crate) use eh::EhActionKind;
+pub(crate) use eh::{ExpectedEh, expectations as eh_expectations};
+pub(crate) use macho::verify_macho_artifact;
 
 const LOCATION_REGISTER: u8 = 1;
 const LOCATION_INDIRECT: u8 = 3;
@@ -25,6 +29,17 @@ const AARCH64_DWARF_SP: u16 = 31;
 struct FunctionRelocation {
     symbol: String,
     address: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ObservedSafepoint {
+    function_symbol: String,
+    call_pc: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct ObservedSafepoints {
+    sites: BTreeMap<u64, ObservedSafepoint>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -215,7 +230,7 @@ fn parse_stackmaps(
     text: &TextSection,
     expected: &ExpectedSafepoints,
     expected_version: u8,
-) -> Result<(), CodegenError> {
+) -> Result<ObservedSafepoints, CodegenError> {
     let mut cursor = Cursor::new(bytes);
     let version = cursor.u8("version")?;
     if version != expected_version {
@@ -289,7 +304,7 @@ fn parse_stackmaps(
         constants.push(cursor.u64("large constant")?);
     }
 
-    let mut observed = BTreeSet::new();
+    let mut observed = BTreeMap::new();
     for (function, stack_size, function_record_count) in function_records {
         let mut frame_chain_validated = false;
         for _ in 0..function_record_count {
@@ -308,7 +323,19 @@ fn parse_stackmaps(
                     "invalid stackmap record header for SafepointId {safepoint}"
                 )));
             }
-            if !observed.insert(safepoint) {
+            let call_pc = return_pc
+                .checked_sub(4)
+                .expect("validated AArch64 return PC follows a call");
+            if observed
+                .insert(
+                    safepoint,
+                    ObservedSafepoint {
+                        function_symbol: function.symbol.clone(),
+                        call_pc,
+                    },
+                )
+                .is_some()
+            {
                 return Err(CodegenError(format!(
                     "Mach-O stackmap repeats SafepointId {safepoint}"
                 )));
@@ -374,5 +401,5 @@ fn parse_stackmaps(
             expected.site_count()
         )));
     }
-    Ok(())
+    Ok(ObservedSafepoints { sites: observed })
 }
