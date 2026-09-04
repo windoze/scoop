@@ -151,6 +151,7 @@ impl Lowerer {
                 {
                     hir::PropertyAccessorImplementation::Body(function) => function,
                     hir::PropertyAccessorImplementation::Storage
+                    | hir::PropertyAccessorImplementation::Constant
                     | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
                         unreachable!("extension properties have concrete getter bodies")
                     }
@@ -227,6 +228,7 @@ impl Lowerer {
         let function = match setter.implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,
             hir::PropertyAccessorImplementation::Storage
+            | hir::PropertyAccessorImplementation::Constant
             | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
                 unreachable!("extension properties use concrete accessor functions")
             }
@@ -388,6 +390,25 @@ impl Lowerer {
             hir::PropertyAccessorImplementation::Storage => {
                 self.property_storage_read(&declaration, owner_application, receiver, ty, span)
             }
+            hir::PropertyAccessorImplementation::Constant => {
+                debug_assert!(owner_application.is_none());
+                debug_assert!(receiver.is_none());
+                let hir::PropertyRepresentation::Const { value } = declaration.representation
+                else {
+                    unreachable!("constant accessors belong only to const properties")
+                };
+                let kind = match value {
+                    hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntLiteral(value),
+                    hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
+                    hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral(value),
+                };
+                Some(hir::Expr {
+                    kind,
+                    ty,
+                    span,
+                    origin: self.expression_origin(span),
+                })
+            }
             hir::PropertyAccessorImplementation::Body(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
                 self.check_call_effects(hir::Callable::Function(function), span);
@@ -454,6 +475,9 @@ impl Lowerer {
         match accessor.implementation {
             hir::PropertyAccessorImplementation::Storage => {
                 self.property_storage_write(&declaration, owner_application, receiver, value)
+            }
+            hir::PropertyAccessorImplementation::Constant => {
+                unreachable!("const properties never expose a setter")
             }
             hir::PropertyAccessorImplementation::Body(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
@@ -533,7 +557,8 @@ impl Lowerer {
                 hir::ExprKind::GlobalRead(*storage)
             }
             hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. } => {
+            | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::Const { .. } => {
                 unreachable!("only stored and native properties have storage accessors")
             }
         };
@@ -580,7 +605,8 @@ impl Lowerer {
                 hir::AssignTarget::Global(*storage)
             }
             hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. } => {
+            | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::Const { .. } => {
                 unreachable!("only stored and native properties have storage setters")
             }
         };

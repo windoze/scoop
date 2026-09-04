@@ -19,6 +19,7 @@ mod m18;
 mod m19;
 mod m2;
 mod m20;
+mod m21_consts;
 mod m21_delegates;
 mod m21_interfaces;
 mod m21_properties;

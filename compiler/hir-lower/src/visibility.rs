@@ -450,7 +450,8 @@ impl Lowerer {
             hir::PropertyRepresentation::NativeStorage { storage } => Some(storage),
             hir::PropertyRepresentation::Stored(_)
             | hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. } => None,
+            | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::Const { .. } => None,
         }
     }
 

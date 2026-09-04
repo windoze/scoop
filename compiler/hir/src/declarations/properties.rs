@@ -72,7 +72,15 @@ pub enum PropertyRepresentation {
     Stored(StoredProperty),
     AccessorOnly,
     Delegated { storage: DelegateStorageId },
+    Const { value: ConstPropertyValue },
     NativeStorage { storage: GlobalId },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConstPropertyValue {
+    Integer(i64),
+    Boolean(bool),
+    String(String),
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +139,7 @@ pub struct PropertySetter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyAccessorImplementation {
     Storage,
+    Constant,
     Body(FunctionId),
     AbstractSlot(FunctionId),
 }

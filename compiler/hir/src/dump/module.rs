@@ -477,6 +477,7 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
                 type_name(module, delegate.ty)
             )
         }
+        PropertyRepresentation::Const { value } => format!("const {value:?}"),
         PropertyRepresentation::NativeStorage { storage } => {
             format!("native-storage global{}", storage.into_raw())
         }
@@ -527,6 +528,7 @@ fn dump_accessor_implementation(
 ) -> String {
     match implementation {
         PropertyAccessorImplementation::Storage => "storage".to_string(),
+        PropertyAccessorImplementation::Constant => "constant".to_string(),
         PropertyAccessorImplementation::Body(function) => {
             format!("body({})", module.functions[function].name)
         }

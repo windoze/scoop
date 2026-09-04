@@ -8,9 +8,19 @@ use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 
+mod consts;
+
+struct PendingConst<'a> {
+    declaration: &'a ast::PropertyDecl,
+    file: usize,
+    access: hir::DeclarationAccess,
+    ty: hir::TypeId,
+}
+
 impl Lowerer {
     pub(crate) fn resolve_globals(&mut self, pending: &[(&ast::GlobalDecl, usize)]) {
         let mut initializers = Vec::new();
+        let mut constants = Vec::new();
         for &(decl, file_index) in pending {
             self.current_file = file_index;
             let access =
@@ -30,6 +40,12 @@ impl Lowerer {
                         || self.properties[other].access.declared
                             != hir::DeclaredVisibility::Private
                         || self.property_files[&other] == file_index
+                })
+                || constants.iter().any(|other: &PendingConst<'_>| {
+                    other.declaration.name.text == decl.name.text
+                        && (access.declared != hir::DeclaredVisibility::Private
+                            || other.access.declared != hir::DeclaredVisibility::Private
+                            || other.file == file_index)
                 });
             if duplicate {
                 self.error(
@@ -40,6 +56,49 @@ impl Lowerer {
             }
             self.type_params_in_scope.clear();
             let ty = self.resolve_type_ref(&decl.ty).unwrap_or(self.int);
+            if matches!(decl.body, ast::PropertyBodySyntax::Const(_)) {
+                if decl.mutable {
+                    self.error(decl.name.span, "const property must be a `val`".to_string());
+                    continue;
+                }
+                if decl.modifier != ast::MethodModifier::Final || decl.is_override {
+                    self.error(
+                        decl.span,
+                        "top-level const properties cannot be open, abstract, or override"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                if !decl.type_params.is_empty() {
+                    self.error(
+                        decl.span,
+                        "const properties cannot declare type parameters".to_string(),
+                    );
+                    continue;
+                }
+                self.reject_logical_property_annotations("a const property", &decl.annotations);
+                if !matches!(
+                    self.types[ty],
+                    hir::Type::Int | hir::Type::UInt | hir::Type::Boolean | hir::Type::String
+                ) {
+                    self.error(
+                        decl.ty.span,
+                        format!(
+                            "const property `{}` has unsupported type {}",
+                            decl.name.text,
+                            self.type_name(ty)
+                        ),
+                    );
+                    continue;
+                }
+                constants.push(PendingConst {
+                    declaration: decl,
+                    file: file_index,
+                    access,
+                    ty,
+                });
+                continue;
+            }
             if matches!(decl.body, ast::PropertyBodySyntax::Computed(_)) {
                 if decl.modifier != ast::MethodModifier::Final || decl.is_override {
                     self.error(
@@ -100,14 +159,7 @@ impl Lowerer {
                     );
                     continue;
                 }
-                ast::PropertyBodySyntax::Const(_) => {
-                    self.error(
-                        decl.span,
-                        "const property lowering requires the M21 top-level initialization gate"
-                            .to_string(),
-                    );
-                    continue;
-                }
+                ast::PropertyBodySyntax::Const(_) => unreachable!("handled above"),
                 ast::PropertyBodySyntax::OptionalOmitted => {
                     self.error(
                         decl.span,
@@ -223,6 +275,7 @@ impl Lowerer {
                 }
             }
         }
+        self.resolve_const_properties(&constants);
     }
 
     fn declare_extension_property(
@@ -343,6 +396,7 @@ impl Lowerer {
         let getter = match self.property_getters[capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,
             hir::PropertyAccessorImplementation::Storage
+            | hir::PropertyAccessorImplementation::Constant
             | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
                 unreachable!("a computed extension property has a getter body")
             }

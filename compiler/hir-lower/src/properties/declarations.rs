@@ -532,6 +532,7 @@ impl Lowerer {
             hir::PropertyRepresentation::Stored(stored) => stored.backing,
             hir::PropertyRepresentation::AccessorOnly
             | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::Const { .. }
             | hir::PropertyRepresentation::NativeStorage { .. } => {
                 unreachable!("a class field is allocated only for stored properties")
             }
@@ -809,6 +810,20 @@ impl Lowerer {
             span,
         });
         hir::PropertyCapability::ReadWrite { getter, setter }
+    }
+
+    pub(crate) fn allocate_const_capability(
+        &mut self,
+        access: hir::DeclarationAccess,
+        span: ast::Span,
+    ) -> hir::PropertyCapability {
+        let getter = self.property_getters.alloc(hir::PropertyGetter {
+            access,
+            implementation: hir::PropertyAccessorImplementation::Constant,
+            attributes: hir::FunctionAttributes::default(),
+            span,
+        });
+        hir::PropertyCapability::ReadOnly { getter }
     }
 
     fn allocate_delegated_property_accessors(
