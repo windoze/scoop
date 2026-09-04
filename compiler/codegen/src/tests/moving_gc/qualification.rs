@@ -144,6 +144,7 @@ fn assert_aarch64_frame_disassembly(object: &std::path::Path, optimization: &str
 fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
     let module = stackmap_qualification_module();
     let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
+    let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
     assert_eq!(expected.root_count(1), Some(0));
     assert_eq!(expected.root_count(2), Some(1));
     assert_eq!(expected.root_count(3), Some(2));
@@ -176,7 +177,7 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
             .write_to_file(&llvm, FileType::Object, &output)
             .expect("write object");
         profile
-            .verify_object(&output, &expected)
+            .verify_object(&output, &expected, &expected_eh)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
         assert_aarch64_frame_disassembly(&output, name);
         std::fs::remove_file(&output).ok();

@@ -319,6 +319,7 @@ impl TargetProfile {
         self.managed_address_space
     }
 
+    #[cfg(test)]
     pub(crate) fn eh_profile(self) -> EhProfile {
         self.eh
     }
@@ -370,11 +371,18 @@ impl TargetProfile {
     pub(crate) fn verify_object(
         self,
         path: &Path,
-        expected: &ExpectedSafepoints,
+        expected_safepoints: &ExpectedSafepoints,
+        expected_eh: &artifact::ExpectedEh,
     ) -> Result<(), CodegenError> {
         match (self.object_format, self.statepoint_roots) {
             (ObjectFormat::MachO64, StatepointRootPolicy::StackIndirectOnly) => {
-                artifact::verify_macho_stackmaps(path, expected, self.stack_map_version)
+                artifact::verify_macho_artifact(
+                    path,
+                    expected_safepoints,
+                    expected_eh,
+                    self.stack_map_version,
+                    self.eh.encodings(),
+                )
             }
         }
     }

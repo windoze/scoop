@@ -28,7 +28,7 @@ fn text_instruction(text: &TextSection, pc: u64, what: &str) -> Result<u32, Code
     ))
 }
 
-fn is_aarch64_call(instruction: u32) -> bool {
+pub(super) fn is_aarch64_call(instruction: u32) -> bool {
     instruction & 0xfc00_0000 == 0x9400_0000 || instruction & 0xffff_fc1f == 0xd63f_0000
 }
 
