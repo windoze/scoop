@@ -44,7 +44,7 @@ fn lowers_hello_world() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

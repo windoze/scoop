@@ -36,7 +36,7 @@ fn var_rebinding_and_control_flow() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash
@@ -205,7 +205,7 @@ fn inner_scopes_shadow_and_do_not_leak() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

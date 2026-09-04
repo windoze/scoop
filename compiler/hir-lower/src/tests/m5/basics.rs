@@ -48,7 +48,7 @@ fn array_basics_golden() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash
@@ -202,7 +202,7 @@ fn generic_function_over_array_elements() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

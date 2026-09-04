@@ -39,7 +39,7 @@ fn struct_construction_and_field_access() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

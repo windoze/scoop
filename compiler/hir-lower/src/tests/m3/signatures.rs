@@ -33,7 +33,7 @@ fn expression_body_and_parameters() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash
@@ -161,7 +161,7 @@ fn return_with_unit_value_is_a_bare_return() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

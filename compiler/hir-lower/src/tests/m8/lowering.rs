@@ -61,10 +61,10 @@ fn try_catch_finally_golden() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   class MyError(code: Int)
     field1 property12: Int
-    property12 val code: Int getter12=storage <stored field1 init=parameter12>
+    property12 val code: Int getter12=storage <stored field1 init=parameter13>
   interface ToString
     fun toString(): String
   interface Hash
