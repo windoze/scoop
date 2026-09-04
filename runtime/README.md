@@ -1,6 +1,7 @@
 # runtime
 
-The C runtime implements M15's exact moving Immix collector:
+The C runtime implements M15's exact moving Immix collector and M25's
+runtime-owned exception ABI:
 
 - `src/gc/heap.c` owns arena-external block/object metadata;
 - `src/gc/allocation.c` owns mutator TLAB and large-object allocation;
@@ -15,6 +16,11 @@ The C runtime implements M15's exact moving Immix collector:
 - `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`
   separates STW collection, managed/native transitions, root frames, and
   debug queries;
+- `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
+  throw/begin/end/rethrow, and stable external-root lifetime;
+- `src/eh_personality.c` owns the bounded LSDA decoder and the Scoop
+  personality for the qualified LLVM 22.1 Darwin/AArch64 catch-all/cleanup
+  profile;
 - `src/platform/` provides the target-selected image, OS/VM and frame/ABI
   components. M15 currently supports Darwin/AArch64 only.
 
@@ -23,7 +29,13 @@ profile into `target/scoop-rt/libscoop_rt.a` and links it into each Scoop
 program. Runtime behavior is covered by `cargo test --workspace`, including
 the fake-platform stack-map tests and executable fixture suite. The complete
 contracts live in `docs/specs/SCOOP-RUNTIME-SPEC.md` and
-`docs/milestone15/DESIGN.md`.
+`docs/milestone15/DESIGN.md`; the exception migration and its object/link
+qualification gates are specified in `docs/milestone25/DESIGN.md`.
+
+Generated Scoop programs use only the closed set of Itanium Level-I
+`_Unwind_*` entries supplied by Darwin `libSystem`. They neither expose the EH
+control-flow entries through the public C FFI header nor link `libc++abi` or an
+explicit `libunwind`.
 
 `SCOOP_GC_STRESS_MOVE=1` enables the M15 runtime-only relocation test mode:
 every mutator-visible allocation first performs a full moving collection,

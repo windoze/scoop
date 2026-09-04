@@ -1,6 +1,6 @@
 # M25 设计：自有异常 ABI 与 libc++abi 退役
 
-版本：0.1（设计草案）
+版本：1.0（已实现，2026-09-05）
 
 本里程碑把 Scoop 进程内的原生异常实现从 libc++abi 迁移到自有异常记录、catch 状态和 personality；底层只调用 Itanium unwind Level I 的 `_Unwind_*` 接口。目标是让生成的 Scoop 程序不再链接或导入 libc++abi，同时保持 M8–M10 已确定的 `throw` / `try` / `catch` / `finally` / rethrow、moving GC root 与 suspend handler 物化语义不变。
 
@@ -135,7 +135,7 @@ Allocated
 - 只有 `_Unwind_DeleteException` 触发的 cleanup callback 可以撤销 root 和释放整条 allocation；
 - `EndCatch` 不直接 free，只在生命周期确实结束时调用 `_Unwind_DeleteException`；
 - rethrow 复用同一 `_Unwind_Exception` 和 payload，不新增 root、不复制对象；
-- cleanup callback 用 state/magic 防止 double delete，但发现重复删除必须作为 runtime ABI error 终止，不能静默吞掉；
+- runtime 在调用 `_Unwind_DeleteException` 前以 active registry 与 state 保证 exactly once；cleanup callback 自身也必须在解引用 record 前按 raw 地址确认 active membership，再用 state/magic 拒绝重复回调。已释放的 raw header 不是 Level-I API 的有效输入，runtime private ABI 不允许外部再次把它传给 `_Unwind_DeleteException`；
 - thread detach、runtime shutdown 和测试 teardown 时 caught 栈、in-flight record 计数与 external root 计数必须为零。
 
 ### 2.4 首次抛出

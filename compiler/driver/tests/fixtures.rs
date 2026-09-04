@@ -65,11 +65,13 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m8-exceptions/handler-exits.scoop"
             | "m8-exceptions/custom-exception.scoop"
             | "m10-coroutines/gc-across-suspension.scoop"
+            | "m10-coroutines/catch-finally-suspension.scoop"
             | "m11-functions/captures.scoop"
             | "m11-functions/variance.scoop"
             | "m12-extern-scoop/extern-scoop.scoop"
             | "m13-callback/managed-callback.scoop"
             | "m13-callback/foreign-continuation.scoop"
+            | "m13-callback/callback-exception.scoop"
             | "m14-generics/generic-exception.scoop"
             | "m15-moving/external-exception.scoop"
             | "m15-moving/handle-pin.scoop"
@@ -88,6 +90,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m21-objects/failure.scoop"
             | "m21-objects/objects.scoop"
             | "m21-top-level-static/values.scoop"
+            | "m25-eh/combined.scoop"
     )
 }
 

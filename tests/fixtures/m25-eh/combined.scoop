@@ -1,0 +1,65 @@
+struct NestedPayload(
+    val label: String,
+    val pair: (String, String)
+)
+
+enum TaggedPayload {
+    Present(String, String),
+    Empty
+}
+
+class CombinedMovingError(
+    val direct: String,
+    val nested: NestedPayload,
+    val tagged: TaggedPayload,
+    val values: Array<String>
+) : Exception(Some(direct))
+
+fun throwThroughFinally() {
+    val direct = "direct-" + "alive"
+    val nested = NestedPayload(
+        "struct-" + "alive",
+        ("tuple-first-" + "alive", "tuple-second-" + "alive")
+    )
+    val tagged = TaggedPayload.Present(
+        "enum-first-" + "alive",
+        "enum-second-" + "alive"
+    )
+    val values = ["array-first-" + "alive", "array-second-" + "alive"]
+
+    try {
+        throw CombinedMovingError(direct, nested, tagged, values)
+    } finally {
+        gcCollect()
+        println("in-flight-collected")
+    }
+}
+
+fun passThroughUnmatchedCatch() {
+    try {
+        throwThroughFinally()
+    } catch (error: ArithmeticException) {
+        println("wrong-handler")
+    }
+}
+
+fun main() {
+    try {
+        passThroughUnmatchedCatch()
+    } catch (error: CombinedMovingError) {
+        gcCollect()
+        println(error.direct)
+        println(error.nested.label)
+        println(error.nested.pair._1)
+        println(error.nested.pair._2)
+        when (error.tagged) {
+            Present(first, second) -> {
+                println(first)
+                println(second)
+            }
+            Empty -> println("empty")
+        }
+        println(error.values[0])
+        println(error.values[1])
+    }
+}
