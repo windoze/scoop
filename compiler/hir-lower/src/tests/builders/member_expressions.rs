@@ -38,7 +38,10 @@ pub(crate) fn typed_method_call(
         receiver: Box::new(receiver),
         name: ident(name),
         navigation: ast::Navigation::Direct,
-        type_args,
+        type_args: type_args
+            .into_iter()
+            .map(ast::CallTypeArgument::Explicit)
+            .collect(),
         args: call_arguments(args),
         span: sp(),
     }

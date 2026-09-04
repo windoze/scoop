@@ -375,11 +375,18 @@ pub(super) fn dump_expr(
                 MethodCallee::Callable(_) => module.functions[function].name.clone(),
                 MethodCallee::Bound(bound) => {
                     let bound = &module.bound_callable_refs[*bound];
-                    let interface = &module.interface_applications[bound.bound];
+                    let via = match bound.source {
+                        BoundCallableSource::Class { bound, .. } => {
+                            module.class_applications[bound].canonical_type
+                        }
+                        BoundCallableSource::Interface { bound, .. } => {
+                            module.interface_applications[bound].canonical_type
+                        }
+                    };
                     format!(
                         "bound T{} via {} -> {}",
                         bound.receiver_parameter.into_raw(),
-                        type_name(module, interface.canonical_type),
+                        type_name(module, via),
                         module.functions[function].name
                     )
                 }

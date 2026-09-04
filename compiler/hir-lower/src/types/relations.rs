@@ -16,17 +16,26 @@ impl Lowerer {
         let b_ty = self.types[b].clone();
         match (a_ty, b_ty) {
             (_, Type::Any) => true,
-            (Type::Param(parameter), _) => self
-                .type_params_in_scope
-                .iter()
-                .find(|candidate| candidate.id == parameter)
-                .map(|parameter| parameter.interface_bounds().to_vec())
-                .unwrap_or_default()
-                .into_iter()
-                .any(|bound| {
+            (Type::Param(parameter), _) => {
+                let Some(parameter) = self
+                    .type_params_in_scope
+                    .iter()
+                    .find(|candidate| candidate.id == parameter)
+                    .cloned()
+                else {
+                    return false;
+                };
+                if let Some(bound) = parameter.class_bound() {
+                    let bound = self.class_applications[bound.application].canonical_type;
+                    if self.is_subtype(bound, b) {
+                        return true;
+                    }
+                }
+                parameter.interface_bounds().iter().any(|bound| {
                     let bound = self.interface_applications[bound.application].canonical_type;
                     self.is_subtype(bound, b)
-                }),
+                })
+            }
             (Type::Class(application), Type::Class(..)) => {
                 let application = self.class_applications[application].clone();
                 let Some(base) = self.classes[application.template].base_class else {
@@ -46,20 +55,10 @@ impl Lowerer {
                         self.is_subtype(parent, b.canonical_type)
                     });
                 }
-                let variances: Vec<hir::Variance> = self.interfaces[a.template]
-                    .type_params
-                    .iter()
-                    .map(|param| param.variance)
-                    .collect();
-                variances
+                a.arguments
                     .into_iter()
-                    .zip(a.arguments)
                     .zip(b.arguments)
-                    .all(|((variance, a), b)| match variance {
-                        hir::Variance::Invariant => self.types_equal(a, b),
-                        hir::Variance::Out => self.is_subtype(a, b),
-                        hir::Variance::In => self.is_subtype(b, a),
-                    })
+                    .all(|(a, b)| self.types_equal(a, b))
             }
             (Type::Function(source), Type::Function(target)) => {
                 let source = self.function_types[source].clone();

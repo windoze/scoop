@@ -21,7 +21,6 @@ pub(crate) fn ident(text: &str) -> Ident {
 pub(crate) fn type_param(name: &str) -> ast::TypeParamDecl {
     ast::TypeParamDecl {
         name: ident(name),
-        variance: ast::Variance::Invariant,
         inline_bound: None,
         span: sp(),
     }

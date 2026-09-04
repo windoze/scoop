@@ -36,7 +36,7 @@ Runtime 是编译产物的支撑层，职责包括：
 
 ### 2.2 TypeDescriptor
 
-每个具体类型（含每个单态化实例，spec 3.2）有一份编译器生成的 `TypeDescriptor`，至少包含：
+每个具体类型（含每个单态化exact nominal实例，spec 3.2）有一份编译器生成的`TypeDescriptor`，至少包含：
 
 - 类型标识（`is` / `as` 检查用）；
 - 稳定的 UTF-8 类型名（与 TypeDescriptor 同生命周期，用于未捕获异常等运行时诊断）；
@@ -45,6 +45,8 @@ Runtime 是编译产物的支撑层，职责包括：
 - **enum 扫描不读取 tag**：tagged enum的所有潜在ref位置都位于ref-bearing variant的独占slot，按普通固定偏移检查；inactive独占slot必须为全0，pure-value共享区不进入扫描。niche表示的managed-ref enum整体是一个普通引用位置，`Ptr` / `FunPtr` niche不是managed root。没有出站引用的节点可用空指针表示。LIR meta 的`RefScan`提供该信息（见 impl spec 2.4）；
 - 父类型信息（接口、父类）；
 - 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。vtable只含实际需要virtual dispatch的class方法，slot从0开始且允许为空；`Any`没有方法或固定前缀。`ToString` / `Hash`及声明operator equals的interface均走普通itable；装箱值类型的表项指向this调整thunk（impl spec 2.9）。TypeDescriptor的类型名只用于诊断，runtime不得据此合成用户可见字符串、哈希或相等语义。
+
+generic nominal application始终invariant。每个fully specialized application以自身TypeDescriptor及替换完成的exact base/interface closure参加`is`/`as`；runtime不按nominal template或type argument subtyping合成其他application关系，不解析UTF-8类型名、比较mangled symbol前缀或把同template的application擦除为相等。Scoop没有projected/star generic descriptor、wildcard lookup或runtime generic dictionary。
 
 ### 2.3 装箱
 
@@ -238,7 +240,7 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 - `Array` / `MutableArray`：分配（按 spec 10.1 的元素布局）、`size`、越界检查与抛异常、`toArray` / `toMutableArray` 的浅拷贝转换（spec 10.4）。转换入口显式接收编译器已选定的目标concrete application TypeDescriptor，以该descriptor分配并保留新对象头，只复制对象头之后的`size`、padding与inline elements；不得从来源对象、元素布局或类型名推断目标类型，也不得沿用来源descriptor；
 - `StringBuilder`：`add` / `build`（spec 11.6）；
 - 基本类型的具体`ToString` / `Hash` / operator equals后备（不提供`Any`或地址fallback）；
-- 类型测试与装箱辅助：`is` / `as` 的 TypeDescriptor 比较、装箱/拆箱。
+- 类型测试与装箱辅助：`is` / `as` 的exact TypeDescriptor比较、普通装箱/拆箱。
 
 ## 7. 启动、线程与终止
 

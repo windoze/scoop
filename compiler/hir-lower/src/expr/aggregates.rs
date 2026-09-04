@@ -65,10 +65,12 @@ impl Lowerer {
                 if !self.is_subtype(element.ty, element_ty) || would_auto_box {
                     let expected = self.type_name(element_ty);
                     let found = self.type_name(element.ty);
-                    self.error(
-                        element.span,
+                    let message = self.with_nominal_invariance_detail(
                         format!("array literal element must be of type {expected}, found {found}"),
+                        element.ty,
+                        element_ty,
                     );
+                    self.error(element.span, message);
                     return None;
                 }
                 lowered.push(self.adapt_to(element, element_ty));

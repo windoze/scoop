@@ -56,9 +56,7 @@ impl Lowerer {
         let valid_parameters = match spec.kind.parameters() {
             hir::IntrinsicTypeParameters::None => parameters.is_empty(),
             hir::IntrinsicTypeParameters::OneInvariantUnconstrained => {
-                matches!(parameters, [parameter]
-                    if parameter.variance == ast::Variance::Invariant
-                        && parameter.inline_bound.is_none())
+                matches!(parameters, [parameter] if parameter.inline_bound.is_none())
                     && where_clause.is_none()
             }
         };

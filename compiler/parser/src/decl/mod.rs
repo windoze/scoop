@@ -8,8 +8,8 @@ use scoop_ast::{
     OperatorModifier, Param, ParameterSyntax, PrimaryClassParameter, PrimaryParameterProperty,
     SecondaryConstructorDecl, Span, StoredPropertyDecl, StructDecl, StructMember,
     StructRepresentationDecl, SupertypeSpec, TypeBound, TypeConstraint, TypeParamDecl,
-    TypeParamKindBound, VarargDefaultSyntax, Variance, VariantDecl, VariantDeclKind,
-    VariantFieldDecl, WhereClause,
+    TypeParamKindBound, VarargDefaultSyntax, VariantDecl, VariantDeclKind, VariantFieldDecl,
+    WhereClause,
 };
 
 use crate::lexer::TokenKind;

@@ -4,12 +4,12 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume
     fun resumeWithException
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register
   struct FunctionSuspendTask<T> : SuspendTask<T>
     field task: suspend () -> T
@@ -260,12 +260,12 @@ Module
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run(): T0
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
   interface ToString
     fun toString(): String

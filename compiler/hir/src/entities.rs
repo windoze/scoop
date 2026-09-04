@@ -478,9 +478,12 @@ pub(crate) fn callable_function(module: &Module, callable: Callable) -> Function
 pub(crate) fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
     match callee {
         MethodCallee::Callable(callable) => callable_function(module, callable),
-        MethodCallee::Bound(bound) => {
-            module.interface_methods[module.bound_callable_refs[bound].member].function
-        }
+        MethodCallee::Bound(bound) => match module.bound_callable_refs[bound].source {
+            BoundCallableSource::Class { callable, .. } => callable_function(module, callable),
+            BoundCallableSource::Interface { member, .. } => {
+                module.interface_methods[member].function
+            }
+        },
         MethodCallee::DerivedEquality(application) => {
             module.derived_equality_applications[application].function
         }

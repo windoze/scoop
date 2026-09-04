@@ -44,20 +44,14 @@ fn interface_with_multiple_methods() {
 }
 
 #[test]
-fn generic_interface_variance_and_applied_supertype() {
+fn generic_interface_and_applied_supertype() {
     let file = ok(
-        "interface Flow<out T, in E, U> { fun next(): T\n fun fail(e: E) }\nclass C : Flow<Int, String, Boolean> {}",
+        "interface Flow<T, E, U> { fun next(): T\n fun fail(e: E) }\nclass C : Flow<Int, String, Boolean> {}",
     );
     let Decl::Interface(interface) = &file.declarations[0] else {
         panic!("expected interface");
     };
     assert_eq!(interface.type_params.len(), 3);
-    assert_eq!(interface.type_params[0].variance, scoop_ast::Variance::Out);
-    assert_eq!(interface.type_params[1].variance, scoop_ast::Variance::In);
-    assert_eq!(
-        interface.type_params[2].variance,
-        scoop_ast::Variance::Invariant
-    );
     let Decl::Class(class) = &file.declarations[1] else {
         panic!("expected class");
     };

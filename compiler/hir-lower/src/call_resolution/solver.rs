@@ -76,6 +76,18 @@ struct Bound {
     origin: ConstraintOrigin,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum NominalBoundKind {
+    Class,
+    Interface,
+}
+
+#[derive(Debug, Clone)]
+struct NominalBound {
+    kind: NominalBoundKind,
+    bound: Bound,
+}
+
 #[derive(Debug, Clone)]
 struct VariableState {
     variable: InferenceVariableId,
@@ -83,7 +95,7 @@ struct VariableState {
     lower: Vec<Bound>,
     upper: Vec<Bound>,
     kinds: Vec<(hir::TypeParamKind, ConstraintOrigin)>,
-    interfaces: Vec<Bound>,
+    nominal: Vec<NominalBound>,
 }
 
 impl VariableState {
@@ -94,7 +106,7 @@ impl VariableState {
             lower: Vec::new(),
             upper: Vec::new(),
             kinds: Vec::new(),
-            interfaces: Vec::new(),
+            nominal: Vec::new(),
         }
     }
 
@@ -103,8 +115,8 @@ impl VariableState {
             .last()
             .or_else(|| self.lower.last())
             .or_else(|| self.upper.last())
-            .or_else(|| self.interfaces.last())
             .map(|bound| bound.origin)
+            .or_else(|| self.nominal.last().map(|bound| bound.bound.origin))
             .or_else(|| self.kinds.last().map(|(_, origin)| *origin))
             .unwrap_or(ConstraintOrigin::Declaration)
     }
@@ -348,7 +360,7 @@ impl Lowerer {
         // Lower bounds request their unique least common supertype. With only
         // upper bounds, inference is dual: select the unique greatest type
         // below every bound. This lets contravariant positions fix a variable
-        // (for example `Continuation<in T>`) without inventing a bottom type.
+        // (for example `Continuation<T>`) without inventing a bottom type.
         let prefer_minimal = !lower.is_empty();
         let mut frontier = Vec::new();
         for &candidate in &candidates {
@@ -425,16 +437,24 @@ impl Lowerer {
                 });
             }
         }
-        for bound in &state.interfaces {
-            let required = self.require_materialized(session, bindings, bound)?;
+        for nominal in &state.nominal {
+            let required = self.require_materialized(session, bindings, &nominal.bound)?;
             if !self.is_subtype(solution, required) {
-                return Err(ConstraintFailure {
-                    origin: bound.origin,
-                    kind: ConstraintFailureKind::InterfaceBound {
+                let kind = match nominal.kind {
+                    NominalBoundKind::Class => ConstraintFailureKind::ClassBound {
                         variable: state.variable,
                         solution,
                         required,
                     },
+                    NominalBoundKind::Interface => ConstraintFailureKind::InterfaceBound {
+                        variable: state.variable,
+                        solution,
+                        required,
+                    },
+                };
+                return Err(ConstraintFailure {
+                    origin: nominal.bound.origin,
+                    kind,
                 });
             }
         }
@@ -466,6 +486,7 @@ impl Lowerer {
             | AtomicConstraintKind::LowerBound(..)
             | AtomicConstraintKind::UpperBound(..)
             | AtomicConstraintKind::Kind(..)
+            | AtomicConstraintKind::ClassBound(..)
             | AtomicConstraintKind::Implements(..) => Ok(()),
         }
     }
@@ -551,7 +572,8 @@ fn distribute_constraints(
             AtomicConstraintKind::Exact(variable, term) => (variable, Some((0, term))),
             AtomicConstraintKind::LowerBound(variable, term) => (variable, Some((1, term))),
             AtomicConstraintKind::UpperBound(variable, term) => (variable, Some((2, term))),
-            AtomicConstraintKind::Implements(variable, term) => (variable, Some((3, term))),
+            AtomicConstraintKind::ClassBound(variable, term) => (variable, Some((3, term))),
+            AtomicConstraintKind::Implements(variable, term) => (variable, Some((4, term))),
             AtomicConstraintKind::Kind(variable, kind) => {
                 let index = session.variable_index(variable).ok_or(ConstraintFailure {
                     origin: constraint.origin,
@@ -579,7 +601,14 @@ fn distribute_constraints(
             0 => states[index].exact.push(bound),
             1 => states[index].lower.push(bound),
             2 => states[index].upper.push(bound),
-            3 => states[index].interfaces.push(bound),
+            3 => states[index].nominal.push(NominalBound {
+                kind: NominalBoundKind::Class,
+                bound,
+            }),
+            4 => states[index].nominal.push(NominalBound {
+                kind: NominalBoundKind::Interface,
+                bound,
+            }),
             _ => unreachable!("closed bound destination"),
         }
     }

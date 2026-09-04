@@ -304,7 +304,7 @@ fn dump_call_argument(argument: &CallArgument, indent: usize, out: &mut String) 
     dump_expr(&argument.expression, indent + 1, out);
 }
 
-fn dump_call_type_args(type_args: &[TypeRef]) -> String {
+fn dump_call_type_args(type_args: &[CallTypeArgument]) -> String {
     if type_args.is_empty() {
         String::new()
     } else {
@@ -312,7 +312,10 @@ fn dump_call_type_args(type_args: &[TypeRef]) -> String {
             "<{}>",
             type_args
                 .iter()
-                .map(dump_type_ref)
+                .map(|argument| match argument {
+                    CallTypeArgument::Explicit(ty) => dump_type_ref(ty),
+                    CallTypeArgument::Infer { .. } => "_".to_string(),
+                })
                 .collect::<Vec<_>>()
                 .join(", ")
         )

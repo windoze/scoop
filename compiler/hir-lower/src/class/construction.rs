@@ -301,6 +301,11 @@ impl Lowerer {
     )> {
         let owner_application = self.classes[owner].self_application;
         let type_arguments = self.class_applications[owner_application].arguments.clone();
+        let explicit_type_arguments = type_arguments
+            .iter()
+            .copied()
+            .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
+            .collect::<Vec<_>>();
         let candidates = self.classes[owner]
             .constructors
             .iter()
@@ -314,7 +319,7 @@ impl Lowerer {
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
-                        explicit_type_args: &type_arguments,
+                        explicit_type_args: &explicit_type_arguments,
                         expected_type_args: None,
                         arguments,
                         span,
@@ -357,13 +362,18 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let name = self.classes[base.template].name.clone();
         let type_arguments = base.arguments;
+        let explicit_type_arguments = type_arguments
+            .iter()
+            .copied()
+            .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
+            .collect::<Vec<_>>();
         let resolved =
             self.with_constructor_expression_context(source, context, |this, sink| {
                 this.resolve_nominal_constructor_overload(
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
-                        explicit_type_args: &type_arguments,
+                        explicit_type_args: &explicit_type_arguments,
                         expected_type_args: None,
                         arguments,
                         span,
@@ -439,6 +449,11 @@ impl Lowerer {
             let type_arguments = self.struct_applications[owner_application]
                 .arguments
                 .clone();
+            let explicit_type_arguments = type_arguments
+                .iter()
+                .copied()
+                .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span: *span })
+                .collect::<Vec<_>>();
             let candidates = self.structs[id]
                 .constructors
                 .iter()
@@ -454,7 +469,7 @@ impl Lowerer {
                         &name,
                         &candidates,
                         crate::constructor_resolution::NominalConstructorCall {
-                            explicit_type_args: &type_arguments,
+                            explicit_type_args: &explicit_type_arguments,
                             expected_type_args: None,
                             arguments: arguments.as_slice(),
                             span: *span,

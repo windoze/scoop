@@ -122,7 +122,12 @@ pub(crate) enum CallableCandidateOwner {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CallableCandidateSource {
     Direct,
-    Bound {
+    ClassBound {
+        receiver_parameter: hir::TypeParamId,
+        bound: hir::ClassApplicationId,
+        member: hir::FunctionId,
+    },
+    InterfaceBound {
         receiver_parameter: hir::TypeParamId,
         bound: hir::InterfaceApplicationId,
         member: hir::InterfaceMethodId,
@@ -154,11 +159,6 @@ pub(crate) fn lower_type_param_decl(
     hir::TypeParamDecl {
         id,
         name: param.name.text.clone(),
-        variance: match param.variance {
-            ast::Variance::Invariant => hir::Variance::Invariant,
-            ast::Variance::In => hir::Variance::In,
-            ast::Variance::Out => hir::Variance::Out,
-        },
         // Bounds are resolved after every nominal declaration has entered the
         // type namespace. This temporary lowerer state never crosses the HIR
         // output boundary; successful lowering replaces it completely.

@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn interface_bounds_are_complete_ordered_hir_constraints() {
-    let mut renderable =
-        generic_interface_decl("Renderable", vec![(ast::Variance::Invariant, "T")], vec![]);
+    let mut renderable = generic_interface_decl("Renderable", vec!["T"], vec![]);
     let Decl::Interface(renderable_decl) = &mut renderable else {
         unreachable!()
     };
@@ -26,7 +25,7 @@ fn interface_bounds_are_complete_ordered_hir_constraints() {
 
     let module = lower_user(file(vec![
         interface_decl("Marker", vec![]),
-        generic_interface_decl("Comparable", vec![(ast::Variance::Invariant, "T")], vec![]),
+        generic_interface_decl("Comparable", vec!["T"], vec![]),
         renderable,
         constrained,
         fun("main", vec![]),
@@ -39,21 +38,22 @@ fn interface_bounds_are_complete_ordered_hir_constraints() {
         .find(|(_, declaration)| declaration.name == "Constrained")
         .unwrap()
         .1;
-    let hir::TypeParamBounds::Interfaces(bounds) = &declaration.type_params[0].bounds else {
+    let hir::TypeParamBounds::Nominal(bounds) = &declaration.type_params[0].bounds else {
         panic!("interface upper bounds must use the typed constraint branch")
     };
-    assert_eq!(bounds.len(), 2);
+    assert!(bounds.class.is_none());
+    assert_eq!(bounds.interfaces.len(), 2);
     assert_eq!(
         hir::type_name(
             &module,
-            module.interface_applications[bounds[0].application].canonical_type
+            module.interface_applications[bounds.interfaces[0].application].canonical_type
         ),
         "Marker"
     );
     assert_eq!(
         hir::type_name(
             &module,
-            module.interface_applications[bounds[1].application].canonical_type
+            module.interface_applications[bounds.interfaces[1].application].canonical_type
         ),
         "Comparable<T0>"
     );
@@ -124,7 +124,7 @@ fn bound_declaration_errors_are_diagnosed_at_hir() {
     .expect_err("kind/interface mixing and unknown where parameters must fail");
     assert!(errors.iter().any(|error| {
         error.message
-            == "type parameter `T` of function cannot combine interface upper bounds with a kind bound"
+            == "type parameter `T` of function cannot combine nominal upper bounds with a kind bound"
     }));
     assert!(errors.iter().any(|error| {
         error.message == "unknown type parameter `U` in where clause of function"
@@ -141,7 +141,8 @@ fn upper_bound_must_be_a_complete_interface_application() {
     let errors = lower_user(file(vec![declaration, fun("main", vec![])]))
         .expect_err("a value type cannot be an upper bound");
     assert!(errors.iter().any(|error| {
-        error.message == "upper bound of type parameter `T` must be an interface, found `Int`"
+        error.message
+            == "upper bound of type parameter `T` must be a class or interface, found `Int`"
     }));
 }
 

@@ -56,15 +56,17 @@ impl Lowerer {
         let mut sink = Vec::new();
         let value = self.lower_expr(&assign.value, &mut sink, Some(field.read.ty))?;
         if !self.is_subtype(value.ty, field.read.ty) {
-            self.error(
-                assign.value.span(),
+            let message = self.with_nominal_invariance_detail(
                 format!(
                     "cannot assign value of type {} to property `{}` of type {}",
                     self.type_name(value.ty),
                     name.text,
                     self.type_name(field.read.ty)
                 ),
+                value.ty,
+                field.read.ty,
             );
+            self.error(assign.value.span(), message);
             return None;
         }
         out.extend(sink);
@@ -125,13 +127,15 @@ impl Lowerer {
         if !self.is_subtype(value.ty, field_ty) {
             let expected = self.type_name(field_ty);
             let found = self.type_name(value.ty);
-            self.error(
-                assign.value.span(),
+            let message = self.with_nominal_invariance_detail(
                 format!(
                     "cannot assign value of type {found} to property `{}` of type {expected}",
                     name.text
                 ),
+                value.ty,
+                field_ty,
             );
+            self.error(assign.value.span(), message);
             return None;
         }
         let value = self.adapt_to(value, field_ty);
@@ -245,15 +249,17 @@ impl Lowerer {
                 let mut sink = Vec::new();
                 let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
                 if !self.is_subtype(value.ty, expected) {
-                    self.error(
-                        assign.value.span(),
+                    let message = self.with_nominal_invariance_detail(
                         format!(
                             "cannot assign value of type {} to global `{}` of type {}",
                             self.type_name(value.ty),
                             name.text,
                             self.type_name(expected)
                         ),
+                        value.ty,
+                        expected,
                     );
+                    self.error(assign.value.span(), message);
                     return None;
                 }
                 let value = self.adapt_to(value, expected);
@@ -279,13 +285,15 @@ impl Lowerer {
         if !self.is_subtype(value.ty, expected) {
             let expected_name = self.type_name(expected);
             let found = self.type_name(value.ty);
-            self.error(
-                assign.value.span(),
+            let message = self.with_nominal_invariance_detail(
                 format!(
                     "cannot assign value of type {found} to `{}` of type {expected_name}",
                     name.text
                 ),
+                value.ty,
+                expected,
             );
+            self.error(assign.value.span(), message);
             return None;
         }
         let value = self.adapt_to(value, expected);

@@ -12,7 +12,7 @@ pub use super::{
     ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin, ExternAbi, FunctionAttributes,
     GcEffect, IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId,
     IntrinsicTypeDeclaration, IntrinsicTypeKind, MethodModifier, OperatorKind, PrimitiveBinaryKind,
-    PrimitiveUnaryKind, Safety, StructAttributes, UnOp, Variance,
+    PrimitiveUnaryKind, Safety, StructAttributes, UnOp,
 };
 
 mod types;

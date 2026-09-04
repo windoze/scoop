@@ -167,16 +167,11 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
 }
 
 pub(super) fn dump_type_param(param: &TypeParamDecl) -> String {
-    let variance = match param.variance {
-        Variance::Invariant => "",
-        Variance::In => "in ",
-        Variance::Out => "out ",
-    };
     let bound = match &param.inline_bound {
         None => String::new(),
         Some(bound) => format!(" : {}", dump_type_bound(bound)),
     };
-    format!("{variance}{}{bound}", param.name.text)
+    format!("{}{bound}", param.name.text)
 }
 
 pub(super) fn dump_type_params(params: &[TypeParamDecl]) -> String {

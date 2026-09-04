@@ -307,11 +307,6 @@ impl Concretizer<'_> {
             origin: concrete::InterfaceOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
-            variances: source
-                .type_params
-                .iter()
-                .map(|parameter| parameter.variance)
-                .collect(),
             type_arguments: arguments.clone(),
             methods: Vec::new(),
             span: source.span,

@@ -28,22 +28,30 @@ impl Lowerer {
             }
         }
         for (param, &arg) in params.iter().zip(args) {
-            for bound in param.interface_bounds() {
-                let bound = self.interface_applications[bound.application].canonical_type;
-                let required = self.instantiate_ty(bound, args);
-                if self.is_subtype(arg, required) {
-                    continue;
-                }
-                let found = self.type_name(arg);
-                let required = self.type_name(required);
-                self.error(
-                    span,
-                    format!(
-                        "type argument `{found}` for `{}` of {target} must satisfy interface upper bound `{required}`",
-                        param.name
+            for bound in param.nominal_bounds_in_source_order() {
+                let (required, description) = match bound {
+                    hir::NominalBoundRef::Class(bound) => (
+                        self.class_applications[bound.application].canonical_type,
+                        "class",
                     ),
-                );
-                valid = false;
+                    hir::NominalBoundRef::Interface(bound) => (
+                        self.interface_applications[bound.application].canonical_type,
+                        "interface",
+                    ),
+                };
+                let required = self.instantiate_ty(required, args);
+                if !self.is_subtype(arg, required) {
+                    let found = self.type_name(arg);
+                    let required = self.type_name(required);
+                    self.error(
+                        span,
+                        format!(
+                            "type argument `{found}` for `{}` of {target} must satisfy {description} upper bound `{required}`",
+                            param.name
+                        ),
+                    );
+                    valid = false;
+                }
             }
         }
         valid

@@ -1,8 +1,8 @@
-interface Producer<out T> {
+interface Producer<T> {
     fun get(): T
 }
 
-interface Consumer<in T> {
+interface Consumer<T> {
     fun put(value: T)
 }
 
@@ -38,24 +38,16 @@ class AnyConsumer : Consumer<Any> {
     }
 }
 
-fun widen(producer: Producer<Dog>): Producer<Animal> = producer
-
-fun narrow(consumer: Consumer<Animal>): Consumer<Dog> = consumer
-
-fun boxResult(producer: Producer<Int>): Producer<Any> = producer
-
-fun consumeInt(consumer: Consumer<Any>): Consumer<Int> = consumer
-
 fun <T> readOr(producer: Producer<T>, fallback: T): T = producer.get()
 
 fun main() {
-    val producer: Producer<Animal> = widen(DogProducer())
+    val producer: Producer<Dog> = DogProducer()
     println(producer.get().name)
-    val consumer: Consumer<Dog> = narrow(AnimalConsumer())
+    val consumer: Consumer<Animal> = AnimalConsumer()
     consumer.put(Dog())
-    println(boxResult(IntProducer()).get() is Int)
-    println(boxResult(IntValue(8)).get() is Int)
-    println(boxResult(Value(10)).get() is Int)
-    consumeInt(AnyConsumer()).put(9)
+    println(IntProducer().get())
+    println(IntValue(8).get())
+    println(Value(10).get())
+    AnyConsumer().put(9)
     println(readOr(IntProducer(), 6))
 }

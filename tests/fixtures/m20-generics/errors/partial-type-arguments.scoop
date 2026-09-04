@@ -1,0 +1,19 @@
+interface Marker {}
+
+fun <A, B> pair(first: A, second: B): B = second
+
+fun <A, B> first(value: A): A = value
+
+fun <A, B> require(first: A, second: B): B
+    where B : Marker =
+    second
+
+struct Holder<A, T : Marker>(val fixed: A, val value: T)
+
+fun main() {
+    pair<_>(1, "short")
+    pair<Int, String, Boolean>(1, "long")
+    first<Int, _>(1)
+    require<String, _>("fixed", 1)
+    Holder<String, _>("fixed", 1)
+}

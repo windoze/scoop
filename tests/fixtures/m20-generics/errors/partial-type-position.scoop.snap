@@ -1,0 +1,8 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m20-generics/errors/partial-type-position.scoop:3:29: error: `_` is only allowed in call type argument lists
+m20-generics/errors/partial-type-position.scoop:6:27: error: `_` is only allowed in call type argument lists
+m20-generics/errors/partial-type-position.scoop:7:9: error: `_` is only allowed in a type argument list immediately followed by a call

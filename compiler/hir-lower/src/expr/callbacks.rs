@@ -9,7 +9,7 @@ impl Lowerer {
     pub(crate) fn foreign_callback_argument_expected(
         &mut self,
         function: hir::FunctionId,
-        explicit_type_args: &[TypeId],
+        explicit_type_args: &[ResolvedCallTypeArgument],
         argument_map: &crate::call_resolution::arguments::CandidateArgumentMap,
         args: &[ast::CallArgument],
         span: Span,
@@ -20,7 +20,7 @@ impl Lowerer {
         if function != core.register {
             return Ok(None);
         }
-        let [native_ty] = explicit_type_args else {
+        let [ResolvedCallTypeArgument::Explicit { ty: native_ty, .. }] = explicit_type_args else {
             self.error(
                 span,
                 "`foreignCallback` requires one explicit function type".to_string(),

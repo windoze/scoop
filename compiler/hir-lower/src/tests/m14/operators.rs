@@ -91,7 +91,7 @@ fn operator_equals_is_a_typed_hir_contract() {
 fn generic_equality_resolves_the_exact_operator_bound_member() {
     let equality = generic_interface_decl(
         "Equality",
-        vec![(ast::Variance::Invariant, "T")],
+        vec!["T"],
         vec![operator_equals(false, true, ty_named("T"))],
     );
     let mut value = struct_decl_full(

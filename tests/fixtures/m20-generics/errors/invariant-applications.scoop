@@ -1,0 +1,58 @@
+interface Producer<T> {}
+interface Iterator<T> {}
+interface Marker {}
+
+open class Animal() {}
+class Cat : Animal() {}
+
+class RefBox<T>(val value: T)
+struct Pair<A, B>(val first: A, val second: B)
+
+open class Base<T>() {}
+class Derived : Base<Cat>() {}
+
+class CatProducer : Producer<Cat> {}
+class CatIterator : Iterator<Cat> {}
+
+struct Marked(val name: String) : Marker {}
+
+fun catOption(): Option<Cat> = Some(Cat())
+fun catArray(): Array<Cat> = [Cat()]
+
+fun invalidReturn(): Option<Animal> = catOption()
+
+fun main() {
+    val option: Option<Animal> = catOption()
+
+    val catBox = RefBox(Cat())
+    val animalBox: RefBox<Animal> = catBox
+
+    val pair = Pair(Cat(), "value")
+    val widerPair: Pair<Animal, Int> = pair
+
+    val producer: Producer<Cat> = CatProducer()
+    val widerProducer: Producer<Animal> = producer
+
+    val iterator: Iterator<Cat> = CatIterator()
+    val widerIterator: Iterator<Animal> = iterator
+
+    val cats: Array<Cat> = catArray()
+    val animals: Array<Animal> = cats
+
+    val numberBox = RefBox(1)
+    val anyBox: RefBox<Any> = numberBox
+
+    val markedBox = RefBox(Marked("marked"))
+    val markerBox: RefBox<Marker> = markedBox
+
+    val base: Base<Animal> = Derived()
+
+    var assigned: Option<Animal> = None
+    assigned = catOption()
+
+    val branch: Option<Animal> = if (true) {
+        catOption()
+    } else {
+        None
+    }
+}

@@ -161,15 +161,29 @@ impl Lowerer {
         callable: hir::Callable,
         type_args: &[TypeId],
     ) -> hir::MethodCallee {
-        let crate::CallableCandidateSource::Bound {
-            receiver_parameter,
-            bound,
-            member,
-        } = source
-        else {
-            return hir::MethodCallee::Callable(callable);
+        let (receiver_parameter, bound_source, function) = match source {
+            crate::CallableCandidateSource::Direct => {
+                return hir::MethodCallee::Callable(callable);
+            }
+            crate::CallableCandidateSource::ClassBound {
+                receiver_parameter,
+                bound,
+                member,
+            } => (
+                receiver_parameter,
+                hir::BoundCallableSource::Class { bound, callable },
+                member,
+            ),
+            crate::CallableCandidateSource::InterfaceBound {
+                receiver_parameter,
+                bound,
+                member,
+            } => (
+                receiver_parameter,
+                hir::BoundCallableSource::Interface { bound, member },
+                self.interface_method_entities[member].function,
+            ),
         };
-        let function = self.interface_method_entities[member].function;
         let signature = self.signatures[&function].clone();
         let parameter_types = signature
             .params
@@ -184,8 +198,7 @@ impl Lowerer {
         };
         let value = hir::BoundCallableRef {
             receiver_parameter,
-            bound,
-            member,
+            source: bound_source,
             instantiated_signature,
         };
         let existing = self

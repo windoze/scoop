@@ -120,6 +120,16 @@ pub(crate) fn render_callable_constraint_failure(
             parameter(*variable).name,
             lowerer.type_name(*required),
         ),
+        ConstraintFailureKind::ClassBound {
+            variable,
+            solution,
+            required,
+        } => format!(
+            "type argument `{}` for `{}` must satisfy class upper bound `{}`",
+            lowerer.type_name(*solution),
+            parameter(*variable).name,
+            lowerer.type_name(*required),
+        ),
         ConstraintFailureKind::ConflictingExactBounds {
             variable,
             first,
@@ -238,30 +248,42 @@ pub(super) fn render_type_parameters(
     let parameters = parameters
         .iter()
         .map(|parameter| {
-            let variance = match parameter.variance {
-                hir::Variance::Invariant => "",
-                hir::Variance::In => "in ",
-                hir::Variance::Out => "out ",
-            };
             let bound = match &parameter.bounds {
                 hir::TypeParamBounds::Unconstrained => String::new(),
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
                 hir::TypeParamBounds::Ref { .. } => " : ref".to_string(),
-                hir::TypeParamBounds::Interfaces(bounds) => format!(
-                    " : {}",
-                    bounds
-                        .iter()
-                        .map(|bound| {
+                hir::TypeParamBounds::Nominal(bounds) => {
+                    let mut rendered = Vec::new();
+                    if let Some(bound) = &bounds.class {
+                        rendered.push((
+                            bound.span.start,
+                            lowerer.type_name_with_params(
+                                lowerer.class_applications[bound.application].canonical_type,
+                                all_parameters,
+                            ),
+                        ));
+                    }
+                    rendered.extend(bounds.interfaces.iter().map(|bound| {
+                        (
+                            bound.span.start,
                             lowerer.type_name_with_params(
                                 lowerer.interface_applications[bound.application].canonical_type,
                                 all_parameters,
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(" & ")
-                ),
+                            ),
+                        )
+                    }));
+                    rendered.sort_by_key(|(start, _)| *start);
+                    format!(
+                        " : {}",
+                        rendered
+                            .into_iter()
+                            .map(|(_, value)| value)
+                            .collect::<Vec<_>>()
+                            .join(" & ")
+                    )
+                }
             };
-            format!("{variance}{}{bound}", parameter.name)
+            format!("{}{bound}", parameter.name)
         })
         .collect::<Vec<_>>()
         .join(", ");

@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::call_resolution::applicability::CallableApplicabilityInput;
+use crate::expr::ResolvedCallTypeArgument;
 
 pub(super) struct ApplicableCandidate {
     pub(super) candidate: usize,
@@ -44,7 +45,7 @@ impl Lowerer {
         candidate_index: usize,
         candidate: &Candidate,
         receiver: Option<&hir::Expr>,
-        explicit_type_args: &[TypeId],
+        explicit_type_args: &[ResolvedCallTypeArgument],
         arguments: &OverloadArguments<'_>,
         expected_result: Option<TypeId>,
     ) -> Result<ApplicableCandidate, Box<CandidateProbeFailure>> {

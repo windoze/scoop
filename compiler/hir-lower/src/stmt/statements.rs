@@ -116,12 +116,14 @@ impl Lowerer {
                             let name = self.current_fn_name.clone();
                             let expected = self.type_name(return_ty);
                             let found = self.type_name(value.ty);
-                            self.error(
-                                expr.span(),
+                            let message = self.with_nominal_invariance_detail(
                                 format!(
                                     "`return` value of `{name}` must be of type {expected}, found {found}"
                                 ),
+                                value.ty,
+                                return_ty,
                             );
+                            self.error(expr.span(), message);
                             return;
                         }
                         let value = self.adapt_to(value, return_ty);
@@ -251,13 +253,15 @@ impl Lowerer {
                 if !self.is_subtype(init.ty, expected) {
                     let expected_name = self.type_name(expected);
                     let found = self.type_name(init.ty);
-                    self.error(
-                        decl.init.span(),
+                    let message = self.with_nominal_invariance_detail(
                         format!(
                             "initializer of `{}` must be of type {expected_name}, found {found}",
                             ast::dump_pattern(&decl.target)
                         ),
+                        init.ty,
+                        expected,
                     );
+                    self.error(decl.init.span(), message);
                     return None;
                 }
                 (self.adapt_to(init, expected), expected)

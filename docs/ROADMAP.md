@@ -61,7 +61,7 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 ### M10 协程 ✅（2026-08-31 完成，设计见 `docs/milestone10/DESIGN.md`）
 
-命名`suspend`函数/方法、完全类型化的suspend状态机变换、`Continuation`与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成MIR CFG化、HIR concrete化后再做MIR状态机变换、direct / virtual / interface与型变bridge的hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起`catch` / `finally`，并以强制GC验证嵌套frame/adapter链和递归扫描。高层协程构建器与调度器仍属标准库；M10以core的`SuspendTask` / `SuspendRegistration`适配器打通无lambda前置依赖的端到端闭环。
+命名`suspend`函数/方法、完全类型化的suspend状态机变换、`Continuation`与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成MIR CFG化、HIR concrete化后再做MIR状态机变换、direct / virtual / exact interface hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起`catch` / `finally`，并以强制GC验证嵌套frame/adapter链和递归扫描。高层协程构建器与调度器仍属标准库；M10以core的`SuspendTask` / `SuspendRegistration`适配器打通无lambda前置依赖的端到端闭环。
 
 ### M11 函数类型、函数值与 closure ✅（2026-08-31 完成，设计见 `docs/milestone11/DESIGN.md`）
 
@@ -126,7 +126,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 以candidate-local fresh variables、结构化equality/subtyping/kind/interface bound及postponed arguments替换M3/M7/M14分散的固定点绑定；lambda/callable reference/`None`/空数组/嵌套generic构造在同一session完成；
 - MSC改为与本次actual inference隔离的pairwise fresh-variable forwarding constraint system，删除“比较推断后concrete type arguments”的简化；
 - 失败候选不产生永久HIR实体，winner原子地产生唯一typed callee、完整owner/callable concrete arguments和argument adaptation；`LocalConcreteHir`不得含inference variable、constraint或export placeholder；
-- 完成当前invariant generic application、interface/function variance与bound范围；projection、context parameter、整数literal widen分别在其语言能力落地时扩展同一solver。
+- 完成invariant nominal generic application、function type variance与bound范围；context parameter、整数literal widen分别在其语言能力落地时扩展同一solver。
 
 ### M17 命名参数、默认参数与 `vararg` ✅（2026-09-04 完成，设计见 `docs/milestone17/DESIGN.md`）
 
@@ -152,9 +152,12 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - `super.method()`只在direct base member层决议并强制direct dispatch；constructor / initializer保持非挂起，普通suspend caller的显式构造实参仍可挂起；
 - moving GC下initializing receiver和已写ref字段沿普通root/relocation传播，未写payload在首个safepoint前全零。
 
-### M20 泛型类型系统第二阶段（待设计）
+### M20 泛型类型系统第二阶段（设计见 `docs/milestone20/DESIGN.md`）
 
-non-interface variance、use-site/star projection、capture conversion、class upper bound及部分type argument。
+- 正式固定class/struct/enum/interface的全部nominal type parameter为invariant；删除interface旧variance bridge，不提供declaration/use-site `in`/`out`、star projection或capture conversion；
+- generic算法通过callable自身type parameter与bound表达；application变换使用显式`map`/重建，未知application使用非generic interface或显式erased wrapper；expected type支持直接构造目标`Option<T>`等exact application；
+- upper bound扩展为至多一个class加多个interface，bound均为参数完整的exact application；bounded receiver在实例化后解析为普通direct/virtual/interface target；
+- 调用显式type argument list允许用`_`逐项继续推断；`_`复用M16同一candidate-local constraint/MSC内核，并在LocalConcrete HIR前完全消失；runtime、RTTI、dispatch和跨Cone metadata保持exact-only。
 
 ### M21 属性、对象与可见性（待设计）
 
@@ -190,6 +193,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 - 2026-09-01 顺序调整：在接口化之后新增M15“精确根、statepoint relocation与moving compaction”，以强制relocation stress mode前置验证managed ref/root契约；字符串插值与多Cone顺延为M16/M17。
 - 2026-09-03 顺序调整：撤回原M16字符串插值设计并延后原M17多Cone；新M16先统一fresh-variable constraint solving与overload resolution，新M17再落地命名/default/vararg完整实参协议。其余M2/M4/M6/M7/M14基础backlog及多Cone、字符串能力按上节后续顺序重新排期。
 - 2026-09-04 编号确定：原“后续顺序”七项依次编号为 M18 callable表面、M19构造与初始化、M20泛型类型系统第二阶段、M21属性/对象/可见性、M22基础语言能力、M23多Cone与`.slib`、M24字符串底层与插值；各项详细范围仍须spec先行并单独设计。
+- 2026-09-04 M20设计决定：nominal generic统一为invariant，撤销既有interface variance并明确不引入projection/star/capture；M20只新增class upper bound与调用点`_`部分类型实参，泛型抽象由generic callable、exact interface及显式转换表达。
 - 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
 
 ## 4. 待补齐清单（backlog）
@@ -264,7 +268,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
 - 候选集分层：局部函数层已由M11落地；M16统一当前local/member/extension/top-level/core层的applicability，显式import/星号import层随 M23 多Cone机制插入；
-- 泛型候选MSC改用fresh-variable约束系统、统一postponed argument与候选诊断 → M16；projection参与的LUB/overload在 M20 扩展同一solver；
+- 泛型候选MSC改用fresh-variable约束系统、统一postponed argument与候选诊断 → M16；M20的`_`部分实参继续复用同一solver；
 - ~~`write` 的 `@Intrinsic` 退役~~（M12 已直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
 - ~~`print` / `println` 的 `Any.toString()` 过渡分发~~（M14 已改为 `fun <T : ToString> ...` 的普通generic bound调用，并拆除Any固定槽）；
 - 歧义/无匹配诊断的候选明细展示 → M16；
@@ -307,9 +311,6 @@ non-interface variance、use-site/star projection、capture conversion、class u
 
 ### 来自 M14（设计预留）
 
-- non-interface generic type（class/struct/enum）的声明点`in`/`out`及其position检查、subtyping、表示转换和必要的分派bridge → M20；M14只实现invariant nominal application。class的参数可能接收不同layout的value type，struct/enum本身又具有不同concrete value layout，不能未经表示设计直接照搬interface的声明点型变；
-- use-site `in` / `out` projection：补齐projection type AST/HIR、subtyping、member读写签名变换、overload/inference与capture conversion → M20；
-- star projection → M20：它表示一个捕获的未知application，不是省略实参，也不能擦除成`Any`。必须定义`C<*>`/`I<*>`的RTTI与cast、itable/vtable key、返回或接收未知value type时的ABI、跨Cone metadata；generic struct/enum等unboxed value application需要明确禁止projection还是采用显式existential boxing；
 - class upper bound → M20；M14的upper bound只接受完整interface application；
 - 可作为普通表达式静态类型的交叉类型；M14的多个interface bound只构成type parameter能力集合；
 - interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类；
@@ -318,7 +319,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 - nested/inner generic type与generic class companion的参数作用域：static nested type不隐式继承外层参数，`inner` type必须携带outer application与outer ref；object/companion声明自身没有type parameter、不按每个宿主application复制，也不能隐式使用宿主type parameter，其中的generic method仍必须non-virtual；
 - 显式type argument中的`_`占位及部分推断 → M20；当前只允许“整组省略并推断”或“整组完整写出”；
 - 更一般的polymorphic recursion。M14只接受generic callable递归SCC中环上参数替换合成为identity的可判定子集，并在参数增长/变化的递归环上定义处诊断；未来放宽必须提供结构化termination proof，不能以worklist深度、实例数或超时充当语义；
-- 当前完整application范围内的fresh-variable/postponed-argument constraint system与MSC → M16；projection参与后的MSC、LUB与overload比较随 M20 扩展同一solver；
+- 当前完整application范围内的fresh-variable/postponed-argument constraint system与MSC → M16；M20的`_`部分实参沿用该solver；
 - runtime generic dictionary、witness参数、反射式bound调用或共享generic body；M14仅实现单态化，后续只有在代码体积、动态加载或其他明确需求出现时再设计，不能作为缺失concrete信息的fallback；
 
 ### 来自 M15（设计预留）

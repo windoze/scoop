@@ -174,9 +174,6 @@ pub struct InterfaceDef {
     pub origin: InterfaceOriginId,
     pub name: String,
     pub family: InterfaceFamilyId,
-    /// Variance and arguments are copied onto every concrete application.
-    /// MIR therefore never consults the generic interface template.
-    pub variances: Vec<Variance>,
     pub type_arguments: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
     pub span: Span,

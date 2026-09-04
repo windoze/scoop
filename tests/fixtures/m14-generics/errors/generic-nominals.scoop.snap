@@ -3,14 +3,6 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m14-generics/errors/generic-nominals.scoop:16:22: error: type parameter `T` of struct must be invariant
-m14-generics/errors/generic-nominals.scoop:18:18: error: type parameter `T` of enum must be invariant
-m14-generics/errors/generic-nominals.scoop:14:20: error: type parameter `T` of class must be invariant
-m14-generics/errors/generic-nominals.scoop:22:21: error: generic class `Empty` requires 1 type argument(s)
-m14-generics/errors/generic-nominals.scoop:24:22: error: generic struct `Pair` requires 1 type argument(s)
-m14-generics/errors/generic-nominals.scoop:26:20: error: generic enum `Choice` requires 1 type argument(s)
-m14-generics/errors/generic-nominals.scoop:28:25: error: generic interface `Cell` requires 1 type argument(s)
-m14-generics/errors/generic-nominals.scoop:31:5: error: no applicable candidate for constructor `Empty` in nominal constructor candidate layer:
-  - class Empty<T>() — cannot infer a unique type argument for `T`
-m14-generics/errors/generic-nominals.scoop:32:5: error: no applicable candidate for constructor `Empty` in nominal constructor candidate layer:
-  - class Empty<T>() — expects 1 explicit type argument(s), but 2 were supplied
+m14-generics/errors/generic-nominals.scoop:14:20: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported
+m14-generics/errors/generic-nominals.scoop:16:22: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported
+m14-generics/errors/generic-nominals.scoop:18:18: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported

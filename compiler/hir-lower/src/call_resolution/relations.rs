@@ -15,6 +15,7 @@ pub(super) enum AtomicConstraintKind {
     LowerBound(InferenceVariableId, TypeTerm),
     UpperBound(InferenceVariableId, TypeTerm),
     Kind(InferenceVariableId, hir::TypeParamKind),
+    ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
     CallableShape(CallableShape, TypeTerm),
     ConcreteApplication(NominalApplication),
@@ -66,6 +67,14 @@ impl RelationReducer<'_> {
                 self.check_variable(*variable, record.origin)?;
                 self.push(
                     AtomicConstraintKind::Implements(*variable, *interface),
+                    record.origin,
+                );
+                Ok(())
+            }
+            Constraint::ClassBound(variable, class) => {
+                self.check_variable(*variable, record.origin)?;
+                self.push(
+                    AtomicConstraintKind::ClassBound(*variable, *class),
                     record.origin,
                 );
                 Ok(())
@@ -349,33 +358,16 @@ impl RelationReducer<'_> {
                         origin,
                     );
                 }
-                let variances: Vec<_> = self.lowerer.interfaces[left_application.template]
-                    .type_params
-                    .iter()
-                    .map(|parameter| parameter.variance)
-                    .collect();
-                for ((variance, left_argument), right_argument) in variances
+                for (left_argument, right_argument) in left_application
+                    .arguments
                     .into_iter()
-                    .zip(left_application.arguments)
                     .zip(right_application.arguments)
                 {
-                    match variance {
-                        hir::Variance::Invariant => self.equal(
-                            nested_term(left, left_argument),
-                            nested_term(right, right_argument),
-                            origin,
-                        )?,
-                        hir::Variance::Out => self.subtype(
-                            nested_term(left, left_argument),
-                            nested_term(right, right_argument),
-                            origin,
-                        )?,
-                        hir::Variance::In => self.subtype(
-                            nested_term(right, right_argument),
-                            nested_term(left, left_argument),
-                            origin,
-                        )?,
-                    }
+                    self.equal(
+                        nested_term(left, left_argument),
+                        nested_term(right, right_argument),
+                        origin,
+                    )?;
                 }
                 Ok(())
             }

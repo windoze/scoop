@@ -181,15 +181,17 @@ impl Lowerer {
                             let value =
                                 this.lower_expr(&property.initializer, sink, Some(expected))?;
                             if !this.is_subtype(value.ty, expected) {
-                                this.error(
-                                    property.initializer.span(),
+                                let message = this.with_nominal_invariance_detail(
                                     format!(
                                         "initializer of property `{}` must be of type {}, found {}",
                                         property.name.text,
                                         this.type_name(expected),
                                         this.type_name(value.ty)
                                     ),
+                                    value.ty,
+                                    expected,
                                 );
+                                this.error(property.initializer.span(), message);
                                 return None;
                             }
                             Some(this.adapt_to(value, expected))

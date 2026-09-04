@@ -1,0 +1,75 @@
+struct Pair<A, B>(val first: A, val second: B)
+
+class Box<A, B>(val first: A, val second: B)
+
+enum Choice<A, B> {
+    Both(A, B)
+}
+
+class Factory {
+    fun <A, B> create(first: A, second: B): Pair<A, B> = Pair(first, second)
+}
+
+fun <A, B> pair(first: A, second: B): Pair<A, B> = Pair(first, second)
+
+fun <A, B> A.attach(second: B): Pair<A, B> = Pair(this, second)
+
+fun <A, B> apply(value: A, operation: (A) -> B): B = operation(value)
+
+fun describe(value: Int): String = value.toString()
+
+fun <A, B> nested(value: Pair<A, B>): B = value.second
+
+fun <A, B> gather(
+    value: A,
+    fallback: B,
+    label: B = fallback,
+    vararg rest: B
+): B = label
+
+fun <A, B> bounded(first: A, second: B): String
+    where B : ToString =
+    second.toString()
+
+fun <A, B> overload(first: A, second: B): String = "generic"
+
+fun <A, B> overload(first: Int, second: B): String = "int"
+
+fun localCalls(): String {
+    fun <A, B> localPair(first: A, second: B): Pair<A, B> = Pair(first, second)
+    val result = localPair<Int, _>(1, "local")
+    return result.second
+}
+
+fun main() {
+    val function = pair<Int, _>(1, "function")
+    val structure = Pair<_, String>(2, "struct")
+    val box = Box<Int, _>(3, "class")
+    val variant = Choice.Both<_, String>(4, "variant")
+    val method = Factory().create<_, String>(5, "method")
+    val extension = 6.attach<_, String>("extension")
+    val lambda: String = apply<Int, _>(7) { value -> value.toString() }
+    val reference = apply<Int, _>(8, ::describe)
+    val postponed = nested<Int, _>(Pair(9, "nested"))
+    val namedDefault = gather<Int, _>(10, fallback = "named")
+    val gathered = gather<Int, _>(11, "fallback", "label", "vararg")
+    val constrained = bounded<Int, _>(12, "bounded")
+    val selected = overload<Int, _>(13, "selected")
+
+    println(function.second)
+    println(structure.second)
+    println(box.second)
+    when (variant) {
+        Choice.Both(_, value) -> println(value)
+    }
+    println(method.second)
+    println(extension.second)
+    println(lambda)
+    println(reference)
+    println(postponed)
+    println(namedDefault)
+    println(gathered)
+    println(constrained)
+    println(selected)
+    println(localCalls())
+}

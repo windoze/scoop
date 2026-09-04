@@ -13,20 +13,6 @@ impl Lowerer {
         where_clause: Option<&ast::WhereClause>,
         target: &str,
     ) -> Vec<hir::TypeParamDecl> {
-        if target != "interface" {
-            for declaration in declarations {
-                if declaration.variance != ast::Variance::Invariant {
-                    self.error(
-                        declaration.span,
-                        format!(
-                            "type parameter `{}` of {target} must be invariant",
-                            declaration.name.text
-                        ),
-                    );
-                }
-            }
-        }
-
         self.type_params_in_scope = params.clone();
         let own_indices: std::collections::HashMap<_, _> = params
             .iter()
@@ -97,10 +83,10 @@ impl Lowerer {
                 };
                 match params[index].bounds {
                     hir::TypeParamBounds::Unconstrained => params[index].bounds = next,
-                    hir::TypeParamBounds::Interfaces(_) => self.error(
+                    hir::TypeParamBounds::Nominal(_) => self.error(
                         span,
                         format!(
-                            "type parameter `{}` of {target} cannot combine a kind bound with interface upper bounds",
+                            "type parameter `{}` of {target} cannot combine a kind bound with nominal upper bounds",
                             params[index].name
                         ),
                     ),
@@ -121,49 +107,85 @@ impl Lowerer {
                 let Some(ty) = self.resolve_type_ref(reference) else {
                     return;
                 };
-                let Type::Interface(application) = self.types[ty] else {
-                    let found = self.type_name(ty);
-                    self.error(
-                        reference.span,
-                        format!(
-                            "upper bound of type parameter `{}` must be an interface, found `{found}`",
-                            params[index].name
-                        ),
-                    );
-                    return;
-                };
-                match &mut params[index].bounds {
-                    hir::TypeParamBounds::Unconstrained => {
-                        params[index].bounds =
-                            hir::TypeParamBounds::Interfaces(vec![hir::InterfaceBound {
-                                application,
-                                span,
-                            }]);
-                    }
-                    hir::TypeParamBounds::Interfaces(bounds) => {
-                        if bounds
-                            .iter()
-                            .any(|existing| existing.application == application)
-                        {
-                            self.error(
+                let bound_name = self.type_name(ty);
+                match self.types[ty] {
+                    Type::Class(application) => {
+                        match &mut params[index].bounds {
+                            hir::TypeParamBounds::Unconstrained => {
+                                params[index].bounds =
+                                    hir::TypeParamBounds::Nominal(hir::NominalBounds {
+                                        class: Some(hir::ClassBound { application, span }),
+                                        interfaces: Vec::new(),
+                                    });
+                            }
+                            hir::TypeParamBounds::Nominal(bounds) if bounds.class.is_none() => {
+                                bounds.class = Some(hir::ClassBound { application, span });
+                            }
+                            hir::TypeParamBounds::Nominal(_) => self.error(
                                 span,
                                 format!(
-                                    "duplicate interface upper bound `{}` for type parameter `{}` of {target}",
-                                    self.type_name(ty), params[index].name
+                                    "type parameter `{}` of {target} cannot have more than one class upper bound; found `{bound_name}`",
+                                    params[index].name
                                 ),
-                            );
-                        } else {
-                            bounds.push(hir::InterfaceBound { application, span });
+                            ),
+                            hir::TypeParamBounds::Value { .. }
+                            | hir::TypeParamBounds::Ref { .. } => self.error(
+                                span,
+                                format!(
+                                    "type parameter `{}` of {target} cannot combine nominal upper bounds with a kind bound",
+                                    params[index].name
+                                ),
+                            ),
                         }
                     }
-                    hir::TypeParamBounds::Value { .. }
-                    | hir::TypeParamBounds::Ref { .. } => self.error(
-                        span,
-                        format!(
-                            "type parameter `{}` of {target} cannot combine interface upper bounds with a kind bound",
-                            params[index].name
-                        ),
-                    ),
+                    Type::Interface(application) => {
+                        match &mut params[index].bounds {
+                            hir::TypeParamBounds::Unconstrained => {
+                                params[index].bounds =
+                                    hir::TypeParamBounds::Nominal(hir::NominalBounds {
+                                        class: None,
+                                        interfaces: vec![hir::InterfaceBound {
+                                            application,
+                                            span,
+                                        }],
+                                    });
+                            }
+                            hir::TypeParamBounds::Nominal(bounds)
+                                if bounds
+                                    .interfaces
+                                    .iter()
+                                    .all(|existing| existing.application != application) =>
+                            {
+                                bounds
+                                    .interfaces
+                                    .push(hir::InterfaceBound { application, span });
+                            }
+                            hir::TypeParamBounds::Nominal(_) => self.error(
+                                span,
+                                format!(
+                                    "duplicate interface upper bound `{bound_name}` for type parameter `{}` of {target}",
+                                    params[index].name
+                                ),
+                            ),
+                            hir::TypeParamBounds::Value { .. }
+                            | hir::TypeParamBounds::Ref { .. } => self.error(
+                                span,
+                                format!(
+                                    "type parameter `{}` of {target} cannot combine nominal upper bounds with a kind bound",
+                                    params[index].name
+                                ),
+                            ),
+                        }
+                    }
+                    _ => {
+                        self.error(
+                            reference.span,
+                            format!(
+                                "upper bound of type parameter `{}` must be a class or interface, found `{bound_name}`",
+                                params[index].name
+                            ),
+                        );
+                    }
                 }
             }
         }
@@ -214,15 +236,32 @@ impl Lowerer {
             self.current_file = file;
             self.type_params_in_scope = params.clone();
             for parameter in &params {
-                for bound in parameter.interface_bounds() {
-                    let application = self.interface_applications[bound.application].clone();
-                    let target_params = self.interfaces[application.template].type_params.clone();
-                    self.check_type_argument_kinds(
-                        &target_params,
-                        &application.arguments,
-                        bound.span,
-                        &format!("upper bound of {kind} `{name}`"),
-                    );
+                for bound in parameter.nominal_bounds_in_source_order() {
+                    match bound {
+                        hir::NominalBoundRef::Class(bound) => {
+                            let application = self.class_applications[bound.application].clone();
+                            let target_params =
+                                self.classes[application.template].type_params.clone();
+                            self.check_type_argument_kinds(
+                                &target_params,
+                                &application.arguments,
+                                bound.span,
+                                &format!("upper bound of {kind} `{name}`"),
+                            );
+                        }
+                        hir::NominalBoundRef::Interface(bound) => {
+                            let application =
+                                self.interface_applications[bound.application].clone();
+                            let target_params =
+                                self.interfaces[application.template].type_params.clone();
+                            self.check_type_argument_kinds(
+                                &target_params,
+                                &application.arguments,
+                                bound.span,
+                                &format!("upper bound of {kind} `{name}`"),
+                            );
+                        }
+                    }
                 }
             }
         }

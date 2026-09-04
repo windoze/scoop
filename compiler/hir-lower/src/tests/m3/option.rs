@@ -34,12 +34,12 @@ fn some_none_and_nullable_annotations() {
     fun toString(): String
   interface Hash
     fun hash(): Int
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run(): T0
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
   fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
   fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
@@ -142,12 +142,12 @@ fn safe_field_access_desugars_to_hidden_locals() {
     fun toString(): String
   interface Hash
     fun hash(): Int
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run(): T0
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
   fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
   fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
@@ -253,12 +253,12 @@ fn elvis_desugars_to_hidden_locals() {
     fun toString(): String
   interface Hash
     fun hash(): Int
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run(): T0
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
   fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
   fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>

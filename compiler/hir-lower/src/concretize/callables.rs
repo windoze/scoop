@@ -20,55 +20,50 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> (concrete::Callable, Option<concrete::InterfaceId>) {
         let bound = self.source.bound_callable_refs[source].clone();
-        let required_interface = self.lower_interface_application(bound.bound, substitution);
+        let export::BoundCallableSource::Interface {
+            bound: interface_bound,
+            member,
+        } = bound.source
+        else {
+            let export::BoundCallableSource::Class {
+                bound: class_bound,
+                callable,
+            } = bound.source
+            else {
+                unreachable!("bound callable sources are class or interface members")
+            };
+            self.lower_class_application(class_bound, substitution);
+            return (self.lower_callable(callable, substitution), None);
+        };
+        let required_interface = self.lower_interface_application(interface_bound, substitution);
         match self.types[receiver].kind.clone() {
             concrete::TypeKind::Int => {
                 let source = self.source.intrinsic_type_core.int;
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
-                self.resolve_nominal_bound_target(
-                    &conformances,
-                    &[],
-                    bound.member,
-                    required_interface,
-                )
+                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::UInt => {
                 let source = self.source.intrinsic_type_core.uint;
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
-                self.resolve_nominal_bound_target(
-                    &conformances,
-                    &[],
-                    bound.member,
-                    required_interface,
-                )
+                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::Boolean => {
                 let source = self.source.intrinsic_type_core.boolean;
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
-                self.resolve_nominal_bound_target(
-                    &conformances,
-                    &[],
-                    bound.member,
-                    required_interface,
-                )
+                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::String => {
                 let source = self.source.intrinsic_type_core.string;
                 let conformances = self.source.classes[source]
                     .interface_implementations
                     .clone();
-                self.resolve_nominal_bound_target(
-                    &conformances,
-                    &[],
-                    bound.member,
-                    required_interface,
-                )
+                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::Struct(id) => {
                 let source = self.struct_source[&id];
@@ -79,7 +74,7 @@ impl Concretizer<'_> {
                 self.resolve_nominal_bound_target(
                     &conformances,
                     &arguments,
-                    bound.member,
+                    member,
                     required_interface,
                 )
             }
@@ -90,7 +85,7 @@ impl Concretizer<'_> {
                 self.resolve_nominal_bound_target(
                     &conformances,
                     &arguments,
-                    bound.member,
+                    member,
                     required_interface,
                 )
             }
@@ -103,18 +98,18 @@ impl Concretizer<'_> {
                 self.resolve_nominal_bound_target(
                     &conformances,
                     &arguments,
-                    bound.member,
+                    member,
                     required_interface,
                 )
             }
             concrete::TypeKind::Interface(_) => {
-                let application = self.source.interface_applications[bound.bound].clone();
+                let application = self.source.interface_applications[interface_bound].clone();
                 let arguments = application
                     .arguments
                     .iter()
                     .map(|argument| self.lower_type(*argument, substitution))
                     .collect();
-                let function = self.source.interface_methods[bound.member].function;
+                let function = self.source.interface_methods[member].function;
                 (
                     concrete::Callable::Function(self.request_function(function, arguments)),
                     Some(required_interface),

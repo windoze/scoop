@@ -86,7 +86,11 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     let hir::MethodCallee::Bound(bound) = callee else {
         panic!("generic print must retain a typed bound call")
     };
-    let member = module.bound_callable_refs[*bound].member;
+    let hir::BoundCallableSource::Interface { member, .. } =
+        module.bound_callable_refs[*bound].source
+    else {
+        panic!("ToString is an interface bound")
+    };
     let interface_method = module.interface_methods[member];
     assert_eq!(module.interfaces[interface_method.owner].name, "ToString");
     assert_eq!(

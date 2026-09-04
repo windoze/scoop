@@ -151,17 +151,16 @@ impl Lowerer {
             }
         }
 
-        // Finalize boxed value types to a fixed point. Variance and function
-        // bridges can discover additional boxed payloads.
+        // Finalize boxed value types to a fixed point. Function-type bridges
+        // can discover additional boxed payloads.
         let mut next_boxed = 0;
         loop {
             while next_boxed < self.boxed.order.len() {
                 self.finalize_boxed(module, next_boxed);
                 next_boxed += 1;
             }
-            let added_variance = self.finalize_variance_itables(module);
             let added_function_bridges = self.finalize_function_bridges(module);
-            if next_boxed == self.boxed.order.len() && !added_variance && !added_function_bridges {
+            if next_boxed == self.boxed.order.len() && !added_function_bridges {
                 break;
             }
         }

@@ -170,13 +170,15 @@ impl Lowerer {
                     if !self.is_subtype(value.ty, sig.return_ty) {
                         let expected = self.type_name(sig.return_ty);
                         let found = self.type_name(value.ty);
-                        self.error(
-                            expr.span(),
+                        let message = self.with_nominal_invariance_detail(
                             format!(
                                 "body of `{}` must be of type {expected}, found {found}",
                                 decl.name.text
                             ),
+                            value.ty,
+                            sig.return_ty,
                         );
+                        self.error(expr.span(), message);
                     } else {
                         let value = self.adapt_to(value, sig.return_ty);
                         statements.extend(sink);

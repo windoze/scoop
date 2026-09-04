@@ -60,13 +60,25 @@ impl Lowerer {
             }
             hir::MethodCallee::Bound(bound) => {
                 let source = self.bound_callable_refs[bound].clone();
-                let bound = self.instantiate_default_interface_application(source.bound, context);
+                let bound_source = match source.source {
+                    hir::BoundCallableSource::Class { bound, callable } => {
+                        hir::BoundCallableSource::Class {
+                            bound: self.instantiate_default_class_application(bound, context),
+                            callable: self.instantiate_default_callable(callable, context),
+                        }
+                    }
+                    hir::BoundCallableSource::Interface { bound, member } => {
+                        hir::BoundCallableSource::Interface {
+                            bound: self.instantiate_default_interface_application(bound, context),
+                            member,
+                        }
+                    }
+                };
                 let instantiated_signature =
                     self.instantiate_default_function_type(source.instantiated_signature, context);
                 let value = hir::BoundCallableRef {
                     receiver_parameter: source.receiver_parameter,
-                    bound,
-                    member: source.member,
+                    source: bound_source,
                     instantiated_signature,
                 };
                 let existing = self

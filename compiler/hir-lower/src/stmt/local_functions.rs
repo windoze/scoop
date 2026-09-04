@@ -199,13 +199,15 @@ impl Lowerer {
                         if !self.is_subtype(value.ty, return_ty) {
                             let expected = self.type_name(return_ty);
                             let found = self.type_name(value.ty);
-                            self.error(
-                                expr.span(),
+                            let message = self.with_nominal_invariance_detail(
                                 format!(
                                     "body of local function `{}` must be of type {expected}, found {found}",
                                     decl.name.text
                                 ),
+                                value.ty,
+                                return_ty,
                             );
+                            self.error(expr.span(), message);
                         } else {
                             statements.extend(sink);
                             let value = self.adapt_to(value, return_ty);

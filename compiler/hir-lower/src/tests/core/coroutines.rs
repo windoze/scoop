@@ -3,7 +3,7 @@ use super::super::*;
 pub(super) fn coroutine_core_declarations() -> Vec<Decl> {
     let continuation = generic_interface_decl(
         "Continuation",
-        vec![(ast::Variance::In, "T")],
+        vec!["T"],
         vec![
             bodyless_method(false, "resume", vec![("value", ty_named("T"))], None),
             bodyless_method(
@@ -16,7 +16,7 @@ pub(super) fn coroutine_core_declarations() -> Vec<Decl> {
     );
     let task = generic_interface_decl(
         "SuspendTask",
-        vec![(ast::Variance::Out, "T")],
+        vec!["T"],
         vec![with_suspend(bodyless_method(
             false,
             "run",
@@ -26,7 +26,7 @@ pub(super) fn coroutine_core_declarations() -> Vec<Decl> {
     );
     let registration = generic_interface_decl(
         "SuspendRegistration",
-        vec![(ast::Variance::Out, "T")],
+        vec!["T"],
         vec![bodyless_method(
             false,
             "register",

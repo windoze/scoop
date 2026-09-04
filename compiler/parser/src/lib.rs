@@ -30,6 +30,8 @@ mod tests_m19;
 #[cfg(test)]
 mod tests_m2;
 #[cfg(test)]
+mod tests_m20;
+#[cfg(test)]
 mod tests_m3;
 #[cfg(test)]
 mod tests_m4;

@@ -1,6 +1,43 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn check_interface_inheritance_cycles(
+        &mut self,
+        pending: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
+    ) {
+        for &(interface, declaration, file) in pending {
+            self.current_file = file;
+            let mut visiting = Vec::new();
+            if self.interface_reaches(interface, interface, &mut visiting) {
+                self.error(
+                    declaration.span,
+                    format!(
+                        "interface `{}` directly or indirectly inherits from itself",
+                        declaration.name.text
+                    ),
+                );
+            }
+        }
+    }
+
+    fn interface_reaches(
+        &self,
+        current: hir::InterfaceId,
+        target: hir::InterfaceId,
+        visiting: &mut Vec<hir::InterfaceId>,
+    ) -> bool {
+        if visiting.contains(&current) {
+            return false;
+        }
+        visiting.push(current);
+        let reaches = self.interfaces[current].parents.iter().any(|parent| {
+            let parent = self.interface_applications[*parent].template;
+            parent == target || self.interface_reaches(parent, target, visiting)
+        });
+        visiting.pop();
+        reaches
+    }
+
     // --- member lookup helpers ---
 
     pub(crate) fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {

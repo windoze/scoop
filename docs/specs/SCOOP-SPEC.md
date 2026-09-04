@@ -34,7 +34,7 @@ Scoop 是一门静态类型、编译到原生代码（LLVM 后端）的编程语
 - 声明：`class` / `interface` / `object` / `companion object` / `typealias` / 属性（`val` / `var`，含委托属性）/ 函数 / 扩展函数与扩展属性；
 - 类特性：主构造函数与次构造函数、`init` 块、继承（单继承 + 接口实现）、抽象类、可见性修饰符（`public` / `internal` / `private` / `protected`）；
 - 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载、尾递归（`tailrec`）；
-- 泛型：类型参数、`in` / `out` 型变、类型投影、上界约束、`where` 子句；
+- 泛型：类型参数、完整类型实参、上界约束、`where` 子句与调用点类型推断；Scoop不采用Kotlin的声明点型变、使用点投影或star projection（见3.2）；
 - 控制流：`if` / `when` / `for` / `while` / `do-while`、区间与迭代、`break` / `continue` / `return`（含标签）、异常（`try` / `catch` / `finally` / `throw`）；
 - 空安全运算符：`?.` / `?:` / `!!`（语义见第 7 章）；
 - 类型运算符：`is` / `!is` / `as` / `as?`、智能转换（smart cast，见 2.3）；
@@ -83,26 +83,25 @@ Scoop 的类型分为两大类：
 - function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
 - Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。
 - 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；类型检查顺序不决定运行期求值顺序，显式实参与缺省表达式严格按 8.5.3 求值。
-- 调用点可以写出完整的显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。显式列表必须覆盖 callee 自己声明的全部类型参数，不支持部分写出后继续推断；泛型宿主的方法调用只写方法自己的类型参数，宿主前缀仍由 receiver 静态类型确定。没有显式列表时继续使用上一条的整组推断规则。
-- generic type application在类型位置必须携带完整类型实参；不支持裸generic type或部分应用。generic class/struct constructor及enum variant构造可以在调用位置省略显式实参并由整组构造实参和期望类型推导，但推导结束后的类型仍是完整application。
+- 调用点可以写显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。列表仍须覆盖callee自己声明的全部参数位置，但任一位置可以写`_`请求继续推断，例如`convert<Int, _>(value)`或`Pair<_, String>(first, second)`；显式类型与`_`产生的fresh variable进入同一个candidate-local constraint system。`_`只在调用/构造的显式type-argument list中合法，不是类型，不能出现在变量、字段、返回类型、上界、cast目标或nominal type annotation中。泛型宿主的方法调用只列method自己的参数，宿主application仍由receiver确定；整组省略时继续使用普通推断。
+- generic type application在类型位置必须覆盖全部参数位置；不支持裸generic type或少写参数，每个位置都必须是普通完整类型。`G<out T>`、`G<in T>`与`G<*>`均不是Scoop类型语法。generic class/struct constructor及enum variant构造产生exact application，可以整组省略实参或用`_`部分推断。
 - primary/secondary constructor与enum variant constructor不声明独立type parameter；构造调用中的显式/推导实参只对应nominal host。只有普通callable可以在generic owner参数之外再拥有一组callable参数。
 - 因此不存在类型擦除，也没有 `reified` 的运行期需求（见 8.4）。
-- 已落地的声明点型变用于interface类型参数：不写修饰符表示不变，`out T`表示协变，`in T`表示逆变。generic class/struct/enum的类型参数现阶段全部为invariant，不能写`in`/`out`；同一nominal declaration的两个application必须具有完全相同的类型实参才是同一类型，class的普通继承关系另行判断。non-interface declaration-site variance留待后续；value type型变还必须先规定不同concrete layout之间的转换语义。`Array<T>` / `MutableArray<T>`固定不变（见10.4）。
-- 对同一interface的两个application，协变参数按同向子类型关系比较，逆变参数按反向子类型关系比较，不变参数必须相等；不同interface之间不存在由型变产生的子类型关系。
+- class、struct、enum与interface的nominal type parameter一律不变（invariant），声明处不能写`in`或`out`。同一nominal template的两个application只有全部类型实参逐项相等时才存在由该template产生的赋值/子类型关系；`G<S>`不会仅因`S <: T`成为`G<T>`的子类型。class的普通继承及interface的显式conformance仍可把一个concrete类型映射到声明中写出的某个exact base/interface application，例如`D : B<String>`仍使`D <: B<String>`，但不推导`D <: B<Any>`。
+- 不变性同时适用于reference与value type argument：编译器不会为generic application的赋值、返回、分支合流或参数传递自动重建value layout，也不会把value argument装箱后改成另一个application。需要改变容器/包装类型实参时，程序必须显式构造、`map`/复制，或先把单个value显式转换为共同class/interface再构造目标exact application。
 - 继承与implements闭包只合并完全相同的interface application；同一template的`I<Int>`与`I<String>`始终是不同契约、不同RTTI/itable identity。一个类型可以在继承图中到达二者，但必须分别满足其成员obligation；若替换后的签名无法由普通overload/override规则同时实现，则在实现类型定义处报错，不能按template id或擦除后的文本签名任选其一。
-- interface 声明必须满足型变位置约束：方法返回类型是协变位置，方法参数类型是逆变位置；进入 `out` 类型实参保持位置，进入 `in` 类型实参反转位置，进入不变类型实参则要求参数不在该类型中出现。`out` 参数不得出现在逆变或不变位置，`in` 参数不得出现在协变或不变位置。违反约束是编译错误。
-- 使用点`in` / `out` projection、star projection与capture conversion尚未进入当前语言子集；源码类型位置必须使用完整type argument，不能写`C<out T>`、`C<in T>`或`C<*>`。这些能力不能简单定义为擦除：Scoop允许type argument是具有不同layout/ABI的value type，每个fully specialized application又有独立TypeDescriptor与dispatch identity。未来规范必须分别定义projected member读写规则、subtyping/推导、RTTI/cast、跨Cone metadata，并决定unboxed value application是否禁止projection或需要显式existential boxing。
+- Scoop不提供use-site `in`/`out` projection、star projection或wildcard capture。需要只读/只写抽象时，优先让消费操作本身成为带bound的generic callable，例如`fun <T : Animal> consume(values: Array<T>)`；需要保存未知application时，必须声明显式的非generic interface或用户实现的type-erased wrapper。语言不会隐式制造existential类型、runtime generic dictionary或capture-open dispatch。
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
-- 类型上界在参数列表中写作 `T : Interface`，或在声明头后的 `where T : Interface` 子句中给出；同一参数可以具有多个不同的 interface application 上界。上界必须是带完整类型实参的 interface，当前不接受 class或另一type parameter作为上界，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一interface上界互斥（见13.9）。
-- 类型实参必须同时满足参数的全部上界；class/interface按继承与声明点型变判断，value type同样只按显式声明的interface实现判断。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。
-- receiver为有界type parameter时，成员候选只来自其interface上界及继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct / virtual / interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。
-- 每个合法且实参完整的interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound；Scoop没有trait object/existential的第二种interface形态，也没有object-safety分类或相关flag。所有合法interface成员都必须具有可进入itable的完整签名，并可经concrete、interface或bounded receiver调用。
+- 类型上界在参数列表中写作`T : Bound`，或在声明头后的`where T : Bound`子句中给出。同一参数至多有一个class上界，并可同时具有多个不同interface上界；class上界保证实际参数是该exact class application的引用子类型，成员候选包括class及其继承闭包。class/interface上界都必须是参数完整的exact reference application；不接受value type、函数类型、`Any`或另一type parameter，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一nominal上界互斥（见13.9）。
+- 类型实参必须同时满足参数的全部上界；class/interface关系按普通继承、显式conformance及完整application identity判断，value type同样只按显式声明的interface实现判断。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。
+- receiver为有界type parameter时，成员候选只来自唯一class上界、interface上界及其继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct/virtual/interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。
+- 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。
 - interface方法现阶段不能声明自己的type parameter；`interface I { fun <T> f(value: T) }`在声明处即为编译错误。interface宿主可以generic，例如`interface I<T> { fun f(value: T) }`，完整application `I<String>`中的方法可正常itable分派。这是method-level generic dispatch ABI尚未定义的功能边界，不是允许声明后再限制调用形态的object-safety规则。未来开放时必须同时支持interface与bounded receiver调用。
-- non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。它们仍是带`this`的instance method，但所有合法调用都根据receiver静态类型与完整type argument使用direct dispatch；运行期派生class不能替换目标实现。
-- class/struct/enum泛型宿主上的泛型成员函数同时拥有两组类型参数：宿主类型实参由接收者静态类型确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同的semantic identity，方法类型参数不得与宿主类型参数重名。调用点显式列表只写method自身参数，并须整组省略或整组完整写出；两组参数的bound一起验证。interface方法现阶段没有第二组参数。
+- non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。调用根据exact receiver application与完整method argument使用direct dispatch，运行期派生class不能override目标。
+- class/struct/enum泛型宿主上的泛型成员函数同时拥有两组类型参数：宿主类型实参由接收者的exact静态application确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同semantic identity，方法参数不得与宿主参数重名。调用点显式列表只写method自身参数，可整组省略，或覆盖全部位置并在待推断位置写`_`；两组参数的bound一起验证。interface方法现阶段没有第二组参数。
 - top-level、local与extension generic function，以及上述non-interface generic method，都可以使用inline upper bound与`where`。generic method的callable reference必须由期望函数类型唯一确定method全部实参，得到的是某个concrete函数值；Scoop没有first-class polymorphic function value。
-- callable自身的type parameter不能写声明点`in`/`out`；variance modifier只用于规范允许的nominal type parameter。callable参数与返回类型在推导中的方向由constraint solver处理，不通过声明点variance标记函数type parameter。
-- `is` / `as` / `as?`检查完整的generic application identity，不擦除type argument：例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同的检查目标。generic body中的type parameter在单态化后引用其concrete TypeDescriptor；当前没有裸generic或star-projected检查目标。
+- 所有type parameter declaration都不能写`in`/`out`。callable参数与返回类型在推导中的方向由constraint solver处理，不通过声明点variance修饰符表达；普通函数类型自身的参数逆变/返回协变继续按8.1.1处理，它不是nominal generic application之间的variance。
+- `is` / `as` / `as?`不擦除generic argument，generic nominal目标必须是参数完整的exact application。例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同检查目标，前者不会仅因`Int <: Any`匹配`Box<Any>`。generic body中的type parameter在普通单态化后引用concrete TypeDescriptor；不存在裸generic、star或projected runtime descriptor。
 - 单态化必须结构上保证实例化闭包终止。同一generic callable递归SCC中的每个调用环，把宿主参数与callable参数组成的完整向量代回起点后必须逐项保持identity；普通直接/互递归因此复用同一concrete实例。参数替换非identity的环属于当前不支持的polymorphic recursion，在template定义检查时报错。非递归调用边仍可任意变换实参。编译器不得用递归深度、实例数量或超时阈值决定源码是否合法。
 
 ### 3.3 参数传递、receiver 与 `this`
@@ -207,7 +206,7 @@ enum E {
 - 与 struct 一样：immutable、无 identity，可条件派生结构相等；`ToString`与`Hash`必须显式adopt并实现（见11.11）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
-- 泛型 enum 允许，例如核心库的 `enum Option<T>`（见 7.2）。
+- 泛型 enum 允许，例如核心库的`enum Option<T>`（见7.2）；不同类型实参形成互不转换的exact application。
 
 ### 4.3 tuple
 
@@ -502,7 +501,7 @@ enum Option<T> {
 }
 ```
 
-`Option<T>` 是普通 enum，享有第 4.2 节与第 5 章的全部能力（解构、穷尽性检查等）。`scoop.core.Option.*` 由核心库默认引入，因此在上下文能确定类型时可以直接写 `Some(...)` 与 `None`，无需 `Option.None` 这样的前缀。
+`Option<T>`是普通invariant enum，享有第4.2节与第5章的全部能力（解构、穷尽性检查等）。即使`S <: T`，`Option<S>`也不是`Option<T>`的子类型；需要改变payload类型时必须显式`map`/重建。构造处存在`Option<T>`期望类型时，`Some(value)`和`None`直接按该目标application推断，因此常见返回与赋值不需要先产生另一个`Option<S>`。`scoop.core.Option.*`由核心库默认引入，因此在上下文能确定类型时可以直接写`Some(...)`与`None`，无需`Option.None`这样的前缀。
 
 ### 7.3 空安全运算符的语义
 
@@ -692,21 +691,22 @@ fun references() {
 
 #### 8.5.4 `vararg`值
 
-- 普通位置元素`e`为`vararg x: T`贡献一个满足`type(e) <: T`的元素；spread表达式当前必须具有精确的`Array<T>`类型。Scoop的`Array`保持invariant，在use-site projection落地前不以`Array<S>`模拟`Array<out T>`；未来放宽必须显式定义逐元素转换、装箱与表示成本。
+- 普通位置元素`e`为`vararg x: T`贡献一个满足`type(e) <: T`的元素；spread表达式必须具有exact `Array<T>`类型。`Array<S>`即使`S <: T`也不能作为该spread，调用方需要显式逐元素构造/转换目标数组。
 - 未命名vararg元素（包括spread）先各自按8.5.3求值，随后在形参物化阶段构造一个新的`Array<T>`；spread按元素顺序复制，可以与普通元素混合。即使唯一输入是`*array`也不与来源数组共享identity。
-- 命名形式`x = array`或`x = *array`直接提供完整`Array<T>`值，不额外复制；它与“若干位置元素组成新数组”是两种不同的源码调用形态。
+- 命名形式`x = array`或`x = *array`直接提供完整exact `Array<T>`值，不额外复制；它与“若干位置元素组成新数组”是两种不同的源码调用形态。
 - 没有元素且没有显式默认值时构造新的空数组；有显式默认值时按普通缺省表达式求值并直接使用其结果。实现可以在identity不可观察时消除分配或复制，但不能改变`===`、异常、挂起点或求值顺序可观察到的结果。
 
 ### 8.6 调用决议与泛型约束求解
 
 - 调用决议先按词法/成员/import优先级建立候选层，并在每层内按9.3.4的function-like/property-like c-level继续分区；对每个最终分区完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的分区中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。多Cone及显式/星号import加入时只扩展候选层，不改变后续算法。
-- 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、完整显式类型实参、函数/nominal声明约束及upper bound共同产生等式/子类型约束；generic owner参数与callable自身参数保持不同identity，不能压平成一组后再按长度反推。
+- 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、显式fixed/`_`类型实参、函数/nominal invariant relation及upper bound共同产生等式与子类型约束；generic owner参数、callable自身参数和待推断变量保持不同identity，不能压平成一组后再按长度或span反推。
 - 依赖候选期望类型的lambda、匿名函数、callable reference、`None`、空数组和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
-- constraint system必须同时满足声明点kind/interface bound、函数类型型变、interface声明点型变、普通subtyping及装箱规则。一个候选只有在所有必需类型实参得到唯一、可表达且满足bound的具体解，全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
+- constraint system必须同时满足kind/class/interface bound、函数类型型变、nominal application逐项相等、普通subtyping及装箱规则。一个候选只有在所有实例化参数得到唯一、可表达且满足bound的concrete解，并且全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
 - 外层期望类型可以在唯一callable目标已经不依赖返回类型选择时帮助固定只出现在返回结果中的类型参数，也可以为generic nominal构造提供宿主application；它不能使两个仅靠结果类型才能区分的overload变得合法或在多个候选间充当MSC比较项。普通函数签名仍不含返回类型，返回类型不同不能单独形成重载。
-- 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
+- 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可按同一普通subtyping/nominal-invariance关系转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
 - 若唯一候选能转发给所有其他候选而反向不成立，则它胜出；互相可转发或互相都不能转发时，依次应用规范已有的附加规则：非参数化候选优先；M17起，在互相可转发的集合中实际使用更少默认值者优先，仍相同时无`vararg`者优先。命名/位置写法本身不参与优先级。仍不唯一即为歧义。
-- 整数字面量专用widen规则在定宽整数及其字面量类型正式落地前不生效；当前`Int`字面量只有`Int`类型。use-site/star projection及capture conversion进入类型系统后必须扩展同一个constraint/subtyping框架，不能另建一套projection-only overload resolver。
+- 无外层expected type的分支、数组元素或其他LUB计算只有在同一generic template的全部类型实参逐项相等时才能保留该application；`G<A>`与`G<B>`不会合成为`G<LUB(A, B)>`。否则沿普通共同父class/interface/`Any`规则寻找上界，必要时装箱整个value。expected type存在时可让各分支直接按同一个exact target构造/检查，但不能把已经形成的不同application隐式转换到该target。多个互不可比较的nominal共同上界仍不产生交叉类型。
+- 整数字面量专用widen规则在定宽整数及其字面量类型正式落地前不生效；当前`Int`字面量只有`Int`类型。部分type argument、普通完整application与既有postponed argument必须使用本节同一candidate/constraint/MSC框架，不能为`_`建立旁路resolver。
 - 无匹配与歧义都是HIR编译错误。诊断必须列出所在候选层、每个相关候选的完整签名及其失败原因（形态映射、类型实参数量、未解变量、bound、实参类型或MSC并列），不能只报告“unknown function”或由下游根据缺失callee猜测失败原因。
 
 ---
@@ -926,9 +926,9 @@ val j: I = S(10)                         // O(1) 场景，auto-boxing
 val good: Array<I> = [j, S(10) as I]     // 显式装箱
 ```
 
-### 10.4 型变与转换
+### 10.4 不变性与转换
 
-- `Array<T>` 与 `MutableArray<T>` 对 `T` **不变（invariant）**：即使 `T` is-a `S`，`Array<T>` 与 `Array<S>` 之间也不能自动 cast（不协变、不逆变）。这是 10.1 内存保证的直接推论。
+- `Array<T>`与`MutableArray<T>`遵守3.2的统一nominal不变性：即使`T` is-a `S`，`Array<T>`与`Array<S>`、`MutableArray<T>`与`MutableArray<S>`之间也没有subtyping。这保证每个exact application始终拥有确定的element layout，并使只读/只写API通过generic callable的bound表达，而不是通过容器projection表达。
 - `Array<T>` 与 `MutableArray<T>` 之间**没有父子类型关系**，互转必须显式进行：
   - `m.toArray(): Array<T>`、`a.toMutableArray(): MutableArray<T>`；
   - 或以对方为参数的构造函数：`Array(m)`、`MutableArray(a)`。
@@ -939,6 +939,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 ### 10.5 操作
 
 - 下标访问 `a[i]`通过普通成员`operator fun get(index: Int): T`；`MutableArray`通过`operator fun set(index: Int, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
+- `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
 - `size` 属性；实现 `Iterable<T>`，可用于 `for` 循环。
 
 ---
@@ -985,7 +986,7 @@ enum Option<T> {
 }
 ```
 
-见第 7 章。`scoop.core.Option.*` 默认引入。
+见第7章。`Option`与全部nominal generic一样保持invariant；niche表示只属于每个exact `Option<T>`。`scoop.core.Option.*`默认引入。
 
 ### 11.6 `StringBuilder`
 
@@ -1012,23 +1013,23 @@ class StringBuilder {
   - `IllegalStateException`：运行期状态协议被破坏；核心实现至少用它报告 continuation 的重复完成。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
-- generic class可以继承`Throwable`；其每个完整application是不同异常类型。`catch (e: Error<Int>)`只匹配该exact application，`catch (e: Throwable)`仍匹配所有application。当前没有`Error<*>`式通配catch，因为star projection尚未支持（3.2）。
+- generic class可以继承`Throwable`；其每个exact application都是不同异常类型并拥有不同TypeDescriptor。`catch (e: Error<Int>)`只接收该exact application及普通派生class，`catch (e: Throwable)`仍可接收全部application；不存在`Error<*>`式通配catch。
 
 ### 11.8 迭代与区间
 
 `for` 循环、区间表达式的最小支撑：
 
 ```
-interface Iterator<out T> {
+interface Iterator<T> {
     fun next(): Option<T>
 }
 
-interface Iterable<out T> {
+interface Iterable<T> {
     operator fun iterator(): Iterator<T>
 }
 ```
 
-`next()` 直接返回 `Option<T>`：有元素返回 `Some(v)`，耗尽返回 `None`。相比 `hasNext()` + `next()` 的双方法协议，这避免了 `hasNext()` 必须缓存下一个元素的问题。`T` 只出现在返回位置，因此 `Iterator` 与 `Iterable` 都是协变的（`out T`）。
+`next()`直接返回`Option<T>`：有元素返回`Some(v)`，耗尽返回`None`。相比`hasNext()` + `next()`的双方法协议，这避免了`hasNext()`必须缓存下一个元素的问题。`Iterator<T>`与`Iterable<T>`都是invariant exact application；需要消费任意满足上界的iterator时，让消费函数自身声明`<T : Bound>`。
 
 `for (v in s)` 脱糖为（变量名仅作示意）：
 
@@ -1052,16 +1053,16 @@ while (true) {
 支撑 `suspend` 语义的最小 core 形态如下：
 
 ```
-interface Continuation<in T> {
+interface Continuation<T> {
     fun resume(value: T)
     fun resumeWithException(exception: Throwable)
 }
 
-interface SuspendTask<out T> {
+interface SuspendTask<T> {
     suspend fun run(): T
 }
 
-interface SuspendRegistration<out T> {
+interface SuspendRegistration<T> {
     fun register(continuation: Continuation<T>)
 }
 
@@ -1192,8 +1193,8 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
 
 - 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；
-- 后续stage所需的MIR/LIR metadata：符号表、各导出类型的分派表结构（vtable / itable）、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
+- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、参数完整的exact application、class/interface bound、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；
+- 后续stage所需的MIR/LIR metadata：符号表、各导出exact类型的分派表结构（vtable/itable）、exact generic ancestry/conformance、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
 
 本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
 
@@ -1244,7 +1245,7 @@ struct Int : ToString, Hash {
 
 - intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、解构或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明；
 - intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖进入已实现语言子集的Int/UInt/Boolean、String以及`Array<T>`/`MutableArray<T>`，并允许登记表按同一契约增加其他compiler-represented value/reference type；
-- intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/variance/bound及representation family。`Array<T>`与`MutableArray<T>`各要求一个无bound、invariant参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
+- intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/bound及representation family；所有参数按3.2固定为invariant。`Array<T>`与`MutableArray<T>`各要求一个无bound参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
 - 生产语言只允许指定的`scoop.core` provider声明intrinsic。编译器测试可以通过实现内部的、按输入provider授权的策略绕过这一条来源检查；该能力不是源码、manifest或稳定CLI的一部分，也不放宽以下name、target、shape、signature与唯一性规则。
 
 - 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。
@@ -1368,8 +1369,8 @@ needValue("hello")    // 编译错误：String 不是值类型
 ```
 
 - 与类型上界语法同样可用于 `where` 子句。
-- interface类型上界可直接写在参数上（`T : ToString`），也可写在声明头之后的`where`子句；同一参数可以有多个不同interface上界。当前类型上界只接受完整的interface application，不接受class、value type、函数类型、`Any`或另一type parameter。
-- `value` / `ref` 约束与interface类型上界互斥：同一类型参数不能同时携带两者；同一个kind bound也不能重复出现在inline与`where`位置。
+- class/interface类型上界可直接写在参数上，也可写在声明头之后的`where`子句；同一参数至多有一个class上界，并可有多个不同interface上界。上界必须是参数完整的exact reference application，例如`T : Base<String>`或`where T : Producer<Animal>`；不接受value type、函数类型、`Any`或另一type parameter。class上界已蕴含`ref`，并把class成员及其继承闭包加入bounded receiver能力。
+- `value` / `ref`约束与任一class/interface上界互斥：同一类型参数不能同时携带二者；同一个kind bound也不能重复出现在inline与`where`位置。多个class上界即使文本上存在继承关系也不允许，必须保留唯一class bound并把其余能力写成interface bound。
 - 无约束的类型参数默认接受任何类型（与 Kotlin 一致）。
 
 ### 13.10 `Ptr` 与 `FunPtr`
@@ -1616,5 +1617,5 @@ void scoop_rt_write(const ScoopString *message)
 | GC finalizer、析构回调与对象复活 | 显式 `release` / `close` + `try/finally`；未来仅有GC-free release hook兜底 |
 | struct 的 `init` 块 / `var` 字段 | 构造函数内逻辑 / `val` |
 | 对值类型使用 `===` | `==`（结构相等） |
-| `Array<T>` 的协变/逆变 | 显式转换或重新构造（见 10.4） |
+| generic declaration/use-site `in`、`out`、`*` | nominal generic application始终invariant；使用带bound的generic callable或显式非generic接口（见3.2） |
 | `Option<T>` 的智能转换 | `when` 解构（7.3） |

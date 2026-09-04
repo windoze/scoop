@@ -42,7 +42,7 @@ impl Lowerer {
         ) {
             Ok(type_args) => type_args,
             Err(failure) => {
-                self.diagnose_nominal_failure(&view, &argument_map, &[], failure, name.span);
+                self.diagnose_nominal_failure(&view, &argument_map, &[], &[], failure, name.span);
                 return None;
             }
         };

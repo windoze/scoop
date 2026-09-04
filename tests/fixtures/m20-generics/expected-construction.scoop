@@ -1,0 +1,80 @@
+open class Animal(val name: String) {}
+
+class Cat : Animal("cat") {}
+
+class Dog : Animal("dog") {}
+
+class RefBox<T>(val value: T)
+
+struct ValueBox<T>(val value: T)
+
+enum Choice<T> {
+    Item(T),
+    Empty
+}
+
+enum Switch {
+    On,
+    Off
+}
+
+fun returned(): Option<Animal> = Some(Cat())
+
+fun branched(flag: Boolean): Option<Animal> = if (flag) {
+    Some(Cat())
+} else {
+    None
+}
+
+fun selected(switch: Switch): Choice<Animal> = when (switch) {
+    Switch.On -> Choice.Item(Cat())
+    Switch.Off -> Choice.Empty
+}
+
+fun recovered(): Option<Animal> = try {
+    Some(Cat())
+} catch (e: UnwrapException) {
+    None
+}
+
+fun <T> choose(first: T, second: T): T = if (true) {
+    first
+} else {
+    second
+}
+
+fun main() {
+    val option: Option<Animal> = Some(Cat())
+    val reference: RefBox<Animal> = RefBox(Cat())
+    val value: ValueBox<Animal> = ValueBox(Cat())
+    val choice: Choice<Animal> = Choice.Item(Cat())
+    val referenceLUB = if (true) {
+        RefBox(Cat())
+    } else {
+        RefBox(Dog())
+    }
+    val valueLUB = if (false) {
+        ValueBox(Cat())
+    } else {
+        ValueBox(Dog())
+    }
+    val solverLUB = choose(RefBox(Cat()), RefBox(Dog()))
+
+    println(option!!.name)
+    println(reference.value.name)
+    println(value.value.name)
+    when (choice) {
+        Choice.Item(animal) -> println(animal.name)
+        Choice.Empty -> println("empty")
+    }
+    println(returned()!!.name)
+    println(branched(true)!!.name)
+    when (selected(Switch.On)) {
+        Choice.Item(animal) -> println(animal.name)
+        Choice.Empty -> println("empty")
+    }
+    println(recovered()!!.name)
+    println(referenceLUB is RefBox<Cat>)
+    println(valueLUB is ValueBox<Dog>)
+    println(solverLUB is RefBox<Cat>)
+}
