@@ -820,7 +820,7 @@ impl Lowerer {
         };
         let syntax = ast::VisibilitySyntax::Explicit { visibility, span };
         let access = match owner {
-            hir::PropertyOwner::TopLevel => {
+            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
                 self.top_level_access(syntax, span, "property setter", self.current_file)
             }
             hir::PropertyOwner::Class(owner) => self.member_access(
@@ -882,7 +882,7 @@ impl Lowerer {
             modifier,
         } = allocation;
         let method_owner = match owner {
-            hir::PropertyOwner::TopLevel => None,
+            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => None,
             hir::PropertyOwner::Class(owner) => Some(Owner::Class(owner)),
             hir::PropertyOwner::Struct(owner) => Some(Owner::Struct(owner)),
             hir::PropertyOwner::Enum(owner) => Some(Owner::Enum(owner)),

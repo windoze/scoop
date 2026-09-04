@@ -16,6 +16,7 @@ pub(super) enum WriteCapability {
         owner: Option<hir::MethodOwnerApplication>,
         receiver: Option<hir::Expr>,
     },
+    ExtensionProperty(crate::properties::ResolvedExtensionProperty),
     DirectInterfaceProperty(QualifiedInterfaceProperty),
     OperatorSet {
         receiver: hir::Expr,
@@ -113,7 +114,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedPlacePlan> {
         match place {
-            ast::PlaceExpr::Name(name) => self.resolve_named_place_plan(name),
+            ast::PlaceExpr::Name(name) => self.resolve_named_place_plan(name, sink),
             ast::PlaceExpr::Field {
                 receiver,
                 name,
@@ -135,56 +136,60 @@ impl Lowerer {
                 }
                 let receiver = self.lower_expr(receiver, sink, None)?;
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
-                let application = match self.types[receiver.ty] {
-                    Type::Class(application) => application,
-                    _ if self.is_value_ty(receiver.ty) => {
-                        self.error(
-                            name.span,
-                            "field assignment is not supported (value types are immutable)"
-                                .to_string(),
-                        );
-                        return None;
-                    }
-                    _ => {
-                        let found = self.type_name(receiver.ty);
-                        self.error(name.span, format!("type `{found}` has no fields"));
-                        return None;
-                    }
-                };
-                let Some((declaring, property, ty)) = self
-                    .find_accessible_class_application_property(
-                        application,
-                        &name.text,
-                        receiver.ty,
-                    )
-                else {
-                    let class = self.classes[self.class_applications[application].template]
-                        .name
-                        .clone();
-                    self.error(
-                        name.span,
-                        format!("class `{class}` has no property `{}`", name.text),
-                    );
-                    return None;
-                };
-                let owner = hir::MethodOwnerApplication::Class(declaring);
-                let read = self.lower_property_read(
-                    property,
-                    Some(owner),
-                    Some(receiver.clone()),
-                    ty,
-                    *span,
-                )?;
-                let write = if self.properties[property].capability.setter().is_some() {
-                    WriteCapability::Property {
+                if let Some((property, owner, ty)) =
+                    self.find_accessible_nominal_property(receiver.ty, &name.text)
+                {
+                    let read = self.lower_property_read(
                         property,
-                        owner: Some(owner),
-                        receiver: Some(receiver),
+                        Some(owner),
+                        Some(receiver.clone()),
+                        ty,
+                        *span,
+                    )?;
+                    let write = if self.properties[property].capability.setter().is_some() {
+                        WriteCapability::Property {
+                            property,
+                            owner: Some(owner),
+                            receiver: Some(receiver),
+                        }
+                    } else {
+                        WriteCapability::ReadOnly
+                    };
+                    return Some(ResolvedPlacePlan { read, write, ty });
+                }
+                match self.resolve_extension_property(receiver.clone(), name, sink, true) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        let ty = property.read.ty;
+                        let write = if self.properties[property.property]
+                            .capability
+                            .setter()
+                            .is_some()
+                        {
+                            WriteCapability::ExtensionProperty(*property.clone())
+                        } else {
+                            WriteCapability::ReadOnly
+                        };
+                        Some(ResolvedPlacePlan {
+                            read: property.read,
+                            write,
+                            ty,
+                        })
                     }
-                } else {
-                    WriteCapability::ReadOnly
-                };
-                Some(ResolvedPlacePlan { read, write, ty })
+                    crate::properties::ExtensionPropertyResolution::Failed => None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {
+                        if self.is_value_ty(receiver.ty) {
+                            self.error(
+                                name.span,
+                                "field assignment is not supported (value types are immutable)"
+                                    .to_string(),
+                            );
+                        } else {
+                            let found = self.type_name(receiver.ty);
+                            self.error(name.span, format!("type `{found}` has no fields"));
+                        }
+                        None
+                    }
+                }
             }
             ast::PlaceExpr::Index {
                 receiver,
@@ -252,7 +257,11 @@ impl Lowerer {
         }
     }
 
-    fn resolve_named_place_plan(&mut self, name: &ast::Ident) -> Option<ResolvedPlacePlan> {
+    fn resolve_named_place_plan(
+        &mut self,
+        name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedPlacePlan> {
         if name.text == "field" && self.backing_field_context.is_some() {
             let (read, write) = self.contextual_backing_field(name.span)?;
             let ty = read.ty;
@@ -265,7 +274,7 @@ impl Lowerer {
             });
         }
         if let Some(local) = self.scopes.lookup(&name.text) {
-            let read = self.lower_var(name, None)?;
+            let read = self.lower_var(name, sink, None)?;
             let write = if self.locals[local].mutable {
                 WriteCapability::Direct(hir::AssignTarget::Local(local))
             } else {
@@ -280,7 +289,7 @@ impl Lowerer {
         if self.constructor_params_in_scope.contains_key(&name.text)
             || self.available_capture(&name.text).is_some()
         {
-            let read = self.lower_var(name, None)?;
+            let read = self.lower_var(name, sink, None)?;
             return Some(ResolvedPlacePlan {
                 ty: read.ty,
                 read,
@@ -323,6 +332,31 @@ impl Lowerer {
             };
             return Some(ResolvedPlacePlan { read, write, ty });
         }
+        if self.initialization_context.is_none()
+            && let Some(receiver) = self.lower_current_this(name.span)
+        {
+            match self.resolve_extension_property(receiver, name, sink, true) {
+                crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                    let ty = property.read.ty;
+                    let write = if self.properties[property.property]
+                        .capability
+                        .setter()
+                        .is_some()
+                    {
+                        WriteCapability::ExtensionProperty(*property.clone())
+                    } else {
+                        WriteCapability::ReadOnly
+                    };
+                    return Some(ResolvedPlacePlan {
+                        read: property.read,
+                        write,
+                        ty,
+                    });
+                }
+                crate::properties::ExtensionPropertyResolution::Failed => return None,
+                crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+            }
+        }
         if let Some(property) = self.visible_property(&name.text, None) {
             let ty = self.properties[property].ty;
             return Some(ResolvedPlacePlan {
@@ -339,7 +373,7 @@ impl Lowerer {
                 ty,
             });
         }
-        let read = self.lower_var(name, None)?;
+        let read = self.lower_var(name, sink, None)?;
         Some(ResolvedPlacePlan {
             ty: read.ty,
             read,
@@ -396,6 +430,9 @@ impl Lowerer {
                 owner,
                 receiver,
             } => self.lower_property_write(property, owner, receiver, value, span),
+            WriteCapability::ExtensionProperty(property) => {
+                self.lower_extension_property_write(property, value, span)
+            }
             WriteCapability::DirectInterfaceProperty(property) => {
                 self.lower_direct_interface_property_write(property, value, span)
             }

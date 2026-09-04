@@ -54,6 +54,13 @@ impl Lowerer {
                     access.span,
                 );
             }
+            match self.resolve_extension_property(receiver.clone(), field, sink, true) {
+                crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                    return Some(property.read);
+                }
+                crate::properties::ExtensionPropertyResolution::Failed => return None,
+                crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+            }
         }
         let (field, ty) = self.resolve_field(receiver.ty, &access.selector)?;
         Some(hir::Expr {
@@ -114,6 +121,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
+        let option_ty = receiver.ty;
         let Some(inner) = self.as_option(receiver.ty) else {
             let found = self.type_name(receiver.ty);
             self.error(
@@ -122,37 +130,66 @@ impl Lowerer {
             );
             return None;
         };
-        let property = match &access.selector {
-            ast::FieldSelector::Name(name) => {
-                self.find_accessible_nominal_property(inner, &name.text)
-            }
-            ast::FieldSelector::Index(_, _) => None,
-        };
-        let direct_field = if property.is_none() {
-            Some(self.resolve_field(inner, &access.selector)?)
-        } else {
-            None
-        };
-        let field_ty = property
-            .as_ref()
-            .map_or_else(|| direct_field.as_ref().unwrap().1, |(_, _, ty)| *ty);
-        let result_ty = self.option_type(field_ty);
         let span = access.span;
         let origin = self.expression_origin(span);
-        let then_value = move |state: &mut Self, tmp: hir::Expr| {
-            let unwrapped = hir::Expr {
-                kind: ExprKind::Unwrap {
-                    operand: Box::new(tmp),
-                    trap_on_none: false,
-                },
-                ty: inner,
-                span,
-                origin,
-            };
-            let field_access = if let Some((property, owner, ty)) = property {
-                state.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
-            } else {
-                let (field, ty) = direct_field.expect("a non-property safe access has a field");
+        let tmp = self.alloc_hidden("opt", option_ty);
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: tmp },
+                init: receiver,
+            },
+            span,
+        });
+        let tmp_expr = hir::Expr {
+            kind: ExprKind::Local(tmp),
+            ty: option_ty,
+            span,
+            origin,
+        };
+        let unwrapped = hir::Expr {
+            kind: ExprKind::Unwrap {
+                operand: Box::new(tmp_expr.clone()),
+                trap_on_none: false,
+            },
+            ty: inner,
+            span,
+            origin,
+        };
+        let mut then_body = Vec::new();
+        let field_access = match &access.selector {
+            ast::FieldSelector::Name(name) => {
+                if let Some((property, owner, ty)) =
+                    self.find_accessible_nominal_property(inner, &name.text)
+                {
+                    self.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
+                } else {
+                    match self.resolve_extension_property(
+                        unwrapped.clone(),
+                        name,
+                        &mut then_body,
+                        true,
+                    ) {
+                        crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                            property.read
+                        }
+                        crate::properties::ExtensionPropertyResolution::Failed => return None,
+                        crate::properties::ExtensionPropertyResolution::NoCandidate => {
+                            let (field, ty) = self.resolve_field(inner, &access.selector)?;
+                            hir::Expr {
+                                kind: ExprKind::FieldAccess {
+                                    receiver: Box::new(unwrapped),
+                                    field,
+                                },
+                                ty,
+                                span,
+                                origin,
+                            }
+                        }
+                    }
+                }
+            }
+            ast::FieldSelector::Index(_, _) => {
+                let (field, ty) = self.resolve_field(inner, &access.selector)?;
                 hir::Expr {
                     kind: ExprKind::FieldAccess {
                         receiver: Box::new(unwrapped),
@@ -162,31 +199,54 @@ impl Lowerer {
                     span,
                     origin,
                 }
-            };
-            Some(hir::Expr {
-                kind: ExprKind::SomeWrap(Box::new(field_access)),
-                ty: result_ty,
-                span,
-                origin,
-            })
+            }
         };
+        let result_ty = self.option_type(field_access.ty);
+        let result = self.alloc_hidden("res", result_ty);
+        then_body.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: result },
+                init: hir::Expr {
+                    kind: ExprKind::SomeWrap(Box::new(field_access)),
+                    ty: result_ty,
+                    span,
+                    origin,
+                },
+            },
+            span,
+        });
         let else_value = hir::Expr {
             kind: ExprKind::NoneLiteral,
             ty: result_ty,
             span,
             origin,
         };
-        self.desugar_option(
-            receiver,
-            result_ty,
-            span,
-            sink,
-            then_value,
-            ElseBranch {
-                statements: Vec::new(),
-                value: else_value,
+        let else_body = vec![hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: result },
+                init: else_value,
             },
-        )
+            span,
+        }];
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::If {
+                cond: hir::Expr {
+                    kind: ExprKind::IsSome(Box::new(tmp_expr)),
+                    ty: self.boolean,
+                    span,
+                    origin,
+                },
+                then_body,
+                else_body: Some(else_body),
+            },
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::Local(result),
+            ty: result_ty,
+            span,
+            origin,
+        })
     }
 
     /// `lhs ?: rhs`: `lhs` must be an `Option<T>` and `rhs` a `T` (the

@@ -201,10 +201,7 @@ fn field_assignment_on_a_value_type_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("value-type field stores must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "field assignment is not supported (value types are immutable)"
-    );
+    assert_eq!(errors[0].message, "cannot assign to immutable property `v`");
 }
 
 #[test]

@@ -149,6 +149,74 @@ impl Lowerer {
                         }
                     }
                 }
+                let mut extension_property_state = self.clone();
+                let mut extension_property_sink = Vec::new();
+                let receiver = extension_property_state
+                    .lower_current_this(call.callee.span)
+                    .expect("a lexical receiver has a `this` value");
+                match extension_property_state.resolve_extension_property_on_side(
+                    receiver,
+                    &call.callee,
+                    same_side,
+                    &mut extension_property_sink,
+                    true,
+                ) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        if let Some(layer) = extension_property_state.probe_property_member_invoke(
+                            property.read.clone(),
+                            CallSite {
+                                type_args: &call.type_args,
+                                args: &call.args,
+                                span: call.span,
+                            },
+                            expected,
+                            false,
+                        ) {
+                            match layer {
+                                Ok(mut layer) => {
+                                    let mut setup = extension_property_sink.clone();
+                                    setup.append(&mut layer.sink);
+                                    layer.sink = setup;
+                                    return Some(self.commit_expr_layer(layer, sink));
+                                }
+                                Err(failure) => {
+                                    first_failure.get_or_insert(failure);
+                                }
+                            }
+                        }
+                        if let Some(layer) = extension_property_state
+                            .probe_property_extension_invoke(
+                                property.read,
+                                CallSite {
+                                    type_args: &call.type_args,
+                                    args: &call.args,
+                                    span: call.span,
+                                },
+                                expected,
+                                false,
+                                same_side,
+                            )
+                        {
+                            match layer {
+                                Ok(mut layer) => {
+                                    let mut setup = extension_property_sink;
+                                    setup.append(&mut layer.sink);
+                                    layer.sink = setup;
+                                    return Some(self.commit_expr_layer(layer, sink));
+                                }
+                                Err(failure) => {
+                                    first_failure.get_or_insert(failure);
+                                }
+                            }
+                        }
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => {
+                        if extension_property_state.diagnostics.len() > self.diagnostics.len() {
+                            first_failure.get_or_insert(Box::new(extension_property_state));
+                        }
+                    }
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                }
                 if let Some((property_state, property)) = &property_candidate
                     && let Some(layer) = property_state.probe_property_extension_invoke(
                         property.clone(),

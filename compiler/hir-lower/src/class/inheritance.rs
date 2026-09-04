@@ -359,6 +359,7 @@ impl Lowerer {
             hir::PropertyOwner::Interface(owner) => {
                 format!("interface `{}`", self.interfaces[owner].name)
             }
+            hir::PropertyOwner::Extension(_) => "an extension receiver".to_string(),
             hir::PropertyOwner::TopLevel => "top level".to_string(),
         }
     }

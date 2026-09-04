@@ -197,7 +197,10 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (property, declaration) in module.properties.iter() {
-        if declaration.owner == PropertyOwner::TopLevel {
+        if matches!(
+            declaration.owner,
+            PropertyOwner::TopLevel | PropertyOwner::Extension(_)
+        ) {
             dump_property(module, property, 1, &mut out);
         }
     }
@@ -472,12 +475,30 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
                 .join(",")
         )
     };
+    let (type_params, receiver, property_ty) = match property.owner {
+        PropertyOwner::Extension(extension) => {
+            let extension = &module.extension_properties[extension];
+            let params = if extension.type_params.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", dump_type_params(module, &extension.type_params))
+            };
+            (
+                params,
+                format!(
+                    "{}.",
+                    type_name_with_params(module, extension.receiver_ty, &extension.type_params)
+                ),
+                type_name_with_params(module, property.ty, &extension.type_params),
+            )
+        }
+        _ => (String::new(), String::new(), type_name(module, property.ty)),
+    };
     out.push_str(&format!(
-        "{}property{} {modifier}{override_}{mutability} {}: {} {getter}{setter} <{representation}>{overrides}\n",
+        "{}property{} {modifier}{override_}{mutability} {type_params}{receiver}{}: {property_ty} {getter}{setter} <{representation}>{overrides}\n",
         "  ".repeat(indent),
         id.into_raw(),
         property.name,
-        type_name(module, property.ty),
     ));
 }
 

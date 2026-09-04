@@ -27,7 +27,203 @@ pub(crate) struct BackingFieldContext {
     pub(crate) capture_depth: usize,
 }
 
+#[derive(Clone)]
+pub(crate) struct ResolvedExtensionProperty {
+    pub(crate) property: hir::PropertyId,
+    pub(crate) receiver: hir::Expr,
+    pub(crate) type_args: Vec<TypeId>,
+    pub(crate) read: hir::Expr,
+}
+
+pub(crate) enum ExtensionPropertyResolution {
+    NoCandidate,
+    Failed,
+    Resolved(Box<ResolvedExtensionProperty>),
+}
+
 impl Lowerer {
+    pub(crate) fn resolve_extension_property(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
+        require_read: bool,
+    ) -> ExtensionPropertyResolution {
+        let declared = self
+            .extension_properties_by_name
+            .get(&name.text)
+            .is_some_and(|properties| !properties.is_empty());
+        let mut first_failure = None;
+        for same_side in [true, false] {
+            let mut state = self.clone();
+            let mut layer_sink = Vec::new();
+            match state.resolve_extension_property_on_side(
+                receiver.clone(),
+                name,
+                same_side,
+                &mut layer_sink,
+                require_read,
+            ) {
+                ExtensionPropertyResolution::Resolved(resolved) => {
+                    *self = state;
+                    sink.extend(layer_sink);
+                    return ExtensionPropertyResolution::Resolved(resolved);
+                }
+                ExtensionPropertyResolution::Failed => {
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                ExtensionPropertyResolution::NoCandidate => {}
+            }
+        }
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
+            ExtensionPropertyResolution::Failed
+        } else if declared {
+            self.error(
+                name.span,
+                format!("extension property `{}` is not accessible here", name.text),
+            );
+            ExtensionPropertyResolution::Failed
+        } else {
+            ExtensionPropertyResolution::NoCandidate
+        }
+    }
+
+    pub(crate) fn resolve_extension_property_on_side(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        same_side: bool,
+        sink: &mut Vec<hir::Statement>,
+        require_read: bool,
+    ) -> ExtensionPropertyResolution {
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let properties = self
+            .extension_properties_by_name
+            .get(&name.text)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|property| {
+                self.access_domain_allows(
+                    &self.properties[*property].access.lookup.0,
+                    Some(receiver.ty),
+                )
+            })
+            .filter(|property| {
+                ((self.property_files[property] < self.user_file_index) == call_site_is_core)
+                    == same_side
+            })
+            .collect::<Vec<_>>();
+        if properties.is_empty() {
+            return ExtensionPropertyResolution::NoCandidate;
+        }
+        let getters = properties
+            .iter()
+            .map(|property| {
+                match self.property_getters[self.properties[*property].capability.getter()]
+                    .implementation
+                {
+                    hir::PropertyAccessorImplementation::Body(function) => function,
+                    hir::PropertyAccessorImplementation::Storage
+                    | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
+                        unreachable!("extension properties have concrete getter bodies")
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        let no_type_args = [];
+        let no_arguments = [];
+        let Some(resolved) = self.resolve_extension_overload(
+            &name.text,
+            &getters,
+            receiver,
+            crate::overload::OverloadCall {
+                explicit_type_args: &no_type_args,
+                arg_exprs: &no_arguments,
+                span: name.span,
+                expected_result: None,
+                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
+            },
+            sink,
+        ) else {
+            return ExtensionPropertyResolution::Failed;
+        };
+        let function = resolved.function();
+        let property = self.extension_property_by_getter[&function];
+        let receiver = resolved
+            .args
+            .first()
+            .cloned()
+            .expect("an extension getter materializes its receiver argument");
+        let callee = self.materialize_resolved_callee(&resolved);
+        if require_read {
+            self.check_call_effects(callee, name.span);
+        }
+        let read = hir::Expr {
+            kind: hir::ExprKind::Call {
+                callee,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span: name.span,
+            origin: self.expression_origin(name.span),
+        };
+        ExtensionPropertyResolution::Resolved(Box::new(ResolvedExtensionProperty {
+            property,
+            receiver,
+            type_args: resolved.type_args,
+            read,
+        }))
+    }
+
+    pub(crate) fn lower_extension_property_write(
+        &mut self,
+        resolved: ResolvedExtensionProperty,
+        value: hir::Expr,
+        span: ast::Span,
+    ) -> Option<hir::StatementKind> {
+        let property = self.properties[resolved.property].clone();
+        let Some(setter) = property.capability.setter() else {
+            self.error(
+                span,
+                format!("cannot assign to immutable property `{}`", property.name),
+            );
+            return None;
+        };
+        let setter = self.property_setters[setter].clone();
+        if !self.access_domain_allows(&setter.access.lookup.0, Some(resolved.receiver.ty)) {
+            self.error(
+                span,
+                format!("setter of property `{}` is not accessible", property.name),
+            );
+            return None;
+        }
+        let function = match setter.implementation {
+            hir::PropertyAccessorImplementation::Body(function) => function,
+            hir::PropertyAccessorImplementation::Storage
+            | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
+                unreachable!("extension properties use concrete accessor functions")
+            }
+        };
+        let candidate = crate::CallableCandidate::function(
+            function,
+            Vec::new(),
+            self.function_lookup_witness(function),
+        );
+        let callee = self.materialize_candidate_callable(&candidate, &resolved.type_args);
+        self.check_call_effects(callee, span);
+        Some(hir::StatementKind::Expr(hir::Expr {
+            kind: hir::ExprKind::Call {
+                callee,
+                args: vec![resolved.receiver, value],
+            },
+            ty: self.unit,
+            span,
+            origin: self.expression_origin(span),
+        }))
+    }
+
     pub(crate) fn find_accessible_nominal_property(
         &mut self,
         receiver_ty: TypeId,

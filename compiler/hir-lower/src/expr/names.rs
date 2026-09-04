@@ -15,6 +15,7 @@ impl Lowerer {
     pub(crate) fn lower_var(
         &mut self,
         name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if name.text == "field" && self.backing_field_context.is_some() {
@@ -60,6 +61,17 @@ impl Lowerer {
             }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
+            }
+            if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                match self.resolve_extension_property(receiver, name, sink, true) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        return Some(property.read);
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => return None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                }
             }
             if let Some(property) = self.visible_property(&name.text, None) {
                 let ty = self.properties[property].ty;

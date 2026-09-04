@@ -213,6 +213,7 @@ impl Lowerer {
         self.validate_pointer_type_uses();
         self.resolve_globals(&pending_globals);
         self.resolve_property_accessor_signatures();
+        self.check_extension_property_signatures();
         self.validate_extern_functions();
         self.validate_extern_global_symbols();
 
@@ -379,6 +380,7 @@ impl Lowerer {
             extern_functions: self.extern_functions,
             globals: self.globals,
             properties: self.properties,
+            extension_properties: self.extension_properties,
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             generic_functions: self.generic_functions,

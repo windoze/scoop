@@ -1,0 +1,25 @@
+class Counter(var value: Int)
+
+class Action {
+    operator fun invoke(value: Int): Int = value + 1
+}
+
+var Counter.current: Int
+    get() = value
+    set(next) { value = next }
+
+val Counter.action: Action
+    get() = Action()
+
+fun main() {
+    val counter = Counter(3)
+    println(counter.current)
+    counter.current = 6
+    counter.current += 2
+    println(counter.current++)
+    println(counter.current)
+    println(counter.action(4))
+
+    val optional: Counter? = Some(counter)
+    println(optional?.current!!)
+}

@@ -840,14 +840,19 @@ impl Lowerer {
         for (id, ty, span, name, mut access, owner) in properties {
             self.current_file = match owner {
                 hir::PropertyOwner::TopLevel => self.property_files[&id],
+                hir::PropertyOwner::Extension(_) => self.property_files[&id],
                 hir::PropertyOwner::Class(owner) => self.class_files[&owner],
                 hir::PropertyOwner::Struct(owner) => self.struct_files[&owner],
                 hir::PropertyOwner::Enum(owner) => self.enum_files[&owner],
                 hir::PropertyOwner::Interface(owner) => self.interface_files[&owner],
             };
+            let mut signature_types = vec![ty];
+            if let hir::PropertyOwner::Extension(extension) = owner {
+                signature_types.insert(0, self.extension_properties[extension].receiver_ty);
+            }
             access.signature = self.signature_exposure_witnesses(
                 &access,
-                &[ty],
+                &signature_types,
                 span,
                 &format!("property `{name}`"),
             );

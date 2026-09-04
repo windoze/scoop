@@ -322,6 +322,7 @@ pub(crate) struct Lowerer {
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
     pub(crate) properties: Arena<hir::Property>,
+    pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -373,6 +374,11 @@ pub(crate) struct Lowerer {
     /// because file-private top-level properties in different source files
     /// own distinct namespaces.
     pub(crate) properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
+    /// Extension properties form their own receiver-applicable namespace.
+    pub(crate) extension_properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
+    /// Direct typed relation used after getter overload resolution; accessor
+    /// function names are never parsed to recover a logical property.
+    pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
     pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
     /// Index of the user compilation unit (`files.len() - 1`); every

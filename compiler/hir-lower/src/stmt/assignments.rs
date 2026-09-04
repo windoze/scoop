@@ -116,33 +116,61 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let application = match self.types[receiver.ty] {
-            Type::Class(application) => application,
-            _ if self.is_value_ty(receiver.ty) => {
-                self.error(
-                    name.span,
-                    "field assignment is not supported (value types are immutable)".to_string(),
-                );
-                return None;
-            }
-            _ => {
-                let found = self.type_name(receiver.ty);
-                self.error(name.span, format!("type `{found}` has no fields"));
-                return None;
-            }
-        };
-        let class_id = self.class_applications[application].template;
         let receiver_ty = receiver.ty;
-        let Some((declaring, property, property_ty)) =
-            self.find_accessible_class_application_property(application, &name.text, receiver_ty)
-        else {
-            let class_name = self.classes[class_id].name.clone();
-            self.error(
+        if let Some((property, owner, property_ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            let value = self.lower_expr(&assign.value, sink, Some(property_ty))?;
+            if !self.is_subtype(value.ty, property_ty) {
+                let expected = self.type_name(property_ty);
+                let found = self.type_name(value.ty);
+                let message = self.with_nominal_invariance_detail(
+                    format!(
+                        "cannot assign value of type {found} to property `{}` of type {expected}",
+                        name.text
+                    ),
+                    value.ty,
+                    property_ty,
+                );
+                self.error(assign.value.span(), message);
+                return None;
+            }
+            let value = self.adapt_to(value, property_ty);
+            return self.lower_property_write(
+                property,
+                Some(owner),
+                Some(receiver),
+                value,
                 name.span,
-                format!("class `{class_name}` has no property `{}`", name.text),
             );
-            return None;
+        }
+        let resolved = match self.resolve_extension_property(receiver, name, sink, false) {
+            crate::properties::ExtensionPropertyResolution::Resolved(property) => property,
+            crate::properties::ExtensionPropertyResolution::Failed => return None,
+            crate::properties::ExtensionPropertyResolution::NoCandidate => {
+                match self.types[receiver_ty] {
+                    Type::Class(application) => {
+                        let class = self.classes[self.class_applications[application].template]
+                            .name
+                            .clone();
+                        self.error(
+                            name.span,
+                            format!("class `{class}` has no property `{}`", name.text),
+                        );
+                    }
+                    _ if self.is_value_ty(receiver_ty) => self.error(
+                        name.span,
+                        "field assignment is not supported (value types are immutable)".to_string(),
+                    ),
+                    _ => {
+                        let found = self.type_name(receiver_ty);
+                        self.error(name.span, format!("type `{found}` has no fields"));
+                    }
+                }
+                return None;
+            }
         };
+        let property_ty = resolved.read.ty;
         let value = self.lower_expr(&assign.value, sink, Some(property_ty))?;
         if !self.is_subtype(value.ty, property_ty) {
             let expected = self.type_name(property_ty);
@@ -159,13 +187,7 @@ impl Lowerer {
             return None;
         }
         let value = self.adapt_to(value, property_ty);
-        self.lower_property_write(
-            property,
-            Some(hir::MethodOwnerApplication::Class(declaring)),
-            Some(receiver),
-            value,
-            name.span,
-        )
+        self.lower_extension_property_write(*resolved, value, name.span)
     }
 
     /// `name = value`: the target must be a declared, mutable local and
@@ -272,6 +294,36 @@ impl Lowerer {
                     }
                 }
                 _ => {}
+            }
+            if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                let mut sink = Vec::new();
+                match self.resolve_extension_property(receiver, name, &mut sink, false) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        let expected = property.read.ty;
+                        let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+                        if !self.is_subtype(value.ty, expected) {
+                            let message = self.with_nominal_invariance_detail(
+                                format!(
+                                    "cannot assign value of type {} to property `{}` of type {}",
+                                    self.type_name(value.ty),
+                                    name.text,
+                                    self.type_name(expected)
+                                ),
+                                value.ty,
+                                expected,
+                            );
+                            self.error(assign.value.span(), message);
+                            return None;
+                        }
+                        let value = self.adapt_to(value, expected);
+                        out.extend(sink);
+                        return self.lower_extension_property_write(*property, value, name.span);
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => return None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                }
             }
             if let Some(property) = self.visible_property(&name.text, None) {
                 let expected = self.properties[property].ty;

@@ -186,7 +186,7 @@ impl Lowerer {
         layer.expression
     }
 
-    fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
+    pub(crate) fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
         let baseline = self.diagnostics.len();
         debug_assert!(failed.diagnostics.len() > baseline);
         self.diagnostics
@@ -271,7 +271,7 @@ impl Lowerer {
                     None
                 }
             },
-            ast::Expr::Var(name) => self.lower_var(name, expected),
+            ast::Expr::Var(name) => self.lower_var(name, sink, expected),
             ast::Expr::Lambda {
                 is_suspend,
                 parameters,

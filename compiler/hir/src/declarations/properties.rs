@@ -21,10 +21,21 @@ pub struct Property {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyOwner {
     TopLevel,
+    Extension(ExtensionPropertyId),
     Class(ClassId),
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
+}
+
+/// The receiver template and type-parameter namespace of one top-level
+/// extension property. Accessors are separate generic function templates;
+/// their positional type arguments are fixed by this logical declaration.
+#[derive(Debug, Clone)]
+pub struct ExtensionProperty {
+    pub property: PropertyId,
+    pub receiver_ty: TypeId,
+    pub type_params: Vec<TypeParamDecl>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

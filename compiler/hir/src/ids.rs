@@ -12,6 +12,7 @@ pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
 pub type PropertyId = Idx<Property>;
+pub type ExtensionPropertyId = Idx<ExtensionProperty>;
 pub type PropertyGetterId = Idx<PropertyGetter>;
 pub type PropertySetterId = Idx<PropertySetter>;
 pub type GenericFunctionId = Idx<GenericFunction>;

@@ -220,3 +220,40 @@ fn property_override_owns_one_virtual_accessor_family_and_visibility_witness() {
         hir::MethodDispatch::FinalOverride(base_family)
     );
 }
+
+#[test]
+fn extension_property_owns_a_distinct_receiver_template_and_accessor() {
+    let mut extension = property(
+        "answer",
+        false,
+        ast::MethodModifier::Final,
+        false,
+        ty_named("Int"),
+        ast::PropertyBodySyntax::Computed(getter(int_lit(42))),
+    );
+    extension.receiver_ty = Some(ty_named("Int"));
+    let module = lower_user(file(vec![
+        ast::Decl::Global(extension),
+        fun("main", Vec::new()),
+    ]))
+    .expect("a computed extension property lowers");
+    let (property, declaration) = module
+        .properties
+        .iter()
+        .find(|(_, property)| property.name == "answer")
+        .expect("logical extension property");
+    let hir::PropertyOwner::Extension(extension) = declaration.owner else {
+        panic!("extension property has a typed extension owner")
+    };
+    let template = &module.extension_properties[extension];
+    assert_eq!(template.property, property);
+    assert_eq!(template.receiver_ty, module.int);
+    assert!(template.type_params.is_empty());
+    let getter = match module.property_getters[declaration.capability.getter()].implementation {
+        hir::PropertyAccessorImplementation::Body(function) => function,
+        _ => panic!("computed extension getter has a body"),
+    };
+    assert!(module.functions[getter].method.is_none());
+    assert_eq!(module.functions[getter].params[0].name, "this");
+    assert_eq!(module.functions[getter].params[0].ty, module.int);
+}

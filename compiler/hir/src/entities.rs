@@ -49,6 +49,9 @@ pub struct Module {
     /// Logical properties and their independently typed accessor identities.
     /// Physical fields/globals are reachable only through a representation.
     pub properties: Arena<Property>,
+    /// Top-level extension-property templates. Their identity is distinct
+    /// from the logical property and from either generated accessor function.
+    pub extension_properties: Arena<ExtensionProperty>,
     pub property_getters: Arena<PropertyGetter>,
     pub property_setters: Arena<PropertySetter>,
     /// Generic function definitions. Their ids are distinct from
