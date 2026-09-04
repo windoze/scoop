@@ -127,6 +127,7 @@ impl ResolvedCallTypeArgument {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct RequiredCallableModifiers {
     pub(crate) operator: Option<hir::OperatorKind>,
+    pub(crate) property_delegate_operator: Option<hir::PropertyDelegateOperatorKind>,
     pub(crate) infix: bool,
 }
 

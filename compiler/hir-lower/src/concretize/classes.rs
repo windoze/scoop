@@ -325,6 +325,12 @@ impl Concretizer<'_> {
                     field,
                     initializer,
                     span,
+                }
+                | export::ClassInitializationStep::DelegatedProperty {
+                    field,
+                    initializer,
+                    span,
+                    ..
                 } => {
                     let locals = self.append_source_locals(body, &initializer.locals, substitution);
                     body.statements

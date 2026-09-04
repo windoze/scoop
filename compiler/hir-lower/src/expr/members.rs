@@ -397,6 +397,9 @@ impl Lowerer {
         required
             .operator
             .is_none_or(|operator| modifiers.operator == Some(operator))
+            && required
+                .property_delegate_operator
+                .is_none_or(|operator| modifiers.property_delegate_operator == Some(operator))
             && (!required.infix || modifiers.is_infix)
     }
 
@@ -465,6 +468,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,
+                    ..Default::default()
                 },
             )
         });
@@ -493,6 +497,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,
+                    ..Default::default()
                 },
             )
         });
@@ -522,7 +527,10 @@ impl Lowerer {
         required: RequiredCallableModifiers,
     ) -> Option<hir::Expr> {
         if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
-            if required.operator.is_some() || required.infix {
+            if required.operator.is_some()
+                || required.property_delegate_operator.is_some()
+                || required.infix
+            {
                 let found = self.type_name(receiver.ty);
                 self.error(
                     name.span,
@@ -655,6 +663,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: None,
                     infix: true,
+                    ..Default::default()
                 },
             ),
             ast::InfixTarget::Invoke => {

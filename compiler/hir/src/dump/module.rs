@@ -464,6 +464,19 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
             }
         },
         PropertyRepresentation::AccessorOnly => "accessor-only".to_string(),
+        PropertyRepresentation::Delegated { storage } => {
+            let delegate = &module.delegate_storages[*storage];
+            let location = match delegate.location {
+                DelegateStorageLocation::ClassField(field) => {
+                    format!("class-field{}", field.into_raw())
+                }
+            };
+            format!(
+                "delegated storage{} type={} location={location}",
+                storage.into_raw(),
+                type_name(module, delegate.ty)
+            )
+        }
         PropertyRepresentation::NativeStorage { storage } => {
             format!("native-storage global{}", storage.into_raw())
         }

@@ -11,6 +11,10 @@ pub(super) struct ResolvedPlacePlan {
 pub(super) enum WriteCapability {
     ReadOnly,
     Direct(hir::AssignTarget),
+    LocalDelegate {
+        storage: hir::Expr,
+        binding: hir::BindingId,
+    },
     Property {
         property: hir::PropertyId,
         owner: Option<hir::MethodOwnerApplication>,
@@ -60,6 +64,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(kind),
                 infix: false,
+                ..Default::default()
             },
         )?;
         if !self.is_subtype(value.ty, plan.ty) {
@@ -219,6 +224,7 @@ impl Lowerer {
                     RequiredCallableModifiers {
                         operator: Some(hir::OperatorKind::Get),
                         infix: false,
+                        ..Default::default()
                     },
                 )?;
                 let index_arguments = self.materialized_source_arguments(indices.len(), *span);
@@ -274,6 +280,26 @@ impl Lowerer {
             });
         }
         if let Some(local) = self.scopes.lookup(&name.text) {
+            let binding = self.locals[local].binding;
+            if let Some(plan) = self.local_delegate_plans.get(&binding).copied() {
+                let storage = hir::Expr {
+                    kind: hir::ExprKind::Local(local),
+                    ty: self.locals[local].ty,
+                    span: name.span,
+                    origin: self.expression_origin(name.span),
+                };
+                let read = self.local_delegate_read(storage.clone(), binding, name.span)?;
+                let write = if plan.mutable {
+                    WriteCapability::LocalDelegate { storage, binding }
+                } else {
+                    WriteCapability::ReadOnly
+                };
+                return Some(ResolvedPlacePlan {
+                    read,
+                    write,
+                    ty: plan.property_ty,
+                });
+            }
             let read = self.lower_var(name, sink, None)?;
             let write = if self.locals[local].mutable {
                 WriteCapability::Direct(hir::AssignTarget::Local(local))
@@ -286,9 +312,32 @@ impl Lowerer {
                 write,
             });
         }
-        if self.constructor_params_in_scope.contains_key(&name.text)
-            || self.available_capture(&name.text).is_some()
-        {
+        if let Some(capture) = self.available_capture(&name.text) {
+            if let Some(plan) = self.local_delegate_plans.get(&capture.binding).copied() {
+                let storage = self.lower_capture(name)?;
+                let read = self.local_delegate_read(storage.clone(), capture.binding, name.span)?;
+                let write = if plan.mutable {
+                    WriteCapability::LocalDelegate {
+                        storage,
+                        binding: capture.binding,
+                    }
+                } else {
+                    WriteCapability::ReadOnly
+                };
+                return Some(ResolvedPlacePlan {
+                    read,
+                    write,
+                    ty: plan.property_ty,
+                });
+            }
+            let read = self.lower_var(name, sink, None)?;
+            return Some(ResolvedPlacePlan {
+                ty: read.ty,
+                read,
+                write: WriteCapability::ReadOnly,
+            });
+        }
+        if self.constructor_params_in_scope.contains_key(&name.text) {
             let read = self.lower_var(name, sink, None)?;
             return Some(ResolvedPlacePlan {
                 ty: read.ty,
@@ -425,6 +474,9 @@ impl Lowerer {
                 None
             }
             WriteCapability::Direct(target) => Some(hir::StatementKind::Assign { target, value }),
+            WriteCapability::LocalDelegate { storage, binding } => self
+                .local_delegate_write(storage, binding, value, span)
+                .map(hir::StatementKind::Expr),
             WriteCapability::Property {
                 property,
                 owner,
@@ -461,6 +513,7 @@ impl Lowerer {
                     RequiredCallableModifiers {
                         operator: Some(hir::OperatorKind::Set),
                         infix: false,
+                        ..Default::default()
                     },
                 )?;
                 Some(hir::StatementKind::Expr(call))

@@ -277,6 +277,12 @@ pub enum ClassInitializationStep {
         initializer: ConstructorExpression,
         span: Span,
     },
+    DelegatedProperty {
+        storage: DelegateStorageId,
+        field: ClassFieldId,
+        initializer: ConstructorExpression,
+        span: Span,
+    },
     InitBlock {
         body: Body,
         span: Span,

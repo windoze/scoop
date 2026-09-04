@@ -64,14 +64,27 @@ impl PropertyCapability {
     }
 }
 
-/// Mutually exclusive implementation representation. Delegate and const
-/// variants are introduced by their dedicated M21 gates; declarations using
-/// those source forms are rejected before a Property is allocated until then.
+/// Mutually exclusive implementation representation. Every physical storage
+/// category has its own typed identity; consumers never recover a delegate
+/// field or global from an accessor name.
 #[derive(Debug, Clone)]
 pub enum PropertyRepresentation {
     Stored(StoredProperty),
     AccessorOnly,
+    Delegated { storage: DelegateStorageId },
     NativeStorage { storage: GlobalId },
+}
+
+#[derive(Debug, Clone)]
+pub struct DelegateStorage {
+    pub property: PropertyId,
+    pub ty: TypeId,
+    pub location: DelegateStorageLocation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DelegateStorageLocation {
+    ClassField(ClassFieldId),
 }
 
 #[derive(Debug, Clone)]

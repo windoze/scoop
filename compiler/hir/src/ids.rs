@@ -15,6 +15,7 @@ pub type PropertyId = Idx<Property>;
 pub type ExtensionPropertyId = Idx<ExtensionProperty>;
 pub type PropertyGetterId = Idx<PropertyGetter>;
 pub type PropertySetterId = Idx<PropertySetter>;
+pub type DelegateStorageId = Idx<DelegateStorage>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type MethodApplicationId = Idx<MethodApplication>;

@@ -1,0 +1,20 @@
+class NoGet
+
+class OrdinaryOnly {
+    fun getValue(thisRef: Unit): Int = 1
+}
+
+class WrongResult {
+    operator fun getValue(thisRef: Unit): String = "wrong"
+}
+
+class NoSet {
+    operator fun getValue(thisRef: Unit): Int = 1
+}
+
+fun main() {
+    val missing: Int by NoGet()
+    val ordinary: Int by OrdinaryOnly()
+    val wrong: Int by WrongResult()
+    var mutable: Int by NoSet()
+}

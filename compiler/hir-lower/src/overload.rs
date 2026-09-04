@@ -46,6 +46,21 @@ pub(crate) struct ResolvedCallee {
     pub(crate) return_ty: TypeId,
 }
 
+pub(crate) enum OverloadResolutionOutcome {
+    NoApplicable,
+    Failed,
+    Resolved(Box<ResolvedCallee>),
+}
+
+impl OverloadResolutionOutcome {
+    fn into_option(self) -> Option<ResolvedCallee> {
+        match self {
+            Self::Resolved(resolved) => Some(*resolved),
+            Self::NoApplicable | Self::Failed => None,
+        }
+    }
+}
+
 impl ResolvedCallee {
     pub(crate) fn function(&self) -> FunctionId {
         self.target.function
@@ -179,6 +194,7 @@ impl Lowerer {
             },
             sink,
         )
+        .into_option()
     }
 
     pub(crate) fn resolve_member_overload(
@@ -202,6 +218,7 @@ impl Lowerer {
             },
             sink,
         )
+        .into_option()
     }
 
     pub(crate) fn resolve_member_overload_lowered(
@@ -230,6 +247,7 @@ impl Lowerer {
             },
             sink,
         )
+        .into_option()
     }
 
     /// Resolve an extension candidate layer. The already-lowered receiver is
@@ -267,6 +285,75 @@ impl Lowerer {
             },
             sink,
         )
+        .into_option()
+    }
+
+    pub(crate) fn resolve_member_overload_lowered_outcome(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        call: LoweredOverloadCall,
+        sink: &mut Vec<hir::Statement>,
+    ) -> OverloadResolutionOutcome {
+        let LoweredOverloadCall {
+            explicit_type_args,
+            args,
+            span,
+            expected_result,
+        } = call;
+        self.resolve_overload_with_receiver(
+            name,
+            candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: &explicit_type_args,
+                arguments: OverloadArguments::Lowered(args),
+                span,
+                expected_result,
+                argument_protocol: CallArgumentProtocol::Ordinary,
+            },
+            sink,
+        )
+    }
+
+    pub(crate) fn resolve_extension_overload_lowered_outcome(
+        &mut self,
+        name: &str,
+        candidates: &[FunctionId],
+        receiver: hir::Expr,
+        call: LoweredOverloadCall,
+        sink: &mut Vec<hir::Statement>,
+    ) -> OverloadResolutionOutcome {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| {
+                CallableCandidate::function(
+                    function,
+                    Vec::new(),
+                    self.function_lookup_witness(function),
+                )
+            })
+            .collect::<Vec<_>>();
+        let LoweredOverloadCall {
+            explicit_type_args,
+            args,
+            span,
+            expected_result,
+        } = call;
+        self.resolve_overload_with_receiver(
+            name,
+            &candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Extension(receiver),
+                explicit_type_args: &explicit_type_args,
+                arguments: OverloadArguments::Lowered(args),
+                span,
+                expected_result,
+                argument_protocol: CallArgumentProtocol::Ordinary,
+            },
+            sink,
+        )
     }
 
     fn resolve_overload_with_receiver(
@@ -275,7 +362,7 @@ impl Lowerer {
         candidates: &[CallableCandidate],
         resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
-    ) -> Option<ResolvedCallee> {
+    ) -> OverloadResolutionOutcome {
         let OverloadResolution {
             receiver,
             explicit_type_args,
@@ -448,7 +535,7 @@ impl Lowerer {
                         span,
                     },
                 );
-                return None;
+                return OverloadResolutionOutcome::NoApplicable;
             }
             1 => applicable[0].candidate,
             _ => {
@@ -456,7 +543,10 @@ impl Lowerer {
                     .iter()
                     .map(|candidate| candidate.candidate)
                     .collect::<Vec<_>>();
-                self.most_specific(name, &prepared, &indices, span)?
+                let Some(winner) = self.most_specific(name, &prepared, &indices, span) else {
+                    return OverloadResolutionOutcome::Failed;
+                };
+                winner
             }
         };
 
@@ -528,13 +618,13 @@ impl Lowerer {
             source,
             access,
         };
-        Some(ResolvedCallee {
+        OverloadResolutionOutcome::Resolved(Box::new(ResolvedCallee {
             target: resolved_candidate,
             source,
             type_args,
             args,
             receiver: instance_receiver,
             return_ty,
-        })
+        }))
     }
 }

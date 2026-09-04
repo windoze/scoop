@@ -1,0 +1,52 @@
+class LocalDelegate(var value: Int) {
+    operator fun provideDelegate(): LocalDelegate {
+        println(100)
+        return this
+    }
+
+    operator fun getValue(thisRef: Unit): Int = value
+
+    operator fun setValue(thisRef: Unit, next: Int) {
+        value = next
+    }
+}
+
+class OwnerDelegate(var value: Int) {
+    operator fun getValue(thisRef: Host): Int = value
+
+    operator fun setValue(thisRef: Host, next: Int) {
+        value = next
+    }
+}
+
+class Host {
+    var number: Int by OwnerDelegate(10)
+}
+
+class ExtensionDelegate(val value: Int) {
+    fun getValue(thisRef: Unit): String = "ordinary"
+}
+
+operator fun ExtensionDelegate.getValue(thisRef: Unit): Int = value
+
+fun main() {
+    var local by LocalDelegate(1)
+    println(local)
+    local = 2
+    println(local)
+
+    fun captured(): Int = local
+    println(captured())
+    println(local++)
+    println(local)
+    local += 4
+    println(local)
+
+    val extension: Int by ExtensionDelegate(8)
+    println(extension)
+
+    val host = Host()
+    println(host.number)
+    host.number = 11
+    println(host.number)
+}

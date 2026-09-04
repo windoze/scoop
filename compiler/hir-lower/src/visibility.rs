@@ -448,9 +448,9 @@ impl Lowerer {
         let property = self.visible_property(name, None)?;
         match self.properties[property].representation {
             hir::PropertyRepresentation::NativeStorage { storage } => Some(storage),
-            hir::PropertyRepresentation::Stored(_) | hir::PropertyRepresentation::AccessorOnly => {
-                None
-            }
+            hir::PropertyRepresentation::Stored(_)
+            | hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::Delegated { .. } => None,
         }
     }
 

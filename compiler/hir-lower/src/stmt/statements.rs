@@ -138,10 +138,7 @@ impl Lowerer {
                 return;
             }
             ast::StatementKind::LocalDelegatedProperty(decl) => {
-                self.error(
-                    decl.span,
-                    "local delegated properties require delegate protocol resolution".into(),
-                );
+                self.lower_local_delegated_property(decl, out);
                 return;
             }
             ast::StatementKind::When(when) => {

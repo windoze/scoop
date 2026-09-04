@@ -325,6 +325,7 @@ pub(crate) struct Lowerer {
     pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
+    pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
@@ -381,6 +382,7 @@ pub(crate) struct Lowerer {
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
     pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
+    pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.
     pub(crate) user_file_index: usize,

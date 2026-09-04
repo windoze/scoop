@@ -4,6 +4,9 @@ use scoop_hir as hir;
 use crate::{Lowerer, Owner, TypeId};
 
 mod declarations;
+mod delegates;
+
+pub(crate) use delegates::DelegateRoleCall;
 
 #[derive(Clone)]
 pub(crate) struct PropertyAccessorSource {
@@ -13,12 +16,34 @@ pub(crate) struct PropertyAccessorSource {
     pub(crate) declaration: ast::FunctionDecl,
     pub(crate) owner: Option<Owner>,
     pub(crate) backing: Option<hir::ClassFieldId>,
+    pub(crate) generated_delegate: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PropertyAccessorKind {
     Getter,
     Setter,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct LocalDelegatePlan {
+    pub(crate) property_ty: TypeId,
+    pub(crate) mutable: bool,
+    pub(crate) getter: LocalDelegateAccessor,
+    pub(crate) setter: Option<LocalDelegateAccessor>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct LocalDelegateAccessor {
+    pub(crate) dispatch: LocalDelegateDispatch,
+    pub(crate) effect: hir::Callable,
+    pub(crate) result_ty: TypeId,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum LocalDelegateDispatch {
+    Member(hir::MethodCallee),
+    Extension(hir::Callable),
 }
 
 #[derive(Clone)]
@@ -507,8 +532,9 @@ impl Lowerer {
                 }
                 hir::ExprKind::GlobalRead(*storage)
             }
-            hir::PropertyRepresentation::AccessorOnly => {
-                unreachable!("accessor-only properties cannot have storage accessors")
+            hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::Delegated { .. } => {
+                unreachable!("only stored and native properties have storage accessors")
             }
         };
         Some(hir::Expr {
@@ -553,8 +579,9 @@ impl Lowerer {
                 }
                 hir::AssignTarget::Global(*storage)
             }
-            hir::PropertyRepresentation::AccessorOnly => {
-                unreachable!("accessor-only properties cannot have storage setters")
+            hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::Delegated { .. } => {
+                unreachable!("only stored and native properties have storage setters")
             }
         };
         Some(hir::StatementKind::Assign { target, value })

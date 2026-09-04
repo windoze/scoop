@@ -89,7 +89,7 @@ impl Lowerer {
         });
     }
 
-    pub(super) fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+    pub(crate) fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
         let context_index = self.capture_contexts.len().checked_sub(1)?;
         let available = self.capture_contexts[context_index]
             .available

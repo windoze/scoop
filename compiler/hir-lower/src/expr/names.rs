@@ -38,8 +38,14 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
-            if !self.capture_contexts.is_empty() && self.available_capture(&name.text).is_some() {
-                return self.lower_capture(name);
+            if !self.capture_contexts.is_empty()
+                && let Some(capture) = self.available_capture(&name.text)
+            {
+                let storage = self.lower_capture(name)?;
+                if self.local_delegate_plans.contains_key(&capture.binding) {
+                    return self.local_delegate_read(storage, capture.binding, name.span);
+                }
+                return Some(storage);
             }
             if let Some(&(parameter, ty, _)) = self.constructor_params_in_scope.get(&name.text) {
                 return Some(hir::Expr {
@@ -49,8 +55,12 @@ impl Lowerer {
                     origin: self.expression_origin(name.span),
                 });
             }
-            if self.available_capture(&name.text).is_some() {
-                return self.lower_capture(name);
+            if let Some(capture) = self.available_capture(&name.text) {
+                let storage = self.lower_capture(name)?;
+                if self.local_delegate_plans.contains_key(&capture.binding) {
+                    return self.local_delegate_read(storage, capture.binding, name.span);
+                }
+                return Some(storage);
             }
             if self.initialization_context.is_some()
                 && self.initializing_receiver_has_field(&name.text)
@@ -94,6 +104,16 @@ impl Lowerer {
             return None;
         };
         let declared = self.locals[local].ty;
+        let binding = self.locals[local].binding;
+        if self.local_delegate_plans.contains_key(&binding) {
+            let storage = hir::Expr {
+                kind: ExprKind::Local(local),
+                ty: declared,
+                span: name.span,
+                origin: self.expression_origin(name.span),
+            };
+            return self.local_delegate_read(storage, binding, name.span);
+        }
         if let Some(&narrowed) = self.smart_casts.get(&local) {
             if !self.types_equal(narrowed, declared) {
                 let local_expr = hir::Expr {
@@ -168,6 +188,12 @@ impl Lowerer {
             // Only immutable locals can be narrowed (the condition is
             // pure and the variable cannot change below it).
             if self.locals[local].mutable {
+                continue;
+            }
+            if self
+                .local_delegate_plans
+                .contains_key(&self.locals[local].binding)
+            {
                 continue;
             }
             let Some(narrowed) = self.resolve_type_ref(ty_ref) else {

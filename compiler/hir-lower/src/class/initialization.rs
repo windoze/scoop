@@ -165,6 +165,19 @@ impl Lowerer {
                         continue;
                     };
                     let logical = self.properties[property_id].clone();
+                    if let ast::PropertyBodySyntax::Delegated { expression, .. } = &property.body {
+                        if let Some(step) = self.lower_class_delegate_initialization(
+                            owner,
+                            constructor,
+                            primary_parameters_visible,
+                            property_id,
+                            property,
+                            expression,
+                        ) {
+                            steps.push(step);
+                        }
+                        continue;
+                    }
                     let hir::PropertyRepresentation::Stored(stored) = logical.representation else {
                         continue;
                     };
@@ -281,6 +294,81 @@ impl Lowerer {
             }
         }
         steps
+    }
+
+    fn lower_class_delegate_initialization(
+        &mut self,
+        owner: ClassId,
+        constructor: hir::ClassConstructorId,
+        primary_parameters_visible: bool,
+        property_id: hir::PropertyId,
+        property: &ast::PropertyDecl,
+        expression: &ast::Expr,
+    ) -> Option<hir::ClassInitializationStep> {
+        if let Some(context) = &mut self.initialization_context {
+            context.step = format!(
+                "delegate initializer of property `{}` in class `{}`",
+                property.name.text, self.classes[owner].name
+            );
+        }
+        let lowered = self.with_constructor_expression_context(
+            constructor,
+            "delegated property initializer",
+            |this, sink| {
+                if !primary_parameters_visible {
+                    this.constructor_params_in_scope.clear();
+                }
+                let delegate = this.lower_expr(expression, sink, None)?;
+                match this.resolve_delegate_role_call(
+                    delegate.clone(),
+                    hir::PropertyDelegateOperatorKind::ProvideDelegate,
+                    Vec::new(),
+                    property.span,
+                ) {
+                    crate::properties::DelegateRoleCall::Resolved(effective) => {
+                        Some(effective.expression)
+                    }
+                    crate::properties::DelegateRoleCall::NoApplicable => Some(delegate),
+                    crate::properties::DelegateRoleCall::Failed => None,
+                }
+            },
+        );
+        let lowered = lowered?;
+
+        let effective_ty = lowered.value.ty;
+        let field = self.class_fields.alloc(hir::ClassField {
+            owner,
+            property: property_id,
+            ty: effective_ty,
+            source: hir::ClassFieldSource::Body,
+            span: property.span,
+        });
+        self.classes[owner].fields.push(field);
+        let storage = self.delegate_storages.alloc(hir::DelegateStorage {
+            property: property_id,
+            ty: effective_ty,
+            location: hir::DelegateStorageLocation::ClassField(field),
+        });
+        self.properties[property_id].representation =
+            hir::PropertyRepresentation::Delegated { storage };
+        let step = hir::ClassInitializationStep::DelegatedProperty {
+            storage,
+            field,
+            initializer: hir::ConstructorExpression {
+                locals: lowered.locals,
+                statements: lowered.statements,
+                value: lowered.value,
+            },
+            span: property.span,
+        };
+        if let Some(crate::InitializationContext {
+            receiver: InitializingReceiver::Class { initialized, .. },
+            ..
+        }) = &mut self.initialization_context
+        {
+            initialized.insert(field);
+        }
+        Some(step)
     }
 
     fn lower_struct_constructor_bodies(

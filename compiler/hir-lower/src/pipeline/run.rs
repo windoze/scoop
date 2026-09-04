@@ -383,6 +383,7 @@ impl Lowerer {
             extension_properties: self.extension_properties,
             property_getters: self.property_getters,
             property_setters: self.property_setters,
+            delegate_storages: self.delegate_storages,
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,

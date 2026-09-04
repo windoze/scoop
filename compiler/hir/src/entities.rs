@@ -54,6 +54,9 @@ pub struct Module {
     pub extension_properties: Arena<ExtensionProperty>,
     pub property_getters: Arena<PropertyGetter>,
     pub property_setters: Arena<PropertySetter>,
+    /// Hidden effective-delegate storage, separate from both logical
+    /// properties and the physical field/global identity it occupies.
+    pub delegate_storages: Arena<DelegateStorage>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.

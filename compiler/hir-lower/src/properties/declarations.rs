@@ -112,6 +112,15 @@ impl Lowerer {
         let interface_property = matches!(owner, hir::PropertyOwner::Interface(_));
         let dispatch_storage = matches!(owner, hir::PropertyOwner::Class(_))
             && (modifier != hir::MethodModifier::Final || declaration.is_override);
+        if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
+            return Some(self.allocate_delegated_property_accessors(
+                property,
+                owner,
+                access,
+                declaration,
+                modifier,
+            ));
+        }
 
         let getter_source = accessors.and_then(|accessors| accessors.getter.as_ref());
         let (getter_implementation, getter_attributes) = match getter_source {
@@ -501,12 +510,8 @@ impl Lowerer {
                 (None, hir::PropertyRepresentation::AccessorOnly)
             }
             ast::PropertyBodySyntax::Abstract => (None, hir::PropertyRepresentation::AccessorOnly),
-            ast::PropertyBodySyntax::Delegated { by_span, .. } => {
-                self.error(
-                    *by_span,
-                    "delegated properties require the M21 delegate protocol".to_string(),
-                );
-                return None;
+            ast::PropertyBodySyntax::Delegated { .. } => {
+                (None, hir::PropertyRepresentation::AccessorOnly)
             }
             ast::PropertyBodySyntax::ExternStorage => {
                 self.error(
@@ -526,6 +531,7 @@ impl Lowerer {
         let backing = field.map(|_| match &representation {
             hir::PropertyRepresentation::Stored(stored) => stored.backing,
             hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::Delegated { .. }
             | hir::PropertyRepresentation::NativeStorage { .. } => {
                 unreachable!("a class field is allocated only for stored properties")
             }
@@ -805,6 +811,78 @@ impl Lowerer {
         hir::PropertyCapability::ReadWrite { getter, setter }
     }
 
+    fn allocate_delegated_property_accessors(
+        &mut self,
+        property: hir::PropertyId,
+        owner: hir::PropertyOwner,
+        access: hir::DeclarationAccess,
+        declaration: &ast::PropertyDecl,
+        modifier: hir::MethodModifier,
+    ) -> hir::PropertyCapability {
+        let getter_declaration = self.implicit_getter_function_declaration(
+            declaration,
+            ast::AccessorBodySyntax::Expr(Box::new(ast::Expr::UnitLiteral {
+                span: declaration.span,
+            })),
+        );
+        let getter = self.allocate_accessor_function(
+            getter_declaration,
+            AccessorFunctionAllocation {
+                property,
+                kind: PropertyAccessorKind::Getter,
+                owner,
+                access: access.clone(),
+                backing: None,
+                modifier,
+            },
+        );
+        self.property_accessor_sources
+            .last_mut()
+            .expect("the generated getter source was recorded")
+            .generated_delegate = true;
+        let getter = self.property_getters.alloc(hir::PropertyGetter {
+            access: access.clone(),
+            implementation: hir::PropertyAccessorImplementation::Body(getter),
+            attributes: hir::FunctionAttributes::default(),
+            span: declaration.span,
+        });
+        if !declaration.mutable {
+            return hir::PropertyCapability::ReadOnly { getter };
+        }
+
+        let setter_access = self.property_setter_access(declaration, None, owner, access);
+        let setter_declaration = self.implicit_setter_function_declaration(
+            declaration,
+            ast::AccessorBodySyntax::Block(ast::Block {
+                statements: Vec::new(),
+                span: declaration.span,
+            }),
+        );
+        let setter_function = self.allocate_accessor_function(
+            setter_declaration,
+            AccessorFunctionAllocation {
+                property,
+                kind: PropertyAccessorKind::Setter,
+                owner,
+                access: setter_access.clone(),
+                backing: None,
+                modifier,
+            },
+        );
+        self.property_accessor_sources
+            .last_mut()
+            .expect("the generated setter source was recorded")
+            .generated_delegate = true;
+        let setter = self.property_setters.alloc(hir::PropertySetter {
+            access: setter_access,
+            implementation: hir::PropertyAccessorImplementation::Body(setter_function),
+            attributes: hir::FunctionAttributes::default(),
+            parameter_name: "value".to_string(),
+            span: declaration.span,
+        });
+        hir::PropertyCapability::ReadWrite { getter, setter }
+    }
+
     fn property_setter_access(
         &mut self,
         declaration: &ast::PropertyDecl,
@@ -975,6 +1053,7 @@ impl Lowerer {
                 hir::PropertyBacking::ClassField { field, .. } => Some(field),
                 hir::PropertyBacking::StructField { .. } => None,
             }),
+            generated_delegate: false,
         });
         function
     }
@@ -1000,6 +1079,11 @@ impl Lowerer {
                 continue;
             }
             self.current_file = self.function_files[&source.function];
+            if source.generated_delegate {
+                let body = self.lower_generated_delegate_accessor(&source);
+                self.functions[source.function].kind = FunctionKind::User(body);
+                continue;
+            }
             self.backing_field_context = source.backing.map(|field| BackingFieldContext {
                 field,
                 capture_depth: self.capture_contexts.len(),

@@ -245,6 +245,24 @@ impl Lowerer {
                 return self.lower_initializing_field_assign(assign, name, out);
             }
             if let Some(capture) = self.available_capture(&name.text) {
+                if let Some(plan) = self.local_delegate_plans.get(&capture.binding).copied() {
+                    if !plan.mutable {
+                        self.error(
+                            name.span,
+                            format!("cannot assign to immutable property `{}`", name.text),
+                        );
+                        return None;
+                    }
+                    let storage = self.lower_capture(name)?;
+                    return self.lower_local_delegate_assign(
+                        assign,
+                        name,
+                        storage,
+                        capture.binding,
+                        plan.property_ty,
+                        out,
+                    );
+                }
                 if capture.mutable {
                     self.error(
                         name.span,
@@ -350,6 +368,30 @@ impl Lowerer {
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
+        let binding = self.locals[local].binding;
+        if let Some(plan) = self.local_delegate_plans.get(&binding).copied() {
+            if !plan.mutable {
+                self.error(
+                    name.span,
+                    format!("cannot assign to immutable property `{}`", name.text),
+                );
+                return None;
+            }
+            let storage = hir::Expr {
+                kind: hir::ExprKind::Local(local),
+                ty: self.locals[local].ty,
+                span: name.span,
+                origin: self.expression_origin(name.span),
+            };
+            return self.lower_local_delegate_assign(
+                assign,
+                name,
+                storage,
+                binding,
+                plan.property_ty,
+                out,
+            );
+        }
         if !self.locals[local].mutable {
             self.error(
                 name.span,
@@ -380,6 +422,37 @@ impl Lowerer {
             target: hir::AssignTarget::Local(local),
             value,
         })
+    }
+
+    fn lower_local_delegate_assign(
+        &mut self,
+        assign: &ast::Assign,
+        name: &ast::Ident,
+        storage: hir::Expr,
+        binding: hir::BindingId,
+        expected: TypeId,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let mut sink = Vec::new();
+        let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+        if !self.is_subtype(value.ty, expected) {
+            let message = self.with_nominal_invariance_detail(
+                format!(
+                    "cannot assign value of type {} to property `{}` of type {}",
+                    self.type_name(value.ty),
+                    name.text,
+                    self.type_name(expected)
+                ),
+                value.ty,
+                expected,
+            );
+            self.error(assign.value.span(), message);
+            return None;
+        }
+        let value = self.adapt_to(value, expected);
+        let call = self.local_delegate_write(storage, binding, value, name.span)?;
+        out.extend(sink);
+        Some(hir::StatementKind::Expr(call))
     }
 
     /// Indexed assignment uses the same typed `operator set` resolver as user
@@ -416,6 +489,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Set),
                 infix: false,
+                ..Default::default()
             },
         )?;
         out.extend(sink);
