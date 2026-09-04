@@ -80,6 +80,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m18-safe-call/combined.scoop"
             | "m19-initialization/moving-stress.scoop"
             | "m19-initialization/parameters-and-closure.scoop"
+            | "m20-generics/combined.scoop"
     )
 }
 

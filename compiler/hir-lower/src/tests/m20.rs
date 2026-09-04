@@ -448,7 +448,7 @@ fn inferred_call_argument(span: Span) -> ast::CallTypeArgument {
 
 #[test]
 fn partial_type_arguments_commit_only_complete_callable_arguments() {
-    let module = lower_user(file(vec![
+    let output = lower_user_output(file(vec![
         fun_expr(
             "second",
             vec!["A", "B"],
@@ -472,6 +472,7 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         ),
     ]))
     .expect("the inferred slot must join ordinary argument inference");
+    let module = &output.export;
 
     let instance = module
         .instantiations
@@ -484,16 +485,38 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
     let arguments = instance
         .type_args
         .iter()
-        .map(|argument| hir::type_name(&module, *argument))
+        .map(|argument| hir::type_name(module, *argument))
         .collect::<Vec<_>>();
     assert_eq!(arguments, ["Int", "String"]);
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main has a user body")
     };
     assert_eq!(
-        hir::type_name(&module, local_init(main, "result").ty),
+        hir::type_name(module, local_init(main, "result").ty),
         "String"
     );
+
+    let concrete = output
+        .local
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "second")
+        .expect("the local graph contains second<Int, String>");
+    let hir::concrete::FunctionOrigin::Free(hir::concrete::FreeFunctionOrigin::Generic {
+        arguments,
+        ..
+    }) = &concrete.origin
+    else {
+        panic!("the local second function must retain typed generic provenance")
+    };
+    assert_eq!(
+        arguments.to_vec(),
+        vec![output.local.int, output.local.string]
+    );
+    assert_eq!(concrete.params[0].ty, output.local.int);
+    assert_eq!(concrete.params[1].ty, output.local.string);
+    assert_eq!(concrete.return_ty, output.local.string);
 }
 
 #[test]

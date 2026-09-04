@@ -1,0 +1,140 @@
+interface Named {
+    fun name(): String
+}
+
+open class Record<T>(val value: T) {
+    open fun read(): T = value
+}
+
+class Message(value: String) : Record<String>(value), Named {
+    final override fun read(): String = value
+    final override fun name(): String = "named-"
+}
+
+struct NameToken(val text: String) : Named {
+    final override fun name(): String = text
+}
+
+class GenericBox<A, B>(val source: A, val label: B, val rest: Array<B>) {
+    constructor(
+        source: A,
+        fallback: B,
+        label: B = fallback,
+        vararg rest: B
+    ) : this(source, label, rest) {
+        gcCollect()
+    }
+}
+
+fun <T, U> combine(value: T, suffix: U, transform: (T, U) -> String): String
+    where T : Record<String>, T : Named =
+    value.read() + value.name() + transform(value, suffix)
+
+fun <T> countRecords(values: Array<T>): Int
+    where T : Record<String> =
+    values.size
+
+fun <T> firstName(values: Array<T>): String
+    where T : Named =
+    values[0].name()
+
+fun rebuild(source: GenericBox<Message, String>): GenericBox<Record<String>, String> =
+    GenericBox<Record<String>, String>(source.source, source.label)
+
+class CombinedFailure : Exception(None)
+
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitSignal(gate: Gate): Int = suspendCoroutine(Registration(gate))
+
+class CombinedTask(
+    val gate: Gate,
+    val box: GenericBox<Message, String>
+) : SuspendTask<String> {
+    final override suspend fun run(): String {
+        val prefix = "captured-"
+        return try {
+            val signal = awaitSignal(gate)
+            gcCollect()
+            if (signal == 0) {
+                throw CombinedFailure()
+            }
+            combine<Message, _>(box.source, box.label) { item: Message, suffix: String ->
+                prefix + item.name() + suffix
+            } + box.rest.size.toString()
+        } catch (error: CombinedFailure) {
+            "caught"
+        }
+    }
+}
+
+class RecordingCompletion(val label: String) : Continuation<String> {
+    final override fun resume(value: String) {
+        println(label)
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("unexpected-failure")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Message("garbage")
+        index = index + 1
+    }
+}
+
+fun main() {
+    val message = Message("payload-")
+    val defaulted = GenericBox<Message, _>(message, "default-")
+    val varied = GenericBox<Message, _>(
+        message,
+        "fallback-",
+        "label-",
+        "tail-one",
+        "tail-two"
+    )
+    val named: Named = NameToken("boxed-name")
+    val namedBox = GenericBox<Message, Named>(message, named)
+
+    println(defaulted.label)
+    println(defaulted.rest.size)
+    println(varied.label)
+    println(varied.rest.size)
+    println(countRecords([message]))
+    println(firstName([NameToken("value-name")]))
+    println(rebuild(defaulted).source.read())
+    println(namedBox.label.name())
+
+    val successGate = Gate(None)
+    val failureGate = Gate(None)
+    startCoroutine(
+        CombinedTask(successGate, defaulted),
+        RecordingCompletion("success")
+    )
+    startCoroutine(
+        CombinedTask(failureGate, defaulted),
+        RecordingCompletion("failure")
+    )
+    println("suspended")
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+    successGate.complete(1)
+    failureGate.complete(0)
+}
