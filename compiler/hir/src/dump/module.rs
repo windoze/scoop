@@ -156,9 +156,12 @@ pub fn dump(module: &Module) -> String {
             };
             out.push_str(&format!(
                 "    {}{}fun {}({}): {}{}{}\n",
-                match function.modifiers.operator {
-                    Some(_) => "operator ",
-                    None => "",
+                if function.modifiers.operator.is_some()
+                    || function.modifiers.property_delegate_operator.is_some()
+                {
+                    "operator "
+                } else {
+                    ""
                 },
                 if function.is_suspend { "suspend " } else { "" },
                 function.name.rsplit('.').next().unwrap_or(&function.name),
@@ -291,9 +294,12 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
-        let operator = match function.modifiers.operator {
-            Some(_) => "operator ",
-            None => "",
+        let operator = if function.modifiers.operator.is_some()
+            || function.modifiers.property_delegate_operator.is_some()
+        {
+            "operator "
+        } else {
+            ""
         };
         let attributes = dump_function_attributes(function.attributes);
         let no_gc_requirements = match &function.genericity {

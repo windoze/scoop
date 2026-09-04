@@ -153,7 +153,12 @@ impl Lowerer {
                     decl.name.span,
                     format!("`{short}` must have the same `suspend` modifier as `{target}`"),
                 );
-            } else if self.functions[*candidate].modifiers.operator != sig.modifiers.operator {
+            } else if self.functions[*candidate].modifiers.operator != sig.modifiers.operator
+                || self.functions[*candidate]
+                    .modifiers
+                    .property_delegate_operator
+                    != sig.modifiers.property_delegate_operator
+            {
                 self.error(
                     decl.name.span,
                     format!("`{short}` must have the same `operator` modifier as `{target}`"),

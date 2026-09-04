@@ -411,6 +411,7 @@ impl Lowerer {
             decl,
             self.extension_receivers.get(&id).copied(),
             false,
+            matches!(self.functions[id].kind, FunctionKind::User(_)),
             &params,
             return_ty,
         );

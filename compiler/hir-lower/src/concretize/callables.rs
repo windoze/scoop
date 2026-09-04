@@ -341,6 +341,7 @@ impl Concretizer<'_> {
                     is_suspend: false,
                     modifiers: export::CallableModifiers {
                         operator: Some(export::OperatorKind::Equals),
+                        property_delegate_operator: None,
                         is_infix: false,
                     },
                     params,

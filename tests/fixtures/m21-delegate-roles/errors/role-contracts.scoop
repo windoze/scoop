@@ -1,0 +1,26 @@
+class WrongProvide {
+    operator fun provideDelegate(extra: Int): WrongProvide = this
+}
+
+class WrongGet {
+    operator fun getValue(thisRef: Unit = {}): Int = 0
+}
+
+class SuspendRole {
+    suspend operator fun provideDelegate(): SuspendRole = this
+}
+
+class GenericRole {
+    operator fun <T> getValue(thisRef: Unit): T = 0
+}
+
+class WrongSet {
+    operator fun setValue(thisRef: Unit, value: Int): Int = value
+}
+
+@Extern(name = "native_get_value", abi = "scoop")
+operator fun Int.getValue(thisRef: Unit): Int
+
+operator fun getValue(thisRef: Unit): Int = 0
+
+fun main() {}

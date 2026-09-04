@@ -76,8 +76,14 @@ impl Lowerer {
         self.type_params_in_scope.clear();
 
         let receiver_ty = self.owner_ty(owner);
-        let modifiers =
-            self.validate_callable_modifiers(decl, Some(receiver_ty), true, &params, return_ty);
+        let modifiers = self.validate_callable_modifiers(
+            decl,
+            Some(receiver_ty),
+            true,
+            matches!(self.functions[id].kind, hir::FunctionKind::User(_)),
+            &params,
+            return_ty,
+        );
 
         self.functions[id].return_ty = return_ty;
         self.functions[id].modifiers = modifiers;

@@ -96,6 +96,7 @@ impl Lowerer {
             is_suspend: false,
             modifiers: hir::CallableModifiers {
                 operator: Some(hir::OperatorKind::Equals),
+                property_delegate_operator: None,
                 is_infix: false,
             },
             params: vec![
@@ -135,6 +136,7 @@ impl Lowerer {
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
+                    property_delegate_operator: None,
                     is_infix: false,
                 },
                 attributes,
@@ -242,6 +244,7 @@ impl Lowerer {
             is_suspend: false,
             modifiers: hir::CallableModifiers {
                 operator: Some(hir::OperatorKind::Equals),
+                property_delegate_operator: None,
                 is_infix: false,
             },
             params: vec![
@@ -273,6 +276,7 @@ impl Lowerer {
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
+                    property_delegate_operator: None,
                     is_infix: false,
                 },
                 attributes,
