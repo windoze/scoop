@@ -59,6 +59,7 @@ void scoop_gc_register_image_roots(
     uint64_t immortal_object_count);
 bool scoop_gc_is_immortal_object_locked(const void *object);
 bool scoop_gc_is_external_object_locked(const void *object);
+bool scoop_gc_is_published_object(const void *object);
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 

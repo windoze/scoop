@@ -213,8 +213,13 @@ pub(super) fn exceptions_module() -> Module {
 fn emits_m8_exceptions() {
     let module = exceptions_module();
     let ir = ir_of(&module);
-    assert!(ir.contains("@__cxa_begin_catch"));
-    assert!(ir.contains("@__cxa_end_catch"));
+    assert!(ir.contains("declare ptr addrspace(1) @scoop_rt_begin_catch(ptr)"));
+    assert!(ir.contains("@scoop_rt_end_catch"));
+    assert!(!ir.contains("@__cxa_begin_catch"));
+    assert!(!ir.contains("@__cxa_end_catch"));
+    assert!(ir.contains("personality ptr @scoop_eh_personality"));
+    assert!(ir.contains("catch ptr null"));
+    assert!(ir.contains("cleanup"));
     assert!(ir.contains("resume { ptr, i32 }"));
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));

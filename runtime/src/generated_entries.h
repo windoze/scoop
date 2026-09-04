@@ -78,6 +78,10 @@ void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
                    uint64_t payload_size, const uint64_t *payload_scan);
 void scoop_rt_gc_collect(void);
 void *scoop_rt_materialize_exception(const void *caught);
+_Noreturn void scoop_rt_throw(const void *object);
+_Noreturn void scoop_rt_rethrow(void);
+void *scoop_rt_begin_catch(void *raw_exception);
+void scoop_rt_end_catch(void);
 uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptor *unit);
 void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptor *unit);
 void scoop_rt_init_fail(const ScoopInitializationUnitDescriptor *unit,
@@ -146,11 +150,7 @@ void scoop_rt_gc_init(void);
 void scoop_rt_gc_add_root(void **slot);
 void scoop_rt_gc_add_root_object(const void *object);
 void scoop_rt_gc_remove_root_object(const void *object);
-void scoop_rt_init_eh(void);
 void scoop_rt_initialize_image(void);
-int scoop_eh_personality(int version, unsigned int actions,
-                         unsigned long long exception_class, void *exception,
-                         void *context);
 void scoop_main(void);
 
 #endif /* SCOOP_RT_GENERATED_ENTRIES_H */

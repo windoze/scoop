@@ -167,10 +167,9 @@ pub(super) fn emit_function<'ctx>(
         .get_function(&function.symbol)
         .expect("function declared in the first pass");
 
-    // A function containing a landing pad needs a personality function
-    // (M8, runtime spec 5): `scoop_eh_personality`, declared with the
-    // same variadic prototype LLVM uses for `__gxx_personality_v0`.
-    // Setting it also makes LLVM emit the unwind table entry.
+    // A function containing a landing pad needs Scoop's closed-profile
+    // personality (M25, runtime spec 5). Setting it also makes LLVM emit the
+    // unwind table entry; the runtime-private record remains opaque here.
     let has_landing_pad = function.blocks.iter().any(|(_, block)| {
         block.instructions.iter().any(|instruction| {
             matches!(

@@ -37,6 +37,8 @@ typedef enum ScoopThreadAttachmentKind {
     SCOOP_THREAD_FOREIGN,
 } ScoopThreadAttachmentKind;
 
+struct ScoopExceptionRecord;
+
 /* Runtime-private per-OS-thread state. The address is stable from registry
  * insertion until detach. STW, roots and the owner-only TLAB all belong to
  * this one entity; there are no separate main-thread mutator globals. */
@@ -62,6 +64,7 @@ typedef struct ScoopThreadState {
     const ScoopInitializationUnitDescriptor *initialization_wait;
     char *initialization_cycle_path;
     ScoopThreadTransition *current_transition;
+    struct ScoopExceptionRecord *caught_exception_top;
     /* Owner-only allocation cursor while managed. The STW collector retires
      * every pair before sweep; re-entry refills instead of reusing stale
      * ranges. */

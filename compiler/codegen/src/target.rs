@@ -235,6 +235,7 @@ impl TargetProfile {
         tail_calls: TailCallPolicy::Disabled,
         runtime_sources: &[
             "runtime/src/rt.c",
+            "runtime/src/eh.c",
             "runtime/src/eh_personality.c",
             "runtime/src/initialization.c",
             "runtime/src/gc.c",

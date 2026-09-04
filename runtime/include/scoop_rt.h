@@ -306,19 +306,4 @@ uint64_t scoop_rt_thread_debug_caller_root_count(void);
 uint64_t scoop_rt_thread_debug_compiler_root_count(void);
 uint64_t scoop_rt_thread_debug_transition_depth(void);
 
-/* M8 additions (milestone8 DESIGN section 4): exception support on top
- * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown
- * with a NULL type_info; generated landing pads use a single catch-all
- * (null) clause, and catch type filtering is done by generated code
- * (scoop_rt_is_instance). Linking needs the C++ ABI library
- * (-lc++abi). */
-
-/* Throw `obj` as a Scoop exception; does not return. M9 (DESIGN 3.4):
- * registers the ABI buffer as an external object root; the exception
- * destructor removes it when the ABI lifetime ends. */
-_Noreturn void scoop_rt_throw(const void *obj);
-
-/* Rethrow the exception currently being handled; does not return. */
-_Noreturn void scoop_rt_rethrow(void);
-
 #endif /* SCOOP_RT_H */

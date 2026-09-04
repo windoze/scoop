@@ -22,6 +22,12 @@ mod runtime_collector_tests;
 #[path = "runtime_eh_tests.rs"]
 mod runtime_eh_tests;
 
+#[path = "runtime_eh_lifecycle_tests.rs"]
+mod runtime_eh_lifecycle_tests;
+
+#[path = "runtime_eh_personality_tests.rs"]
+mod runtime_eh_personality_tests;
+
 mod arrays;
 mod c_layout;
 mod closures;

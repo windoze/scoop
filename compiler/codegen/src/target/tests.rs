@@ -62,6 +62,7 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
             profile.runtime_sources(),
             [
                 "runtime/src/rt.c",
+                "runtime/src/eh.c",
                 "runtime/src/eh_personality.c",
                 "runtime/src/initialization.c",
                 "runtime/src/gc.c",

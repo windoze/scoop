@@ -116,6 +116,39 @@ fn generated_entry_header_exposes_the_compiler_runtime_abi() {
 }
 
 #[test]
+fn exception_control_flow_entries_stay_runtime_private() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let public = std::fs::read_to_string(workspace.join("runtime/include/scoop_rt.h"))
+        .expect("read public runtime header");
+    let generated = std::fs::read_to_string(workspace.join("runtime/src/generated_entries.h"))
+        .expect("read generated-entry header");
+    let internal = std::fs::read_to_string(workspace.join("runtime/src/eh_internal.h"))
+        .expect("read EH-internal header");
+
+    for entry in [
+        "scoop_rt_throw(",
+        "scoop_rt_rethrow(",
+        "scoop_rt_begin_catch(",
+        "scoop_rt_end_catch(",
+        "scoop_rt_materialize_exception(",
+    ] {
+        assert!(
+            !public.contains(entry),
+            "public native FFI header exposes private EH entry {entry}"
+        );
+        assert!(
+            generated.contains(entry),
+            "generated-entry header omits private EH entry {entry}"
+        );
+    }
+    assert!(!generated.contains("scoop_eh_personality("));
+    assert!(internal.contains("scoop_eh_personality("));
+}
+
+#[test]
 fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
