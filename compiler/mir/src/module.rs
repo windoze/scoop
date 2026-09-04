@@ -79,12 +79,19 @@ pub struct Global {
 #[derive(Debug)]
 pub struct InitializationUnit {
     pub stable_key: String,
+    pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,
     pub ensure: FunctionId,
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationUnitId>,
     pub cycle_exception: MessageClassConstructor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
 }
 
 #[derive(Debug, Clone)]

@@ -6,12 +6,21 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct InitializationUnit {
     pub stable_key: String,
+    pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,
     pub ensure: FunctionId,
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationDependency>,
     pub span: Span,
+}
+
+/// Determines whether the runtime invokes an initialization unit during
+/// image startup or leaves it pristine until a generated access gate runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

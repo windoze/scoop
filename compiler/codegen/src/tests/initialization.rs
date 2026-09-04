@@ -49,6 +49,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
             stable_key: "top-level:zed".to_string(),
+            schedule: scoop_lir::InitializationSchedule::EagerStartup,
             storage,
             failure_root: failure,
             initializer: entry,
@@ -59,6 +60,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
             stable_key: "top-level:alpha".to_string(),
+            schedule: scoop_lir::InitializationSchedule::LazyAccess,
             storage: second_storage,
             failure_root: second_failure,
             initializer: entry,
@@ -69,6 +71,8 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     let ir = ir_of(&module);
     assert!(ir.contains("@scoop.init.cell.0 = private global { i64, ptr } zeroinitializer"));
     assert!(ir.contains("@scoop.init.descriptor.1 = private constant"));
+    assert!(ir.contains("{ i64 0, ptr @scoop.init.key.0"));
+    assert!(ir.contains("{ i64 1, ptr @scoop.init.key.1"));
     let table = ir
         .lines()
         .find(|line| line.starts_with("@scoop_image_initialization_units ="))

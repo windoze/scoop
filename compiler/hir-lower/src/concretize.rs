@@ -317,6 +317,14 @@ impl<'a> Concretizer<'a> {
                 .initialization_units
                 .alloc(concrete::InitializationUnit {
                     stable_key: source.stable_key.clone(),
+                    schedule: match source.schedule {
+                        export::InitializationSchedule::EagerStartup => {
+                            concrete::InitializationSchedule::EagerStartup
+                        }
+                        export::InitializationSchedule::LazyAccess => {
+                            concrete::InitializationSchedule::LazyAccess
+                        }
+                    },
                     kind,
                     initializer: function(source.initializer),
                     ensure: function(source.ensure),

@@ -36,8 +36,12 @@ pub fn dump(module: &Module) -> String {
         let initializer =
             &module.functions[unit.initializer.declaration().into_u32() as usize].symbol;
         let ensure = &module.functions[unit.ensure.declaration().into_u32() as usize].symbol;
+        let schedule = match unit.schedule {
+            InitializationSchedule::EagerStartup => "",
+            InitializationSchedule::LazyAccess => " lazy",
+        };
         out.push_str(&format!(
-            "  init{} {} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
+            "  init{} {}{schedule} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
             id.into_raw().into_u32(),
             unit.stable_key,
             module.globals[unit.storage].symbol,

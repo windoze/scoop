@@ -32,8 +32,12 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, unit) in module.initialization_units.iter() {
         let InitializationUnitKind::EagerTopLevel { storage } = unit.kind;
+        let schedule = match unit.schedule {
+            InitializationSchedule::EagerStartup => "eager",
+            InitializationSchedule::LazyAccess => "lazy",
+        };
         out.push_str(&format!(
-            "  init{} {} eager global{} initializer={} ensure={} failure={} deps=[{}]\n",
+            "  init{} {} {schedule} global{} initializer={} ensure={} failure={} deps=[{}]\n",
             id.into_raw().into_u32(),
             unit.stable_key,
             storage.into_raw().into_u32(),

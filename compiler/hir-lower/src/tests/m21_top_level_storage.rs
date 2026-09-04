@@ -161,6 +161,7 @@ fn non_static_top_level_initializer_is_kept_out_of_image_storage() {
         .next()
         .expect("runtime initialization unit");
     let hir::InitializationUnitKind::EagerTopLevel { property, storage } = unit.kind;
+    assert_eq!(unit.schedule, hir::InitializationSchedule::EagerStartup);
     assert_eq!(unit.stable_key, "top-level:value");
     assert!(unit.dependencies.is_empty());
     assert!(matches!(

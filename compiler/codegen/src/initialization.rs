@@ -22,7 +22,18 @@ pub(super) fn emit<'ctx>(
     let ptr = ptr_ty(context);
     let i64_ty = context.i64_type();
     let cell_ty = context.struct_type(&[i64_ty.into(), ptr.into()], false);
-    let descriptor_ty = context.struct_type(&[ptr.into(); 6], false);
+    let descriptor_ty = context.struct_type(
+        &[
+            i64_ty.into(),
+            ptr.into(),
+            ptr.into(),
+            ptr.into(),
+            ptr.into(),
+            ptr.into(),
+            ptr.into(),
+        ],
+        false,
+    );
     let mut keys = HashSet::new();
     let mut descriptors = Vec::with_capacity(module.initialization_units.len());
     let mut records = Vec::with_capacity(module.initialization_units.len());
@@ -53,8 +64,13 @@ pub(super) fn emit<'ctx>(
         let failure = emitted_global(globals, unit.failure_root)?;
         let initializer = function_pointer(llvm, module, unit.initializer)?;
         let ensure = function_pointer(llvm, module, unit.ensure)?;
+        let schedule = match unit.schedule {
+            scoop_lir::InitializationSchedule::EagerStartup => 0,
+            scoop_lir::InitializationSchedule::LazyAccess => 1,
+        };
         let record = context.const_struct(
             &[
+                i64_ty.const_int(schedule, false).into(),
                 key_global.as_pointer_value().into(),
                 cell.as_pointer_value().into(),
                 storage.as_pointer_value().into(),

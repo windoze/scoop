@@ -20,6 +20,11 @@ const uint64_t scoop_image_initialization_unit_count = 0;
 
 static void unused_initializer(void) {}
 static void unused_ensure(void) {}
+static uint64_t eager_ensure_count;
+static uint64_t lazy_ensure_count;
+
+static void eager_ensure(void) { eager_ensure_count++; }
+static void lazy_ensure(void) { lazy_ensure_count++; }
 
 typedef struct TestUnit {
     ScoopInitializationCell cell;
@@ -35,6 +40,7 @@ static void initialize_test_unit(TestUnit *unit, const char *key) {
         .failure = NULL,
     };
     unit->descriptor = (ScoopInitializationUnitDescriptor){
+        .schedule = SCOOP_INIT_LAZY_ACCESS,
         .stable_key = key,
         .cell = &unit->cell,
         .storage = &unit->storage,
@@ -42,6 +48,37 @@ static void initialize_test_unit(TestUnit *unit, const char *key) {
         .initializer_entry = unused_initializer,
         .ensure_entry = unused_ensure,
     };
+}
+
+static void test_startup_schedule(void) {
+    ScoopInitializationCell cells[2] = {{0}, {0}};
+    uint64_t storage[2] = {0, 0};
+    void *failures[2] = {NULL, NULL};
+    ScoopInitializationUnitDescriptor units[2] = {
+        {
+            .schedule = SCOOP_INIT_LAZY_ACCESS,
+            .stable_key = "a-lazy",
+            .cell = &cells[0],
+            .storage = &storage[0],
+            .failure_root = &failures[0],
+            .initializer_entry = unused_initializer,
+            .ensure_entry = lazy_ensure,
+        },
+        {
+            .schedule = SCOOP_INIT_EAGER_STARTUP,
+            .stable_key = "b-eager",
+            .cell = &cells[1],
+            .storage = &storage[1],
+            .failure_root = &failures[1],
+            .initializer_entry = unused_initializer,
+            .ensure_entry = eager_ensure,
+        },
+    };
+    eager_ensure_count = 0;
+    lazy_ensure_count = 0;
+    initialize_units(units, 2);
+    assert(eager_ensure_count == 1);
+    assert(lazy_ensure_count == 0);
 }
 
 __attribute__((noinline)) static uint64_t managed_enter(
@@ -199,6 +236,7 @@ static void test_cross_thread_cycle(void) {
 int main(void) {
     scoop_thread_runtime_init();
     scoop_thread_attach_main(__builtin_frame_address(0));
+    test_startup_schedule();
     test_ready_and_failure();
     test_same_thread_cycle();
     test_wait_participates_in_collection();

@@ -55,6 +55,14 @@ impl Lowerer {
             };
             let id = self.initialization_units.alloc(mir::InitializationUnit {
                 stable_key: source.stable_key.clone(),
+                schedule: match source.schedule {
+                    hir::InitializationSchedule::EagerStartup => {
+                        mir::InitializationSchedule::EagerStartup
+                    }
+                    hir::InitializationSchedule::LazyAccess => {
+                        mir::InitializationSchedule::LazyAccess
+                    }
+                },
                 kind,
                 initializer: self.function_map[&source.initializer],
                 ensure: self.function_map[&source.ensure],

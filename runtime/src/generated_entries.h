@@ -34,6 +34,7 @@ typedef struct ScoopInitializationCell {
 } ScoopInitializationCell;
 
 typedef struct ScoopInitializationUnitDescriptor {
+    uint64_t schedule;
     const char *stable_key;
     ScoopInitializationCell *cell;
     void *storage;
@@ -41,6 +42,11 @@ typedef struct ScoopInitializationUnitDescriptor {
     void (*initializer_entry)(void);
     void (*ensure_entry)(void);
 } ScoopInitializationUnitDescriptor;
+
+enum {
+    SCOOP_INIT_EAGER_STARTUP = 0,
+    SCOOP_INIT_LAZY_ACCESS = 1,
+};
 
 extern const ScoopInitializationUnitDescriptor scoop_image_initialization_units[];
 extern const uint64_t scoop_image_initialization_unit_count;

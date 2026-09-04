@@ -33,11 +33,18 @@ pub struct Module {
 #[derive(Debug)]
 pub struct InitializationUnit {
     pub stable_key: String,
+    pub schedule: InitializationSchedule,
     pub storage: GlobalId,
     pub failure_root: GlobalId,
     pub initializer: ManagedLocalFunctionRef,
     pub ensure: ManagedLocalFunctionRef,
     pub dependencies: Vec<InitializationUnitId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
 }
 
 #[derive(Debug)]

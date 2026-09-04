@@ -500,6 +500,7 @@ impl Lowerer {
         let stable_key = self.top_level_initialization_key(declaration);
         let unit = self.initialization_units.alloc(hir::InitializationUnit {
             stable_key,
+            schedule: hir::InitializationSchedule::EagerStartup,
             kind: hir::InitializationUnitKind::EagerTopLevel {
                 property: expected_property,
                 storage: expected_global,

@@ -31,7 +31,8 @@ static _Noreturn void initialization_fatal(const char *message) {
 }
 
 static void require_unit(const ScoopInitializationUnitDescriptor *unit) {
-    if (unit == NULL || unit->stable_key == NULL || unit->stable_key[0] == '\0' ||
+    if (unit == NULL || unit->schedule > SCOOP_INIT_LAZY_ACCESS ||
+        unit->stable_key == NULL || unit->stable_key[0] == '\0' ||
         unit->cell == NULL || unit->storage == NULL || unit->failure_root == NULL ||
         unit->initializer_entry == NULL || unit->ensure_entry == NULL) {
         initialization_fatal("initialization unit descriptor is incomplete");
@@ -371,14 +372,14 @@ const ScoopString *scoop_rt_init_cycle_message_impl(
     return message;
 }
 
-void scoop_rt_initialize_image(void) {
+static void initialize_units(const ScoopInitializationUnitDescriptor *units,
+                             uint64_t count) {
     const void *gateway_boundary = __builtin_frame_address(0);
     const void *previous_boundary =
         scoop_thread_push_managed_gateway_boundary(gateway_boundary);
     const char *previous_key = NULL;
-    for (uint64_t index = 0; index < scoop_image_initialization_unit_count; index++) {
-        const ScoopInitializationUnitDescriptor *unit =
-            &scoop_image_initialization_units[index];
+    for (uint64_t index = 0; index < count; index++) {
+        const ScoopInitializationUnitDescriptor *unit = &units[index];
         require_unit(unit);
         if (previous_key != NULL && strcmp(previous_key, unit->stable_key) >= 0) {
             initialization_fatal("initialization unit table is not in stable-key order");
@@ -388,8 +389,7 @@ void scoop_rt_initialize_image(void) {
             initialization_fatal("initialization unit is not pristine at startup");
         }
         for (uint64_t previous = 0; previous < index; previous++) {
-            const ScoopInitializationUnitDescriptor *seen =
-                &scoop_image_initialization_units[previous];
+            const ScoopInitializationUnitDescriptor *seen = &units[previous];
             if (seen->cell == unit->cell || seen->storage == unit->storage ||
                 seen->failure_root == unit->failure_root) {
                 initialization_fatal("initialization unit descriptor aliases another unit");
@@ -397,10 +397,16 @@ void scoop_rt_initialize_image(void) {
         }
         previous_key = unit->stable_key;
     }
-    for (uint64_t index = 0; index < scoop_image_initialization_unit_count; index++) {
-        const ScoopInitializationUnitDescriptor *unit =
-            &scoop_image_initialization_units[index];
-        unit->ensure_entry();
+    for (uint64_t index = 0; index < count; index++) {
+        const ScoopInitializationUnitDescriptor *unit = &units[index];
+        if (unit->schedule == SCOOP_INIT_EAGER_STARTUP) {
+            unit->ensure_entry();
+        }
     }
     scoop_thread_pop_managed_gateway_boundary(gateway_boundary, previous_boundary);
+}
+
+void scoop_rt_initialize_image(void) {
+    initialize_units(scoop_image_initialization_units,
+                     scoop_image_initialization_unit_count);
 }

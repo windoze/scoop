@@ -11,6 +11,12 @@ pub(super) fn lower_initialization_units(
         let failure = module.initialization_failure_roots[source.failure_root].global;
         let id = units.alloc(lir::InitializationUnit {
             stable_key: source.stable_key.clone(),
+            schedule: match source.schedule {
+                mir::InitializationSchedule::EagerStartup => {
+                    lir::InitializationSchedule::EagerStartup
+                }
+                mir::InitializationSchedule::LazyAccess => lir::InitializationSchedule::LazyAccess,
+            },
             storage: local_global(globals, storage),
             failure_root: local_global(globals, failure),
             initializer: managed_function(functions, source.initializer),
