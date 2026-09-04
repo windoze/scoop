@@ -72,9 +72,18 @@ impl Lowerer {
         receiver: &ast::Expr,
         name: &str,
     ) -> Option<hir::PropertyId> {
-        let crate::NominalTarget::Object(object) = self.nominal_qualifier_target(receiver)? else {
-            return None;
+        let target = self.nominal_qualifier_target(receiver)?;
+        let direct = match target {
+            crate::NominalTarget::Object(object) => self.object_const_property(object, name),
+            _ => None,
         };
+        direct.or_else(|| {
+            let companion = self.companion_object(target.owner())?;
+            self.object_const_property(companion, name)
+        })
+    }
+
+    fn object_const_property(&self, object: hir::ObjectId, name: &str) -> Option<hir::PropertyId> {
         self.classes[self.objects[object].backing_class]
             .properties
             .iter()

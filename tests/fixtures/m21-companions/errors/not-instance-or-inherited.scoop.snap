@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-companions/errors/not-instance-or-inherited.scoop:10:13: error: type `Base` has no method `answer`
+m21-companions/errors/not-instance-or-inherited.scoop:11:13: error: type `Derived` has no nested type `answer`

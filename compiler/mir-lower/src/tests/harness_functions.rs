@@ -435,6 +435,7 @@ impl Harness {
             initialization_failure_roots: Arena::new(),
             objects: Arena::new(),
             object_types: Arena::new(),
+            companion_relations: Arena::new(),
             singleton_values: Arena::new(),
             singleton_published_roots: Arena::new(),
             properties: self.properties,

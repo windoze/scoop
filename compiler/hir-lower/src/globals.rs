@@ -61,7 +61,7 @@ impl Lowerer {
     pub(crate) fn resolve_globals(
         &mut self,
         pending: &[(&ast::GlobalDecl, usize)],
-        objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
@@ -390,21 +390,17 @@ impl Lowerer {
                 }
             }
         }
-        for &(object, declaration, file) in objects {
+        for &(object, source, file) in objects {
             self.current_file = file;
             self.current_owner = Some(crate::Owner::Object(object));
-            for property in declaration
-                .members
-                .iter()
-                .filter_map(|member| match member {
-                    ast::ClassMember::StoredProperty(property)
-                        if matches!(property.body, ast::PropertyBodySyntax::Const(_)) =>
-                    {
-                        Some(property)
-                    }
-                    _ => None,
-                })
-            {
+            for property in source.members().iter().filter_map(|member| match member {
+                ast::ClassMember::StoredProperty(property)
+                    if matches!(property.body, ast::PropertyBodySyntax::Const(_)) =>
+                {
+                    Some(property)
+                }
+                _ => None,
+            }) {
                 let access = self.member_access(
                     property.visibility,
                     property.name.span,
@@ -424,20 +420,25 @@ impl Lowerer {
                 if property.modifier != ast::MethodModifier::Final || property.is_override {
                     self.error(
                         property.span,
-                        "object const properties cannot be open, abstract, or override".to_string(),
+                        format!(
+                            "{} const properties cannot be open, abstract, or override",
+                            source.description()
+                        ),
                     );
                     continue;
                 }
                 if property.receiver_ty.is_some() || !property.type_params.is_empty() {
                     self.error(
                         property.span,
-                        "object const properties cannot be extensions or declare type parameters"
-                            .to_string(),
+                        format!(
+                            "{} const properties cannot be extensions or declare type parameters",
+                            source.description()
+                        ),
                     );
                     continue;
                 }
                 self.reject_logical_property_annotations(
-                    "an object const property",
+                    &format!("{} const property", source.article_description()),
                     &property.annotations,
                 );
                 if !matches!(

@@ -39,8 +39,12 @@ impl Lowerer {
                     return None;
                 }
                 let mut sink = Vec::new();
-                let Some(receiver) = self.lower_expr(receiver, &mut sink, None) else {
-                    return None; // diagnostic already recorded
+                let forwarding = self
+                    .nominal_qualifier_target(receiver)
+                    .and_then(|host| self.companion_forwarding_property_object(host, &name.text));
+                let receiver = match forwarding {
+                    Some(companion) => self.lower_singleton_value(companion, receiver.span())?,
+                    None => self.lower_expr(receiver, &mut sink, None)?,
                 };
                 let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
                 out.extend(sink);

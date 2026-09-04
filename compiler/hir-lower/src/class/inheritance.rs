@@ -12,7 +12,7 @@ impl Lowerer {
         pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
         pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
-        pending_objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
+        pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
         for &(id, decl, file_index) in pending_classes {
@@ -20,13 +20,13 @@ impl Lowerer {
             self.current_owner = Some(Owner::Class(id));
             self.check_inheritance_cycle(id, decl.span, "class");
         }
-        for &(object, declaration, file_index) in pending_objects {
+        for &(object, source, file_index) in pending_objects {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Object(object));
             self.check_inheritance_cycle(
                 self.objects[object].backing_class,
-                declaration.span,
-                "object",
+                source.span(),
+                source.description(),
             );
         }
         for (id, _) in self.interfaces.clone().iter() {
@@ -102,13 +102,13 @@ impl Lowerer {
                 &format!("class `{}`", decl.name.text),
             );
         }
-        for &(object, declaration, file_index) in pending_objects {
+        for &(object, source, file_index) in pending_objects {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Object(object));
             self.check_interface_implementation(
                 self.objects[object].backing_class,
-                declaration.span,
-                &format!("object `{}`", declaration.name.text),
+                source.span(),
+                &format!("{} `{}`", source.description(), self.objects[object].name),
             );
         }
         for &(id, decl, file_index) in pending_structs {

@@ -199,11 +199,20 @@ impl Lowerer {
                 let object = self
                     .lexical_nested_nominal_target(&call.callee.text)
                     .or_else(|| self.top_level_nominal_target(&call.callee.text))
-                    .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)));
-                if object && !self.functions_by_name.contains_key(&call.callee.text) {
+                    .and_then(|target| match target {
+                        crate::NominalTarget::Object(object) => Some(object),
+                        _ => None,
+                    });
+                if let Some(object) = object
+                    && !self.functions_by_name.contains_key(&call.callee.text)
+                {
+                    let kind = match self.objects[object].kind {
+                        hir::ObjectKind::Standalone => "object",
+                        hir::ObjectKind::Companion(_) => "companion object",
+                    };
                     self.error(
                         call.span,
-                        format!("object `{}` cannot be constructed", call.callee.text),
+                        format!("{kind} `{}` cannot be constructed", call.callee.text),
                     );
                     None
                 } else {

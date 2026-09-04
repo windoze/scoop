@@ -167,15 +167,9 @@ impl Lowerer {
                 let ast::FieldSelector::Name(name) = &access.selector else {
                     unreachable!("the match guard selected a named field")
                 };
-                if let Some(crate::NominalTarget::Object(object)) =
-                    self.nominal_qualifier_target(&access.receiver)
-                    && let Some(index) = self.find_const_definition(
-                        declarations,
-                        hir::PropertyOwner::Object(object),
-                        &name.text,
-                        file,
-                        false,
-                    )
+                if let Some(target) = self.nominal_qualifier_target(&access.receiver)
+                    && let Some(index) =
+                        self.find_qualified_const_definition(declarations, target, &name.text, file)
                 {
                     dependencies.push((index, name.span, file));
                 }
@@ -342,39 +336,28 @@ impl Lowerer {
                 let ast::FieldSelector::Name(name) = &access.selector else {
                     unreachable!("the match guard selected a named field")
                 };
-                let Some(crate::NominalTarget::Object(object)) =
-                    self.nominal_qualifier_target(&access.receiver)
-                else {
+                let Some(target) = self.nominal_qualifier_target(&access.receiver) else {
                     self.error(
                         access.span,
-                        "const initializer qualifiers must name an object".to_string(),
+                        "const initializer qualifiers must name an object or a companion host"
+                            .to_string(),
                     );
                     return None;
                 };
-                let owner = hir::PropertyOwner::Object(object);
-                let Some(target) =
-                    self.find_const_definition(declarations, owner, &name.text, file, false)
+                let Some(definition) =
+                    self.find_qualified_const_definition(declarations, target, &name.text, file)
                 else {
-                    let non_const = self.classes[self.objects[object].backing_class]
-                        .properties
-                        .iter()
-                        .any(|property| self.properties[*property].name == name.text);
-                    let message = if non_const {
+                    self.error(
+                        name.span,
                         format!(
-                            "const initializer may only reference const properties; `{}.{}` is not const",
-                            self.objects[object].name, name.text
-                        )
-                    } else {
-                        format!(
-                            "object `{}` has no accessible const property `{}`",
-                            self.objects[object].name, name.text
-                        )
-                    };
-                    self.error(name.span, message);
+                            "qualified singleton has no accessible const property `{}`",
+                            name.text
+                        ),
+                    );
                     return None;
                 };
                 self.evaluate_const_definition(
-                    target,
+                    definition,
                     declarations,
                     ordinary,
                     states,
@@ -415,6 +398,35 @@ impl Lowerer {
                 None
             }
         }
+    }
+
+    fn find_qualified_const_definition(
+        &self,
+        declarations: &[PendingConst<'_>],
+        qualifier: crate::NominalTarget,
+        name: &str,
+        file: usize,
+    ) -> Option<usize> {
+        let direct = match qualifier {
+            crate::NominalTarget::Object(object) => self.find_const_definition(
+                declarations,
+                hir::PropertyOwner::Object(object),
+                name,
+                file,
+                false,
+            ),
+            _ => None,
+        };
+        direct.or_else(|| {
+            let companion = self.companion_object(qualifier.owner())?;
+            self.find_const_definition(
+                declarations,
+                hir::PropertyOwner::Object(companion),
+                name,
+                file,
+                false,
+            )
+        })
     }
 
     fn find_const_definition(

@@ -19,8 +19,28 @@ pub struct ObjectDecl {
     pub owner: Option<NominalOwner>,
     pub object_type: ObjectTypeId,
     pub singleton_value: SingletonValueId,
+    pub kind: ObjectKind,
     pub backing_class: ClassId,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectKind {
+    Standalone,
+    Companion(CompanionRelationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompanionRelation {
+    pub host: NominalOwner,
+    pub object: ObjectId,
+    pub name: CompanionName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompanionName {
+    Default,
+    Named(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

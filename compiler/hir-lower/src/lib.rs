@@ -325,6 +325,8 @@ pub(crate) struct Lowerer {
     pub(crate) initialization_failure_roots: Arena<hir::InitializationFailureRoot>,
     pub(crate) objects: Arena<hir::ObjectDecl>,
     pub(crate) object_types: Arena<hir::ObjectType>,
+    pub(crate) companion_relations: Arena<hir::CompanionRelation>,
+    pub(crate) companion_by_host: HashMap<Owner, hir::CompanionRelationId>,
     pub(crate) singleton_values: Arena<hir::SingletonValue>,
     pub(crate) singleton_published_roots: Arena<hir::SingletonPublishedRoot>,
     pub(crate) properties: Arena<hir::Property>,

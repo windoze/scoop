@@ -15,6 +15,7 @@ pub type InitializationUnitId = Idx<InitializationUnit>;
 pub type InitializationFailureRootId = Idx<InitializationFailureRoot>;
 pub type ObjectId = Idx<ObjectDecl>;
 pub type ObjectTypeId = Idx<ObjectType>;
+pub type CompanionRelationId = Idx<CompanionRelation>;
 pub type SingletonValueId = Idx<SingletonValue>;
 pub type SingletonPublishedRootId = Idx<SingletonPublishedRoot>;
 pub type PropertyId = Idx<Property>;

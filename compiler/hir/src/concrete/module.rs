@@ -17,6 +17,7 @@ pub struct Module {
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
     pub objects: Arena<ObjectDecl>,
     pub object_types: Arena<ObjectType>,
+    pub companion_relations: Arena<CompanionRelation>,
     pub singleton_values: Arena<SingletonValue>,
     pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub structs: Arena<StructDef>,

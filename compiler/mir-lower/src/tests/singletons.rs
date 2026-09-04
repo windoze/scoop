@@ -33,6 +33,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
             access: hir::NominalAccess::public(),
             object_type,
             singleton_value: value,
+            kind: hir::ObjectKind::Standalone,
             backing_class: backing,
             span: SPAN,
         }),

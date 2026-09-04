@@ -219,10 +219,17 @@ impl Lowerer {
                 if self.outer_type_parameter_owner(&name.text).is_some() {
                     self.error(
                         name.span,
-                        format!(
-                            "static nested declaration cannot use outer type parameter `{}`",
-                            name.text
-                        ),
+                        if self.current_owner_is_companion() {
+                            format!(
+                                "companion object cannot use host type parameter `{}`",
+                                name.text
+                            )
+                        } else {
+                            format!(
+                                "static nested declaration cannot use outer type parameter `{}`",
+                                name.text
+                            )
+                        },
                     );
                     return None;
                 }
@@ -428,10 +435,17 @@ impl Lowerer {
                 if self.outer_type_parameter_owner(&name.text).is_some() {
                     self.error(
                         name.span,
-                        format!(
-                            "static nested declaration cannot use outer type parameter `{}`",
-                            name.text
-                        ),
+                        if self.current_owner_is_companion() {
+                            format!(
+                                "companion object cannot use host type parameter `{}`",
+                                name.text
+                            )
+                        } else {
+                            format!(
+                                "static nested declaration cannot use outer type parameter `{}`",
+                                name.text
+                            )
+                        },
                     );
                     return None;
                 }

@@ -117,6 +117,7 @@ pub struct PublicSemanticSurface {
     pub interface_methods: Vec<crate::InterfaceMethodId>,
     pub objects: Vec<crate::ObjectId>,
     pub object_types: Vec<crate::ObjectTypeId>,
+    pub companion_relations: Vec<crate::CompanionRelationId>,
     pub singleton_values: Vec<crate::SingletonValueId>,
 }
 

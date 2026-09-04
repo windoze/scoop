@@ -462,6 +462,7 @@ impl Lowerer {
             initialization_failure_roots: self.initialization_failure_roots,
             objects: self.objects,
             object_types: self.object_types,
+            companion_relations: self.companion_relations,
             singleton_values: self.singleton_values,
             singleton_published_roots: self.singleton_published_roots,
             properties: self.properties,

@@ -12,7 +12,7 @@ impl Lowerer {
         &mut self,
         classes: &[(ClassId, &ast::ClassDecl, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
-        objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         for &(class, declaration, file) in classes {
             self.current_file = file;
@@ -303,7 +303,7 @@ impl Lowerer {
     fn lower_object_initialization(
         &mut self,
         object: hir::ObjectId,
-        declaration: &ast::ObjectDecl,
+        source: crate::declarations::ObjectSource<'_>,
     ) {
         let backing = self.objects[object].backing_class;
         let constructor = self.classes[backing]
@@ -317,17 +317,17 @@ impl Lowerer {
                 application,
                 initialized: self.inherited_fields(backing),
             },
-            step: format!("initialization of object `{}`", declaration.name.text),
+            step: format!("initialization of object `{}`", self.objects[object].name),
             capture_depth: self.capture_contexts.len(),
         });
         let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
         let previous_unit = self.current_initialization_unit.replace(unit);
         let common = self.lower_common_initialization(
             backing,
-            &declaration.members,
+            source.members(),
             constructor,
             false,
-            &format!("object `{}`", declaration.name.text),
+            &format!("object `{}`", self.objects[object].name),
         );
         self.current_initialization_unit = previous_unit;
         let hir::ClassConstructorKind::Primary {
@@ -355,11 +355,11 @@ impl Lowerer {
                             args: Vec::new(),
                         },
                         ty: self.object_types[object_declaration.object_type].canonical_type,
-                        span: declaration.span,
-                        origin: self.expression_origin(declaration.span),
+                        span: source.span(),
+                        origin: self.expression_origin(source.span()),
                     },
                 },
-                span: declaration.span,
+                span: source.span(),
             }],
         });
     }

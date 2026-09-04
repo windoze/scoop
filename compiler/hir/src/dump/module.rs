@@ -150,7 +150,11 @@ pub fn dump(module: &Module) -> String {
             format!(" : {}", supertypes.join(", "))
         };
         out.push_str(&format!(
-            "  object {}{} <object{} type{} value{} root{} init{}>\n",
+            "  {} {}{} <object{} type{} value{} root{} init{}{}>\n",
+            match declaration.kind {
+                ObjectKind::Standalone => "object",
+                ObjectKind::Companion(_) => "companion object",
+            },
             nominal_declaration_name(module, &declaration.name, declaration.owner),
             supertypes,
             object.into_raw(),
@@ -158,6 +162,12 @@ pub fn dump(module: &Module) -> String {
             declaration.singleton_value.into_raw(),
             singleton.published_root.into_raw(),
             singleton.initialization.into_raw(),
+            match declaration.kind {
+                ObjectKind::Standalone => String::new(),
+                ObjectKind::Companion(relation) => {
+                    format!(" companion{}", relation.into_raw())
+                }
+            },
         ));
         debug_assert_eq!(object_type.declaration, object);
         for &field in &backing.fields {

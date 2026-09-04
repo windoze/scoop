@@ -127,6 +127,18 @@ impl Lowerer {
                 );
                 return None;
             }
+            if let Some(crate::Owner::Object(object)) = self.current_owner
+                && self.companion_host_declares_property(object, &name.text)
+            {
+                self.error(
+                    name.span,
+                    format!(
+                        "companion object cannot access host instance property `{}` without a host instance",
+                        name.text
+                    ),
+                );
+                return None;
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
@@ -175,16 +187,20 @@ impl Lowerer {
         })
     }
 
-    pub(in crate::expr) fn lower_singleton_value(
+    pub(crate) fn lower_singleton_value(
         &mut self,
         object: hir::ObjectId,
         span: ast::Span,
     ) -> Option<hir::Expr> {
         let declaration = self.objects[object].clone();
         if !self.access_domain_allows(&declaration.access.lookup.0, None) {
+            let kind = match declaration.kind {
+                hir::ObjectKind::Standalone => "object",
+                hir::ObjectKind::Companion(_) => "companion object",
+            };
             self.error(
                 span,
-                format!("object `{}` is not accessible here", declaration.name),
+                format!("{kind} `{}` is not accessible here", declaration.name),
             );
             return None;
         }

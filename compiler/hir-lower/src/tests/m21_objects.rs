@@ -102,6 +102,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
         .find(|(_, declaration)| declaration.name == "Registry")
         .expect("Registry object");
     let object_type = module.object_types[object.object_type];
+    assert_eq!(object.kind, hir::ObjectKind::Standalone);
     let singleton = module.singleton_values[object.singleton_value];
     let published_root = &module.singleton_published_roots[singleton.published_root];
     let unit = &module.initialization_units[singleton.initialization];

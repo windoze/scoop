@@ -1,0 +1,7 @@
+class Box<T>(val item: T) {
+    companion object {
+        val invalid: T = 1
+    }
+}
+
+fun main() {}

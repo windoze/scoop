@@ -25,7 +25,7 @@ impl Lowerer {
         &mut self,
         classes: &[(ClassId, &ast::ClassDecl, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
-        objects: &[(hir::ObjectId, &ast::ObjectDecl, usize)],
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         self.check_duplicate_constructor_signatures(classes, structs);
         for &(class, declaration, file) in classes {
@@ -50,7 +50,11 @@ impl Lowerer {
         }
     }
 
-    fn resolve_object_base(&mut self, object: hir::ObjectId, declaration: &ast::ObjectDecl) {
+    fn resolve_object_base(
+        &mut self,
+        object: hir::ObjectId,
+        source: crate::declarations::ObjectSource<'_>,
+    ) {
         let backing = self.objects[object].backing_class;
         let constructor = self.classes[backing]
             .constructors
@@ -61,7 +65,7 @@ impl Lowerer {
             self.set_primary_base(constructor, hir::BaseInitialization::Root);
             return;
         };
-        let specification = declaration.supertypes.iter().find(|specification| {
+        let specification = source.supertypes().iter().find(|specification| {
             self.resolve_type_ref(&specification.ty)
                 .is_some_and(|ty| self.types_equal(ty, base_ty))
         });

@@ -1,0 +1,7 @@
+class Box(val value: Int) {
+    companion object {
+        fun captured(): Int = value
+    }
+}
+
+fun main() {}

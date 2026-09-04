@@ -4,6 +4,7 @@ mod callables;
 mod nested;
 mod objects;
 pub(crate) use nested::NestedDeclarationQueues;
+pub(crate) use objects::ObjectSource;
 
 impl Lowerer {
     pub(super) fn require_core_struct(

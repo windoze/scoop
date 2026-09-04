@@ -78,10 +78,14 @@ impl Lowerer {
                 );
                 None
             }
-            NominalTarget::Object(_) => {
+            NominalTarget::Object(object) => {
+                let kind = match self.objects[object].kind {
+                    hir::ObjectKind::Standalone => "object",
+                    hir::ObjectKind::Companion(_) => "companion object",
+                };
                 self.error(
                     name.span,
-                    format!("object `{}` cannot be constructed", name.text),
+                    format!("{kind} `{}` cannot be constructed", name.text),
                 );
                 None
             }
@@ -224,20 +228,14 @@ impl Lowerer {
                 return self.lower_static_nested_constructor(target, name, call, sink, expected);
             }
             if let NominalTarget::Enum(enum_id) = qualifier {
-                let Some(variant) = self.find_variant(enum_id, &name.text) else {
-                    self.error(
-                        name.span,
-                        format!(
-                            "enum `{}` has no variant `{}`",
-                            qualifier.owner().describe_name(self),
-                            name.text
-                        ),
-                    );
-                    return None;
-                };
-                return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+                if let Some(variant) = self.find_variant(enum_id, &name.text) {
+                    return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+                }
             }
-            if let NominalTarget::Object(object) = qualifier {
+            let forwarded = self.companion_forwarding_object(qualifier, &name.text);
+            if let NominalTarget::Object(object) = qualifier
+                && forwarded.is_none()
+            {
                 let receiver = self.lower_singleton_value(object, receiver.span())?;
                 return self.lower_explicit_named_call(
                     receiver,
@@ -247,6 +245,28 @@ impl Lowerer {
                     expected,
                     RequiredCallableModifiers::default(),
                 );
+            }
+            if let Some(companion) = forwarded {
+                let receiver = self.lower_singleton_value(companion, receiver.span())?;
+                return self.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                );
+            }
+            if let NominalTarget::Enum(_) = qualifier {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` has no variant `{}`",
+                        qualifier.owner().describe_name(self),
+                        name.text
+                    ),
+                );
+                return None;
             }
             self.error(
                 name.span,

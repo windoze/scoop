@@ -144,6 +144,19 @@ impl Lowerer {
                         .then_some(declaration.object_type)
                 })
                 .collect(),
+            companion_relations: self
+                .objects
+                .iter()
+                .filter_map(|(_, declaration)| {
+                    if !Self::nominal_is_exported(&declaration.access) {
+                        return None;
+                    }
+                    match declaration.kind {
+                        hir::ObjectKind::Standalone => None,
+                        hir::ObjectKind::Companion(relation) => Some(relation),
+                    }
+                })
+                .collect(),
             singleton_values: self
                 .objects
                 .iter()

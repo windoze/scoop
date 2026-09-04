@@ -148,7 +148,13 @@ impl Lowerer {
                         ty,
                     });
                 }
-                let receiver = self.lower_expr(receiver, sink, None)?;
+                let forwarding = self
+                    .nominal_qualifier_target(receiver)
+                    .and_then(|host| self.companion_forwarding_property_object(host, &name.text));
+                let receiver = match forwarding {
+                    Some(companion) => self.lower_singleton_value(companion, receiver.span())?,
+                    None => self.lower_expr(receiver, sink, None)?,
+                };
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
                 if let Some((property, owner, ty)) =
                     self.find_accessible_nominal_property(receiver.ty, &name.text)

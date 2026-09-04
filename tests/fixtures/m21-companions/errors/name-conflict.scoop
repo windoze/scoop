@@ -1,0 +1,7 @@
+class Host {
+    object Companion
+
+    companion object Factory
+}
+
+fun main() {}

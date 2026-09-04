@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-companions/errors/host-instance.scoop:3:31: error: companion object cannot access host instance property `value` without a host instance

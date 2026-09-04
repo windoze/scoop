@@ -25,9 +25,31 @@ impl Lowerer {
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).
-        if let Some(crate::NominalTarget::Enum(enum_id)) =
-            self.nominal_qualifier_target(&access.receiver)
+        let qualifier = self.nominal_qualifier_target(&access.receiver);
+        if let (Some(crate::NominalTarget::Enum(enum_id)), ast::FieldSelector::Name(name)) =
+            (qualifier, &access.selector)
+            && self.find_variant(enum_id, &name.text).is_some()
         {
+            return self.lower_qualified_variant(enum_id, access, expected);
+        }
+        if let (Some(qualifier), ast::FieldSelector::Name(name)) = (qualifier, &access.selector)
+            && let Some(companion) =
+                self.companion_forwarding_property_object(qualifier, &name.text)
+        {
+            let receiver = self.lower_singleton_value(companion, access.receiver.span())?;
+            if let Some((property, owner, ty)) =
+                self.find_accessible_nominal_property(receiver.ty, &name.text)
+            {
+                return self.lower_property_read(
+                    property,
+                    Some(owner),
+                    Some(receiver),
+                    ty,
+                    access.span,
+                );
+            }
+        }
+        if let Some(crate::NominalTarget::Enum(enum_id)) = qualifier {
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if matches!(&*access.receiver, ast::Expr::This { .. })

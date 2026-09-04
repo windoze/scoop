@@ -98,6 +98,7 @@ struct Concretizer<'a> {
     initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
     objects: Arena<concrete::ObjectDecl>,
     object_types: Arena<concrete::ObjectType>,
+    companion_relations: Arena<concrete::CompanionRelation>,
     singleton_values: Arena<concrete::SingletonValue>,
     singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
     function_slots: Vec<Option<concrete::Function>>,
@@ -227,6 +228,7 @@ impl<'a> Concretizer<'a> {
             initialization_failure_roots: Arena::new(),
             objects: Arena::new(),
             object_types: Arena::new(),
+            companion_relations: Arena::new(),
             singleton_values: Arena::new(),
             singleton_published_roots: Arena::new(),
             function_slots: Vec::new(),
@@ -303,10 +305,30 @@ impl<'a> Concretizer<'a> {
                 singleton_value: concrete::SingletonValueId::from_raw(
                     declaration.singleton_value.into_raw(),
                 ),
+                kind: match declaration.kind {
+                    export::ObjectKind::Standalone => concrete::ObjectKind::Standalone,
+                    export::ObjectKind::Companion(relation) => concrete::ObjectKind::Companion(
+                        concrete::CompanionRelationId::from_raw(relation.into_raw()),
+                    ),
+                },
                 backing_class,
                 span: declaration.span,
             });
             assert_eq!(source_id.into_raw(), object.into_raw());
+        }
+        for (source_id, relation) in self.source.companion_relations.iter() {
+            let lowered = self.companion_relations.alloc(concrete::CompanionRelation {
+                host: Self::lower_nominal_owner(Some(relation.host))
+                    .expect("a companion relation always has a nominal host"),
+                object: concrete::ObjectId::from_raw(relation.object.into_raw()),
+                name: match &relation.name {
+                    export::CompanionName::Default => concrete::CompanionName::Default,
+                    export::CompanionName::Named(name) => {
+                        concrete::CompanionName::Named(name.clone())
+                    }
+                },
+            });
+            assert_eq!(source_id.into_raw(), lowered.into_raw());
         }
         for (source_id, source) in self.source.singleton_published_roots.iter() {
             let ty = self.lower_type(source.ty, &[]);
@@ -480,6 +502,7 @@ impl<'a> Concretizer<'a> {
             initialization_failure_roots: self.initialization_failure_roots,
             objects: self.objects,
             object_types: self.object_types,
+            companion_relations: self.companion_relations,
             singleton_values: self.singleton_values,
             singleton_published_roots: self.singleton_published_roots,
             structs: self.structs,
