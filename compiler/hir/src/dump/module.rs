@@ -209,6 +209,7 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            GlobalStorage::Managed { .. } => "managed".to_string(),
             GlobalStorage::Local {
                 thread_local: false,
                 ..
@@ -448,6 +449,9 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
         });
     let representation = match &property.representation {
         PropertyRepresentation::Stored(stored) => match stored.backing {
+            PropertyBacking::TopLevelGlobal { storage } => {
+                format!("stored global{}", storage.into_raw())
+            }
             PropertyBacking::ClassField { field, initializer } => format!(
                 "stored field{} init={}",
                 field.into_raw(),

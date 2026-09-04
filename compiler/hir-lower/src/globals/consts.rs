@@ -1,7 +1,7 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use super::PendingConst;
+use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
 #[derive(Clone)]
@@ -19,7 +19,11 @@ struct EvaluatedConst {
 }
 
 impl Lowerer {
-    pub(super) fn resolve_const_properties(&mut self, declarations: &[PendingConst<'_>]) {
+    pub(super) fn resolve_const_properties(
+        &mut self,
+        declarations: &[PendingConst<'_>],
+        ordinary: &[PendingOrdinary<'_>],
+    ) {
         let cyclic = self.diagnose_const_dependency_cycles(declarations);
         let mut states = (0..declarations.len())
             .map(|index| {
@@ -32,7 +36,14 @@ impl Lowerer {
             .collect::<Vec<_>>();
         for index in 0..declarations.len() {
             let mut stack = Vec::new();
-            self.evaluate_const_definition(index, declarations, &mut states, &mut stack, None);
+            self.evaluate_const_definition(
+                index,
+                declarations,
+                ordinary,
+                &mut states,
+                &mut stack,
+                None,
+            );
         }
 
         for (index, declaration) in declarations.iter().enumerate() {
@@ -116,6 +127,7 @@ impl Lowerer {
         &mut self,
         index: usize,
         declarations: &[PendingConst<'_>],
+        ordinary: &[PendingOrdinary<'_>],
         states: &mut [ConstState],
         stack: &mut Vec<usize>,
         use_span: Option<ast::Span>,
@@ -155,6 +167,7 @@ impl Lowerer {
             Some(declaration.ty),
             declaration.file,
             declarations,
+            ordinary,
             states,
             stack,
         );
@@ -189,6 +202,7 @@ impl Lowerer {
         expected: Option<hir::TypeId>,
         file: usize,
         declarations: &[PendingConst<'_>],
+        ordinary: &[PendingOrdinary<'_>],
         states: &mut [ConstState],
         stack: &mut Vec<usize>,
     ) -> Option<EvaluatedConst> {
@@ -224,7 +238,13 @@ impl Lowerer {
                         .any(|candidate| candidate.declaration.name.text == name.text)
                     {
                         format!("const property `{}` is not accessible here", name.text)
-                    } else if self.properties_by_name.contains_key(&name.text) {
+                    } else if self.properties_by_name.contains_key(&name.text)
+                        || ordinary.iter().any(|candidate| {
+                            candidate.declaration.name.text == name.text
+                                && (candidate.access.declared != hir::DeclaredVisibility::Private
+                                    || candidate.file == file)
+                        })
+                    {
                         format!(
                             "const initializer may only reference const properties; `{}` is not const",
                             name.text
@@ -235,7 +255,14 @@ impl Lowerer {
                     self.error(name.span, message);
                     return None;
                 };
-                self.evaluate_const_definition(target, declarations, states, stack, Some(name.span))
+                self.evaluate_const_definition(
+                    target,
+                    declarations,
+                    ordinary,
+                    states,
+                    stack,
+                    Some(name.span),
+                )
             }
             ast::Expr::Unary { op, operand, span } => {
                 let operand = self.evaluate_const_expression(
@@ -243,6 +270,7 @@ impl Lowerer {
                     expected,
                     file,
                     declarations,
+                    ordinary,
                     states,
                     stack,
                 )?;
@@ -255,6 +283,7 @@ impl Lowerer {
                 expected,
                 file,
                 declarations,
+                ordinary,
                 states,
                 stack,
                 *span,
@@ -312,6 +341,7 @@ impl Lowerer {
         expected: Option<hir::TypeId>,
         file: usize,
         declarations: &[PendingConst<'_>],
+        ordinary: &[PendingOrdinary<'_>],
         states: &mut [ConstState],
         stack: &mut Vec<usize>,
         span: ast::Span,
@@ -322,6 +352,7 @@ impl Lowerer {
                 Some(self.boolean),
                 file,
                 declarations,
+                ordinary,
                 states,
                 stack,
             )?;
@@ -343,6 +374,7 @@ impl Lowerer {
                 Some(self.boolean),
                 file,
                 declarations,
+                ordinary,
                 states,
                 stack,
             )?;
@@ -372,11 +404,19 @@ impl Lowerer {
             operand_expected,
             file,
             declarations,
+            ordinary,
             states,
             stack,
         )?;
-        let rhs =
-            self.evaluate_const_expression(rhs, Some(lhs.ty), file, declarations, states, stack)?;
+        let rhs = self.evaluate_const_expression(
+            rhs,
+            Some(lhs.ty),
+            file,
+            declarations,
+            ordinary,
+            states,
+            stack,
+        )?;
         if !self.types_equal(lhs.ty, rhs.ty) {
             self.error(
                 span,

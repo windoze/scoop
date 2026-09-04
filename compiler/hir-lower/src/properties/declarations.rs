@@ -1065,7 +1065,8 @@ impl Lowerer {
             declaration,
             owner: method_owner,
             backing: backing.and_then(|backing| match backing {
-                hir::PropertyBacking::ClassField { field, .. } => Some(field),
+                hir::PropertyBacking::TopLevelGlobal { .. }
+                | hir::PropertyBacking::ClassField { .. } => Some(backing),
                 hir::PropertyBacking::StructField { .. } => None,
             }),
             generated_delegate: false,
@@ -1099,8 +1100,8 @@ impl Lowerer {
                 self.functions[source.function].kind = FunctionKind::User(body);
                 continue;
             }
-            self.backing_field_context = source.backing.map(|field| BackingFieldContext {
-                field,
+            self.backing_field_context = source.backing.map(|backing| BackingFieldContext {
+                backing,
                 capture_depth: self.capture_contexts.len(),
             });
             let body = self.lower_body(source.function, &source.declaration);

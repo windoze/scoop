@@ -94,7 +94,7 @@ impl Lowerer {
                     native_symbol,
                     thread_local,
                 } => Some((id, library.clone(), native_symbol.clone(), *thread_local)),
-                hir::GlobalStorage::Local { .. } => None,
+                hir::GlobalStorage::Managed { .. } | hir::GlobalStorage::Local { .. } => None,
             })
             .collect();
         for (index, (id, library, symbol, thread_local)) in extern_globals.iter().enumerate() {

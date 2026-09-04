@@ -63,6 +63,7 @@ pub(crate) fn llvm_constant<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    globals: &[Option<GlobalValue<'ctx>>],
     managed_address_space: ManagedAddressSpace,
     ty: BasicTypeEnum<'ctx>,
     value: &ConstantValue,
@@ -74,6 +75,60 @@ pub(crate) fn llvm_constant<'ctx>(
             .const_int(u64::from(*value), false)
             .into(),
         ConstantValue::NullPointer(_) => ty.into_pointer_type().const_null().into(),
+        ConstantValue::GlobalPointer { global, kind } => {
+            let expected = pointer_ty(context, managed_address_space, *kind);
+            if ty.into_pointer_type() != expected {
+                return Err(CodegenError(
+                    "global pointer constant does not match its storage type".to_string(),
+                ));
+            }
+            let pointer = globals
+                .get(global.into_raw().into_u32() as usize)
+                .and_then(|global| *global)
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "global constant references unavailable global {}",
+                        global.into_raw().into_u32()
+                    ))
+                })?
+                .as_pointer_value();
+            if pointer.get_type() != expected {
+                return Err(CodegenError(
+                    "referenced global does not have the declared pointer provenance".to_string(),
+                ));
+            }
+            pointer.into()
+        }
+        ConstantValue::EnumUnit { enum_id, variant } => match &enums[*enum_id].repr {
+            EnumRepr::Niche { payload_variant } => {
+                if *variant > 1 || variant == payload_variant {
+                    return Err(CodegenError(
+                        "a payload enum variant cannot be encoded as a unit constant".to_string(),
+                    ));
+                }
+                ty.into_pointer_type().const_null().into()
+            }
+            EnumRepr::Tagged { variants, .. } => {
+                let Some(representation) = variants.get(*variant as usize) else {
+                    return Err(CodegenError(format!(
+                        "enum unit constant has invalid variant {variant}"
+                    )));
+                };
+                if !representation.fields.is_empty() {
+                    return Err(CodegenError(
+                        "a payload enum variant cannot be encoded as a unit constant".to_string(),
+                    ));
+                }
+                let struct_type = ty.into_struct_type();
+                let mut values = struct_type
+                    .get_field_types()
+                    .into_iter()
+                    .map(BasicTypeEnum::const_zero)
+                    .collect::<Vec<_>>();
+                values[0] = context.i64_type().const_int(*variant as u64, false).into();
+                struct_type.const_named_struct(&values).into()
+            }
+        },
         ConstantValue::Struct { struct_id, fields } => {
             let definition = &structs[*struct_id];
             if fields.len() != definition.fields.len() {
@@ -90,7 +145,15 @@ pub(crate) fn llvm_constant<'ctx>(
                     .map(|(value, field)| {
                         let ty =
                             basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
-                        llvm_constant(context, structs, enums, managed_address_space, ty, value)
+                        llvm_constant(
+                            context,
+                            structs,
+                            enums,
+                            globals,
+                            managed_address_space,
+                            ty,
+                            value,
+                        )
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 struct_type.const_named_struct(&values).into()
@@ -110,6 +173,7 @@ pub(crate) fn llvm_constant<'ctx>(
                         context,
                         structs,
                         enums,
+                        globals,
                         managed_address_space,
                         field_ty,
                         value,

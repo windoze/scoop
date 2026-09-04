@@ -152,7 +152,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let structs = lower_structs(module, &enums);
     let (extern_functions, extern_function_refs) = lower_extern_functions(module);
     let (storage_globals, native_globals, native_global_bridges) =
-        lower_globals(module, &mut globals, &structs, &enums);
+        lower_globals(module, &mut globals, &structs, &enums, &string_global_map);
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();

@@ -1,4 +1,4 @@
-//! M12 top-level local/TLS storage and C data imports.
+//! M21 top-level logical properties plus M12 raw/TLS storage and C data imports.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -9,8 +9,16 @@ use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 
 mod consts;
+mod static_initializers;
 
 struct PendingConst<'a> {
+    declaration: &'a ast::PropertyDecl,
+    file: usize,
+    access: hir::DeclarationAccess,
+    ty: hir::TypeId,
+}
+
+struct PendingOrdinary<'a> {
     declaration: &'a ast::PropertyDecl,
     file: usize,
     access: hir::DeclarationAccess,
@@ -21,6 +29,7 @@ impl Lowerer {
     pub(crate) fn resolve_globals(&mut self, pending: &[(&ast::GlobalDecl, usize)]) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
+        let mut ordinary = Vec::new();
         for &(decl, file_index) in pending {
             self.current_file = file_index;
             let access =
@@ -42,6 +51,12 @@ impl Lowerer {
                         || self.property_files[&other] == file_index
                 })
                 || constants.iter().any(|other: &PendingConst<'_>| {
+                    other.declaration.name.text == decl.name.text
+                        && (access.declared != hir::DeclaredVisibility::Private
+                            || other.access.declared != hir::DeclaredVisibility::Private
+                            || other.file == file_index)
+                })
+                || ordinary.iter().any(|other: &PendingOrdinary<'_>| {
                     other.declaration.name.text == decl.name.text
                         && (access.declared != hir::DeclaredVisibility::Private
                             || other.access.declared != hir::DeclaredVisibility::Private
@@ -151,6 +166,66 @@ impl Lowerer {
                 self.property_files.insert(property, file_index);
                 continue;
             }
+            let raw_storage = matches!(decl.body, ast::PropertyBodySyntax::ExternStorage)
+                || decl.annotations.iter().any(|annotation| {
+                    matches!(
+                        annotation.name.text.as_str(),
+                        "Extern" | "Global" | "ThreadLocal"
+                    )
+                });
+            if !raw_storage {
+                match &decl.body {
+                    ast::PropertyBodySyntax::Initializer { .. }
+                    | ast::PropertyBodySyntax::OptionalOmitted => {}
+                    ast::PropertyBodySyntax::Delegated { by_span, .. } => {
+                        self.error(
+                            *by_span,
+                            "delegated properties require the M21 top-level initialization protocol"
+                                .to_string(),
+                        );
+                        continue;
+                    }
+                    ast::PropertyBodySyntax::Abstract => {
+                        self.error(
+                            decl.span,
+                            "top-level properties cannot be abstract".to_string(),
+                        );
+                        continue;
+                    }
+                    ast::PropertyBodySyntax::ExternStorage => {
+                        unreachable!("extern storage is classified as raw storage")
+                    }
+                    ast::PropertyBodySyntax::Const(_) | ast::PropertyBodySyntax::Computed(_) => {
+                        unreachable!("const and computed properties were handled above")
+                    }
+                }
+                if decl.modifier != ast::MethodModifier::Final || decl.is_override {
+                    self.error(
+                        decl.span,
+                        "ordinary top-level properties cannot be open, abstract, or override"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                if !decl.type_params.is_empty() {
+                    self.error(
+                        decl.span,
+                        "ordinary top-level properties cannot declare type parameters".to_string(),
+                    );
+                    continue;
+                }
+                self.reject_logical_property_annotations(
+                    "an ordinary top-level property",
+                    &decl.annotations,
+                );
+                ordinary.push(PendingOrdinary {
+                    declaration: decl,
+                    file: file_index,
+                    access,
+                    ty,
+                });
+                continue;
+            }
             match &decl.body {
                 ast::PropertyBodySyntax::Delegated { by_span, .. } => {
                     self.error(
@@ -240,6 +315,9 @@ impl Lowerer {
             self.current_file = self.property_files[&self.globals[id].property];
             let global = self.globals[id].clone();
             match global.storage {
+                hir::GlobalStorage::Managed { .. } => {
+                    unreachable!("the M12 initializer worklist contains only raw storage")
+                }
                 hir::GlobalStorage::Extern { .. } => {
                     if let Err(reason) = self.validate_c_global_type(global.ty, &global.name) {
                         self.error(
@@ -275,7 +353,111 @@ impl Lowerer {
                 }
             }
         }
-        self.resolve_const_properties(&constants);
+        self.resolve_const_properties(&constants, &ordinary);
+        self.resolve_static_top_level_properties(&ordinary);
+    }
+
+    fn resolve_static_top_level_properties(&mut self, declarations: &[PendingOrdinary<'_>]) {
+        for declaration in declarations {
+            self.current_file = declaration.file;
+            let initializer = match &declaration.declaration.body {
+                ast::PropertyBodySyntax::Initializer { expression, .. } => {
+                    self.static_property_constant(expression, declaration.ty)
+                }
+                ast::PropertyBodySyntax::OptionalOmitted => {
+                    if !declaration.declaration.mutable || self.as_option(declaration.ty).is_none()
+                    {
+                        self.error(
+                            declaration.declaration.span,
+                            format!(
+                                "property `{}` without an initializer must be a mutable Option property",
+                                declaration.declaration.name.text
+                            ),
+                        );
+                        None
+                    } else {
+                        self.static_none_constant(declaration.ty)
+                    }
+                }
+                ast::PropertyBodySyntax::Const(_)
+                | ast::PropertyBodySyntax::Computed(_)
+                | ast::PropertyBodySyntax::Delegated { .. }
+                | ast::PropertyBodySyntax::Abstract
+                | ast::PropertyBodySyntax::ExternStorage => {
+                    unreachable!("the ordinary property worklist contains only stored properties")
+                }
+            };
+            let Some(initializer) = initializer else {
+                if let Some(expression) = declaration.declaration.initializer() {
+                    self.error(
+                        expression.span(),
+                        "top-level property initializer is not statically representable and requires a runtime initialization unit"
+                            .to_string(),
+                    );
+                }
+                continue;
+            };
+
+            let expected_property = self.next_property_id();
+            let expected_global = hir::GlobalId::from_raw((self.globals.len() as u32).into());
+            let backing = hir::PropertyBacking::TopLevelGlobal {
+                storage: expected_global,
+            };
+            let Some(capability) = self.allocate_property_accessors(
+                expected_property,
+                hir::PropertyOwner::TopLevel,
+                declaration.access.clone(),
+                declaration.declaration,
+                Some(backing),
+                hir::MethodModifier::Final,
+            ) else {
+                continue;
+            };
+            let global = self.globals.alloc(hir::Global {
+                name: declaration.declaration.name.text.clone(),
+                property: expected_property,
+                ty: declaration.ty,
+                storage: hir::GlobalStorage::Managed { initializer },
+                span: declaration.declaration.span,
+            });
+            assert_eq!(global, expected_global);
+            let property = self.properties.alloc(hir::Property {
+                owner: hir::PropertyOwner::TopLevel,
+                name: declaration.declaration.name.text.clone(),
+                access: declaration.access.clone(),
+                modifier: hir::MethodModifier::Final,
+                is_override: false,
+                overrides: Vec::new(),
+                override_access: Vec::new(),
+                ty: declaration.ty,
+                capability,
+                representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                    backing,
+                }),
+                span: declaration.declaration.span,
+            });
+            assert_eq!(property, expected_property);
+            self.properties_by_name
+                .entry(declaration.declaration.name.text.clone())
+                .or_default()
+                .push(property);
+            self.property_files.insert(property, declaration.file);
+        }
+    }
+
+    fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::ConstantValue> {
+        let hir::Type::Enum(application) = self.types[ty] else {
+            return None;
+        };
+        let application_value = &self.enum_applications[application];
+        if Some(application_value.template) != self.option_enum {
+            return None;
+        }
+        let (_, variant) = self.option_variant("None")?;
+        Some(hir::ConstantValue::EnumUnit {
+            application,
+            variant,
+        })
     }
 
     fn declare_extension_property(

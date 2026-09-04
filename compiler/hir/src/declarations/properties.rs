@@ -102,6 +102,9 @@ pub struct StoredProperty {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyBacking {
+    TopLevelGlobal {
+        storage: GlobalId,
+    },
     ClassField {
         field: ClassFieldId,
         initializer: ClassPropertyInitializer,

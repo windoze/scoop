@@ -545,6 +545,9 @@ impl Concretizer<'_> {
         storage: &export::GlobalStorage,
     ) -> concrete::GlobalStorage {
         match storage {
+            export::GlobalStorage::Managed { initializer } => concrete::GlobalStorage::Managed {
+                initializer: self.lower_constant(initializer),
+            },
             export::GlobalStorage::Local {
                 thread_local,
                 initializer,
@@ -571,8 +574,16 @@ impl Concretizer<'_> {
         match value {
             export::ConstantValue::Int(value) => concrete::ConstantValue::Int(*value),
             export::ConstantValue::Bool(value) => concrete::ConstantValue::Bool(*value),
+            export::ConstantValue::String(value) => concrete::ConstantValue::String(value.clone()),
             export::ConstantValue::NullPtr => concrete::ConstantValue::NullPtr,
             export::ConstantValue::NullFunPtr => concrete::ConstantValue::NullFunPtr,
+            export::ConstantValue::EnumUnit {
+                application,
+                variant,
+            } => concrete::ConstantValue::EnumUnit {
+                enum_id: self.lower_enum_application(*application, &[]),
+                variant: *variant,
+            },
             export::ConstantValue::Struct {
                 application,
                 fields,

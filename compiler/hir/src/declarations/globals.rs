@@ -12,6 +12,11 @@ pub struct Global {
 
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
+    /// Compiler-managed backing storage for an ordinary top-level property.
+    /// Unlike M12 raw storage, this may contain managed references and is
+    /// never exposed through `addressOf`.
+    Managed { initializer: ConstantValue },
+    /// Explicitly addressable M12 `@Global` / `@ThreadLocal` raw storage.
     Local {
         thread_local: bool,
         initializer: ConstantValue,
@@ -23,13 +28,19 @@ pub enum GlobalStorage {
     },
 }
 
-/// A typed, GC-free initializer accepted for local global storage.
+/// A typed initializer whose complete representation can be emitted directly
+/// into the program image. Raw storage accepts only its GC-free subset.
 #[derive(Debug, Clone)]
 pub enum ConstantValue {
     Int(i64),
     Bool(bool),
+    String(String),
     NullPtr,
     NullFunPtr,
+    EnumUnit {
+        application: EnumApplicationId,
+        variant: u32,
+    },
     Struct {
         application: StructApplicationId,
         fields: Vec<ConstantValue>,

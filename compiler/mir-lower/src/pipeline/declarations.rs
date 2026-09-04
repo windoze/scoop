@@ -104,12 +104,25 @@ impl Lowerer {
                 &mut self.shell,
             );
             let storage = match &global.storage {
+                hir::GlobalStorage::Managed { initializer } => mir::GlobalStorage::Managed {
+                    initializer: lower_global_constant(
+                        initializer,
+                        &ty,
+                        &self.structs.defs,
+                        &mut self.strings,
+                    ),
+                },
                 hir::GlobalStorage::Local {
                     thread_local,
                     initializer,
                 } => mir::GlobalStorage::Local {
                     thread_local: *thread_local,
-                    initializer: lower_global_constant(initializer, &ty, &self.structs.defs),
+                    initializer: lower_global_constant(
+                        initializer,
+                        &ty,
+                        &self.structs.defs,
+                        &mut self.strings,
+                    ),
                 },
                 hir::GlobalStorage::Extern {
                     library,

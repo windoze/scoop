@@ -1,0 +1,5 @@
+val runtimeValue: Int = make()
+
+fun make(): Int = 1
+
+fun main() {}

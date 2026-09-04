@@ -198,6 +198,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     context,
                     &module.structs,
                     &module.enums,
+                    &globals,
                     managed_address_space,
                     ty,
                     initializer,

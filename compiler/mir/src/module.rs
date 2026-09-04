@@ -76,6 +76,9 @@ pub struct Global {
 
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
+    Managed {
+        initializer: ConstantValue,
+    },
     Local {
         thread_local: bool,
         initializer: ConstantValue,
@@ -91,8 +94,13 @@ pub enum GlobalStorage {
 pub enum ConstantValue {
     Int(i64),
     Bool(bool),
+    String(StringConstId),
     NullPtr,
     NullFunPtr,
+    EnumUnit {
+        enum_id: EnumId,
+        variant: u32,
+    },
     Struct {
         struct_id: StructId,
         fields: Vec<ConstantValue>,

@@ -5,6 +5,7 @@ pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            GlobalStorage::Managed { .. } => "managed".to_string(),
             GlobalStorage::Local {
                 thread_local: false,
                 ..

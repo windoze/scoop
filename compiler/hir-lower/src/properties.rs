@@ -15,7 +15,7 @@ pub(crate) struct PropertyAccessorSource {
     pub(crate) function: hir::FunctionId,
     pub(crate) declaration: ast::FunctionDecl,
     pub(crate) owner: Option<Owner>,
-    pub(crate) backing: Option<hir::ClassFieldId>,
+    pub(crate) backing: Option<hir::PropertyBacking>,
     pub(crate) generated_delegate: bool,
 }
 
@@ -48,7 +48,7 @@ pub(crate) enum LocalDelegateDispatch {
 
 #[derive(Clone)]
 pub(crate) struct BackingFieldContext {
-    pub(crate) field: hir::ClassFieldId,
+    pub(crate) backing: hir::PropertyBacking,
     pub(crate) capture_depth: usize,
 }
 
@@ -523,6 +523,10 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let kind = match &declaration.representation {
             hir::PropertyRepresentation::Stored(stored) => match stored.backing {
+                hir::PropertyBacking::TopLevelGlobal { storage } => {
+                    debug_assert!(receiver.is_none());
+                    hir::ExprKind::GlobalRead(storage)
+                }
                 hir::PropertyBacking::ClassField { field, .. } => {
                     let receiver = receiver.expect("class storage access has a receiver");
                     let Some(hir::MethodOwnerApplication::Class(application)) = owner_application
@@ -579,6 +583,10 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let target = match &declaration.representation {
             hir::PropertyRepresentation::Stored(stored) => match stored.backing {
+                hir::PropertyBacking::TopLevelGlobal { storage } => {
+                    debug_assert!(receiver.is_none());
+                    hir::AssignTarget::Global(storage)
+                }
                 hir::PropertyBacking::ClassField { field, .. } => {
                     let receiver = receiver.expect("class storage write has a receiver");
                     let Some(hir::MethodOwnerApplication::Class(application)) = owner_application
@@ -625,33 +633,51 @@ impl Lowerer {
             );
             return None;
         }
-        let physical = self.class_fields[context.field].clone();
-        let receiver = self.lower_current_this(span)?;
-        let hir::Type::Class(application) = self.types[receiver.ty] else {
-            unreachable!("a class backing field accessor has a class receiver")
-        };
-        let application_value = self.class_applications[application].clone();
-        let ty = self.instantiate_ty(physical.ty, &application_value.arguments);
-        let field = hir::FieldRef::ClassField {
-            application,
-            field: context.field,
-        };
-        let read = hir::Expr {
-            kind: hir::ExprKind::FieldAccess {
-                receiver: Box::new(receiver.clone()),
-                field,
-            },
-            ty,
-            span,
-            origin: self.expression_origin(span),
-        };
-        let write = self.properties[physical.property]
-            .capability
-            .setter()
-            .map(|_| hir::AssignTarget::Field {
-                receiver: Box::new(receiver),
-                field,
-            });
-        Some((read, write))
+        match context.backing {
+            hir::PropertyBacking::TopLevelGlobal { storage } => {
+                let global = self.globals[storage].clone();
+                let read = hir::Expr {
+                    kind: hir::ExprKind::GlobalRead(storage),
+                    ty: global.ty,
+                    span,
+                    origin: self.expression_origin(span),
+                };
+                let write = self.properties[global.property]
+                    .capability
+                    .setter()
+                    .map(|_| hir::AssignTarget::Global(storage));
+                Some((read, write))
+            }
+            hir::PropertyBacking::ClassField { field, .. } => {
+                let physical = self.class_fields[field].clone();
+                let receiver = self.lower_current_this(span)?;
+                let hir::Type::Class(application) = self.types[receiver.ty] else {
+                    unreachable!("a class backing field accessor has a class receiver")
+                };
+                let application_value = self.class_applications[application].clone();
+                let ty = self.instantiate_ty(physical.ty, &application_value.arguments);
+                let field_ref = hir::FieldRef::ClassField { application, field };
+                let read = hir::Expr {
+                    kind: hir::ExprKind::FieldAccess {
+                        receiver: Box::new(receiver.clone()),
+                        field: field_ref,
+                    },
+                    ty,
+                    span,
+                    origin: self.expression_origin(span),
+                };
+                let write = self.properties[physical.property]
+                    .capability
+                    .setter()
+                    .map(|_| hir::AssignTarget::Field {
+                        receiver: Box::new(receiver),
+                        field: field_ref,
+                    });
+                Some((read, write))
+            }
+            hir::PropertyBacking::StructField { .. } => {
+                unreachable!("struct properties do not expose contextual backing fields")
+            }
+        }
     }
 }

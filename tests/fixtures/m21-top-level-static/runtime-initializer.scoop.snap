@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-top-level-static/runtime-initializer.scoop:1:25: error: top-level property initializer is not statically representable and requires a runtime initialization unit
