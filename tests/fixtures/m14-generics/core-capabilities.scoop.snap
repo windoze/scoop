@@ -303,15 +303,21 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Point : ToString, Hash, Label
-    field x: Int
-    field y: Int
+    field0 x: Int
+    field1 y: Int
+    property13 val x: Int getter13=storage <stored struct11-field0>
+    property14 val y: Int getter14=storage <stored struct11-field1>
   struct RenderPair<T : ToString> : ToString
-    field first: T0
-    field second: T0
+    field0 first: T0
+    field1 second: T0
+    property15 val first: T0 getter15=storage <stored struct12-field0>
+    property16 val second: T0 getter16=storage <stored struct12-field1>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -320,13 +326,19 @@ Module
     Empty()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property17: Option<String>
+    property17 val message: Option<String> getter17=storage <stored field0 init=parameter17>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class User(id: Int) : ToString, Hash
+    field1 property18: Int
+    property18 val id: Int getter18=storage <stored field1 init=parameter18>
   class RenderBox<T : ToString>(value: T0) : ToString
+    field2 property19: T0
+    property19 val value: T0 getter19=storage <stored field2 init=parameter19>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

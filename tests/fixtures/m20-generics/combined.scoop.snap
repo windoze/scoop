@@ -397,29 +397,52 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct NameToken : Named
-    field text: String
+    field0 text: String
+    property13 val text: String getter13=storage <stored struct11-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property14: Option<String>
+    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   open class Record<T>(value: T0)
+    field1 property15: T0
+    property15 val value: T0 getter15=storage <stored field1 init=parameter15>
   class Message(value: String) : Named
   class GenericBox<A, B>(source: T0, label: T1, rest: Array<T1>)
+    field2 property16: T0
+    field3 property17: T1
+    field4 property18: Array<T1>
+    property16 val source: T0 getter16=storage <stored field2 init=parameter17>
+    property17 val label: T1 getter17=storage <stored field3 init=parameter18>
+    property18 val rest: Array<T1> getter18=storage <stored field4 init=parameter19>
   class CombinedFailure()
   class Gate(waiter: Option<Continuation<Int>>)
+    field5 property19: Option<Continuation<Int>>
+    property19 var waiter: Option<Continuation<Int>> getter19=storage setter0=storage <stored field5 init=parameter24>
   class Registration(gate: Gate) : SuspendRegistration<Int>
+    field6 property20: Gate
+    property20 val gate: Gate getter20=storage <stored field6 init=parameter25>
   class CombinedTask(gate: Gate, box: GenericBox<Message, String>) : SuspendTask<String>
+    field7 property21: Gate
+    field8 property22: GenericBox<Message, String>
+    property21 val gate: Gate getter21=storage <stored field7 init=parameter26>
+    property22 val box: GenericBox<Message, String> getter22=storage <stored field8 init=parameter27>
   class RecordingCompletion(label: String) : Continuation<String>
+    field9 property23: String
+    property23 val label: String getter23=storage <stored field9 init=parameter28>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

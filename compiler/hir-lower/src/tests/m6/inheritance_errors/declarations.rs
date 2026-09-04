@@ -137,7 +137,7 @@ fn property_shadowing_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "property `x` of class `B` shadows a property of base class `A`"
+        "property `x` cannot override final property declared by class `A`"
     );
 }
 

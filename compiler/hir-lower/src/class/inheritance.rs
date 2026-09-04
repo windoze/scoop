@@ -18,7 +18,37 @@ impl Lowerer {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
             self.check_inheritance_cycle(id, decl);
-            self.check_property_shadowing(id, decl);
+            self.check_class_properties(id);
+        }
+        self.current_owner = None;
+        for source in self.property_accessor_sources.clone() {
+            let hir::PropertyOwner::Class(owner) = self.properties[source.property].owner else {
+                continue;
+            };
+            self.current_file = self.function_files[&source.function];
+            self.current_owner = Some(Owner::Class(owner));
+            let mut declaration = source.declaration.clone();
+            let validated_target = self.properties[source.property]
+                .overrides
+                .iter()
+                .copied()
+                .any(|inherited| {
+                    self.property_accessor_function(inherited, source.kind)
+                        .is_some()
+                });
+            let declared_target = if source.declaration.is_override {
+                let name = self.properties[source.property].name.clone();
+                self.inherited_class_property(owner, &name)
+                    .and_then(|(inherited, _)| {
+                        self.property_accessor_function(inherited, source.kind)
+                    })
+                    .is_some()
+            } else {
+                false
+            };
+            declaration.is_override = validated_target || declared_target;
+            self.check_member_access_contract(source.function, &declaration, Owner::Class(owner));
+            self.check_override_rules(source.function, &declaration, Owner::Class(owner));
         }
         self.current_owner = None;
         for &(id, decl, file_index, owner) in pending_methods {
@@ -68,34 +98,182 @@ impl Lowerer {
         }
     }
 
-    /// M6 simplification: a constructor property may not reuse the name
-    /// of a base-class property (no field shadowing).
-    fn check_property_shadowing(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some(base_ty) = self.classes[id].base_class else {
-            return;
-        };
-        let Type::Class(base_application) = self.types[base_ty] else {
-            unreachable!("resolved class bases are class applications")
-        };
-        let base = self.class_applications[base_application].template;
-        for &field in &self.classes[id].fields.clone() {
-            let field = self.class_fields[field].clone();
-            let base_application = self.classes[base].self_application;
-            let receiver_ty =
-                self.class_applications[self.classes[id].self_application].canonical_type;
-            if let Some((declaring_application, _, _, _)) = self
-                .find_accessible_class_application_field(base_application, &field.name, receiver_ty)
+    fn check_class_properties(&mut self, class: ClassId) {
+        for property in self.classes[class].properties.clone() {
+            let declaration = self.properties[property].clone();
+            if declaration.access.declared == hir::DeclaredVisibility::Private
+                && declaration.modifier != hir::MethodModifier::Final
             {
-                let declaring = self.class_applications[declaring_application].template;
-                let base_name = self.classes[declaring].name.clone();
                 self.error(
-                    field.span,
+                    declaration.span,
+                    format!("private property `{}` must be final", declaration.name),
+                );
+            }
+            if declaration.modifier == hir::MethodModifier::Abstract {
+                let required = self.classes[class].access.inheritance.0.clone();
+                let Some(provided) = declaration.access.slot.as_ref() else {
+                    unreachable!("an abstract property owns a slot contract")
+                };
+                if !self.access_domain_is_subset(&required, &provided.0) {
+                    self.error(
+                        declaration.span,
+                        format!(
+                            "abstract property `{}` is not visible throughout the inheritance domain of class `{}`",
+                            declaration.name, self.classes[class].name
+                        ),
+                    );
+                }
+            }
+
+            let Some((inherited, inherited_ty)) =
+                self.inherited_class_property(class, &declaration.name)
+            else {
+                if declaration.is_override {
+                    self.error(
+                        declaration.span,
+                        format!(
+                            "property `{}` is marked `override` but does not override any property",
+                            declaration.name
+                        ),
+                    );
+                }
+                continue;
+            };
+            let inherited_declaration = self.properties[inherited].clone();
+            if !self.types_equal(declaration.ty, inherited_ty) {
+                self.error(
+                    declaration.span,
                     format!(
-                        "property `{}` of class `{}` shadows a property of base class `{base_name}`",
-                        field.name, decl.name.text
+                        "property `{}` must have the exact inherited type {}, found {}",
+                        declaration.name,
+                        self.type_name(inherited_ty),
+                        self.type_name(declaration.ty)
+                    ),
+                );
+                continue;
+            }
+            if inherited_declaration.capability.setter().is_some()
+                && declaration.capability.setter().is_none()
+            {
+                self.error(
+                    declaration.span,
+                    format!(
+                        "immutable property `{}` cannot override a mutable property",
+                        declaration.name
+                    ),
+                );
+                continue;
+            }
+            if inherited_declaration.modifier == hir::MethodModifier::Final {
+                self.error(
+                    declaration.span,
+                    format!(
+                        "property `{}` cannot override final property declared by {}",
+                        declaration.name,
+                        self.property_owner_name(inherited_declaration.owner)
+                    ),
+                );
+                continue;
+            }
+            if !declaration.is_override {
+                self.error(
+                    declaration.span,
+                    format!(
+                        "property `{}` overrides an inherited property and must be marked `override`",
+                        declaration.name
                     ),
                 );
             }
+            if let Some(witness) = self.check_property_override_access(property, inherited) {
+                self.properties[property].override_access.push(witness);
+            }
+            self.properties[property].overrides.push(inherited);
+        }
+    }
+
+    fn inherited_class_property(
+        &mut self,
+        class: ClassId,
+        name: &str,
+    ) -> Option<(hir::PropertyId, TypeId)> {
+        let receiver_ty =
+            self.class_applications[self.classes[class].self_application].canonical_type;
+        let current = self.classes[class].self_application;
+        let application = self.class_applications[current].clone();
+        let base = self.classes[class].base_class?;
+        let base = self.instantiate_ty(base, &application.arguments);
+        let Type::Class(base_application) = self.types[base] else {
+            unreachable!("resolved class bases are class applications")
+        };
+        let (_, property, ty) =
+            self.find_accessible_class_application_property(base_application, name, receiver_ty)?;
+        Some((property, ty))
+    }
+
+    fn check_property_override_access(
+        &mut self,
+        property: hir::PropertyId,
+        inherited: hir::PropertyId,
+    ) -> Option<hir::PropertyOverrideAccessWitness> {
+        let Some(mut provided) = self.properties[property].access.slot.clone() else {
+            unreachable!("an overriding property owns a slot contract")
+        };
+        if self.properties[property].access.declared == hir::DeclaredVisibility::Protected
+            && let Some(required) = self.properties[inherited].access.slot.clone()
+        {
+            provided = required;
+            self.properties[property].access.slot = Some(provided.clone());
+        }
+        let required = self.properties[inherited].access.slot.clone()?;
+        if !self.access_domain_is_subset(&required.0, &provided.0) {
+            self.error(
+                self.properties[property].span,
+                format!(
+                    "visibility of property `{}` does not cover its inherited slot",
+                    self.properties[property].name
+                ),
+            );
+            return None;
+        }
+        Some(hir::PropertyOverrideAccessWitness {
+            overriding: property,
+            inherited,
+            required,
+            provided,
+        })
+    }
+
+    fn property_accessor_function(
+        &self,
+        property: hir::PropertyId,
+        kind: crate::properties::PropertyAccessorKind,
+    ) -> Option<FunctionId> {
+        let accessor = match kind {
+            crate::properties::PropertyAccessorKind::Getter => {
+                let getter = self.properties[property].capability.getter();
+                self.property_getters[getter].implementation
+            }
+            crate::properties::PropertyAccessorKind::Setter => {
+                let setter = self.properties[property].capability.setter()?;
+                self.property_setters[setter].implementation
+            }
+        };
+        match accessor {
+            hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::AbstractSlot(function) => Some(function),
+            hir::PropertyAccessorImplementation::Storage => None,
+        }
+    }
+
+    fn property_owner_name(&self, owner: hir::PropertyOwner) -> String {
+        match owner {
+            hir::PropertyOwner::Class(owner) => format!("class `{}`", self.classes[owner].name),
+            hir::PropertyOwner::Struct(owner) => format!("struct `{}`", self.structs[owner].name),
+            hir::PropertyOwner::Enum(owner) => format!("enum `{}`", self.enums[owner].name),
+            hir::PropertyOwner::Interface(owner) => {
+                format!("interface `{}`", self.interfaces[owner].name)
+            }
+            hir::PropertyOwner::TopLevel => "top level".to_string(),
         }
     }
 }

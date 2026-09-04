@@ -82,7 +82,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|field| &self.source.class_fields[*field])
             .map(|field| concrete::Field {
-                name: field.name.clone(),
+                name: self.source.properties[field.property].name.clone(),
                 ty: self.lower_type(field.ty, &arguments),
             })
             .collect();
@@ -523,7 +523,10 @@ impl Concretizer<'_> {
             let id = self.globals.alloc(concrete::Global {
                 name: source.name.clone(),
                 ty,
-                mutable: source.mutable,
+                mutable: self.source.properties[source.property]
+                    .capability
+                    .setter()
+                    .is_some(),
                 storage,
                 span: source.span,
             });

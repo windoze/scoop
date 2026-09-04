@@ -113,6 +113,7 @@ impl Lowerer {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: decl.span,
         });
@@ -194,6 +195,7 @@ impl Lowerer {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: decl.span,
         });
@@ -307,6 +309,7 @@ impl Lowerer {
             // these never reach the output unfinished.
             representation,
             fields: Vec::new(),
+            properties: Vec::new(),
             constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
@@ -403,6 +406,7 @@ impl Lowerer {
             parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
+            properties: Vec::new(),
             span: decl.span,
         });
         let parameter_ids = type_params

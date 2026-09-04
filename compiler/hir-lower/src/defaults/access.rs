@@ -533,7 +533,8 @@ impl ReferenceCollector<'_> {
     }
 
     fn global(&mut self, target: hir::GlobalId, origin: hir::DefinitionOrigin) {
-        let target_domain = self.lowerer.globals[target].access.lookup.0.clone();
+        let property = self.lowerer.globals[target].property;
+        let target_domain = self.lowerer.properties[property].access.lookup.0.clone();
         let witness = self.witness(target_domain, origin, "a property");
         self.references.globals.push(hir::ExportDefaultGlobalRef {
             target,

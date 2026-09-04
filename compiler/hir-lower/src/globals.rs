@@ -16,15 +16,16 @@ impl Lowerer {
             let access =
                 self.top_level_access(decl.visibility, decl.name.span, "property", file_index);
             let duplicate = self
-                .globals_by_name
+                .properties_by_name
                 .get(&decl.name.text)
                 .into_iter()
                 .flatten()
                 .copied()
                 .any(|other| {
                     access.declared != hir::DeclaredVisibility::Private
-                        || self.globals[other].access.declared != hir::DeclaredVisibility::Private
-                        || self.global_files[&other] == file_index
+                        || self.properties[other].access.declared
+                            != hir::DeclaredVisibility::Private
+                        || self.property_files[&other] == file_index
                 });
             if duplicate {
                 self.error(
@@ -35,6 +36,102 @@ impl Lowerer {
             }
             self.type_params_in_scope.clear();
             let ty = self.resolve_type_ref(&decl.ty).unwrap_or(self.int);
+            if matches!(decl.body, ast::PropertyBodySyntax::Computed(_)) {
+                if decl.modifier != ast::MethodModifier::Final || decl.is_override {
+                    self.error(
+                        decl.span,
+                        "top-level computed properties cannot be open, abstract, or override"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                if decl.receiver_ty.is_some() || !decl.type_params.is_empty() {
+                    self.error(
+                        decl.span,
+                        "extension properties require the M21 extension-property gate".to_string(),
+                    );
+                    continue;
+                }
+                self.reject_logical_property_annotations(
+                    "a top-level computed property",
+                    &decl.annotations,
+                );
+                let expected_property = self.next_property_id();
+                let Some(capability) = self.allocate_property_accessors(
+                    expected_property,
+                    hir::PropertyOwner::TopLevel,
+                    access.clone(),
+                    decl,
+                    None,
+                    hir::MethodModifier::Final,
+                ) else {
+                    continue;
+                };
+                let property = self.properties.alloc(hir::Property {
+                    owner: hir::PropertyOwner::TopLevel,
+                    name: decl.name.text.clone(),
+                    access,
+                    modifier: hir::MethodModifier::Final,
+                    is_override: false,
+                    overrides: Vec::new(),
+                    override_access: Vec::new(),
+                    ty,
+                    capability,
+                    representation: hir::PropertyRepresentation::AccessorOnly,
+                    span: decl.span,
+                });
+                assert_eq!(property, expected_property);
+                self.properties_by_name
+                    .entry(decl.name.text.clone())
+                    .or_default()
+                    .push(property);
+                self.property_files.insert(property, file_index);
+                continue;
+            }
+            match &decl.body {
+                ast::PropertyBodySyntax::Delegated { by_span, .. } => {
+                    self.error(
+                        *by_span,
+                        "delegated properties require the M21 delegate protocol".to_string(),
+                    );
+                    continue;
+                }
+                ast::PropertyBodySyntax::Const(_) => {
+                    self.error(
+                        decl.span,
+                        "const property lowering requires the M21 top-level initialization gate"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                ast::PropertyBodySyntax::OptionalOmitted => {
+                    self.error(
+                        decl.span,
+                        "ordinary top-level Option storage requires the M21 initialization gate"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                ast::PropertyBodySyntax::Abstract => {
+                    self.error(
+                        decl.span,
+                        "top-level properties cannot be abstract".to_string(),
+                    );
+                    continue;
+                }
+                ast::PropertyBodySyntax::Initializer { accessors, .. }
+                    if accessors.getter.is_some() || accessors.setter.is_some() =>
+                {
+                    self.error(
+                        decl.span,
+                        "raw or extern storage cannot declare property accessors".to_string(),
+                    );
+                    continue;
+                }
+                ast::PropertyBodySyntax::Initializer { .. }
+                | ast::PropertyBodySyntax::ExternStorage => {}
+                ast::PropertyBodySyntax::Computed(_) => unreachable!("handled above"),
+            }
             let checked = self.check_global_annotations(decl);
             let storage = if let Some(extern_) = checked.extern_ {
                 hir::GlobalStorage::Extern {
@@ -48,19 +145,35 @@ impl Lowerer {
                     initializer: hir::ConstantValue::Int(0),
                 }
             };
+            let expected_property = self.next_property_id();
             let id = self.globals.alloc(hir::Global {
                 name: decl.name.text.clone(),
-                access,
+                property: expected_property,
                 ty,
-                mutable: decl.mutable,
                 storage,
                 span: decl.span,
             });
-            self.globals_by_name
+            let capability =
+                self.allocate_storage_capability(access.clone(), decl.mutable, decl.span);
+            let property = self.properties.alloc(hir::Property {
+                owner: hir::PropertyOwner::TopLevel,
+                name: decl.name.text.clone(),
+                access,
+                modifier: hir::MethodModifier::Final,
+                is_override: false,
+                overrides: Vec::new(),
+                override_access: Vec::new(),
+                ty,
+                capability,
+                representation: hir::PropertyRepresentation::NativeStorage { storage: id },
+                span: decl.span,
+            });
+            assert_eq!(property, expected_property);
+            self.properties_by_name
                 .entry(decl.name.text.clone())
                 .or_default()
-                .push(id);
-            self.global_files.insert(id, file_index);
+                .push(property);
+            self.property_files.insert(property, file_index);
             initializers.push((id, decl));
         }
 
@@ -68,7 +181,7 @@ impl Lowerer {
         // inspected. References to another global are nevertheless rejected:
         // initialization has no runtime ordering phase in M12.
         for (id, decl) in initializers {
-            self.current_file = self.global_files[&id];
+            self.current_file = self.property_files[&self.globals[id].property];
             let global = self.globals[id].clone();
             match global.storage {
                 hir::GlobalStorage::Extern { .. } => {

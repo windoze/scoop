@@ -43,6 +43,17 @@ impl Lowerer {
                     origin: self.expression_origin(access.span),
                 });
             }
+            if let Some((property, owner, ty)) =
+                self.find_accessible_nominal_property(receiver.ty, &field.text)
+            {
+                return self.lower_property_read(
+                    property,
+                    Some(owner),
+                    Some(receiver),
+                    ty,
+                    access.span,
+                );
+            }
         }
         let (field, ty) = self.resolve_field(receiver.ty, &access.selector)?;
         Some(hir::Expr {
@@ -111,11 +122,24 @@ impl Lowerer {
             );
             return None;
         };
-        let (field, field_ty) = self.resolve_field(inner, &access.selector)?;
+        let property = match &access.selector {
+            ast::FieldSelector::Name(name) => {
+                self.find_accessible_nominal_property(inner, &name.text)
+            }
+            ast::FieldSelector::Index(_, _) => None,
+        };
+        let direct_field = if property.is_none() {
+            Some(self.resolve_field(inner, &access.selector)?)
+        } else {
+            None
+        };
+        let field_ty = property
+            .as_ref()
+            .map_or_else(|| direct_field.as_ref().unwrap().1, |(_, _, ty)| *ty);
         let result_ty = self.option_type(field_ty);
         let span = access.span;
         let origin = self.expression_origin(span);
-        let then_value = move |tmp: hir::Expr| {
+        let then_value = move |state: &mut Self, tmp: hir::Expr| {
             let unwrapped = hir::Expr {
                 kind: ExprKind::Unwrap {
                     operand: Box::new(tmp),
@@ -125,21 +149,26 @@ impl Lowerer {
                 span,
                 origin,
             };
-            let field_access = hir::Expr {
-                kind: ExprKind::FieldAccess {
-                    receiver: Box::new(unwrapped),
-                    field,
-                },
-                ty: field_ty,
-                span,
-                origin,
+            let field_access = if let Some((property, owner, ty)) = property {
+                state.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
+            } else {
+                let (field, ty) = direct_field.expect("a non-property safe access has a field");
+                hir::Expr {
+                    kind: ExprKind::FieldAccess {
+                        receiver: Box::new(unwrapped),
+                        field,
+                    },
+                    ty,
+                    span,
+                    origin,
+                }
             };
-            hir::Expr {
+            Some(hir::Expr {
                 kind: ExprKind::SomeWrap(Box::new(field_access)),
                 ty: result_ty,
                 span,
                 origin,
-            }
+            })
         };
         let else_value = hir::Expr {
             kind: ExprKind::NoneLiteral,
@@ -147,7 +176,7 @@ impl Lowerer {
             span,
             origin,
         };
-        Some(self.desugar_option(
+        self.desugar_option(
             receiver,
             result_ty,
             span,
@@ -157,7 +186,7 @@ impl Lowerer {
                 statements: Vec::new(),
                 value: else_value,
             },
-        ))
+        )
     }
 
     /// `lhs ?: rhs`: `lhs` must be an `Option<T>` and `rhs` a `T` (the
@@ -197,16 +226,18 @@ impl Lowerer {
             return None;
         }
         let origin = self.expression_origin(span);
-        let then_value = move |tmp: hir::Expr| hir::Expr {
-            kind: ExprKind::Unwrap {
-                operand: Box::new(tmp),
-                trap_on_none: false,
-            },
-            ty: inner,
-            span,
-            origin,
+        let then_value = move |_state: &mut Self, tmp: hir::Expr| {
+            Some(hir::Expr {
+                kind: ExprKind::Unwrap {
+                    operand: Box::new(tmp),
+                    trap_on_none: false,
+                },
+                ty: inner,
+                span,
+                origin,
+            })
         };
-        Some(self.desugar_option(
+        self.desugar_option(
             lhs,
             inner,
             span,
@@ -216,7 +247,7 @@ impl Lowerer {
                 statements: else_body,
                 value: rhs,
             },
-        ))
+        )
     }
 
     /// `operand!!`: the operand must be an `Option<T>`; the result is
@@ -260,9 +291,9 @@ impl Lowerer {
         result_ty: TypeId,
         span: Span,
         sink: &mut Vec<hir::Statement>,
-        then_value: impl FnOnce(hir::Expr) -> hir::Expr,
+        then_value: impl FnOnce(&mut Self, hir::Expr) -> Option<hir::Expr>,
         else_branch: ElseBranch,
-    ) -> hir::Expr {
+    ) -> Option<hir::Expr> {
         let option_ty = receiver.ty;
         let origin = self.expression_origin(span);
         let tmp = self.alloc_hidden("opt", option_ty);
@@ -289,7 +320,7 @@ impl Lowerer {
         let then_body = vec![hir::Statement {
             kind: hir::StatementKind::ValDecl {
                 pattern: hir::Pattern::Binding { local: result },
-                init: then_value(tmp_expr(span)),
+                init: then_value(self, tmp_expr(span))?,
             },
             span,
         }];
@@ -309,12 +340,12 @@ impl Lowerer {
             },
             span,
         });
-        hir::Expr {
+        Some(hir::Expr {
             kind: ExprKind::Local(result),
             ty: result_ty,
             span,
             origin,
-        }
+        })
     }
 
     /// Resolve a field selector against a receiver type: a struct field
@@ -333,26 +364,11 @@ impl Lowerer {
                 let class_name = self.classes[class_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
-                        let Some((declaring, field, ty, _)) = self
-                            .find_accessible_class_application_field(
-                                application,
-                                &field.text,
-                                receiver_ty,
-                            )
-                        else {
-                            self.error(
-                                field.span,
-                                format!("class `{class_name}` has no field `{}`", field.text),
-                            );
-                            return None;
-                        };
-                        Some((
-                            hir::FieldRef::ClassField {
-                                application: declaring,
-                                field,
-                            },
-                            ty,
-                        ))
+                        self.error(
+                            field.span,
+                            format!("class `{class_name}` has no property `{}`", field.text),
+                        );
+                        None
                     }
                     ast::FieldSelector::Index(index, span) => {
                         self.error(

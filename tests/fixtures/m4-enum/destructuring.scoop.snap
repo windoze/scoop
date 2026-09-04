@@ -284,18 +284,25 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct S
-    field f1: Int
-    field f2: Int
-    field f3: Int
+    field0 f1: Int
+    field1 f2: Int
+    field2 f3: Int
+    property13 val f1: Int getter13=storage <stored struct11-field0>
+    property14 val f2: Int getter14=storage <stored struct11-field1>
+    property15 val f3: Int getter15=storage <stored struct11-field2>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property16: Option<String>
+    property16 val message: Option<String> getter16=storage <stored field0 init=parameter16>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

@@ -326,12 +326,16 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Bundle
-    field text: String
-    field node: Node
+    field0 text: String
+    field1 node: Node
+    property13 val text: String getter13=storage <stored struct11-field0>
+    property14 val node: Node getter14=storage <stored struct11-field1>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -340,15 +344,25 @@ Module
     Empty()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field0 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Node(name: String)
+    field1 property16: String
+    property16 val name: String getter16=storage <stored field1 init=parameter16>
   class Gate(waiter: Option<Continuation<Int>>)
+    field2 property17: Option<Continuation<Int>>
+    property17 var waiter: Option<Continuation<Int>> getter17=storage setter0=storage <stored field2 init=parameter17>
   class Registration(gate: Gate) : SuspendRegistration<Int>
+    field3 property18: Gate
+    property18 val gate: Gate getter18=storage <stored field3 init=parameter18>
   class GcTask(gate: Gate) : SuspendTask<Int>
+    field4 property19: Gate
+    property19 val gate: Gate getter19=storage <stored field4 init=parameter19>
   class RecordingCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

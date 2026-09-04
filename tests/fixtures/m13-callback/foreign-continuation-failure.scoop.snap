@@ -300,23 +300,37 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class ForeignResumeError(payload: String)
+    field1 property14: String
+    property14 val payload: String getter14=storage <stored field1 init=parameter14>
   class FailureGate(job: Ptr<Unit>, observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>)
+    field2 property15: Ptr<Unit>
+    field3 property16: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
+    property15 var job: Ptr<Unit> getter15=storage setter0=storage <stored field2 init=parameter15>
+    property16 var observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>> getter16=storage setter1=storage <stored field3 init=parameter16>
   class FailureRegistration(gate: FailureGate) : SuspendRegistration<Int>
+    field4 property17: FailureGate
+    property17 val gate: FailureGate getter17=storage <stored field4 init=parameter17>
   class FailureTask(gate: FailureGate) : SuspendTask<Int>
+    field5 property18: FailureGate
+    property18 val gate: FailureGate getter18=storage <stored field5 init=parameter18>
   class FailureCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

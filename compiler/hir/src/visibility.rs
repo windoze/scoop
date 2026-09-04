@@ -102,14 +102,15 @@ impl AccessDomain {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PublicSemanticSurface {
     pub functions: Vec<FunctionId>,
-    pub globals: Vec<crate::GlobalId>,
+    pub properties: Vec<crate::PropertyId>,
+    pub property_getters: Vec<crate::PropertyGetterId>,
+    pub property_setters: Vec<crate::PropertySetterId>,
     pub generic_functions: Vec<crate::GenericFunctionId>,
     pub generic_methods: Vec<crate::GenericMethodId>,
     pub structs: Vec<StructId>,
     pub struct_constructors: Vec<crate::StructConstructorId>,
     pub enums: Vec<EnumId>,
     pub classes: Vec<ClassId>,
-    pub class_fields: Vec<crate::ClassFieldId>,
     pub class_constructors: Vec<crate::ClassConstructorId>,
     pub interfaces: Vec<InterfaceId>,
     pub interface_methods: Vec<crate::InterfaceMethodId>,
@@ -142,6 +143,14 @@ pub struct InheritanceDomain(pub AccessDomain);
 /// narrower concrete owner.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlotContractDomain(pub AccessDomain);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PropertyOverrideAccessWitness {
+    pub overriding: crate::PropertyId,
+    pub inherited: crate::PropertyId,
+    pub required: SlotContractDomain,
+    pub provided: SlotContractDomain,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationAccess {

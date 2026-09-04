@@ -27,6 +27,8 @@ fn generic_identity_infers_type_arguments() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -261,6 +263,8 @@ fn nested_generic_calls_record_param_instantiations() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -388,6 +392,8 @@ fn generic_option_roundtrip() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

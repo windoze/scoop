@@ -66,17 +66,14 @@ impl Lowerer {
                     "primary-constructor property",
                     Owner::Class(id),
                     self.current_file,
-                    crate::visibility::MemberSlotAccess::None,
+                    if parameter.is_override {
+                        crate::visibility::MemberSlotAccess::Override
+                    } else {
+                        crate::visibility::MemberSlotAccess::None
+                    },
                 );
-                let field = self.class_fields.alloc(hir::ClassField {
-                    owner: id,
-                    name: parameter.name.text.clone(),
-                    access,
-                    ty,
-                    mutable: parameter.property.is_mutable(),
-                    source: hir::ClassFieldSource::PrimaryParameter(parameter_id),
-                    span: parameter.span,
-                });
+                let field =
+                    self.allocate_primary_class_property(id, parameter, ty, parameter_id, access);
                 fields.push(field);
             }
             parameter_calling.push(calling);
@@ -98,24 +95,24 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&property.ty) else {
                 continue;
             };
+            let slot_access = if property.is_override {
+                crate::visibility::MemberSlotAccess::Override
+            } else if property.modifier != ast::MethodModifier::Final {
+                crate::visibility::MemberSlotAccess::Declared
+            } else {
+                crate::visibility::MemberSlotAccess::None
+            };
             let access = self.member_access(
                 property.visibility,
                 property.name.span,
                 "property",
                 Owner::Class(id),
                 self.current_file,
-                crate::visibility::MemberSlotAccess::None,
+                slot_access,
             );
-            let field = self.class_fields.alloc(hir::ClassField {
-                owner: id,
-                name: property.name.text.clone(),
-                access,
-                ty,
-                mutable: property.mutable,
-                source: hir::ClassFieldSource::Body,
-                span: property.span,
-            });
-            fields.push(field);
+            if let Some(field) = self.allocate_class_property(id, property, ty, access) {
+                fields.push(field);
+            }
         }
         self.classes[id].representation = hir::ClassRepresentation::Declared;
         self.classes[id].fields = fields;

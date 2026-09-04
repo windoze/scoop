@@ -12,6 +12,7 @@ pub struct InterfaceDecl {
     /// inherited methods. Inheritance traversal follows `parents` and these
     /// typed ids; consumers never reconstruct ownership from function names.
     pub methods: Vec<InterfaceMethodId>,
+    pub properties: Vec<PropertyId>,
     pub span: Span,
 }
 

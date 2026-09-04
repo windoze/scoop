@@ -354,15 +354,20 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Handler
-    field prefix: String
+    field0 prefix: String
+    property13 val prefix: String getter13=storage <stored struct11-field0>
   struct GlobalHandler
-    field base: Int
+    field0 base: Int
+    property14 val base: Int getter14=storage <stored struct12-field0>
   struct ExtensionHandler
-    field base: Int
+    field0 base: Int
+    property15 val base: Int getter15=storage <stored struct13-field0>
   struct Command
   struct Mapper
   struct Collector
@@ -371,13 +376,19 @@ Module
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property16: Option<String>
+    property16 val message: Option<String> getter16=storage <stored field0 init=parameter16>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Service(handler: Handler)
+    field1 property17: Handler
+    property17 val handler: Handler getter17=storage <stored field1 init=parameter17>
   class Host(handler: Handler)
+    field2 property18: Handler
+    property18 val handler: Handler getter18=storage <stored field2 init=parameter18>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -389,6 +400,7 @@ Module
     fun toString(): String
   interface Hash
     fun hash(): Int
+  property19 var globalHandler: GlobalHandler getter19=storage setter0=storage <native-storage global0>
   var globalHandler: GlobalHandler <global0 global>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>

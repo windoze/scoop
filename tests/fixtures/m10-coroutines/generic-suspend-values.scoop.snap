@@ -315,12 +315,16 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Pair
-    field number: Int
-    field text: String
+    field0 number: Int
+    field1 text: String
+    property13 val number: Int getter13=storage <stored struct11-field0>
+    property14 val text: String getter14=storage <stored struct11-field1>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -329,21 +333,47 @@ Module
     Text(_1: String)
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field0 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class IntGate(waiter: Option<Continuation<Int>>)
+    field1 property16: Option<Continuation<Int>>
+    property16 var waiter: Option<Continuation<Int>> getter16=storage setter0=storage <stored field1 init=parameter16>
   class PairGate(waiter: Option<Continuation<Pair>>)
+    field2 property17: Option<Continuation<Pair>>
+    property17 var waiter: Option<Continuation<Pair>> getter17=storage setter1=storage <stored field2 init=parameter17>
   class BooleanGate(waiter: Option<Continuation<Boolean>>)
+    field3 property18: Option<Continuation<Boolean>>
+    property18 var waiter: Option<Continuation<Boolean>> getter18=storage setter2=storage <stored field3 init=parameter18>
   class ChoiceGate(waiter: Option<Continuation<Choice>>)
+    field4 property19: Option<Continuation<Choice>>
+    property19 var waiter: Option<Continuation<Choice>> getter19=storage setter3=storage <stored field4 init=parameter19>
   class IntRegistration(gate: IntGate) : SuspendRegistration<Int>
+    field5 property20: IntGate
+    property20 val gate: IntGate getter20=storage <stored field5 init=parameter20>
   class PairRegistration(gate: PairGate) : SuspendRegistration<Pair>
+    field6 property21: PairGate
+    property21 val gate: PairGate getter21=storage <stored field6 init=parameter21>
   class BooleanRegistration(gate: BooleanGate) : SuspendRegistration<Boolean>
+    field7 property22: BooleanGate
+    property22 val gate: BooleanGate getter22=storage <stored field7 init=parameter22>
   class ChoiceRegistration(gate: ChoiceGate) : SuspendRegistration<Choice>
+    field8 property23: ChoiceGate
+    property23 val gate: ChoiceGate getter23=storage <stored field8 init=parameter23>
   class Awaiter()
   class GenericTask(intGate: IntGate, pairGate: PairGate, booleanGate: BooleanGate, choiceGate: ChoiceGate) : SuspendTask<Int>
+    field9 property24: IntGate
+    field10 property25: PairGate
+    field11 property26: BooleanGate
+    field12 property27: ChoiceGate
+    property24 val intGate: IntGate getter24=storage <stored field9 init=parameter24>
+    property25 val pairGate: PairGate getter25=storage <stored field10 init=parameter25>
+    property26 val booleanGate: BooleanGate getter26=storage <stored field11 init=parameter26>
+    property27 val choiceGate: ChoiceGate getter27=storage <stored field12 init=parameter27>
   class RecordingCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

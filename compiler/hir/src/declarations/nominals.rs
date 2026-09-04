@@ -19,6 +19,7 @@ pub struct StructDecl {
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
     pub methods: Vec<FunctionId>,
+    pub properties: Vec<PropertyId>,
     /// Compiler-derived same-type equality declaration, when no explicit
     /// same-signature operator suppresses derivation. Applicability remains
     /// conditional on this application's field obligations.
@@ -89,6 +90,7 @@ pub struct EnumDecl {
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
+    pub properties: Vec<PropertyId>,
     pub derived_equality: Option<FunctionId>,
     pub span: Span,
 }
@@ -178,6 +180,7 @@ pub struct ClassDecl {
     pub type_params: Vec<TypeParamDecl>,
     pub representation: ClassRepresentation,
     pub fields: Vec<ClassFieldId>,
+    pub properties: Vec<PropertyId>,
     pub constructors: Vec<ClassConstructorId>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
@@ -218,10 +221,8 @@ pub enum ClassRepresentation {
 #[derive(Debug, Clone)]
 pub struct ClassField {
     pub owner: ClassId,
-    pub name: String,
-    pub access: DeclarationAccess,
+    pub property: PropertyId,
     pub ty: TypeId,
-    pub mutable: bool,
     pub source: ClassFieldSource,
     pub span: Span,
 }

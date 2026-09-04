@@ -137,6 +137,7 @@ impl Harness {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });

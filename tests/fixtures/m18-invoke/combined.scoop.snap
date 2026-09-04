@@ -309,14 +309,18 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -324,12 +328,30 @@ Module
   class IllegalStateException()
   class InvokeFailure()
   class InvokePayload(text: String)
+    field1 property14: String
+    property14 val text: String getter14=storage <stored field1 init=parameter14>
   class InvokeGate(waiter: Option<Continuation<Int>>)
+    field2 property15: Option<Continuation<Int>>
+    property15 var waiter: Option<Continuation<Int>> getter15=storage setter0=storage <stored field2 init=parameter15>
   class InvokeRegistration(gate: InvokeGate) : SuspendRegistration<Int>
+    field3 property16: InvokeGate
+    property16 val gate: InvokeGate getter16=storage <stored field3 init=parameter16>
   class AsyncInvoker<T>(gate: InvokeGate, payload: T0, label: String)
+    field4 property17: InvokeGate
+    field5 property18: T0
+    field6 property19: String
+    property17 val gate: InvokeGate getter17=storage <stored field4 init=parameter17>
+    property18 val payload: T0 getter18=storage <stored field5 init=parameter18>
+    property19 val label: String getter19=storage <stored field6 init=parameter19>
   class InvokeHolder<T>(action: AsyncInvoker<T0>)
+    field7 property20: AsyncInvoker<T0>
+    property20 val action: AsyncInvoker<T0> getter20=storage <stored field7 init=parameter20>
   class InvokeTask(holder: InvokeHolder<InvokePayload>) : SuspendTask<String>
+    field8 property21: InvokeHolder<InvokePayload>
+    property21 val holder: InvokeHolder<InvokePayload> getter21=storage <stored field8 init=parameter21>
   class InvokeCompletion(label: String) : Continuation<String>
+    field9 property22: String
+    property22 val label: String getter22=storage <stored field9 init=parameter22>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

@@ -207,6 +207,7 @@ impl Lowerer {
         self.foreign_callback_core = foreign_callback_core;
         self.validate_pointer_type_uses();
         self.resolve_globals(&pending_globals);
+        self.resolve_property_accessor_signatures();
         self.validate_extern_functions();
         self.validate_extern_global_symbols();
 
@@ -271,6 +272,7 @@ impl Lowerer {
             let body = self.lower_body(id, decl);
             self.functions[id].kind = FunctionKind::User(body);
         }
+        self.lower_property_accessor_bodies();
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
@@ -370,6 +372,9 @@ impl Lowerer {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            properties: self.properties,
+            property_getters: self.property_getters,
+            property_setters: self.property_setters,
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,

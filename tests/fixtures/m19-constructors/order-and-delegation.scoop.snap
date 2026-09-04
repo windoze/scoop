@@ -331,24 +331,39 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Count
-    field value: Int
+    field0 value: Int
+    property13 val value: Int getter13=storage <stored struct11-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property14: Option<String>
+    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   open class Base(base: Int)
+    field1 property15: Int
+    field2 property16: Int
+    property15 val base: Int getter15=storage <stored field1 init=parameter15>
+    property16 val doubled: Int getter16=storage <stored field2 init=expression>
   class Derived(seed: Int, own: Int)
+    field3 property17: Int
+    field4 property18: Int
+    property17 val own: Int getter17=storage <stored field3 init=parameter18>
+    property18 val copied: Int getter18=storage <stored field4 init=expression>
   class Alternate()
+    field5 property19: Int
+    property19 val alternateOwn: Int getter19=storage <stored field5 init=expression>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

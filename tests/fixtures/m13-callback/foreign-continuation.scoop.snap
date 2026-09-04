@@ -299,22 +299,34 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class ForeignGate(job: Ptr<Unit>, observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>)
+    field1 property14: Ptr<Unit>
+    field2 property15: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
+    property14 var job: Ptr<Unit> getter14=storage setter0=storage <stored field1 init=parameter14>
+    property15 var observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>> getter15=storage setter1=storage <stored field2 init=parameter15>
   class ForeignRegistration(gate: ForeignGate) : SuspendRegistration<Int>
+    field3 property16: ForeignGate
+    property16 val gate: ForeignGate getter16=storage <stored field3 init=parameter16>
   class ForeignTask(gate: ForeignGate) : SuspendTask<Int>
+    field4 property17: ForeignGate
+    property17 val gate: ForeignGate getter17=storage <stored field4 init=parameter17>
   class ForeignCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

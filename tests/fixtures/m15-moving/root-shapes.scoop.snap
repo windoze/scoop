@@ -363,14 +363,20 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct MovingBundle
-    field head: String
-    field pair: (String, MovingTextNode)
-    field choice: MovingChoice
-    field values: Array<String>
+    field0 head: String
+    field1 pair: (String, MovingTextNode)
+    field2 choice: MovingChoice
+    field3 values: Array<String>
+    property13 val head: String getter13=storage <stored struct11-field0>
+    property14 val pair: (String, MovingTextNode) getter14=storage <stored struct11-field1>
+    property15 val choice: MovingChoice getter15=storage <stored struct11-field2>
+    property16 val values: Array<String> getter16=storage <stored struct11-field3>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -379,12 +385,16 @@ Module
     Empty()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property17: Option<String>
+    property17 val message: Option<String> getter17=storage <stored field0 init=parameter17>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class MovingTextNode(value: String) : MovingTextSource
+    field1 property18: String
+    property18 val value: String getter18=storage <stored field1 init=parameter18>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

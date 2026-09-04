@@ -25,6 +25,8 @@ fn some_none_and_nullable_annotations() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -126,13 +128,17 @@ fn safe_field_access_desugars_to_hidden_locals() {
     let module = lower_user(file).expect("safe field access must lower");
     let expected = r#"Module
   struct Point
-    field x: Int
-    field y: Int
+    field0 x: Int
+    field1 y: Int
+    property11 val x: Int getter11=storage <stored struct9-field0>
+    property12 val y: Int getter12=storage <stored struct9-field1>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -244,6 +250,8 @@ fn elvis_desugars_to_hidden_locals() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

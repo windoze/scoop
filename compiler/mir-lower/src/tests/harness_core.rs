@@ -36,6 +36,7 @@ impl Harness {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });
@@ -69,6 +70,9 @@ impl Harness {
             enum_applications_by_key,
             classes: Arena::new(),
             class_fields: Arena::new(),
+            properties: Arena::new(),
+            property_getters: Arena::new(),
+            property_setters: Arena::new(),
             class_constructors: Arena::new(),
             class_constructor_applications: Arena::new(),
             class_applications: Arena::new(),

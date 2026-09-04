@@ -131,34 +131,6 @@ impl Lowerer {
                 false,
             );
         }
-        if let Some(global) = self.visible_global(&call.callee.text) {
-            let ty = self.globals[global].ty;
-            if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                if matches!(
-                    self.globals[global].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(call.callee.span, "reading an extern global");
-                }
-                let callee = hir::Expr {
-                    kind: ExprKind::GlobalRead(global),
-                    ty,
-                    span: call.callee.span,
-                    origin: self.expression_origin(call.callee.span),
-                };
-                return self.lower_value_invoke(
-                    callee,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    sink,
-                    expected,
-                    false,
-                );
-            }
-        }
         // An intrinsic array class in constructor position denotes the
         // opposite-family snapshot conversion. The class namespace resolves
         // the source name; the typed declaration kind selects the operation.

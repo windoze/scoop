@@ -141,7 +141,8 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
         .iter()
         .find(|(_, global)| global.name == "answer")
         .expect("exported property");
-    assert!(module.public_surface.globals.contains(&answer));
+    let answer = module.globals[answer].property;
+    assert!(module.public_surface.properties.contains(&answer));
 
     let (api, api_decl) = module
         .classes
@@ -161,7 +162,8 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
             .contains(&api_constructor)
     );
     let field = api_decl.fields[0];
-    assert!(module.public_surface.class_fields.contains(&field));
+    let property = module.class_fields[field].property;
+    assert!(module.public_surface.properties.contains(&property));
     let hidden = api_decl
         .methods
         .iter()
@@ -481,7 +483,7 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
             .globals
             .iter()
             .filter(|(_, global)| global.name == "privateValue")
-            .all(|(id, _)| !module.public_surface.globals.contains(&id))
+            .all(|(_, global)| !module.public_surface.properties.contains(&global.property))
     );
 }
 

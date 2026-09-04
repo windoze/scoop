@@ -567,14 +567,18 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -583,8 +587,14 @@ Module
   class Done() : Continuation<Int>
   class UnitDone() : Continuation<Unit>
   class Gate(waiter: Option<Continuation<Int>>)
+    field1 property14: Option<Continuation<Int>>
+    property14 var waiter: Option<Continuation<Int>> getter14=storage setter0=storage <stored field1 init=parameter14>
   class Worker(gate: Gate)
+    field2 property15: Gate
+    property15 val gate: Gate getter15=storage <stored field2 init=parameter15>
   class AsyncWorker(gate: Gate) : AsyncValue
+    field3 property16: Gate
+    property16 val gate: Gate getter16=storage <stored field3 init=parameter16>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

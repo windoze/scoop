@@ -312,23 +312,33 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Packed <c-layout aligned=8 packed=1>
-    field flag: Boolean
-    field value: Int
+    field0 flag: Boolean
+    field1 value: Int
+    property13 val flag: Boolean getter13=storage <stored struct11-field0>
+    property14 val value: Int getter14=storage <stored struct11-field1>
   struct Outer <c-layout aligned=16 packed=2>
-    field tag: Boolean
-    field packed: Packed
-    field tail: Int
+    field0 tag: Boolean
+    field1 packed: Packed
+    field2 tail: Int
+    property15 val tag: Boolean getter15=storage <stored struct12-field0>
+    property16 val packed: Packed getter16=storage <stored struct12-field1>
+    property17 val tail: Int getter17=storage <stored struct12-field2>
   struct CBox<T> <c-layout aligned=0 packed=0>
-    field value: T0
+    field0 value: T0
+    property18 val value: T0 getter18=storage <stored struct13-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property19: Option<String>
+    property19 val message: Option<String> getter19=storage <stored field0 init=parameter19>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

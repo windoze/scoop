@@ -10,6 +10,11 @@ pub(super) struct ResolvedPlacePlan {
 pub(super) enum WriteCapability {
     ReadOnly,
     Direct(hir::AssignTarget),
+    Property {
+        property: hir::PropertyId,
+        owner: Option<hir::MethodOwnerApplication>,
+        receiver: Option<hir::Expr>,
+    },
     OperatorSet {
         receiver: hir::Expr,
         index_arguments: Vec<ast::CallArgument>,
@@ -144,36 +149,36 @@ impl Lowerer {
                         return None;
                     }
                 };
-                let Some((declaring, field_id, ty, mutable)) = self
-                    .find_accessible_class_application_field(application, &name.text, receiver.ty)
+                let Some((declaring, property, ty)) = self
+                    .find_accessible_class_application_property(
+                        application,
+                        &name.text,
+                        receiver.ty,
+                    )
                 else {
                     let class = self.classes[self.class_applications[application].template]
                         .name
                         .clone();
                     self.error(
                         name.span,
-                        format!("class `{class}` has no field `{}`", name.text),
+                        format!("class `{class}` has no property `{}`", name.text),
                     );
                     return None;
                 };
-                let field = hir::FieldRef::ClassField {
-                    application: declaring,
-                    field: field_id,
-                };
-                let read = hir::Expr {
-                    kind: hir::ExprKind::FieldAccess {
-                        receiver: Box::new(receiver.clone()),
-                        field,
-                    },
+                let owner = hir::MethodOwnerApplication::Class(declaring);
+                let read = self.lower_property_read(
+                    property,
+                    Some(owner),
+                    Some(receiver.clone()),
                     ty,
-                    span: *span,
-                    origin: self.expression_origin(*span),
-                };
-                let write = if mutable {
-                    WriteCapability::Direct(hir::AssignTarget::Field {
-                        receiver: Box::new(receiver),
-                        field,
-                    })
+                    *span,
+                )?;
+                let write = if self.properties[property].capability.setter().is_some() {
+                    WriteCapability::Property {
+                        property,
+                        owner: Some(owner),
+                        receiver: Some(receiver),
+                    }
                 } else {
                     WriteCapability::ReadOnly
                 };
@@ -230,6 +235,17 @@ impl Lowerer {
     }
 
     fn resolve_named_place_plan(&mut self, name: &ast::Ident) -> Option<ResolvedPlacePlan> {
+        if name.text == "field" && self.backing_field_context.is_some() {
+            let (read, write) = self.contextual_backing_field(name.span)?;
+            let ty = read.ty;
+            return Some(ResolvedPlacePlan {
+                read,
+                write: write
+                    .map(WriteCapability::Direct)
+                    .unwrap_or(WriteCapability::ReadOnly),
+                ty,
+            });
+        }
         if let Some(local) = self.scopes.lookup(&name.text) {
             let read = self.lower_var(name, None)?;
             let write = if self.locals[local].mutable {
@@ -266,56 +282,39 @@ impl Lowerer {
                 write,
             });
         }
-        if let Some(Type::Class(application)) =
-            self.current_this_ty().map(|ty| self.types[ty].clone())
-            && let Some((declaring, field_id, ty, mutable)) = self
-                .find_accessible_class_application_field(
-                    application,
-                    &name.text,
-                    self.current_this_ty().expect("member receiver type"),
-                )
+        if let Some(receiver_ty) = self.current_this_ty()
+            && let Some((property, owner, ty)) =
+                self.find_accessible_nominal_property(receiver_ty, &name.text)
         {
             let receiver = self.lower_current_this(name.span)?;
-            let field = hir::FieldRef::ClassField {
-                application: declaring,
-                field: field_id,
-            };
-            let read = hir::Expr {
-                kind: hir::ExprKind::FieldAccess {
-                    receiver: Box::new(receiver.clone()),
-                    field,
-                },
+            let read = self.lower_property_read(
+                property,
+                Some(owner),
+                Some(receiver.clone()),
                 ty,
-                span: name.span,
-                origin: self.expression_origin(name.span),
-            };
-            let write = if mutable {
-                WriteCapability::Direct(hir::AssignTarget::Field {
-                    receiver: Box::new(receiver),
-                    field,
-                })
+                name.span,
+            )?;
+            let write = if self.properties[property].capability.setter().is_some() {
+                WriteCapability::Property {
+                    property,
+                    owner: Some(owner),
+                    receiver: Some(receiver),
+                }
             } else {
                 WriteCapability::ReadOnly
             };
             return Some(ResolvedPlacePlan { read, write, ty });
         }
-        if let Some(global) = self.visible_global(&name.text) {
-            if matches!(
-                self.globals[global].storage,
-                hir::GlobalStorage::Extern { .. }
-            ) {
-                self.require_unsafe_operation(name.span, "reading an extern global");
-            }
-            let ty = self.globals[global].ty;
+        if let Some(property) = self.visible_property(&name.text, None) {
+            let ty = self.properties[property].ty;
             return Some(ResolvedPlacePlan {
-                read: hir::Expr {
-                    kind: hir::ExprKind::GlobalRead(global),
-                    ty,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                },
-                write: if self.globals[global].mutable {
-                    WriteCapability::Direct(hir::AssignTarget::Global(global))
+                read: self.lower_property_read(property, None, None, ty, name.span)?,
+                write: if self.properties[property].capability.setter().is_some() {
+                    WriteCapability::Property {
+                        property,
+                        owner: None,
+                        receiver: None,
+                    }
                 } else {
                     WriteCapability::ReadOnly
                 },
@@ -374,6 +373,11 @@ impl Lowerer {
                 None
             }
             WriteCapability::Direct(target) => Some(hir::StatementKind::Assign { target, value }),
+            WriteCapability::Property {
+                property,
+                owner,
+                receiver,
+            } => self.lower_property_write(property, owner, receiver, value, span),
             WriteCapability::OperatorSet {
                 receiver,
                 mut index_arguments,

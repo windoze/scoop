@@ -338,17 +338,23 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct NativePair <c-layout aligned=0 packed=0>
-    field left: Int
-    field right: Int
+    field0 left: Int
+    field1 right: Int
+    property13 val left: Int getter13=storage <stored struct11-field0>
+    property14 val right: Int getter14=storage <stored struct11-field1>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field0 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -365,6 +371,15 @@ Module
     fun toString(): String
   interface Hash
     fun hash(): Int
+  property16 var scoopCounter: Int getter16=storage setter0=storage <native-storage global0>
+  property17 var scoopTlsCounter: Int getter17=storage setter1=storage <native-storage global1>
+  property18 var pair: NativePair getter18=storage setter2=storage <native-storage global2>
+  property19 var emptyPointer: Ptr<Int> getter19=storage setter3=storage <native-storage global3>
+  property20 var emptyCallback: FunPtr<(Int) -> Int> getter20=storage setter4=storage <native-storage global4>
+  property21 var nativeCounter: Int getter21=storage setter5=storage <native-storage global5>
+  property22 var nativeTlsCounter: Int getter22=storage setter6=storage <native-storage global6>
+  property23 val nativeLimit: Int getter23=storage <native-storage global7>
+  property24 var nativePair: NativePair getter24=storage setter7=storage <native-storage global8>
   var scoopCounter: Int <global0 global>
   var scoopTlsCounter: Int <global1 thread_local>
   var pair: NativePair <global2 global>

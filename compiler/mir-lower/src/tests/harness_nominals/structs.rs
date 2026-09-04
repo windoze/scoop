@@ -74,6 +74,7 @@ impl Harness {
             interfaces,
             interface_implementations,
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });
@@ -105,6 +106,7 @@ impl Harness {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });
@@ -143,6 +145,7 @@ impl Harness {
             type_params,
             representation: hir::ClassRepresentation::Intrinsic(declaration),
             fields: Vec::new(),
+            properties: Vec::new(),
             constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),

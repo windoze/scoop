@@ -101,15 +101,24 @@ impl Lowerer {
     ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
         let application_value = self.class_applications[application].clone();
         let class = application_value.template;
-        if let Some(&field_id) = self.classes[class]
-            .fields
+        if let Some(&property_id) = self.classes[class]
+            .properties
             .iter()
-            .find(|field| self.class_fields[**field].name == name)
+            .find(|property| self.properties[**property].name == name)
         {
-            let field = self.class_fields[field_id].clone();
-            let field_ty = field.ty;
+            let property = self.properties[property_id].clone();
+            let hir::PropertyRepresentation::Stored(stored) = property.representation else {
+                return None;
+            };
+            let hir::PropertyBacking::ClassField {
+                field: field_id, ..
+            } = stored.backing
+            else {
+                return None;
+            };
+            let field_ty = property.ty;
             let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = field.mutable;
+            let mutable = property.capability.setter().is_some();
             return Some((application, field_id, ty, mutable));
         }
         let base = self.classes[class].base_class?;
@@ -120,15 +129,12 @@ impl Lowerer {
         self.find_class_application_field(base_application, name)
     }
 
-    /// Name lookup variant used by ordinary source access. Inaccessible
-    /// declarations remain observable to diagnostics but do not block a
-    /// visible declaration with the same name in a lower inheritance layer.
-    pub(crate) fn find_accessible_class_application_field(
+    pub(crate) fn find_accessible_class_application_property(
         &mut self,
         mut application: hir::ClassApplicationId,
         name: &str,
         receiver_ty: TypeId,
-    ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
+    ) -> Option<(hir::ClassApplicationId, hir::PropertyId, TypeId)> {
         let mut seen = Vec::new();
         loop {
             if seen.contains(&application) {
@@ -137,20 +143,23 @@ impl Lowerer {
             seen.push(application);
             let application_value = self.class_applications[application].clone();
             let class = application_value.template;
-            if let Some(&field_id) = self.classes[class]
-                .fields
+            if let Some(&property) = self.classes[class]
+                .properties
                 .iter()
-                .find(|field| self.class_fields[**field].name == name)
-                && self.class_field_is_accessible(field_id, receiver_ty)
+                .find(|property| self.properties[**property].name == name)
+                && self.access_domain_allows(
+                    &self.properties[property].access.lookup.0,
+                    Some(receiver_ty),
+                )
             {
-                let field = self.class_fields[field_id].clone();
-                let ty = self.instantiate_ty(field.ty, &application_value.arguments);
-                return Some((application, field_id, ty, field.mutable));
+                let ty =
+                    self.instantiate_ty(self.properties[property].ty, &application_value.arguments);
+                return Some((application, property, ty));
             }
             let base = self.classes[class].base_class?;
             let base = self.instantiate_ty(base, &application_value.arguments);
             let Type::Class(base_application) = self.types[base] else {
-                unreachable!("resolved class bases are class applications")
+                unreachable!("class bases are resolved class applications")
             };
             application = base_application;
         }

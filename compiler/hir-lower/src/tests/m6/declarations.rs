@@ -12,13 +12,21 @@ fn class_hierarchy_golden() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   open class Shape(name: String) : Describable
+    field1 property12: String
+    property12 val name: String getter12=storage <stored field1 init=parameter12>
   class Point(x: Int, y: Int)
+    field2 property13: Int
+    field3 property14: Int
+    property13 val x: Int getter13=storage <stored field2 init=parameter13>
+    property14 var y: Int getter14=storage setter0=storage <stored field3 init=parameter14>
   interface ToString
     fun toString(): String
   interface Hash

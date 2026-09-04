@@ -320,4 +320,31 @@ impl Lowerer {
             }
         }
     }
+
+    pub(crate) fn reject_logical_property_annotations(
+        &mut self,
+        kind: &str,
+        annotations: &[ast::Annotation],
+    ) {
+        let mut seen = HashSet::new();
+        for annotation in annotations {
+            let name = annotation.name.text.as_str();
+            if !seen.insert(name.to_string()) {
+                self.error(
+                    annotation.span,
+                    format!("annotation `@{name}` must not be repeated"),
+                );
+            } else if is_core_annotation(name) {
+                self.error(
+                    annotation.span,
+                    format!("`@{name}` is not allowed on {kind}"),
+                );
+            } else {
+                self.error(
+                    annotation.span,
+                    format!("unsupported annotation `@{name}` on {kind}"),
+                );
+            }
+        }
+    }
 }

@@ -298,24 +298,42 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class IntGate(waiter: Option<Continuation<Int>>)
+    field1 property14: Option<Continuation<Int>>
+    property14 var waiter: Option<Continuation<Int>> getter14=storage setter0=storage <stored field1 init=parameter14>
   class BooleanGate(waiter: Option<Continuation<Boolean>>)
+    field2 property15: Option<Continuation<Boolean>>
+    property15 var waiter: Option<Continuation<Boolean>> getter15=storage setter1=storage <stored field2 init=parameter15>
   class IntRegistration(gate: IntGate) : SuspendRegistration<Int>
+    field3 property16: IntGate
+    property16 val gate: IntGate getter16=storage <stored field3 init=parameter16>
   class BooleanRegistration(gate: BooleanGate) : SuspendRegistration<Boolean>
+    field4 property17: BooleanGate
+    property17 val gate: BooleanGate getter17=storage <stored field4 init=parameter17>
   class MultipleTask(firstGate: IntGate, secondGate: IntGate, booleanGate: BooleanGate) : SuspendTask<Int>
+    field5 property18: IntGate
+    field6 property19: IntGate
+    field7 property20: BooleanGate
+    property18 val firstGate: IntGate getter18=storage <stored field5 init=parameter18>
+    property19 val secondGate: IntGate getter19=storage <stored field6 init=parameter19>
+    property20 val booleanGate: BooleanGate getter20=storage <stored field7 init=parameter20>
   class RecordingCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

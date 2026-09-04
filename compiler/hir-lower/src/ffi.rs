@@ -106,10 +106,17 @@ impl Lowerer {
                 }
                 let compatible = previous_library == library
                     && previous_tls == thread_local
-                    && self.globals[*previous].mutable == self.globals[*id].mutable
+                    && self.properties[self.globals[*previous].property]
+                        .capability
+                        .setter()
+                        .is_some()
+                        == self.properties[self.globals[*id].property]
+                            .capability
+                            .setter()
+                            .is_some()
                     && self.types_equal(self.globals[*previous].ty, self.globals[*id].ty);
                 if !compatible {
-                    self.current_file = self.global_files[id];
+                    self.current_file = self.property_files[&self.globals[*id].property];
                     self.error(
                         self.globals[*id].span,
                         format!(
@@ -129,7 +136,7 @@ impl Lowerer {
                 .then(|| function.name.clone())
             });
             if let Some(function_name) = conflicting_function {
-                self.current_file = self.global_files[id];
+                self.current_file = self.property_files[&self.globals[*id].property];
                 self.error(
                     self.globals[*id].span,
                     format!(

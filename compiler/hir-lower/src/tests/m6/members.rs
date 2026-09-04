@@ -37,7 +37,7 @@ fn unknown_class_field_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("an unknown field must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "class `Shape` has no field `zzz`");
+    assert_eq!(errors[0].message, "class `Shape` has no property `zzz`");
 }
 
 #[test]

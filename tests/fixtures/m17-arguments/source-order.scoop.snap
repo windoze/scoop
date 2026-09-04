@@ -374,12 +374,16 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Coordinate
-    field x: Int
-    field y: Int
+    field0 x: Int
+    field1 y: Int
+    property13 val x: Int getter13=storage <stored struct11-field0>
+    property14 val y: Int getter14=storage <stored struct11-field1>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -388,13 +392,21 @@ Module
     Pair(_1: Int, _2: Int)
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field0 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Receiver(base: Int)
+    field1 property16: Int
+    property16 val base: Int getter16=storage <stored field1 init=parameter16>
   class Box(left: Int, right: Int)
+    field2 property17: Int
+    field3 property18: Int
+    property17 val left: Int getter17=storage <stored field2 init=parameter17>
+    property18 val right: Int getter18=storage <stored field3 init=parameter18>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

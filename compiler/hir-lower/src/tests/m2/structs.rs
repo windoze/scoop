@@ -24,13 +24,17 @@ fn struct_construction_and_field_access() {
     assert!(matches!(module.types[module.int], Type::Int));
     let expected = r#"Module
   struct Point
-    field x: Int
-    field y: Int
+    field0 x: Int
+    field1 y: Int
+    property11 val x: Int getter11=storage <stored struct9-field0>
+    property12 val y: Int getter12=storage <stored struct9-field1>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

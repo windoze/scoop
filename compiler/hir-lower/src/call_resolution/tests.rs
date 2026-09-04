@@ -35,6 +35,7 @@ fn add_interface(
         type_params: Vec::new(),
         parents,
         methods: Vec::new(),
+        properties: Vec::new(),
         span: Span::new(0, 0),
     });
     assert_eq!(allocated, interface);
@@ -75,6 +76,7 @@ fn add_generic_struct(
         interfaces: Vec::new(),
         interface_implementations: Vec::new(),
         methods: Vec::new(),
+        properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
     });

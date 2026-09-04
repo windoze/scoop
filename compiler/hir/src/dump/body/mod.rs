@@ -48,7 +48,7 @@ pub(super) fn dump_statements(
                     }
                     AssignTarget::InitializingClassField { field, .. } => out.push_str(&format!(
                         "{pad}assign initializing .{}\n",
-                        module.class_fields[*field].name
+                        module.properties[module.class_fields[*field].property].name
                     )),
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));

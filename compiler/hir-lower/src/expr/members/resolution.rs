@@ -152,11 +152,14 @@ impl Lowerer {
                         break false;
                     }
                     seen.push(class);
-                    if let Some(&field) = self.classes[class]
-                        .fields
+                    if let Some(&property) = self.classes[class]
+                        .properties
                         .iter()
-                        .find(|field| self.class_fields[**field].name == name)
-                        && self.class_field_is_accessible(field, receiver_ty)
+                        .find(|property| self.properties[**property].name == name)
+                        && self.access_domain_allows(
+                            &self.properties[property].access.lookup.0,
+                            Some(receiver_ty),
+                        )
                     {
                         break true;
                     }
@@ -168,9 +171,14 @@ impl Lowerer {
             }
             Some(Type::Struct(application)) => self.structs
                 [self.struct_applications[application].template]
-                .semantic_fields()
+                .properties
                 .iter()
-                .any(|field| field.name == name),
+                .any(|property| self.properties[*property].name == name),
+            Some(Type::Enum(application)) => self.enums
+                [self.enum_applications[application].template]
+                .properties
+                .iter()
+                .any(|property| self.properties[*property].name == name),
             _ => false,
         }
     }

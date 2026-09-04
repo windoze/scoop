@@ -19,6 +19,7 @@ impl Harness {
             type_params,
             parents: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             span: SPAN,
         });
         let actual = self.interface_application(interface, self_arguments);

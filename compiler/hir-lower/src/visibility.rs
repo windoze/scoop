@@ -24,11 +24,18 @@ impl Lowerer {
     }
 
     pub(crate) fn public_semantic_surface(&self) -> hir::PublicSemanticSurface {
+        let accessor_functions = self
+            .property_accessor_sources
+            .iter()
+            .map(|source| source.function)
+            .collect::<std::collections::HashSet<_>>();
         let functions = self
             .functions
             .iter()
             .filter_map(|(id, function)| {
-                Self::declaration_is_exported(&function.access).then_some(id)
+                (!accessor_functions.contains(&id)
+                    && Self::declaration_is_exported(&function.access))
+                .then_some(id)
             })
             .collect::<Vec<_>>();
         let generic_functions = self
@@ -43,11 +50,25 @@ impl Lowerer {
             .collect();
         hir::PublicSemanticSurface {
             functions: functions.clone(),
-            globals: self
-                .globals
+            properties: self
+                .properties
                 .iter()
-                .filter_map(|(id, global)| {
-                    Self::declaration_is_exported(&global.access).then_some(id)
+                .filter_map(|(id, property)| {
+                    Self::declaration_is_exported(&property.access).then_some(id)
+                })
+                .collect(),
+            property_getters: self
+                .property_getters
+                .iter()
+                .filter_map(|(id, getter)| {
+                    Self::declaration_is_exported(&getter.access).then_some(id)
+                })
+                .collect(),
+            property_setters: self
+                .property_setters
+                .iter()
+                .filter_map(|(id, setter)| {
+                    Self::declaration_is_exported(&setter.access).then_some(id)
                 })
                 .collect(),
             generic_functions,
@@ -78,13 +99,6 @@ impl Lowerer {
                 .iter()
                 .filter_map(|(id, declaration)| {
                     Self::nominal_is_exported(&declaration.access).then_some(id)
-                })
-                .collect(),
-            class_fields: self
-                .class_fields
-                .iter()
-                .filter_map(|(id, field)| {
-                    Self::declaration_is_exported(&field.access).then_some(id)
                 })
                 .collect(),
             class_constructors: self
@@ -430,24 +444,28 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn global_is_accessible(&self, global: hir::GlobalId) -> bool {
-        self.access_domain_allows(&self.globals[global].access.lookup.0, None)
+    pub(crate) fn visible_global(&self, name: &str) -> Option<hir::GlobalId> {
+        let property = self.visible_property(name, None)?;
+        match self.properties[property].representation {
+            hir::PropertyRepresentation::NativeStorage { storage } => Some(storage),
+            hir::PropertyRepresentation::Stored(_) | hir::PropertyRepresentation::AccessorOnly => {
+                None
+            }
+        }
     }
 
-    pub(crate) fn visible_global(&self, name: &str) -> Option<hir::GlobalId> {
-        self.globals_by_name
+    pub(crate) fn visible_property(
+        &self,
+        name: &str,
+        receiver: Option<hir::TypeId>,
+    ) -> Option<hir::PropertyId> {
+        self.properties_by_name
             .get(name)?
             .iter()
             .copied()
-            .find(|&global| self.global_is_accessible(global))
-    }
-
-    pub(crate) fn class_field_is_accessible(
-        &self,
-        field: hir::ClassFieldId,
-        receiver: hir::TypeId,
-    ) -> bool {
-        self.access_domain_allows(&self.class_fields[field].access.lookup.0, Some(receiver))
+            .find(|&property| {
+                self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
+            })
     }
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
@@ -706,9 +724,12 @@ impl Lowerer {
 
     pub(crate) fn field_access_domain(&self, target: hir::FieldRef) -> hir::AccessDomain {
         match target {
-            hir::FieldRef::ClassField { field, .. } => {
-                self.class_fields[field].access.lookup.0.clone()
-            }
+            hir::FieldRef::ClassField { field, .. } => self.properties
+                [self.class_fields[field].property]
+                .access
+                .lookup
+                .0
+                .clone(),
             hir::FieldRef::StructField { application, .. } => {
                 let owner = self.struct_applications[application].template;
                 self.structs[owner].access.lookup.0.clone()
@@ -802,8 +823,8 @@ impl Lowerer {
             self.functions[id].access = access;
         }
 
-        let globals = self
-            .globals
+        let properties = self
+            .properties
             .iter()
             .map(|(id, value)| {
                 (
@@ -812,42 +833,46 @@ impl Lowerer {
                     value.span,
                     value.name.clone(),
                     value.access.clone(),
+                    value.owner,
                 )
             })
             .collect::<Vec<_>>();
-        for (id, ty, span, name, mut access) in globals {
-            self.current_file = self.global_files[&id];
+        for (id, ty, span, name, mut access, owner) in properties {
+            self.current_file = match owner {
+                hir::PropertyOwner::TopLevel => self.property_files[&id],
+                hir::PropertyOwner::Class(owner) => self.class_files[&owner],
+                hir::PropertyOwner::Struct(owner) => self.struct_files[&owner],
+                hir::PropertyOwner::Enum(owner) => self.enum_files[&owner],
+                hir::PropertyOwner::Interface(owner) => self.interface_files[&owner],
+            };
             access.signature = self.signature_exposure_witnesses(
                 &access,
                 &[ty],
                 span,
                 &format!("property `{name}`"),
             );
-            self.globals[id].access = access;
-        }
+            self.properties[id].access = access;
 
-        let fields = self
-            .class_fields
-            .iter()
-            .map(|(id, value)| {
-                (
-                    id,
-                    value.ty,
-                    value.span,
-                    value.name.clone(),
-                    value.access.clone(),
-                )
-            })
-            .collect::<Vec<_>>();
-        for (id, ty, span, name, mut access) in fields {
-            self.current_file = self.class_files[&self.class_fields[id].owner];
-            access.signature = self.signature_exposure_witnesses(
-                &access,
+            let getter = self.properties[id].capability.getter();
+            let mut getter_access = self.property_getters[getter].access.clone();
+            getter_access.signature = self.signature_exposure_witnesses(
+                &getter_access,
                 &[ty],
-                span,
-                &format!("property `{name}`"),
+                self.property_getters[getter].span,
+                &format!("getter of property `{name}`"),
             );
-            self.class_fields[id].access = access;
+            self.property_getters[getter].access = getter_access;
+
+            if let Some(setter) = self.properties[id].capability.setter() {
+                let mut setter_access = self.property_setters[setter].access.clone();
+                setter_access.signature = self.signature_exposure_witnesses(
+                    &setter_access,
+                    &[ty],
+                    self.property_setters[setter].span,
+                    &format!("setter of property `{name}`"),
+                );
+                self.property_setters[setter].access = setter_access;
+            }
         }
 
         let class_constructors = self

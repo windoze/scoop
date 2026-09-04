@@ -46,6 +46,11 @@ pub struct Module {
     /// Top-level storage declarations. Globals use an identity distinct from
     /// functions and locals, and every entry carries a complete storage kind.
     pub globals: Arena<Global>,
+    /// Logical properties and their independently typed accessor identities.
+    /// Physical fields/globals are reachable only through a representation.
+    pub properties: Arena<Property>,
+    pub property_getters: Arena<PropertyGetter>,
+    pub property_setters: Arena<PropertySetter>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.

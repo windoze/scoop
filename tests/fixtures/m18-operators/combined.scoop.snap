@@ -326,14 +326,18 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -341,12 +345,36 @@ Module
   class IllegalStateException()
   class OperatorFailure()
   class Payload(text: String)
+    field1 property14: String
+    property14 val text: String getter14=storage <stored field1 init=parameter14>
   class OperatorGate(waiter: Option<Continuation<Int>>)
+    field2 property15: Option<Continuation<Int>>
+    property15 var waiter: Option<Continuation<Int>> getter15=storage setter0=storage <stored field2 init=parameter15>
   class OperatorRegistration(gate: OperatorGate) : SuspendRegistration<Int>
+    field3 property16: OperatorGate
+    property16 val gate: OperatorGate getter16=storage <stored field3 init=parameter16>
   class GenericIndex<T>(value: T0)
+    field4 property17: T0
+    property17 val value: T0 getter17=storage <stored field4 init=parameter17>
   class AsyncNumber<T>(gate: OperatorGate, payload: T0, label: String, amount: Int)
+    field5 property18: OperatorGate
+    field6 property19: T0
+    field7 property20: String
+    field8 property21: Int
+    property18 val gate: OperatorGate getter18=storage <stored field5 init=parameter18>
+    property19 val payload: T0 getter19=storage <stored field6 init=parameter19>
+    property20 val label: String getter20=storage <stored field7 init=parameter20>
+    property21 val amount: Int getter21=storage <stored field8 init=parameter21>
   class OperatorTask(gate: OperatorGate, left: AsyncNumber<Payload>, right: AsyncNumber<Payload>) : SuspendTask<String>
+    field9 property22: OperatorGate
+    field10 property23: AsyncNumber<Payload>
+    field11 property24: AsyncNumber<Payload>
+    property22 val gate: OperatorGate getter22=storage <stored field9 init=parameter22>
+    property23 val left: AsyncNumber<Payload> getter23=storage <stored field10 init=parameter23>
+    property24 val right: AsyncNumber<Payload> getter24=storage <stored field11 init=parameter24>
   class OperatorCompletion(label: String) : Continuation<String>
+    field12 property25: String
+    property25 val label: String getter25=storage <stored field12 init=parameter25>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

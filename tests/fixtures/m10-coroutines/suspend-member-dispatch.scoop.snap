@@ -324,11 +324,14 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct StructWorker
-    field gate: Gate
+    field0 gate: Gate
+    property13 val gate: Gate getter13=storage <stored struct11-field0>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -336,18 +339,40 @@ Module
     Waiting(_1: Gate)
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property14: Option<String>
+    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Gate(waiter: Option<Continuation<Int>>)
+    field1 property15: Option<Continuation<Int>>
+    property15 var waiter: Option<Continuation<Int>> getter15=storage setter0=storage <stored field1 init=parameter15>
   class Registration(gate: Gate) : SuspendRegistration<Int>
+    field2 property16: Gate
+    property16 val gate: Gate getter16=storage <stored field2 init=parameter16>
   class DirectWorker(gate: Gate)
+    field3 property17: Gate
+    property17 val gate: Gate getter17=storage <stored field3 init=parameter17>
   abstract class VirtualWorker()
   class VirtualWorkerImpl(gate: Gate)
+    field4 property18: Gate
+    property18 val gate: Gate getter18=storage <stored field4 init=parameter18>
   class AsyncWorkerImpl(gate: Gate) : AsyncWorker
+    field5 property19: Gate
+    property19 val gate: Gate getter19=storage <stored field5 init=parameter19>
   class DispatchTask(direct: DirectWorker, virtual: VirtualWorker, interfaced: AsyncWorker, value: StructWorker, tagged: EnumWorker) : SuspendTask<Int>
+    field6 property20: DirectWorker
+    field7 property21: VirtualWorker
+    field8 property22: AsyncWorker
+    field9 property23: StructWorker
+    field10 property24: EnumWorker
+    property20 val direct: DirectWorker getter20=storage <stored field6 init=parameter20>
+    property21 val virtual: VirtualWorker getter21=storage <stored field7 init=parameter21>
+    property22 val interfaced: AsyncWorker getter22=storage <stored field8 init=parameter22>
+    property23 val value: StructWorker getter23=storage <stored field9 init=parameter23>
+    property24 val tagged: EnumWorker getter24=storage <stored field10 init=parameter24>
   class RecordingCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

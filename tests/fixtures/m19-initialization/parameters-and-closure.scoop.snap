@@ -288,22 +288,34 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Captured(seed: String)
+    field1 property14: String
+    field2 property15: () -> String
+    property14 val value: String getter14=storage <stored field1 init=expression>
+    property15 val thunk: () -> String getter15=storage <stored field2 init=expression>
   class MutableBody(seed: Int)
+    field3 property16: Int
+    property16 var value: Int getter16=storage setter0=storage <stored field3 init=expression>
   class Shadow(name: String)
+    field4 property17: String
+    property17 val name: String getter17=storage <stored field4 init=expression>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

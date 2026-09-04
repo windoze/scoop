@@ -321,13 +321,6 @@ impl Lowerer {
         );
     }
 
-    pub(in crate::expr) fn top_level_candidate_layers(
-        &self,
-        name: &str,
-    ) -> Vec<Vec<hir::FunctionId>> {
-        self.candidate_layers(self.functions_by_name.get(name))
-    }
-
     pub(in crate::expr) fn extension_candidate_layers(
         &self,
         name: &str,

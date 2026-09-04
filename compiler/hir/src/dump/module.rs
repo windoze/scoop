@@ -28,12 +28,15 @@ pub fn dump(module: &Module) -> String {
             "  struct {}{}{}{}\n",
             decl.name, type_params, interfaces, attributes
         ));
-        for field in decl.semantic_fields() {
+        for (index, field) in decl.semantic_fields().iter().enumerate() {
             out.push_str(&format!(
-                "    field {}: {}\n",
+                "    field{index} {}: {}\n",
                 field.name,
                 type_name(module, field.ty)
             ));
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
         }
     }
     for (id, decl) in module.enums.iter() {
@@ -58,6 +61,9 @@ pub fn dump(module: &Module) -> String {
                 .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
                 .collect();
             out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
         }
     }
     for (_, decl) in module.classes.iter() {
@@ -97,6 +103,18 @@ pub fn dump(module: &Module) -> String {
             ctor.join(", "),
             interfaces
         ));
+        for &field in &decl.fields {
+            let physical = &module.class_fields[field];
+            out.push_str(&format!(
+                "    field{} property{}: {}\n",
+                field.into_raw(),
+                physical.property.into_raw(),
+                type_name(module, physical.ty)
+            ));
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
     }
     for (_, decl) in module.interfaces.iter() {
         let type_params = if decl.type_params.is_empty() {
@@ -144,6 +162,14 @@ pub fn dump(module: &Module) -> String {
                 dump_function_attributes(function.attributes)
             ));
         }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
+    }
+    for (property, declaration) in module.properties.iter() {
+        if declaration.owner == PropertyOwner::TopLevel {
+            dump_property(module, property, 1, &mut out);
+        }
     }
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
@@ -170,7 +196,15 @@ pub fn dump(module: &Module) -> String {
         };
         out.push_str(&format!(
             "  {} {}: {} <global{} {storage}>\n",
-            if global.mutable { "var" } else { "val" },
+            if module.properties[global.property]
+                .capability
+                .setter()
+                .is_some()
+            {
+                "var"
+            } else {
+                "val"
+            },
             global.name,
             type_name(module, global.ty),
             id.into_raw()
@@ -335,6 +369,101 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut String) {
+    let property = &module.properties[id];
+    let modifier = match property.modifier {
+        MethodModifier::Final => "",
+        MethodModifier::Open => "open ",
+        MethodModifier::Abstract => "abstract ",
+    };
+    let override_ = if property.is_override {
+        "override "
+    } else {
+        ""
+    };
+    let mutability = if property.capability.setter().is_some() {
+        "var"
+    } else {
+        "val"
+    };
+    let getter = property.capability.getter();
+    let getter = format!(
+        "getter{}={}",
+        getter.into_raw(),
+        dump_accessor_implementation(module, module.property_getters[getter].implementation)
+    );
+    let setter = property
+        .capability
+        .setter()
+        .map_or_else(String::new, |setter| {
+            format!(
+                " setter{}={}",
+                setter.into_raw(),
+                dump_accessor_implementation(
+                    module,
+                    module.property_setters[setter].implementation
+                )
+            )
+        });
+    let representation = match &property.representation {
+        PropertyRepresentation::Stored(stored) => match stored.backing {
+            PropertyBacking::ClassField { field, initializer } => format!(
+                "stored field{} init={}",
+                field.into_raw(),
+                match initializer {
+                    ClassPropertyInitializer::PrimaryParameter(parameter) => {
+                        format!("parameter{}", parameter.into_raw())
+                    }
+                    ClassPropertyInitializer::Expression => "expression".to_string(),
+                    ClassPropertyInitializer::SyntheticNone => "synthetic-none".to_string(),
+                }
+            ),
+            PropertyBacking::StructField { owner, index } => {
+                format!("stored struct{}-field{index}", owner.into_raw())
+            }
+        },
+        PropertyRepresentation::AccessorOnly => "accessor-only".to_string(),
+        PropertyRepresentation::NativeStorage { storage } => {
+            format!("native-storage global{}", storage.into_raw())
+        }
+    };
+    let overrides = if property.overrides.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " overrides=[{}]",
+            property
+                .overrides
+                .iter()
+                .map(|property| property.into_raw().to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    };
+    out.push_str(&format!(
+        "{}property{} {modifier}{override_}{mutability} {}: {} {getter}{setter} <{representation}>{overrides}\n",
+        "  ".repeat(indent),
+        id.into_raw(),
+        property.name,
+        type_name(module, property.ty),
+    ));
+}
+
+fn dump_accessor_implementation(
+    module: &Module,
+    implementation: PropertyAccessorImplementation,
+) -> String {
+    match implementation {
+        PropertyAccessorImplementation::Storage => "storage".to_string(),
+        PropertyAccessorImplementation::Body(function) => {
+            format!("body({})", module.functions[function].name)
+        }
+        PropertyAccessorImplementation::AbstractSlot(function) => {
+            format!("abstract({})", module.functions[function].name)
+        }
+    }
 }
 
 fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {

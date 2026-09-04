@@ -111,6 +111,7 @@ mod model;
 mod overload;
 mod patterns;
 mod pipeline;
+mod properties;
 mod scope;
 mod signatures;
 mod stmt;
@@ -320,6 +321,9 @@ pub(crate) struct Lowerer {
         HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
+    pub(crate) properties: Arena<hir::Property>,
+    pub(crate) property_getters: Arena<hir::PropertyGetter>,
+    pub(crate) property_setters: Arena<hir::PropertySetter>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
@@ -368,8 +372,9 @@ pub(crate) struct Lowerer {
     /// Property namespace in declaration order. Multiple entries are needed
     /// because file-private top-level properties in different source files
     /// own distinct namespaces.
-    pub(crate) globals_by_name: HashMap<String, Vec<hir::GlobalId>>,
-    pub(crate) global_files: HashMap<hir::GlobalId, usize>,
+    pub(crate) properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
+    pub(crate) property_files: HashMap<hir::PropertyId, usize>,
+    pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.
     pub(crate) user_file_index: usize,
@@ -478,6 +483,7 @@ pub(crate) struct Lowerer {
     /// initialization plans. Successful reads and writes are immediately
     /// converted to typed field identities.
     pub(crate) initialization_context: Option<InitializationContext>,
+    pub(crate) backing_field_context: Option<properties::BackingFieldContext>,
     /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
     /// immutable local → narrowed type, valid within the branch that
     /// established them. Saved and restored around branch lowering;

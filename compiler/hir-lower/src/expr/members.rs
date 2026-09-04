@@ -190,8 +190,17 @@ impl Lowerer {
             );
             return None;
         }
-        let property = self.member_property_read(receiver.clone(), name);
         let mut first_failure = None;
+        let property = match self
+            .probe_expr_layer(|state, _| state.member_property_read(receiver.clone(), name))
+        {
+            Ok(layer) => Some(layer),
+            Err(failure) if failure.diagnostics.len() > self.diagnostics.len() => {
+                first_failure = Some(failure);
+                None
+            }
+            Err(_) => None,
+        };
         let mut members = self.methods_by_name(receiver.ty, &name.text);
         members.retain(|candidate| {
             Self::matches_required_modifiers(
@@ -235,18 +244,24 @@ impl Lowerer {
             }
         }
 
-        if let Some(property) = &property
-            && let Some(layer) = self.probe_property_member_invoke(
-                property.clone(),
+        if let Some(property) = &property {
+            let mut property_state = (*property.state).clone();
+            if let Some(layer) = property_state.probe_property_member_invoke(
+                property.expression.clone(),
                 call,
                 expected,
                 direct_required.infix,
-            )
-        {
-            match layer {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+            ) {
+                match layer {
+                    Ok(mut layer) => {
+                        let mut setup = property.sink.clone();
+                        setup.append(&mut layer.sink);
+                        layer.sink = setup;
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
                 }
             }
         }
@@ -278,8 +293,8 @@ impl Lowerer {
                 }
             }
             if let Some(property) = &property
-                && let Some(layer) = self.probe_property_extension_invoke(
-                    property.clone(),
+                && let Some(layer) = property.state.probe_property_extension_invoke(
+                    property.expression.clone(),
                     call,
                     expected,
                     direct_required.infix,
@@ -287,7 +302,12 @@ impl Lowerer {
                 )
             {
                 match layer {
-                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Ok(mut layer) => {
+                        let mut setup = property.sink.clone();
+                        setup.append(&mut layer.sink);
+                        layer.sink = setup;
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
                     Err(failure) => {
                         first_failure.get_or_insert(failure);
                     }
@@ -349,44 +369,12 @@ impl Lowerer {
         name: &ast::Ident,
     ) -> Option<hir::Expr> {
         let receiver_ty = receiver.ty;
-        let (field, ty) = match self.types[receiver_ty].clone() {
-            Type::Class(application) => {
-                let (application, field, ty, _) = self.find_accessible_class_application_field(
-                    application,
-                    &name.text,
-                    receiver_ty,
-                )?;
-                (hir::FieldRef::ClassField { application, field }, ty)
-            }
-            Type::Struct(application) => {
-                let value = self.struct_applications[application].clone();
-                let index = self.structs[value.template]
-                    .semantic_fields()
-                    .iter()
-                    .position(|field| field.name == name.text)?;
-                let ty = self.instantiate_ty(
-                    self.structs[value.template].semantic_fields()[index].ty,
-                    &value.arguments,
-                );
-                (
-                    hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    },
-                    ty,
-                )
-            }
-            _ => return None,
-        };
-        Some(hir::Expr {
-            kind: ExprKind::FieldAccess {
-                receiver: Box::new(receiver),
-                field,
-            },
-            ty,
-            span: name.span,
-            origin: self.expression_origin(name.span),
-        })
+        if let Some((property, owner, ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
+        }
+        None
     }
 
     pub(in crate::expr) fn probe_property_member_invoke(

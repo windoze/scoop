@@ -2,10 +2,10 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Global {
+    /// Link/storage name. Source lookup is owned by the logical property.
     pub name: String,
-    pub access: DeclarationAccess,
+    pub property: PropertyId,
     pub ty: TypeId,
-    pub mutable: bool,
     pub storage: GlobalStorage,
     pub span: Span,
 }

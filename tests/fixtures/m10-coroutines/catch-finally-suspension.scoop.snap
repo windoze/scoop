@@ -351,26 +351,44 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
   class Gate(waiter: Option<Continuation<Int>>)
+    field1 property14: Option<Continuation<Int>>
+    property14 var waiter: Option<Continuation<Int>> getter14=storage setter0=storage <stored field1 init=parameter14>
   class Registration(gate: Gate) : SuspendRegistration<Int>
+    field2 property15: Gate
+    property15 val gate: Gate getter15=storage <stored field2 init=parameter15>
   class CatchTask(gate: Gate) : SuspendTask<Int>
+    field3 property16: Gate
+    property16 val gate: Gate getter16=storage <stored field3 init=parameter16>
   class ReturnFinallyTask(gate: Gate) : SuspendTask<Int>
+    field4 property17: Gate
+    property17 val gate: Gate getter17=storage <stored field4 init=parameter17>
   class ThrowFinallyTask(gate: Gate) : SuspendTask<Int>
+    field5 property18: Gate
+    property18 val gate: Gate getter18=storage <stored field5 init=parameter18>
   class OverrideReturnFinallyTask(gate: Gate) : SuspendTask<Int>
+    field6 property19: Gate
+    property19 val gate: Gate getter19=storage <stored field6 init=parameter19>
   class OverrideThrowFinallyTask(gate: Gate) : SuspendTask<Int>
+    field7 property20: Gate
+    property20 val gate: Gate getter20=storage <stored field7 init=parameter20>
   class RecordingCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit

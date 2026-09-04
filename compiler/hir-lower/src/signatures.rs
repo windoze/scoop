@@ -45,6 +45,67 @@ impl Lowerer {
             parameter_calling.push(calling);
         }
         self.structs[id].representation = hir::StructRepresentation::Declared(fields);
+        for (index, field) in self.structs[id]
+            .semantic_fields()
+            .iter()
+            .cloned()
+            .enumerate()
+            .collect::<Vec<_>>()
+        {
+            let access = self.fixed_representation_access(Owner::Struct(id));
+            let getter = self.property_getters.alloc(hir::PropertyGetter {
+                access: access.clone(),
+                implementation: hir::PropertyAccessorImplementation::Storage,
+                attributes: hir::FunctionAttributes::default(),
+                span: decl.span,
+            });
+            let property = self.properties.alloc(hir::Property {
+                owner: hir::PropertyOwner::Struct(id),
+                name: field.name,
+                access,
+                modifier: hir::MethodModifier::Final,
+                is_override: false,
+                overrides: Vec::new(),
+                override_access: Vec::new(),
+                ty: field.ty,
+                capability: hir::PropertyCapability::ReadOnly { getter },
+                representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                    backing: hir::PropertyBacking::StructField {
+                        owner: id,
+                        index: index as u32,
+                    },
+                }),
+                span: decl.span,
+            });
+            self.structs[id].properties.push(property);
+        }
+        for property in decl.members.iter().filter_map(|member| match member {
+            ast::StructMember::Property(property) => Some(property.as_ref()),
+            _ => None,
+        }) {
+            if !seen.insert(property.name.text.clone()) {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "duplicate property `{}` in struct `{}`",
+                        property.name.text, decl.name.text
+                    ),
+                );
+                continue;
+            }
+            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+                continue;
+            };
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Struct(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
+            self.allocate_value_property(Owner::Struct(id), property, ty, access);
+        }
         let fields = self.structs[id]
             .semantic_fields()
             .iter()
@@ -166,6 +227,31 @@ impl Lowerer {
             });
         }
         self.enums[id].variants = variants;
+        let mut properties = HashSet::new();
+        for property in &decl.properties {
+            if !properties.insert(property.name.text.clone()) {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "duplicate property `{}` in enum `{}`",
+                        property.name.text, decl.name.text
+                    ),
+                );
+                continue;
+            }
+            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+                continue;
+            };
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Enum(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
+            self.allocate_value_property(Owner::Enum(id), property, ty, access);
+        }
         self.type_params_in_scope.clear();
     }
 

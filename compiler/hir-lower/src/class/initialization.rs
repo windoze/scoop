@@ -156,14 +156,19 @@ impl Lowerer {
         for member in &declaration.members {
             match member {
                 ast::ClassMember::StoredProperty(property) => {
-                    let Some(property_initializer) = property.initializer() else {
-                        continue;
-                    };
-                    let Some(field) = self.classes[owner]
-                        .fields
+                    let Some(property_id) = self.classes[owner]
+                        .properties
                         .iter()
                         .copied()
-                        .find(|field| self.class_fields[*field].name == property.name.text)
+                        .find(|candidate| self.properties[*candidate].name == property.name.text)
+                    else {
+                        continue;
+                    };
+                    let logical = self.properties[property_id].clone();
+                    let hir::PropertyRepresentation::Stored(stored) = logical.representation else {
+                        continue;
+                    };
+                    let hir::PropertyBacking::ClassField { field, initializer } = stored.backing
                     else {
                         continue;
                     };
@@ -173,41 +178,65 @@ impl Lowerer {
                             property.name.text, self.classes[owner].name
                         );
                     }
-                    let expected = self.class_fields[field].ty;
-                    let lowered = self.with_constructor_expression_context(
-                        constructor,
-                        "stored property initializer",
-                        |this, sink| {
-                            if !primary_parameters_visible {
-                                this.constructor_params_in_scope.clear();
-                            }
-                            let value =
-                                this.lower_expr(property_initializer, sink, Some(expected))?;
-                            if !this.is_subtype(value.ty, expected) {
-                                let message = this.with_nominal_invariance_detail(
-                                    format!(
-                                        "initializer of property `{}` must be of type {}, found {}",
-                                        property.name.text,
-                                        this.type_name(expected),
-                                        this.type_name(value.ty)
-                                    ),
-                                    value.ty,
-                                    expected,
-                                );
-                                this.error(property_initializer.span(), message);
-                                return None;
-                            }
-                            Some(this.adapt_to(value, expected))
-                        },
-                    );
-                    if let Some(lowered) = lowered {
-                        steps.push(hir::ClassInitializationStep::StoredProperty {
-                            field,
-                            initializer: hir::ConstructorExpression {
+                    let expected = logical.ty;
+                    let initializer = match initializer {
+                        hir::ClassPropertyInitializer::Expression => {
+                            let Some(property_initializer) = property.initializer() else {
+                                continue;
+                            };
+                            self.with_constructor_expression_context(
+                                constructor,
+                                "stored property initializer",
+                                |this, sink| {
+                                    if !primary_parameters_visible {
+                                        this.constructor_params_in_scope.clear();
+                                    }
+                                    let value = this.lower_expr(
+                                        property_initializer,
+                                        sink,
+                                        Some(expected),
+                                    )?;
+                                    if !this.is_subtype(value.ty, expected) {
+                                        let message = this.with_nominal_invariance_detail(
+                                            format!(
+                                                "initializer of property `{}` must be of type {}, found {}",
+                                                property.name.text,
+                                                this.type_name(expected),
+                                                this.type_name(value.ty)
+                                            ),
+                                            value.ty,
+                                            expected,
+                                        );
+                                        this.error(property_initializer.span(), message);
+                                        return None;
+                                    }
+                                    Some(this.adapt_to(value, expected))
+                                },
+                            )
+                            .map(|lowered| hir::ConstructorExpression {
                                 locals: lowered.locals,
                                 statements: lowered.statements,
                                 value: lowered.value,
-                            },
+                            })
+                        }
+                        hir::ClassPropertyInitializer::SyntheticNone => {
+                            Some(hir::ConstructorExpression {
+                                locals: la_arena::Arena::new(),
+                                statements: Vec::new(),
+                                value: hir::Expr {
+                                    kind: hir::ExprKind::NoneLiteral,
+                                    ty: expected,
+                                    span: property.span,
+                                    origin: self.expression_origin(property.span),
+                                },
+                            })
+                        }
+                        hir::ClassPropertyInitializer::PrimaryParameter(_) => None,
+                    };
+                    if let Some(initializer) = initializer {
+                        steps.push(hir::ClassInitializationStep::StoredProperty {
+                            field,
+                            initializer,
                             span: property.span,
                         });
                         if let Some(crate::InitializationContext {

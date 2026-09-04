@@ -61,20 +61,45 @@ impl Harness {
                 }
             })
             .collect::<Vec<_>>();
-        let fields = parameters
-            .iter()
-            .map(|parameter| {
-                self.class_fields.alloc(hir::ClassField {
-                    owner: class,
-                    name: parameter.name.clone(),
-                    access: hir::DeclarationAccess::public(),
-                    ty: parameter.ty,
-                    mutable: false,
-                    source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
-                    span: SPAN,
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut fields = Vec::with_capacity(parameters.len());
+        let mut properties = Vec::with_capacity(parameters.len());
+        for parameter in &parameters {
+            let property = hir::PropertyId::from_raw((self.properties.len() as u32).into());
+            let getter = self.property_getters.alloc(hir::PropertyGetter {
+                access: hir::DeclarationAccess::public(),
+                implementation: hir::PropertyAccessorImplementation::Storage,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            });
+            let field = self.class_fields.alloc(hir::ClassField {
+                owner: class,
+                property,
+                ty: parameter.ty,
+                source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
+                span: SPAN,
+            });
+            let actual = self.properties.alloc(hir::Property {
+                owner: hir::PropertyOwner::Class(class),
+                name: parameter.name.clone(),
+                access: hir::DeclarationAccess::public(),
+                modifier: hir::MethodModifier::Final,
+                is_override: false,
+                overrides: Vec::new(),
+                override_access: Vec::new(),
+                ty: parameter.ty,
+                capability: hir::PropertyCapability::ReadOnly { getter },
+                representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                    backing: hir::PropertyBacking::ClassField {
+                        field,
+                        initializer: hir::ClassPropertyInitializer::PrimaryParameter(parameter.id),
+                    },
+                }),
+                span: SPAN,
+            });
+            assert_eq!(actual, property);
+            fields.push(field);
+            properties.push(property);
+        }
         let base_initialization = match &base_class {
             None => hir::BaseInitialization::Root,
             Some((_, base, arguments)) => {
@@ -126,6 +151,7 @@ impl Harness {
             type_params: Vec::new(),
             representation: hir::ClassRepresentation::Declared,
             fields,
+            properties,
             constructors: vec![constructor_id],
             base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
             interfaces,

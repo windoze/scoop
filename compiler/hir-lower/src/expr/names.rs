@@ -17,6 +17,11 @@ impl Lowerer {
         name: &ast::Ident,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if name.text == "field" && self.backing_field_context.is_some() {
+            return self
+                .contextual_backing_field(name.span)
+                .map(|(read, _)| read);
+        }
         if let Some((enum_id, variant)) = self.option_variant(&name.text) {
             if self.enums[enum_id].variants[variant as usize]
                 .fields
@@ -56,19 +61,9 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
-            if let Some(global) = self.visible_global(&name.text) {
-                if matches!(
-                    self.globals[global].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(name.span, "reading an extern global");
-                }
-                return Some(hir::Expr {
-                    kind: ExprKind::GlobalRead(global),
-                    ty: self.globals[global].ty,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                });
+            if let Some(property) = self.visible_property(&name.text, None) {
+                let ty = self.properties[property].ty;
+                return self.lower_property_read(property, None, None, ty, name.span);
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
@@ -132,56 +127,13 @@ impl Lowerer {
                 .map(|field| field.read);
         }
         let receiver_ty = self.current_this_ty()?;
-        let (field, ty) = match self.types[receiver_ty].clone() {
-            Type::Class(application) => {
-                let (declaring, field, ty, _) = self.find_accessible_class_application_field(
-                    application,
-                    &name.text,
-                    receiver_ty,
-                )?;
-                (
-                    hir::FieldRef::ClassField {
-                        application: declaring,
-                        field,
-                    },
-                    ty,
-                )
-            }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let struct_id = application_value.template;
-                let index = self.structs[struct_id]
-                    .semantic_fields()
-                    .iter()
-                    .position(|field| field.name == name.text)?;
-                (
-                    hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    },
-                    self.instantiate_ty(
-                        self.structs[struct_id].semantic_fields()[index].ty,
-                        &application_value.arguments,
-                    ),
-                )
-            }
-            // Interfaces have no properties; enum payloads are only
-            // reachable through patterns.
-            _ => return None,
-        };
-        // Resolve the property identity before materializing `this`. In a
-        // nested callable, `lower_current_this` records a capture; a failed
-        // property probe must not mutate the winning candidate's closure.
-        let receiver = self.lower_current_this(name.span)?;
-        Some(hir::Expr {
-            kind: ExprKind::FieldAccess {
-                receiver: Box::new(receiver),
-                field,
-            },
-            ty,
-            span: name.span,
-            origin: self.expression_origin(name.span),
-        })
+        if let Some((property, owner, ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            let receiver = self.lower_current_this(name.span)?;
+            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
+        }
+        None
     }
 
     /// Smart-cast candidates established by `cond` evaluating to
