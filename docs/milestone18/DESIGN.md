@@ -1,6 +1,6 @@
 # M18 设计：callable 表面补齐
 
-版本：0.2（草案）
+版本：0.3（草案）
 
 对应`docs/ROADMAP.md`的M18。目标是在M16统一constraint/overload内核与M17完整source argument protocol之上，补齐三组互相耦合的callable表面：完整operator/infix、property-like `invoke`以及`?.method()`。
 
@@ -456,7 +456,7 @@ M18仅在以下条件同时满足时完成：所有operator/infix/property-like�
 
 1. context parameters：已从M18撤出，待按独立方案重新设计；本设计不规定其语法细节、函数类型身份、solver输入、closure/FFI边界或ABI；
 2. M19的secondary constructor、`init`、body property与`super`初始化；
-3. M20的use-site/star projection、capture conversion与partial type argument；
+3. M20的class upper bound与partial type argument；nominal variance、projection与capture conversion已确定不进入语言；
 4. M21的普通/extension property声明、object/companion、property delegate及`provideDelegate/getValue/setValue`协议；本里程碑只消费已有field/global/value；
 5. M22的`for`/`break`/`continue`实现、IntRange等core range类型与`until/downTo/step`库；M18只交付range operator表面和typed iterator角色；
 6. M23的跨Cone读取与import层实现；M18只定义必须导出的operator/callable metadata；

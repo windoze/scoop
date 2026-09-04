@@ -4,6 +4,8 @@
 
 对应 `docs/ROADMAP.md` 的 M10。目标：实现命名 `suspend` 函数/方法、完全类型化的状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3），并保证异常、`finally` 与 M9 GC 在真实挂起后仍保持源码语义。
 
+> M20 更新：coroutine core protocol改为统一invariant generic application，原interface variance bridge契约撤销；本设计中的协议声明与hidden ABI描述已按M20后的语言边界修订。
+
 > M25 更新：handler 在挂起前物化异常并结束 native catch 的语义保持不变；native record、begin/end/rethrow 与生命周期实现改由 Scoop 自有异常 ABI 提供，详见 `docs/milestone25/DESIGN.md`。
 
 ## 0. 范围与关键决策
@@ -65,16 +67,16 @@ fun main() {
 core 新增 `sysroot/lib/scoop.core/src/coroutine.scoop`：
 
 ```
-interface Continuation<in T> {
+interface Continuation<T> {
     fun resume(value: T)
     fun resumeWithException(exception: Throwable)
 }
 
-interface SuspendTask<out T> {
+interface SuspendTask<T> {
     suspend fun run(): T
 }
 
-interface SuspendRegistration<out T> {
+interface SuspendRegistration<T> {
     fun register(continuation: Continuation<T>)
 }
 
@@ -265,7 +267,7 @@ MIR 是 M10 的主实现层：
 - 引入 `CoroutineFrameId`、`CoroutineResumePointId`、`CoroutineAdapterId`、`CoroutineStepId` 等互不混用的 id；生成实体进入普通 type/function list，但保留 synthetic origin 供 dump 与诊断；
 - frame 字段由 liveness + pending cleanup 构成；所有字段类型完备。frame/adapter 构造是普通 class allocation，字段 store 走既有写屏障；
 - direct / virtual / interface suspend call 统一追加 continuation 参数并返回具体 `CoroutineStep<R>`；分派表槽指向 transformed symbol；
-- 泛型 interface 的型变 bridge 同步适配 hidden ABI：例如 `SuspendTask<Dog>` 作为 `SuspendTask<Animal>` 调用时，可把 `Continuation<Animal>` 传给具体实现，并把立即完成的 `CoroutineStep<Dog>.Completed` 提升为 `CoroutineStep<Animal>.Completed`；`Suspended` 不改写。不得把不同 `CoroutineStep<T>` 擦除为同一 ABI；
+- `SuspendTask<T>`、`Continuation<T>`与hidden `CoroutineStep<T>`都使用同一个exact `T`；`startCoroutine`的generic constraint必须把task、completion与结果绑定为同一application。`SuspendTask<Dog>`不能作为`SuspendTask<Animal>`调用，也不得把不同`CoroutineStep<T>`擦除为同一ABI；
 - `coroutine_start` 在 MIR 展开：调用 `SuspendTask<T>.run` hidden ABI，`Completed(v)` 时在 try 范围之外调用 completion.resume，`Suspended` 时返回；task body 的未处理异常转 completion failure；
 - `coroutine_suspend` 生成/调用每个 `T` 的 safe-continuation helper，处理 registering / suspended / completed 状态，不进入 runtime；
 - MIR dump 明确列出 frame 字段、状态编号、每个 resume point 的结果类型、CFG normal/unwind edges，作为状态机结构的权威 golden。

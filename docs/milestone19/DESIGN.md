@@ -1,6 +1,6 @@
 # M19 设计：构造与初始化
 
-版本：0.1（草案）
+版本：0.2（草案）
 
 对应 `docs/ROADMAP.md` 的 M19。目标是在 M16 统一调用决议、M17 完整 source argument protocol、M18 callable 表面之上，补齐 class / struct 的构造闭环：普通 primary parameter、secondary constructor、class stored body property、`init`、基类构造委托与 `super.method()`，并把初始化顺序、半初始化对象边界、异常及 moving GC 契约一次锁定。
 
@@ -430,7 +430,7 @@ M19只有在以下条件同时满足时完成：每个construction / delegation�
 
 ## 8. 明确不做
 
-1. M20的non-interface variance、use-site/star projection、capture conversion、class upper bound与partial type argument；
+1. M20的class upper bound与partial type argument；nominal variance、projection与capture conversion已确定不进入语言；
 2. M21的计算 / extension / interface / delegated property、自定义getter/setter、无initializer / `lateinit`、object / companion、constructor/property visibility与annotation、interface default implementation；
 3. interface-qualified `super<I>.method()`；它依赖M21 interface default implementation的冲突选择；
 4. nested / inner class及捕获outer receiver的constructor；object / companion / top-level初始化顺序和循环仍由M21定义；

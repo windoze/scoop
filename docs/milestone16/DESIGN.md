@@ -1,10 +1,12 @@
 # M16 设计：统一约束系统与重载决议
 
-版本：0.1（草案）
+版本：0.2（草案）
 
 对应`docs/ROADMAP.md`的新M16。目标是在不增加新调用语法的前提下，替换M3/M7以来分散的generic inference、单候选直降、overload applicability、lambda postponed check与M14 bound检查路径，建立一个供所有源码callable和构造表达式使用的统一HIR调用决议内核。
 
-M16完成的是**当前已经进入语言的类型系统**：完整concrete generic application、interface声明点variance、函数类型variance、kind/interface bound、值类型装箱、lambda/callable reference与non-virtual generic method。use-site/star projection、capture conversion、context parameter和定宽整数字面量widen尚未进入当前类型系统，不在M16伪造半成品；以后只能扩展本里程碑建立的constraint relation，不能另建旁路resolver。
+> M20 更新：solver中的interface declaration-site variance分支由统一nominal invariance取代；本文的constraint与测试边界已同步最终语言决定。
+
+M16完成的是**当前已经进入语言的类型系统**：exact invariant concrete generic application、函数类型variance、kind/interface bound、值类型装箱、lambda/callable reference与non-virtual generic method。nominal declaration/use-site variance、star projection与capture conversion不属于Scoop类型系统；context parameter和定宽整数字面量widen尚未进入当前类型系统，以后只能扩展本里程碑建立的constraint relation，不能另建旁路resolver。
 
 ## 0. 关键决策与范围
 
@@ -25,7 +27,7 @@ M16完成的是**当前已经进入语言的类型系统**：完整concrete gene
 3. 只有多个同层候选时进入`overload`模块，单候选保留旧的arity/type diagnostic直降路径；
 4. lambda、`None`、空数组、nested generic constructor及callable reference各自维护expected-type postponement入口。
 
-这些路径在简单调用上结果一致，但加入generic owner + generic method、function/interface variance、默认参数与vararg之后会出现结构性分歧。M16退役以下假设：
+这些路径在简单调用上结果一致，但加入generic owner + generic method、function type variance、默认参数与vararg之后会出现结构性分歧。M16退役以下假设：
 
 - `arg_count == param_count`可以在候选外统一检查；
 - 同一个source argument对所有候选都具有相同期望类型和lowering结果；
@@ -118,7 +120,7 @@ receiver是独立字段，因为它参与extension generic inference与MSC，却
 constraint至少包含：
 
 - `Equal(A, B)`：invariant nominal argument、显式type argument及必须完全相等的结构；
-- `Subtype(A, B)`：普通实参到参数、函数返回到期望位置、interface variance与装箱；
+- `Subtype(A, B)`：普通实参到参数、函数返回到期望位置、nominal继承/conformance、函数类型variance与装箱；
 - `CallableShape(actual, expected)`：lambda/anonymous/callable reference的ordinary/suspend、arity、parameter与return关系；
 - `Kind(variable, Value|Ref)`：M12 kind bound；
 - `Implements(variable, InterfaceApplication)`：M14 interface upper bound；
@@ -126,13 +128,12 @@ constraint至少包含：
 
 `constrain_subtype(A, B)`按类型结构递归：
 
-- 同一invariant class/struct/enum/Array application逐项产生`Equal`；
-- 同一interface application按声明点`out`同向、`in`反向、不变等式展开；
+- 同一class/struct/enum/interface/Array application逐项产生`Equal`；所有nominal generic application都为invariant；
 - function type按参数逆变、返回协变，并要求suspend标志和arity匹配；
 - nominal继承、interface实现及value-to-ref boxing使用现有typed关系；
 - `TypeParam`只能在candidate template probe中转为当前session的fresh variable，不得越过session或进入成功输出。
 
-当前没有union/existential/projection。求解需要某组lower bounds的共同上界时，只能选择HIR当前可表达的唯一最小解；多个互不可比较的最小解、需要尚不存在的交叉类型或无法保持value representation时均为无唯一解，不能无条件回退`Any`。
+当前没有union或可作为表达式类型的intersection；Scoop也不提供existential/projection。求解需要某组lower bounds的共同上界时，只能选择HIR当前可表达的唯一最小解；多个互不可比较的最小解、需要尚不存在的交叉类型或无法保持value representation时均为无唯一解，不能无条件回退`Any`。
 
 ### 2.5 Applicability固定点
 
@@ -284,7 +285,7 @@ compiler intrinsic/core contract可以在candidate选择后把唯一typed target
 
 ### 8.1 solver unit
 
-- equality、上下界传播、invariant nominal、interface in/out、function parameter contravariance/return covariance；
+- equality、上下界传播、class/struct/enum/interface invariant nominal、function parameter contravariance/return covariance；
 - owner/callable两组变量、显式绑定、kind/interface多bound、唯一解/无解/多解；
 - 多轮固定点：后一个实参先固定变量，前面的`None`/空数组/nested constructor随后完成；
 - 无可表达LUB、value/ref装箱边界与多个互不可比较interface；
@@ -325,7 +326,7 @@ M16只有在所有现有callable/constructor入口都通过同一resolver、MSC�
 
 1. 命名参数、默认参数、`vararg`及其MSC附加规则——M17；
 2. context parameters、完整operator/infix与property-like callable——后续callable语义里程碑；
-3. use-site`in`/`out`、star projection、capture conversion及projection-aware LUB——后续泛型里程碑，但必须扩展本solver；
+3. nominal declaration/use-site `in`/`out`、star projection、capture conversion及projection-aware LUB——语言明确不引入；solver始终只处理exact invariant nominal application；
 4. 定宽整数字面量类型与Widen MSC规则——随数值类型里程碑；
 5. `OverloadResolutionByLambdaReturnType`、builder inference、SAM conversion、receiver function type；
 6. 部分显式type argument的`_`、polymorphic function value、higher-kinded type、associated type或runtime generic dictionary；

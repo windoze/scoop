@@ -1,16 +1,18 @@
 # M14 设计：泛型类型、上界约束与接口化
 
-版本：0.1（草案）
+版本：0.2（草案）
 
-对应 `docs/ROADMAP.md` 的 M14。目标：统一generic nominal type的template/application/concrete模型，补齐 invariant generic class并整改既有generic struct/enum/interface表示；把已有generic member function收紧并补全为明确的non-virtual generic method模型；落地 interface 类型上界与 `where` 子句，使 function、class、struct、enum 与 interface 的 generic template 可以只依赖上界做成员解析；把字符串化、哈希和值相等从历史 `Any` 固定方法槽迁移到 `ToString` / `Hash` / `operator fun equals`；同时完成一次 IR 输出完备性整改，清除目前由下游按上下文、字符串或并行字段猜测必要信息的路径。
+对应 `docs/ROADMAP.md` 的 M14。目标：统一generic nominal type的template/application/concrete模型，补齐 generic class并整改既有generic struct/enum/interface表示；把已有generic member function收紧并补全为明确的non-virtual generic method模型；落地 interface 类型上界与 `where` 子句，使 function、class、struct、enum 与 interface 的 generic template 可以只依赖上界做成员解析；把字符串化、哈希和值相等从历史 `Any` 固定方法槽迁移到 `ToString` / `Hash` / `operator fun equals`；同时完成一次 IR 输出完备性整改，清除目前由下游按上下文、字符串或并行字段猜测必要信息的路径。
+
+> M20 更新：M14实现时继承的interface声明点variance与bridge现已撤销；本文的generic nominal契约按M20后的统一invariant模型修订，历史实现清理由M20完成。
 
 M14 完成后，class/struct/enum/interface都使用同一原则下、按declaration kind隔离的generic template/application/concrete模型；普通用户声明的`class C<T>`与core的`Array<T>` / `MutableArray<T>`使用同一套generic class解析、约束、单态化和跨Cone export模型，数组只在representation与专用操作上是intrinsic，不在类型身份或泛型规则上另建特例。`Any`仍是所有类型的根，但没有成员；vtable不再保留固定前三槽，`TypeDescriptor`也不承担通用equals/hash/toString分发。M15 moving compaction因而不再背负按对象地址实现的默认字符串化或哈希语义。
 
 ## 0. 范围与关键决策
 
-- M14统一generic nominal type模型：把既有generic struct/enum/interface与新增的generic class全部改为“template declaration → 完整type application → local concrete specialization”三类typed identity。`class C<T>`补齐constructor推导、generic base/interface、宿主成员解析与完整单态化；class/struct/enum的type parameter在M14全部为invariant，interface继续使用既有声明点variance规则，非interface声明点`in`/`out`留待后续；
+- M14统一generic nominal type模型：把既有generic struct/enum/interface与新增的generic class全部改为“template declaration → 完整type application → local concrete specialization”三类typed identity。`class C<T>`补齐constructor推导、generic base/interface、宿主成员解析与完整单态化；class/struct/enum/interface的type parameter统一为invariant，所有nominal type parameter上的声明点`in`/`out`均为非法语法，不预留另一套型变身份或分派路径；
 - M14把generic method作为正式功能闭环：class/struct/enum member可以声明自己的type parameter与bound，但必须non-virtual；class generic method语义上必须为final，任何generic method都不能是open/abstract/override、不能实现interface slot，也不进入vtable/itable。宿主参数与方法参数使用不同typed identity并共同形成concrete callable；
-- M14 落地 `T : Interface` 和 `where T : Interface`。同一类型参数可以有多个 interface 上界，并统一适用于function、class、struct、enum与interface；M14 不引入 class 上界、交叉类型值或使用点类型投影；
+- M14 落地 `T : Interface` 和 `where T : Interface`。同一类型参数可以有多个 interface 上界，并统一适用于function、class、struct、enum与interface；M14 不引入 class 上界或交叉类型值，Scoop不提供使用点类型投影；
 - `value` / `ref` kind bound 与 interface 上界继续互斥。同一类型参数一旦有任一 interface 上界，就不能再有 `value` / `ref` 约束；
 - generic template 中对有界类型参数的成员调用在 HIR 解析为类型化的 bound member，不生成运行期 dictionary/witness 参数。实例化时由 HIR 将它解析为 concrete direct / virtual / interface call；`LocalConcreteHir` 不允许保留 type parameter 或未决 bound call；
 - `ToString` 和 `Hash` 是普通 nominal interface，所有类型都必须显式adopt并提供实现，编译器不为任何值类型自动生成这两个interface的conformance或成员。“参数类型等于当前完整concrete value type”的equals仍可条件派生。Scoop没有内建`Self`类型，interface也没有隐含的实现者类型参数；
@@ -32,19 +34,16 @@ M14 完成后，class/struct/enum/interface都使用同一原则下、按declara
 | class/struct/enum generic method | M14补齐为2.8的non-virtual完整模型 |
 | interface method-level type parameter | 当前定义处拒绝；动态分派与跨Cone ABI进入backlog |
 | generic class/struct/enum/interface及generic继承/实现 | M14统一template/application/concrete identity并完成layout/dispatch |
-| interface declaration-site variance | 既有能力；M14迁移到完整application identity并保留variance bridge |
-| class/struct/enum declaration-site variance | backlog；M14 invariant |
+| nominal declaration-site variance、use-site projection与star projection | 明确不支持；class/struct/enum/interface application统一invariant且必须完整 |
 | interface upper bound、多个bound、F-bound、`where` | M14 |
 | class upper bound与表达式交叉类型 | backlog |
-| use-site `in`/`out` projection | backlog，独立于声明点variance |
-| star projection与capture conversion | backlog；不得用擦除或`Any`代替 |
 | exact generic RTTI及`is`/`as`/`as?` | M14只支持完整application |
 | generic callable recursion与实例化闭包终止 | M14接受identity recursive SCC；一般polymorphic recursion进入backlog |
 | generic `typealias` | backlog；需透明展开、cycle与export设计 |
 | generic extension property | backlog，依赖property基础能力 |
 | nested/inner generic type与generic class companion作用域 | backlog，依赖nested/object基础能力 |
 | 显式实参`_`占位/部分推断 | backlog；M14仍为整组省略或整组给出 |
-| fresh-variable与postponed argument的统一constraint solver | M16；projection参与的MSC/LUB在后续projection里程碑扩展同一solver |
+| fresh-variable与postponed argument的统一constraint solver | M16；nominal application始终按exact invariant约束参与MSC/LUB |
 | runtime dictionary/shared generic body | backlog中的可选未来优化，不得作为correctness fallback |
 | polymorphic function value、generic lambda、HKT、associated type、const generic、用户specialization | 当前语言明确不引入 |
 
@@ -126,7 +125,6 @@ fun main() {
 ```text
 TypeParamDecl {
     name: Ident,
-    variance: Variance,
     inline_bound: Option<TypeBound>,
     span: Span,
 }
@@ -167,7 +165,7 @@ class PrintableBox<T : ToString>(val value: T) : ToString {
 }
 ```
 
-直接 bound 与 `where` 进入同一 ordered constraint list；parser 不做名称解析或“interface”判断，只保留每个参数名、bound 与精确 span。`where` 中未知参数、重复约束、非法 bound kind及上界不是 interface都在 HIR 诊断。M14将同一套类型参数与约束语法开放给function、class、struct、enum与interface；class不允许声明点`in`/`out`，该限制由HIR在variance modifier的准确span诊断，而不是让parser丢失信息。
+直接 bound 与 `where` 进入同一 ordered constraint list；parser 不做名称解析或“interface”判断，只保留每个参数名、bound 与精确 span。`where` 中未知参数、重复约束、非法 bound kind及上界不是 interface都在 HIR 诊断。M14将同一套类型参数与约束语法开放给function、class、struct、enum与interface；nominal与callable type parameter都不能带声明点`in`/`out`，parser在modifier的准确span报告并恢复，不把variance写入合法AST。
 
 ### 2.2 声明合法性
 
@@ -177,9 +175,9 @@ HIR 对每个 generic 声明执行以下检查：
 2. `Upper(TypeRef)` 必须解析为完整的 interface application，保留 interface typed id与全部类型实参；裸 class、struct、enum、函数类型、`Any`、另一 type parameter以及未完整应用的generic interface都不是 M14 合法上界；
 3. 同一参数可以有多个不同的 interface 上界，但不能重复同一个正规化后的 interface application；
 4. `value` / `ref` 最多出现一次，且与任意 interface 上界互斥；
-5. 上界中的类型实参可以引用当前声明作用域内的 type parameter，因此 `T : Comparable<T>` 合法；所有引用仍须满足目标 interface 自身的arity、variance与bound；
+5. 上界中的类型实参可以引用当前声明作用域内的 type parameter，因此 `T : Comparable<T>` 合法；所有引用仍须满足目标 interface 自身的arity与bound；
 6. interface 继承闭包中重复到达的同一上界按typed identity去重。循环interface继承仍由既有继承环检查诊断，不能靠遍历深度上限截断；
-7. generic class/struct/enum的类型参数在M14必须是invariant；`in`/`out`是已识别但当前不合法的声明，并给出指向后续non-interface variance能力的正式诊断；
+7. generic class/struct/enum/interface及generic callable的类型参数全部为invariant；`in`/`out`是已识别但不合法的声明，不给出未来variance能力的暗示；
 8. 无约束参数的语义仍是接受任意类型，但这不等于隐式拥有一个可调用成员的 `Any` 上界，因为 `Any` 没有成员。
 
 M14 不把多个上界物化为一个可写入变量的交叉类型。它们只构成 type parameter 的能力集合；普通表达式的类型仍必须是现有的单一 `TypeId`。
@@ -188,7 +186,7 @@ M14 不把多个上界物化为一个可写入变量的交叉类型。它们只�
 
 类型实参 `A` 满足 `T : I<X...>`，当且仅当把当前 substitution 应用于整个上界后，`A` 是该 concrete interface application 的子类型：
 
-- class/interface按普通继承、实现与声明点型变规则判断；
+- class/interface按普通继承、实现与exact application判断；同一generic nominal template的实参不完全相等时，不因实参之间存在子类型关系而建立子类型关系；
 - struct/enum与class一样，只按源码显式声明的interface conformance判断；条件派生的equals是成员，不产生interface conformance；
 - tuple/Unit不能在源码中声明implements列表，因此M14不满足任何普通interface上界，也不能因元素成员同形而被视为实现某个interface；
 - 装箱不是“满足上界”的额外规则。值类型本身实现 interface 后可以作为 `T`，只有在实际需要interface ref表示时才按既有 O(1) 规则装箱；
@@ -232,10 +230,10 @@ BoundCallableRef {
 generic class不是数组专用能力；generic struct/enum/interface也不能因为早于M14已经可用，就继续保留一套较弱的IR表示。M14必须对class、struct、enum与interface统一打通声明、完整application、成员/构造、layout/dispatch identity与跨Cone实例化的闭环：
 
 - `class C<T...>`、`struct S<T...>`、`enum E<T...>`分别形成export侧generic template。constructor property、struct field、enum variant payload、implemented interface、成员签名和成员body都可以引用宿主type parameter；
-- `interface I<T...>`同样形成export侧generic template；父interface application与方法签名/body可以引用宿主type parameter，并继续执行既有声明点variance位置检查；
+- `interface I<T...>`同样形成export侧generic template；父interface application与方法签名/body可以引用宿主type parameter，参数仍统一为invariant；
 - class额外允许generic base application及base constructor argument：`class D<T>(value: T) : B<T>(value), I<T>`在template检查期保留完整的base/interface application。每个fully specialized `D<A>`再解析到唯一的`B<A>`与`I<A>` concrete identity；继承环和override在应用substitution后仍必须成立；
-- 继承/implements闭包只对完全相同的interface application去重。同一实现者可以在类型上到达同一template的不同application；它们保留不同TypeDescriptor/itable key和不同成员obligation，声明点variance关系按既有bridge规则单独 materialize。若多个obligation需要无法由Scoop overload/override规则同时表达的实现（例如只按返回类型区分），在实现检查处诊断，不能任选一个application或擦除实参合并slot；
-- class/struct/enum application在M14全部invariant。同一template的两个application只有所有实参相等时才是同一类型；struct/enum不同application之间没有subtyping，class仍可通过普通继承使`D<A>`成为其已解析base application的子类型；
+- 继承/implements闭包只对完全相同的interface application去重。同一实现者可以在类型上到达同一template的不同application；它们保留不同TypeDescriptor/itable key和不同成员obligation，不生成连接这些application的variance bridge。若多个obligation需要无法由Scoop overload/override规则同时表达的实现（例如只按返回类型区分），在实现检查处诊断，不能任选一个application或擦除实参合并slot；
+- 所有nominal application都为invariant。同一template的两个application只有所有实参相等时才是同一类型；struct/enum/interface不同application之间没有subtyping，class仍可通过普通继承使`D<A>`成为其声明并解析出的base application的子类型；
 - class/struct constructor与enum variant构造均支持完整显式实参或整组推导。显式列表必须覆盖宿主全部参数；没有足够约束唯一求出所有参数时在HIR报错，不以`Any`或bound默认填补；
 - constructor与enum variant constructor不声明自己独立的type parameter；构造调用中的类型实参始终对应nominal host。未来的secondary constructor也只复用class参数，不形成generic method式的第二组参数；
 - generic宿主上的普通成员先用receiver静态类型确定宿主实参，再检查成员调用；class/struct/enum成员自身也generic时，单态化身份按spec 3.2固定为“宿主实参前缀、方法实参后缀”。两组参数使用不同typed id，不能按名称或裸索引拼接；interface成员自身的type parameter按2.7在定义处拒绝；
@@ -284,7 +282,7 @@ ConcreteTypeKind =
 
 每一组`ExportGeneric*Id`、`Export*ApplicationId`与`Concrete*Id`都是互不兼容的typed id。export application携带完整实参，local concrete type则只引用已经完成替换的concrete entity；当前`Type::Struct(StructId, Vec<TypeId>)`、`Type::Enum(EnumId, Vec<TypeId>)`、`Type::Interface(InterfaceId, Vec<TypeId>)`以及不带application identity的class表示都必须退出export HIR，不能用“声明id + 参数Vec”同时冒充template、application与concrete实例。
 
-每个concrete entity非可选地携带local-concrete侧的kind-specific typed origin、全部concrete arguments及已替换的内容：class为field/base/interface/member闭包，struct为field/interface/member闭包，enum为variant/interface/member闭包，interface为parent/member/variance闭包。`ConcreteClassOriginId` / `ConcreteStructOriginId` / `ConcreteEnumOriginId` / `ConcreteInterfaceOriginId`与对应的`ExportGeneric*Id`是互不兼容的类型；concretizer内部显式建立映射，不能把export arena id直接塞进`LocalConcreteHir`。class的`ConcreteClassRepresentation`还必须是区分ordinary/intrinsic的sum type，而不是`is_intrinsic: bool + Option<...>`；ordinary分支携带普通class layout输入，intrinsic分支携带该表示族要求的完整concrete参数。
+每个concrete entity非可选地携带local-concrete侧的kind-specific typed origin、全部concrete arguments及已替换的内容：class为field/base/interface/member闭包，struct为field/interface/member闭包，enum为variant/interface/member闭包，interface为parent/member闭包。`ConcreteClassOriginId` / `ConcreteStructOriginId` / `ConcreteEnumOriginId` / `ConcreteInterfaceOriginId`与对应的`ExportGeneric*Id`是互不兼容的类型；concretizer内部显式建立映射，不能把export arena id直接塞进`LocalConcreteHir`。class的`ConcreteClassRepresentation`还必须是区分ordinary/intrinsic的sum type，而不是`is_intrinsic: bool + Option<...>`；ordinary分支携带普通class layout输入，intrinsic分支携带该表示族要求的完整concrete参数。
 
 本Cone和下游Cone使用同一个HIR concretizer，以kind-specific `(ExportGeneric*Id, concrete arguments)`作为typed memo key，产生对应concrete id及其依赖闭包。`ExportHir`只导出template/application及类型化依赖，`LocalConcreteHir`只保存本Cone实际需要发射的fully specialized type与函数；MIR不能读取任何generic nominal template或自行替换宿主参数。
 
@@ -322,7 +320,7 @@ GenericIntrinsicRepresentation =
   | MutableArray { element_parameter: IntrinsicTypeParameterIndex }
 ```
 
-`core_array`与`core_mutable_array`的schema都精确要求一个无bound、invariant参数。registry验证arity、variance、bound、target kind、成员/intrinsic operation签名与provider唯一性；测试authority只放宽provider来源，不放宽generic shape。
+`core_array`与`core_mutable_array`的schema都精确要求一个无bound、invariant参数。registry验证arity、bound、target kind、成员/intrinsic operation签名与provider唯一性；测试authority只放宽provider来源，不放宽generic shape。
 
 完成迁移后，export侧的`Array<X>`就是普通`ExportClassApplicationId`，local侧则是`ConcreteClassId`，其`ConcreteClassRepresentation::Intrinsic`完整携带`Array { element: ConcreteTypeId }`或`MutableArray { element: ConcreteTypeId }`。当前HIR/MIR中独立的`Type::Array(T)` / `Type::MutableArray(T)`类型身份必须删除；数组专用expression可以保留，但每个节点必须直接携带来源/目标concrete array class，不能由expected type、operand type或元素expression重建数组种类与元素类型。
 
@@ -358,7 +356,7 @@ struct Pair<T>(val first: T, val second: T) {
 规则如下：
 
 - 顶层、局部与extension generic function继续使用普通direct单态化；class、struct与enum的member可以额外声明method type parameter。M14的`TypeBound` / `where`规则同样用于这些callable，不能只对top-level function或nominal host生效；
-- callable自身声明的type parameter始终invariant，不能写声明点`in`/`out`；声明点variance只属于nominal type parameter，函数参数/返回位置通过普通constraint solving体现方向；
+- callable自身声明的type parameter始终invariant，不能写声明点`in`/`out`；函数参数/返回位置通过普通constraint solving体现方向，函数类型自身的逆变/协变子类型规则与nominal generic无关；
 - class generic method必须语义为final。显式`open`、`abstract`、`override`以及隐含open的override形态均在声明处报错；struct/enum method本来即为final。generic method不能占据或覆盖vtable/itable slot，也不能作为某个非generic interface method的“每次调用再选一个实例”的实现；
 - 通过base静态类型调用继承到的generic method时，直接调用声明该final method的concrete实例。运行期对象的派生class不能替换该目标，因此不会出现“generic virtual dispatch”；
 - receiver先确定全部宿主实参；调用处的显式`<...>`只对应method自身参数，并且仍须全部给出或全部推导。推导器随后以“宿主substitution + method实参 + 全部bound”为一个固定点求解问题；method参数不得与宿主参数重名；
@@ -594,7 +592,7 @@ String、boxed primitive、boxed aggregate、closure、array与普通class全部
 ### 7.1 parser / AST
 
 - 增加通用 `operator` function modifier、`TypeBound`、`WhereClause` 与每项独立span；
-- `ClassDecl`与function/struct/enum/interface一样保存完整`type_params`；class/struct/enum的constructor或variant、base/interface列表与成员都在同一宿主type-parameter scope解析。parser保留non-interface type上的variance modifier，由HIR执行M14的invariant限制；
+- `ClassDecl`与function/struct/enum/interface一样保存完整`type_params`；class/struct/enum的constructor或variant、base/interface列表与成员都在同一宿主type-parameter scope解析。parser识别type parameter上的`in`/`out`后在精确span报错并恢复，合法AST不保存variance；
 - `where`与inline bound可用于top-level/local/extension function及class/struct/enum method；method modifier AST必须保留足以在HIR区分final/open/abstract/override的结构，不能在parser看到generic就静默改成final；
 - `@Intrinsic`允许登记表批准的struct/class省略普通representation声明；AST仍只保留annotation和源码语义成员，不制造伪字段或伪constructor；
 - generic声明dump/golden保留inline bound与where的源码顺序；
@@ -739,7 +737,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 ### 9.1 parser / HIR negative
 
 - inline bound、多个where constraint、generic class/struct/enum/interface template与独立application identity、F-bound与源码顺序dump；
-- generic nominal arity错误、裸/部分application、constructor/variant实参无法完整推导、bound失败、class/struct/enum声明点`in`/`out`以及替换后非法base/interface/override；
+- generic nominal arity错误、裸/部分application、constructor/variant实参无法完整推导、bound失败、任意type parameter上的声明点`in`/`out`以及替换后非法base/interface/override；
 - generic method的open/abstract/override/interface声明、试图实现或覆盖dispatch slot、方法参数与宿主参数重名、显式方法实参数目错误、method bound失败及无法由期望函数类型具体化的callable reference；
 - generic recursive callable SCC中的identity参数传递正例，以及`f<T> -> f<Option<T>>`和互递归参数增长的定义处诊断；
 - `Self`未定义时按普通unknown type诊断、存在同名用户类型时按该nominal identity解析且绝不替换为宿主；interface method-level type parameter在声明处拒绝，不产生“声明合法但某类receiver不可调用”的诊断分支；
@@ -766,11 +764,11 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 ### 9.3 core/runtime与端到端
 
 - String、Boolean、Int、UInt的ToString；String/basic Hash的一致性；地址变化不影响字符串/hash；
-- 普通generic class/struct/enum的显式/推导构造、嵌套application、bound与宿主成员/generic成员组合；generic method覆盖普通/泛型宿主、显式/推导method实参、method bound、继承后direct调用、suspend/closure/NoGC组合及expected-type callable reference，并反向检查不进入vtable/itable；class另覆盖generic base/interface及不同实参隔离的TD/vtable/itable，struct/enum另覆盖不同实参隔离的value layout、逐variant GC-free flag与递归扫描，generic interface另覆盖variance、父interface闭包及不同application的TD/itable key隔离；
+- 普通generic class/struct/enum的显式/推导构造、嵌套application、bound与宿主成员/generic成员组合；generic method覆盖普通/泛型宿主、显式/推导method实参、method bound、继承后direct调用、suspend/closure/NoGC组合及expected-type callable reference，并反向检查不进入vtable/itable；class另覆盖generic base/interface及不同实参隔离的TD/vtable/itable，struct/enum另覆盖不同实参隔离的value layout、逐variant GC-free flag与递归扫描，generic interface另覆盖exact父interface闭包及不同application的TD/itable key隔离；
 - `is` / `as` / `as?`区分不同generic class/interface application，generic body中的type parameter测试在实例化后引用exact concrete TypeDescriptor，不存在擦除或裸generic RTTI；
 - generic `Throwable`子类的每个application同样具有独立TypeDescriptor：exact application catch只匹配相应实例，catch其非generic基类仍可匹配全部实例；不因JVM擦除限制而禁止generic异常类；
 - `EqualTo<T>`一类显式实现者类型参数契约经concrete/interface/bounded receiver调用；所有interface application都能用于变量、字段、参数、返回值与cast，不存在object-safety差异；
-- 同一对象实现/继承`I<Int>`与`I<String>`时使用不同itable key，variance bridge不抹去application identity；能由不同参数overload满足的obligation正确分派，只按返回类型区分等不可表达冲突给出定义处诊断；
+- 同一对象实现/继承`I<Int>`与`I<String>`时使用不同itable key，二者之间不生成bridge；能由不同参数overload满足的obligation正确分派，只按返回类型区分等不可表达冲突给出定义处诊断；
 - `Array<T>` / `MutableArray<T>`从core generic intrinsic class取得唯一nominal identity，数组字面量、size、下标、转换与GC扫描继续通过typed representation工作；反向检查HIR/MIR不再存在独立built-in array type identity或按名称映射；
 - struct/enum/tuple/Unit条件相等派生、嵌套generic、显式同类型equals覆盖派生及失败字段诊断；普通`ToString`只覆盖显式adoption；
 - value/reference/interface equals、`!=`一次取反、short-circuit与左右求值各一次；`===`行为不变；
@@ -793,24 +791,23 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 8. 按数据流顺序完成附加整改：HIR typed identity → MIR expression type → LIR call/metadata/provenance/非法组合 → mechanical codegen；
 9. 更新core/runtime测试、stage golden、negative与组合fixture，执行格式化、lint和全量测试。
 
-M14 只有在以下条件同时满足时完成：普通用户generic class/struct/enum/interface都以独立template/application/concrete typed identity打通声明、成员与单态化，class/struct/enum完成各自构造和layout，class额外完成继承与分派，interface额外完成variance与itable identity，且任一generic template确实能仅依赖interface bound通过独立/下游实例化；non-interface generic method完整支持两组参数、bound、推导、callable reference与direct concrete emission，所有virtual/override/interface-slot形态都在HIR定义处拒绝，实例化图对普通递归终止且对polymorphic recursion给出结构化诊断；exact generic application参与RTTI/cast而不擦除实参；AST到LIR不存在`Self`语义实体或object-safety分类，每个合法interface application及其全部成员都可经itable使用；`Array<T>` / `MutableArray<T>`使用同一generic class身份并且旧built-in type identity已删除；Int/String/Array等intrinsic type的能力来自core显式声明且固定/表示族representation全程typed，测试authority只放宽指定provider来源；`Any`在所有层都没有隐式方法或固定槽；print/hash/equality都不使用地址fallback；每项附加整改已删除对应的下游猜测路径，而不只是新增一份上游字段后仍保留旧fallback。
+M14 只有在以下条件同时满足时完成：普通用户generic class/struct/enum/interface都以独立template/application/concrete typed identity打通声明、成员与单态化，全部nominal application保持exact invariant，class/struct/enum完成各自构造和layout，class额外完成继承与分派，interface额外完成exact itable identity，且任一generic template确实能仅依赖interface bound通过独立/下游实例化；non-interface generic method完整支持两组参数、bound、推导、callable reference与direct concrete emission，所有virtual/override/interface-slot形态都在HIR定义处拒绝，实例化图对普通递归终止且对polymorphic recursion给出结构化诊断；exact generic application参与RTTI/cast而不擦除实参；AST到LIR不存在`Self`语义实体或object-safety分类，每个合法interface application及其全部成员都可经itable使用；`Array<T>` / `MutableArray<T>`使用同一generic class身份并且旧built-in type identity已删除；Int/String/Array等intrinsic type的能力来自core显式声明且固定/表示族representation全程typed，测试authority只放宽指定provider来源；`Any`在所有层都没有隐式方法或固定槽；print/hash/equality都不使用地址fallback；每项附加整改已删除对应的下游猜测路径，而不只是新增一份上游字段后仍保留旧fallback。
 
 ## 11. 明确不做
 
 1. class upper bound与可作为普通表达式类型的交叉类型；M14的多个interface bound只形成type parameter能力集合；
-2. non-interface generic type的声明点`in`/`out`。class参数必须先处理可能为不同size/alignment的value实参，struct/enum还必须定义不同concrete layout间是否存在转换；M14全部按invariant处理；
-3. use-site `in` / `out` projection、star projection与capture conversion。未来设计必须分别规定projected member可读/可写签名、subtyping/推导、RTTI/cast、跨Cone metadata，并决定value-type application是禁止投影还是引入显式existential boxing；不能把`C<*>`当成擦除为`C<Any>`；
-4. interface方法自身的type parameter；未来支持必须先定义跨Cone specialization/itable ABI，且不得引入`Self`、trait object或object-safety分类；
-5. generic `typealias`的参数、bound、透明展开、循环诊断及跨Cone export；alias不得获得新的nominal/concrete identity；
-6. generic extension property，以及nested/inner generic type、generic class companion对宿主参数的可见性。这些依赖尚未实现的property、nested type与object/companion基础能力；普通property本身不能凭空拥有每次访问才实例化的method type parameter。object/companion声明自身不形成generic nominal application，也不能声明宿主type parameter，但其中的普通method未来可以按2.8声明自己的non-virtual参数；
-7. 显式类型实参中的`_`占位与“部分写出、其余推导”；M14继续只允许整组省略或整组完整写出；
-8. 比2.9更一般的polymorphic recursion及termination proof；资源上限、worklist深度或编译超时不能充当语言规则；
-9. 当前完整application范围的fresh-variable/postponed-argument constraint system及MSC由M16替换；加入projection后的MSC、LUB和overload比较随projection里程碑扩展同一solver。M14自身只扩展当时固定点求解器以处理宿主参数、method参数与upper bound；
-10. runtime generic dictionary、witness参数、反射式bound调用或以代码体积为目标的共享泛型body；M14仅实现单态化，不能把这些机制作为缺失concrete信息的fallback；
-11. first-class polymorphic function value、generic lambda/匿名函数、higher-kinded type、associated type、const generic或用户可控specialization。它们不属于当前Kotlin核心兼容范围，也不因M14使用“完整泛型”一词而被隐式引入；
-12. 自动派生ToString/Hash、identity hash、`Any`默认字符串化/相等；
-13. extension equals参与 `==`，或把 `===` 开放重载；
-14. locale/format specifier与StringBuilder优化（原M16设计已撤回，待后续重新排期）；
-15. 为旧固定三槽提供ABI兼容层；
-16. M15的精确stackmap、`gc.relocate`与moving compaction；M14只确保其上游IR不再依赖地址语义并为完整call/root信息打好基础；
-17. 让普通用户Cone声明自定义intrinsic，或把测试authority作为稳定CLI/manifest能力公开。
+2. nominal generic的声明点`in`/`out`、使用点`in`/`out`、star projection与capture conversion。Scoop统一采用exact invariant application；这些能力不是后续backlog，也不能通过擦除成`Any`或隐式装箱绕回；
+3. interface方法自身的type parameter；未来支持必须先定义跨Cone specialization/itable ABI，且不得引入`Self`、trait object或object-safety分类；
+4. generic `typealias`的参数、bound、透明展开、循环诊断及跨Cone export；alias不得获得新的nominal/concrete identity；
+5. generic extension property，以及nested/inner generic type、generic class companion对宿主参数的可见性。这些依赖尚未实现的property、nested type与object/companion基础能力；普通property本身不能凭空拥有每次访问才实例化的method type parameter。object/companion声明自身不形成generic nominal application，也不能声明宿主type parameter，但其中的普通method未来可以按2.8声明自己的non-virtual参数；
+6. 显式类型实参中的`_`占位与“部分写出、其余推导”；M14继续只允许整组省略或整组完整写出；
+7. 比2.9更一般的polymorphic recursion及termination proof；资源上限、worklist深度或编译超时不能充当语言规则；
+8. 当前完整application范围的fresh-variable/postponed-argument constraint system及MSC由M16替换；M14自身只扩展当时固定点求解器以处理宿主参数、method参数与upper bound；
+9. runtime generic dictionary、witness参数、反射式bound调用或以代码体积为目标的共享泛型body；M14仅实现单态化，不能把这些机制作为缺失concrete信息的fallback；
+10. first-class polymorphic function value、generic lambda/匿名函数、higher-kinded type、associated type、const generic或用户可控specialization。它们不属于当前Kotlin核心兼容范围，也不因M14使用“完整泛型”一词而被隐式引入；
+11. 自动派生ToString/Hash、identity hash、`Any`默认字符串化/相等；
+12. extension equals参与 `==`，或把 `===` 开放重载；
+13. locale/format specifier与StringBuilder优化（原M16设计已撤回，待后续重新排期）；
+14. 为旧固定三槽提供ABI兼容层；
+15. M15的精确stackmap、`gc.relocate`与moving compaction；M14只确保其上游IR不再依赖地址语义并为完整call/root信息打好基础；
+16. 让普通用户Cone声明自定义intrinsic，或把测试authority作为稳定CLI/manifest能力公开。

@@ -1,6 +1,6 @@
 # M17 设计：命名参数、默认参数与 `vararg`
 
-版本：0.2（草案）
+版本：0.3（草案）
 
 对应`docs/ROADMAP.md`的新M17。目标是在M16统一调用决议内核上加入完整的source argument protocol：命名映射、调用处默认表达式实例化、`vararg`与spread，并让普通函数、local/member/extension generic callable、class/struct构造和enum variant构造使用同一套规则。
 
@@ -261,7 +261,7 @@ emit(prefix = "[", values = values, suffix = "]")
 - named whole-array形式不复制；位置element/spread形式始终物化fresh array，唯一`*array`也复制，避免`===`观察到来源alias；
 - 一个parameter list只能声明一个vararg。`vararg`不是C ABI的`...`，也不接受非Array iterator/sequence自动展开。
 
-由于`Array`当前invariant，spread只接受精确`Array<T>`。M17不隐藏一个`Array<S> -> Array<T>`逐元素转换；use-site projection落地后应由同一个constraint relation重新定义可接受的projected source，而不是在vararg路径按element name猜类型。
+`Array`永久保持invariant，spread只接受精确`Array<T>`。M17不隐藏一个`Array<S> -> Array<T>`逐元素转换；调用方若需要改变元素静态类型，必须在spread之前通过普通generic API或显式`map`/重建产生目标`Array<T>`。
 
 ### 3.4 候选层预过滤
 
@@ -400,7 +400,7 @@ enum ArrayAssemblyPart {
 
 ### 6.1 Parser/AST
 
-- lexer加入`vararg`关键字及call argument位置的`*`；乘法、类型星号（未来projection）与spread由parser上下文区分；
+- lexer加入`vararg`关键字及call argument位置的`*`；乘法与spread由parser上下文区分，type argument位置的`*`直接诊断为不支持；
 - function parameter、constructor field parameter及constructor-style variant field复用`ParameterSyntax`；
 - call、member call、constructor、variant与intrinsic-looking普通调用全部使用`Vec<CallArgument>`；
 - trailing lambda转换为带最后source index的普通`CallArgument`，不在HIR另开参数通道；
@@ -605,7 +605,7 @@ M17只有在所有现有source callable/constructor使用同一argument map，�
 1. secondary constructor、`init`、body property与`super`调用本身；
 2. context parameters、receiver function type、SAM conversion、builder inference；
 3. C varargs、反射式`callBy`、运行期按参数名调用或default bitmask ABI；
-4. use-site/star projection下的`Array<out T>`spread；M17要求精确`Array<T>`；
+4. `Array<out T>`或star-projected array spread；Scoop不提供nominal projection，M17要求精确`Array<T>`；
 5. `OverloadResolutionByLambdaReturnType`；
 6. 为函数声明引用自动生成减元/default/vararg adapter；
 7. 多Cone打包与import层实现；M17只把完整metadata和consumer边界准备好；

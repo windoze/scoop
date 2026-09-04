@@ -1,8 +1,10 @@
 # M12 设计：FFI 注解族与原生边界
 
-版本：0.1（草案）
+版本：0.2（草案）
 
 对应 `docs/ROADMAP.md` 的 M12。目标：落地 spec 第 13、14 章的 FFI 最小闭环——核心注解、unsafe / NoGC 检查、C 布局、受控全局存储、`Ptr` / `FunPtr`，以及 C ABI / Scoop ABI 的 extern 调用；同时退役能够由正式 FFI 表达的临时 runtime intrinsic。M12 必须以真实 C 库、双向 struct 传值、全局符号、callback与 direct managed ref通过端到端验证，不能只停留在“发射一个未定义函数声明”。
+
+> M20 更新：type parameter AST不再携带variance；M12时期的既有字段由M20迁移删除，本文stage契约已按最终invariant模型修订。
 
 ## 0. 范围与关键决策
 
@@ -347,7 +349,7 @@ Int / Boolean 的临时 `toString` runtime 映射仍由 M14 的 ToString 接口�
 - `Annotation` 改为第 1.2 节的通用参数列表；所有支持目标都保存 `Vec<Annotation>`，span 覆盖完整注解；
 - 注解可出现在顶层 function/global、member function、struct 和 annotated block 前；parser 不检查核心注解语义，但继续负责明显的参数语法错误和恢复；
 - `Decl` 新增 `Global(GlobalDecl)`；只解析明确类型的顶层 `val` / `var`，initializer 可缺失以支持 extern；具体合法组合交给 HIR；
-- 复用 M11 的 `TypeRefKind::Function` 与 `Expr::CallableReference`；M12 parser 只新增统一 `TypeParamDecl { variance, kind_bound }` 以及 FFI 注解/global 语法，不能再建立一套 callback-only function signature AST；
+- 复用 M11 的 `TypeRefKind::Function` 与 `Expr::CallableReference`；M12 parser 只新增统一 `TypeParamDecl { name, kind_bound, span }` 以及 FFI 注解/global 语法，不能再建立一套 callback-only function signature AST；nominal与callable type parameter均不保存variance；
 - `FunctionBody::None` 的注释与 parser 规则不再绑定 `@Intrinsic`，以便 bodyless extern；有 body 的 `@NoGC` / `@Unsafe` 正常解析；
 - member parser 接受注解与 modifier 的固定顺序“annotations → modifiers → fun”；重复 modifier 仍由 parser 诊断。
 
