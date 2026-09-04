@@ -19,6 +19,9 @@ use support::*;
 #[path = "runtime_collector_tests.rs"]
 mod runtime_collector_tests;
 
+#[path = "runtime_eh_tests.rs"]
+mod runtime_eh_tests;
+
 mod arrays;
 mod c_layout;
 mod closures;

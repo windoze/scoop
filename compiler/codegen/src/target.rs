@@ -44,6 +44,66 @@ enum ObjectFormat {
     MachO64,
 }
 
+/// Complete exception-handling contract qualified for one target/backend
+/// profile.  These are capabilities rather than loosely related flags: a
+/// target cannot reach codegen without selecting every part of its unwind,
+/// LSDA and artifact-inspection ABI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EhProfile {
+    unwind_model: UnwindModel,
+    personality_abi: PersonalityAbi,
+    exception_data_registers: u8,
+    encodings: LsdaEncodingProfile,
+    unwind_provider: UnwindProvider,
+    artifact_inspection: EhArtifactInspection,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum UnwindModel {
+    ItaniumDwarf,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PersonalityAbi {
+    ScoopLsdaSubsetV1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct LsdaEncodingProfile {
+    pub(crate) lp_start: u8,
+    pub(crate) type_table: u8,
+    pub(crate) call_site: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum UnwindProvider {
+    DarwinLibSystem,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EhArtifactInspection {
+    MachO,
+}
+
+impl EhProfile {
+    const DARWIN_AARCH64: Self = Self {
+        unwind_model: UnwindModel::ItaniumDwarf,
+        personality_abi: PersonalityAbi::ScoopLsdaSubsetV1,
+        exception_data_registers: 2,
+        encodings: LsdaEncodingProfile {
+            lp_start: 0xff,
+            type_table: 0x9b,
+            call_site: 0x01,
+        },
+        unwind_provider: UnwindProvider::DarwinLibSystem,
+        artifact_inspection: EhArtifactInspection::MachO,
+    };
+
+    pub(crate) fn encodings(self) -> LsdaEncodingProfile {
+        self.encodings
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LlvmTargetBackend {
     Aarch64,
@@ -142,6 +202,7 @@ pub struct TargetProfile {
     relocation: RelocMode,
     code_model: CodeModel,
     object_format: ObjectFormat,
+    eh: EhProfile,
     llvm_target_backend: LlvmTargetBackend,
     machine_pipeline: MachinePipeline,
     managed_address_space: ManagedAddressSpace,
@@ -164,6 +225,7 @@ impl TargetProfile {
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
+        eh: EhProfile::DARWIN_AARCH64,
         llvm_target_backend: LlvmTargetBackend::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
         managed_address_space: ManagedAddressSpace::MOVING_GC,
@@ -173,6 +235,7 @@ impl TargetProfile {
         tail_calls: TailCallPolicy::Disabled,
         runtime_sources: &[
             "runtime/src/rt.c",
+            "runtime/src/eh_personality.c",
             "runtime/src/initialization.c",
             "runtime/src/gc.c",
             "runtime/src/gc/allocation.c",
@@ -254,6 +317,10 @@ impl TargetProfile {
 
     pub(crate) fn managed_address_space_contract(self) -> ManagedAddressSpace {
         self.managed_address_space
+    }
+
+    pub(crate) fn eh_profile(self) -> EhProfile {
+        self.eh
     }
 
     pub(crate) fn frame_pointer_attribute(self) -> &'static str {
