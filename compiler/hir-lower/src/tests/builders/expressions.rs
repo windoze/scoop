@@ -73,6 +73,22 @@ pub(crate) fn source_call(name: &str, args: Vec<ast::CallArgument>) -> Expr {
 pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),
+        type_args: type_args
+            .into_iter()
+            .map(ast::CallTypeArgument::Explicit)
+            .collect(),
+        args: call_arguments(args),
+        span: sp(),
+    })
+}
+
+pub(crate) fn partially_typed_call(
+    name: &str,
+    type_args: Vec<ast::CallTypeArgument>,
+    args: Vec<Expr>,
+) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
         type_args,
         args: call_arguments(args),
         span: sp(),
@@ -82,6 +98,22 @@ pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -
 pub(crate) fn typed_source_call(
     name: &str,
     type_args: Vec<TypeRef>,
+    args: Vec<ast::CallArgument>,
+) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
+        type_args: type_args
+            .into_iter()
+            .map(ast::CallTypeArgument::Explicit)
+            .collect(),
+        args,
+        span: sp(),
+    })
+}
+
+pub(crate) fn partially_typed_source_call(
+    name: &str,
+    type_args: Vec<ast::CallTypeArgument>,
     args: Vec<ast::CallArgument>,
 ) -> Expr {
     Expr::Call(CallExpr {

@@ -90,16 +90,30 @@ pub(crate) struct NominalArgumentInput<'a> {
     pub(crate) view: &'a crate::call_resolution::candidates::NominalConstructorView,
     pub(crate) argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
     pub(crate) expressions: &'a [ast::CallArgument],
-    pub(crate) explicit_type_args: &'a [TypeId],
+    pub(crate) explicit_type_args: &'a [ResolvedCallTypeArgument],
     pub(crate) expected_type_args: Option<&'a [TypeId]>,
     pub(crate) span: Span,
 }
 
 #[derive(Clone, Copy)]
 pub(crate) struct CallSite<'a> {
-    pub(crate) type_args: &'a [ast::TypeRef],
+    pub(crate) type_args: &'a [ast::CallTypeArgument],
     pub(crate) args: &'a [ast::CallArgument],
     pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedCallTypeArgument {
+    Explicit { ty: TypeId, span: Span },
+    Infer { span: Span },
+}
+
+impl ResolvedCallTypeArgument {
+    pub(crate) fn span(self) -> Span {
+        match self {
+            Self::Explicit { span, .. } | Self::Infer { span } => span,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default)]

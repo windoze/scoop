@@ -69,7 +69,7 @@ impl Parser {
                 // (`E.V(args)`, `p.m(args)`) is NOT collapsed here: the
                 // postfix loop turns it into a method call, and hir-lower
                 // resolves enum variant construction from that shape.
-                let type_args = self.parse_explicit_call_type_args();
+                let type_args = self.parse_explicit_call_type_args()?;
                 if matches!(self.peek().kind, TokenKind::LParen) {
                     return self.parse_call(ident, type_args);
                 }
@@ -108,7 +108,7 @@ impl Parser {
         }
         self.bump();
         let name = self.expect_ident("base method name after `super.`")?;
-        let type_args = self.parse_explicit_call_type_args();
+        let type_args = self.parse_explicit_call_type_args()?;
         if !matches!(self.peek().kind, TokenKind::LParen) {
             return Err(Diagnostic::at(
                 name.span,
@@ -153,7 +153,7 @@ impl Parser {
     fn parse_call(
         &mut self,
         callee: Ident,
-        type_args: Vec<scoop_ast::TypeRef>,
+        type_args: Vec<scoop_ast::CallTypeArgument>,
     ) -> Result<Expr, Diagnostic> {
         let (args, end) = self.parse_args()?;
         let span = Span::new(callee.span.start, end);
@@ -168,19 +168,39 @@ impl Parser {
     /// Parse `<T, ...>` only when it is immediately followed by a call
     /// argument list. The speculative reset keeps ordinary `<` / `>` binary
     /// expressions unchanged.
-    pub(super) fn parse_explicit_call_type_args(&mut self) -> Vec<scoop_ast::TypeRef> {
+    pub(super) fn parse_explicit_call_type_args(
+        &mut self,
+    ) -> Result<Vec<scoop_ast::CallTypeArgument>, Diagnostic> {
         if !matches!(self.peek().kind, TokenKind::Less) {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let start = self.pos;
         self.bump();
         let mut type_args = Vec::new();
+        let mut saw_infer = false;
         loop {
-            let Ok(ty) = self.parse_type_ref() else {
-                self.pos = start;
-                return Vec::new();
+            let argument = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "_") {
+                saw_infer = true;
+                let token = self.bump();
+                scoop_ast::CallTypeArgument::Infer { span: token.span }
+            } else {
+                let ty = match self.parse_type_ref() {
+                    Ok(ty) => ty,
+                    Err(error)
+                        if saw_infer
+                            || error.message
+                                == "`_` is only allowed in call type argument lists" =>
+                    {
+                        return Err(error);
+                    }
+                    Err(_) => {
+                        self.pos = start;
+                        return Ok(Vec::new());
+                    }
+                };
+                scoop_ast::CallTypeArgument::Explicit(ty)
             };
-            type_args.push(ty);
+            type_args.push(argument);
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
             } else {
@@ -188,15 +208,24 @@ impl Parser {
             }
         }
         if !matches!(self.peek().kind, TokenKind::Greater) {
+            if saw_infer {
+                return self.unexpected("`>` after call type argument list");
+            }
             self.pos = start;
-            return Vec::new();
+            return Ok(Vec::new());
         }
         self.bump();
         if !matches!(self.peek().kind, TokenKind::LParen) || self.peek().newline_before {
+            if saw_infer {
+                return Err(Diagnostic::at(
+                    self.tokens[start].span,
+                    "`_` is only allowed in a type argument list immediately followed by a call",
+                ));
+            }
             self.pos = start;
-            return Vec::new();
+            return Ok(Vec::new());
         }
-        type_args
+        Ok(type_args)
     }
 
     /// `(arg, ...)` — the `(` is the current token. Shared by calls,

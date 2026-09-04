@@ -10,6 +10,7 @@ use super::constraints::{
     CallableCategory, CallableParameter, CallableReturn, CallableShape, Constraint,
     ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
 };
+use crate::expr::ResolvedCallTypeArgument;
 use crate::{Lowerer, Type};
 
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +18,7 @@ pub(crate) struct CallableApplicabilityInput<'a> {
     pub(crate) view: &'a CallableView,
     pub(crate) argument_map: &'a CandidateArgumentMap,
     pub(crate) owner_arguments: &'a [hir::TypeId],
-    pub(crate) explicit_arguments: &'a [hir::TypeId],
+    pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
     pub(crate) receiver_type: Option<hir::TypeId>,
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
     pub(crate) expected_result: Option<hir::TypeId>,
@@ -27,7 +28,7 @@ pub(crate) struct CallableApplicabilityInput<'a> {
 pub(crate) struct NominalApplicabilityInput<'a> {
     pub(crate) view: &'a NominalConstructorView,
     pub(crate) argument_map: &'a CandidateArgumentMap,
-    pub(crate) explicit_arguments: &'a [hir::TypeId],
+    pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
     pub(crate) expected_arguments: Option<&'a [hir::TypeId]>,
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
 }
@@ -250,6 +251,9 @@ impl Lowerer {
             .zip(explicit_arguments)
             .enumerate()
         {
+            let ResolvedCallTypeArgument::Explicit { ty: argument, .. } = argument else {
+                continue;
+            };
             session.push(
                 Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
                 ConstraintOrigin::ExplicitTypeArgument(
@@ -382,6 +386,9 @@ impl Lowerer {
         for (index, (&variable, &argument)) in
             owner_variables.iter().zip(explicit_arguments).enumerate()
         {
+            let ResolvedCallTypeArgument::Explicit { ty: argument, .. } = argument else {
+                continue;
+            };
             session.push(
                 Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
                 ConstraintOrigin::ExplicitTypeArgument(
@@ -389,9 +396,7 @@ impl Lowerer {
                 ),
             );
         }
-        if explicit_arguments.is_empty()
-            && let Some(expected_arguments) = expected_arguments
-        {
+        if let Some(expected_arguments) = expected_arguments {
             for (&variable, &argument) in owner_variables.iter().zip(expected_arguments) {
                 session.push(
                     Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),

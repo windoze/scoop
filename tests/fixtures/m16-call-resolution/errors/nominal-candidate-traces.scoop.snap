@@ -5,7 +5,7 @@ expression: snapshot
 == diagnostics ==
 m16-call-resolution/errors/nominal-candidate-traces.scoop:13:5: error: no applicable candidate for constructor `RefBox` in nominal constructor candidate layer:
   - struct RefBox<T : ref>(value: T) — type argument `Int` for `T` must satisfy `ref`
-m16-call-resolution/errors/nominal-candidate-traces.scoop:14:5: error: no applicable candidate for constructor `Bounded` in nominal constructor candidate layer:
+m16-call-resolution/errors/nominal-candidate-traces.scoop:14:13: error: no applicable candidate for constructor `Bounded` in nominal constructor candidate layer:
   - class Bounded<T : Marker>() — type argument `Int` for `T` must satisfy interface upper bound `Marker`
 m16-call-resolution/errors/nominal-candidate-traces.scoop:15:5: error: no applicable candidate for constructor `Choice.Some` in nominal constructor candidate layer:
   - variant Choice<T>.Some(_1: T) — expects 1 argument(s), but 0 were supplied

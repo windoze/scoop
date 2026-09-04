@@ -5,6 +5,7 @@ use crate::call_resolution::arguments::{CandidateArgumentMap, SourceInputKind};
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::diagnostics::nominal_source_signature;
 use crate::call_resolution::specificity::NominalForwardingDeclaration;
+use crate::expr::ResolvedCallTypeArgument;
 use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
 
@@ -15,7 +16,7 @@ pub(crate) struct ResolvedNominalConstructor {
 }
 
 pub(crate) struct NominalConstructorCall<'a> {
-    pub(crate) explicit_type_args: &'a [TypeId],
+    pub(crate) explicit_type_args: &'a [ResolvedCallTypeArgument],
     pub(crate) expected_type_args: Option<&'a [TypeId]>,
     pub(crate) arguments: &'a [ast::CallArgument],
     pub(crate) span: ast::Span,

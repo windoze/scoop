@@ -30,6 +30,12 @@ impl Parser {
                 self.parse_paren_type(true, token.span.start)
             }
             TokenKind::Ident(text) => {
+                if text == "_" {
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "`_` is only allowed in call type argument lists",
+                    ));
+                }
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {
                     text,

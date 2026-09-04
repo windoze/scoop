@@ -437,3 +437,368 @@ fn recursive_exact_class_bound_is_legal() {
     ]))
     .expect("an exact F-bound must terminate by typed application identity");
 }
+
+fn explicit_call_argument(ty: TypeRef) -> ast::CallTypeArgument {
+    ast::CallTypeArgument::Explicit(ty)
+}
+
+fn inferred_call_argument(span: Span) -> ast::CallTypeArgument {
+    ast::CallTypeArgument::Infer { span }
+}
+
+#[test]
+fn partial_type_arguments_commit_only_complete_callable_arguments() {
+    let module = lower_user(file(vec![
+        fun_expr(
+            "second",
+            vec!["A", "B"],
+            vec![("first", ty_named("A")), ("second", ty_named("B"))],
+            Some(ty_named("B")),
+            var("second"),
+        ),
+        fun(
+            "main",
+            vec![val(
+                "result",
+                partially_typed_call(
+                    "second",
+                    vec![
+                        explicit_call_argument(ty_named("Int")),
+                        inferred_call_argument(Span::new(20, 21)),
+                    ],
+                    vec![int_lit(1), str_lit("value")],
+                ),
+            )],
+        ),
+    ]))
+    .expect("the inferred slot must join ordinary argument inference");
+
+    let instance = module
+        .instantiations
+        .iter()
+        .map(|(_, instance)| instance)
+        .find(|instance| {
+            module.functions[module.generic_functions[instance.generic].function].name == "second"
+        })
+        .expect("one complete second<Int, String> instance");
+    let arguments = instance
+        .type_args
+        .iter()
+        .map(|argument| hir::type_name(&module, *argument))
+        .collect::<Vec<_>>();
+    assert_eq!(arguments, ["Int", "String"]);
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main has a user body")
+    };
+    assert_eq!(
+        hir::type_name(&module, local_init(main, "result").ty),
+        "String"
+    );
+}
+
+#[test]
+fn unresolved_partial_callable_argument_points_at_the_infer_slot() {
+    let infer_span = Span::new(40, 41);
+    let errors = lower_user(file(vec![
+        fun_expr(
+            "first",
+            vec!["A", "B"],
+            vec![("value", ty_named("A"))],
+            Some(ty_named("A")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![stmt(partially_typed_call(
+                "first",
+                vec![
+                    explicit_call_argument(ty_named("Int")),
+                    inferred_call_argument(infer_span),
+                ],
+                vec![int_lit(1)],
+            ))],
+        ),
+    ]))
+    .expect_err("an unconstrained infer slot must not reach HIR");
+
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].span, Some(infer_span));
+    assert!(
+        errors[0]
+            .message
+            .contains("cannot infer a unique type argument for `B`")
+    );
+    assert!(errors[0].message.contains("fixed type arguments: A = Int"));
+}
+
+#[test]
+fn partial_callable_bound_failure_points_at_the_infer_slot() {
+    let infer_span = Span::new(50, 51);
+    let mut require = fun_expr(
+        "require",
+        vec!["A", "B"],
+        vec![("first", ty_named("A")), ("second", ty_named("B"))],
+        Some(ty_named("B")),
+        var("second"),
+    );
+    let Decl::Function(function) = &mut require else {
+        unreachable!()
+    };
+    function.type_params[1] = upper("B", ty_named("Marker"));
+    let errors = lower_user(file(vec![
+        interface_decl("Marker", Vec::new()),
+        require,
+        fun(
+            "main",
+            vec![stmt(partially_typed_call(
+                "require",
+                vec![
+                    explicit_call_argument(ty_named("String")),
+                    inferred_call_argument(infer_span),
+                ],
+                vec![str_lit("fixed"), int_lit(1)],
+            ))],
+        ),
+    ]))
+    .expect_err("the inferred argument must satisfy the callable bound");
+
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].span, Some(infer_span));
+    assert!(
+        errors[0]
+            .message
+            .contains("type argument `Int` for `B` must satisfy interface upper bound `Marker`"),
+        "{}",
+        errors[0].message
+    );
+    assert!(
+        errors[0]
+            .message
+            .contains("fixed type arguments: A = String")
+    );
+}
+
+#[test]
+fn partial_constructor_bound_failure_points_at_the_infer_slot() {
+    let infer_span = Span::new(60, 61);
+    let mut holder = generic_struct_decl(
+        "Holder",
+        vec!["A", "T"],
+        vec![("fixed", ty_named("A")), ("value", ty_named("T"))],
+    );
+    let Decl::Struct(structure) = &mut holder else {
+        unreachable!()
+    };
+    structure.type_params[1] = upper("T", ty_named("Marker"));
+    let errors = lower_user(file(vec![
+        interface_decl("Marker", Vec::new()),
+        holder,
+        fun(
+            "main",
+            vec![stmt(partially_typed_call(
+                "Holder",
+                vec![
+                    explicit_call_argument(ty_named("String")),
+                    inferred_call_argument(infer_span),
+                ],
+                vec![str_lit("fixed"), int_lit(1)],
+            ))],
+        ),
+    ]))
+    .expect_err("the inferred constructor argument must satisfy its bound");
+
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].span, Some(infer_span));
+    assert!(
+        errors[0]
+            .message
+            .contains("type argument `Int` for `T` must satisfy interface upper bound `Marker`"),
+        "{}",
+        errors[0].message
+    );
+    assert!(
+        errors[0]
+            .message
+            .contains("fixed type arguments: A = String")
+    );
+}
+
+#[test]
+fn partial_list_must_cover_the_callable_arity() {
+    let errors = lower_user(file(vec![
+        fun_expr(
+            "pair",
+            vec!["A", "B"],
+            vec![("first", ty_named("A")), ("second", ty_named("B"))],
+            Some(ty_named("B")),
+            var("second"),
+        ),
+        fun(
+            "main",
+            vec![stmt(partially_typed_call(
+                "pair",
+                vec![inferred_call_argument(Span::new(70, 71))],
+                vec![int_lit(1), str_lit("value")],
+            ))],
+        ),
+    ]))
+    .expect_err("a present type argument list may not imply trailing infer slots");
+
+    assert_eq!(errors.len(), 1);
+    assert!(
+        errors[0]
+            .message
+            .contains("expects 2 explicit type argument(s), but 1 were supplied")
+    );
+}
+
+#[test]
+fn partial_arguments_share_named_default_vararg_and_expected_result_inference() {
+    let mut gather = fun_expr(
+        "gather",
+        vec!["A", "B"],
+        vec![
+            ("value", ty_named("A")),
+            ("fallback", ty_named("B")),
+            ("label", ty_named("B")),
+            ("rest", ty_named("B")),
+        ],
+        Some(ty_named("B")),
+        var("fallback"),
+    );
+    let Decl::Function(function) = &mut gather else {
+        unreachable!()
+    };
+    function.params[2].syntax = ast::ParameterSyntax::Default {
+        expression: var("fallback"),
+        equals_span: sp(),
+    };
+    function.params[3].syntax = ast::ParameterSyntax::Vararg {
+        modifier_span: sp(),
+        default: ast::VarargDefaultSyntax::EmptyWhenOmitted,
+    };
+    let partial_arguments = || {
+        vec![
+            explicit_call_argument(ty_named("Int")),
+            inferred_call_argument(Span::new(75, 76)),
+        ]
+    };
+    let module = lower_user(file(vec![
+        gather,
+        fun(
+            "main",
+            vec![
+                val(
+                    "named",
+                    partially_typed_source_call(
+                        "gather",
+                        partial_arguments(),
+                        vec![
+                            ast::CallArgument::positional(int_lit(1)),
+                            named_argument("fallback", str_lit("named")),
+                        ],
+                    ),
+                ),
+                val_ty(
+                    "defaulted",
+                    Some(ty_named("String")),
+                    partially_typed_source_call(
+                        "gather",
+                        partial_arguments(),
+                        vec![
+                            ast::CallArgument::positional(int_lit(2)),
+                            ast::CallArgument::positional(str_lit("defaulted")),
+                        ],
+                    ),
+                ),
+                val(
+                    "vararg",
+                    partially_typed_source_call(
+                        "gather",
+                        partial_arguments(),
+                        vec![
+                            ast::CallArgument::positional(int_lit(3)),
+                            ast::CallArgument::positional(str_lit("head")),
+                            ast::CallArgument::positional(str_lit("label")),
+                            ast::CallArgument::positional(str_lit("tail")),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    ]))
+    .expect("partial slots use the ordinary source-call inference protocol");
+
+    let instances = module
+        .instantiations
+        .iter()
+        .filter(|(_, instance)| {
+            module.functions[module.generic_functions[instance.generic].function].name == "gather"
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(instances.len(), 1);
+    assert_eq!(
+        instances[0]
+            .1
+            .type_args
+            .iter()
+            .map(|argument| hir::type_name(&module, *argument))
+            .collect::<Vec<_>>(),
+        ["Int", "String"]
+    );
+}
+
+#[test]
+fn failed_partial_overload_candidate_does_not_commit_an_instance() {
+    let first = fun_expr(
+        "pick",
+        vec!["A", "B"],
+        vec![("value", ty_named("A")), ("marker", ty_named("Int"))],
+        Some(ty_named("A")),
+        var("value"),
+    );
+    let second = fun_expr(
+        "pick",
+        vec!["A", "B"],
+        vec![("value", ty_named("A")), ("marker", ty_named("B"))],
+        Some(ty_named("B")),
+        var("marker"),
+    );
+    let module = lower_user(file(vec![
+        first,
+        second,
+        fun(
+            "main",
+            vec![val(
+                "result",
+                partially_typed_call(
+                    "pick",
+                    vec![
+                        explicit_call_argument(ty_named("Int")),
+                        inferred_call_argument(Span::new(80, 81)),
+                    ],
+                    vec![int_lit(1), str_lit("winner")],
+                ),
+            )],
+        ),
+    ]))
+    .expect("only the second overload is applicable");
+
+    let instances = module
+        .instantiations
+        .iter()
+        .filter(|(_, instance)| {
+            module.functions[module.generic_functions[instance.generic].function].name == "pick"
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(instances.len(), 1);
+    assert_eq!(
+        instances[0]
+            .1
+            .type_args
+            .iter()
+            .map(|argument| hir::type_name(&module, *argument))
+            .collect::<Vec<_>>(),
+        ["Int", "String"]
+    );
+}

@@ -29,11 +29,16 @@ impl Lowerer {
         let mut seed = vec![None; view.owner_parameters.len()];
         if !explicit_arguments.is_empty() {
             for (binding, &argument) in seed.iter_mut().zip(explicit_arguments) {
-                *binding = Some(argument);
+                if let ResolvedCallTypeArgument::Explicit { ty, .. } = argument {
+                    *binding = Some(ty);
+                }
             }
-        } else if let Some(expected_arguments) = expected_arguments {
+        }
+        if let Some(expected_arguments) = expected_arguments {
             for (binding, &argument) in seed.iter_mut().zip(expected_arguments) {
-                *binding = Some(argument);
+                if binding.is_none() {
+                    *binding = Some(argument);
+                }
             }
         }
 
@@ -107,7 +112,14 @@ impl Lowerer {
                     )?);
                 }
                 Err(failure) => {
-                    self.diagnose_nominal_failure(view, argument_map, &lowered, failure, span);
+                    self.diagnose_nominal_failure(
+                        view,
+                        argument_map,
+                        explicit_arguments,
+                        &lowered,
+                        failure,
+                        span,
+                    );
                     return None;
                 }
             }
@@ -160,7 +172,14 @@ impl Lowerer {
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
-                self.diagnose_nominal_failure(view, argument_map, &lowered, failure, span);
+                self.diagnose_nominal_failure(
+                    view,
+                    argument_map,
+                    explicit_arguments,
+                    &lowered,
+                    failure,
+                    span,
+                );
                 return None;
             }
         };
@@ -180,19 +199,57 @@ impl Lowerer {
         &mut self,
         view: &NominalConstructorView,
         argument_map: &crate::call_resolution::arguments::CandidateArgumentMap,
+        explicit_arguments: &[ResolvedCallTypeArgument],
         arguments: &[Option<hir::Expr>],
         failure: ConstraintFailure,
         span: Span,
     ) {
-        let diagnostic_span = match failure.origin {
-            ConstraintOrigin::Argument(input) => arguments
-                .get(input.index())
-                .and_then(Option::as_ref)
-                .map_or(span, |argument| argument.span),
-            _ => span,
+        let diagnostic_span = if let Some(
+            crate::call_resolution::constraints::InferenceVariableId::Owner(variable),
+        ) = failure.kind.inference_variable()
+        {
+            explicit_arguments
+                .get(
+                    crate::call_resolution::constraints::InferenceVariableId::Owner(variable)
+                        .group_index(),
+                )
+                .map_or(span, |argument| argument.span())
+        } else {
+            match failure.origin {
+                ConstraintOrigin::Argument(input) => arguments
+                    .get(input.index())
+                    .and_then(Option::as_ref)
+                    .map_or(span, |argument| argument.span),
+                _ => span,
+            }
         };
-        let reason =
+        let mut reason =
             render_nominal_constraint_failure(self, view, argument_map, arguments, &failure);
+        if let Some(crate::call_resolution::constraints::InferenceVariableId::Owner(variable)) =
+            failure.kind.inference_variable()
+        {
+            let failed = crate::call_resolution::constraints::InferenceVariableId::Owner(variable)
+                .group_index();
+            if matches!(
+                explicit_arguments.get(failed),
+                Some(ResolvedCallTypeArgument::Infer { .. })
+            ) {
+                let fixed = explicit_arguments
+                    .iter()
+                    .zip(&view.owner_parameters)
+                    .filter_map(|(argument, parameter)| {
+                        let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
+                            return None;
+                        };
+                        Some(format!("{} = {}", parameter.name, self.type_name(*ty)))
+                    })
+                    .collect::<Vec<_>>();
+                if !fixed.is_empty() {
+                    reason.push_str("; fixed type arguments: ");
+                    reason.push_str(&fixed.join(", "));
+                }
+            }
+        }
         self.nominal_candidate_diagnostic(view, diagnostic_span, &reason);
     }
 

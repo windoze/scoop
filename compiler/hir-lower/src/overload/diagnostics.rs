@@ -4,9 +4,17 @@ use crate::call_resolution::constraints::{ConstraintFailure, ConstraintOrigin};
 use crate::call_resolution::diagnostics::{
     callable_layer_name, callable_source_signature, render_callable_constraint_failure,
 };
+use crate::expr::ResolvedCallTypeArgument;
 use crate::overload::probe::{
     CandidateProbeFailure, CandidateProbeFailureKind, CandidateShapeFailure,
 };
+
+pub(super) struct CandidateFailureContext<'call, 'arguments> {
+    pub(super) arguments: &'call OverloadArguments<'arguments>,
+    pub(super) extension_receiver: Option<&'call hir::Expr>,
+    pub(super) explicit_type_args: &'call [ResolvedCallTypeArgument],
+    pub(super) span: Span,
+}
 
 impl Lowerer {
     pub(super) fn candidate_failures_diagnostic(
@@ -14,10 +22,14 @@ impl Lowerer {
         name: &str,
         prepared: &[Candidate],
         failures: &mut [CandidateProbeFailure],
-        arguments: &OverloadArguments<'_>,
-        extension_receiver: Option<&hir::Expr>,
-        span: Span,
+        context: CandidateFailureContext<'_, '_>,
     ) {
+        let CandidateFailureContext {
+            arguments,
+            extension_receiver,
+            explicit_type_args,
+            span,
+        } = context;
         debug_assert_eq!(failures.len(), prepared.len());
         failures.sort_by_key(|failure| failure.candidate);
         if failures.iter().all(|failure| {
@@ -50,7 +62,13 @@ impl Lowerer {
                 return;
             }
         }
-        let diagnostic_span = common_failure_span(failures, arguments, extension_receiver, span);
+        let diagnostic_span = common_failure_span(
+            failures,
+            arguments,
+            extension_receiver,
+            explicit_type_args,
+            span,
+        );
         let views = prepared
             .iter()
             .map(|candidate| candidate.view.clone())
@@ -60,7 +78,7 @@ impl Lowerer {
         for failure in failures {
             let candidate = &prepared[failure.candidate];
             let signature = callable_source_signature(self, name, &candidate.view);
-            let reason = render_candidate_failure(candidate, failure);
+            let reason = render_candidate_failure(candidate, failure, explicit_type_args);
             traces.push(format!("  - {signature} — {reason}"));
         }
         self.error(
@@ -101,8 +119,12 @@ impl Lowerer {
     }
 }
 
-fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailure) -> String {
-    match &failure.kind {
+fn render_candidate_failure(
+    candidate: &Candidate,
+    failure: &CandidateProbeFailure,
+    explicit_type_args: &[ResolvedCallTypeArgument],
+) -> String {
+    let reason = match &failure.kind {
         CandidateProbeFailureKind::Shape(CandidateShapeFailure::TypeArgumentArity {
             expected,
             supplied,
@@ -145,6 +167,41 @@ fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailu
             &failure.arguments,
             constraint,
         ),
+    };
+    let CandidateProbeFailureKind::Constraint(constraint) = &failure.kind else {
+        return reason;
+    };
+    let Some(crate::call_resolution::constraints::InferenceVariableId::Callable(variable)) =
+        constraint.kind.inference_variable()
+    else {
+        return reason;
+    };
+    let failed =
+        crate::call_resolution::constraints::InferenceVariableId::Callable(variable).group_index();
+    if !matches!(
+        explicit_type_args.get(failed),
+        Some(ResolvedCallTypeArgument::Infer { .. })
+    ) {
+        return reason;
+    }
+    let fixed = explicit_type_args
+        .iter()
+        .zip(&candidate.view.callable_parameters)
+        .filter_map(|(argument, parameter)| {
+            let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
+                return None;
+            };
+            Some(format!(
+                "{} = {}",
+                parameter.name,
+                failure.state.type_name(*ty)
+            ))
+        })
+        .collect::<Vec<_>>();
+    if fixed.is_empty() {
+        reason
+    } else {
+        format!("{reason}; fixed type arguments: {}", fixed.join(", "))
     }
 }
 
@@ -152,14 +209,27 @@ fn common_failure_span(
     failures: &[CandidateProbeFailure],
     arguments: &OverloadArguments<'_>,
     extension_receiver: Option<&hir::Expr>,
+    explicit_type_args: &[ResolvedCallTypeArgument],
     fallback: Span,
 ) -> Span {
     let Some(first) = failures.first() else {
         return fallback;
     };
-    let first = candidate_failure_span(first, arguments, extension_receiver, fallback);
+    let first = candidate_failure_span(
+        first,
+        arguments,
+        extension_receiver,
+        explicit_type_args,
+        fallback,
+    );
     if failures[1..].iter().all(|failure| {
-        candidate_failure_span(failure, arguments, extension_receiver, fallback) == first
+        candidate_failure_span(
+            failure,
+            arguments,
+            extension_receiver,
+            explicit_type_args,
+            fallback,
+        ) == first
     }) {
         first
     } else {
@@ -171,24 +241,39 @@ fn candidate_failure_span(
     failure: &CandidateProbeFailure,
     arguments: &OverloadArguments<'_>,
     extension_receiver: Option<&hir::Expr>,
+    explicit_type_args: &[ResolvedCallTypeArgument],
     fallback: Span,
 ) -> Span {
     match &failure.kind {
         CandidateProbeFailureKind::Shape(_) => fallback,
         CandidateProbeFailureKind::Intrinsic { span, .. } => *span,
         CandidateProbeFailureKind::Expression { span, .. } => *span,
-        CandidateProbeFailureKind::Constraint(failure) => {
-            constraint_failure_span(arguments, extension_receiver, failure, fallback)
-        }
+        CandidateProbeFailureKind::Constraint(failure) => constraint_failure_span(
+            arguments,
+            extension_receiver,
+            explicit_type_args,
+            failure,
+            fallback,
+        ),
     }
 }
 
 fn constraint_failure_span(
     arguments: &OverloadArguments<'_>,
     extension_receiver: Option<&hir::Expr>,
+    explicit_type_args: &[ResolvedCallTypeArgument],
     failure: &ConstraintFailure,
     fallback: Span,
 ) -> Span {
+    if let Some(crate::call_resolution::constraints::InferenceVariableId::Callable(variable)) =
+        failure.kind.inference_variable()
+        && let Some(argument) = explicit_type_args.get(
+            crate::call_resolution::constraints::InferenceVariableId::Callable(variable)
+                .group_index(),
+        )
+    {
+        return argument.span();
+    }
     match failure.origin {
         ConstraintOrigin::Argument(input) => match arguments {
             OverloadArguments::Source(arguments) => arguments

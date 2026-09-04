@@ -66,7 +66,7 @@ pub enum Expr {
     /// falling back to named overload resolution.
     Invoke {
         callee: Box<Expr>,
-        type_args: Vec<TypeRef>,
+        type_args: Vec<CallTypeArgument>,
         args: Vec<CallArgument>,
         span: Span,
     },
@@ -119,7 +119,7 @@ pub enum Expr {
         name: Ident,
         navigation: Navigation,
         /// Explicit call-site type arguments (`receiver.name<T>(...)`).
-        type_args: Vec<TypeRef>,
+        type_args: Vec<CallTypeArgument>,
         args: Vec<CallArgument>,
         span: Span,
     },
@@ -128,7 +128,7 @@ pub enum Expr {
     SuperMethodCall {
         super_span: Span,
         name: Ident,
-        type_args: Vec<TypeRef>,
+        type_args: Vec<CallTypeArgument>,
         args: Vec<CallArgument>,
         span: Span,
     },
@@ -278,9 +278,24 @@ pub enum FieldSelector {
 pub struct CallExpr {
     pub callee: Ident,
     /// Explicit call-site type arguments (`callee<T>(...)`).
-    pub type_args: Vec<TypeRef>,
+    pub type_args: Vec<CallTypeArgument>,
     pub args: Vec<CallArgument>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallTypeArgument {
+    Explicit(TypeRef),
+    Infer { span: Span },
+}
+
+impl CallTypeArgument {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Explicit(ty) => ty.span,
+            Self::Infer { span } => *span,
+        }
+    }
 }
 
 /// One explicit source argument. Name and spread are independent closed sums:

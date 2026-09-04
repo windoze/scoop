@@ -23,6 +23,7 @@ use crate::call_resolution::arguments::{
     ArgumentShapeFailure, CandidateArgumentMap, SourceInputKind,
 };
 use crate::call_resolution::candidates::CallableView;
+use crate::expr::ResolvedCallTypeArgument;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
@@ -53,7 +54,7 @@ impl ResolvedCallee {
 
 #[derive(Clone, Copy)]
 pub(crate) struct OverloadCall<'a> {
-    pub(crate) explicit_type_args: &'a [TypeId],
+    pub(crate) explicit_type_args: &'a [ResolvedCallTypeArgument],
     pub(crate) arg_exprs: &'a [ast::CallArgument],
     pub(crate) span: Span,
     pub(crate) expected_result: Option<TypeId>,
@@ -71,7 +72,7 @@ pub(crate) enum CallArgumentProtocol {
 /// language-mandated single evaluations, while applicability and MSC must
 /// remain exactly the ordinary member-call algorithm.
 pub(crate) struct LoweredOverloadCall {
-    pub(crate) explicit_type_args: Vec<TypeId>,
+    pub(crate) explicit_type_args: Vec<ResolvedCallTypeArgument>,
     pub(crate) args: Vec<hir::Expr>,
     pub(crate) span: Span,
     pub(crate) expected_result: Option<TypeId>,
@@ -84,7 +85,7 @@ enum OverloadArguments<'a> {
 
 struct OverloadResolution<'a> {
     receiver: OverloadReceiver,
-    explicit_type_args: &'a [TypeId],
+    explicit_type_args: &'a [ResolvedCallTypeArgument],
     arguments: OverloadArguments<'a>,
     span: Span,
     expected_result: Option<TypeId>,
@@ -414,9 +415,12 @@ impl Lowerer {
                     name,
                     &prepared,
                     &mut failures,
-                    &arguments,
-                    inference_receiver,
-                    span,
+                    diagnostics::CandidateFailureContext {
+                        arguments: &arguments,
+                        extension_receiver: inference_receiver,
+                        explicit_type_args,
+                        span,
+                    },
                 );
                 return None;
             }

@@ -183,14 +183,21 @@ impl Lowerer {
             return None;
         }
         let seed = if explicit_arguments.is_empty() {
-            expected_arguments
+            expected_arguments.to_vec()
         } else {
-            &explicit_arguments
+            explicit_arguments
+                .iter()
+                .zip(expected_arguments)
+                .map(|(argument, &expected)| match argument {
+                    crate::expr::ResolvedCallTypeArgument::Explicit { ty, .. } => *ty,
+                    crate::expr::ResolvedCallTypeArgument::Infer { .. } => expected,
+                })
+                .collect()
         };
         let parameter_types = view
             .value_parameters
             .iter()
-            .map(|parameter| self.instantiate_ty(parameter.ty, seed))
+            .map(|parameter| self.instantiate_ty(parameter.ty, &seed))
             .collect::<Vec<_>>();
         let values = call
             .args

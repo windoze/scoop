@@ -1,8 +1,8 @@
 //! M12 annotation syntax and lexical safety-block tests.
 
 use scoop_ast::{
-    AnnotationLiteral, BinOp, Decl, Expr, FunctionBody, SafetyMode, StatementKind, TypeBound,
-    TypeParamKindBound, TypeRefKind,
+    AnnotationLiteral, BinOp, CallTypeArgument, Decl, Expr, FunctionBody, SafetyMode,
+    StatementKind, TypeBound, TypeParamKindBound, TypeRefKind,
 };
 
 use crate::tests::{block_body, err, ok, only_function};
@@ -179,15 +179,17 @@ fn parses_explicit_type_arguments_on_functions_and_methods() {
         panic!("expected function call");
     };
     assert!(matches!(
-        &call.type_args[0].kind,
-        TypeRefKind::Named(name) if name.text == "Int"
+        &call.type_args[0],
+        CallTypeArgument::Explicit(ty)
+            if matches!(&ty.kind, TypeRefKind::Named(name) if name.text == "Int")
     ));
     let StatementKind::Expr(Expr::MethodCall { type_args, .. }) = &statements[1].kind else {
         panic!("expected method call");
     };
     assert!(matches!(
-        &type_args[0].kind,
-        TypeRefKind::Named(name) if name.text == "UInt"
+        &type_args[0],
+        CallTypeArgument::Explicit(ty)
+            if matches!(&ty.kind, TypeRefKind::Named(name) if name.text == "UInt")
     ));
     let dump = scoop_ast::dump(&file);
     assert!(dump.contains("Call identity<Int>"));

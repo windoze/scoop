@@ -224,6 +224,30 @@ pub(crate) enum ConstraintFailureKind {
     NonConcreteApplication(NominalApplication),
 }
 
+impl ConstraintFailureKind {
+    pub(crate) fn inference_variable(&self) -> Option<InferenceVariableId> {
+        match self {
+            Self::ForeignVariable(variable)
+            | Self::ConflictingExactBounds { variable, .. }
+            | Self::NoUniqueSolution { variable, .. }
+            | Self::Kind { variable, .. }
+            | Self::InterfaceBound { variable, .. }
+            | Self::ClassBound { variable, .. } => Some(*variable),
+            Self::Relation { left, right, .. } => [left, right].into_iter().find_map(|term| {
+                let TypeTerm::Variable(variable) = term else {
+                    return None;
+                };
+                Some(*variable)
+            }),
+            Self::UnresolvedTerm(TypeTerm::Variable(variable)) => Some(*variable),
+            Self::ForeignTypeParameter(_)
+            | Self::CallableShape(_)
+            | Self::UnresolvedTerm(TypeTerm::Type(_) | TypeTerm::Rigid(_))
+            | Self::NonConcreteApplication(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstraintFailure {
     pub(crate) origin: ConstraintOrigin,

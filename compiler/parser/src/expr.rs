@@ -297,7 +297,7 @@ impl Parser {
                     receiver = self.parse_index(receiver)?;
                 }
                 TokenKind::Less if !self.peek().newline_before => {
-                    let type_args = self.parse_explicit_call_type_args();
+                    let type_args = self.parse_explicit_call_type_args()?;
                     if type_args.is_empty() {
                         break;
                     }
@@ -415,7 +415,7 @@ impl Parser {
             text,
             span: token.span,
         };
-        let type_args = self.parse_explicit_call_type_args();
+        let type_args = self.parse_explicit_call_type_args()?;
         if matches!(self.peek().kind, TokenKind::LParen) {
             let (args, end) = self.parse_args()?;
             return Ok(Expr::MethodCall {
