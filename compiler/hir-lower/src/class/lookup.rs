@@ -50,31 +50,8 @@ impl Lowerer {
             Type::String => {
                 self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::String, &mut declared)
             }
-            Type::Class(mut application) => {
-                let mut depth = 0;
-                loop {
-                    let application_value = self.class_applications[application].clone();
-                    let class = application_value.template;
-                    declared.extend(self.classes[class].methods.iter().copied().map(|function| {
-                        (
-                            crate::CallableCandidate::method(
-                                function,
-                                hir::MethodOwnerApplication::Class(application),
-                            ),
-                            depth,
-                            0,
-                        )
-                    }));
-                    let Some(base) = self.classes[class].base_class else {
-                        break;
-                    };
-                    let base = self.instantiate_ty(base, &application_value.arguments);
-                    let Type::Class(base_application) = self.types[base] else {
-                        unreachable!("resolved class bases are class applications")
-                    };
-                    application = base_application;
-                    depth += 1;
-                }
+            Type::Class(application) => {
+                self.collect_class_method_candidates(application, 0, None, &mut declared)
             }
             Type::Interface(application) => {
                 self.collect_interface_method_candidates(
@@ -142,28 +119,105 @@ impl Lowerer {
             }
             Type::Any => {}
             Type::Param(receiver_parameter) => {
-                let bounds = self
+                let parameter = self
                     .type_params_in_scope
                     .iter()
                     .find(|parameter| parameter.id == receiver_parameter)
                     .expect("the receiver parameter is in the active declaration scope")
-                    .interface_bounds()
-                    .to_vec();
-                for (root, bound) in bounds.into_iter().enumerate() {
-                    self.collect_interface_method_candidates(
-                        bound.application,
-                        0,
-                        root,
-                        Some((receiver_parameter, bound.application)),
-                        &mut Vec::new(),
-                        &mut declared,
-                    );
+                    .clone();
+                for (root, bound) in parameter
+                    .nominal_bounds_in_source_order()
+                    .into_iter()
+                    .enumerate()
+                {
+                    match bound {
+                        hir::NominalBoundRef::Class(bound) => {
+                            self.collect_class_method_candidates(
+                                bound.application,
+                                root,
+                                Some((receiver_parameter, bound.application)),
+                                &mut declared,
+                            );
+                        }
+                        hir::NominalBoundRef::Interface(bound) => {
+                            self.collect_interface_method_candidates(
+                                bound.application,
+                                0,
+                                root,
+                                Some((receiver_parameter, bound.application)),
+                                &mut Vec::new(),
+                                &mut declared,
+                            );
+                        }
+                    }
                 }
             }
             _ => {}
         }
 
         declared
+    }
+
+    fn collect_class_method_candidates(
+        &mut self,
+        mut application: hir::ClassApplicationId,
+        root: usize,
+        bound: Option<(hir::TypeParamId, hir::ClassApplicationId)>,
+        out: &mut Vec<(crate::CallableCandidate, usize, usize)>,
+    ) {
+        let mut depth = 0;
+        loop {
+            let application_value = self.class_applications[application].clone();
+            let class = application_value.template;
+            out.extend(self.classes[class].methods.iter().copied().map(|function| {
+                let source = match bound {
+                    Some((receiver_parameter, bound)) => {
+                        crate::CallableCandidateSource::ClassBound {
+                            receiver_parameter,
+                            bound,
+                            member: function,
+                        }
+                    }
+                    None => crate::CallableCandidateSource::Direct,
+                };
+                (
+                    crate::CallableCandidate {
+                        function,
+                        owner: crate::CallableCandidateOwner::Method(
+                            hir::MethodOwnerApplication::Class(application),
+                        ),
+                        source,
+                    },
+                    depth,
+                    root,
+                )
+            }));
+            if let Some((receiver_parameter, _)) = bound {
+                for interface in self.classes[class].interfaces.clone() {
+                    let interface = self.instantiate_ty(interface, &application_value.arguments);
+                    let Type::Interface(interface) = self.types[interface] else {
+                        unreachable!("class conformances are interface applications")
+                    };
+                    self.collect_interface_method_candidates(
+                        interface,
+                        depth + 1,
+                        root,
+                        Some((receiver_parameter, interface)),
+                        &mut Vec::new(),
+                        out,
+                    );
+                }
+            }
+            let Some(base) = self.classes[class].base_class else {
+                break;
+            };
+            let base = self.instantiate_ty(base, &application_value.arguments);
+            let Type::Class(base_application) = self.types[base] else {
+                unreachable!("resolved class bases are class applications")
+            };
+            application = base_application;
+            depth += 1;
+        }
     }
 
     fn visible_method_candidates(
@@ -243,11 +297,13 @@ impl Lowerer {
         for &member in &self.interfaces[application_value.template].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
-                Some((receiver_parameter, bound)) => crate::CallableCandidateSource::Bound {
-                    receiver_parameter,
-                    bound,
-                    member,
-                },
+                Some((receiver_parameter, bound)) => {
+                    crate::CallableCandidateSource::InterfaceBound {
+                        receiver_parameter,
+                        bound,
+                        member,
+                    }
+                }
                 None => crate::CallableCandidateSource::Direct,
             };
             out.push((

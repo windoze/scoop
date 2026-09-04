@@ -206,8 +206,14 @@ impl Lowerer {
                         self.check_no_gc_callee(*callee, expr.span, out)
                     }
                     hir::MethodCallee::Bound(bound) => {
-                        let member = self.bound_callable_refs[*bound].member;
-                        let function = self.interface_method_entities[member].function;
+                        let function = match self.bound_callable_refs[*bound].source {
+                            hir::BoundCallableSource::Class { callable, .. } => {
+                                self.callable_function_id(callable)
+                            }
+                            hir::BoundCallableSource::Interface { member, .. } => {
+                                self.interface_method_entities[member].function
+                            }
+                        };
                         self.check_no_gc_function(function, expr.span, out);
                     }
                     hir::MethodCallee::DerivedEquality(application) => {

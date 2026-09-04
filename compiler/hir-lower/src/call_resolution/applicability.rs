@@ -481,10 +481,20 @@ impl Lowerer {
                 Constraint::Kind(variable, parameter.kind()),
                 ConstraintOrigin::TypeParameterBound(parameter.id),
             );
-            for bound in parameter.interface_bounds() {
-                let interface = self.interface_applications[bound.application].canonical_type;
+            for bound in parameter.nominal_bounds_in_source_order() {
+                let constraint = match bound {
+                    hir::NominalBoundRef::Class(bound) => {
+                        let class = self.class_applications[bound.application].canonical_type;
+                        Constraint::ClassBound(variable, TypeTerm::Type(class))
+                    }
+                    hir::NominalBoundRef::Interface(bound) => {
+                        let interface =
+                            self.interface_applications[bound.application].canonical_type;
+                        Constraint::Implements(variable, TypeTerm::Type(interface))
+                    }
+                };
                 session.push(
-                    Constraint::Implements(variable, TypeTerm::Type(interface)),
+                    constraint,
                     ConstraintOrigin::TypeParameterBound(parameter.id),
                 );
             }

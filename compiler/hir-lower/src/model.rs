@@ -122,7 +122,12 @@ pub(crate) enum CallableCandidateOwner {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CallableCandidateSource {
     Direct,
-    Bound {
+    ClassBound {
+        receiver_parameter: hir::TypeParamId,
+        bound: hir::ClassApplicationId,
+        member: hir::FunctionId,
+    },
+    InterfaceBound {
         receiver_parameter: hir::TypeParamId,
         bound: hir::InterfaceApplicationId,
         member: hir::InterfaceMethodId,

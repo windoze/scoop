@@ -345,28 +345,50 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                 TypeParamBounds::Unconstrained => String::new(),
                 TypeParamBounds::Value { .. } => " : value".to_string(),
                 TypeParamBounds::Ref { .. } => " : ref".to_string(),
-                TypeParamBounds::Interfaces(bounds) => format!(
-                    " : {}",
-                    bounds
-                        .iter()
-                        .map(|bound| {
-                            let application = &module.interface_applications[bound.application];
-                            let name = &module.interfaces[application.template].name;
-                            if application.arguments.is_empty() {
-                                name.clone()
-                            } else {
-                                let arguments = application
-                                    .arguments
-                                    .iter()
-                                    .map(|ty| type_name_with_params(module, *ty, params))
-                                    .collect::<Vec<_>>()
-                                    .join(", ");
-                                format!("{name}<{arguments}>")
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(" & ")
-                ),
+                TypeParamBounds::Nominal(bounds) => {
+                    let mut rendered = Vec::new();
+                    if let Some(bound) = &bounds.class {
+                        let application = &module.class_applications[bound.application];
+                        let name = &module.classes[application.template].name;
+                        let value = if application.arguments.is_empty() {
+                            name.clone()
+                        } else {
+                            let arguments = application
+                                .arguments
+                                .iter()
+                                .map(|ty| type_name_with_params(module, *ty, params))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("{name}<{arguments}>")
+                        };
+                        rendered.push((bound.span.start, value));
+                    }
+                    rendered.extend(bounds.interfaces.iter().map(|bound| {
+                        let application = &module.interface_applications[bound.application];
+                        let name = &module.interfaces[application.template].name;
+                        let value = if application.arguments.is_empty() {
+                            name.clone()
+                        } else {
+                            let arguments = application
+                                .arguments
+                                .iter()
+                                .map(|ty| type_name_with_params(module, *ty, params))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("{name}<{arguments}>")
+                        };
+                        (bound.span.start, value)
+                    }));
+                    rendered.sort_by_key(|(start, _)| *start);
+                    format!(
+                        " : {}",
+                        rendered
+                            .into_iter()
+                            .map(|(_, value)| value)
+                            .collect::<Vec<_>>()
+                            .join(" & ")
+                    )
+                }
             };
             format!("{}{bounds}", param.name)
         })

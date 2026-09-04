@@ -55,11 +55,17 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         .iter()
         .map(|(_, bound)| bound)
         .find(|bound| {
-            let member = output.export.interface_methods[bound.member];
+            let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+                return false;
+            };
+            let member = output.export.interface_methods[member];
             output.export.interfaces[member.owner].name == "Show"
         })
         .expect("read<T> has one non-core bound call");
-    let member = output.export.interface_methods[bound.member];
+    let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+        panic!("Show is an interface-bound member")
+    };
+    let member = output.export.interface_methods[member];
     assert_eq!(
         output.export.functions[member.function]
             .name
@@ -200,16 +206,26 @@ fn bound_member_inherits_through_exact_parent_application() {
         .iter()
         .map(|(_, bound)| bound)
         .find(|bound| {
-            let member = output.export.interface_methods[bound.member];
+            let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+                return false;
+            };
+            let member = output.export.interface_methods[member];
             output.export.interfaces[member.owner].name == "Parent"
         })
         .expect("readParent<T> has one non-core bound call");
+    let hir::BoundCallableSource::Interface {
+        bound: root,
+        member,
+    } = bound.source
+    else {
+        panic!("Parent is reached through an interface bound")
+    };
     assert_eq!(
-        output.export.interfaces[output.export.interface_applications[bound.bound].template].name,
+        output.export.interfaces[output.export.interface_applications[root].template].name,
         "Child"
     );
     assert_eq!(
-        output.export.interfaces[output.export.interface_methods[bound.member].owner].name,
+        output.export.interfaces[output.export.interface_methods[member].owner].name,
         "Parent"
     );
     let implementation = output
@@ -229,7 +245,7 @@ fn bound_member_inherits_through_exact_parent_application() {
                 == "Child"
         })
         .expect("Child conformance");
-    assert_eq!(child_conformance.methods[0].member, bound.member);
+    assert_eq!(child_conformance.methods[0].member, member);
 }
 
 #[test]

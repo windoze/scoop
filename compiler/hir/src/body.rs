@@ -392,9 +392,20 @@ pub enum MethodCallee {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundCallableRef {
     pub receiver_parameter: TypeParamId,
-    pub bound: InterfaceApplicationId,
-    pub member: InterfaceMethodId,
+    pub source: BoundCallableSource,
     pub instantiated_signature: FunctionTypeId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundCallableSource {
+    Class {
+        bound: ClassApplicationId,
+        callable: Callable,
+    },
+    Interface {
+        bound: InterfaceApplicationId,
+        member: InterfaceMethodId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

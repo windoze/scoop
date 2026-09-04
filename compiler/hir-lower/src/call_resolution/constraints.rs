@@ -149,6 +149,7 @@ pub(crate) enum Constraint {
     Subtype(TypeTerm, TypeTerm),
     CallableShape(CallableShape, TypeTerm),
     Kind(InferenceVariableId, hir::TypeParamKind),
+    ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
     ConcreteApplication(NominalApplication),
 }
@@ -210,6 +211,11 @@ pub(crate) enum ConstraintFailureKind {
         required: hir::TypeParamKind,
     },
     InterfaceBound {
+        variable: InferenceVariableId,
+        solution: hir::TypeId,
+        required: hir::TypeId,
+    },
+    ClassBound {
         variable: InferenceVariableId,
         solution: hir::TypeId,
         required: hir::TypeId,

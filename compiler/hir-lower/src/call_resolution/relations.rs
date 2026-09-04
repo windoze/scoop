@@ -15,6 +15,7 @@ pub(super) enum AtomicConstraintKind {
     LowerBound(InferenceVariableId, TypeTerm),
     UpperBound(InferenceVariableId, TypeTerm),
     Kind(InferenceVariableId, hir::TypeParamKind),
+    ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
     CallableShape(CallableShape, TypeTerm),
     ConcreteApplication(NominalApplication),
@@ -66,6 +67,14 @@ impl RelationReducer<'_> {
                 self.check_variable(*variable, record.origin)?;
                 self.push(
                     AtomicConstraintKind::Implements(*variable, *interface),
+                    record.origin,
+                );
+                Ok(())
+            }
+            Constraint::ClassBound(variable, class) => {
+                self.check_variable(*variable, record.origin)?;
+                self.push(
+                    AtomicConstraintKind::ClassBound(*variable, *class),
                     record.origin,
                 );
                 Ok(())

@@ -93,6 +93,16 @@ pub(crate) fn render_nominal_constraint_failure(
             parameter(*variable).name,
             lowerer.type_name(*required),
         ),
+        ConstraintFailureKind::ClassBound {
+            variable,
+            solution,
+            required,
+        } => format!(
+            "type argument `{}` for `{}` must satisfy class upper bound `{}`",
+            lowerer.type_name(*solution),
+            parameter(*variable).name,
+            lowerer.type_name(*required),
+        ),
         ConstraintFailureKind::ConflictingExactBounds {
             variable,
             first,
