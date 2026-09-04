@@ -1,9 +1,75 @@
 use super::*;
 
+/// Static declaration owner retained after concretization. Origins name the
+/// declaration template rather than an outer application, so a generic host
+/// does not replicate its nested declarations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NominalOwner {
+    Class(ClassOriginId),
+    Interface(InterfaceOriginId),
+    Struct(StructOriginId),
+    Enum(EnumOriginId),
+    Object(ObjectOriginId),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectDecl {
+    pub origin: ObjectOriginId,
+    pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub object_type: ObjectTypeId,
+    pub singleton_value: SingletonValueId,
+    pub kind: ObjectKind,
+    pub backing_class: ClassId,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectKind {
+    Standalone,
+    Companion(CompanionRelationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompanionRelation {
+    pub host: NominalOwner,
+    pub object: ObjectId,
+    pub name: CompanionName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompanionName {
+    Default,
+    Named(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectType {
+    pub declaration: ObjectId,
+    pub representation: ClassId,
+    pub canonical_type: TypeId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonValue {
+    pub declaration: ObjectId,
+    pub object_type: ObjectTypeId,
+    pub published_root: SingletonPublishedRootId,
+    pub initialization: InitializationUnitId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SingletonPublishedRoot {
+    pub value: SingletonValueId,
+    pub ty: TypeId,
+    pub link_name: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub origin: StructOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub representation: StructRepresentation,
@@ -40,6 +106,7 @@ impl StructDef {
 pub struct EnumDef {
     pub origin: EnumOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
@@ -55,6 +122,7 @@ pub struct ClassDef {
     pub origin: ClassOriginId,
     pub modifier: ClassModifier,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
@@ -173,6 +241,7 @@ pub enum IntrinsicTypeRepresentation {
 pub struct InterfaceDef {
     pub origin: InterfaceOriginId,
     pub name: String,
+    pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
     pub type_arguments: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
@@ -208,9 +277,16 @@ pub struct MethodSig {
     pub name: String,
     pub is_suspend: bool,
     pub attributes: FunctionAttributes,
+    pub implementation: InterfaceMemberImplementation,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterfaceMemberImplementation {
+    Body,
+    AbstractSlot,
 }
 
 #[derive(Debug, Clone)]
@@ -237,6 +313,9 @@ pub struct Global {
 
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
+    Managed {
+        initializer: ManagedGlobalInitializer,
+    },
     Local {
         thread_local: bool,
         initializer: ConstantValue,
@@ -249,11 +328,22 @@ pub enum GlobalStorage {
 }
 
 #[derive(Debug, Clone)]
+pub enum ManagedGlobalInitializer {
+    Image(ConstantValue),
+    RuntimeZeroed(InitializationUnitId),
+}
+
+#[derive(Debug, Clone)]
 pub enum ConstantValue {
     Int(i64),
     Bool(bool),
+    String(String),
     NullPtr,
     NullFunPtr,
+    EnumUnit {
+        enum_id: EnumId,
+        variant: u32,
+    },
     Struct {
         struct_id: StructId,
         fields: Vec<ConstantValue>,

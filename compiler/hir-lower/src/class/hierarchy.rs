@@ -80,7 +80,7 @@ impl Lowerer {
                     .iter()
                     .copied()
                     .map(|function| {
-                        crate::CallableCandidate::method(
+                        crate::CallableCandidate::inheritance_method(
                             function,
                             hir::MethodOwnerApplication::Class(base_application),
                         )
@@ -89,31 +89,6 @@ impl Lowerer {
             current = base_application;
         }
         result
-    }
-
-    /// The total number of constructor properties in the base chain of
-    /// `c` — the layout offset of `c`'s own properties (base fields
-    /// prefix, cycle-safe).
-    /// Find a constructor property by name on class `c` or its base
-    /// chain. Returns the declaring class, source field identity, type and
-    /// mutability. Layout position is intentionally a downstream concern.
-    pub(crate) fn find_class_field(
-        &self,
-        c: ClassId,
-        name: &str,
-    ) -> Option<(ClassId, hir::ClassFieldId, TypeId, bool)> {
-        if let Some(&field_id) = self.classes[c]
-            .fields
-            .iter()
-            .find(|field| self.class_fields[**field].name == name)
-        {
-            let field = &self.class_fields[field_id];
-            let ty = field.ty;
-            let mutable = field.mutable;
-            return Some((c, field_id, ty, mutable));
-        }
-        let base = self.direct_base_class(c)?;
-        self.find_class_field(base, name)
     }
 
     /// Field lookup on a complete class application. The declaration/layout
@@ -126,15 +101,24 @@ impl Lowerer {
     ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
         let application_value = self.class_applications[application].clone();
         let class = application_value.template;
-        if let Some(&field_id) = self.classes[class]
-            .fields
+        if let Some(&property_id) = self.classes[class]
+            .properties
             .iter()
-            .find(|field| self.class_fields[**field].name == name)
+            .find(|property| self.properties[**property].name == name)
         {
-            let field = self.class_fields[field_id].clone();
-            let field_ty = field.ty;
+            let property = self.properties[property_id].clone();
+            let hir::PropertyRepresentation::Stored(stored) = property.representation else {
+                return None;
+            };
+            let hir::PropertyBacking::ClassField {
+                field: field_id, ..
+            } = stored.backing
+            else {
+                return None;
+            };
+            let field_ty = property.ty;
             let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = field.mutable;
+            let mutable = property.capability.setter().is_some();
             return Some((application, field_id, ty, mutable));
         }
         let base = self.classes[class].base_class?;
@@ -143,5 +127,41 @@ impl Lowerer {
             unreachable!("resolved class bases are class applications")
         };
         self.find_class_application_field(base_application, name)
+    }
+
+    pub(crate) fn find_accessible_class_application_property(
+        &mut self,
+        mut application: hir::ClassApplicationId,
+        name: &str,
+        receiver_ty: TypeId,
+    ) -> Option<(hir::ClassApplicationId, hir::PropertyId, TypeId)> {
+        let mut seen = Vec::new();
+        loop {
+            if seen.contains(&application) {
+                return None;
+            }
+            seen.push(application);
+            let application_value = self.class_applications[application].clone();
+            let class = application_value.template;
+            if let Some(&property) = self.classes[class]
+                .properties
+                .iter()
+                .find(|property| self.properties[**property].name == name)
+                && self.access_domain_allows(
+                    &self.properties[property].access.lookup.0,
+                    Some(receiver_ty),
+                )
+            {
+                let ty =
+                    self.instantiate_ty(self.properties[property].ty, &application_value.arguments);
+                return Some((application, property, ty));
+            }
+            let base = self.classes[class].base_class?;
+            let base = self.instantiate_ty(base, &application_value.arguments);
+            let Type::Class(base_application) = self.types[base] else {
+                unreachable!("class bases are resolved class applications")
+            };
+            application = base_application;
+        }
     }
 }

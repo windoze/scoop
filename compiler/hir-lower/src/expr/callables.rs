@@ -54,6 +54,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Invoke),
                 infix: require_infix,
+                ..Default::default()
             },
         )
     }
@@ -89,17 +90,23 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if let Some(local) = self.scopes.lookup(&call.callee.text) {
+            let binding = self.locals[local].binding;
             let ty = self
-                .smart_casts
-                .get(&local)
-                .copied()
+                .local_delegate_plans
+                .get(&binding)
+                .map(|plan| plan.property_ty)
+                .or_else(|| self.smart_casts.get(&local).copied())
                 .unwrap_or(self.locals[local].ty);
             if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                let callee = hir::Expr {
-                    kind: ExprKind::Local(local),
-                    ty,
-                    span: call.callee.span,
-                    origin: self.expression_origin(call.callee.span),
+                let callee = if self.local_delegate_plans.contains_key(&binding) {
+                    self.lower_var(&call.callee, sink, None)?
+                } else {
+                    hir::Expr {
+                        kind: ExprKind::Local(local),
+                        ty,
+                        span: call.callee.span,
+                        origin: self.expression_origin(call.callee.span),
+                    }
                 };
                 return self.lower_value_invoke(
                     callee,
@@ -114,37 +121,16 @@ impl Lowerer {
                 );
             }
         }
-        if let Some(capture) = self.available_capture(&call.callee.text)
-            && (self.type_exposes_invoke(capture.ty, false)
-                || matches!(self.types[capture.ty], Type::FunPtr(_)))
-        {
-            let callee = self.lower_capture(&call.callee)?;
-            return self.lower_value_invoke(
-                callee,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-                false,
-            );
-        }
-        if let Some(&global) = self.globals_by_name.get(&call.callee.text) {
-            let ty = self.globals[global].ty;
+        if let Some(capture) = self.available_capture(&call.callee.text) {
+            let ty = self
+                .local_delegate_plans
+                .get(&capture.binding)
+                .map_or(capture.ty, |plan| plan.property_ty);
             if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                if matches!(
-                    self.globals[global].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(call.callee.span, "reading an extern global");
-                }
-                let callee = hir::Expr {
-                    kind: ExprKind::GlobalRead(global),
-                    ty,
-                    span: call.callee.span,
-                    origin: self.expression_origin(call.callee.span),
+                let callee = if self.local_delegate_plans.contains_key(&capture.binding) {
+                    self.lower_var(&call.callee, sink, None)?
+                } else {
+                    self.lower_capture(&call.callee)?
                 };
                 return self.lower_value_invoke(
                     callee,
@@ -209,7 +195,30 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            Constructor::Unmatched => self.lower_function_call(call, sink, expected),
+            Constructor::Unmatched => {
+                let object = self
+                    .lexical_nested_nominal_target(&call.callee.text)
+                    .or_else(|| self.top_level_nominal_target(&call.callee.text))
+                    .and_then(|target| match target {
+                        crate::NominalTarget::Object(object) => Some(object),
+                        _ => None,
+                    });
+                if let Some(object) = object
+                    && !self.functions_by_name.contains_key(&call.callee.text)
+                {
+                    let kind = match self.objects[object].kind {
+                        hir::ObjectKind::Standalone => "object",
+                        hir::ObjectKind::Companion(_) => "companion object",
+                    };
+                    self.error(
+                        call.span,
+                        format!("{kind} `{}` cannot be constructed", call.callee.text),
+                    );
+                    None
+                } else {
+                    self.lower_function_call(call, sink, expected)
+                }
+            }
         }
     }
 

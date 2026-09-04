@@ -131,6 +131,7 @@ pub(crate) enum ExprKind {
     },
     Local(mir::LocalId),
     GlobalRead(mir::GlobalId),
+    InitializationUnitAddress(mir::InitializationUnitId),
     PtrFromUInt {
         operand: Box<Expr>,
         pointee: Box<mir::Type>,

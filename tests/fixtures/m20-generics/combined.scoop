@@ -52,7 +52,7 @@ class Gate(var waiter: Continuation<Int>?) {
 }
 
 class Registration(val gate: Gate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -63,7 +63,7 @@ class CombinedTask(
     val gate: Gate,
     val box: GenericBox<Message, String>
 ) : SuspendTask<String> {
-    final override suspend fun run(): String {
+    public final override suspend fun run(): String {
         val prefix = "captured-"
         return try {
             val signal = awaitSignal(gate)
@@ -81,12 +81,12 @@ class CombinedTask(
 }
 
 class RecordingCompletion(val label: String) : Continuation<String> {
-    final override fun resume(value: String) {
+    public final override fun resume(value: String) {
         println(label)
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("unexpected-failure")
     }
 }

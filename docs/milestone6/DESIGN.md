@@ -130,5 +130,5 @@ fun main() {
 - 次构造函数、`init` 块、body 属性、`super` 调用；
 - interface 的属性与默认实现；`equals`/`hashCode`/`toString` 用户覆写（见 5.1）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；
-- 可见性修饰符（全部public；`internal`语义在后续多Cone里程碑前完成）；
+- 可见性修饰符（M6阶段临时全部public；M21已决定正式语义默认internal，并在M23多Cone前完成）；
 - 重载（M7）；`?.` 后随方法调用（spec 6.3 形态——`?.` 目前只支持字段，方法版随本里程碑的 `?.method` 自然表达式扩展时单独评估，可先只做字段）。

@@ -212,6 +212,9 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 lir::Value::Temp(out)
             }
+            mir::ExprKind::InitializationUnitAddress(unit) => {
+                lir::Value::InitializationUnit(lir::InitializationUnitId::from_raw(unit.into_raw()))
+            }
             mir::ExprKind::PtrFromUInt { operand, .. } => {
                 let value = self.lower_expr(operand);
                 let out = self.new_temp(lir::RAW_PTR);

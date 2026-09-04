@@ -58,14 +58,22 @@ impl Lowerer {
             });
             if parameter.property != ast::PrimaryParameterProperty::Plain {
                 field_names.insert(parameter.name.text.clone());
-                let field = self.class_fields.alloc(hir::ClassField {
-                    owner: id,
-                    name: parameter.name.text.clone(),
-                    ty,
-                    mutable: parameter.property.is_mutable(),
-                    source: hir::ClassFieldSource::PrimaryParameter(parameter_id),
-                    span: parameter.span,
-                });
+                let access = self.member_access(
+                    parameter
+                        .member_visibility
+                        .unwrap_or(ast::VisibilitySyntax::Omitted),
+                    parameter.name.span,
+                    "primary-constructor property",
+                    Owner::Class(id),
+                    self.current_file,
+                    if parameter.is_override {
+                        crate::visibility::MemberSlotAccess::Override
+                    } else {
+                        crate::visibility::MemberSlotAccess::None
+                    },
+                );
+                let field =
+                    self.allocate_primary_class_property(id, parameter, ty, parameter_id, access);
                 fields.push(field);
             }
             parameter_calling.push(calling);
@@ -87,15 +95,24 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&property.ty) else {
                 continue;
             };
-            let field = self.class_fields.alloc(hir::ClassField {
-                owner: id,
-                name: property.name.text.clone(),
-                ty,
-                mutable: property.mutable,
-                source: hir::ClassFieldSource::Body,
-                span: property.span,
-            });
-            fields.push(field);
+            let slot_access = if property.is_override {
+                crate::visibility::MemberSlotAccess::Override
+            } else if property.modifier != ast::MethodModifier::Final {
+                crate::visibility::MemberSlotAccess::Declared
+            } else {
+                crate::visibility::MemberSlotAccess::None
+            };
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Class(id),
+                self.current_file,
+                slot_access,
+            );
+            if let Some(field) = self.allocate_class_property(id, property, ty, access) {
+                fields.push(field);
+            }
         }
         self.classes[id].representation = hir::ClassRepresentation::Declared;
         self.classes[id].fields = fields;
@@ -103,8 +120,21 @@ impl Lowerer {
         let should_synthesize_primary =
             decl.constructor.is_omitted() && decl.secondary_constructors().next().is_none();
         if has_explicit_primary || should_synthesize_primary {
+            let visibility = match &decl.constructor {
+                ast::ClassConstructorDecl::Omitted => ast::VisibilitySyntax::Omitted,
+                ast::ClassConstructorDecl::Declared(constructor) => constructor.visibility,
+            };
+            let access = self.member_access(
+                visibility,
+                decl.span,
+                "constructor",
+                Owner::Class(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                access,
                 parameters,
                 kind: hir::ClassConstructorKind::Primary {
                     base: hir::BaseInitialization::Root,
@@ -141,8 +171,17 @@ impl Lowerer {
                 });
                 callings.push(resolved.calling);
             }
+            let access = self.member_access(
+                source.visibility,
+                source.span,
+                "constructor",
+                Owner::Class(id),
+                self.current_file,
+                crate::visibility::MemberSlotAccess::None,
+            );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                access,
                 parameters,
                 kind: hir::ClassConstructorKind::Secondary {
                     delegation: hir::ClassSecondaryDelegation::Terminal {
@@ -161,11 +200,16 @@ impl Lowerer {
             self.class_parameter_calling.insert(constructor, callings);
         }
 
-        self.resolve_class_supertypes(id, &decl.supertypes);
+        self.resolve_class_supertypes(id, &decl.supertypes, "a class");
         self.type_params_in_scope.clear();
     }
 
-    fn resolve_class_supertypes(&mut self, id: ClassId, specs: &[ast::SupertypeSpec]) {
+    pub(crate) fn resolve_class_supertypes(
+        &mut self,
+        id: ClassId,
+        specs: &[ast::SupertypeSpec],
+        host: &str,
+    ) {
         let mut interfaces = Vec::new();
         let mut base = None;
         for spec in specs {
@@ -177,7 +221,7 @@ impl Lowerer {
                     if base.is_some() {
                         self.error(
                             spec.span,
-                            "a class may have only one direct base class".into(),
+                            format!("{host} may have only one direct base class"),
                         );
                         continue;
                     }

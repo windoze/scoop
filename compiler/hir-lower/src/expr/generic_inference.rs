@@ -458,7 +458,7 @@ impl Lowerer {
             })
     }
 
-    pub(super) fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
+    pub(crate) fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
         match &self.types[ty] {
             Type::Param(index) => bound[index.into_raw() as usize] = true,
             Type::Struct(application) => {

@@ -5,6 +5,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub access: DeclarationAccess,
+    pub override_access: Vec<OverrideAccessWitness>,
     /// Complete declaration identity. Generic functions carry their distinct
     /// template id directly; consumers never recover it by scanning the
     /// `generic_functions` arena or by inspecting `type_params`.
@@ -29,7 +31,18 @@ pub struct Function {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CallableModifiers {
     pub operator: Option<OperatorKind>,
+    /// Property-delegation protocol identity. These roles are intentionally
+    /// disjoint from the ordinary operator table: source-name equality alone
+    /// never makes a callable participate in delegation.
+    pub property_delegate_operator: Option<PropertyDelegateOperatorKind>,
     pub is_infix: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PropertyDelegateOperatorKind {
+    ProvideDelegate,
+    GetValue,
+    SetValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

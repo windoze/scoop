@@ -1,0 +1,16 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-delegate-roles/errors/role-contracts.scoop:21:1: error: an `@Extern` function must not have an extension receiver
+m21-delegate-roles/errors/role-contracts.scoop:22:18: error: property delegate operator `getValue` must be an ordinary function
+m21-delegate-roles/errors/role-contracts.scoop:24:1: error: `operator` requires a member or extension receiver
+m21-delegate-roles/errors/role-contracts.scoop:2:18: error: property delegate operator `provideDelegate` must have exactly 0 parameters, found 1
+m21-delegate-roles/errors/role-contracts.scoop:6:27: error: property delegate operator `getValue` requires required, non-vararg parameters
+m21-delegate-roles/errors/role-contracts.scoop:10:26: error: property delegate operator `provideDelegate` must not be suspend
+m21-delegate-roles/errors/role-contracts.scoop:14:22: error: property delegate operator `getValue` must not declare type parameters
+m21-delegate-roles/errors/role-contracts.scoop:18:18: error: property delegate operator `setValue` must return Unit, found Int
+m21-delegate-roles/errors/role-contracts.scoop:21:1: error: extern parameter is not ABI-safe: getValue.parameter1: `Unit` is only allowed as a Scoop ABI return type
+m21-delegate-roles/errors/role-contracts.scoop:6:43: error: default value of parameter `thisRef` in `WrongGet.getValue` must be of type Unit, found () -> Unit
+m21-delegate-roles/errors/role-contracts.scoop:14:51: error: body of `getValue` must be of type T, found Int

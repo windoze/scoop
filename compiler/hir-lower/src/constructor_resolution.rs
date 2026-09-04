@@ -51,7 +51,12 @@ impl Lowerer {
         }
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
+        let mut inaccessible = false;
         for &source in candidates {
+            if !self.constructor_is_accessible(source) {
+                inaccessible = true;
+                continue;
+            }
             let view = self.nominal_constructor_view(source);
             if !explicit_type_args.is_empty()
                 && explicit_type_args.len() != view.owner_parameters.len()
@@ -134,6 +139,13 @@ impl Lowerer {
 
         let winner = match applicable.len() {
             0 => {
+                if failures.is_empty() && inaccessible {
+                    self.error(
+                        span,
+                        format!("constructor of type `{name}` is not accessible here"),
+                    );
+                    return None;
+                }
                 if failures.len() == 1 {
                     *self = *failures.pop().expect("one failure").1;
                 } else {

@@ -15,6 +15,7 @@ pub(super) fn value_name(value: Value) -> String {
         Value::TypeDescriptor(reference) => type_descriptor_ref_name(reference),
         Value::RootScan(id) => format!("root-scan{}", id.into_raw()),
         Value::Global(id) => format!("global{}", id.into_raw()),
+        Value::InitializationUnit(id) => format!("init{}", id.into_raw()),
     }
 }
 

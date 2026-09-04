@@ -48,43 +48,45 @@ fn secondary_constructor_is_preserved() {
 }
 
 #[test]
-fn companion_object_not_supported() {
-    let (span, message) = err("class C {\n    companion object {}\n}\n");
-    assert_eq!(span, Span::new(14, 23));
-    assert_eq!(
-        message,
-        "companion objects are not supported yet (milestone M21)"
-    );
+fn companion_object_is_preserved() {
+    let file = ok("class C {\n    companion object {}\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert!(matches!(
+        class.members[0],
+        scoop_ast::ClassMember::Companion(_)
+    ));
 }
 
 #[test]
-fn nested_object_declaration_not_supported() {
-    let (span, message) = err("class C {\n    object O {}\n}\n");
-    assert_eq!(span, Span::new(14, 20));
-    assert_eq!(
-        message,
-        "`object` declarations are not supported yet (milestone M21)"
-    );
+fn nested_object_declaration_is_preserved() {
+    let file = ok("class C {\n    object O {}\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert!(matches!(
+        class.members[0],
+        scoop_ast::ClassMember::Nested(_)
+    ));
 }
 
 #[test]
-fn nested_class_declaration_not_supported() {
-    let (span, message) = err("class C {\n    class D {}\n}\n");
-    assert_eq!(span, Span::new(14, 19));
-    assert_eq!(
-        message,
-        "nested type declarations are not supported yet (milestone M21)"
-    );
+fn nested_class_declaration_is_preserved() {
+    let file = ok("class C {\n    class D {}\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert!(matches!(
+        class.members[0],
+        scoop_ast::ClassMember::Nested(_)
+    ));
 }
 
 #[test]
-fn object_declaration_not_supported() {
-    let (span, message) = err("object O {}");
-    assert_eq!(span, Span::new(0, 6));
-    assert_eq!(
-        message,
-        "`object` declarations are not supported yet (milestone M6)"
-    );
+fn object_declaration_is_preserved() {
+    let file = ok("object O {}");
+    assert!(matches!(file.declarations[0], Decl::Object(_)));
 }
 
 #[test]

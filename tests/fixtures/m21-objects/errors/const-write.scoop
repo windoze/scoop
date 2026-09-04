@@ -1,0 +1,7 @@
+object Settings {
+    const val version: Int = 21
+}
+
+fun main() {
+    Settings.version = 22
+}

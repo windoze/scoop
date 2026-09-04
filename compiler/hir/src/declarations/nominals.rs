@@ -1,8 +1,22 @@
 use super::*;
 
+/// Lexical declaration owner of a static nested nominal. Each target keeps
+/// its own nominal id; the owner relation is typed and never reconstructed
+/// from a qualified source name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NominalOwner {
+    Class(ClassId),
+    Interface(InterfaceId),
+    Struct(StructId),
+    Enum(EnumId),
+    Object(ObjectId),
+}
+
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub access: NominalAccess,
     /// Application to this declaration's own type parameters (or the empty
     /// application for a parameter-free declaration).
     pub self_application: StructApplicationId,
@@ -18,6 +32,7 @@ pub struct StructDecl {
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
     pub methods: Vec<FunctionId>,
+    pub properties: Vec<PropertyId>,
     /// Compiler-derived same-type equality declaration, when no explicit
     /// same-signature operator suppresses derivation. Applicability remains
     /// conditional on this application's field obligations.
@@ -80,6 +95,8 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub access: NominalAccess,
     pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub no_gc: bool,
@@ -87,6 +104,7 @@ pub struct EnumDecl {
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
+    pub properties: Vec<PropertyId>,
     pub derived_equality: Option<FunctionId>,
     pub span: Span,
 }
@@ -171,10 +189,13 @@ pub enum OperatorKind {
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub access: NominalAccess,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub representation: ClassRepresentation,
     pub fields: Vec<ClassFieldId>,
+    pub properties: Vec<PropertyId>,
     pub constructors: Vec<ClassConstructorId>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
@@ -215,9 +236,8 @@ pub enum ClassRepresentation {
 #[derive(Debug, Clone)]
 pub struct ClassField {
     pub owner: ClassId,
-    pub name: String,
+    pub property: PropertyId,
     pub ty: TypeId,
-    pub mutable: bool,
     pub source: ClassFieldSource,
     pub span: Span,
 }
@@ -238,6 +258,7 @@ pub struct ConstructorParameter {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub owner: ClassId,
+    pub access: DeclarationAccess,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,
@@ -267,6 +288,12 @@ pub struct PrimaryFieldStore {
 #[derive(Debug, Clone)]
 pub enum ClassInitializationStep {
     StoredProperty {
+        field: ClassFieldId,
+        initializer: ConstructorExpression,
+        span: Span,
+    },
+    DelegatedProperty {
+        storage: DelegateStorageId,
         field: ClassFieldId,
         initializer: ConstructorExpression,
         span: Span,
@@ -314,6 +341,7 @@ pub struct ClassConstructorApplication {
 #[derive(Debug, Clone)]
 pub struct StructConstructor {
     pub owner: StructId,
+    pub access: DeclarationAccess,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
     pub span: Span,

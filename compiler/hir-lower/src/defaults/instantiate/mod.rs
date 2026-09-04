@@ -114,6 +114,9 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::Statement {
         let kind = match &source.kind {
+            hir::StatementKind::InitializationEnsure(unit) => {
+                hir::StatementKind::InitializationEnsure(*unit)
+            }
             hir::StatementKind::Expr(value) => {
                 hir::StatementKind::Expr(self.instantiate_default_expr(value, context))
             }
@@ -241,6 +244,9 @@ impl Lowerer {
                 hir::AssignTarget::Local(mapped_local(context, *local))
             }
             hir::AssignTarget::Global(global) => hir::AssignTarget::Global(*global),
+            hir::AssignTarget::SingletonPublishedRoot(root) => {
+                hir::AssignTarget::SingletonPublishedRoot(*root)
+            }
             hir::AssignTarget::Index { array, index } => hir::AssignTarget::Index {
                 array: Box::new(self.instantiate_default_expr(array, context)),
                 index: Box::new(self.instantiate_default_expr(index, context)),
@@ -367,6 +373,7 @@ impl Lowerer {
             },
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),
             hir::ExprKind::GlobalRead(global) => hir::ExprKind::GlobalRead(*global),
+            hir::ExprKind::SingletonValue(value) => hir::ExprKind::SingletonValue(*value),
             hir::ExprKind::Capture(binding) => hir::ExprKind::Capture(*binding),
             hir::ExprKind::Lambda(lambda) => {
                 hir::ExprKind::Lambda(self.instantiate_default_lambda(*lambda, context))

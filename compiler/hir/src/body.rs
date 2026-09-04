@@ -23,6 +23,10 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
+    /// Enter the exactly-once gate before a runtime-backed accessor touches
+    /// its storage. LocalConcrete HIR enriches this with the exact cycle
+    /// exception constructor.
+    InitializationEnsure(InitializationUnitId),
     /// Compile-time declaration marker. The lifted body lives in
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),
@@ -76,6 +80,8 @@ pub struct CatchClause {
 pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
+    /// Publish a fully constructed singleton into its moving-GC-aware root.
+    SingletonPublishedRoot(SingletonPublishedRootId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
     Index {
         array: Box<Expr>,
@@ -190,6 +196,8 @@ pub enum ExprKind {
     },
     Local(LocalId),
     GlobalRead(GlobalId),
+    /// Read the unique value after passing its exactly-once gate.
+    SingletonValue(SingletonValueId),
     /// Read one immutable binding from the current closure environment. The
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),

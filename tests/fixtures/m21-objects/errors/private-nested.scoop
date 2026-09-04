@@ -1,0 +1,9 @@
+class Vault {
+    private object Secret {
+        fun value(): Int = 42
+    }
+}
+
+fun main() {
+    println(Vault.Secret.value())
+}

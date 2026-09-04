@@ -13,11 +13,15 @@ impl Harness {
             (self.interface_applications.len() as u32).into(),
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
+            owner: None,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             parents: Vec::new(),
             methods: Vec::new(),
+            private_methods: Vec::new(),
+            properties: Vec::new(),
             span: SPAN,
         });
         let actual = self.interface_application(interface, self_arguments);
@@ -45,6 +49,8 @@ impl Harness {
         }
         let function = self.functions.alloc(hir::Function {
             name: format!("{}.{}", declaration.name, method.name),
+            access: hir::DeclarationAccess::public(),
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: method.is_suspend,
             modifiers: hir::CallableModifiers::default(),
@@ -72,6 +78,9 @@ impl Harness {
         let member = self.interface_methods.alloc(hir::InterfaceMethod {
             owner: interface,
             function,
+            role: hir::InterfaceMemberRole::Function,
+            implementation: hir::InterfaceMemberImplementation::AbstractSlot,
+            overrides: Vec::new(),
         });
         self.functions[function].method.as_mut().unwrap().dispatch =
             hir::MethodDispatch::Interface(member);

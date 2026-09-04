@@ -4,241 +4,241 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-  interface Continuation<T>
+  public interface Continuation<T>
     fun resume
     fun resumeWithException
-  interface SuspendTask<T>
+  public interface SuspendTask<T>
     suspend fun run
-  interface SuspendRegistration<T>
+  public interface SuspendRegistration<T>
     fun register
-  struct FunctionSuspendTask<T> : SuspendTask<T>
+  public struct FunctionSuspendTask<T> : SuspendTask<T>
     field task: suspend () -> T
-    suspend fun run
-  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    public suspend fun run
+  public struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
     field registration: (Continuation<T>) -> Unit
-    fun register
+    public fun register
     @Intrinsic("coroutine_start")
-  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+  public fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
     @Intrinsic("coroutine_suspend")
-  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
-  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+  public suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  public fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
     Call startCoroutine
       Call FunctionSuspendTask
         Var task
       Var completion
-  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+  public suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
     =
       Call suspendCoroutine
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct Ptr<T : value>
+  public struct Ptr<T : value>
     field _rawPointer: UInt
-    operator fun equals
-    fun toUInt
-    fun cast
-    fun load
-    fun load
-    fun store
-    fun store
-    operator fun plus
-    operator fun minus
-  struct FunPtr<F>
+    public operator fun equals
+    public fun toUInt
+    public fun cast
+    public fun load
+    public fun load
+    public fun store
+    public fun store
+    public operator fun plus
+    public operator fun minus
+  public struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
     @Intrinsic("address_of")
-  fun addressOf<T : value>(value: T): Ptr<T>
+  public fun addressOf<T : value>(value: T): Ptr<T>
     @NoGC
     @Intrinsic("size_of")
-  fun sizeOf<T : value>(): UInt
+  public fun sizeOf<T : value>(): UInt
     @NoGC
     @Intrinsic("align_of")
-  fun alignOf<T : value>(): UInt
+  public fun alignOf<T : value>(): UInt
 SourceFile
-  enum ForeignCallbackMode
+  public enum ForeignCallbackMode
     Reusable
     OneShot
-  enum ForeignCallbackState
+  public enum ForeignCallbackState
     Registered
     Active
     Completed
     Failed
-  struct ForeignCallback<F>
+  public struct ForeignCallback<F>
     field function: FunPtr<F>
     field context: Ptr<Unit>
     @Unsafe
     @Intrinsic("foreign_callback_register")
-  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+  public fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
     @Unsafe
     @Intrinsic("foreign_callback_retain")
-  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+  public fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
     @Unsafe
     @Intrinsic("foreign_callback_release")
-  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+  public fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
     @Unsafe
     @Intrinsic("foreign_callback_state")
-  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+  public fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
     @Unsafe
     @Intrinsic("foreign_callback_failure")
-  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+  public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
 SourceFile
-  struct PinnedPtr<T : ref>
+  public struct PinnedPtr<T : ref>
     field raw: UInt
-  struct GcHandle<T : ref>
+  public struct GcHandle<T : ref>
     field raw: UInt
     @Unsafe
     @Intrinsic("gc_pin_raw")
-  fun _pin<T : ref>(v: T): UInt
+  internal fun _pin<T : ref>(v: T): UInt
     @Unsafe
     @Intrinsic("gc_unpin_raw")
-  fun _unpin<T : ref>(raw: UInt): T
+  internal fun _unpin<T : ref>(raw: UInt): T
     @Unsafe
     @Intrinsic("gc_get_handle_raw")
-  fun _getGcHandle<T : ref>(v: T): UInt
+  internal fun _getGcHandle<T : ref>(v: T): UInt
     @Unsafe
     @Intrinsic("gc_release_handle_raw")
-  fun _releaseGcHandle<T : ref>(raw: UInt): T
+  internal fun _releaseGcHandle<T : ref>(raw: UInt): T
     @Unsafe
-  fun pin<T : ref>(v: T): PinnedPtr<T>
+  public fun pin<T : ref>(v: T): PinnedPtr<T>
     =
       Call PinnedPtr<T>
         Call _pin
           Var v
     @Unsafe
-  fun unpin<T : ref>(p: PinnedPtr<T>): T
+  public fun unpin<T : ref>(p: PinnedPtr<T>): T
     =
       Call _unpin<T>
         FieldAccess raw
           Var p
     @Unsafe
-  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+  public fun getGcHandle<T : ref>(v: T): GcHandle<T>
     =
       Call GcHandle<T>
         Call _getGcHandle
           Var v
     @Unsafe
-  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+  public fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
     =
       Call _releaseGcHandle<T>
         FieldAccess raw
           Var h
     @Intrinsic("rt_gc_collect")
-  fun gcCollect()
+  public fun gcCollect()
     @Intrinsic("rt_gc_stats")
-  fun gcStats(): UInt
+  public fun gcStats(): UInt
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
-  fun write(message: String)
-  fun print<T : ToString>(value: T)
+  public fun write(message: String)
+  public fun print<T : ToString>(value: T)
     =
       Call write
         MethodCall toString
           Var value
-  fun println<T : ToString>(value: T)
+  public fun println<T : ToString>(value: T)
     Call write
       MethodCall toString
         Var value
     Call write
       StringLiteral "\n"
 SourceFile
-  enum Option<T>
+  public enum Option<T>
     Some(T)
     None
 SourceFile
-  struct SourceLocation
+  public struct SourceLocation
     field file: String
     field line: Int
     field column: Int
     field functionName: String
     field typeName: String
     @Intrinsic("current_source_location")
-  fun getCurrentSourceLocation(): SourceLocation
+  public fun getCurrentSourceLocation(): SourceLocation
 SourceFile
-  open class Throwable()
-  open class Exception(val message: String?) : Throwable(<0 args>)
-  class UnwrapException() : Exception(<1 args>)
-  class ClassCastException() : Exception(<1 args>)
-  class ArithmeticException() : Exception(<1 args>)
-  class IndexOutOfBoundsException() : Exception(<1 args>)
-  class IllegalStateException() : Exception(<1 args>)
+  public open class Throwable()
+  public open class Exception(val message: String?) : Throwable(<0 args>)
+  public class UnwrapException() : Exception(<1 args>)
+  public class ClassCastException() : Exception(<1 args>)
+  public class ArithmeticException() : Exception(<1 args>)
+  public class IndexOutOfBoundsException() : Exception(<1 args>)
+  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
 SourceFile
-  interface ToString
+  public interface ToString
     fun toString
-  interface Hash
+  public interface Hash
     fun hash
     @Intrinsic("core_int")
-  struct Int <representation omitted> : ToString, Hash
-    operator fun equals
-    operator fun unaryPlus
-    operator fun unaryMinus
-    operator fun inc
-    operator fun dec
-    operator fun plus
-    operator fun minus
-    operator fun times
-    operator fun div
-    operator fun rem
-    operator fun compareTo
-    fun toString
-    fun hash
+  public struct Int <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public fun toString
+    public fun hash
     @Intrinsic("core_uint")
-  struct UInt <representation omitted> : ToString, Hash
-    operator fun equals
-    operator fun unaryPlus
-    operator fun inc
-    operator fun dec
-    operator fun plus
-    operator fun minus
-    operator fun times
-    operator fun div
-    operator fun rem
-    operator fun compareTo
-    fun toString
-    fun hash
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public fun toString
+    public fun hash
     @Intrinsic("core_boolean")
-  struct Boolean <representation omitted> : ToString, Hash
-    operator fun equals
-    operator fun not
-    fun toString
-    fun hash
+  public struct Boolean <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun not
+    public fun toString
+    public fun hash
     @Intrinsic("core_string")
-  class String(), ToString, Hash
-    operator fun equals
-    operator fun plus
-    operator fun compareTo
-    fun toString
-    fun hash
+  public class String(), ToString, Hash
+    public operator fun equals
+    public operator fun plus
+    public operator fun compareTo
+    public fun toString
+    public fun hash
     @Intrinsic("core_array")
-  class Array<T>()
-    operator fun get
-    fun toMutableArray
+  public class Array<T>()
+    public operator fun get
+    public fun toMutableArray
     @Intrinsic("core_mutable_array")
-  class MutableArray<T>()
-    operator fun get
-    operator fun set
-    fun toArray
+  public class MutableArray<T>()
+    public operator fun get
+    public operator fun set
+    public fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
-  fun coreIntEquals(left: Int, right: Int): Boolean
+  internal fun coreIntEquals(left: Int, right: Int): Boolean
     @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
-  fun coreUIntEquals(left: UInt, right: UInt): Boolean
+  internal fun coreUIntEquals(left: UInt, right: UInt): Boolean
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
-  fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+  internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
-  fun coreStringEquals(left: String, right: String): Boolean
+  internal fun coreStringEquals(left: String, right: String): Boolean
     @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
-  fun coreIntToString(value: Int): String
+  internal fun coreIntToString(value: Int): String
     @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
-  fun coreUIntToString(value: UInt): String
+  internal fun coreUIntToString(value: UInt): String
     @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
-  fun coreBooleanToString(value: Boolean): String
+  internal fun coreBooleanToString(value: Boolean): String
     @Extern(name = "scoop_rt_int_hash", abi = "scoop")
-  fun coreIntHash(value: Int): Int
+  internal fun coreIntHash(value: Int): Int
     @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
-  fun coreUIntHash(value: UInt): Int
+  internal fun coreUIntHash(value: UInt): Int
     @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
-  fun coreBooleanHash(value: Boolean): Int
+  internal fun coreBooleanHash(value: Boolean): Int
     @Extern(name = "scoop_rt_string_hash", abi = "scoop")
-  fun coreStringHash(value: String): Int
+  internal fun coreStringHash(value: String): Int
 SourceFile
   fun markElement(label: String, value: Int): Int
     Call println
@@ -481,11 +481,14 @@ SourceFile
 == hir ==
 Module
   struct FunctionSuspendTask<T> : SuspendTask<T0>
-    field task: suspend () -> T0
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
-    field registration: (Continuation<T0>) -> Unit
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Values
-    field values: Array<Int>
+    field0 values: Array<Int>
+    property13 val values: Array<Int> getter13=storage <stored struct11-field0>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -493,13 +496,19 @@ Module
     Batch(values: Array<Int>)
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property14: Option<String>
+    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   class BoxedValues(values: Array<Int>)
+    field1 property15: Array<Int>
+    property15 val values: Array<Int> getter15=storage <stored field1 init=parameter16>
   class Token(value: Int)
+    field2 property16: Int
+    property16 val value: Int getter16=storage <stored field2 init=parameter17>
   class MemberCollector()
   interface Continuation<T>
     fun resume(value: T0): Unit
@@ -2743,19 +2752,11 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.17
-      val $parameter._1: String
-        Type String
-        Local $argument.0
       val $argument.0: Option$S<String>
         Type Option$S<String>
-        VariantConstruct Option$S<String> v0
-          Type String
-          Local $parameter._1
+        Local message
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
@@ -2764,6 +2765,25 @@ Module
         Retype Exception
           Type IllegalStateException
           Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c10 @scoop.init.IllegalStateException.$c10(this: IllegalStateException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.17
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local this
         Type Option$S<String>
         Local $parameter.message
       return
@@ -2873,7 +2893,7 @@ Module
     local %3 $parameter.right: i64
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp120 live=[]
+    poll managed-void-target0 sp121 live=[]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -2887,7 +2907,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp121 live=[]
+    poll managed-void-target0 sp122 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp2 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern5(local1)
@@ -2898,7 +2918,7 @@ Module
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp122 live=[]
+    poll managed-void-target0 sp123 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp3 roots=[] t0 = sig=direct0 (i64) -> i64 extern8(local1)
@@ -2911,7 +2931,7 @@ Module
     local %3 $parameter.right: i64
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp123 live=[]
+    poll managed-void-target0 sp124 live=[]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -2925,7 +2945,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp124 live=[]
+    poll managed-void-target0 sp125 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp5 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern6(local1)
@@ -2936,7 +2956,7 @@ Module
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp125 live=[]
+    poll managed-void-target0 sp126 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp6 roots=[] t0 = sig=direct0 (i64) -> i64 extern9(local1)
@@ -2949,7 +2969,7 @@ Module
     local %3 $parameter.right: i1
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp126 live=[]
+    poll managed-void-target0 sp127 live=[]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -2963,7 +2983,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp127 live=[]
+    poll managed-void-target0 sp128 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp8 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern7(local1)
@@ -2974,7 +2994,7 @@ Module
     local %1 $parameter.value: i1
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp128 live=[]
+    poll managed-void-target0 sp129 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(local1)
@@ -2987,7 +3007,7 @@ Module
     local %3 $parameter.right: ptr<managed>
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp129 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target0 sp130 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -2997,14 +3017,14 @@ Module
     ret local4
   fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp130 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp131 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.String.hash(ptr<managed>) -> i64
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp131 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp132 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp11 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern11(local1)
@@ -3012,14 +3032,14 @@ Module
     ret local2
   fun @scoop.MemberCollector.count(ptr<managed>, ptr<managed>) -> i64
   block entry
-    poll managed-void-target0 sp132 live=[param1:ptr<managed>@0]
+    poll managed-void-target0 sp133 live=[param1:ptr<managed>@0]
     t0 = array_len array0 param1 : i64
     ret t0
   fun @scoop.markElement(ptr<managed>, i64) -> i64
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
-    poll managed-void-target1 sp133 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp134 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
     call managed-void-target0 sp12 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn27(local1)
@@ -3029,7 +3049,7 @@ Module
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
-    poll managed-void-target1 sp134 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target1 sp135 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
     call managed-void-target0 sp13 live=[param1:ptr<managed>@0, local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn27(local1)
@@ -3037,39 +3057,39 @@ Module
     ret param1
   fun @scoop.collect(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp135 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp136 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.collectDefault(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp136 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp137 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.fromSeed(i64, ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp137 live=[param1:ptr<managed>@0]
+    poll managed-void-target0 sp138 live=[param1:ptr<managed>@0]
     ret param1
   fun @scoop.frame(ptr<managed>, ptr<managed>, ptr<managed>) -> i64
   block entry
-    poll managed-void-target0 sp138 live=[param1:ptr<managed>@0]
+    poll managed-void-target0 sp139 live=[param1:ptr<managed>@0]
     t0 = array_len array0 param1 : i64
     ret t0
   fun @scoop.prefer.I(i64) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp139 live=[]
+    poll managed-void-target0 sp140 live=[]
     ret global0
   fun @scoop.prefer.AIX(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp140 live=[]
+    poll managed-void-target0 sp141 live=[]
     ret global1
   fun @scoop.gather(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp141 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp142 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.$extension.withValues(i64, ptr<managed>) -> i64
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
   block entry
-    poll managed-void-target0 sp142 live=[param1:ptr<managed>@0]
+    poll managed-void-target0 sp143 live=[param1:ptr<managed>@0]
     store param0 -> local0
     t0 = array_len array0 param1 : i64
     store t0 -> local1
@@ -3083,7 +3103,7 @@ Module
     local %3 $parameter.values: ptr<managed>
     local %4 $call.1: i64
   block entry
-    poll managed-void-target0 sp143 live=[]
+    poll managed-void-target0 sp144 live=[]
     store 1 -> local0
     store 2 -> local1
     store 3 -> local2
@@ -3113,7 +3133,7 @@ Module
     local %17 $logic.1: i1
     local %18 $new.2: ptr<managed>
   block entry
-    poll managed-void-target3 sp144 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp145 live=[param0:ptr<managed>@0]
     t0 = array_len array0 param0 : i64
     store t0 -> local0
     store local0 -> local1
@@ -3129,7 +3149,7 @@ Module
     store t4 -> local14
     br @while.cond.1
   block while.cond.1
-    poll managed-void-target3 sp145 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp146 live=[param0:ptr<managed>@0]
     cbr local14 then @while.body.2 else @while.exit.3
   block while.body.2
     store param0 -> local6
@@ -3341,7 +3361,7 @@ Module
     local %160 $new.14: ptr<managed>
     local %161 $sc.1: struct4
   block entry
-    poll managed-void-target31 sp146 live=[]
+    poll managed-void-target31 sp147 live=[]
     store global2 -> local0
     store 1 -> local1
     store local0 -> local2
@@ -3485,7 +3505,7 @@ Module
     t46 = aggregate () : {}
     call managed-direct-target16 sp61 live=[local24:ptr<managed>@0] t47 = sig=direct16 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 16)
     store t47 -> local149
-    call managed-void-target13 sp62 live=[local24:ptr<managed>@0, local149:ptr<managed>@0] sig=void13 (ptr<managed>) local-fn41(local149)
+    call managed-void-target13 sp62 live=[local24:ptr<managed>@0, local149:ptr<managed>@0] sig=void13 (ptr<managed>) local-fn42(local149)
     t48 = aggregate () : {}
     store local149 -> local79
     store 1 -> local80
@@ -3518,7 +3538,7 @@ Module
     store t58 -> local94
     t59 = array_assembly array0 (element local93, copy local94) sp73 live local24:ptr<managed>@0, local94:ptr<managed>@0 : ptr<managed>
     store t59 -> local95
-    call managed-indirect-target0 sp74 live=[local24:ptr<managed>@0, local95:ptr<managed>@0] local161 = sig=indirect0 (sret struct4, ptr<managed>) local-fn43(local95)
+    call managed-indirect-target0 sp74 live=[local24:ptr<managed>@0, local95:ptr<managed>@0] local161 = sig=indirect0 (sret struct4, ptr<managed>) local-fn44(local95)
     store local161 -> local96
     t60 = extract local96, 0 : ptr<managed>
     store t60 -> local97
@@ -3531,7 +3551,7 @@ Module
     store t63 -> local100
     call managed-direct-target20 sp78 live=[local24:ptr<managed>@0, local100:ptr<managed>@0] t64 = sig=direct20 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
     store t64 -> local150
-    call managed-void-target18 sp79 live=[local24:ptr<managed>@0, local100:ptr<managed>@0, local150:ptr<managed>@0] sig=void18 (ptr<managed>, ptr<managed>) local-fn39(local150, local100)
+    call managed-void-target18 sp79 live=[local24:ptr<managed>@0, local100:ptr<managed>@0, local150:ptr<managed>@0] sig=void18 (ptr<managed>, ptr<managed>) local-fn40(local150, local100)
     t65 = aggregate () : {}
     store local150 -> local101
     t66 = heap_load local101 +16 : ptr<managed>
@@ -3567,14 +3587,14 @@ Module
     store local114 -> local115
     call managed-direct-target23 sp86 live=[] t77 = sig=direct23 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
     store t77 -> local152
-    call managed-void-target22 sp87 live=[local152:ptr<managed>@0] sig=void22 (ptr<managed>, i64) local-fn40(local152, local115)
+    call managed-void-target22 sp87 live=[local152:ptr<managed>@0] sig=void22 (ptr<managed>, i64) local-fn41(local152, local115)
     t78 = aggregate () : {}
     store local152 -> local120
     store 13 -> local118
     store local118 -> local119
     call managed-direct-target24 sp88 live=[local120:ptr<managed>@0] t79 = sig=direct24 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
     store t79 -> local153
-    call managed-void-target23 sp89 live=[local120:ptr<managed>@0, local153:ptr<managed>@0] sig=void23 (ptr<managed>, i64) local-fn40(local153, local119)
+    call managed-void-target23 sp89 live=[local120:ptr<managed>@0, local153:ptr<managed>@0] sig=void23 (ptr<managed>, i64) local-fn41(local153, local119)
     t80 = aggregate () : {}
     t81 = array_alloc array2 (local153) sp90 live local120:ptr<managed>@0, local153:ptr<managed>@0 : ptr<managed>
     store t81 -> local121
@@ -3582,7 +3602,7 @@ Module
     store local116 -> local117
     call managed-direct-target25 sp91 live=[local120:ptr<managed>@0, local121:ptr<managed>@0] t82 = sig=direct25 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
     store t82 -> local154
-    call managed-void-target24 sp92 live=[local120:ptr<managed>@0, local121:ptr<managed>@0, local154:ptr<managed>@0] sig=void24 (ptr<managed>, i64) local-fn40(local154, local117)
+    call managed-void-target24 sp92 live=[local120:ptr<managed>@0, local121:ptr<managed>@0, local154:ptr<managed>@0] sig=void24 (ptr<managed>, i64) local-fn41(local154, local117)
     t83 = aggregate () : {}
     store local154 -> local122
     t84 = array_assembly array2 (element local120, copy local121, element local122) sp93 live local120:ptr<managed>@0, local121:ptr<managed>@0, local122:ptr<managed>@0 : ptr<managed>
@@ -3685,7 +3705,7 @@ Module
     ret
   fun @scoop.$local.0.count(ptr<managed>) -> i64
   block entry
-    poll managed-void-target0 sp147 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp148 live=[param0:ptr<managed>@0]
     t0 = array_len array0 param0 : i64
     ret t0
   fun @scoop.println$S(ptr<managed>) -> void
@@ -3695,7 +3715,7 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp148 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp149 live=[param0:ptr<managed>@0]
     store param0 -> local0
     call managed-direct-target0 sp104 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn10(local0)
     store t0 -> local1
@@ -3714,7 +3734,7 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp149 live=[]
+    poll managed-void-target0 sp150 live=[]
     store param0 -> local0
     call managed-direct-target0 sp107 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn1(local0)
     store t0 -> local1
@@ -3733,7 +3753,7 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp150 live=[]
+    poll managed-void-target0 sp151 live=[]
     store param0 -> local0
     call managed-direct-target0 sp110 live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn7(local0)
     store t0 -> local1
@@ -3747,22 +3767,22 @@ Module
     ret
   fun @scoop.pack$S(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp151 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp152 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.$reference.0(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp152 live=[param1:ptr<managed>@0]
+    poll managed-void-target0 sp153 live=[param1:ptr<managed>@0]
     call managed-direct-target0 sp113 live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn15(param1)
     store t0 -> local0
     ret local0
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp153 live=[]
+    poll managed-void-target0 sp154 live=[]
     ret
   fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
   block entry
-    poll managed-void-target1 sp154 live=[param0:ptr<managed>@0, param1:enum0@0]
+    poll managed-void-target1 sp155 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp114 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn32(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
@@ -3773,7 +3793,7 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp155 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp156 live=[param0:ptr<managed>@0]
     store global13 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
@@ -3788,7 +3808,7 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp156 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp157 live=[param0:ptr<managed>@0]
     store global14 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
@@ -3803,7 +3823,7 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp157 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp158 live=[param0:ptr<managed>@0]
     store global15 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
@@ -3818,7 +3838,7 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp158 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp159 live=[param0:ptr<managed>@0]
     store global16 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
@@ -3827,43 +3847,51 @@ Module
     call managed-void-target0 sp118 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp160 live=[param0:ptr<managed>@0, param1:enum0@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp119 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c10(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
-    local %2 $argument.0: enum0
-    local %3 $parameter.message: enum0
+    local %2 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp159 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp161 live=[param0:ptr<managed>@0]
     store global17 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
-    store local2 -> local3
-    call managed-void-target0 sp119 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
+    call managed-void-target0 sp120 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn38(param0, local2)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.BoxedValues.$c7(ptr<managed>, ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp160 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target0 sp162 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
   fun @scoop.init.Token.$c8(ptr<managed>, i64) -> void
   block entry
-    poll managed-void-target0 sp161 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp163 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
   fun @scoop.init.MemberCollector.$c9(ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp162 live=[]
+    poll managed-void-target0 sp164 live=[]
     ret
   fun @scoop.ctor.SourceLocation.$c7(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0
   block entry
-    poll managed-void-target0 sp163 live=[param0:ptr<managed>@0, param3:ptr<managed>@0, param4:ptr<managed>@0]
+    poll managed-void-target0 sp165 live=[param0:ptr<managed>@0, param3:ptr<managed>@0, param4:ptr<managed>@0]
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
   fun @scoop.ctor.Values.$c8(ptr<managed>) -> struct4
   block entry
-    poll managed-void-target0 sp164 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp166 live=[param0:ptr<managed>@0]
     t0 = aggregate (param0) : struct4
     ret t0
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]

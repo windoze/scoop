@@ -2,16 +2,16 @@
 // Throwable / Exception are `open` so user code can define custom
 // exceptions; the built-in subclasses are final.
 
-open class Throwable
+public open class Throwable public constructor()
 
-open class Exception(val message: String?) : Throwable()
+public open class Exception public constructor(public val message: String?) : Throwable()
 
-class UnwrapException : Exception(Some("unwrap on None"))
+public class UnwrapException public constructor() : Exception(Some("unwrap on None"))
 
-class ClassCastException : Exception(Some("invalid cast"))
+public class ClassCastException public constructor() : Exception(Some("invalid cast"))
 
-class ArithmeticException : Exception(Some("arithmetic error"))
+public class ArithmeticException public constructor() : Exception(Some("arithmetic error"))
 
-class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
+public class IndexOutOfBoundsException public constructor() : Exception(Some("array index out of bounds"))
 
-class IllegalStateException : Exception(Some("illegal state"))
+public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)

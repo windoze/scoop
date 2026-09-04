@@ -110,6 +110,7 @@ fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
         Decl::Enum(decl) => &mut decl.type_params,
         Decl::Interface(decl) => &mut decl.type_params,
         Decl::Class(decl) => &mut decl.type_params,
+        Decl::Object(_) => panic!("objects have no type parameters"),
         Decl::Global(_) => panic!("globals have no type parameters"),
     };
     type_params[0].inline_bound = Some(ast::TypeBound::Kind(kind));

@@ -1,25 +1,25 @@
 // GC-aware managed callback registration (spec 14.3, M13).
 
-enum ForeignCallbackMode {
+public enum ForeignCallbackMode {
     Reusable,
     OneShot
 }
 
-enum ForeignCallbackState {
+public enum ForeignCallbackState {
     Registered,
     Active,
     Completed,
     Failed
 }
 
-struct ForeignCallback<F>(
+public struct ForeignCallback<F>(
     val function: FunPtr<F>,
     val context: Ptr<Unit>
 )
 
 @Unsafe
 @Intrinsic("foreign_callback_register")
-fun <F> foreignCallback(
+public fun <F> foreignCallback(
     callback: Any,
     contextIndex: Int,
     mode: ForeignCallbackMode
@@ -27,20 +27,20 @@ fun <F> foreignCallback(
 
 @Unsafe
 @Intrinsic("foreign_callback_retain")
-fun <F> retainForeignCallback(
+public fun <F> retainForeignCallback(
     callback: ForeignCallback<F>
 ): ForeignCallback<F>
 
 @Unsafe
 @Intrinsic("foreign_callback_release")
-fun <F> releaseForeignCallback(callback: ForeignCallback<F>)
+public fun <F> releaseForeignCallback(callback: ForeignCallback<F>)
 
 @Unsafe
 @Intrinsic("foreign_callback_state")
-fun <F> foreignCallbackState(
+public fun <F> foreignCallbackState(
     callback: ForeignCallback<F>
 ): ForeignCallbackState
 
 @Unsafe
 @Intrinsic("foreign_callback_failure")
-fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
+public fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?

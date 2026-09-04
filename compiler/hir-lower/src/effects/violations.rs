@@ -9,6 +9,10 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::InitializationEnsure(_) => out.push((
+                    statement.span,
+                    "an initialization gate is not allowed in `@NoGC` code".to_string(),
+                )),
                 hir::StatementKind::Expr(expr) => {
                     self.collect_no_gc_expr_violations(expr, out, requirements)
                 }
@@ -23,7 +27,9 @@ impl Lowerer {
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
-                        hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
+                        hir::AssignTarget::Local(_)
+                        | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             out.push((
                                 statement.span,
@@ -132,6 +138,10 @@ impl Lowerer {
             | ExprKind::Capture(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::NoneLiteral => {}
+            ExprKind::SingletonValue(_) => out.push((
+                expr.span,
+                "singleton access may initialize, allocate, and throw in `@NoGC` code".to_string(),
+            )),
             ExprKind::TupleLiteral(elements) | ExprKind::ArrayLiteral(elements) => {
                 if matches!(&expr.kind, ExprKind::ArrayLiteral(_)) {
                     out.push((

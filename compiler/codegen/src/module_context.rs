@@ -13,6 +13,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,
     pub(crate) globals: &'a [Option<GlobalValue<'ctx>>],
+    pub(crate) initialization_units: &'a [GlobalValue<'ctx>],
     pub(crate) arrays: &'a Arena<ArrayType>,
     pub(crate) array_tds: &'a [GlobalValue<'ctx>],
     pub(crate) type_tds: &'a [GlobalValue<'ctx>],

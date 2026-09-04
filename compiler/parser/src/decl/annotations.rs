@@ -1,32 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub(super) fn parse_global(
-        &mut self,
-        annotations: Vec<Annotation>,
-    ) -> Result<GlobalDecl, Diagnostic> {
-        let keyword = self.bump();
-        let mutable = matches!(keyword.kind, TokenKind::Var);
-        let name = self.expect_ident("global name")?;
-        self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
-        let ty = self.parse_type_ref()?;
-        let init = if matches!(self.peek().kind, TokenKind::Equal) {
-            self.bump();
-            Some(self.parse_expr()?)
-        } else {
-            None
-        };
-        let end = init.as_ref().map_or(ty.span.end, |expr| expr.span().end);
-        Ok(GlobalDecl {
-            annotations,
-            mutable,
-            name,
-            ty,
-            init,
-            span: Span::new(keyword.span.start, end),
-        })
-    }
-
     /// Parse compiler annotations without assigning them language semantics.
     /// Target, schema and coexistence checks belong to HIR (M12 design 1.2).
     pub(crate) fn parse_annotations(&mut self) -> Result<Vec<Annotation>, Diagnostic> {

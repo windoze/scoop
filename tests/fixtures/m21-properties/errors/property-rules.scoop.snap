@@ -1,0 +1,19 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-properties/errors/property-rules.scoop:46:9: error: value-type property `mutable` cannot be mutable
+m21-properties/errors/property-rules.scoop:50:5: error: value-type property `stored` must be a computed val
+m21-properties/errors/property-rules.scoop:19:5: error: property `optional` without an initializer must be a mutable Option property
+m21-properties/errors/property-rules.scoop:20:5: error: property `missing` without an initializer must be a mutable Option property
+m21-properties/errors/property-rules.scoop:22:9: error: computed property `noGetter` must provide a getter body
+m21-properties/errors/property-rules.scoop:25:9: error: computed mutable property `noSetter` must provide a setter body
+m21-properties/errors/property-rules.scoop:29:9: error: immutable property `immutable` cannot declare a setter
+m21-properties/errors/property-rules.scoop:42:5: error: abstract property `initialized` must omit initializer, delegate, and accessor bodies
+m21-properties/errors/property-rules.scoop:6:5: error: property `fixed` cannot override final property declared by class `FinalBase`
+m21-properties/errors/property-rules.scoop:14:5: error: immutable property `value` cannot override a mutable property
+m21-properties/errors/property-rules.scoop:56:9: error: cannot assign to immutable property `computed`
+m21-properties/errors/property-rules.scoop:57:9: error: operator `plus` is applicable, but compound-assignment fallback is not writable
+m21-properties/errors/property-rules.scoop:32:17: error: unknown variable `field`
+m21-properties/errors/property-rules.scoop:36:31: error: `field` is only available in the direct property accessor body

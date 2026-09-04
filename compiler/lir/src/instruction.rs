@@ -24,6 +24,8 @@ pub enum Value {
     RootScan(RootScanId),
     /// Address of a global constant.
     Global(GlobalId),
+    /// Address of one codegen-emitted initialization-unit descriptor.
+    InitializationUnit(InitializationUnitId),
 }
 
 #[derive(Debug)]

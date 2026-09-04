@@ -186,8 +186,11 @@ impl Lowerer {
             });
             abi_params.extend(params);
             let type_params = self.type_params_in_scope.clone();
+            let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
+                access,
+                override_access: Vec::new(),
                 genericity: hir::FunctionGenericity::Plain,
                 is_suspend,
                 modifiers: hir::CallableModifiers::default(),

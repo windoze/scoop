@@ -35,9 +35,10 @@ impl Lowerer {
 
     /// The adjust thunk for one (boxed value type, interface method)
     /// pair (impl spec 2.9): `this` is the boxed object; the thunk
-    /// unboxes it and tail-calls the real value method (value-type
-    /// methods take `this` by value at MIR; the pointer convention
-    /// of the receiver is a codegen ABI matter). The implementation
+    /// either unboxes it before calling a value method or retypes the box to
+    /// the interface receiver expected by a default body. Value-type methods
+    /// take `this` by value at MIR; the pointer convention of the receiver is
+    /// a codegen ABI matter. The implementation
     /// is selected by its typed concrete-HIR conformance entry, so overloads
     /// never require a name/signature search. The thunk symbol carries the
     /// parameter encoding when the interface overloads the name.
@@ -67,10 +68,7 @@ impl Lowerer {
             ty: mir::Type::Any,
             local: this,
         }];
-        let mut args = vec![smir::Expr::new(
-            payload.clone(),
-            smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
-        )];
+        let mut args = Vec::new();
         let mut target_params = Vec::new();
         let mut argument_locals = Vec::new();
         for param in &signature.params {
@@ -128,6 +126,32 @@ impl Lowerer {
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
+        let receiver_ty = source_types.lower(
+            implementation_function.params[0].ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        let receiver = if receiver_ty == *payload {
+            smir::Expr::new(
+                payload.clone(),
+                smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
+            )
+        } else {
+            assert!(
+                matches!(receiver_ty, mir::Type::Interface(_)),
+                "a boxed conformance target is a value method or interface default"
+            );
+            smir::Expr::new(
+                receiver_ty.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(smir::Expr::local(this, mir::Type::Any)),
+                    ty: Box::new(receiver_ty),
+                },
+            )
+        };
+        args.push(receiver);
         let source_params = implementation_function
             .params
             .iter()

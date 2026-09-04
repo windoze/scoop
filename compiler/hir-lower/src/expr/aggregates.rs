@@ -161,6 +161,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Get),
                 infix: false,
+                ..Default::default()
             },
         )
     }

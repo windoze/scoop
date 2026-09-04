@@ -65,7 +65,8 @@ impl LiveValue {
             | lir::Value::NullPointer(_)
             | lir::Value::TypeDescriptor(_)
             | lir::Value::RootScan(_)
-            | lir::Value::Global(_) => None,
+            | lir::Value::Global(_)
+            | lir::Value::InitializationUnit(_) => None,
         }
     }
 

@@ -2,6 +2,7 @@ use super::*;
 
 pub struct Module {
     pub globals: Arena<Global>,
+    pub initialization_units: Arena<InitializationUnit>,
     /// Struct definitions with complete physical layouts (indexed by
     /// `StructDefId`; ids align with MIR struct ids).
     pub structs: Arena<StructDef>,
@@ -27,6 +28,38 @@ pub struct Module {
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct InitializationUnit {
+    pub stable_key: String,
+    pub schedule: InitializationSchedule,
+    pub kind: InitializationUnitKind,
+    pub failure_root: GlobalId,
+    pub initializer: ManagedLocalFunctionRef,
+    pub ensure: ManagedLocalFunctionRef,
+    pub dependencies: Vec<InitializationUnitId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationUnitKind {
+    EagerTopLevel { storage: GlobalId },
+    LazySingleton { published_root: GlobalId },
+}
+
+impl InitializationUnitKind {
+    pub const fn storage(self) -> GlobalId {
+        match self {
+            Self::EagerTopLevel { storage } => storage,
+            Self::LazySingleton { published_root } => published_root,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
 }
 
 #[derive(Debug)]

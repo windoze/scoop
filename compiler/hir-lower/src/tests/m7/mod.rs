@@ -128,6 +128,7 @@ fn has_method_application(
             hir::MethodOwnerApplication::Interface(owner) => {
                 &module.interface_applications[owner].arguments
             }
+            hir::MethodOwnerApplication::Object(_) => &[],
         };
         arguments == owner_arguments
     })

@@ -42,6 +42,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(operator),
                 infix: false,
+                ..Default::default()
             },
         );
         match value {

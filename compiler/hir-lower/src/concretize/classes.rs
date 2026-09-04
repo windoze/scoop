@@ -33,7 +33,11 @@ impl Concretizer<'_> {
         let id = self.classes.alloc(concrete::ClassDef {
             origin: concrete::ClassOriginId::from_raw(source_id.into_raw().into_u32()),
             modifier: source.modifier,
-            name: self.instance_name(&source.name, &arguments),
+            name: self.instance_name(
+                &self.source_nominal_name(&source.name, source.owner),
+                &arguments,
+            ),
+            owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             representation,
             interfaces: Vec::new(),
@@ -82,12 +86,19 @@ impl Concretizer<'_> {
             .iter()
             .map(|field| &self.source.class_fields[*field])
             .map(|field| concrete::Field {
-                name: field.name.clone(),
+                name: self.source.properties[field.property].name.clone(),
                 ty: self.lower_type(field.ty, &arguments),
             })
             .collect();
-        let methods =
-            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
+        let method_owner = self.object_by_backing_class.get(&source_id).map_or(
+            concrete::MethodOwner::Class(id),
+            |object| {
+                concrete::MethodOwner::Object(concrete::ObjectTypeId::from_raw(
+                    self.source.objects[*object].object_type.into_raw(),
+                ))
+            },
+        );
+        let methods = self.request_concrete_methods(&source.methods, method_owner);
         let interface_implementations =
             self.lower_interface_implementations(&source.interface_implementations, &arguments);
         let interfaces = interface_implementations
@@ -325,6 +336,12 @@ impl Concretizer<'_> {
                     field,
                     initializer,
                     span,
+                }
+                | export::ClassInitializationStep::DelegatedProperty {
+                    field,
+                    initializer,
+                    span,
+                    ..
                 } => {
                     let locals = self.append_source_locals(body, &initializer.locals, substitution);
                     body.statements
@@ -536,6 +553,18 @@ impl Concretizer<'_> {
         storage: &export::GlobalStorage,
     ) -> concrete::GlobalStorage {
         match storage {
+            export::GlobalStorage::Managed { initializer } => concrete::GlobalStorage::Managed {
+                initializer: match initializer {
+                    export::ManagedGlobalInitializer::Image(value) => {
+                        concrete::ManagedGlobalInitializer::Image(self.lower_constant(value))
+                    }
+                    export::ManagedGlobalInitializer::RuntimeZeroed(unit) => {
+                        concrete::ManagedGlobalInitializer::RuntimeZeroed(
+                            concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                        )
+                    }
+                },
+            },
             export::GlobalStorage::Local {
                 thread_local,
                 initializer,
@@ -562,8 +591,16 @@ impl Concretizer<'_> {
         match value {
             export::ConstantValue::Int(value) => concrete::ConstantValue::Int(*value),
             export::ConstantValue::Bool(value) => concrete::ConstantValue::Bool(*value),
+            export::ConstantValue::String(value) => concrete::ConstantValue::String(value.clone()),
             export::ConstantValue::NullPtr => concrete::ConstantValue::NullPtr,
             export::ConstantValue::NullFunPtr => concrete::ConstantValue::NullFunPtr,
+            export::ConstantValue::EnumUnit {
+                application,
+                variant,
+            } => concrete::ConstantValue::EnumUnit {
+                enum_id: self.lower_enum_application(*application, &[]),
+                variant: *variant,
+            },
             export::ConstantValue::Struct {
                 application,
                 fields,

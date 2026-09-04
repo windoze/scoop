@@ -109,7 +109,8 @@ static void require_detachable(const ScoopThreadState *state,
     if (state->managed_depth != (expected_kind == SCOOP_THREAD_MAIN ? 1 : 0) ||
         state->callback_depth != 0 || state->native_roots != NULL ||
         state->native_region_roots != NULL || state->caller_roots != NULL ||
-        state->compiler_roots != NULL ||
+        state->compiler_roots != NULL || state->initialization_stack_len != 0 ||
+        state->initialization_wait != NULL ||
         state->current_transition != NULL || state->managed_anchor != NULL ||
         state->allocation.cursor != NULL || state->allocation.limit != NULL) {
         scoop_thread_fatal(
@@ -131,6 +132,8 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     scoop_thread_tls = NULL;
     scoop_rt_allocation_context = NULL;
     scoop_thread_registry_unlock();
+    free(state->initialization_stack);
+    free(state->initialization_cycle_path);
     free(state);
 }
 
@@ -261,4 +264,27 @@ void scoop_thread_require_managed(void) {
         state->managed_depth == 0) {
         scoop_thread_fatal("thread entered managed code from a non-managed state");
     }
+}
+
+const void *scoop_thread_push_managed_gateway_boundary(const void *boundary) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    uintptr_t address = (uintptr_t)boundary;
+    if (boundary == NULL || address < (uintptr_t)state->stack_low ||
+        address > (uintptr_t)state->stack_high) {
+        scoop_thread_fatal("managed gateway published an invalid stack boundary");
+    }
+    const void *previous = state->managed_stack_boundary;
+    state->managed_stack_boundary = boundary;
+    return previous;
+}
+
+void scoop_thread_pop_managed_gateway_boundary(const void *boundary,
+                                                const void *previous) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (state->managed_stack_boundary != boundary || previous == NULL) {
+        scoop_thread_fatal("managed gateway stack boundary is corrupt");
+    }
+    state->managed_stack_boundary = previous;
 }

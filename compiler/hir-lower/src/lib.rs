@@ -111,12 +111,14 @@ mod model;
 mod overload;
 mod patterns;
 mod pipeline;
+mod properties;
 mod scope;
 mod signatures;
 mod stmt;
 #[cfg(test)]
 mod tests;
 mod types;
+mod visibility;
 
 use std::collections::{HashMap, HashSet};
 
@@ -128,7 +130,7 @@ use annotations::FunctionTarget;
 use ast::{Diagnostic, Span};
 use hir::{
     ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
-    GenericFunctionId, InterfaceDecl, InterfaceId, StructDecl, StructId, Type, TypeId,
+    GenericFunctionId, InterfaceDecl, InterfaceId, ObjectId, StructDecl, StructId, Type, TypeId,
 };
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
@@ -319,6 +321,19 @@ pub(crate) struct Lowerer {
         HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
+    pub(crate) initialization_units: Arena<hir::InitializationUnit>,
+    pub(crate) initialization_failure_roots: Arena<hir::InitializationFailureRoot>,
+    pub(crate) objects: Arena<hir::ObjectDecl>,
+    pub(crate) object_types: Arena<hir::ObjectType>,
+    pub(crate) companion_relations: Arena<hir::CompanionRelation>,
+    pub(crate) companion_by_host: HashMap<Owner, hir::CompanionRelationId>,
+    pub(crate) singleton_values: Arena<hir::SingletonValue>,
+    pub(crate) singleton_published_roots: Arena<hir::SingletonPublishedRoot>,
+    pub(crate) properties: Arena<hir::Property>,
+    pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
+    pub(crate) property_getters: Arena<hir::PropertyGetter>,
+    pub(crate) property_setters: Arena<hir::PropertySetter>,
+    pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
@@ -364,8 +379,21 @@ pub(crate) struct Lowerer {
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
     pub(crate) function_files: HashMap<FunctionId, usize>,
-    pub(crate) globals_by_name: HashMap<String, hir::GlobalId>,
-    pub(crate) global_files: HashMap<hir::GlobalId, usize>,
+    /// Property namespace in declaration order. Multiple entries are needed
+    /// because file-private top-level properties in different source files
+    /// own distinct namespaces.
+    pub(crate) properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
+    /// Extension properties form their own receiver-applicable namespace.
+    pub(crate) extension_properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
+    /// Direct typed relation used after getter overload resolution; accessor
+    /// function names are never parsed to recover a logical property.
+    pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
+    pub(crate) property_files: HashMap<hir::PropertyId, usize>,
+    pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
+    pub(crate) runtime_accessor_units: HashMap<FunctionId, hir::InitializationUnitId>,
+    pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
+    pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
+    pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.
     pub(crate) user_file_index: usize,
@@ -377,11 +405,21 @@ pub(crate) struct Lowerer {
     pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
+    pub(crate) objects_by_name: HashMap<String, ObjectId>,
+    /// Physical class representation -> semantic singleton declaration.
+    /// The relation is typed and established when the object is declared;
+    /// constructor/body lowering never recovers it from a generated name.
+    pub(crate) object_by_backing_class: HashMap<ClassId, ObjectId>,
+    /// Owner-scoped static nested nominal namespace. The owner and target
+    /// retain distinct typed ids; qualified lookup never flattens this key
+    /// into an FQN string.
+    pub(crate) nested_nominals_by_owner: HashMap<(Owner, String), NominalTarget>,
     /// Source-file ownership for validating compiler-known core contracts.
     pub(crate) struct_files: HashMap<StructId, usize>,
     pub(crate) enum_files: HashMap<EnumId, usize>,
     pub(crate) class_files: HashMap<ClassId, usize>,
     pub(crate) interface_files: HashMap<InterfaceId, usize>,
+    pub(crate) object_files: HashMap<ObjectId, usize>,
     /// Core pointer declarations discovered after pass 1. Applications can
     /// then normalize while pass 2/2.5 resolves fields and signatures.
     pub(crate) ffi_ptr: Option<StructId>,
@@ -474,6 +512,7 @@ pub(crate) struct Lowerer {
     /// initialization plans. Successful reads and writes are immediately
     /// converted to typed field identities.
     pub(crate) initialization_context: Option<InitializationContext>,
+    pub(crate) backing_field_context: Option<properties::BackingFieldContext>,
     /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
     /// immutable local → narrowed type, valid within the branch that
     /// established them. Saved and restored around branch lowering;

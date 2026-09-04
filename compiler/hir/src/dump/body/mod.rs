@@ -14,6 +14,11 @@ pub(super) fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::InitializationEnsure(unit) => out.push_str(&format!(
+                "{pad}ensure init{} {}\n",
+                unit.into_raw(),
+                module.initialization_units[*unit].stable_key
+            )),
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];
                 out.push_str(&format!(
@@ -42,13 +47,17 @@ pub(super) fn dump_statements(
                         "{pad}assign global {}\n",
                         module.globals[*global].name
                     )),
+                    AssignTarget::SingletonPublishedRoot(root) => out.push_str(&format!(
+                        "{pad}assign singleton-root#{}\n",
+                        root.into_raw().into_u32()
+                    )),
                     AssignTarget::Field { receiver, .. } => {
                         out.push_str(&format!("{pad}assign .field\n"));
                         dump_expr(module, locals, receiver, indent + 1, out);
                     }
                     AssignTarget::InitializingClassField { field, .. } => out.push_str(&format!(
                         "{pad}assign initializing .{}\n",
-                        module.class_fields[*field].name
+                        module.properties[module.class_fields[*field].property].name
                     )),
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));
@@ -205,6 +214,7 @@ fn method_owner_arguments(module: &Module, owner: MethodOwnerApplication) -> &[T
         MethodOwnerApplication::Struct(id) => &module.struct_applications[id].arguments,
         MethodOwnerApplication::Enum(id) => &module.enum_applications[id].arguments,
         MethodOwnerApplication::Interface(id) => &module.interface_applications[id].arguments,
+        MethodOwnerApplication::Object(_) => &[],
     }
 }
 
@@ -216,5 +226,6 @@ pub(super) fn generic_method_owner_arguments(
         GenericMethodOwner::Class(id) => &module.class_applications[id].arguments,
         GenericMethodOwner::Struct(id) => &module.struct_applications[id].arguments,
         GenericMethodOwner::Enum(id) => &module.enum_applications[id].arguments,
+        GenericMethodOwner::Object(_) => &[],
     }
 }

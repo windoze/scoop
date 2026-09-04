@@ -1,6 +1,7 @@
 use super::*;
 
 pub type GlobalId = Idx<Global>;
+pub type InitializationUnitId = Idx<InitializationUnit>;
 pub type LocalId = Idx<Local>;
 pub type TempId = Idx<Temp>;
 pub type BlockId = Idx<BasicBlock>;

@@ -128,7 +128,9 @@ impl Harness {
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
         let enumeration = self.enums.alloc(hir::EnumDecl {
+            owner: None,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             no_gc: false,
@@ -136,6 +138,7 @@ impl Harness {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });

@@ -49,13 +49,16 @@ impl Harness {
             .collect();
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
             owner,
+            access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: SPAN,
             origin: definition_origin(),
         });
         let strukt = self.structs.alloc(hir::StructDecl {
+            owner: None,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             attributes: hir::StructAttributes::default(),
@@ -72,6 +75,7 @@ impl Harness {
             interfaces,
             interface_implementations,
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });
@@ -93,7 +97,9 @@ impl Harness {
             provider: hir::IntrinsicProviderId::from_raw(0),
         };
         let strukt = self.structs.alloc(hir::StructDecl {
+            owner: None,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
             attributes: hir::StructAttributes::default(),
@@ -102,6 +108,7 @@ impl Harness {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
         });
@@ -133,12 +140,15 @@ impl Harness {
             provider: hir::IntrinsicProviderId::from_raw(0),
         };
         let class = self.classes.alloc(hir::ClassDecl {
+            owner: None,
             modifier: hir::ClassModifier::Final,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params,
             representation: hir::ClassRepresentation::Intrinsic(declaration),
             fields: Vec::new(),
+            properties: Vec::new(),
             constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),

@@ -28,6 +28,29 @@ extern const uint64_t scoop_image_managed_global_count;
 extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
 extern const uint64_t scoop_image_immortal_object_count;
 
+typedef struct ScoopInitializationCell {
+    uint64_t state;
+    void *owner_thread;
+} ScoopInitializationCell;
+
+typedef struct ScoopInitializationUnitDescriptor {
+    uint64_t schedule;
+    const char *stable_key;
+    ScoopInitializationCell *cell;
+    void *storage;
+    void **failure_root;
+    void (*initializer_entry)(void);
+    void (*ensure_entry)(void);
+} ScoopInitializationUnitDescriptor;
+
+enum {
+    SCOOP_INIT_EAGER_STARTUP = 0,
+    SCOOP_INIT_LAZY_ACCESS = 1,
+};
+
+extern const ScoopInitializationUnitDescriptor scoop_image_initialization_units[];
+extern const uint64_t scoop_image_initialization_unit_count;
+
 /* Per-thread TLAB ABI used only by generated allocation sequences. */
 typedef struct ScoopAllocationContext {
     char *cursor;
@@ -55,6 +78,13 @@ void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
                    uint64_t payload_size, const uint64_t *payload_scan);
 void scoop_rt_gc_collect(void);
 void *scoop_rt_materialize_exception(const void *caught);
+uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptor *unit);
+void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptor *unit);
+void scoop_rt_init_fail(const ScoopInitializationUnitDescriptor *unit,
+                        void *exception);
+void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptor *unit);
+const ScoopString *
+scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptor *unit);
 
 /* Compiler-published roots that remain live across one outbound native call.
  * Each entry scans one addressable value using a generated recursive scan. */
@@ -117,6 +147,7 @@ void scoop_rt_gc_add_root(void **slot);
 void scoop_rt_gc_add_root_object(const void *object);
 void scoop_rt_gc_remove_root_object(const void *object);
 void scoop_rt_init_eh(void);
+void scoop_rt_initialize_image(void);
 int scoop_eh_personality(int version, unsigned int actions,
                          unsigned long long exception_class, void *exception,
                          void *context);

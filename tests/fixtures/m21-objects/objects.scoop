@@ -1,0 +1,79 @@
+fun mark(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun baseSeed(): Int = mark("base-argument", 40)
+
+fun makeText(): String {
+    println("property-initializer")
+    return "ready"
+}
+
+public open class Base public constructor(public val seed: Int) {
+    init {
+        println("base-initializer")
+    }
+}
+
+public interface Named {
+    public fun name(): String = "registry"
+}
+
+class ObjectDelegate(var value: Int) {
+    operator fun provideDelegate(): ObjectDelegate {
+        println("provide-delegate")
+        return this
+    }
+
+    operator fun getValue(thisRef: Registry): Int = value
+
+    operator fun setValue(thisRef: Registry, next: Int) {
+        value = next
+    }
+}
+
+public object Registry : Base(baseSeed()), Named {
+    const val version: Int = 21
+    val text: String = makeText()
+    var count: Int = 1
+    var delegated: Int by ObjectDelegate(10)
+
+    init {
+        gcCollect()
+        count = count + 1
+        println("object-initializer")
+    }
+
+    fun total(): Int = seed + count + delegated
+
+    object Nested {
+        val marker: Int = mark("nested-initializer", 1)
+
+        fun answer(): Int = Registry.version + 21
+    }
+
+    class Token(val value: Int)
+}
+
+const val doubledVersion: Int = Registry.version + Registry.version
+
+public fun choose(value: Registry = Registry): Registry = value
+
+fun readName(value: Named): String = value.name()
+
+fun main() {
+    println(doubledVersion)
+    val token: Registry.Token = Registry.Token(9)
+    println(token.value)
+    println(Registry.Nested.answer())
+    println("before-outer")
+    println(Registry.total())
+    println(Registry.text)
+    Registry.delegated = 11
+    println(Registry.total())
+    println(readName(Registry))
+    println(choose() === Registry)
+    gcCollect()
+    println(Registry === Registry)
+}

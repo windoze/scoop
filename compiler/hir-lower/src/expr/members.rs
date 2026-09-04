@@ -1,11 +1,97 @@
 use super::*;
+use crate::NominalTarget;
 
 mod extensions;
+mod interface_super;
 mod pointers;
 mod primitives;
 mod resolution;
 
 impl Lowerer {
+    pub(crate) fn nominal_qualifier_target(&self, expression: &ast::Expr) -> Option<NominalTarget> {
+        match expression {
+            ast::Expr::Var(name)
+                if self.scopes.lookup(&name.text).is_none()
+                    && !self.host_has_property(&name.text) =>
+            {
+                self.top_level_nominal_target(&name.text)
+                    .or_else(|| self.lexical_nested_nominal_target(&name.text))
+            }
+            ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Direct => {
+                let ast::FieldSelector::Name(name) = &access.selector else {
+                    return None;
+                };
+                let owner = self.nominal_qualifier_target(&access.receiver)?.owner();
+                self.nested_nominal_target(owner, &name.text)
+            }
+            _ => None,
+        }
+    }
+
+    fn lower_static_nested_constructor(
+        &mut self,
+        target: NominalTarget,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            NominalTarget::Struct(struct_id) => {
+                let application = self.structs[struct_id].self_application;
+                let ty = self.struct_applications[application].canonical_type;
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("struct `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                self.lower_struct_init(struct_id, ty, call, sink, expected)
+            }
+            NominalTarget::Class(class_id) => {
+                let application = self.classes[class_id].self_application;
+                let ty = self.class_applications[application].canonical_type;
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("class `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                self.lower_class_construct(class_id, call, sink, expected)
+            }
+            NominalTarget::Enum(_) => {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` cannot be constructed without a variant",
+                        name.text
+                    ),
+                );
+                None
+            }
+            NominalTarget::Interface(_) => {
+                self.error(
+                    name.span,
+                    format!("interface `{}` cannot be constructed", name.text),
+                );
+                None
+            }
+            NominalTarget::Object(object) => {
+                let kind = match self.objects[object].kind {
+                    hir::ObjectKind::Standalone => "object",
+                    hir::ObjectKind::Companion(_) => "companion object",
+                };
+                self.error(
+                    name.span,
+                    format!("{kind} `{}` cannot be constructed", name.text),
+                );
+                None
+            }
+        }
+    }
+
     /// Resolve `super.name(...)` from the exact direct-base application. No
     /// extension, property-like, or interface layer participates, and the
     /// resulting HIR variant preserves the mandatory direct-dispatch proof.
@@ -137,21 +223,60 @@ impl Lowerer {
                 }
             };
         }
-        if let ast::Expr::Var(enum_name) = receiver {
-            if self.scopes.lookup(&enum_name.text).is_none()
-                && !self.host_has_property(&enum_name.text)
-                && self.enums_by_name.contains_key(&enum_name.text)
-            {
-                let enum_id = self.enums_by_name[&enum_name.text];
-                let Some(variant) = self.find_variant(enum_id, &name.text) else {
-                    self.error(
-                        name.span,
-                        format!("enum `{}` has no variant `{}`", enum_name.text, name.text),
-                    );
-                    return None;
-                };
-                return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+        if let Some(qualifier) = self.nominal_qualifier_target(receiver) {
+            if let Some(target) = self.nested_nominal_target(qualifier.owner(), &name.text) {
+                return self.lower_static_nested_constructor(target, name, call, sink, expected);
             }
+            if let NominalTarget::Enum(enum_id) = qualifier {
+                if let Some(variant) = self.find_variant(enum_id, &name.text) {
+                    return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+                }
+            }
+            let forwarded = self.companion_forwarding_object(qualifier, &name.text);
+            if let NominalTarget::Object(object) = qualifier
+                && forwarded.is_none()
+            {
+                let receiver = self.lower_singleton_value(object, receiver.span())?;
+                return self.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                );
+            }
+            if let Some(companion) = forwarded {
+                let receiver = self.lower_singleton_value(companion, receiver.span())?;
+                return self.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                );
+            }
+            if let NominalTarget::Enum(_) = qualifier {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` has no variant `{}`",
+                        qualifier.owner().describe_name(self),
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            self.error(
+                name.span,
+                format!(
+                    "type `{}` has no nested type `{}`",
+                    qualifier.owner().describe_name(self),
+                    name.text
+                ),
+            );
+            return None;
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
         self.lower_explicit_named_call(
@@ -190,8 +315,17 @@ impl Lowerer {
             );
             return None;
         }
-        let property = self.member_property_read(receiver.clone(), name);
         let mut first_failure = None;
+        let property = match self
+            .probe_expr_layer(|state, _| state.member_property_read(receiver.clone(), name))
+        {
+            Ok(layer) => Some(layer),
+            Err(failure) if failure.diagnostics.len() > self.diagnostics.len() => {
+                first_failure = Some(failure);
+                None
+            }
+            Err(_) => None,
+        };
         let mut members = self.methods_by_name(receiver.ty, &name.text);
         members.retain(|candidate| {
             Self::matches_required_modifiers(
@@ -235,18 +369,24 @@ impl Lowerer {
             }
         }
 
-        if let Some(property) = &property
-            && let Some(layer) = self.probe_property_member_invoke(
-                property.clone(),
+        if let Some(property) = &property {
+            let mut property_state = (*property.state).clone();
+            if let Some(layer) = property_state.probe_property_member_invoke(
+                property.expression.clone(),
                 call,
                 expected,
                 direct_required.infix,
-            )
-        {
-            match layer {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+            ) {
+                match layer {
+                    Ok(mut layer) => {
+                        let mut setup = property.sink.clone();
+                        setup.append(&mut layer.sink);
+                        layer.sink = setup;
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
                 }
             }
         }
@@ -277,9 +417,64 @@ impl Lowerer {
                     }
                 }
             }
+            let mut extension_property_state = self.clone();
+            let mut extension_property_sink = Vec::new();
+            match extension_property_state.resolve_extension_property_on_side(
+                receiver.clone(),
+                name,
+                same_side,
+                &mut extension_property_sink,
+                true,
+            ) {
+                crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                    if let Some(layer) = extension_property_state.probe_property_member_invoke(
+                        property.read.clone(),
+                        call,
+                        expected,
+                        direct_required.infix,
+                    ) {
+                        match layer {
+                            Ok(mut layer) => {
+                                let mut setup = extension_property_sink.clone();
+                                setup.append(&mut layer.sink);
+                                layer.sink = setup;
+                                return Some(self.commit_expr_layer(layer, sink));
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
+                        }
+                    }
+                    if let Some(layer) = extension_property_state.probe_property_extension_invoke(
+                        property.read,
+                        call,
+                        expected,
+                        direct_required.infix,
+                        same_side,
+                    ) {
+                        match layer {
+                            Ok(mut layer) => {
+                                let mut setup = extension_property_sink;
+                                setup.append(&mut layer.sink);
+                                layer.sink = setup;
+                                return Some(self.commit_expr_layer(layer, sink));
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
+                        }
+                    }
+                }
+                crate::properties::ExtensionPropertyResolution::Failed => {
+                    if extension_property_state.diagnostics.len() > self.diagnostics.len() {
+                        first_failure.get_or_insert(Box::new(extension_property_state));
+                    }
+                }
+                crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+            }
             if let Some(property) = &property
-                && let Some(layer) = self.probe_property_extension_invoke(
-                    property.clone(),
+                && let Some(layer) = property.state.probe_property_extension_invoke(
+                    property.expression.clone(),
                     call,
                     expected,
                     direct_required.infix,
@@ -287,7 +482,12 @@ impl Lowerer {
                 )
             {
                 match layer {
-                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Ok(mut layer) => {
+                        let mut setup = property.sink.clone();
+                        setup.append(&mut layer.sink);
+                        layer.sink = setup;
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
                     Err(failure) => {
                         first_failure.get_or_insert(failure);
                     }
@@ -297,6 +497,8 @@ impl Lowerer {
 
         if let Some(failure) = first_failure {
             self.commit_layer_diagnostics(*failure);
+        } else if let Some(message) = self.inaccessible_method_message(receiver.ty, &name.text) {
+            self.error(name.span, message);
         } else {
             let found = self.type_name(receiver.ty);
             let capability = if direct_required.infix {
@@ -319,6 +521,9 @@ impl Lowerer {
         required
             .operator
             .is_none_or(|operator| modifiers.operator == Some(operator))
+            && required
+                .property_delegate_operator
+                .is_none_or(|operator| modifiers.property_delegate_operator == Some(operator))
             && (!required.infix || modifiers.is_infix)
     }
 
@@ -333,6 +538,7 @@ impl Lowerer {
             .into_iter()
             .flatten()
             .copied()
+            .filter(|function| self.function_is_accessible(*function, None))
             .filter(|function| {
                 let candidate_is_core = self.function_files[function] < self.user_file_index;
                 (candidate_is_core == call_site_is_core) == same_side
@@ -345,41 +551,13 @@ impl Lowerer {
         receiver: hir::Expr,
         name: &ast::Ident,
     ) -> Option<hir::Expr> {
-        let (field, ty) = match self.types[receiver.ty].clone() {
-            Type::Class(application) => {
-                let (application, field, ty, _) =
-                    self.find_class_application_field(application, &name.text)?;
-                (hir::FieldRef::ClassField { application, field }, ty)
-            }
-            Type::Struct(application) => {
-                let value = self.struct_applications[application].clone();
-                let index = self.structs[value.template]
-                    .semantic_fields()
-                    .iter()
-                    .position(|field| field.name == name.text)?;
-                let ty = self.instantiate_ty(
-                    self.structs[value.template].semantic_fields()[index].ty,
-                    &value.arguments,
-                );
-                (
-                    hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    },
-                    ty,
-                )
-            }
-            _ => return None,
-        };
-        Some(hir::Expr {
-            kind: ExprKind::FieldAccess {
-                receiver: Box::new(receiver),
-                field,
-            },
-            ty,
-            span: name.span,
-            origin: self.expression_origin(name.span),
-        })
+        let receiver_ty = receiver.ty;
+        if let Some((property, owner, ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
+        }
+        None
     }
 
     pub(in crate::expr) fn probe_property_member_invoke(
@@ -414,6 +592,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,
+                    ..Default::default()
                 },
             )
         });
@@ -442,6 +621,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,
+                    ..Default::default()
                 },
             )
         });
@@ -471,7 +651,10 @@ impl Lowerer {
         required: RequiredCallableModifiers,
     ) -> Option<hir::Expr> {
         if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
-            if required.operator.is_some() || required.infix {
+            if required.operator.is_some()
+                || required.property_delegate_operator.is_some()
+                || required.infix
+            {
                 let found = self.type_name(receiver.ty);
                 self.error(
                     name.span,
@@ -604,6 +787,7 @@ impl Lowerer {
                 RequiredCallableModifiers {
                     operator: None,
                     infix: true,
+                    ..Default::default()
                 },
             ),
             ast::InfixTarget::Invoke => {

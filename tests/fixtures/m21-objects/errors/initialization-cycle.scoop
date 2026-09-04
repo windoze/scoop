@@ -1,0 +1,10 @@
+object Left {
+    val value: Int = Right.value
+}
+
+object Right {
+    val value: Int = Left.value
+}
+
+fun main() {
+}

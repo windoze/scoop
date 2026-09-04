@@ -1,0 +1,40 @@
+class Outer<T> {
+    class Nested<U>(val value: U) {
+        fun get(): U = value
+    }
+
+    struct Pair<U>(val first: U, val second: U)
+
+    enum Flag {
+        Ready,
+        Busy
+    }
+
+    interface Marker {
+        fun id(): Int = 7
+    }
+
+    class Deep {
+        class Leaf(val value: Int)
+    }
+}
+
+class Marked() : Outer.Marker
+
+fun markerId(value: Outer.Marker): Int = value.id()
+
+fun main() {
+    val nested: Outer.Nested<Int> = Outer.Nested<Int>(42)
+    println(nested.get())
+
+    val pair: Outer.Pair<String> = Outer.Pair<String>("left", "right")
+    println(pair.first)
+    println(pair.second)
+
+    val flag: Outer.Flag = Outer.Flag.Ready
+    println(flag == Outer.Flag.Ready)
+
+    val leaf: Outer.Deep.Leaf = Outer.Deep.Leaf(9)
+    println(leaf.value)
+    println(markerId(Marked()))
+}

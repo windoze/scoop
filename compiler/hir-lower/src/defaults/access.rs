@@ -2,24 +2,26 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
-struct ReferenceCollector {
+struct ReferenceCollector<'a> {
+    lowerer: &'a mut Lowerer,
     references: hir::ExportDefaultReferences,
-    witness: hir::ExportDefaultAccessWitness,
+    owner: hir::ExportParameterOwner,
+    call_domain: hir::CallDomain,
     fallback_origin: hir::DefinitionOrigin,
 }
 
 impl Lowerer {
     pub(super) fn collect_export_default_references(
-        &self,
+        &mut self,
         owner: hir::ExportParameterOwner,
         template: &hir::ExportDefaultExpr,
     ) -> hir::ExportDefaultReferences {
+        let call_domain = self.default_call_domain(owner);
         let mut collector = ReferenceCollector {
+            lowerer: self,
             references: hir::ExportDefaultReferences::default(),
-            witness: hir::ExportDefaultAccessWitness {
-                owner,
-                coverage: hir::ExportDefaultAccessCoverage::ConeWide,
-            },
+            owner,
+            call_domain,
             fallback_origin: template.origin,
         };
         for local in template.locals.values() {
@@ -33,9 +35,105 @@ impl Lowerer {
     }
 }
 
-impl ReferenceCollector {
+impl ReferenceCollector<'_> {
+    fn witness(
+        &mut self,
+        target_domain: hir::AccessDomain,
+        origin: hir::DefinitionOrigin,
+        target_kind: &str,
+    ) -> hir::ExportDefaultAccessWitness {
+        let direct_ok = self
+            .lowerer
+            .access_domain_is_subset(&self.call_domain.direct.0, &target_domain);
+        let slot_ok = self.call_domain.slot.as_ref().is_none_or(|slot| {
+            self.lowerer
+                .access_domain_is_subset(&slot.0, &target_domain)
+        });
+        if !direct_ok || !slot_ok {
+            let outer_file = self.lowerer.current_file;
+            self.lowerer.current_file =
+                usize::try_from(origin.file).expect("definition file index does not fit usize");
+            self.lowerer.error(
+                origin.span,
+                format!(
+                    "default expression references {target_kind} outside the callable's complete call domain"
+                ),
+            );
+            self.lowerer.current_file = outer_file;
+        }
+        hir::ExportDefaultAccessWitness {
+            owner: self.owner,
+            call_domain: self.call_domain.clone(),
+            target_domain,
+        }
+    }
+
+    fn callable_domain(&self, callable: hir::Callable) -> hir::AccessDomain {
+        self.lowerer
+            .function_access_domain(self.lowerer.callable_function_id(callable))
+    }
+
+    fn method_callee_domain(&self, callee: hir::MethodCallee) -> hir::AccessDomain {
+        let function = match callee {
+            hir::MethodCallee::Callable(callable) => self.lowerer.callable_function_id(callable),
+            hir::MethodCallee::Bound(bound) => match self.lowerer.bound_callable_refs[bound].source
+            {
+                hir::BoundCallableSource::Class { callable, .. } => {
+                    self.lowerer.callable_function_id(callable)
+                }
+                hir::BoundCallableSource::Interface { member, .. } => {
+                    self.lowerer.interface_method_entities[member].function
+                }
+            },
+            hir::MethodCallee::DerivedEquality(application) => {
+                self.lowerer.derived_equality_applications[application].function
+            }
+        };
+        self.lowerer.function_access_domain(function)
+    }
+
+    fn callable_target_domain(
+        &self,
+        target: &hir::ExportDefaultCallableTarget,
+    ) -> hir::AccessDomain {
+        match *target {
+            hir::ExportDefaultCallableTarget::Callable(callable) => self.callable_domain(callable),
+            hir::ExportDefaultCallableTarget::Bound(bound) => {
+                self.method_callee_domain(hir::MethodCallee::Bound(bound))
+            }
+            hir::ExportDefaultCallableTarget::DerivedEquality(application) => {
+                self.method_callee_domain(hir::MethodCallee::DerivedEquality(application))
+            }
+            hir::ExportDefaultCallableTarget::FunctionAddress(function) => {
+                self.lowerer.function_access_domain(function)
+            }
+            hir::ExportDefaultCallableTarget::CallableReference(reference) => {
+                match &self.lowerer.callable_references[reference].target {
+                    hir::CallableReferenceTarget::Named(callable) => {
+                        self.callable_domain(*callable)
+                    }
+                    hir::CallableReferenceTarget::BoundMember { callee, .. } => {
+                        self.method_callee_domain(*callee)
+                    }
+                    hir::CallableReferenceTarget::BoundExtension { callee, .. } => {
+                        self.callable_domain(*callee)
+                    }
+                    hir::CallableReferenceTarget::Local { .. } => hir::AccessDomain::universal(),
+                }
+            }
+            hir::ExportDefaultCallableTarget::LocalFunction(_)
+            | hir::ExportDefaultCallableTarget::Lambda(_)
+            | hir::ExportDefaultCallableTarget::AnonymousFunction(_) => {
+                // These declarations are owned by the exported template
+                // itself rather than looked up independently by its caller.
+                hir::AccessDomain::universal()
+            }
+        }
+    }
+
     fn statement(&mut self, statement: &hir::Statement) {
         match &statement.kind {
+            hir::StatementKind::InitializationEnsure(_) => {}
             hir::StatementKind::Expr(value) | hir::StatementKind::Throw(value) => {
                 self.expression(value);
             }
@@ -117,6 +215,7 @@ impl ReferenceCollector {
             hir::AssignTarget::Global(global) => {
                 self.global(*global, self.fallback_origin);
             }
+            hir::AssignTarget::SingletonPublishedRoot(_) => {}
             hir::AssignTarget::Index { array, index } => {
                 self.expression(array);
                 self.expression(index);
@@ -223,6 +322,7 @@ impl ReferenceCollector {
                 self.expressions(args);
             }
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
+            hir::ExprKind::SingletonValue(value) => self.singleton_value(*value, origin),
             hir::ExprKind::Lambda(lambda) => {
                 self.callable(hir::ExportDefaultCallableTarget::Lambda(*lambda), origin);
             }
@@ -382,11 +482,13 @@ impl ReferenceCollector {
                 hir::ExportDefaultCallableTarget::DerivedEquality(application)
             }
         };
+        let target_domain = self.method_callee_domain(callee);
+        let witness = self.witness(target_domain, origin, "a method");
         self.references
             .callables
             .push(hir::ExportDefaultCallableRef {
+                witness,
                 target,
-                witness: self.witness,
                 origin,
             });
     }
@@ -396,11 +498,13 @@ impl ReferenceCollector {
         target: hir::ExportDefaultCallableTarget,
         origin: hir::DefinitionOrigin,
     ) {
+        let target_domain = self.callable_target_domain(&target);
+        let witness = self.witness(target_domain, origin, "a callable");
         self.references
             .callables
             .push(hir::ExportDefaultCallableRef {
                 target,
-                witness: self.witness,
+                witness,
                 origin,
             });
     }
@@ -410,35 +514,57 @@ impl ReferenceCollector {
         target: hir::ExportDefaultConstructorTarget,
         origin: hir::DefinitionOrigin,
     ) {
+        let target_domain = self.lowerer.constructor_access_domain(target);
+        let witness = self.witness(target_domain, origin, "a constructor");
         self.references
             .constructors
             .push(hir::ExportDefaultConstructorRef {
                 target,
-                witness: self.witness,
+                witness,
                 origin,
             });
     }
 
     fn type_reference(&mut self, target: hir::TypeId, origin: hir::DefinitionOrigin) {
+        let target_domain = self.lowerer.type_access_domain(target);
+        let witness = self.witness(target_domain, origin, "a type");
         self.references.types.push(hir::ExportDefaultTypeRef {
             target,
-            witness: self.witness,
+            witness,
             origin,
         });
     }
 
     fn global(&mut self, target: hir::GlobalId, origin: hir::DefinitionOrigin) {
+        let property = self.lowerer.globals[target].property;
+        let target_domain = self.lowerer.properties[property].access.lookup.0.clone();
+        let witness = self.witness(target_domain, origin, "a property");
         self.references.globals.push(hir::ExportDefaultGlobalRef {
             target,
-            witness: self.witness,
+            witness,
             origin,
         });
     }
 
+    fn singleton_value(&mut self, target: hir::SingletonValueId, origin: hir::DefinitionOrigin) {
+        let object = self.lowerer.singleton_values[target].declaration;
+        let target_domain = self.lowerer.objects[object].access.lookup.0.clone();
+        let witness = self.witness(target_domain, origin, "an object");
+        self.references
+            .singleton_values
+            .push(hir::ExportDefaultSingletonValueRef {
+                target,
+                witness,
+                origin,
+            });
+    }
+
     fn field(&mut self, target: hir::FieldRef, origin: hir::DefinitionOrigin) {
+        let target_domain = self.lowerer.field_access_domain(target);
+        let witness = self.witness(target_domain, origin, "a field");
         self.references.fields.push(hir::ExportDefaultFieldRef {
             target,
-            witness: self.witness,
+            witness,
             origin,
         });
     }

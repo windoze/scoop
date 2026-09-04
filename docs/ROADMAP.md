@@ -159,9 +159,15 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - upper bound扩展为至多一个class加多个interface，bound均为参数完整的exact application；bounded receiver在实例化后解析为普通direct/virtual/interface target；
 - 调用显式type argument list允许用`_`逐项继续推断；`_`复用M16同一candidate-local constraint/MSC内核，并在LocalConcrete HIR前完全消失；runtime、RTTI、dispatch和跨Cone metadata保持exact-only。
 
-### M21 属性、对象与可见性（待设计）
+### M21 属性、对象与可见性（设计见 `docs/milestone21/DESIGN.md`）
 
-计算/extension/interface/delegated property与accessor、无initializer/`lateinit`，object/companion、`const val`、全局初始化、interface default implementation及可见性。class stored body property的初始化基线已由M19定义。
+- 统一logical property/accessor模型，覆盖stored/computed/extension/interface/delegated property、自定义getter/setter、override与typed place；property不再等同于field；
+- 永久删除`lateinit`与隐藏未初始化状态。无accessor的`var p: Option<T>`/`var p: T?`可省略initializer，语义精确等价于在该初始化位置写`= None`；其他stored property仍必须完整初始化；
+- reflection-free delegate协议不传`KProperty`/名称：可选`provideDelegate()`与必需`getValue(thisRef)`/`setValue(thisRef, value)`形成独立typed role；
+- top-level/static nested `object`与non-generic companion使用线程安全exactly-once gate，只在完整初始化后发布；top-level runtime property在`main`前初始化，失败记忆、直接/间接循环与moving-GC root契约一次锁定；
+- interface function/property accessor支持default body，按class hierarchy优先与唯一most-specific interface选择；冲突要求显式override，`super<I>`只direct调用direct superinterface default；
+- 默认visibility改为`internal`，对外API逐项显式写`public`；四种visibility以typed access domain贯穿候选、override、signature exposure、M17 default witness及未来`.slib`。M12的raw `@Global`/`@ThreadLocal`与普通managed top-level property正式分离；
+- 支持static nested nominal/object声明；`inner`/anonymous/local object、generic delegated extension及class/interface delegation仍不在本里程碑。
 
 ### M22 基础语言能力补齐（待设计）
 
@@ -194,6 +200,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 2026-09-03 顺序调整：撤回原M16字符串插值设计并延后原M17多Cone；新M16先统一fresh-variable constraint solving与overload resolution，新M17再落地命名/default/vararg完整实参协议。其余M2/M4/M6/M7/M14基础backlog及多Cone、字符串能力按上节后续顺序重新排期。
 - 2026-09-04 编号确定：原“后续顺序”七项依次编号为 M18 callable表面、M19构造与初始化、M20泛型类型系统第二阶段、M21属性/对象/可见性、M22基础语言能力、M23多Cone与`.slib`、M24字符串底层与插值；各项详细范围仍须spec先行并单独设计。
 - 2026-09-04 M20设计决定：nominal generic统一为invariant，撤销既有interface variance并明确不引入projection/star/capture；M20只新增class upper bound与调用点`_`部分类型实参，泛型抽象由generic callable、exact interface及显式转换表达。
+- 2026-09-04 M21设计决定：Scoop不提供`lateinit`；延后初始化必须显式使用`Option<T>`/`T?`，其中无accessor的`var Option<T>`省略initializer等价于`None`。同时固定logical property/accessor、reflection-free delegate、interface default、singleton/global exactly-once初始化与typed access domain。
+- 2026-09-04 M21可见性修订：默认visibility由Kotlin式public改为internal；public API、public interface contract、public override与public constructor都要求源码显式标记，`main`仍可internal。sysroot不享有默认public特权，计划导出的core API也必须显式标记。
 - 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
 
 ## 4. 待补齐清单（backlog）
@@ -253,7 +261,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - interface 的属性与默认实现 → M21；
 - ~~泛型 interface 与声明点 `in` / `out` 变型~~（已完成：接口应用类型贯穿 AST/HIR/MIR，位置合法性与变型子类型关系在 HIR 检查；MIR 按具体实参生成独立接口 TypeDescriptor，并为引用/值 ABI 生成变型 itable bridge）；
 - ~~`equals` / `hashCode` / `toString` 的用户覆写~~（M14 已按接口化设计完成：`equals` 走成员 `operator fun`，`ToString` / `Hash` 显式adopt，vtable不再保留Any固定前三槽）；
-- companion object 与 `object` 声明 → M21；`sealed`、委托（`by`）仍待排期；object/companion 的初始化与属性委托协议不得隐式挂起（spec 8.2、9.1.1）；
+- companion object 与 `object` 声明 → M21；`sealed`、class/interface delegation（`class C : I by impl`）仍待排期，property delegation由M21覆盖；object/companion初始化与property delegate协议不得隐式挂起（spec 8.2、9.1.1、9.2）；
 - 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断 → M21（M12 只设计 GC-free 常量初始化的显式 `@Global` / `@ThreadLocal` 存储与无 initializer 的 extern global；通用属性语义仍需按 spec 9.1.1 在实现前定稿）；
 - `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）→ M21；
 - 可见性修饰符 → M21（`internal` 必须先于 M23 多Cone完成）；
@@ -316,7 +324,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类；
 - generic `typealias`：type parameter/bound、透明展开、递归alias诊断、可见性和跨Cone export；alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
 - generic extension property；普通member/top-level property自身不允许method式type parameter。该能力随extension property基础语义落地，并须定义receiver参数如何参与推导及getter/setter单态化；
-- nested/inner generic type与generic class companion的参数作用域：static nested type不隐式继承外层参数，`inner` type必须携带outer application与outer ref；object/companion声明自身没有type parameter、不按每个宿主application复制，也不能隐式使用宿主type parameter，其中的generic method仍必须non-virtual；
+- static nested generic type与generic class companion参数作用域 → M21：二者不隐式继承宿主参数，object/companion不按host application复制；`inner` type及outer application/ref捕获仍待后续；
 - 显式type argument中的`_`占位及部分推断 → M20；当前只允许“整组省略并推断”或“整组完整写出”；
 - 更一般的polymorphic recursion。M14只接受generic callable递归SCC中环上参数替换合成为identity的可判定子集，并在参数增长/变化的递归环上定义处诊断；未来放宽必须提供结构化termination proof，不能以worklist深度、实例数或超时充当语义；
 - 当前完整application范围内的fresh-variable/postponed-argument constraint system与MSC → M16；M20的`_`部分实参沿用该solver；

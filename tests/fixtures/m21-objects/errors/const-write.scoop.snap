@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-objects/errors/const-write.scoop:6:14: error: cannot assign to immutable property `version`

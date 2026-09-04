@@ -30,11 +30,13 @@ fn var_rebinding_and_control_flow() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash
@@ -197,11 +199,13 @@ fn inner_scopes_shadow_and_do_not_leak() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash

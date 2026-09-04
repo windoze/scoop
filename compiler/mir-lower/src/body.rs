@@ -24,6 +24,9 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     pub(super) global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
+    pub(super) singleton_root_map:
+        &'a HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,
+    pub(super) singleton_published_roots: &'a Arena<mir::SingletonPublishedRoot>,
     pub(super) callback_bridges: &'a mut Arena<mir::CallbackBridge>,
     pub(super) callback_by_target:
         &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,

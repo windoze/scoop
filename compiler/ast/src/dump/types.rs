@@ -36,6 +36,20 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
             let inner: Vec<String> = args.iter().map(dump_type_ref).collect();
             format!("{}<{}>", name.text, inner.join(", "))
         }
+        TypeRefKind::Qualified { path, arguments } => {
+            let mut name = path
+                .iter()
+                .map(|segment| segment.text.as_str())
+                .collect::<Vec<_>>()
+                .join(".");
+            if !arguments.is_empty() {
+                let inner: Vec<String> = arguments.iter().map(dump_type_ref).collect();
+                name.push('<');
+                name.push_str(&inner.join(", "));
+                name.push('>');
+            }
+            name
+        }
         TypeRefKind::Unit => "Unit".to_string(),
         TypeRefKind::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(dump_type_ref).collect();

@@ -7,13 +7,13 @@ class FailureGate(var waiter: Continuation<Int>?) {
 }
 
 class FailureRegistration(val gate: FailureGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
 
 class CaughtTask(val gate: FailureGate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             val registration: SuspendRegistration<Int> = FailureRegistration(gate)
             return suspendCoroutine(registration)
@@ -24,18 +24,18 @@ class CaughtTask(val gate: FailureGate) : SuspendTask<Int> {
 }
 
 class UncaughtTask(val gate: FailureGate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         val registration: SuspendRegistration<Int> = FailureRegistration(gate)
         return suspendCoroutine(registration)
     }
 }
 
 class RecordingCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

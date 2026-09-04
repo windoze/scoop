@@ -1,42 +1,42 @@
 // GC facilities (spec 14.1, M12 DESIGN section 4.2). Public operations are
 // ordinary unsafe core functions; only the raw runtime boundary is intrinsic.
 
-struct PinnedPtr<T : ref>(val raw: UInt)
+public struct PinnedPtr<T : ref>(val raw: UInt)
 
-struct GcHandle<T : ref>(val raw: UInt)
+public struct GcHandle<T : ref>(val raw: UInt)
 
 @Unsafe
 @Intrinsic("gc_pin_raw")
-fun <T : ref> _pin(v: T): UInt
+internal fun <T : ref> _pin(v: T): UInt
 
 @Unsafe
 @Intrinsic("gc_unpin_raw")
-fun <T : ref> _unpin(raw: UInt): T
+internal fun <T : ref> _unpin(raw: UInt): T
 
 @Unsafe
 @Intrinsic("gc_get_handle_raw")
-fun <T : ref> _getGcHandle(v: T): UInt
+internal fun <T : ref> _getGcHandle(v: T): UInt
 
 @Unsafe
 @Intrinsic("gc_release_handle_raw")
-fun <T : ref> _releaseGcHandle(raw: UInt): T
+internal fun <T : ref> _releaseGcHandle(raw: UInt): T
 
 @Unsafe
-fun <T : ref> pin(v: T): PinnedPtr<T> = PinnedPtr<T>(_pin(v))
+public fun <T : ref> pin(v: T): PinnedPtr<T> = PinnedPtr<T>(_pin(v))
 
 @Unsafe
-fun <T : ref> unpin(p: PinnedPtr<T>): T = _unpin<T>(p.raw)
+public fun <T : ref> unpin(p: PinnedPtr<T>): T = _unpin<T>(p.raw)
 
 @Unsafe
-fun <T : ref> getGcHandle(v: T): GcHandle<T> = GcHandle<T>(_getGcHandle(v))
+public fun <T : ref> getGcHandle(v: T): GcHandle<T> = GcHandle<T>(_getGcHandle(v))
 
 @Unsafe
-fun <T : ref> releaseGcHandle(h: GcHandle<T>): T = _releaseGcHandle<T>(h.raw)
+public fun <T : ref> releaseGcHandle(h: GcHandle<T>): T = _releaseGcHandle<T>(h.raw)
 
 // Test-only hooks (not part of the spec): force a collection and
 // read the live object count.
 @Intrinsic("rt_gc_collect")
-fun gcCollect()
+public fun gcCollect()
 
 @Intrinsic("rt_gc_stats")
-fun gcStats(): UInt
+public fun gcStats(): UInt

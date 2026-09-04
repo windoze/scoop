@@ -15,7 +15,7 @@ class RaceGate(
 )
 
 class RaceRegistration(val gate: RaceGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         @Unsafe {
             val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
                 { value: Int ->
@@ -32,17 +32,17 @@ class RaceRegistration(val gate: RaceGate) : SuspendRegistration<Int> {
 }
 
 class RaceTask(val gate: RaceGate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         return suspendCoroutine(RaceRegistration(gate))
     }
 }
 
 class RaceCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println("completed")
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

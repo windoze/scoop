@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-版本：0.5（草案）
+版本：0.7（草案）
 
 ## 1. 概述
 
@@ -135,7 +135,7 @@ struct S(val f1: Int, val f2: String = "")
 规则：
 
 - 字段在主构造函数中声明，与 Kotlin 类的构造函数属性语法一致，但**只能用 `val`，不允许 `var`**（struct 不可变，`var` 字段无意义）。
-- **字段不支持可见性修饰符，全部对外可见（public）**。
+- **字段不支持可见性修饰符，declared visibility固定为public**；effective domain仍与struct owner取交集（9.1.5），因此默认internal struct的字段不会导出Cone。
 - **immutable**：struct 实例构造完成后不可修改。
 - 支持主构造函数与次构造函数（secondary constructor）。secondary参数不声明字段，必须通过`this(...)`直接或间接委托到唯一primary；具体参数、委托、初始化与失败规则见4.1.1和9.1.1。
 - **不支持 `init` 块**。所有初始化逻辑必须位于构造函数中。
@@ -197,7 +197,7 @@ enum E {
   - 命名字段变体：`VariantWithNamedField { f1: Int, f2: String }`；
   - 构造函数式命名字段变体：`VariantWithDefaults(val f1: Int, val f2: String = "hello")`，**规则同 struct 的主构造函数**：字段可带默认值，构造时可用命名参数。
 - 两种命名字段形式（block 式与构造函数式）语义等价；构造函数式额外支持默认值。
-- **变体字段不支持可见性修饰符，全部对外可见（public）**。
+- **variant及其字段不支持可见性修饰符，declared visibility固定为public**；effective domain仍与enum owner取交集（9.1.5）。
 - **enum 自身不支持构造函数、不支持 `init` 块、不支持成员属性**；body 中只允许声明成员函数与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
 - 每个变体是一个构造器：`E.SimpleVariant`、`E.VariantWithValue(42)`、`E.VariantWithNamedField(f1 = 1, f2 = "x")`、`E.VariantWithDefaults(1)`、`E.VariantWithDefaults(f1 = 1)`。命名字段变体（含 block 式）一律以命名参数方式构造，不提供花括号构造形式（与 struct 字面量同样存在解析歧义）。
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
@@ -715,21 +715,31 @@ fun references() {
 
 ### 9.1 类与对象
 
-- `class` / `abstract class` / `interface` / `object` / `companion object`：与 Kotlin 一致，均为引用类型。
+- `class` / `abstract class` / `interface` / `object` / `companion object`均为引用类型。`object`/companion的singleton语义、初始化和generic边界由9.1.3明确规定，不继承Kotlin/JVM的class-initializer ABI。
 - 类可以实现 interface，可以继承一个类；struct/enum 不能被继承，也不能继承类。
 - 类与成员方法默认均为 `final`。只有 `open` / `abstract` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
-- `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或 interface 中。覆写类或 interface 方法必须写 `override`；与 Kotlin 一致，`override fun` 默认继续保持 `open`，可用 `final override fun` 终止后续覆写，也可用 `open override fun` 显式强调继续开放。
+- `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或interface中。interface function有body时是default implementation。覆写class/interface member必须写`override`；`override`默认继续open，可用`final override`终止。
 - final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
 - `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
 
 #### 9.1.1 对象与属性初始化
 
+**property实体与源码形态：**
+
+- property是“显式声明type + getter + 可选setter”的逻辑实体，不等同于field。所有非局部property必须写显式type；同一owner内property名称唯一，不能按type、mutability或accessor重载。public/internal top-level property在package namespace内唯一；file-private property的owner包含source file，不同文件可以同名。function和property可以同名并按8.6/9.3.4分区；
+- `val/var p: T = expr`是stored property并一定拥有backing storage；accessor语法可以全部省略，也可以自定义getter/setter。`val p: T get() ...`是无field的computed read-only property；interface以外的computed `var`必须同时提供getter和setter。`abstract val/var`把全部required accessor正规化为abstract slot；interface中每个required accessor独立分类，有body为default、未提供body为abstract，因而允许getter/setter混合default/abstract。`val/var p: T by expr`是delegated property，见9.2；
+- Scoop永久不支持`lateinit`。唯一可以省略initializer的stored形态是无custom accessor的`var p: Option<T>`/`var p: T?`，其语义等价于在同一初始化位置写`= None`。`val p: T?`、`var p: T`仍须提供initializer或合法computed/abstract body。若需要optional backing field与custom accessor，必须显式写`= None`；generic type parameter不能因某个实例恰为Option而改变声明representation；
+- getter无显式参数并返回property type；setter恰有一个不可重新绑定的参数（缺省名`value`）并返回Unit。`val`不能有setter；`var`可只customize一个stored accessor。`field`只在stored accessor的直接body内表示typed backing-field place，computed/abstract/delegated property及nested lambda/local function中不可用；
+- primary-constructor property只有implicit field accessor。class/object的stored/delegated property进入common initialization sequence；struct/enum不能拥有stored/delegated member state，但可以声明computed `val`；interface不能有field、initializer、delegate或`init`；
+- class property与method使用相同的final/open/abstract/override规则。property override要求名称与type exact相同；`var`可以override `val`并增加setter，`val`不能override `var`。stored/computed/delegated表示都可实现property contract。value type不能实现要求setter的`var`contract；
+- property read要求getter可访问，write要求同一property的setter可访问。选中logical property后不能因缺少/不可见setter退回较低候选。receiver与右值各求值一次；assignment、`++`/`--`和复合赋值使用9.3.3的typed place。`?.property`只在Some分支执行getter并把结果再包一层Option，不展平嵌套Option；
+- extension property只在top level声明且没有backing field，可以是computed或非genericdelegated property。generic extension写作`val <T> Receiver<T>.p: U ...`；全部type parameter必须只由receiver exact静态type与bound唯一确定，不能用result expected type或setter value补推断。generic delegated extension在M23确定跨Cone实例storage归属前不支持。
+
 **constructor与body member：**
 
 - class primary constructor参数可以是普通参数，或以`val`/`var`同时声明stored property。普通primary参数只在base constructor arguments、class body property initializer与`init`中可见，不进入对象布局，也不能从普通member function或secondary constructor读取。secondary constructor参数不得写`val`/`var`，不声明自己的type parameter或返回类型；它与primary constructor都使用8.5的完整source argument protocol；
-- class body可以声明`val name: T = expr`或`var name: T = expr`形式的stored property及任意多个`init { ... }`。stored property在当前阶段必须同时具有显式类型和initializer；无initializer/`lateinit`、计算/extension/interface property、自定义accessor和delegate另行规定。struct不支持body stored property或`init`；
-- 同一class的primary parameter名称必须唯一；body stored property不能与带`val`/`var`的primary parameter、同class其他field或inherited field重名，但可以与普通primary parameter同名。common initialization中无receiver名称优先解析到该parameter，字段用`this.name`访问；字段自身initializer中的`this.name`仍按readiness诊断为self read。secondary parameter同样可按普通词法规则遮蔽field；
-- 显式`class C(...)`（包括空参数列表）声明primary constructor。普通class既无显式primary也无secondary时拥有隐式public零参数primary；若body声明了secondary而header没有参数列表，则不存在primary。intrinsic type省略源码representation不因此获得普通零参数constructor；
+- class body可以声明上述property及任意多个`init { ... }`。同一class的primary parameter名称必须唯一；body property不能与primary property或同class其他property重名。遇到inherited同名property必须形成合法显式override，不能静默field shadow。body property可以与普通primary parameter同名；common initialization中无receiver名称优先解析到parameter，property storage用`this.name`直接访问。secondary parameter同样可按普通词法规则遮蔽property；
+- 显式`class C(...)`（包括空参数列表）声明primary constructor。普通class既无显式primary也无secondary时拥有隐式internal零参数primary，再与owner effective domain取交集；public class不会因此隐式获得public construction API。若body声明了secondary而header没有参数列表，则不存在primary。intrinsic type省略源码representation不因此获得普通零参数constructor；
 - secondary constructor写作`constructor(parameters) : this(args) { body }`或`: super(args)`。class有primary时每个secondary必须经`this`直接或间接终止于primary，不能直接`super`；class无primary时每条链必须终止于一次`super`，省略delegation等价于`super()`：存在direct base时解析其constructor，没有显式base时正规化为编译器根初始化。每个secondary恰好一条delegation edge，自环或多节点环都是定义处错误；
 - 有primary的derived class在header用`Base(args)`完成base delegation。无primary、仅有secondary的derived class在header只声明bare base type，由每个terminal secondary执行`super(args)`；两处不能同时提供base arguments。interface不能携带constructor arguments，class最多有一个direct base；
 - primary base delegation arguments可以读取全部primary parameter（写`val`/`var`的参数此时也仍以parameter value读取），但不能使用`this`或任何instance field；secondary `this`/`super` delegation只能读取该secondary自己的parameter，也不能访问`this`/field。delegation target的default同样没有source receiver；
@@ -741,14 +751,14 @@ fun references() {
 2. 分配一次exact concrete对象，写入最派生TypeDescriptor并清零完整payload；随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
 4. terminal primary先完成direct base constructor，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor；
-5. body property initializer与`init`按照它们在class body中的源码顺序交错执行。method和secondary constructor声明本身不执行，也不改变相邻初始化项顺序；
+5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
 6. terminal secondary body在common initialization之后执行；返回每一层`this` delegation后，再从最内层到最外层执行其余secondary body；最外层正常返回后构造表达式才产生对象引用。
 
 base class的全部constructor body与初始化项先于derived自有字段。每个class的common property/`init`序列在一次构造中恰好执行一次。任一步骤抛异常时，后续初始化项与外层secondary body不执行，构造表达式不产生值，已发生的外部副作用不回滚；失败对象不可达并由GC正常回收，没有析构或runtime回滚。
 
 **字段就绪与半初始化receiver：**
 
-- base initializer正常返回后base字段就绪；primary property在对应compiler store后就绪；body property只在其initializer正常完成并写入后就绪。initializer与`init`只能读写已经就绪的inherited / primary / earlier body field；self/forward read、通过`this`绕过顺序及提前写later `var`都是定义处错误，分配时的全零payload不是合法源码默认值；
+- base initializer正常返回后base storage就绪；primary property在对应compiler store后就绪；body stored/optional/delegate property只在其initializer与storage write正常完成后就绪。initializer与`init`只能direct读写已经就绪的inherited/primary/earlier backing field；self/forward read、通过`this`绕过顺序及提前写later `var`都是定义处错误。computed/delegated accessor不能以initializing receiver调用，分配时的全零payload不是合法源码默认值；
 - class/struct constructor、class property initializer与`init`中的`this`是受限initializing receiver：只可用于已经就绪字段的direct read与mutable write。它不能作为普通值传参、返回、存储、捕获、装箱、转换、比较、取址或形成callable reference，也不能作为ordinary/extension/virtual/interface/`super` method receiver。读取field后得到的值是普通值，可以正常参与调用；
 - 上述限制对base constructor同样成立，因而构造期间不能通过virtual dispatch观察derived未初始化字段，也不能依赖whole-program escape analysis判断某个final helper“可能安全”。需要init-safe callable时必须另行引入typed effect；
 - `return`不能退出property initializer、`init`或constructor body；`throw`合法。所有这些体及delegation都是ordinary、safe、non-suspend上下文；可以调用普通函数、分配、触发GC，也可以构造尚未执行的suspend task，但不能立即调用suspend函数。`startCoroutine`本身是同步普通builder，其启动计算不成为尚未完成的初始化步骤。
@@ -756,21 +766,53 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 **`super`成员调用：**
 
 - 普通member body中的`super.name<TypeArgs>(args...)`只在direct base application的class member层按8.5/8.6决议，不收集extension、property-like或interface default候选。winner强制direct调用base静态视图中的具体实现，即使最派生对象覆写同一virtual family也不经vtable；abstract且没有具体base实现的目标不可调用；
-- `super`不是一等表达式；裸`super`、`super.field`、`super::name`、safe/invoke/index形式、`super<T>`与interface-qualified super都不支持。初始化上下文也不能以`super.method()`绕过受限receiver规则。
+- `super<I>.member`的interface default规则见9.1.4。`super`不是一等表达式；裸`super`、`super.field`、`super::name`、safe/invoke/index形式非法。初始化上下文也不能以任一super形式绕过受限receiver。
 
-顶层属性在程序进入`main`前初始化完成；`object`/`companion object`的初始化时机、精确顺序与循环诊断随对应声明一并规定，但访问者必须等到其同步初始化完成。普通属性访问始终同步；需要异步取得值必须显式暴露`suspend fun`，不能藏在getter或delegate协议中。
+普通property accessor、delegate访问和object/global initializer都同步且non-suspend；可以分配、GC和抛异常。需要异步取得值必须显式暴露`suspend fun`，不能藏在getter或delegate协议中。
 
 #### 9.1.2 `const val`
 
-- `const val` 只允许声明在顶层、`object` 或 `companion object` 中；其类型必须是 `Boolean`、基本数值类型、`Char` 或 `String`。
+- `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
 - initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用，以及由它们组成且可在编译期确定结果的内建一元/二元运算。const 依赖图存在循环是编译错误。
 - 函数/方法调用、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
-- 导出的 `const val` 的类型和值属于 `.slib` HIR metadata，下游 Cone 在编译期直接消费；值变化会使下游编译缓存失效。是否同时保留可寻址存储属于 ABI/`addressOf` 设计，不改变其“无 runtime initializer”的语义。
+- 导出的`const val`的type和值属于`.slib` HIR metadata，下游Cone在编译期直接消费；值变化会使下游编译缓存失效。const没有getter或可寻址storage，`addressOf(const)`非法；String常量使用已登记immortal表示。visibility在folding前检查。
+
+#### 9.1.3 `object`、companion、nested declaration与全局初始化
+
+- `object O`同时声明一个nominal ref type与唯一singleton value，二者identity类型化且不同。object不能声明type parameter或primary/secondary constructor，可以继承一个class并实现interface；base constructor后按9.1.1执行property/delegate/`init`。`O`不是普通constructor，`O()`非法；
+- class/struct/enum/interface/object至多有一个`companion object`，省略名称时为`Companion`。companion是独立、非generic singleton，不捕获host instance/primary parameter/type parameter，也不按generic host application复制；内部generic function仍可自行声明type parameter。`Host.member`可在无冲突时forward到companion，`Host.Companion.member`或显式名称始终明确；companion member不进入instance lookup或继承；
+- body可以声明static nested class/struct/enum/interface/object。nested declaration没有implicit outer receiver或outer type parameter；需要关联时显式声明参数。generic outer名称可作为owner qualifier而不构成裸generic application。`inner class`、anonymous/local object/type及implicit outer capture不支持；
+- ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
+- 需要runtime求值的top-level property在GC、主线程、root与image metadata登记后、`main`前exactly once初始化。只有无需执行Scoop代码、无需读取ordinary property且可直接编码为目标静态数据的literal/内建纯常量表达式、immortal String ref及Option `None` shorthand可省略unit；优化器不得因事后fold而改变有可观察求值的初始化语义。文件之间没有source order；无依赖unit按稳定typed declaration key排序，key编码owner chain、package、kind与name，只有file-private owner再加入标准化Cone-relative source identity；它不依赖输入枚举、arena id或host绝对路径，M23再前缀stable Cone identity。访问另一个unit会先ensure目标。HIR只对该unit自有且经脱糖展开的initializer/delegate expression、object base argument与`init`body中的直接typed unit引用形成依赖图并报告结构环，不递归进入被调用的普通function/constructor/default/dynamic/FFI body；这些间接环由runtime gate检测。startup失败则`main`不执行；
+- object/companion在首次非const访问时线程安全、同步初始化；static nested declaration或const引用不初始化外层。每个runtime unit状态为Uninitialized、Initializing(owner/dependency stack)、Initialized或Failed(rooted Throwable)。成功singleton只在完整初始化后release发布；失败不发布、记忆异常且不重试。同线程或跨线程wait-for环抛出`message`含稳定unit path的`IllegalStateException`；该异常若未在initializer内被普通`try`捕获才使unit失败。其他线程以可参与safepoint的方式等待terminal state；
+- 上述exactly-once cell只管理完整initializer的发布，不表示property可以缺少声明type的值。Initialized storage始终包含合法值；9.1.1 Option shorthand的值是普通`None`。
+
+#### 9.1.4 Interface default implementation
+
+- interface function有body时提供default，无body时形成abstract obligation；property按getter/setter slot分别判断。private interface member必须有body且只作词法helper，不进入itable、继承或override；
+- concrete owner对每个typed slot先选择class hierarchy中最近的concrete override；否则删除被更specific subinterface覆写的interface候选，唯一剩余default获胜，只剩abstract即未实现，多个互不相关default则必须显式override。getter/setter独立选target，但property整体仍满足9.1.1的type/mutability规则；
+- concrete class/object/value type不能留下abstract obligation；abstract class可以保留。itable entry显式指向class/value implementation、interface default或typed adjust thunk，不能按implements列表顺序选择；
+- 普通member/default/accessor body中的`super<I>.function(args)`、`super<I>.property`与`super<I>.property = value`只direct调用当前owner显式列出的direct superinterface exact application上的concrete default。抽象target、间接/非父qualifier、extension/property-like/callable-reference/safe形式非法；初始化上下文仍禁止。interface default body也只能这样选择自己的direct superinterface。
+
+#### 9.1.5 可见性与annotation
+
+- 默认visibility是`internal`。所有允许visibility的声明在省略modifier时都于HIR前确定地正规化为internal，不从owner/base/interface继承visibility；setter省略modifier按下条继承property visibility。该规则适用于top-level nominal/function/property/object及nominal中的method/property/nested declaration/constructor；local、parameter、`init`块与accessor parameter不能声明visibility。`main`按入口契约发现，不要求public，也不因internal进入`.slib`导出表面。top-level允许public/internal/private，其中internal表示当前Cone、private表示当前source file；member/nested允许public/internal/private，其effective domain还要与全部owner domain取交集。protected只允许class member/nested/constructor，表示声明class及subclass body可见；explicit receiver的静态type还必须是当前访问subclass或其子类；
+- 候选只有在当前访问点属于其effective domain并产生typed access witness后才进入applicability/MSC；同名但不可访问的声明只参与诊断，不会让该层遮蔽较低层。getter可见的logical property一旦选中后，setter缺失或不可见仍按9.1.1直接报assignment错误，不触发fallback；
+- struct/enum字段与enum variant保持固定public representation visibility，但仍与owner domain取交集；只有外层value type显式public时才对下游公开表示。普通member/nested的direct lookup domain也是声明visibility与owner domain的交集。private member不被继承或override、不进vtable/itable；internal open member只可在同Cone override；
+- interface member同样默认internal。internal interface可拥有internal abstract/default contract；public interface的abstract/default contract必须显式public，不能把遗漏modifier静默升级。private interface helper必须有body且不进itable/override，protected interface member非法；因此public interface不能携带下游不可见的hidden obligation；
+- abstract member的slot contract必须覆盖owner的合法inheritance domain；public abstract/open class中的abstract member至少显式protected或public，internal/private owner则可使用internal obligation。下游不可见的abstract member不能用来把public type隐式变成sealed；已有body的internal open member不形成hidden obligation，下游继承但不能override；
+- override省略modifier时仍为internal，不继承base visibility。coverage比较声明visibility形成的slot contract domain，而不是被concrete owner收窄的direct lookup domain；它必须覆盖全部被覆写slot，因而public contract需要`public override`，即使实现type是internal/private。此时直接名称访问仍受owner限制，经base/interface静态类型调用则服从public slot。允许显式扩大。getter沿用property visibility；setter可声明不更宽的private/internal/protected visibility。选中property后setter不可见是assignment错误，不改选其他候选；
+- declaration signature中的type、receiver、base/bound、annotation type及default直接绑定实体必须同时覆盖该declaration的direct access/call domain与其承担的更宽slot contract domain。visibility在const folding、companion forwarding和desugaring前检查；M17 default继续携带kind-specific access witness；
+- class primary constructor需要modifier/annotation时写显式`constructor`关键字；无modifier的class header/explicit primary及class/struct secondary constructor均为internal。class primary property parameter可声明member visibility/override，普通parameter不可。class隐式零参数constructor为internal并与owner domain取交集；public class需要显式`public constructor`才提供public construction API。struct primary constructor与enum variant constructor属于固定public representation entry，只与owner domain取交集且不能单独声明visibility；
+- property-level custom annotation不传播到accessor/backing/delegate storage；explicit accessor可单独标注。`@Unsafe`/`@Safe`可用于constructor/accessor并进入调用contract；`@NoGC`只在完整signature/body确实GC-free的explicit accessor或struct secondary constructor合法。class/object receiver为ref，不能满足NoGC。`@Extern`/`@Global`/`@ThreadLocal`及`@CallingConvention`仍限各自13章target；普通property/object/constructor不能伪装为native symbol。
 
 ### 9.2 委托
 
-- 类委托（`class C : I by impl`）与属性委托（`by lazy { ... }` 等）保留，语义与 Kotlin 一致。
-- 值类型不支持类委托中的可变状态要求（同 4.4.3）。
+- property delegate使用reflection-free协议。角色必须显式声明为ordinary、non-suspend、non-generic `operator fun`，不得带default/`vararg`：可选`provideDelegate(): D2`、必需`getValue(thisRef: R): T`，以及`var`必需`setValue(thisRef: R, value: T): Unit`。它们是与9.3普通operator不同的typed role；无role的同名函数不参与；
+- `R`对class/object member是owner type，对extension是extension receiver，对top-level/local是Unit。先求值`by`表达式一次，再可选调用一次无owner参数的provideDelegate并把effective delegate存入hidden field/global/local；之后每次access读取delegate并调用唯一get/set target。协议没有`KProperty`、property name或annotation metadata；需要这些值必须在`by`表达式中显式传入；
+- 非局部delegate必须显式声明property type。local delegate省略type时，先在没有result expected type的条件下选出唯一`getValue`role，再以其concrete结果作为property type；`var`的`setValue`必须接受同一type，不能从多个get/set组合反向猜type或让setter改变getter结果；
+- class/object delegate storage进入9.1.1 common sequence/readiness和GC scan；top-level/non-generic extension delegate进入9.1.3 eager unit；local delegate是不可重新绑定的hidden local。struct/enum member及generic extension不能delegated。delegate调用同步，可分配、GC、抛异常但不能挂起；
+- class/interface delegation `class C : I by impl`尚未定义，不因property delegate落地而继承Kotlin语义。
 
 ### 9.3 运算符重载与约定
 
@@ -798,7 +840,7 @@ HIR把通过验证的角色保存为封闭、类型化的operator identity；表
 
 固定元数角色的参数可以具有default，但operator语法提供的operand仍按8.5映射到对应参数；只有`get`、`set`和`invoke`能以`vararg`表达可变元数。名称不在表中、元数或返回约束错误、`component0`及非数字`component`名称都是声明处错误，不能以普通函数身份携带`operator`标志进入HIR。
 
-属性委托所需的`provideDelegate` / `getValue` / `setValue`不是本表的`set`下标角色。它们的reflection-free签名及调用时机随9.2的属性委托一并规定；在该协议定稿前不能仅按名称赋予operator identity。
+属性委托所需的`provideDelegate` / `getValue` / `setValue`不是本表的`set`下标角色；它们按9.2形成三个独立typed role，不能仅按名称或本表的普通operator identity参与delegate协议。
 
 `equals`是本规范对Kotlin约定的有意收紧：可参与`==`的声明必须是名为`equals`的**成员**`operator fun`，恰好有一个显式参数并返回`Boolean`，且不得为generic或suspend。顶层、局部与extension equals不参与`==`。成员可以重载，也可按普通规则声明为final/open/abstract/override；具体决议见11.11。
 
@@ -1010,7 +1052,7 @@ class StringBuilder {
   - `ClassCastException`：`as` 失败时抛出；
   - `ArithmeticException`：整数除零等算术错误；
   - `IndexOutOfBoundsException`：数组下标越界（见 10.5）；
-  - `IllegalStateException`：运行期状态协议被破坏；核心实现至少用它报告 continuation 的重复完成。
+  - `IllegalStateException(message: String? = Some("illegal state"))`：运行期状态协议被破坏；默认参数保持既有零实参调用，M21 initialization cycle使用显式message报告稳定unit path。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
 - generic class可以继承`Throwable`；其每个exact application都是不同异常类型并拥有不同TypeDescriptor。`catch (e: Error<Int>)`只接收该exact application及普通派生class，`catch (e: Throwable)`仍可接收全部application；不存在`Error<*>`式通配catch。
@@ -1185,6 +1227,7 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 - Cone 是独立的编译/链接单元。**不对每个源文件单独编译**（不像 C 的 `.c` → `.o` 方式），而是把整个 Cone 的全部源文件一起处理，生成单体编译输出（类似 Rust 的 crate）。
 - 同一 Cone 内的源文件之间没有编译顺序，声明互相可见（受可见性修饰符约束）。
 - Kotlin 的 `internal` 可见性在 Scoop 中定义为 **Cone 内可见**。
+- Scoop中允许visibility的声明省略modifier时默认internal，而不是Kotlin式public；完整规则见9.1.5。入口`main`不因此要求public。
 - 源文件中的 `package` 声明仍是 Kotlin 式的命名空间机制，与 Cone 的目录边界无强制对应关系；惯例上同一 Cone 使用统一的包名前缀（如核心库统一使用 `scoop.core`）。
 - 可执行程序的入口为顶层 `main` 函数（形式与 Kotlin 一致）；纯库 Cone 不需要入口。
 
@@ -1193,7 +1236,7 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
 
 - 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、参数完整的exact application、class/interface bound、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；
+- 下游HIR所需的export metadata：只有源码显式标记且effective domain为public的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、参数完整的exact application、class/interface bound、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；省略visibility得到的internal声明不能因linkage、使用频率或core身份进入导出表面；
 - 后续stage所需的MIR/LIR metadata：符号表、各导出exact类型的分派表结构（vtable/itable）、exact generic ancestry/conformance、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
 
 本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
@@ -1257,7 +1300,7 @@ struct Int : ToString, Hash {
 annotation class NoGC
 ```
 
-- 用于function/method：指明该函数不会/不应与GC有任何交互——函数中不读写任何ref value，也不创建任何ref type实例。
+- 用于function/method及9.1.5允许的explicit accessor/struct secondary constructor：指明该callable不会/不应与GC有任何交互——body中不读写任何ref value，也不创建任何ref type实例。
 - 也可用于`struct`或`enum`，作为“该concrete value type必须GC-free”的静态契约。非generic声明在字段类型解析后立即验证；generic声明本身没有GC-free真假值，每个type parameter全部resolve后的实际类型分别验证。对fully specialized enum，契约同时要求enum整体及每个variant均为GC-free。`@NoGC`不能用于class/interface，因为它们是ref type。
 - 编译期检查；不符合约束是编译错误。
 - generic `@NoGC` callable 可以在签名或 body 中使用类型参数；未特化的generic本身不被判为GC-free或非GC-free。每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会形成“实例化实参必须GC-free”的类型化条件，并经generic调用链向外传播；只有type parameter全部解析后的具体实例才能用concrete type的GC-free flag验证并成为`@NoGC`实例。未参与运行时表示的phantom type parameter不产生条件。
@@ -1294,9 +1337,9 @@ annotation class Unsafe
 annotation class Safe
 ```
 
-- **unsafe function**：C ABI `@Extern` 函数、标注 `@Unsafe` 的函数。Scoop ABI extern 默认是 safe callable，但声明可显式加 `@Unsafe` 收紧调用条件（13.4、14.2）。
-- **unsafe context**：标注 `@Unsafe` 的函数体，或标注 `@Unsafe` 的 block。只有在 unsafe context 中才能调用 unsafe function；在 unsafe context 之外调用是编译错误。
-- `@Safe` 用于 function 和 block，用于在 unsafe context 中重新引入 safe 约束（其中的代码回到普通检查规则）。
+- **unsafe callable**：C ABI `@Extern`函数，以及标注`@Unsafe`的function、9.1.5允许的constructor/accessor。Scoop ABI extern默认safe，但可显式加`@Unsafe`收紧调用条件（13.4、14.2）。
+- **unsafe context**：标注`@Unsafe`的callable body，或标注`@Unsafe`的block。只有在unsafe context中才能调用unsafe callable、构造unsafe constructor或读写unsafe accessor；否则是编译错误。
+- `@Safe`用于function、9.1.5允许的constructor/accessor和block，在unsafe context中重新引入safe约束。
 
 ### 13.4 `@Extern` 与 `@CallingConvention`
 
@@ -1307,7 +1350,7 @@ annotation class CallingConvention(val name: String)
 
 - `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。声明可以带普通Scoop默认参数；缺省表达式按8.5在定义处解析、调用处实例化，不进入native symbol的ABI，native调用始终接收完整参数列表。`vararg`在ABI中表现为一个普通`Array<T>`参数，因此只有该实际参数类型满足对应ABI classifier时才合法：C ABI因ref不安全而拒绝，Scoop ABI可以接受；这不表示支持C的`...`可变参数。
 - `@Extern` 与 `suspend` **互斥**：无论 `abi` 取值为何，`@Extern suspend fun` 都是编译错误。编译器不为这种声明生成 continuation 参数、`CoroutineStep` 返回值或同步/挂起 wrapper；M10 的 hidden continuation ABI 不得作为外部符号 ABI 暴露。
-- `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；全局 `var` 的约束不变（仍须带 `@Global` / `@ThreadLocal` 且 GC-free，见 13.6），注解可以组合。extern 变量当前只支持 C data ABI，显式写 `abi = "scoop"` 是编译错误；Scoop ABI 只定义函数调用边界。
+- `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；extern `var` 仍须带 `@Global` / `@ThreadLocal` 且 GC-free（见 13.6），这些注解可以组合。extern 变量当前只支持 C data ABI，显式写 `abi = "scoop"` 是编译错误；Scoop ABI 只定义函数调用边界。
 - **按 ABI 分类的边界类型约束**：`abi = "c"` 的函数签名及 extern 变量必须满足 13.8 的 C-FFI-safe 约束，因而全部 GC-free；ref type 出现在这些边界上是编译错误。`abi = "scoop"` 的函数复用普通 Scoop typed ABI，可以按第 14 章直接传递 managed ref，不套用 C-FFI-safe classifier。
 - 不支持 C varargs（`printf` 式可变参数）；需要时用 wrapper 函数绕行。
 - `abi = "c"`（默认）的 extern 函数是 unsafe function，只能在 unsafe context 中调用（见 13.3）；`abi = "scoop"` 的 extern 函数例外，调用点不要求 unsafe context（见第 14 章）。
@@ -1329,10 +1372,10 @@ annotation class Global
 annotation class ThreadLocal
 ```
 
-- 用于**全局** `var` 声明：所有全局 `var` 必须带有 `@Global` 或 `@ThreadLocal` 之一，否则是编译错误。
-- 全局 `var` 必须是 GC-free 的：其类型定义中不能直接或间接包含任何 ref type。
-- 一般情况下全局状态应使用 `object` 定义；这两个注解用于明确标出特殊场景。
-- 全局 `val` 没有上述限制。
+- 用于top-level `var`请求一个可寻址的raw global/TLS storage；两者互斥。该声明不再是9.1.3的ordinary property，不能带custom accessor/delegate，并继续只接受显式type与编译期static initializer；
+- raw global/TLS必须GC-free，类型中不能直接或间接包含ref。`addressOf`只可用于这类本地raw storage或合法extern storage，不能取得ordinary property backing slot；
+- ordinary top-level `val`/`var`不要求这两个annotation，可以含managed ref，由compiler-managed accessor、global root与initialization unit承载。一般成组全局状态仍建议用`object`表达；
+- extern `var`仍必须用`@Global`/`@ThreadLocal`说明native symbol是否TLS并满足C-FFI-safe；extern `val`只读view不要求这两个annotation。
 
 ### 13.7 `@InteriorMutable`
 
@@ -1609,6 +1652,8 @@ void scoop_rt_write(const ScoopString *message)
 | `value class` / `inline class` | `struct`（4.1） |
 | `data class` | `struct`（4.1）+ 内建解构（4.6） |
 | `null` / 平台类型 `T!` | `Option<T>`（第 7 章） |
+| `lateinit` / 隐藏未初始化property状态 | `var p: T?` / `var p: Option<T>`（省略initializer即为`None`，9.1.1） |
+| 省略visibility即public | 省略visibility即internal；对外API显式写`public`（9.1.5） |
 | 普通字符串的 `$` 插值 | f-string（第 6 章） |
 | struct 字面量 `S { f: v }` | 构造函数 / 命名参数（4.1.1） |
 | `expect` / `actual` | 无（单平台） |

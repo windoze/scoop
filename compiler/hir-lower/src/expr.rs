@@ -95,6 +95,14 @@ pub(crate) struct NominalArgumentInput<'a> {
     pub(crate) span: Span,
 }
 
+#[derive(Clone)]
+pub(crate) struct QualifiedInterfaceProperty {
+    pub(crate) property: hir::PropertyId,
+    pub(crate) owner: hir::InterfaceApplicationId,
+    pub(crate) receiver: hir::Expr,
+    pub(crate) ty: TypeId,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct CallSite<'a> {
     pub(crate) type_args: &'a [ast::CallTypeArgument],
@@ -119,6 +127,7 @@ impl ResolvedCallTypeArgument {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct RequiredCallableModifiers {
     pub(crate) operator: Option<hir::OperatorKind>,
+    pub(crate) property_delegate_operator: Option<hir::PropertyDelegateOperatorKind>,
     pub(crate) infix: bool,
 }
 
@@ -178,7 +187,7 @@ impl Lowerer {
         layer.expression
     }
 
-    fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
+    pub(crate) fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
         let baseline = self.diagnostics.len();
         debug_assert!(failed.diagnostics.len() > baseline);
         self.diagnostics
@@ -259,11 +268,22 @@ impl Lowerer {
                     expected,
                 ),
                 Constructor::Unmatched => {
-                    self.error(name.span, format!("unknown struct `{}`", name.text));
+                    let object = self
+                        .lexical_nested_nominal_target(&name.text)
+                        .or_else(|| self.top_level_nominal_target(&name.text))
+                        .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)));
+                    if object {
+                        self.error(
+                            name.span,
+                            format!("object `{}` cannot be constructed", name.text),
+                        );
+                    } else {
+                        self.error(name.span, format!("unknown struct `{}`", name.text));
+                    }
                     None
                 }
             },
-            ast::Expr::Var(name) => self.lower_var(name, expected),
+            ast::Expr::Var(name) => self.lower_var(name, sink, expected),
             ast::Expr::Lambda {
                 is_suspend,
                 parameters,
@@ -364,6 +384,30 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_super_method_call(
+                name,
+                CallSite {
+                    type_args,
+                    args,
+                    span: *span,
+                },
+                sink,
+                expected,
+            ),
+            ast::Expr::QualifiedInterfaceSuperAccess {
+                qualifier,
+                name,
+                span,
+                ..
+            } => self.lower_qualified_interface_super_property_read(qualifier, name, *span),
+            ast::Expr::QualifiedInterfaceSuperMethodCall {
+                qualifier,
+                name,
+                type_args,
+                args,
+                span,
+                ..
+            } => self.lower_qualified_interface_super_method_call(
+                qualifier,
                 name,
                 CallSite {
                     type_args,

@@ -107,16 +107,21 @@ fn abstract_method_outside_an_abstract_class_is_an_error() {
 }
 
 #[test]
-fn interface_method_with_a_body_is_an_error() {
+fn interface_method_with_a_body_is_a_default() {
     let file = file(vec![
         interface_decl("I", vec![method("m", vec![], None, vec![])]),
         fun("main", vec![]),
     ]);
-    let errors = lower_user(file).expect_err("a bodied interface method must fail");
-    assert_eq!(errors.len(), 1);
+    let module = lower_user(file).expect("a bodied interface method is a default");
+    let (_, interface) = module
+        .interfaces
+        .iter()
+        .find(|(_, interface)| interface.name == "I")
+        .expect("I interface");
+    assert_eq!(interface.methods.len(), 1);
     assert_eq!(
-        errors[0].message,
-        "interface method `I.m` must not have a body"
+        module.interface_methods[interface.methods[0]].implementation,
+        hir::InterfaceMemberImplementation::Body
     );
 }
 

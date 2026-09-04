@@ -1,0 +1,4 @@
+object Invalid<T>
+
+fun main() {
+}

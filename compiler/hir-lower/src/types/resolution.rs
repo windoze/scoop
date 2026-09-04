@@ -1,12 +1,200 @@
 use super::*;
+use crate::{NominalTarget, Owner};
 
 impl Lowerer {
+    pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
+        self.structs_by_name
+            .get(name)
+            .map(|(id, _)| NominalTarget::Struct(*id))
+            .or_else(|| {
+                self.enums_by_name
+                    .get(name)
+                    .copied()
+                    .map(NominalTarget::Enum)
+            })
+            .or_else(|| {
+                self.classes_by_name
+                    .get(name)
+                    .map(|(id, _)| NominalTarget::Class(*id))
+            })
+            .or_else(|| {
+                self.interfaces_by_name
+                    .get(name)
+                    .map(|(id, _)| NominalTarget::Interface(*id))
+            })
+            .or_else(|| {
+                self.objects_by_name
+                    .get(name)
+                    .copied()
+                    .map(NominalTarget::Object)
+            })
+    }
+
+    pub(crate) fn nested_nominal_target(&self, owner: Owner, name: &str) -> Option<NominalTarget> {
+        self.nested_nominals_by_owner
+            .get(&(owner, name.to_string()))
+            .copied()
+    }
+
+    fn nominal_parent(&self, owner: Owner) -> Option<Owner> {
+        let parent = match owner {
+            Owner::Class(id) => self.classes[id].owner,
+            Owner::Interface(id) => self.interfaces[id].owner,
+            Owner::Struct(id) => self.structs[id].owner,
+            Owner::Enum(id) => self.enums[id].owner,
+            Owner::Object(id) => self.objects[id].owner,
+        }?;
+        Some(Owner::from_nominal_owner(parent))
+    }
+
+    pub(crate) fn lexical_nested_nominal_target(&self, name: &str) -> Option<NominalTarget> {
+        let mut owner = self.current_owner?;
+        loop {
+            if let Some(target) = self
+                .nested_nominals_by_owner
+                .get(&(owner, name.to_string()))
+            {
+                return Some(*target);
+            }
+            owner = self.nominal_parent(owner)?;
+        }
+    }
+
+    fn outer_type_parameter_owner(&self, name: &str) -> Option<Owner> {
+        let mut owner = self.nominal_parent(self.current_owner?)?;
+        loop {
+            let params: &[hir::TypeParamDecl] = match owner {
+                Owner::Class(id) => &self.classes[id].type_params,
+                Owner::Interface(id) => &self.interfaces[id].type_params,
+                Owner::Struct(id) => &self.structs[id].type_params,
+                Owner::Enum(id) => &self.enums[id].type_params,
+                Owner::Object(_) => &[],
+            };
+            if params.iter().any(|parameter| parameter.name == name) {
+                return Some(owner);
+            }
+            owner = self.nominal_parent(owner)?;
+        }
+    }
+
+    fn resolve_nested_nominal_application(
+        &mut self,
+        target: NominalTarget,
+        arguments: &[ast::TypeRef],
+        span: ast::Span,
+        display_name: &str,
+    ) -> Option<TypeId> {
+        let (kind, params) = match target {
+            NominalTarget::Struct(id) => ("struct", self.structs[id].type_params.clone()),
+            NominalTarget::Enum(id) => ("enum", self.enums[id].type_params.clone()),
+            NominalTarget::Class(id) => ("class", self.classes[id].type_params.clone()),
+            NominalTarget::Interface(id) => ("interface", self.interfaces[id].type_params.clone()),
+            NominalTarget::Object(_) => ("object", Vec::new()),
+        };
+        let arity = params.len();
+        if arity == 0 && !arguments.is_empty() {
+            self.error(span, format!("{kind} `{display_name}` is not generic"));
+            return None;
+        }
+        if arity != arguments.len() {
+            self.error(
+                span,
+                if arguments.is_empty() {
+                    format!("generic {kind} `{display_name}` requires {arity} type argument(s)")
+                } else {
+                    format!(
+                        "{kind} `{display_name}` takes {arity} type argument(s), but {} were supplied",
+                        arguments.len()
+                    )
+                },
+            );
+            return None;
+        }
+        let mut resolved = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            resolved.push(self.resolve_type_ref(argument)?);
+        }
+        if !self.check_type_argument_kinds(
+            &params,
+            &resolved,
+            span,
+            &format!("{kind} `{display_name}`"),
+        ) {
+            return None;
+        }
+        Some(match target {
+            NominalTarget::Struct(id) => self.struct_application(id, resolved),
+            NominalTarget::Enum(id) => self.enum_application(id, resolved),
+            NominalTarget::Class(id) => self.class_application(id, resolved),
+            NominalTarget::Interface(id) => self.intern_interface_application(id, resolved),
+            NominalTarget::Object(id) => {
+                self.object_types[self.objects[id].object_type].canonical_type
+            }
+        })
+    }
+
+    fn resolve_qualified_nominal(
+        &mut self,
+        path: &[ast::Ident],
+        arguments: &[ast::TypeRef],
+        span: ast::Span,
+    ) -> Option<TypeId> {
+        let first = path.first().expect("a qualified type path is non-empty");
+        let Some(mut target) = self
+            .top_level_nominal_target(&first.text)
+            .or_else(|| self.lexical_nested_nominal_target(&first.text))
+        else {
+            self.error(first.span, format!("unknown type `{}`", first.text));
+            return None;
+        };
+        for segment in &path[1..] {
+            let owner = target.owner();
+            let Some(nested) = self
+                .nested_nominals_by_owner
+                .get(&(owner, segment.text.clone()))
+                .copied()
+            else {
+                let owner_name = path
+                    .iter()
+                    .take_while(|candidate| candidate.span.end <= segment.span.start)
+                    .map(|candidate| candidate.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join(".");
+                self.error(
+                    segment.span,
+                    format!("type `{owner_name}` has no nested type `{}`", segment.text),
+                );
+                return None;
+            };
+            target = nested;
+        }
+        let display_name = path
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(".");
+        self.resolve_nested_nominal_application(target, arguments, span, &display_name)
+    }
+
+    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+        let ty = self.resolve_type_ref_unchecked(ty_ref)?;
+        if !self.nominal_is_accessible(ty) {
+            let name = self.type_name(ty);
+            self.error(
+                ty_ref.span,
+                format!("type `{name}` is not accessible from this source location"),
+            );
+            return None;
+        }
+        Some(ty)
+    }
+
     /// Resolve a type annotation (`Int`, `Point`, `(Int, String)`,
     /// `T?`, ...). Function (or enum) type parameters shadow well-known
     /// and declared types: they only scope over one function's
     /// signature/body or one enum's variants (`type_params_in_scope`
     /// is empty everywhere else).
-    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+    fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
             ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {
@@ -27,6 +215,27 @@ impl Lowerer {
                         ),
                     );
                     return None;
+                }
+                if self.outer_type_parameter_owner(&name.text).is_some() {
+                    self.error(
+                        name.span,
+                        if self.current_owner_is_companion() {
+                            format!(
+                                "companion object cannot use host type parameter `{}`",
+                                name.text
+                            )
+                        } else {
+                            format!(
+                                "static nested declaration cannot use outer type parameter `{}`",
+                                name.text
+                            )
+                        },
+                    );
+                    return None;
+                }
+                if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                    return self
+                        .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
                 // Generic structs (M9, spec 3.2).
                 if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
@@ -172,6 +381,10 @@ impl Lowerer {
                     }
                     return Some(self.class_application(class_id, resolved));
                 }
+                if self.objects_by_name.contains_key(&name.text) {
+                    self.error(name.span, format!("object `{}` is not generic", name.text));
+                    return None;
+                }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
                     let what = if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
@@ -208,6 +421,9 @@ impl Lowerer {
                 }
                 Some(self.enum_application(enum_id, resolved))
             }
+            ast::TypeRefKind::Qualified { path, arguments } => {
+                self.resolve_qualified_nominal(path, arguments, ty_ref.span)
+            }
             ast::TypeRefKind::Named(name) => {
                 if let Some(parameter) = self
                     .type_params_in_scope
@@ -215,6 +431,31 @@ impl Lowerer {
                     .find(|param| param.name == name.text)
                 {
                     return Some(self.intern_type(Type::Param(parameter.id)));
+                }
+                if self.outer_type_parameter_owner(&name.text).is_some() {
+                    self.error(
+                        name.span,
+                        if self.current_owner_is_companion() {
+                            format!(
+                                "companion object cannot use host type parameter `{}`",
+                                name.text
+                            )
+                        } else {
+                            format!(
+                                "static nested declaration cannot use outer type parameter `{}`",
+                                name.text
+                            )
+                        },
+                    );
+                    return None;
+                }
+                if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                    return self.resolve_nested_nominal_application(
+                        target,
+                        &[],
+                        name.span,
+                        &name.text,
+                    );
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
@@ -271,6 +512,11 @@ impl Lowerer {
                                 return None;
                             }
                             return Some(ty);
+                        }
+                        if let Some(&object) = self.objects_by_name.get(&name.text) {
+                            return Some(
+                                self.object_types[self.objects[object].object_type].canonical_type,
+                            );
                         }
                         match self.enums_by_name.get(&name.text) {
                             Some(&id) => {

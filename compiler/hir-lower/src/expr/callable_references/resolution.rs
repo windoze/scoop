@@ -58,7 +58,13 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| crate::CallableCandidate::function(function, owner_type_args.to_vec()))
+            .map(|function| {
+                crate::CallableCandidate::function(
+                    function,
+                    owner_type_args.to_vec(),
+                    self.function_lookup_witness(function),
+                )
+            })
             .collect::<Vec<_>>();
         self.resolve_reference_candidate_set(&candidates, context)
     }
@@ -315,17 +321,7 @@ impl Lowerer {
         );
     }
 
-    pub(in crate::expr) fn top_level_candidate_layers(
-        &self,
-        name: &str,
-    ) -> Vec<Vec<hir::FunctionId>> {
-        self.candidate_layers(self.functions_by_name.get(name))
-    }
-
-    pub(in crate::expr) fn extension_candidate_layers(
-        &self,
-        name: &str,
-    ) -> Vec<Vec<hir::FunctionId>> {
+    pub(crate) fn extension_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
         self.candidate_layers(self.extensions_by_name.get(name))
     }
 
@@ -352,11 +348,13 @@ impl Lowerer {
         let same_side: Vec<_> = ids
             .iter()
             .copied()
+            .filter(|id| self.function_is_accessible(*id, None))
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
         let imported = ids
             .iter()
             .copied()
+            .filter(|id| self.function_is_accessible(*id, None))
             .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
             .collect::<Vec<_>>();
         [same_side, imported]
@@ -385,10 +383,12 @@ impl Lowerer {
         let same_side: Vec<_> = ids
             .iter()
             .copied()
+            .filter(|id| self.function_is_accessible(*id, None))
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
         let imported = ids
             .into_iter()
+            .filter(|id| self.function_is_accessible(*id, None))
             .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
             .collect::<Vec<_>>();
         [same_side, imported]

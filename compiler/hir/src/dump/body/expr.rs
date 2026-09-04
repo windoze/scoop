@@ -88,6 +88,13 @@ pub(super) fn dump_expr(
             "{pad}GlobalRead {} : {ty}\n",
             module.globals[*global].name
         )),
+        ExprKind::SingletonValue(value) => {
+            let declaration = module.singleton_values[*value].declaration;
+            out.push_str(&format!(
+                "{pad}SingletonValue {} : {ty}\n",
+                module.objects[declaration].name
+            ));
+        }
         ExprKind::Capture(binding) => {
             out.push_str(&format!(
                 "{pad}Capture binding{} : {ty}\n",
@@ -280,7 +287,10 @@ pub(super) fn dump_expr(
                 FieldRef::StructField { index, .. } => format!("field {index}"),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
                 FieldRef::ClassField { field, .. } => {
-                    format!("class field {}", module.class_fields[*field].name)
+                    format!(
+                        "class field {}",
+                        module.properties[module.class_fields[*field].property].name
+                    )
                 }
             };
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
@@ -288,7 +298,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::InitializingClassFieldAccess { field, .. } => out.push_str(&format!(
             "{pad}InitializingClassFieldAccess {} : {ty}\n",
-            module.class_fields[*field].name
+            module.properties[module.class_fields[*field].property].name
         )),
         ExprKind::InitializingStructFieldAccess { index, .. } => out.push_str(&format!(
             "{pad}InitializingStructFieldAccess {index} : {ty}\n"

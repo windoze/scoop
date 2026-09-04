@@ -20,6 +20,23 @@ impl BodyLowerer<'_> {
         let span = statement.span;
         let kind = match &statement.kind {
             hir::StatementKind::LocalFunction(_) => return,
+            hir::StatementKind::InitializationEnsure {
+                unit,
+                cycle_exception: _,
+            } => {
+                let function = self.module.initialization_units[*unit].ensure;
+                smir::StatementKind::Expr(smir::Expr::new(
+                    mir::Type::Unit,
+                    smir::ExprKind::Call(smir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::User(self.function_map[&function]),
+                        },
+                        args: Vec::new(),
+                        return_ty: mir::Type::Unit,
+                    }),
+                ))
+            }
             hir::StatementKind::Expr(expr) => {
                 let expr = self.lower_expr(expr);
                 self.drain_prelude(span, out);
@@ -45,6 +62,13 @@ impl BodyLowerer<'_> {
                         global: self.global_map[global],
                         value: self.lower_expr(value),
                     },
+                    hir::AssignTarget::SingletonPublishedRoot(root) => {
+                        let root = self.singleton_root_map[root];
+                        smir::StatementKind::GlobalAssign {
+                            global: self.singleton_published_roots[root].global,
+                            value: self.lower_expr(value),
+                        }
+                    }
                     // `m[i] = v` (only `MutableArray`, checked at HIR).
                     // M8: the bounds check moved here from codegen —
                     // the array and the index are evaluated once into

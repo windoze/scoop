@@ -36,6 +36,7 @@ impl Lowerer {
                 enums: &self.enum_applications,
                 classes: &self.class_applications,
                 interfaces: &self.interface_applications,
+                objects: &self.objects,
             },
             type_params,
             ty,
@@ -49,6 +50,7 @@ struct NominalApplications<'a> {
     enums: &'a Arena<hir::EnumApplication>,
     classes: &'a Arena<hir::ClassApplication>,
     interfaces: &'a Arena<hir::InterfaceApplication>,
+    objects: &'a Arena<hir::ObjectDecl>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -73,8 +75,17 @@ fn type_name(
             let application = &applications.structs[*application];
             let id = application.template;
             let args = &application.arguments;
+            let name = nominal_name(
+                structs,
+                enums,
+                classes,
+                interfaces,
+                applications.objects,
+                &structs[id].name,
+                structs[id].owner,
+            );
             if args.is_empty() {
-                structs[id].name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -92,15 +103,24 @@ fn type_name(
                         )
                     })
                     .collect();
-                format!("{}<{}>", structs[id].name, inner.join(", "))
+                format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Class(application) => {
             let application = &applications.classes[*application];
             let id = application.template;
             let args = &application.arguments;
+            let name = nominal_name(
+                structs,
+                enums,
+                classes,
+                interfaces,
+                applications.objects,
+                &classes[id].name,
+                classes[id].owner,
+            );
             if args.is_empty() {
-                classes[id].name.clone()
+                name
             } else {
                 let inner = args
                     .iter()
@@ -119,15 +139,24 @@ fn type_name(
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{}<{inner}>", classes[id].name)
+                format!("{name}<{inner}>")
             }
         }
         Type::Interface(application) => {
             let application = &applications.interfaces[*application];
             let id = application.template;
             let args = &application.arguments;
+            let name = nominal_name(
+                structs,
+                enums,
+                classes,
+                interfaces,
+                applications.objects,
+                &interfaces[id].name,
+                interfaces[id].owner,
+            );
             if args.is_empty() {
-                interfaces[id].name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -145,7 +174,7 @@ fn type_name(
                         )
                     })
                     .collect();
-                format!("{}<{}>", interfaces[id].name, inner.join(", "))
+                format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Any => "Any".to_string(),
@@ -201,10 +230,19 @@ fn type_name(
         }
         Type::Enum(application) => {
             let application = &applications.enums[*application];
-            let name = &enums[application.template].name;
+            let id = application.template;
+            let name = nominal_name(
+                structs,
+                enums,
+                classes,
+                interfaces,
+                applications.objects,
+                &enums[id].name,
+                enums[id].owner,
+            );
             let args = &application.arguments;
             if args.is_empty() {
-                name.clone()
+                name
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -283,4 +321,66 @@ fn type_name(
             .map(|param| param.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
+}
+
+fn nominal_name(
+    structs: &Arena<StructDecl>,
+    enums: &Arena<EnumDecl>,
+    classes: &Arena<ClassDecl>,
+    interfaces: &Arena<InterfaceDecl>,
+    objects: &Arena<hir::ObjectDecl>,
+    name: &str,
+    owner: Option<hir::NominalOwner>,
+) -> String {
+    let Some(owner) = owner else {
+        return name.to_string();
+    };
+    let prefix = match owner {
+        hir::NominalOwner::Class(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &classes[id].name,
+            classes[id].owner,
+        ),
+        hir::NominalOwner::Interface(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &interfaces[id].name,
+            interfaces[id].owner,
+        ),
+        hir::NominalOwner::Struct(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &structs[id].name,
+            structs[id].owner,
+        ),
+        hir::NominalOwner::Enum(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &enums[id].name,
+            enums[id].owner,
+        ),
+        hir::NominalOwner::Object(id) => nominal_name(
+            structs,
+            enums,
+            classes,
+            interfaces,
+            objects,
+            &objects[id].name,
+            objects[id].owner,
+        ),
+    };
+    format!("{prefix}.{name}")
 }

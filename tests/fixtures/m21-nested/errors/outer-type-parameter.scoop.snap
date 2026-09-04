@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-nested/errors/outer-type-parameter.scoop:2:29: error: static nested declaration cannot use outer type parameter `T`

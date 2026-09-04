@@ -1,6 +1,6 @@
 use scoop_ast::{
-    Assign, AssignmentOp, Block, CompoundAssignOp, Diagnostic, SafetyMode, Span, Statement,
-    StatementKind, ValDecl,
+    Assign, AssignmentOp, Block, CompoundAssignOp, Diagnostic, LocalDelegatedPropertyDecl, Pattern,
+    SafetyMode, Span, Statement, StatementKind, ValDecl, VisibilitySyntax,
 };
 
 use crate::lexer::{Token, TokenKind};
@@ -71,8 +71,11 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
         match &self.peek().kind {
             TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
-                let function = self
-                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                let function = self.parse_non_member_function(
+                    Vec::new(),
+                    VisibilitySyntax::Omitted,
+                    crate::decl::FunctionContext::Local,
+                )?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),
@@ -82,16 +85,22 @@ impl Parser {
                 if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun)
                     && !matches!(self.tokens[self.pos + 2].kind, TokenKind::LParen) =>
             {
-                let function = self
-                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                let function = self.parse_non_member_function(
+                    Vec::new(),
+                    VisibilitySyntax::Omitted,
+                    crate::decl::FunctionContext::Local,
+                )?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),
                 })
             }
             TokenKind::Infix => {
-                let function = self
-                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                let function = self.parse_non_member_function(
+                    Vec::new(),
+                    VisibilitySyntax::Omitted,
+                    crate::decl::FunctionContext::Local,
+                )?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),
@@ -101,8 +110,11 @@ impl Parser {
                 if text == "operator"
                     && !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) =>
             {
-                let function = self
-                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                let function = self.parse_non_member_function(
+                    Vec::new(),
+                    VisibilitySyntax::Omitted,
+                    crate::decl::FunctionContext::Local,
+                )?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),
@@ -218,6 +230,28 @@ impl Parser {
         } else {
             None
         };
+        if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "by") {
+            let Pattern::Binding(name) = target else {
+                return Err(Diagnostic::at(
+                    pattern_span(&target),
+                    "a local delegated property requires a plain name",
+                ));
+            };
+            let by = self.bump();
+            let expression = self.parse_expr()?;
+            let span = Span::new(keyword.span.start, expression.span().end);
+            return Ok(Statement {
+                span,
+                kind: StatementKind::LocalDelegatedProperty(LocalDelegatedPropertyDecl {
+                    mutable,
+                    name,
+                    ty,
+                    expression,
+                    by_span: by.span,
+                    span,
+                }),
+            });
+        }
         self.expect("`=`", |k| matches!(k, TokenKind::Equal))?;
         let init = self.parse_expr()?;
         let span = Span::new(keyword.span.start, init.span().end);
@@ -289,5 +323,17 @@ fn place_span(place: &scoop_ast::PlaceExpr) -> Span {
         scoop_ast::PlaceExpr::Field { span, .. } | scoop_ast::PlaceExpr::Index { span, .. } => {
             *span
         }
+        scoop_ast::PlaceExpr::QualifiedInterfaceSuperProperty { span, .. } => *span,
+    }
+}
+
+fn pattern_span(pattern: &Pattern) -> Span {
+    match pattern {
+        Pattern::Binding(name) => name.span,
+        Pattern::Wildcard { span }
+        | Pattern::Literal { span, .. }
+        | Pattern::Positional { span, .. }
+        | Pattern::Named { span, .. }
+        | Pattern::Tuple { span, .. } => *span,
     }
 }

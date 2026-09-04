@@ -25,6 +25,7 @@ impl Lowerer {
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.lower_globals(module);
+        self.lower_singletons(module);
         self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
@@ -37,13 +38,28 @@ impl Lowerer {
         // their callsites map to `Callee::Runtime` shims (see
         // `BodyLowerer::lower_call`). HIR has already closed and instantiated
         // every generic dependency before this stage starts.
-        // Member functions are declared too (hir-lower keeps them out
-        // of `top_level`); interface methods become signature-only
-        // shells (M6 interfaces have no default implementations).
+        // Member functions are declared too (hir-lower keeps them out of
+        // `top_level`). Abstract interface slots become signature-only
+        // shells; default bodies and reachable private interface helpers are
+        // emitted as ordinary functions with their typed interface owner.
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
             if !matches!(function.kind, hir::FunctionKind::User(_)) {
+                continue;
+            }
+            let id = self.declare_function(module, hir_id);
+            user_functions.push((hir_id, id));
+        }
+        for (hir_id, function) in module.functions.iter() {
+            let Some(method) = function.method else {
+                continue;
+            };
+            if !matches!(module.types[method.owner].kind, hir::TypeKind::Interface(_))
+                || !matches!(method.dispatch, hir::MethodDispatch::Direct)
+                || !matches!(function.kind, hir::FunctionKind::User(_))
+                || self.function_map.contains_key(&hir_id)
+            {
                 continue;
             }
             let id = self.declare_function(module, hir_id);
@@ -58,14 +74,20 @@ impl Lowerer {
             let Some(method) = function.method else {
                 continue;
             };
-            // Interface methods are signature-only shells: dispatch goes
-            // through the itable, so their declarations only provide the
-            // complete indirect-call signature. The typed dispatch identity
-            // is authoritative; MIR does not infer this role from the owner.
+            // The typed dispatch identity is authoritative; MIR does not
+            // infer interface ownership from a qualified source name.
             let hir::MethodDispatch::Interface { interface, slot } = method.dispatch else {
                 continue;
             };
-            let mir_id = self.declare_interface_method(module, hir_id);
+            let implementation =
+                module.interfaces[interface].methods[slot.into_raw() as usize].implementation;
+            let mir_id = if implementation == hir::InterfaceMemberImplementation::Body {
+                let id = self.declare_function(module, hir_id);
+                user_functions.push((hir_id, id));
+                id
+            } else {
+                self.declare_interface_method(module, hir_id)
+            };
             let previous = interface_methods
                 .get_mut(&interface)
                 .expect("the interface method names a local interface")[slot.into_raw() as usize]
@@ -105,9 +127,19 @@ impl Lowerer {
             let id = self.declare_struct_ctor(module, constructor_id);
             struct_ctor_functions.push((constructor_id, id));
         }
+        self.lower_initialization_units(module);
+        let ensure_units = self
+            .initialization_units
+            .iter()
+            .map(|(unit, declaration)| (declaration.ensure, unit))
+            .collect::<HashMap<_, _>>();
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = self.lower_user_function(module, hir_id);
+            let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
+                self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
+            } else {
+                self.lower_user_function(module, hir_id)
+            };
             let body = cfg::lower(body, return_ty.clone());
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
@@ -181,6 +213,12 @@ impl Lowerer {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            initialization_units: self.initialization_units,
+            initialization_failure_roots: self.initialization_failure_roots,
+            objects: self.objects,
+            object_types: self.object_types,
+            singleton_values: self.singleton_values,
+            singleton_published_roots: self.singleton_published_roots,
             callback_bridges: self.callback_bridges,
             foreign_callback_adapters: self.foreign_callback_adapters,
             foreign_callback_bridges: self.foreign_callback_bridges,

@@ -7,7 +7,7 @@ class Gate(var waiter: Continuation<Int>?) {
 }
 
 class Registration(val gate: Gate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         gate.waiter = Some(continuation)
     }
 }
@@ -18,7 +18,7 @@ suspend fun waitFor(gate: Gate): Int {
 }
 
 class CatchTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             throw UnwrapException()
         } catch (exception: UnwrapException) {
@@ -28,7 +28,7 @@ class CatchTask(val gate: Gate) : SuspendTask<Int> {
 }
 
 class ReturnFinallyTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             return 40
         } finally {
@@ -46,7 +46,7 @@ suspend fun failAfterCleanup(gate: Gate): Int {
 }
 
 class ThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             return failAfterCleanup(gate)
         } catch (exception: UnwrapException) {
@@ -56,7 +56,7 @@ class ThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
 }
 
 class OverrideReturnFinallyTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             return 1
         } finally {
@@ -76,7 +76,7 @@ suspend fun returnThenThrow(gate: Gate): Int {
 }
 
 class OverrideThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             return returnThenThrow(gate)
         } catch (exception: UnwrapException) {
@@ -86,11 +86,11 @@ class OverrideThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
 }
 
 class RecordingCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("failed")
     }
 }

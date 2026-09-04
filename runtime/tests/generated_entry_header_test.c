@@ -6,16 +6,22 @@ void generated_entry_header_probe(void) {
     ScoopCompilerRootFrame compiler = {0};
     ScoopThreadTransition transition = {0};
     ScoopAllocationContext allocation = {0};
+    ScoopInitializationCell initialization_cell = {0};
+    ScoopInitializationUnitDescriptor initialization_unit = {0};
 
     (void)entry;
     (void)caller;
     (void)compiler;
     (void)transition;
     (void)allocation;
+    (void)initialization_cell;
+    (void)initialization_unit;
     (void)scoop_image_managed_globals;
     (void)scoop_image_managed_global_count;
     (void)scoop_image_immortal_objects;
     (void)scoop_image_immortal_object_count;
+    (void)scoop_image_initialization_units;
+    (void)scoop_image_initialization_unit_count;
     (void)scoop_rt_allocation_context;
     (void)scoop_runtime_finish_tlab_alloc;
     (void)scoop_runtime_alloc_slow;
@@ -25,6 +31,11 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_box;
     (void)scoop_rt_gc_collect;
     (void)scoop_rt_materialize_exception;
+    (void)scoop_rt_init_enter;
+    (void)scoop_rt_init_succeed;
+    (void)scoop_rt_init_fail;
+    (void)scoop_rt_init_failure;
+    (void)scoop_rt_init_cycle_message;
     (void)scoop_rt_push_caller_roots;
     (void)scoop_rt_pop_caller_roots;
     (void)scoop_rt_push_compiler_roots;

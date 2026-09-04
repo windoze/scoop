@@ -76,6 +76,7 @@ mod declarations;
 mod emission;
 mod function;
 mod image_roots;
+mod initialization;
 mod llvm_types;
 mod module_context;
 mod statepoint;

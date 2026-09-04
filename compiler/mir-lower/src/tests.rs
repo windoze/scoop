@@ -13,6 +13,7 @@ mod harness_nominals;
 mod operators;
 mod overloads;
 mod reference_types;
+mod singletons;
 mod value_types;
 
 fn lower(module: &hir::Module) -> mir::Module {
@@ -140,6 +141,9 @@ struct Harness {
     enum_applications_by_key: HashMap<(hir::EnumId, Vec<hir::TypeId>), hir::EnumApplicationId>,
     classes: Arena<hir::ClassDecl>,
     class_fields: Arena<hir::ClassField>,
+    properties: Arena<hir::Property>,
+    property_getters: Arena<hir::PropertyGetter>,
+    property_setters: Arena<hir::PropertySetter>,
     class_constructors: Arena<hir::ClassConstructor>,
     class_constructor_applications: Arena<hir::ClassConstructorApplication>,
     class_applications: Arena<hir::ClassApplication>,

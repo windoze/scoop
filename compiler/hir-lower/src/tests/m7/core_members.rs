@@ -91,7 +91,7 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     else {
         panic!("ToString is an interface bound")
     };
-    let interface_method = module.interface_methods[member];
+    let interface_method = &module.interface_methods[member];
     assert_eq!(module.interfaces[interface_method.owner].name, "ToString");
     assert_eq!(
         module.functions[interface_method.function].name,

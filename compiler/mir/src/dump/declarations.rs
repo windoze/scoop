@@ -5,6 +5,7 @@ pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            GlobalStorage::Managed { .. } => "managed".to_string(),
             GlobalStorage::Local {
                 thread_local: false,
                 ..
@@ -27,6 +28,39 @@ pub fn dump(module: &Module) -> String {
             global.symbol,
             global.name,
             type_name(module, &global.ty)
+        ));
+    }
+    for (id, unit) in module.initialization_units.iter() {
+        let storage = match unit.kind {
+            InitializationUnitKind::EagerTopLevel { storage } => storage,
+            InitializationUnitKind::LazySingleton { published_root, .. } => {
+                module.singleton_published_roots[published_root].global
+            }
+        };
+        let kind = match unit.kind {
+            InitializationUnitKind::EagerTopLevel { .. } => "",
+            InitializationUnitKind::LazySingleton { .. } => "singleton ",
+        };
+        let schedule = match unit.schedule {
+            InitializationSchedule::EagerStartup => "eager",
+            InitializationSchedule::LazyAccess => "lazy",
+        };
+        out.push_str(&format!(
+            "  init{} {} {kind}{schedule} global{} initializer={} ensure={} failure={} deps=[{}]\n",
+            id.into_raw().into_u32(),
+            unit.stable_key,
+            storage.into_raw().into_u32(),
+            module.functions[unit.initializer].symbol,
+            module.functions[unit.ensure].symbol,
+            module.initialization_failure_roots[unit.failure_root]
+                .global
+                .into_raw()
+                .into_u32(),
+            unit.dependencies
+                .iter()
+                .map(|dependency| dependency.into_raw().into_u32().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
     }
     for (id, extern_) in module.extern_functions.iter() {

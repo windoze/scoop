@@ -1,0 +1,12 @@
+class Host {
+    private companion object {
+        fun secret(): Int = 42
+    }
+
+    fun own(): Int = Host.secret()
+}
+
+fun main() {
+    println(Host().own())
+    println(Host.secret())
+}

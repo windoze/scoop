@@ -58,11 +58,11 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
 #[test]
 fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     assert!(matches!(
-        lower_constant(&mir::ConstantValue::NullPtr),
+        lower_constant(&mir::ConstantValue::NullPtr, &HashMap::new()),
         lir::ConstantValue::NullPointer(lir::PointerKind::Raw)
     ));
     assert!(matches!(
-        lower_constant(&mir::ConstantValue::NullFunPtr),
+        lower_constant(&mir::ConstantValue::NullFunPtr, &HashMap::new()),
         lir::ConstantValue::NullPointer(lir::PointerKind::Code)
     ));
 

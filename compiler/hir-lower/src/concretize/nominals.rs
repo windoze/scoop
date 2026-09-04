@@ -13,7 +13,8 @@ impl Concretizer<'_> {
         }
         let source = self.source.structs[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let name = self.instance_name(&source.name, &arguments);
+        let declaration_name = self.source_nominal_name(&source.name, source.owner);
+        let name = self.instance_name(&declaration_name, &arguments);
         let representation = match (&source.representation, application) {
             (
                 export::StructRepresentation::Declared(_),
@@ -34,6 +35,7 @@ impl Concretizer<'_> {
         let id = self.structs.alloc(concrete::StructDef {
             origin: concrete::StructOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
+            owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             gc_free: false,
             representation,
@@ -215,10 +217,12 @@ impl Concretizer<'_> {
         }
         let source = self.source.enums[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let name = self.instance_name(&source.name, &arguments);
+        let declaration_name = self.source_nominal_name(&source.name, source.owner);
+        let name = self.instance_name(&declaration_name, &arguments);
         let id = self.enums.alloc(concrete::EnumDef {
             origin: concrete::EnumOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
+            owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             gc_free: false,
             variants: Vec::new(),
@@ -302,10 +306,12 @@ impl Concretizer<'_> {
         }
         let source = self.source.interfaces[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let name = self.instance_name(&source.name, &arguments);
+        let declaration_name = self.source_nominal_name(&source.name, source.owner);
+        let name = self.instance_name(&declaration_name, &arguments);
         let id = self.interfaces.alloc(concrete::InterfaceDef {
             origin: concrete::InterfaceOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
+            owner: Self::lower_nominal_owner(source.owner),
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
             type_arguments: arguments.clone(),
             methods: Vec::new(),
@@ -325,6 +331,14 @@ impl Concretizer<'_> {
                 );
                 let function =
                     &self.source.functions[self.source.interface_methods[*method].function];
+                let implementation = match self.source.interface_methods[*method].implementation {
+                    export::InterfaceMemberImplementation::Body => {
+                        concrete::InterfaceMemberImplementation::Body
+                    }
+                    export::InterfaceMemberImplementation::AbstractSlot => {
+                        concrete::InterfaceMemberImplementation::AbstractSlot
+                    }
+                };
                 concrete::MethodSig {
                     name: function
                         .name
@@ -334,6 +348,7 @@ impl Concretizer<'_> {
                         .to_string(),
                     is_suspend: function.is_suspend,
                     attributes: function.attributes,
+                    implementation,
                     params: function
                         .params
                         .iter()
@@ -398,6 +413,16 @@ impl Concretizer<'_> {
         let mut result = Vec::new();
         let mut seen = Vec::new();
         self.collect_interface_method_instances(application, substitution, &mut seen, &mut result);
+        let suppressed = result
+            .iter()
+            .flat_map(|(member, _)| {
+                self.source.interface_methods[*member]
+                    .overrides
+                    .iter()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        result.retain(|(member, _)| !suppressed.contains(member));
         result
     }
 

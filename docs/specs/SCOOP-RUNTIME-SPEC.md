@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-版本：0.2（草案）
+版本：0.3（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）。本文引用其章节号。
 
@@ -30,7 +30,7 @@ Runtime 是编译产物的支撑层，职责包括：
 
 每个引用类型对象带有对象头 `ScoopObjectHeader`，其中包含指向 `TypeDescriptor` 的指针（类似 vpointer，spec 10.4）。对象头中其余字段（标记位、哈希缓存等）由 GC 实现决定。
 
-对象分配与语言构造是两个层次。M19 class construction只分配一次exact concrete对象；header从分配完成起始终指向最派生TypeDescriptor，base/`this` constructor initializer在同一对象上执行，不分配base子对象或替换header。runtime不运行constructor、不保存“正在初始化”状态位，也不根据TypeDescriptor补字段默认值；初始化顺序与访问限制完全由编译器静态保证。
+对象分配与语言构造是两个层次。M19 class construction只分配一次exact concrete对象；header从分配完成起始终指向最派生TypeDescriptor，base/`this` constructor initializer在同一对象上执行，不分配base子对象或替换header。runtime不运行constructor、不在对象header/payload保存“field正在初始化”状态位，也不根据TypeDescriptor补字段默认值；初始化顺序与访问限制完全由编译器静态保证。M21的object/global exactly-once cell是独立的runtime side metadata，只管理完整initializer的并发执行与发布，不改变任一property的源码type或field表示（见2.7）。
 
 分配入口在返回managed pointer前必须清零完整payload并原子登记header、object-start与精确size。constructor中途发生safepoint时，collector按完整class扫描描述处理该对象：已写field包含合法值，未写managed leaf保持全0并不形成引用。构造失败后对象只按普通可达性回收，不调用析构、rollback或用户代码。
 
@@ -73,6 +73,18 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 - closure 的分配、调用与回收不需要新增 runtime API，走现有 managed 分配、statepoint 与动态分派设施；
 - 本节对象不得直接当作 `FunPtr` 交给原生代码。spec 13.10 的 `FunPtr` callback 是独立的 GC-free 原生地址；spec 14.3 的 GC-aware closure 回调则必须先通过 runtime 注册/保活协议。
 
+### 2.7 M21 initialization unit与singleton发布
+
+每个需要runtime求值的top-level property及每个object/companion拥有独立、GC-free的`ScoopInitializationCell` side metadata；它不位于managed object内，也不是TypeDescriptor字段。状态为`Uninitialized`、`Initializing(owner_thread, dependency_stack)`、`Initialized`或`Failed`。cell只控制整个generated initializer entry恰好执行一次：ordinary stored property在Initialized状态下始终已有声明type的合法值，`var p: T?`省略initializer时写入的就是普通`None`；runtime不得为property另建late-init bit或读取检查。
+
+singleton winner线程先按2.1/3.1普通分配对象，只把initializing receiver保存在generated managed frame的精确root中；base/common initializer全部成功后，才把ref以release语义写入已登记的published global root slot并把cell转为Initialized。loser线程以acquire观察terminal state后从published slot重新读取；不得在Initializing时读取临时ref、pin对象或把旧地址缓存在cell。moving collector只更新普通root slot。
+
+initializer抛异常时，singleton不发布，top-level storage不被视为可读；runtime把managed Throwable写入单独登记的failure root slot、转为Failed并唤醒waiter。本次和以后ensure都重新抛出该failure且不重试；已发生副作用不回滚，未发布object按普通可达性回收。
+
+同线程重入由dependency stack检测并产生带稳定unit path的cycle结果。跨线程等待由init coordinator登记wait edge；加入新edge形成cycle时，该访问产生同类结果。generated ensure把path交给编译器已解析的core constructor，抛出`message`包含完整cycle的`IllegalStateException`；它若未被initializer内的普通`try`捕获，才使当前unit失败并逐步唤醒其他waiter。runtime不按名称查找或构造core对象。无环等待必须使用与3.5 epoch/STW handshake兼容的park；不能持有未登记managed pointer睡眠，不能busy-spin阻止safepoint。
+
+单image导出typed init-unit descriptor table和count；每条descriptor至少关联稳定unit key、cell、generated managed initializer entry以及其published/property storage identity。key来自语言spec 9.1.3的完整typed declaration identity，不得使用image枚举顺序、arena id或host绝对路径；M23在其前缀stable Cone identity。所有可能含ref的property/delegate/published/failure slot另按3.3进入managed-global descriptor表，init descriptor中的opaque状态不能代替root登记。M23增加多image注册与Cone dependency order时沿用同一cell/state语义。
+
 ---
 
 ## 3. GC 契约
@@ -101,11 +113,11 @@ M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM
 ### 3.3 根集合
 
 - 栈根：managed caller在statepoint处的live root location、managed invoke显式compiler root frame、Scoop ABI调用点保持的caller roots，以及native callee显式登记的可更新root slot链。M19的initializing receiver从class allocation返回起就是普通managed root，跨base/`this` initializer、property/`init` managed call与异常边时按同一规则relocate；不存在constructor专用handle或不可移动区。runtime以精确return PC查stack-map record并把每个location解析为可写slot；不存在保守栈扫描fallback；
-- 全局根：`object` 单例等引用类型全局状态（全局 `var` 按 spec 13.6 必须 GC-free，不构成根）。LIR/codegen为每个可能含ref的managed global输出非可选递归scan描述，runtime在managed执行前登记其可写storage；
+- 全局根：ordinary top-level property/delegate storage、object/companion published singleton slot及initialization failure slot。它们都可包含ref；只有spec 13.6显式`@Global`/`@ThreadLocal` raw storage强制GC-free。LIR/codegen为每个compiler-managed global输出非可选递归scan描述，runtime在执行任一managed initializer前登记其可写storage；
 - stable/immortal对象：活跃的Scoop exception record中按值复制的对象payload作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
 - handle 表与 pinned 对象（`GcHandle` 保活其引用对象；pinned 对象作为根被扫描，见 3.4）。
 
-单image ABI固定导出`ScoopManagedGlobalDescriptor scoop_image_managed_globals[]`、`u64 scoop_image_managed_global_count`、`ScoopImmortalObjectDescriptor scoop_image_immortal_objects[]`、`u64 scoop_image_immortal_object_count`。两个record分别为`{ void *writable_base; const u64 *scan; }`与`{ const void *object_start; u64 object_size; const TypeDescriptor *td; }`。count是唯一权威；count为零时数组仍含一个全零sentinel。runtime在GC heap初始化前验证并登记两张表；重复storage、重叠immortal range、TD/header不匹配、含managed出站引用的只读immortal object均为fatal metadata error。
+单image ABI固定导出`ScoopManagedGlobalDescriptor scoop_image_managed_globals[]`、`u64 scoop_image_managed_global_count`、`ScoopImmortalObjectDescriptor scoop_image_immortal_objects[]`、`u64 scoop_image_immortal_object_count`，以及2.7的initialization-unit descriptor table/count。前两个record分别为`{ void *writable_base; const u64 *scan; }`与`{ const void *object_start; u64 object_size; const TypeDescriptor *td; }`。count是唯一权威；count为零时数组仍含一个全零sentinel。runtime在GC heap初始化后、任何managed initializer前验证并登记root/init表；immortal表可在heap初始化所需的metadata阶段登记。重复storage/unit key、重叠immortal range、TD/header不匹配、含managed出站引用的只读immortal object均为fatal metadata error。
 
 ### 3.4 保活机制（两级）
 
@@ -196,6 +208,14 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 - foreign callback是反向边界：未注册线程必须先经 `scoop_runtime_attach_foreign_thread` 等价入口建立 thread state，再由 callback gateway进入 managed；detach只能由拥有attachment且已退出所有 managed frame/native root frame的代码执行。
 - 边界转换必须可嵌套并按LIFO恢复previous mode；只使用一个`native_depth`不能区分native-safe/native-borrowed，也无法正确处理“managed → C → same-thread managed callback → C”的重入链。native-safe返回、native-borrowed返回和callback enter在切入managed前都必须检查当前GC epoch。
 
+### 4.6 Initialization coordinator
+
+- M21 的generated ensure先调用typed managed入口`scoop_runtime_init_enter(descriptor)`。入口以acquire语义观察cell并返回封闭结果：当前线程获胜为`RunInitializer`，已经Initialized为`Ready`，既有失败为`Failed(rooted Throwable)`，同线程重入或跨线程wait-for cycle为`Cycle(GC-free stable unit path)`。无环等待按2.7、3.5进入safepoint-aware park，醒来后重新观察状态；生成代码不得自行spin、缓存cell字段或绕过coordinator。
+- generated ensure对`Failed`从已登记failure root取得managed异常并重新`scoop_rt_throw`；对`Cycle`调用HIR已经绑定的`IllegalStateException(message)` concrete constructor，把path复制为普通managed String后抛出。enter返回所需的managed ref/result storage与GC-free path metadata必须由typed call/result plan完整描述；path的runtime side storage至少存活到复制完成。coordinator不认识core名称、constructor symbol或对象layout。
+- `RunInitializer`分支执行ordinary managed initializer body。成功后，生成代码先完成property storage写入，或以release语义写入singleton published root slot，再调用`scoop_runtime_init_succeed(descriptor)`；该入口发布Initialized、移除dependency/wait edge并唤醒waiter。`Ready`分支只从已经登记的storage/root slot重新读取结果。
+- initializer抛出的native exception record不能保存进cell，也不能跨线程共享。generated catch-all在catch仍active时调用5.4的`scoop_rt_materialize_exception(caught)`得到普通managed `Throwable`并结束native catch，再调用`scoop_runtime_init_fail(descriptor, throwable)`；该入口把throwable写入已登记的failure root slot，以release语义发布Failed，移除dependency/wait edge并唤醒waiter。随后当前访问从该managed对象重新`scoop_rt_throw`；以后所有访问从failure root读取并重新抛出同一managed对象，但每次都会建立新的native unwind record。
+- `enter` / `succeed` / `fail`是编译器与runtime之间的typed内部ABI，不是源码FFI API。descriptor决定unit identity和对应root/storage，调用者不能提交任意裸地址；非法transition、descriptor/image不匹配或未持有winner资格属于4.4的fatal runtime ABI error。
+
 ---
 
 ## 5. 异常
@@ -221,10 +241,11 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 - `scoop_rt_rethrow()`只在存在active catch时合法。它在当前record上标记rethrow并对同一个`_Unwind_Exception`重新调用`_Unwind_RaiseException`；随后原handler的cleanup chain调用`EndCatch`时只弹出catch状态而不得删除record，外层`BeginCatch`重新接管同一payload identity。handler内抛出另一异常时，cleanup chain先结束旧catch，再以LLVM `resume`传播新record。
 - Scoop不提供`exception_ptr`、跨线程exception record共享或C++式公开引用计数；语言可跨线程/挂起保存的是managed `Throwable`，不是native unwind record。
 
-### 5.4 Suspend handler 物化
+### 5.4 跨控制边界的异常物化
 
 - M10 的suspend handler不允许把`scoop_rt_begin_catch`建立的native catch状态跨挂起点保存。选中catch或进入可能挂起的finally前，生成代码调用`scoop_rt_materialize_exception(caught)`：按caught payload的TypeDescriptor分配managed对象，保留新对象已初始化的`td` / `gc_word`，只复制对象头之后的payload。复制期间exception payload仍登记为stable external root；复制完成后立即`scoop_rt_end_catch()`，catch local / pending exception改指向managed副本。
 - 恢复失败或物化后的继续传播从该managed对象重新调用`scoop_rt_throw`，因而创建新的native record。Scoop的throw-by-value语义不承诺两个native record相同；同一次未物化rethrow则按5.3保持原record/payload identity。
+- M21 initializer failure也必须在离开winner线程的catch、写入共享Failed状态之前调用同一物化入口；coordinator只保存已登记为global root的managed `Throwable`，绝不保存`_Unwind_Exception`、catch payload地址或active catch状态。物化、`scoop_runtime_init_fail`与重新抛出的顺序遵守4.6。
 
 ### 5.5 依赖与边界
 
@@ -244,7 +265,8 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 
 ## 7. 启动、线程与终止
 
-- 进程启动：初始化 GC 与 handle 表，注册主线程，调用 `main`；
+- 进程启动：选择/验证platform与image metadata，初始化GC和handle表，注册主线程，登记managed-global/immortal/init-unit表；随后按spec 9.1.3的Cone依赖与stable unit key顺序ensure全部eager top-level initializer，全部成功后才调用`main`。startup initializer抛出或进入Failed/cycle时按普通未捕获异常报告并终止，`main`不执行；
+- object/companion不因metadata登记或其const读取而初始化；第一次非const访问通过2.7 gate同步ensure。initializer entry是编译器生成的ordinary managed callable，可以分配、触发GC或抛异常但不能挂起；runtime只协调状态、wait与发布，不按名称反射调用property/accessor，也不补initializer body；
 - 线程：主线程启动时注册；runtime创建的线程及 foreign thread在首次进入 managed代码前 attach，在退出最后一个 managed入口且不再持有 runtime thread state时 detach（配合 3.5、4.3）；
 - 终止：`main` 返回后runtime先进入`ShuttingDown`并拒绝新attach/registration；只有主线程以外无attachment、无活动callback且token ownership均已释放时才销毁GC状态。存在迟到线程/token时报告计数并终止，不在其仍可能进入时释放runtime。shutdown不运行GC finalizer，也不为未来release hook遍历全部live/uncollected对象；native resource仍须在正常控制流中显式释放。
 

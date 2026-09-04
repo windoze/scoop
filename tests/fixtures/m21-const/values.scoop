@@ -1,0 +1,17 @@
+public const val ANSWER: Int = BASE * 2 + 2
+const val BASE: Int = 20
+const val UNSIGNED: UInt = 3 * 4
+const val LABEL: String = "forty" + "-two"
+const val VALID: Boolean = ANSWER == 42 && LABEL == "forty-two"
+
+class Box(val value: Int)
+
+fun boxed(value: Int = ANSWER): Box = Box(value)
+
+fun main() {
+    println(ANSWER)
+    println(UNSIGNED)
+    println(LABEL)
+    println(VALID)
+    println(boxed().value)
+}

@@ -110,28 +110,54 @@ impl Parser {
     /// Complete a named type after its identifier was consumed. Supertype
     /// lists use the same generic-application grammar as annotations.
     pub(crate) fn parse_named_type_ref_tail(&mut self, name: Ident) -> Result<TypeRef, Diagnostic> {
-        if name.text == "Unit" {
-            Ok(TypeRef {
-                kind: TypeRefKind::Unit,
-                span: name.span,
-            })
-        } else if matches!(self.peek().kind, TokenKind::Less) {
-            let start = name.span.start;
+        let start = name.span.start;
+        let mut path = vec![name];
+        while matches!(self.peek().kind, TokenKind::Dot)
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|token| &token.kind),
+                Some(TokenKind::Ident(_))
+            )
+        {
             self.bump();
-            let mut args = vec![self.parse_nominal_type_argument()?];
+            path.push(self.expect_ident("nested type name after `.`")?);
+        }
+
+        let mut arguments = Vec::new();
+        let mut end = path
+            .last()
+            .expect("a named type path is non-empty")
+            .span
+            .end;
+        if matches!(self.peek().kind, TokenKind::Less) {
+            self.bump();
+            arguments.push(self.parse_nominal_type_argument()?);
             while matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
-                args.push(self.parse_nominal_type_argument()?);
+                arguments.push(self.parse_nominal_type_argument()?);
             }
             let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
+            end = close.span.end;
+        }
+
+        if path.len() > 1 {
             Ok(TypeRef {
-                kind: TypeRefKind::Generic(name, args),
-                span: Span::new(start, close.span.end),
+                kind: TypeRefKind::Qualified { path, arguments },
+                span: Span::new(start, end),
+            })
+        } else if path[0].text == "Unit" && arguments.is_empty() {
+            Ok(TypeRef {
+                kind: TypeRefKind::Unit,
+                span: path[0].span,
+            })
+        } else if !arguments.is_empty() {
+            Ok(TypeRef {
+                kind: TypeRefKind::Generic(path.pop().expect("one named type"), arguments),
+                span: Span::new(start, end),
             })
         } else {
             Ok(TypeRef {
-                span: name.span,
-                kind: TypeRefKind::Named(name),
+                span: path[0].span,
+                kind: TypeRefKind::Named(path.pop().expect("one named type")),
             })
         }
     }

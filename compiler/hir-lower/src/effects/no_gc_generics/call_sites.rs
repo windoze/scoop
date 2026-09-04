@@ -96,6 +96,7 @@ impl Lowerer {
             hir::GenericMethodOwner::Class(id) => &self.class_applications[id].arguments,
             hir::GenericMethodOwner::Struct(id) => &self.struct_applications[id].arguments,
             hir::GenericMethodOwner::Enum(id) => &self.enum_applications[id].arguments,
+            hir::GenericMethodOwner::Object(_) => &[],
         }
     }
 
@@ -107,6 +108,7 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::InitializationEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                     self.collect_generic_calls_in_expr(caller, expr, out);
                 }
@@ -122,7 +124,9 @@ impl Lowerer {
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
-                        hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
+                        hir::AssignTarget::Local(_)
+                        | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             self.collect_generic_calls_in_expr(caller, array, out);
                             self.collect_generic_calls_in_expr(caller, index, out);
@@ -228,6 +232,7 @@ impl Lowerer {
             | ExprKind::InitializingClassFieldAccess { .. }
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
+            | ExprKind::SingletonValue(_)
             | ExprKind::Capture(_)
             | ExprKind::Lambda(_)
             | ExprKind::AnonymousFunction(_)

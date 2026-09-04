@@ -61,19 +61,45 @@ impl Harness {
                 }
             })
             .collect::<Vec<_>>();
-        let fields = parameters
-            .iter()
-            .map(|parameter| {
-                self.class_fields.alloc(hir::ClassField {
-                    owner: class,
-                    name: parameter.name.clone(),
-                    ty: parameter.ty,
-                    mutable: false,
-                    source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
-                    span: SPAN,
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut fields = Vec::with_capacity(parameters.len());
+        let mut properties = Vec::with_capacity(parameters.len());
+        for parameter in &parameters {
+            let property = hir::PropertyId::from_raw((self.properties.len() as u32).into());
+            let getter = self.property_getters.alloc(hir::PropertyGetter {
+                access: hir::DeclarationAccess::public(),
+                implementation: hir::PropertyAccessorImplementation::Storage,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            });
+            let field = self.class_fields.alloc(hir::ClassField {
+                owner: class,
+                property,
+                ty: parameter.ty,
+                source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
+                span: SPAN,
+            });
+            let actual = self.properties.alloc(hir::Property {
+                owner: hir::PropertyOwner::Class(class),
+                name: parameter.name.clone(),
+                access: hir::DeclarationAccess::public(),
+                modifier: hir::MethodModifier::Final,
+                is_override: false,
+                overrides: Vec::new(),
+                override_access: Vec::new(),
+                ty: parameter.ty,
+                capability: hir::PropertyCapability::ReadOnly { getter },
+                representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                    backing: hir::PropertyBacking::ClassField {
+                        field,
+                        initializer: hir::ClassPropertyInitializer::PrimaryParameter(parameter.id),
+                    },
+                }),
+                span: SPAN,
+            });
+            assert_eq!(actual, property);
+            fields.push(field);
+            properties.push(property);
+        }
         let base_initialization = match &base_class {
             None => hir::BaseInitialization::Root,
             Some((_, base, arguments)) => {
@@ -107,6 +133,7 @@ impl Harness {
             .collect();
         let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
+            access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::ClassConstructorKind::Primary {
                 base: base_initialization,
@@ -117,12 +144,15 @@ impl Harness {
             origin: definition_origin(),
         });
         let class = self.classes.alloc(hir::ClassDecl {
+            owner: None,
             modifier,
             name: name.to_string(),
+            access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
             representation: hir::ClassRepresentation::Declared,
             fields,
+            properties,
             constructors: vec![constructor_id],
             base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
             interfaces,
@@ -178,6 +208,50 @@ impl Harness {
         &mut self,
         include: bool,
     ) -> hir::CompilerExceptionCore {
+        let illegal_state_exception = self.exception_target("IllegalStateException", include);
+        let illegal_state_class = illegal_state_exception.constructor.class;
+        let zero_argument_constructor = illegal_state_exception.constructor.constructor;
+        let parameter = hir::ConstructorParameter {
+            id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
+            name: "message".to_string(),
+            // Handcrafted MIR-lower unit modules contain no initialization
+            // units. A concrete one-parameter callable keeps the typed core
+            // shell structurally complete without materializing an unrelated
+            // Option<String> application into every focused dump.
+            ty: self.string,
+        };
+        self.next_constructor_param += 1;
+        let owner = self.classes[illegal_state_class].self_application;
+        let target = self
+            .class_constructor_applications
+            .alloc(hir::ClassConstructorApplication {
+                constructor: zero_argument_constructor,
+                owner,
+            });
+        let message_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            owner: illegal_state_class,
+            access: hir::DeclarationAccess::public(),
+            parameters: vec![parameter],
+            kind: hir::ClassConstructorKind::Secondary {
+                delegation: hir::ClassSecondaryDelegation::This {
+                    target,
+                    arguments: hir::ConstructorArguments {
+                        locals: Arena::new(),
+                        statements: Vec::new(),
+                        args: Vec::new(),
+                    },
+                },
+                body: hir::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                },
+            },
+            span: SPAN,
+            origin: definition_origin(),
+        });
+        self.classes[illegal_state_class]
+            .constructors
+            .push(message_constructor);
         hir::CompilerExceptionCore {
             throwable: self.exception_target("Throwable", include),
             unwrap_exception: self.exception_target("UnwrapException", include),
@@ -185,7 +259,11 @@ impl Harness {
             arithmetic_exception: self.exception_target("ArithmeticException", include),
             index_out_of_bounds_exception: self
                 .exception_target("IndexOutOfBoundsException", include),
-            illegal_state_exception: self.exception_target("IllegalStateException", include),
+            illegal_state_exception,
+            illegal_state_message_constructor: hir::MessageClassConstructor {
+                class: illegal_state_class,
+                constructor: message_constructor,
+            },
         }
     }
 }

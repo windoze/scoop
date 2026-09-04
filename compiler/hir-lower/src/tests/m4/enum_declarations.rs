@@ -42,11 +42,13 @@ fn enum_declaration_all_variant_forms() {
     WithDefault(d: Int)
   open class Throwable()
   open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class IllegalStateException()
+  class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
   interface Hash
@@ -319,6 +321,7 @@ fn named_variant_default_is_an_error() {
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
             annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
             name: ident("Shape"),
             type_params: vec![],
             methods: vec![],
@@ -337,6 +340,9 @@ fn named_variant_default_is_an_error() {
                 }]),
                 span: sp(),
             }],
+            properties: Vec::new(),
+            nested: Vec::new(),
+            companion: None,
             span: sp(),
         }),
         fun("main", vec![]),

@@ -10,6 +10,7 @@ impl Lowerer {
             Some(Owner::Interface(id)) => self.interfaces[id].name.clone(),
             Some(Owner::Struct(id)) => self.structs[id].name.clone(),
             Some(Owner::Enum(id)) => self.enums[id].name.clone(),
+            Some(Owner::Object(id)) => self.objects[id].name.clone(),
             None => String::new(),
         };
         self.current_source_context = self.source_contexts.alloc(hir::SourceContext {

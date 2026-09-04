@@ -76,8 +76,14 @@ impl Lowerer {
         self.type_params_in_scope.clear();
 
         let receiver_ty = self.owner_ty(owner);
-        let modifiers =
-            self.validate_callable_modifiers(decl, Some(receiver_ty), true, &params, return_ty);
+        let modifiers = self.validate_callable_modifiers(
+            decl,
+            Some(receiver_ty),
+            true,
+            matches!(self.functions[id].kind, hir::FunctionKind::User(_)),
+            &params,
+            return_ty,
+        );
 
         self.functions[id].return_ty = return_ty;
         self.functions[id].modifiers = modifiers;
@@ -97,15 +103,18 @@ impl Lowerer {
         // Bodyless declarations get their parameter-only body here;
         // concrete methods are lowered in pass 3.
         let host_ty = self.owner_ty(owner);
-        if decl.modifier == ast::MethodModifier::Abstract || matches!(owner, Owner::Interface(_)) {
+        if !matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_))
+            && (decl.modifier == ast::MethodModifier::Abstract
+                || matches!(decl.body, ast::FunctionBody::None))
+        {
             let (body, _) = self.build_params_only_body(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::User(body);
         }
     }
 
     /// Body-shape rules for member declarations: `abstract` only in
-    /// abstract classes, interface methods always bodyless, concrete
-    /// methods always with a body.
+    /// abstract classes, interface methods may be abstract or default, and
+    /// concrete class/value methods always have a body.
     fn check_method_body_shape(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
         if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
             return;
@@ -113,19 +122,12 @@ impl Lowerer {
         let short = decl.name.text.clone();
         match owner {
             Owner::Interface(_) => {
-                if decl.is_override {
+                if self.functions[id].access.declared == hir::DeclaredVisibility::Private
+                    && matches!(decl.body, ast::FunctionBody::None)
+                {
                     self.error(
                         decl.name.span,
-                        format!("`{short}` is marked `override` but does not override any method"),
-                    );
-                }
-                if !matches!(decl.body, ast::FunctionBody::None) {
-                    self.error(
-                        decl.name.span,
-                        format!(
-                            "interface method `{}` must not have a body",
-                            self.functions[id].name
-                        ),
+                        format!("private interface method `{short}` must have a body"),
                     );
                 }
             }
@@ -178,6 +180,28 @@ impl Lowerer {
                 // 2.75 (it is required exactly when the method
                 // implements an interface method, DESIGN.md 5.2).
                 if matches!(decl.body, ast::FunctionBody::None) {
+                    self.error(
+                        decl.name.span,
+                        format!("function `{short}` must have a body"),
+                    );
+                }
+            }
+            Owner::Object(_) => {
+                if decl.modifier == ast::MethodModifier::Abstract {
+                    self.error(
+                        decl.name.span,
+                        format!("abstract function `{short}` is only allowed in abstract classes"),
+                    );
+                }
+                if decl.modifier == ast::MethodModifier::Open && !decl.is_override {
+                    self.error(
+                        decl.name.span,
+                        format!("open function `{short}` is not allowed in an object declaration"),
+                    );
+                }
+                if matches!(decl.body, ast::FunctionBody::None)
+                    && decl.modifier != ast::MethodModifier::Abstract
+                {
                     self.error(
                         decl.name.span,
                         format!("function `{short}` must have a body"),

@@ -1,0 +1,4 @@
+val left: Int = right
+val right: Int = left
+
+fun main() {}

@@ -29,11 +29,15 @@ fn add_interface(
     );
     let application = lowerer.interface_application_id(interface, Vec::new());
     let allocated = lowerer.interfaces.alloc(hir::InterfaceDecl {
+        owner: None,
         name: name.to_string(),
+        access: hir::NominalAccess::public(),
         self_application: application,
         type_params: Vec::new(),
         parents,
         methods: Vec::new(),
+        private_methods: Vec::new(),
+        properties: Vec::new(),
         span: Span::new(0, 0),
     });
     assert_eq!(allocated, interface);
@@ -64,7 +68,9 @@ fn add_generic_struct(
     );
     let parameter_ty = lowerer.intern_type(Type::Param(parameter.id));
     let allocated = lowerer.structs.alloc(hir::StructDecl {
+        owner: None,
         name: name.to_string(),
+        access: hir::NominalAccess::public(),
         self_application,
         type_params: vec![parameter],
         attributes: hir::StructAttributes::default(),
@@ -73,6 +79,7 @@ fn add_generic_struct(
         interfaces: Vec::new(),
         interface_implementations: Vec::new(),
         methods: Vec::new(),
+        properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
     });

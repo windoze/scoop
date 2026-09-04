@@ -2,8 +2,8 @@
 // HIR validates these declarations exactly and normalizes applications to
 // dedicated Ptr/FunPtr types; downstream stages never identify them by name.
 
-struct Ptr<T : value>(val _rawPointer: UInt) {
-    operator fun equals(other: Ptr<T>): Boolean {
+public struct Ptr<T : value>(val _rawPointer: UInt) {
+    public operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
             return this.toUInt() == other.toUInt()
         }
@@ -12,54 +12,54 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
     @NoGC
     @Unsafe
     @Intrinsic("ptr_to_uint")
-    fun toUInt(): UInt
+    public fun toUInt(): UInt
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_cast")
-    fun <U : value> cast(): Ptr<U>
+    public fun <U : value> cast(): Ptr<U>
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_load")
-    fun load(): T
+    public fun load(): T
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_load_offset")
-    fun load(offset: Int): T
+    public fun load(offset: Int): T
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_store")
-    fun store(value: T)
+    public fun store(value: T)
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_store_offset")
-    fun store(offset: Int, value: T)
+    public fun store(offset: Int, value: T)
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_plus")
-    operator fun plus(offset: Int): Ptr<T>
+    public operator fun plus(offset: Int): Ptr<T>
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_minus")
-    operator fun minus(offset: Int): Ptr<T>
+    public operator fun minus(offset: Int): Ptr<T>
 }
 
-struct FunPtr<F>(val _rawPointer: UInt)
+public struct FunPtr<F>(val _rawPointer: UInt)
 
 @Unsafe
 @Intrinsic("address_of")
-fun <T : value> addressOf(value: T): Ptr<T>
+public fun <T : value> addressOf(value: T): Ptr<T>
 
 @NoGC
 @Intrinsic("size_of")
-fun <T : value> sizeOf(): UInt
+public fun <T : value> sizeOf(): UInt
 
 @NoGC
 @Intrinsic("align_of")
-fun <T : value> alignOf(): UInt
+public fun <T : value> alignOf(): UInt

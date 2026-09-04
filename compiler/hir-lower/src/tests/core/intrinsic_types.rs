@@ -122,6 +122,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     let strukt = |name: &str, intrinsic: &str, methods: Vec<ast::FunctionDecl>| {
         Decl::Struct(AstStructDecl {
             annotations: vec![annotation(intrinsic)],
+            visibility: ast::VisibilitySyntax::Omitted,
             name: ident(name),
             type_params: Vec::new(),
             fields: ast::StructRepresentationDecl::Omitted,
@@ -145,6 +146,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     let class = |name: &str, intrinsic: &str, type_params: Vec<&str>| {
         Decl::Class(ast::ClassDecl {
             annotations: vec![annotation(intrinsic)],
+            visibility: ast::VisibilitySyntax::Omitted,
             modifier: ast::ClassModifier::Final,
             name: ident(name),
             type_params: type_params.into_iter().map(type_param).collect(),

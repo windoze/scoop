@@ -8,6 +8,7 @@ fn method_owner_type_arguments(module: &hir::Module, owner: hir::MethodOwner) ->
         hir::MethodOwner::Struct(id) => &module.structs[id].type_arguments,
         hir::MethodOwner::Enum(id) => &module.enums[id].type_arguments,
         hir::MethodOwner::Interface(id) => &module.interfaces[id].type_arguments,
+        hir::MethodOwner::Object(_) => &[],
         hir::MethodOwner::Structural(_) => &[],
     }
 }
@@ -242,6 +243,9 @@ impl Lowerer {
             }
             hir::MethodOwner::Interface(id) => {
                 mir::MonomorphizedMethodOwner::Interface(self.interfaces.mir_id(id))
+            }
+            hir::MethodOwner::Object(id) => {
+                mir::MonomorphizedMethodOwner::Object(mir::ObjectTypeId::from_raw(id.into_raw()))
             }
             hir::MethodOwner::Structural(ty) => {
                 let ty = Types {

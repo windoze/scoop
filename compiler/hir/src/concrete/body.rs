@@ -10,6 +10,10 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
+    InitializationEnsure {
+        unit: InitializationUnitId,
+        cycle_exception: MessageClassConstructor,
+    },
     LocalFunction(LocalFunctionId),
     Return {
         value: Option<Expr>,
@@ -56,6 +60,7 @@ pub struct CatchClause {
 pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
+    SingletonPublishedRoot(SingletonPublishedRootId),
     Index {
         array: Box<Expr>,
         index: Box<Expr>,
@@ -156,6 +161,7 @@ pub enum ExprKind {
     },
     Local(LocalId),
     GlobalRead(GlobalId),
+    SingletonValue(SingletonValueId),
     Capture(BindingId),
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),

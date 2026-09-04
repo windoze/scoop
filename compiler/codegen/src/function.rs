@@ -30,6 +30,7 @@ struct FnEmitter<'a, 'ctx> {
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
+    initialization_units: &'a [GlobalValue<'ctx>],
     /// Complete array metadata and descriptor globals, indexed directly by
     /// `ArrayTypeId`.
     arrays: &'a Arena<ArrayType>,
@@ -249,6 +250,7 @@ pub(super) fn emit_function<'ctx>(
         foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
+        initialization_units: module_ctx.initialization_units,
         arrays: module_ctx.arrays,
         array_tds: module_ctx.array_tds,
         type_tds: module_ctx.type_tds,

@@ -56,6 +56,11 @@ typedef struct ScoopThreadState {
     ScoopNativeRegionRootFrame *native_region_roots;
     ScoopCallerRootFrame *caller_roots;
     ScoopCompilerRootFrame *compiler_roots;
+    const ScoopInitializationUnitDescriptor **initialization_stack;
+    size_t initialization_stack_len;
+    size_t initialization_stack_cap;
+    const ScoopInitializationUnitDescriptor *initialization_wait;
+    char *initialization_cycle_path;
     ScoopThreadTransition *current_transition;
     /* Owner-only allocation cursor while managed. The STW collector retires
      * every pair before sweep; re-entry refills instead of reusing stale
@@ -88,6 +93,9 @@ void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
                                       uintptr_t stack_pointer,
                                       uintptr_t frame_pointer);
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
+const void *scoop_thread_push_managed_gateway_boundary(const void *boundary);
+void scoop_thread_pop_managed_gateway_boundary(const void *boundary,
+                                                const void *previous);
 void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
                                      uintptr_t managed_stack_low,
                                      uintptr_t return_pc,

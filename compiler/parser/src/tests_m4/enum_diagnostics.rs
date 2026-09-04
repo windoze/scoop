@@ -18,10 +18,7 @@ fn enum_member_function() {
 fn enum_init_block_not_supported() {
     let (span, message) = err("enum E {\n    init\n}\n");
     assert_eq!(span, Span::new(13, 17));
-    assert_eq!(
-        message,
-        "`init` blocks are not supported yet (milestone M6)"
-    );
+    assert_eq!(message, "`init` blocks are not allowed in enums");
 }
 
 #[test]

@@ -12,6 +12,7 @@ impl Lowerer {
         &mut self,
         classes: &[(ClassId, &ast::ClassDecl, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         for &(class, declaration, file) in classes {
             self.current_file = file;
@@ -20,6 +21,10 @@ impl Lowerer {
         for &(structure, declaration, file) in structs {
             self.current_file = file;
             self.lower_struct_constructor_bodies(structure, declaration);
+        }
+        for &(object, declaration, file) in objects {
+            self.current_file = file;
+            self.lower_object_initialization(object, declaration);
         }
     }
 
@@ -66,9 +71,10 @@ impl Lowerer {
 
         let common = self.lower_common_initialization(
             owner,
-            declaration,
+            &declaration.members,
             context_constructor,
             primary.is_some(),
+            &format!("class `{}`", self.classes[owner].name),
         );
 
         if let Some(primary) = primary {
@@ -148,63 +154,107 @@ impl Lowerer {
     fn lower_common_initialization(
         &mut self,
         owner: ClassId,
-        declaration: &ast::ClassDecl,
+        members: &[ast::ClassMember],
         constructor: hir::ClassConstructorId,
         primary_parameters_visible: bool,
+        host: &str,
     ) -> Vec<hir::ClassInitializationStep> {
         let mut steps = Vec::new();
-        for member in &declaration.members {
+        for member in members {
             match member {
                 ast::ClassMember::StoredProperty(property) => {
-                    let Some(field) = self.classes[owner]
-                        .fields
+                    let Some(property_id) = self.classes[owner]
+                        .properties
                         .iter()
                         .copied()
-                        .find(|field| self.class_fields[*field].name == property.name.text)
+                        .find(|candidate| self.properties[*candidate].name == property.name.text)
+                    else {
+                        continue;
+                    };
+                    let logical = self.properties[property_id].clone();
+                    if let ast::PropertyBodySyntax::Delegated { expression, .. } = &property.body {
+                        if let Some(step) = self.lower_class_delegate_initialization(
+                            owner,
+                            constructor,
+                            primary_parameters_visible,
+                            property_id,
+                            property,
+                            expression,
+                        ) {
+                            steps.push(step);
+                        }
+                        continue;
+                    }
+                    let hir::PropertyRepresentation::Stored(stored) = logical.representation else {
+                        continue;
+                    };
+                    let hir::PropertyBacking::ClassField { field, initializer } = stored.backing
                     else {
                         continue;
                     };
                     if let Some(context) = &mut self.initialization_context {
-                        context.step = format!(
-                            "initializer of field `{}` in class `{}`",
-                            property.name.text, self.classes[owner].name
-                        );
+                        context.step =
+                            format!("initializer of property `{}` in {host}", property.name.text);
                     }
-                    let expected = self.class_fields[field].ty;
-                    let lowered = self.with_constructor_expression_context(
-                        constructor,
-                        "stored property initializer",
-                        |this, sink| {
-                            if !primary_parameters_visible {
-                                this.constructor_params_in_scope.clear();
-                            }
-                            let value =
-                                this.lower_expr(&property.initializer, sink, Some(expected))?;
-                            if !this.is_subtype(value.ty, expected) {
-                                let message = this.with_nominal_invariance_detail(
-                                    format!(
-                                        "initializer of property `{}` must be of type {}, found {}",
-                                        property.name.text,
-                                        this.type_name(expected),
-                                        this.type_name(value.ty)
-                                    ),
-                                    value.ty,
-                                    expected,
-                                );
-                                this.error(property.initializer.span(), message);
-                                return None;
-                            }
-                            Some(this.adapt_to(value, expected))
-                        },
-                    );
-                    if let Some(lowered) = lowered {
-                        steps.push(hir::ClassInitializationStep::StoredProperty {
-                            field,
-                            initializer: hir::ConstructorExpression {
+                    let expected = logical.ty;
+                    let initializer = match initializer {
+                        hir::ClassPropertyInitializer::Expression => {
+                            let Some(property_initializer) = property.initializer() else {
+                                continue;
+                            };
+                            self.with_constructor_expression_context(
+                                constructor,
+                                "stored property initializer",
+                                |this, sink| {
+                                    if !primary_parameters_visible {
+                                        this.constructor_params_in_scope.clear();
+                                    }
+                                    let value = this.lower_expr(
+                                        property_initializer,
+                                        sink,
+                                        Some(expected),
+                                    )?;
+                                    if !this.is_subtype(value.ty, expected) {
+                                        let message = this.with_nominal_invariance_detail(
+                                            format!(
+                                                "initializer of property `{}` must be of type {}, found {}",
+                                                property.name.text,
+                                                this.type_name(expected),
+                                                this.type_name(value.ty)
+                                            ),
+                                            value.ty,
+                                            expected,
+                                        );
+                                        this.error(property_initializer.span(), message);
+                                        return None;
+                                    }
+                                    Some(this.adapt_to(value, expected))
+                                },
+                            )
+                            .map(|lowered| hir::ConstructorExpression {
                                 locals: lowered.locals,
                                 statements: lowered.statements,
                                 value: lowered.value,
-                            },
+                            })
+                        }
+                        hir::ClassPropertyInitializer::SyntheticNone => {
+                            Some(hir::ConstructorExpression {
+                                locals: la_arena::Arena::new(),
+                                statements: Vec::new(),
+                                value: hir::Expr {
+                                    kind: hir::ExprKind::NoneLiteral,
+                                    ty: expected,
+                                    span: property.span,
+                                    origin: self.expression_origin(property.span),
+                                },
+                            })
+                        }
+                        hir::ClassPropertyInitializer::PrimaryParameter(_) => None,
+                    };
+                    if let Some(initializer) = initializer {
+                        steps.push(hir::ClassInitializationStep::StoredProperty {
+                            field,
+                            initializer,
                             span: property.span,
                         });
                         if let Some(crate::InitializationContext {
@@ -218,8 +268,7 @@ impl Lowerer {
                 }
                 ast::ClassMember::InitBlock(init) => {
                     if let Some(context) = &mut self.initialization_context {
-                        context.step =
-                            format!("init block in class `{}`", self.classes[owner].name);
+                        context.step = format!("init block in {host}");
                     }
                     let lowered = self.with_constructor_expression_context(
                         constructor,
@@ -242,10 +291,152 @@ impl Lowerer {
                         });
                     }
                 }
-                ast::ClassMember::SecondaryConstructor(_) | ast::ClassMember::Function(_) => {}
+                ast::ClassMember::SecondaryConstructor(_)
+                | ast::ClassMember::Function(_)
+                | ast::ClassMember::Nested(_)
+                | ast::ClassMember::Companion(_) => {}
             }
         }
         steps
+    }
+
+    fn lower_object_initialization(
+        &mut self,
+        object: hir::ObjectId,
+        source: crate::declarations::ObjectSource<'_>,
+    ) {
+        let backing = self.objects[object].backing_class;
+        let constructor = self.classes[backing]
+            .constructors
+            .first()
+            .copied()
+            .expect("every object has one hidden primary constructor");
+        let application = self.classes[backing].self_application;
+        self.initialization_context = Some(crate::InitializationContext {
+            receiver: InitializingReceiver::Class {
+                application,
+                initialized: self.inherited_fields(backing),
+            },
+            step: format!("initialization of object `{}`", self.objects[object].name),
+            capture_depth: self.capture_contexts.len(),
+        });
+        let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
+        let previous_unit = self.current_initialization_unit.replace(unit);
+        let common = self.lower_common_initialization(
+            backing,
+            source.members(),
+            constructor,
+            false,
+            &format!("object `{}`", self.objects[object].name),
+        );
+        self.current_initialization_unit = previous_unit;
+        let hir::ClassConstructorKind::Primary {
+            common_initialization,
+            ..
+        } = &mut self.class_constructors[constructor].kind
+        else {
+            unreachable!("the hidden object constructor is primary")
+        };
+        *common_initialization = common;
+        self.initialization_context = None;
+
+        let object_declaration = self.objects[object].clone();
+        let singleton = self.singleton_values[object_declaration.singleton_value];
+        let constructor_application = self.class_constructor_application(constructor, application);
+        let initializer = self.initialization_units[singleton.initialization].initializer;
+        self.functions[initializer].kind = hir::FunctionKind::User(hir::Body {
+            locals: la_arena::Arena::new(),
+            statements: vec![hir::Statement {
+                kind: hir::StatementKind::Assign {
+                    target: hir::AssignTarget::SingletonPublishedRoot(singleton.published_root),
+                    value: hir::Expr {
+                        kind: hir::ExprKind::ClassInit {
+                            constructor: constructor_application,
+                            args: Vec::new(),
+                        },
+                        ty: self.object_types[object_declaration.object_type].canonical_type,
+                        span: source.span(),
+                        origin: self.expression_origin(source.span()),
+                    },
+                },
+                span: source.span(),
+            }],
+        });
+    }
+
+    fn lower_class_delegate_initialization(
+        &mut self,
+        owner: ClassId,
+        constructor: hir::ClassConstructorId,
+        primary_parameters_visible: bool,
+        property_id: hir::PropertyId,
+        property: &ast::PropertyDecl,
+        expression: &ast::Expr,
+    ) -> Option<hir::ClassInitializationStep> {
+        if let Some(context) = &mut self.initialization_context {
+            context.step = format!(
+                "delegate initializer of property `{}` in class `{}`",
+                property.name.text, self.classes[owner].name
+            );
+        }
+        let lowered = self.with_constructor_expression_context(
+            constructor,
+            "delegated property initializer",
+            |this, sink| {
+                if !primary_parameters_visible {
+                    this.constructor_params_in_scope.clear();
+                }
+                let delegate = this.lower_expr(expression, sink, None)?;
+                match this.resolve_delegate_role_call(
+                    delegate.clone(),
+                    hir::PropertyDelegateOperatorKind::ProvideDelegate,
+                    Vec::new(),
+                    property.span,
+                ) {
+                    crate::properties::DelegateRoleCall::Resolved(effective) => {
+                        Some(effective.expression)
+                    }
+                    crate::properties::DelegateRoleCall::NoApplicable => Some(delegate),
+                    crate::properties::DelegateRoleCall::Failed => None,
+                }
+            },
+        );
+        let lowered = lowered?;
+
+        let effective_ty = lowered.value.ty;
+        let field = self.class_fields.alloc(hir::ClassField {
+            owner,
+            property: property_id,
+            ty: effective_ty,
+            source: hir::ClassFieldSource::Body,
+            span: property.span,
+        });
+        self.classes[owner].fields.push(field);
+        let storage = self.delegate_storages.alloc(hir::DelegateStorage {
+            property: property_id,
+            ty: effective_ty,
+            location: hir::DelegateStorageLocation::ClassField(field),
+        });
+        self.properties[property_id].representation =
+            hir::PropertyRepresentation::Delegated { storage };
+        let step = hir::ClassInitializationStep::DelegatedProperty {
+            storage,
+            field,
+            initializer: hir::ConstructorExpression {
+                locals: lowered.locals,
+                statements: lowered.statements,
+                value: lowered.value,
+            },
+            span: property.span,
+        };
+        if let Some(crate::InitializationContext {
+            receiver: InitializingReceiver::Class { initialized, .. },
+            ..
+        }) = &mut self.initialization_context
+        {
+            initialized.insert(field);
+        }
+        Some(step)
     }
 
     fn lower_struct_constructor_bodies(

@@ -4,6 +4,11 @@ use super::*;
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
+    let object_backings = module
+        .objects
+        .iter()
+        .map(|(_, declaration)| declaration.backing_class)
+        .collect::<std::collections::HashSet<_>>();
     for (id, decl) in module.structs.iter() {
         if id == module.ffi_core.ptr
             || id == module.ffi_core.fun_ptr
@@ -26,14 +31,20 @@ pub fn dump(module: &Module) -> String {
         let attributes = dump_struct_attributes(decl.attributes);
         out.push_str(&format!(
             "  struct {}{}{}{}\n",
-            decl.name, type_params, interfaces, attributes
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            interfaces,
+            attributes
         ));
-        for field in decl.semantic_fields() {
+        for (index, field) in decl.semantic_fields().iter().enumerate() {
             out.push_str(&format!(
-                "    field {}: {}\n",
+                "    field{index} {}: {}\n",
                 field.name,
                 type_name(module, field.ty)
             ));
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
         }
     }
     for (id, decl) in module.enums.iter() {
@@ -49,7 +60,10 @@ pub fn dump(module: &Module) -> String {
         let attributes = if decl.no_gc { " <no-gc>" } else { "" };
         out.push_str(&format!(
             "  enum {}{}{}{}\n",
-            decl.name, type_params, interfaces, attributes
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            interfaces,
+            attributes
         ));
         for variant in &decl.variants {
             let fields: Vec<String> = variant
@@ -59,8 +73,14 @@ pub fn dump(module: &Module) -> String {
                 .collect();
             out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
         }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
     }
-    for (_, decl) in module.classes.iter() {
+    for (class, decl) in module.classes.iter() {
+        if object_backings.contains(&class) {
+            continue;
+        }
         if matches!(decl.representation, ClassRepresentation::Intrinsic(_)) {
             continue;
         }
@@ -92,11 +112,76 @@ pub fn dump(module: &Module) -> String {
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
             "  {modifier}class {}{}({}){}\n",
-            decl.name,
+            nominal_declaration_name(module, &decl.name, decl.owner),
             type_params,
             ctor.join(", "),
             interfaces
         ));
+        for &field in &decl.fields {
+            let physical = &module.class_fields[field];
+            out.push_str(&format!(
+                "    field{} property{}: {}\n",
+                field.into_raw(),
+                physical.property.into_raw(),
+                type_name(module, physical.ty)
+            ));
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
+    }
+    for (object, declaration) in module.objects.iter() {
+        let object_type = &module.object_types[declaration.object_type];
+        let singleton = &module.singleton_values[declaration.singleton_value];
+        let backing = &module.classes[declaration.backing_class];
+        let mut supertypes = Vec::new();
+        if let Some(base) = backing.base_class {
+            supertypes.push(type_name(module, base));
+        }
+        supertypes.extend(
+            backing
+                .interfaces
+                .iter()
+                .map(|interface| type_name(module, *interface)),
+        );
+        let supertypes = if supertypes.is_empty() {
+            String::new()
+        } else {
+            format!(" : {}", supertypes.join(", "))
+        };
+        out.push_str(&format!(
+            "  {} {}{} <object{} type{} value{} root{} init{}{}>\n",
+            match declaration.kind {
+                ObjectKind::Standalone => "object",
+                ObjectKind::Companion(_) => "companion object",
+            },
+            nominal_declaration_name(module, &declaration.name, declaration.owner),
+            supertypes,
+            object.into_raw(),
+            declaration.object_type.into_raw(),
+            declaration.singleton_value.into_raw(),
+            singleton.published_root.into_raw(),
+            singleton.initialization.into_raw(),
+            match declaration.kind {
+                ObjectKind::Standalone => String::new(),
+                ObjectKind::Companion(relation) => {
+                    format!(" companion{}", relation.into_raw())
+                }
+            },
+        ));
+        debug_assert_eq!(object_type.declaration, object);
+        for &field in &backing.fields {
+            let physical = &module.class_fields[field];
+            out.push_str(&format!(
+                "    field{} property{}: {}\n",
+                field.into_raw(),
+                physical.property.into_raw(),
+                type_name(module, physical.ty)
+            ));
+        }
+        for &property in &backing.properties {
+            dump_property(module, property, 2, &mut out);
+        }
     }
     for (_, decl) in module.interfaces.iter() {
         let type_params = if decl.type_params.is_empty() {
@@ -121,32 +206,79 @@ pub fn dump(module: &Module) -> String {
         };
         out.push_str(&format!(
             "  interface {}{}{}\n",
-            decl.name, type_params, parents
+            nominal_declaration_name(module, &decl.name, decl.owner),
+            type_params,
+            parents
         ));
         for method in &decl.methods {
-            let function = &module.functions[module.interface_methods[*method].function];
+            let member = &module.interface_methods[*method];
+            let function = &module.functions[member.function];
             let params: Vec<String> = function
                 .params
                 .iter()
                 .skip(1)
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
+            let implementation = match member.implementation {
+                InterfaceMemberImplementation::Body => " <default>",
+                InterfaceMemberImplementation::AbstractSlot => "",
+            };
             out.push_str(&format!(
-                "    {}{}fun {}({}): {}{}\n",
-                match function.modifiers.operator {
-                    Some(_) => "operator ",
-                    None => "",
+                "    {}{}fun {}({}): {}{}{}\n",
+                if function.modifiers.operator.is_some()
+                    || function.modifiers.property_delegate_operator.is_some()
+                {
+                    "operator "
+                } else {
+                    ""
                 },
                 if function.is_suspend { "suspend " } else { "" },
                 function.name.rsplit('.').next().unwrap_or(&function.name),
                 params.join(", "),
                 type_name(module, function.return_ty),
-                dump_function_attributes(function.attributes)
+                dump_function_attributes(function.attributes),
+                implementation,
             ));
+            if member.implementation == InterfaceMemberImplementation::Body
+                && let FunctionKind::User(body) = &function.kind
+            {
+                dump_statements(module, &body.locals, &body.statements, 3, &mut out);
+            }
+        }
+        for &method in &decl.private_methods {
+            let function = &module.functions[method];
+            let params = function
+                .params
+                .iter()
+                .skip(1)
+                .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(
+                "    private fun {}({params}): {}{} <helper>\n",
+                function.name.rsplit('.').next().unwrap_or(&function.name),
+                type_name(module, function.return_ty),
+                dump_function_attributes(function.attributes),
+            ));
+            if let FunctionKind::User(body) = &function.kind {
+                dump_statements(module, &body.locals, &body.statements, 3, &mut out);
+            }
+        }
+        for &property in &decl.properties {
+            dump_property(module, property, 2, &mut out);
+        }
+    }
+    for (property, declaration) in module.properties.iter() {
+        if matches!(
+            declaration.owner,
+            PropertyOwner::TopLevel | PropertyOwner::Extension(_)
+        ) {
+            dump_property(module, property, 1, &mut out);
         }
     }
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            GlobalStorage::Managed { .. } => "managed".to_string(),
             GlobalStorage::Local {
                 thread_local: false,
                 ..
@@ -224,9 +356,12 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
-        let operator = match function.modifiers.operator {
-            Some(_) => "operator ",
-            None => "",
+        let operator = if function.modifiers.operator.is_some()
+            || function.modifiers.property_delegate_operator.is_some()
+        {
+            "operator "
+        } else {
+            ""
         };
         let attributes = dump_function_attributes(function.attributes);
         let no_gc_requirements = match &function.genericity {
@@ -335,6 +470,149 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut String) {
+    let property = &module.properties[id];
+    let modifier = match property.modifier {
+        MethodModifier::Final => "",
+        MethodModifier::Open => "open ",
+        MethodModifier::Abstract => "abstract ",
+    };
+    let override_ = if property.is_override {
+        "override "
+    } else {
+        ""
+    };
+    let mutability = if property.capability.setter().is_some() {
+        "var"
+    } else {
+        "val"
+    };
+    let getter = property.capability.getter();
+    let getter = format!(
+        "getter{}={}",
+        getter.into_raw(),
+        dump_accessor_implementation(module, module.property_getters[getter].implementation)
+    );
+    let setter = property
+        .capability
+        .setter()
+        .map_or_else(String::new, |setter| {
+            format!(
+                " setter{}={}",
+                setter.into_raw(),
+                dump_accessor_implementation(
+                    module,
+                    module.property_setters[setter].implementation
+                )
+            )
+        });
+    let representation = match &property.representation {
+        PropertyRepresentation::Stored(stored) => match stored.backing {
+            PropertyBacking::TopLevelGlobal {
+                storage,
+                initialization,
+            } => {
+                let initialization = match initialization {
+                    TopLevelInitialization::Image => "image".to_string(),
+                    TopLevelInitialization::Runtime(unit) => {
+                        format!("init{}", unit.into_raw())
+                    }
+                };
+                format!("stored global{} {initialization}", storage.into_raw())
+            }
+            PropertyBacking::ClassField { field, initializer } => format!(
+                "stored field{} init={}",
+                field.into_raw(),
+                match initializer {
+                    ClassPropertyInitializer::PrimaryParameter(parameter) => {
+                        format!("parameter{}", parameter.into_raw())
+                    }
+                    ClassPropertyInitializer::Expression => "expression".to_string(),
+                    ClassPropertyInitializer::SyntheticNone => "synthetic-none".to_string(),
+                }
+            ),
+            PropertyBacking::StructField { owner, index } => {
+                format!("stored struct{}-field{index}", owner.into_raw())
+            }
+        },
+        PropertyRepresentation::AccessorOnly => "accessor-only".to_string(),
+        PropertyRepresentation::Delegated { storage } => {
+            let delegate = &module.delegate_storages[*storage];
+            let location = match delegate.location {
+                DelegateStorageLocation::ClassField(field) => {
+                    format!("class-field{}", field.into_raw())
+                }
+                DelegateStorageLocation::ManagedGlobal(global) => {
+                    format!("managed-global{}", global.into_raw())
+                }
+            };
+            format!(
+                "delegated storage{} type={} location={location}",
+                storage.into_raw(),
+                type_name(module, delegate.ty)
+            )
+        }
+        PropertyRepresentation::Const { value } => format!("const {value:?}"),
+        PropertyRepresentation::NativeStorage { storage } => {
+            format!("native-storage global{}", storage.into_raw())
+        }
+    };
+    let overrides = if property.overrides.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " overrides=[{}]",
+            property
+                .overrides
+                .iter()
+                .map(|property| property.into_raw().to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    };
+    let (type_params, receiver, property_ty) = match property.owner {
+        PropertyOwner::Extension(extension) => {
+            let extension = &module.extension_properties[extension];
+            let params = if extension.type_params.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", dump_type_params(module, &extension.type_params))
+            };
+            (
+                params,
+                format!(
+                    "{}.",
+                    type_name_with_params(module, extension.receiver_ty, &extension.type_params)
+                ),
+                type_name_with_params(module, property.ty, &extension.type_params),
+            )
+        }
+        _ => (String::new(), String::new(), type_name(module, property.ty)),
+    };
+    out.push_str(&format!(
+        "{}property{} {modifier}{override_}{mutability} {type_params}{receiver}{}: {property_ty} {getter}{setter} <{representation}>{overrides}\n",
+        "  ".repeat(indent),
+        id.into_raw(),
+        property.name,
+    ));
+}
+
+fn dump_accessor_implementation(
+    module: &Module,
+    implementation: PropertyAccessorImplementation,
+) -> String {
+    match implementation {
+        PropertyAccessorImplementation::Storage => "storage".to_string(),
+        PropertyAccessorImplementation::Constant => "constant".to_string(),
+        PropertyAccessorImplementation::Body(function) => {
+            format!("body({})", module.functions[function].name)
+        }
+        PropertyAccessorImplementation::AbstractSlot(function) => {
+            format!("abstract({})", module.functions[function].name)
+        }
+    }
 }
 
 fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {

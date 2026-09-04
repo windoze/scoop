@@ -92,7 +92,7 @@ impl Lowerer {
                     "an extern global supports only the C data ABI".to_string(),
                 );
             }
-            if decl.init.is_some() {
+            if decl.initializer().is_some() {
                 self.error(
                     decl.span,
                     "an `@Extern` global must not have an initializer".to_string(),
@@ -126,7 +126,7 @@ impl Lowerer {
                         .to_string(),
                 );
             }
-            if decl.init.is_none() {
+            if decl.initializer().is_none() {
                 self.error(
                     decl.span,
                     "a local global requires a compile-time constant initializer".to_string(),
@@ -316,6 +316,33 @@ impl Lowerer {
                 self.error(
                     annotation.span,
                     format!("unsupported annotation `@{name}` in milestone M12"),
+                );
+            }
+        }
+    }
+
+    pub(crate) fn reject_logical_property_annotations(
+        &mut self,
+        kind: &str,
+        annotations: &[ast::Annotation],
+    ) {
+        let mut seen = HashSet::new();
+        for annotation in annotations {
+            let name = annotation.name.text.as_str();
+            if !seen.insert(name.to_string()) {
+                self.error(
+                    annotation.span,
+                    format!("annotation `@{name}` must not be repeated"),
+                );
+            } else if is_core_annotation(name) {
+                self.error(
+                    annotation.span,
+                    format!("`@{name}` is not allowed on {kind}"),
+                );
+            } else {
+                self.error(
+                    annotation.span,
+                    format!("unsupported annotation `@{name}` on {kind}"),
                 );
             }
         }

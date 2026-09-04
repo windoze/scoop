@@ -20,6 +20,11 @@ pub(super) fn dump_expr(
         ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
+        ExprKind::InitializationUnitAddress(unit) => out.push_str(&format!(
+            "{pad}InitializationUnitAddress init{} {}\n",
+            unit.into_raw().into_u32(),
+            module.initialization_units[*unit].stable_key
+        )),
         ExprKind::TupleLiteral(elements) => {
             out.push_str(&format!("{pad}TupleLiteral\n"));
             for element in elements {

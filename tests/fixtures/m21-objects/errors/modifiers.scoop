@@ -1,0 +1,12 @@
+object Invalid {
+    open fun extensible(): Int = 1
+
+    abstract fun missing(): Int
+
+    open val extensibleProperty: Int = 2
+
+    abstract val missingProperty: Int
+}
+
+fun main() {
+}

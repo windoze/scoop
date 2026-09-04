@@ -5,6 +5,12 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub initialization_units: Arena<InitializationUnit>,
+    pub initialization_failure_roots: Arena<InitializationFailureRoot>,
+    pub objects: Arena<ObjectDef>,
+    pub object_types: Arena<ObjectType>,
+    pub singleton_values: Arena<SingletonValue>,
+    pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub callback_bridges: Arena<CallbackBridge>,
     pub foreign_callback_adapters: Arena<ForeignCallbackAdapter>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
@@ -74,8 +80,80 @@ pub struct Global {
     pub storage: GlobalStorage,
 }
 
+#[derive(Debug)]
+pub struct InitializationUnit {
+    pub stable_key: String,
+    pub schedule: InitializationSchedule,
+    pub kind: InitializationUnitKind,
+    pub initializer: FunctionId,
+    pub ensure: FunctionId,
+    pub failure_root: InitializationFailureRootId,
+    pub dependencies: Vec<InitializationUnitId>,
+    pub cycle_exception: MessageClassConstructor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
+}
+
+#[derive(Debug, Clone)]
+pub struct MessageClassConstructor {
+    pub class: ClassId,
+    pub initializer: FunctionId,
+    pub message_type: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationUnitKind {
+    EagerTopLevel {
+        storage: GlobalId,
+    },
+    LazySingleton {
+        value: SingletonValueId,
+        published_root: SingletonPublishedRootId,
+    },
+}
+
+#[derive(Debug)]
+pub struct InitializationFailureRoot {
+    pub global: GlobalId,
+}
+
+#[derive(Debug)]
+pub struct ObjectDef {
+    pub name: String,
+    pub object_type: ObjectTypeId,
+    pub singleton_value: SingletonValueId,
+    pub backing_class: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObjectType {
+    pub declaration: ObjectId,
+    pub representation: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonValue {
+    pub declaration: ObjectId,
+    pub object_type: ObjectTypeId,
+    pub published_root: SingletonPublishedRootId,
+    pub initialization: InitializationUnitId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SingletonPublishedRoot {
+    pub value: SingletonValueId,
+    pub global: GlobalId,
+}
+
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
+    Managed {
+        initializer: ConstantValue,
+    },
     Local {
         thread_local: bool,
         initializer: ConstantValue,
@@ -89,10 +167,16 @@ pub enum GlobalStorage {
 
 #[derive(Debug, Clone)]
 pub enum ConstantValue {
+    Zero,
     Int(i64),
     Bool(bool),
+    String(StringConstId),
     NullPtr,
     NullFunPtr,
+    EnumUnit {
+        enum_id: EnumId,
+        variant: u32,
+    },
     Struct {
         struct_id: StructId,
         fields: Vec<ConstantValue>,
@@ -229,6 +313,7 @@ pub enum MonomorphizedMethodOwner {
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
+    Object(ObjectTypeId),
     Structural(Type),
 }
 

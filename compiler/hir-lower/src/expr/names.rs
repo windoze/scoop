@@ -15,8 +15,14 @@ impl Lowerer {
     pub(crate) fn lower_var(
         &mut self,
         name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if name.text == "field" && self.backing_field_context.is_some() {
+            return self
+                .contextual_backing_field(name.span)
+                .map(|(read, _)| read);
+        }
         if let Some((enum_id, variant)) = self.option_variant(&name.text) {
             if self.enums[enum_id].variants[variant as usize]
                 .fields
@@ -32,8 +38,14 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
-            if !self.capture_contexts.is_empty() && self.available_capture(&name.text).is_some() {
-                return self.lower_capture(name);
+            if !self.capture_contexts.is_empty()
+                && let Some(capture) = self.available_capture(&name.text)
+            {
+                let storage = self.lower_capture(name)?;
+                if self.local_delegate_plans.contains_key(&capture.binding) {
+                    return self.local_delegate_read(storage, capture.binding, name.span);
+                }
+                return Some(storage);
             }
             if let Some(&(parameter, ty, _)) = self.constructor_params_in_scope.get(&name.text) {
                 return Some(hir::Expr {
@@ -43,8 +55,12 @@ impl Lowerer {
                     origin: self.expression_origin(name.span),
                 });
             }
-            if self.available_capture(&name.text).is_some() {
-                return self.lower_capture(name);
+            if let Some(capture) = self.available_capture(&name.text) {
+                let storage = self.lower_capture(name)?;
+                if self.local_delegate_plans.contains_key(&capture.binding) {
+                    return self.local_delegate_read(storage, capture.binding, name.span);
+                }
+                return Some(storage);
             }
             if self.initialization_context.is_some()
                 && self.initializing_receiver_has_field(&name.text)
@@ -53,22 +69,50 @@ impl Lowerer {
                     .initializing_field(name, name.span)
                     .map(|field| field.read);
             }
+            if let Some(crate::Owner::Object(object)) = self.current_owner {
+                let property = self.classes[self.objects[object].backing_class]
+                    .properties
+                    .iter()
+                    .copied()
+                    .find(|property| {
+                        self.properties[*property].name == name.text
+                            && matches!(
+                                self.properties[*property].representation,
+                                hir::PropertyRepresentation::Const { .. }
+                            )
+                    });
+                if let Some(property) = property {
+                    let ty = self.properties[property].ty;
+                    return self.lower_property_read(property, None, None, ty, name.span);
+                }
+            }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
-            if let Some(&global) = self.globals_by_name.get(&name.text) {
-                if matches!(
-                    self.globals[global].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(name.span, "reading an extern global");
+            if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                match self.resolve_extension_property(receiver, name, sink, true) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        return Some(property.read);
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => return None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
                 }
-                return Some(hir::Expr {
-                    kind: ExprKind::GlobalRead(global),
-                    ty: self.globals[global].ty,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                });
+            }
+            if let Some(property) = self.visible_property(&name.text, None) {
+                let ty = self.properties[property].ty;
+                return self.lower_property_read(property, None, None, ty, name.span);
+            }
+            if let Some(object) = self
+                .lexical_nested_nominal_target(&name.text)
+                .or_else(|| self.top_level_nominal_target(&name.text))
+                .and_then(|target| match target {
+                    crate::NominalTarget::Object(object) => Some(object),
+                    _ => None,
+                })
+            {
+                return self.lower_singleton_value(object, name.span);
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
@@ -83,10 +127,32 @@ impl Lowerer {
                 );
                 return None;
             }
+            if let Some(crate::Owner::Object(object)) = self.current_owner
+                && self.companion_host_declares_property(object, &name.text)
+            {
+                self.error(
+                    name.span,
+                    format!(
+                        "companion object cannot access host instance property `{}` without a host instance",
+                        name.text
+                    ),
+                );
+                return None;
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
         let declared = self.locals[local].ty;
+        let binding = self.locals[local].binding;
+        if self.local_delegate_plans.contains_key(&binding) {
+            let storage = hir::Expr {
+                kind: ExprKind::Local(local),
+                ty: declared,
+                span: name.span,
+                origin: self.expression_origin(name.span),
+            };
+            return self.local_delegate_read(storage, binding, name.span);
+        }
         if let Some(&narrowed) = self.smart_casts.get(&local) {
             if !self.types_equal(narrowed, declared) {
                 let local_expr = hir::Expr {
@@ -121,6 +187,44 @@ impl Lowerer {
         })
     }
 
+    pub(crate) fn lower_singleton_value(
+        &mut self,
+        object: hir::ObjectId,
+        span: ast::Span,
+    ) -> Option<hir::Expr> {
+        let declaration = self.objects[object].clone();
+        if !self.access_domain_allows(&declaration.access.lookup.0, None) {
+            let kind = match declaration.kind {
+                hir::ObjectKind::Standalone => "object",
+                hir::ObjectKind::Companion(_) => "companion object",
+            };
+            self.error(
+                span,
+                format!("{kind} `{}` is not accessible here", declaration.name),
+            );
+            return None;
+        }
+        let value = self.singleton_values[declaration.singleton_value];
+        if let Some(current) = self.current_initialization_unit {
+            let dependencies = &mut self.initialization_units[current].dependencies;
+            if !dependencies
+                .iter()
+                .any(|dependency| dependency.unit == value.initialization)
+            {
+                dependencies.push(hir::InitializationDependency {
+                    unit: value.initialization,
+                    span,
+                });
+            }
+        }
+        Some(hir::Expr {
+            kind: hir::ExprKind::SingletonValue(declaration.singleton_value),
+            ty: self.object_types[declaration.object_type].canonical_type,
+            span,
+            origin: self.expression_origin(span),
+        })
+    }
+
     /// `x` inside a member function when `x` is no local: a property
     /// of the host type (`this.x`; class properties include the base
     /// chain). Methods are not values in M6, so only fields resolve.
@@ -132,53 +236,13 @@ impl Lowerer {
                 .map(|field| field.read);
         }
         let receiver_ty = self.current_this_ty()?;
-        let (field, ty) = match self.types[receiver_ty].clone() {
-            Type::Class(application) => {
-                let (declaring, field, ty, _) =
-                    self.find_class_application_field(application, &name.text)?;
-                (
-                    hir::FieldRef::ClassField {
-                        application: declaring,
-                        field,
-                    },
-                    ty,
-                )
-            }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let struct_id = application_value.template;
-                let index = self.structs[struct_id]
-                    .semantic_fields()
-                    .iter()
-                    .position(|field| field.name == name.text)?;
-                (
-                    hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    },
-                    self.instantiate_ty(
-                        self.structs[struct_id].semantic_fields()[index].ty,
-                        &application_value.arguments,
-                    ),
-                )
-            }
-            // Interfaces have no properties; enum payloads are only
-            // reachable through patterns.
-            _ => return None,
-        };
-        // Resolve the property identity before materializing `this`. In a
-        // nested callable, `lower_current_this` records a capture; a failed
-        // property probe must not mutate the winning candidate's closure.
-        let receiver = self.lower_current_this(name.span)?;
-        Some(hir::Expr {
-            kind: ExprKind::FieldAccess {
-                receiver: Box::new(receiver),
-                field,
-            },
-            ty,
-            span: name.span,
-            origin: self.expression_origin(name.span),
-        })
+        if let Some((property, owner, ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            let receiver = self.lower_current_this(name.span)?;
+            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
+        }
+        None
     }
 
     /// Smart-cast candidates established by `cond` evaluating to
@@ -201,6 +265,12 @@ impl Lowerer {
             // Only immutable locals can be narrowed (the condition is
             // pure and the variable cannot change below it).
             if self.locals[local].mutable {
+                continue;
+            }
+            if self
+                .local_delegate_plans
+                .contains_key(&self.locals[local].binding)
+            {
                 continue;
             }
             let Some(narrowed) = self.resolve_type_ref(ty_ref) else {

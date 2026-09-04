@@ -432,6 +432,7 @@ pub(super) fn enum_module() -> Module {
 
     Module {
         globals,
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums,
         extern_functions: Default::default(),

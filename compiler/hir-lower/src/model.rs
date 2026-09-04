@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use scoop_ast as ast;
 use scoop_ast::Span;
 use scoop_hir as hir;
-use scoop_hir::{ClassId, EnumId, FunctionId, InterfaceId, StructId, TypeId};
+use scoop_hir::{ClassId, EnumId, FunctionId, InterfaceId, ObjectId, StructId, TypeId};
 
 use crate::Lowerer;
 
@@ -71,12 +71,59 @@ pub(crate) enum VariantStyle {
 /// The type a member function belongs to (M6). Method `Function`s are
 /// registered directly on their nominal owner and carry the
 /// owner's type and modality in `Function::method`; the receiver is `params[0]`.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Owner {
     Class(ClassId),
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+    Object(ObjectId),
+}
+
+impl Owner {
+    pub(crate) const fn as_nominal_owner(self) -> hir::NominalOwner {
+        match self {
+            Self::Class(id) => hir::NominalOwner::Class(id),
+            Self::Interface(id) => hir::NominalOwner::Interface(id),
+            Self::Struct(id) => hir::NominalOwner::Struct(id),
+            Self::Enum(id) => hir::NominalOwner::Enum(id),
+            Self::Object(id) => hir::NominalOwner::Object(id),
+        }
+    }
+
+    pub(crate) const fn from_nominal_owner(owner: hir::NominalOwner) -> Self {
+        match owner {
+            hir::NominalOwner::Class(id) => Self::Class(id),
+            hir::NominalOwner::Interface(id) => Self::Interface(id),
+            hir::NominalOwner::Struct(id) => Self::Struct(id),
+            hir::NominalOwner::Enum(id) => Self::Enum(id),
+            hir::NominalOwner::Object(id) => Self::Object(id),
+        }
+    }
+}
+
+/// Lowering-time target of a nominal declaration lookup. The target kind is
+/// explicit so owner qualification never probes several name maps or relies
+/// on coincident arena indices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NominalTarget {
+    Class(ClassId),
+    Interface(InterfaceId),
+    Struct(StructId),
+    Enum(EnumId),
+    Object(ObjectId),
+}
+
+impl NominalTarget {
+    pub(crate) const fn owner(self) -> Owner {
+        match self {
+            Self::Class(id) => Owner::Class(id),
+            Self::Interface(id) => Owner::Interface(id),
+            Self::Struct(id) => Owner::Struct(id),
+            Self::Enum(id) => Owner::Enum(id),
+            Self::Object(id) => Owner::Object(id),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -93,22 +140,51 @@ pub(crate) struct CallableCandidate {
     pub(crate) function: FunctionId,
     pub(crate) owner: CallableCandidateOwner,
     pub(crate) source: CallableCandidateSource,
+    pub(crate) access: CallableCandidateAccess,
+}
+
+#[derive(Clone)]
+pub(crate) enum CallableCandidateAccess {
+    Lookup(hir::LookupAccessWitness),
+    Inheritance,
+    CompilerGenerated,
 }
 
 impl CallableCandidate {
-    pub(crate) fn function(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
+    pub(crate) fn function(
+        function: FunctionId,
+        owner_arguments: Vec<TypeId>,
+        access: hir::LookupAccessWitness,
+    ) -> Self {
         Self {
             function,
             owner: CallableCandidateOwner::Function { owner_arguments },
             source: CallableCandidateSource::Direct,
+            access: CallableCandidateAccess::Lookup(access),
         }
     }
 
-    pub(crate) fn method(function: FunctionId, owner: hir::MethodOwnerApplication) -> Self {
+    pub(crate) fn inheritance_method(
+        function: FunctionId,
+        owner: hir::MethodOwnerApplication,
+    ) -> Self {
         Self {
             function,
             owner: CallableCandidateOwner::Method(owner),
             source: CallableCandidateSource::Direct,
+            access: CallableCandidateAccess::Inheritance,
+        }
+    }
+
+    pub(crate) fn compiler_generated_method(
+        function: FunctionId,
+        owner: hir::MethodOwnerApplication,
+    ) -> Self {
+        Self {
+            function,
+            owner: CallableCandidateOwner::Method(owner),
+            source: CallableCandidateSource::Direct,
+            access: CallableCandidateAccess::CompilerGenerated,
         }
     }
 }
@@ -172,21 +248,31 @@ impl Owner {
     /// ("class `C`", "struct `S`", ...).
     pub(crate) fn describe(&self, lowerer: &Lowerer) -> String {
         match *self {
-            Owner::Class(id) => format!("class `{}`", lowerer.classes[id].name),
-            Owner::Interface(id) => format!("interface `{}`", lowerer.interfaces[id].name),
-            Owner::Struct(id) => format!("struct `{}`", lowerer.structs[id].name),
-            Owner::Enum(id) => format!("enum `{}`", lowerer.enums[id].name),
+            Owner::Class(_) => format!("class `{}`", self.describe_name(lowerer)),
+            Owner::Interface(_) => format!("interface `{}`", self.describe_name(lowerer)),
+            Owner::Struct(_) => format!("struct `{}`", self.describe_name(lowerer)),
+            Owner::Enum(_) => format!("enum `{}`", self.describe_name(lowerer)),
+            Owner::Object(_) => format!("object `{}`", self.describe_name(lowerer)),
         }
     }
 
     /// The bare host name, used to qualify method symbols
     /// (`Owner.method`).
     pub(crate) fn describe_name(&self, lowerer: &Lowerer) -> String {
-        match *self {
-            Owner::Class(id) => lowerer.classes[id].name.clone(),
-            Owner::Interface(id) => lowerer.interfaces[id].name.clone(),
-            Owner::Struct(id) => lowerer.structs[id].name.clone(),
-            Owner::Enum(id) => lowerer.enums[id].name.clone(),
+        let (name, owner) = match *self {
+            Owner::Class(id) => (&lowerer.classes[id].name, lowerer.classes[id].owner),
+            Owner::Interface(id) => (&lowerer.interfaces[id].name, lowerer.interfaces[id].owner),
+            Owner::Struct(id) => (&lowerer.structs[id].name, lowerer.structs[id].owner),
+            Owner::Enum(id) => (&lowerer.enums[id].name, lowerer.enums[id].owner),
+            Owner::Object(id) => (&lowerer.objects[id].name, lowerer.objects[id].owner),
+        };
+        match owner {
+            Some(owner) => format!(
+                "{}.{}",
+                Owner::from_nominal_owner(owner).describe_name(lowerer),
+                name
+            ),
+            None => name.clone(),
         }
     }
 }

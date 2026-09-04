@@ -55,6 +55,7 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
             expr_contains_return(expr)
         }
         ast::StatementKind::ValDecl(decl) => expr_contains_return(&decl.init),
+        ast::StatementKind::LocalDelegatedProperty(decl) => expr_contains_return(&decl.expression),
         ast::StatementKind::Assign(assign) => expr_contains_return(&assign.value),
         ast::StatementKind::If(if_) => {
             expr_contains_return(&if_.cond)
@@ -130,6 +131,9 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         ast::Expr::SuperMethodCall { args, .. } => args
             .iter()
             .any(|argument| expr_contains_return(&argument.expression)),
+        ast::Expr::QualifiedInterfaceSuperMethodCall { args, .. } => args
+            .iter()
+            .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::Index {
             receiver, indices, ..
         } => expr_contains_return(receiver) || indices.iter().any(expr_contains_return),
@@ -163,7 +167,8 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. }
         | ast::Expr::Var(_)
-        | ast::Expr::This { .. } => false,
+        | ast::Expr::This { .. }
+        | ast::Expr::QualifiedInterfaceSuperAccess { .. } => false,
     }
 }
 
@@ -174,5 +179,6 @@ fn place_contains_return(place: &ast::PlaceExpr) -> bool {
         ast::PlaceExpr::Index {
             receiver, indices, ..
         } => expr_contains_return(receiver) || indices.iter().any(expr_contains_return),
+        ast::PlaceExpr::QualifiedInterfaceSuperProperty { .. } => false,
     }
 }

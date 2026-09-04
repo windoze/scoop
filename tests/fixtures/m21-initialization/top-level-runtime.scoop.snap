@@ -1,0 +1,2828 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  public interface Continuation<T>
+    fun resume
+    fun resumeWithException
+  public interface SuspendTask<T>
+    suspend fun run
+  public interface SuspendRegistration<T>
+    fun register
+  public struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    public suspend fun run
+  public struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    public fun register
+    @Intrinsic("coroutine_start")
+  public fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  public suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  public fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  public suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+  public struct Ptr<T : value>
+    field _rawPointer: UInt
+    public operator fun equals
+    public fun toUInt
+    public fun cast
+    public fun load
+    public fun load
+    public fun store
+    public fun store
+    public operator fun plus
+    public operator fun minus
+  public struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  public fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  public fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  public fun alignOf<T : value>(): UInt
+SourceFile
+  public enum ForeignCallbackMode
+    Reusable
+    OneShot
+  public enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  public struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  public fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  public fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  public fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  public fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
+  public struct PinnedPtr<T : ref>
+    field raw: UInt
+  public struct GcHandle<T : ref>
+    field raw: UInt
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  internal fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  internal fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  internal fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  internal fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  public fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  public fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  public fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  public fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
+    @Intrinsic("rt_gc_collect")
+  public fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  public fun gcStats(): UInt
+SourceFile
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  public fun write(message: String)
+  public fun print<T : ToString>(value: T)
+    =
+      Call write
+        MethodCall toString
+          Var value
+  public fun println<T : ToString>(value: T)
+    Call write
+      MethodCall toString
+        Var value
+    Call write
+      StringLiteral "\n"
+SourceFile
+  public enum Option<T>
+    Some(T)
+    None
+SourceFile
+  public struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  public fun getCurrentSourceLocation(): SourceLocation
+SourceFile
+  public open class Throwable()
+  public open class Exception(val message: String?) : Throwable(<0 args>)
+  public class UnwrapException() : Exception(<1 args>)
+  public class ClassCastException() : Exception(<1 args>)
+  public class ArithmeticException() : Exception(<1 args>)
+  public class IndexOutOfBoundsException() : Exception(<1 args>)
+  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
+SourceFile
+  public interface ToString
+    fun toString
+  public interface Hash
+    fun hash
+    @Intrinsic("core_int")
+  public struct Int <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint")
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    @Intrinsic("core_boolean")
+  public struct Boolean <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun not
+    public fun toString
+    public fun hash
+    @Intrinsic("core_string")
+  public class String(), ToString, Hash
+    public operator fun equals
+    public operator fun plus
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    @Intrinsic("core_array")
+  public class Array<T>()
+    public operator fun get
+    public fun toMutableArray
+    @Intrinsic("core_mutable_array")
+  public class MutableArray<T>()
+    public operator fun get
+    public operator fun set
+    public fun toArray
+    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
+  internal fun coreIntEquals(left: Int, right: Int): Boolean
+    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+  internal fun coreUIntEquals(left: UInt, right: UInt): Boolean
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  internal fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+  internal fun coreIntToString(value: Int): String
+    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+  internal fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  internal fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
+  internal fun coreIntHash(value: Int): Int
+    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+  internal fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  internal fun coreBooleanHash(value: Boolean): Int
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  internal fun coreStringHash(value: String): Int
+SourceFile
+  fun runtimeValue(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun movingText(): String
+    val text
+      StringLiteral "managed-initializer"
+    Call gcCollect
+    return
+      Var text
+  val zuluOrder: Int = <expr>
+  val alpha: Int = <expr>
+  val text: String = <expr>
+  val zed: Int = <expr>
+  val betaOrder: Int = <expr>
+  fun main()
+    Call println
+      Var alpha
+    Call println
+      Var text
+    Call println
+      Var zed
+    Call println
+      Var betaOrder
+    Call println
+      Var zuluOrder
+
+== hir ==
+Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException(message: Option<String>)
+  interface Continuation<T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<T>
+    suspend fun run(): T0
+  interface SuspendRegistration<T>
+    fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
+  property14 val zuluOrder: Int getter14=body($get$zuluOrder) <stored global0 init0>
+  property15 val alpha: Int getter15=body($get$alpha) <stored global1 init1>
+  property16 val text: String getter16=body($get$text) <stored global2 init2>
+  property17 val zed: Int getter17=body($get$zed) <stored global3 init3>
+  property18 val betaOrder: Int getter18=body($get$betaOrder) <stored global4 init4>
+  val zuluOrder: Int <global0 managed>
+  val alpha: Int <global1 managed>
+  val text: String <global2 managed>
+  val zed: Int <global3 managed>
+  val betaOrder: Int <global4 managed>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    val local2
+      Local task : suspend () -> T0
+    val local3
+      Local $argument.0 : suspend () -> T0
+    val local4
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local $parameter.task : suspend () -> T0
+    val local5
+      Local completion : Continuation<T0>
+    val local6
+      Local $argument.0 : SuspendTask<T0>
+    val local7
+      Local $argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $parameter.task : SuspendTask<T0>
+      Local $parameter.completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    val local1
+      Local registration : (Continuation<T0>) -> Unit
+    val local2
+      Local $argument.0 : (Continuation<T0>) -> Unit
+    val local3
+      Box : SuspendRegistration<T0>
+        StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+          Local $parameter.registration : (Continuation<T0>) -> Unit
+    val local4
+      Local $argument.0 : SuspendRegistration<T0>
+    return
+      Call suspendCoroutine<T0> : T0
+        Local $parameter.registration : SuspendRegistration<T0>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _pin<T0> : UInt
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : UInt
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Local $parameter.raw : UInt
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : UInt
+        Local p : PinnedPtr<T0>
+    val local2
+      Local $argument.0 : UInt
+    return
+      Call _unpin<T0> : T0
+        Local $parameter.raw : UInt
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _getGcHandle<T0> : UInt
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : UInt
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Local $parameter.raw : UInt
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : UInt
+        Local h : GcHandle<T0>
+    val local2
+      Local $argument.0 : UInt
+    return
+      Call _releaseGcHandle<T0> : T0
+        Local $parameter.raw : UInt
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    return
+  fun println<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
+  fun runtimeValue(label: String, value: Int): Int
+    val local2
+      Local label : String
+    val local3
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    return
+      Local value : Int
+  fun movingText(): String
+    val local0
+      StringLiteral "managed-initializer" : String
+    Call gcCollect : Unit
+    return
+      Local text : String
+  fun main(): Unit
+    val local0
+      Call $get$alpha : Int
+    val local1
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local2
+      Call $get$text : String
+    val local3
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local4
+      Call $get$zed : Int
+    val local5
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local6
+      Call $get$betaOrder : Int
+    val local7
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local8
+      Call $get$zuluOrder : Int
+    val local9
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+  fun $init$body$0(): Unit
+    val local0
+      StringLiteral "zulu" : String
+    val local1
+      IntLiteral 3 : Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : Int
+    assign global zuluOrder
+      Call runtimeValue : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+  fun $init$ensure$0(): Unit
+  fun $get$zuluOrder(): Int
+    ensure init0 top-level:zuluOrder
+    return
+      GlobalRead zuluOrder : Int
+  fun $init$body$1(): Unit
+    val local4
+      Call $get$zed : Int
+    val local0
+      StringLiteral "alpha" : String
+    val local1
+      IntLiteral 2 : Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : Int
+    val local5
+      Call runtimeValue : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+    val local6
+      Local $argument.0 : Int
+    assign global alpha
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+  fun $init$ensure$1(): Unit
+  fun $get$alpha(): Int
+    ensure init1 top-level:alpha
+    return
+      GlobalRead alpha : Int
+  fun $init$body$2(): Unit
+    assign global text
+      Call movingText : String
+  fun $init$ensure$2(): Unit
+  fun $get$text(): String
+    ensure init2 top-level:text
+    return
+      GlobalRead text : String
+  fun $init$body$3(): Unit
+    val local0
+      StringLiteral "zed" : String
+    val local1
+      IntLiteral 40 : Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : Int
+    assign global zed
+      Call runtimeValue : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+  fun $init$ensure$3(): Unit
+  fun $get$zed(): Int
+    ensure init3 top-level:zed
+    return
+      GlobalRead zed : Int
+  fun $init$body$4(): Unit
+    val local0
+      StringLiteral "beta" : String
+    val local1
+      IntLiteral 2 : Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : Int
+    assign global betaOrder
+      Call runtimeValue : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+  fun $init$ensure$4(): Unit
+  fun $get$betaOrder(): Int
+    ensure init4 top-level:betaOrder
+    return
+      GlobalRead betaOrder : Int
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+  instance println<String>
+  instance println<Int>
+
+== mir ==
+Module
+  global0 @scoop.global.zuluOrder zuluOrder: Int managed
+  global1 @scoop.global.alpha alpha: Int managed
+  global2 @scoop.global.text text: String managed
+  global3 @scoop.global.zed zed: Int managed
+  global4 @scoop.global.betaOrder betaOrder: Int managed
+  global5 @scoop.init.failure.0 $init$failure$0: Throwable managed
+  global6 @scoop.init.failure.1 $init$failure$1: Throwable managed
+  global7 @scoop.init.failure.2 $init$failure$2: Throwable managed
+  global8 @scoop.init.failure.3 $init$failure$3: Throwable managed
+  global9 @scoop.init.failure.4 $init$failure$4: Throwable managed
+  init0 top-level:zuluOrder eager global0 initializer=scoop.$init$body$0 ensure=scoop.$init$ensure$0 failure=5 deps=[]
+  init1 top-level:alpha eager global1 initializer=scoop.$init$body$1 ensure=scoop.$init$ensure$1 failure=6 deps=[3]
+  init2 top-level:text eager global2 initializer=scoop.$init$body$2 ensure=scoop.$init$ensure$2 failure=7 deps=[]
+  init3 top-level:zed eager global3 initializer=scoop.$init$body$3 ensure=scoop.$init$ensure$3 failure=8 deps=[]
+  init4 top-level:betaOrder eager global4 initializer=scoop.$init$body$4 ensure=scoop.$init$ensure$4 failure=9 deps=[]
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
+  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local this
+      val $argument.1: Int
+        Type Int
+        Local other
+      val $parameter.left: Int
+        Type Int
+        Local $argument.0
+      val $parameter.right: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
+        Local $parameter.left
+        Type Int
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local this
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local this
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+    bb0 entry
+      val $argument.0: UInt
+        Type UInt
+        Local this
+      val $argument.1: UInt
+        Type UInt
+        Local other
+      val $parameter.left: UInt
+        Type UInt
+        Local $argument.0
+      val $parameter.right: UInt
+        Type UInt
+        Local $argument.1
+      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
+        Local $parameter.left
+        Type UInt
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      val $argument.0: UInt
+        Type UInt
+        Local this
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+    bb0 entry
+      val $argument.0: UInt
+        Type UInt
+        Local this
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $argument.1: Boolean
+        Type Boolean
+        Local other
+      val $parameter.left: Boolean
+        Type Boolean
+        Local $argument.0
+      val $parameter.right: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
+        Local $parameter.left
+        Type Boolean
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $argument.1: String
+        Type String
+        Local other
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun runtimeValue @scoop.runtimeValue(label: String, value: Int) -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local label
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      return
+        Type Int
+        Local value
+  fun movingText @scoop.movingText() -> String
+    bb0 entry
+      val text: String
+        Type String
+        StringConst @scoop.str.0
+      call @scoop_rt_gc_collect direct
+      return
+        Type String
+        Local text
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call $argument.0: Int = @scoop.$get$alpha direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
+      call $argument.0: String = @scoop.$get$text direct
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      call $argument.0: Int = @scoop.$get$zed direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
+      call $argument.0: Int = @scoop.$get$betaOrder direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
+      call $argument.0: Int = @scoop.$get$zuluOrder direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I direct
+        Type Int
+        Local $parameter.value
+      return
+  fun $init$body$0 @scoop.$init$body$0() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.1
+      val $argument.1: Int
+        Type Int
+        IntLiteral 3
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @scoop.runtimeValue direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      global_assign zuluOrder
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$0 @scoop.$init$ensure$0() -> Unit
+    bb0 entry
+      call $init.state: Int = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:zuluOrder
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb16 bb17
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @scoop.$init$body$0 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:zuluOrder
+      goto bb12
+    bb12 scope.12
+      goto bb10
+    bb13 try.catch.13
+      val $init.caught: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
+        Type Throwable
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:zuluOrder
+        Type Throwable
+        Local $init.materialized
+      throw unwind bb6
+        Type Throwable
+        Local $init.materialized
+    bb16 if.then.16
+      goto bb18
+    bb17 if.else.17
+      branch bb19 bb20
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 2
+    bb18 if.merge.18
+      goto bb3
+    bb19 if.then.19
+      call $init.failure: Throwable = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:zuluOrder
+      throw
+        Type Throwable
+        Local $init.failure
+    bb20 if.else.20
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:zuluOrder
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $init.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb21 if.merge.21
+      goto bb18
+  fun $get$zuluOrder @scoop.$get$zuluOrder() -> Int
+    bb0 entry
+      call @scoop.$init$ensure$0 direct
+      return
+        Type Int
+        GlobalRead zuluOrder
+  fun $init$body$1 @scoop.$init$body$1() -> Unit
+    bb0 entry
+      call $receiver: Int = @scoop.$get$zed direct
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.2
+      val $argument.1: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @scoop.runtimeValue direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      global_assign alpha
+        Type Int
+        Binary IntAdd
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      return
+  fun $init$ensure$1 @scoop.$init$ensure$1() -> Unit
+    bb0 entry
+      call $init.state: Int = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:alpha
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb16 bb17
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @scoop.$init$body$1 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:alpha
+      goto bb12
+    bb12 scope.12
+      goto bb10
+    bb13 try.catch.13
+      val $init.caught: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
+        Type Throwable
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:alpha
+        Type Throwable
+        Local $init.materialized
+      throw unwind bb6
+        Type Throwable
+        Local $init.materialized
+    bb16 if.then.16
+      goto bb18
+    bb17 if.else.17
+      branch bb19 bb20
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 2
+    bb18 if.merge.18
+      goto bb3
+    bb19 if.then.19
+      call $init.failure: Throwable = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:alpha
+      throw
+        Type Throwable
+        Local $init.failure
+    bb20 if.else.20
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:alpha
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $init.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb21 if.merge.21
+      goto bb18
+  fun $get$alpha @scoop.$get$alpha() -> Int
+    bb0 entry
+      call @scoop.$init$ensure$1 direct
+      return
+        Type Int
+        GlobalRead alpha
+  fun $init$body$2 @scoop.$init$body$2() -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.movingText direct
+      global_assign text
+        Type String
+        Local $call.1
+      return
+  fun $init$ensure$2 @scoop.$init$ensure$2() -> Unit
+    bb0 entry
+      call $init.state: Int = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:text
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb16 bb17
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @scoop.$init$body$2 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:text
+      goto bb12
+    bb12 scope.12
+      goto bb10
+    bb13 try.catch.13
+      val $init.caught: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
+        Type Throwable
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:text
+        Type Throwable
+        Local $init.materialized
+      throw unwind bb6
+        Type Throwable
+        Local $init.materialized
+    bb16 if.then.16
+      goto bb18
+    bb17 if.else.17
+      branch bb19 bb20
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 2
+    bb18 if.merge.18
+      goto bb3
+    bb19 if.then.19
+      call $init.failure: Throwable = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:text
+      throw
+        Type Throwable
+        Local $init.failure
+    bb20 if.else.20
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:text
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $init.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb21 if.merge.21
+      goto bb18
+  fun $get$text @scoop.$get$text() -> String
+    bb0 entry
+      call @scoop.$init$ensure$2 direct
+      return
+        Type String
+        GlobalRead text
+  fun $init$body$3 @scoop.$init$body$3() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.3
+      val $argument.1: Int
+        Type Int
+        IntLiteral 40
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @scoop.runtimeValue direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      global_assign zed
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$3 @scoop.$init$ensure$3() -> Unit
+    bb0 entry
+      call $init.state: Int = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level:zed
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb16 bb17
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @scoop.$init$body$3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level:zed
+      goto bb12
+    bb12 scope.12
+      goto bb10
+    bb13 try.catch.13
+      val $init.caught: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
+        Type Throwable
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level:zed
+        Type Throwable
+        Local $init.materialized
+      throw unwind bb6
+        Type Throwable
+        Local $init.materialized
+    bb16 if.then.16
+      goto bb18
+    bb17 if.else.17
+      branch bb19 bb20
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 2
+    bb18 if.merge.18
+      goto bb3
+    bb19 if.then.19
+      call $init.failure: Throwable = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level:zed
+      throw
+        Type Throwable
+        Local $init.failure
+    bb20 if.else.20
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level:zed
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $init.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb21 if.merge.21
+      goto bb18
+  fun $get$zed @scoop.$get$zed() -> Int
+    bb0 entry
+      call @scoop.$init$ensure$3 direct
+      return
+        Type Int
+        GlobalRead zed
+  fun $init$body$4 @scoop.$init$body$4() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.4
+      val $argument.1: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @scoop.runtimeValue direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      global_assign betaOrder
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$4 @scoop.$init$ensure$4() -> Unit
+    bb0 entry
+      call $init.state: Int = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level:betaOrder
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb16 bb17
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @scoop.$init$body$4 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level:betaOrder
+      goto bb12
+    bb12 scope.12
+      goto bb10
+    bb13 try.catch.13
+      val $init.caught: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
+        Type Throwable
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level:betaOrder
+        Type Throwable
+        Local $init.materialized
+      throw unwind bb6
+        Type Throwable
+        Local $init.materialized
+    bb16 if.then.16
+      goto bb18
+    bb17 if.else.17
+      branch bb19 bb20
+        Type Boolean
+        Binary IntEq
+          Type Int
+          Local $init.state
+          Type Int
+          IntLiteral 2
+    bb18 if.merge.18
+      goto bb3
+    bb19 if.then.19
+      call $init.failure: Throwable = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level:betaOrder
+      throw
+        Type Throwable
+        Local $init.failure
+    bb20 if.else.20
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level:betaOrder
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $init.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb21 if.merge.21
+      goto bb18
+  fun $get$betaOrder @scoop.$get$betaOrder() -> Int
+    bb0 entry
+      call @scoop.$init$ensure$4 direct
+      return
+        Type Int
+        GlobalRead betaOrder
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      val $receiver: String
+        Type String
+        Local value
+      call $argument.0: String = @scoop.String.toString direct
+        Type String
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.5
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I(value: Int) -> Unit
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      call $argument.0: String = @scoop.Int.toString direct
+        Type Int
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.6
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+    bb0 entry
+      return
+  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+    bb0 entry
+      call @scoop.init.Throwable.$c0 direct
+        Type Throwable
+        Retype Throwable
+          Type Exception
+          Local this
+      field_set 0
+        Type Exception
+        Local this
+        Type Option$S<String>
+        Local message
+      return
+  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.7
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type UnwrapException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.8
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ClassCastException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.9
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ArithmeticException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.10
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IndexOutOfBoundsException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+    bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        Local message
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c7 @scoop.init.IllegalStateException.$c7(this: IllegalStateException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.11
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun ctor.SourceLocation.$c7 @scoop.ctor.SourceLocation.$c7(file: String, line: Int, column: Int, functionName: String, typeName: String) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          Local file
+          Type Int
+          Local line
+          Type Int
+          Local column
+          Type String
+          Local functionName
+          Type String
+          Local typeName
+  instance @scoop.println$S <- println
+  instance @scoop.println$I <- println
+  str @scoop.str.0 "managed-initializer"
+  str @scoop.str.1 "zulu"
+  str @scoop.str.2 "alpha"
+  str @scoop.str.3 "zed"
+  str @scoop.str.4 "beta"
+  str @scoop.str.5 "\n"
+  str @scoop.str.6 "\n"
+  str @scoop.str.7 "unwrap on None"
+  str @scoop.str.8 "invalid cast"
+  str @scoop.str.9 "arithmetic error"
+  str @scoop.str.10 "array index out of bounds"
+  str @scoop.str.11 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "managed-initializer"
+  global @scoop.str.1 = "zulu"
+  global @scoop.str.2 = "alpha"
+  global @scoop.str.3 = "zed"
+  global @scoop.str.4 = "beta"
+  global @scoop.str.5 = "\n"
+  global @scoop.str.6 = "\n"
+  global @scoop.str.7 = "unwrap on None"
+  global @scoop.str.8 = "invalid cast"
+  global @scoop.str.9 = "arithmetic error"
+  global @scoop.str.10 = "array index out of bounds"
+  global @scoop.str.11 = "illegal state"
+  global @scoop.global.zuluOrder : i64 scan=none
+  global @scoop.global.alpha : i64 scan=none
+  global @scoop.global.text : ptr<managed> scan=refs[0]
+  global @scoop.global.zed : i64 scan=none
+  global @scoop.global.betaOrder : i64 scan=none
+  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
+  global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
+  global @scoop.init.failure.2 : ptr<managed> scan=refs[0]
+  global @scoop.init.failure.3 : ptr<managed> scan=refs[0]
+  global @scoop.init.failure.4 : ptr<managed> scan=refs[0]
+  init0 top-level:zuluOrder storage=@scoop.global.zuluOrder failure=@scoop.init.failure.0 initializer=@scoop.$init$body$0 ensure=@scoop.$init$ensure$0 deps=[]
+  init1 top-level:alpha storage=@scoop.global.alpha failure=@scoop.init.failure.1 initializer=@scoop.$init$body$1 ensure=@scoop.$init$ensure$1 deps=[3]
+  init2 top-level:text storage=@scoop.global.text failure=@scoop.init.failure.2 initializer=@scoop.$init$body$2 ensure=@scoop.$init$ensure$2 deps=[]
+  init3 top-level:zed storage=@scoop.global.zed failure=@scoop.init.failure.3 initializer=@scoop.$init$body$3 ensure=@scoop.$init$ensure$3 deps=[]
+  init4 top-level:betaOrder storage=@scoop.global.betaOrder failure=@scoop.init.failure.4 initializer=@scoop.$init$body$4 ensure=@scoop.$init$ensure$4 deps=[]
+  enum Option$S niche(payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int.equals(i64, i64) -> i1
+    local %0 $argument.0: i64
+    local %1 $argument.1: i64
+    local %2 $parameter.left: i64
+    local %3 $parameter.right: i64
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp93 live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp1 roots=[] t0 = sig=direct0 (i64, i64) -> i1 extern1(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.Int.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp94 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp2 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern5(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Int.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp95 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp3 roots=[] t0 = sig=direct0 (i64) -> i64 extern8(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.UInt.equals(i64, i64) -> i1
+    local %0 $argument.0: i64
+    local %1 $argument.1: i64
+    local %2 $parameter.left: i64
+    local %3 $parameter.right: i64
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp96 live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp4 roots=[] t0 = sig=direct0 (i64, i64) -> i1 extern2(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.UInt.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp97 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp5 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern6(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.UInt.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp98 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp6 roots=[] t0 = sig=direct0 (i64) -> i64 extern9(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $argument.0: i1
+    local %1 $argument.1: i1
+    local %2 $parameter.left: i1
+    local %3 $parameter.right: i1
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp99 live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp7 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern3(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp100 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp8 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern7(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp101 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: ptr<managed>
+    local %2 $parameter.left: ptr<managed>
+    local %3 $parameter.right: ptr<managed>
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp102 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp10 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern4(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp103 live=[param0:ptr<managed>@0]
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter.value: ptr<managed>
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp104 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp11 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern11(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.runtimeValue(ptr<managed>, i64) -> i64
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter.value: ptr<managed>
+  block entry
+    poll managed-void-target1 sp105 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp12 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn30(local1)
+    t0 = aggregate () : {}
+    ret param1
+  fun @scoop.movingText() -> ptr<managed>
+    local %0 text: ptr<managed>
+  block entry
+    poll managed-void-target1 sp106 live=[]
+    store global0 -> local0
+    call managed-void-target0 sp13 live=[local0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
+    t0 = aggregate () : {}
+    ret local0
+  fun @scoop_main() -> void
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $argument.0: ptr<managed>
+    local %3 $parameter.value: ptr<managed>
+    local %4 $argument.0: i64
+    local %5 $parameter.value: i64
+    local %6 $argument.0: i64
+    local %7 $parameter.value: i64
+    local %8 $argument.0: i64
+    local %9 $parameter.value: i64
+  block entry
+    poll managed-void-target5 sp107 live=[]
+    call managed-direct-target0 sp14 live=[] t0 = sig=direct0 () -> i64 local-fn20()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp15 live=[] sig=void0 (i64) local-fn31(local1)
+    t1 = aggregate () : {}
+    call managed-direct-target1 sp16 live=[] t2 = sig=direct1 () -> ptr<managed> local-fn23()
+    store t2 -> local2
+    store local2 -> local3
+    call managed-void-target1 sp17 live=[local3:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn30(local3)
+    t3 = aggregate () : {}
+    call managed-direct-target2 sp18 live=[] t4 = sig=direct2 () -> i64 local-fn26()
+    store t4 -> local4
+    store local4 -> local5
+    call managed-void-target2 sp19 live=[] sig=void2 (i64) local-fn31(local5)
+    t5 = aggregate () : {}
+    call managed-direct-target3 sp20 live=[] t6 = sig=direct3 () -> i64 local-fn29()
+    store t6 -> local6
+    store local6 -> local7
+    call managed-void-target3 sp21 live=[] sig=void3 (i64) local-fn31(local7)
+    t7 = aggregate () : {}
+    call managed-direct-target4 sp22 live=[] t8 = sig=direct4 () -> i64 local-fn17()
+    store t8 -> local8
+    store local8 -> local9
+    call managed-void-target4 sp23 live=[] sig=void4 (i64) local-fn31(local9)
+    t9 = aggregate () : {}
+    ret
+  fun @scoop.$init$body$0() -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: i64
+    local %2 $parameter.label: ptr<managed>
+    local %3 $parameter.value: i64
+    local %4 $call.1: i64
+  block entry
+    poll managed-void-target0 sp108 live=[]
+    store global1 -> local0
+    store 3 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp24 live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i64) -> i64 local-fn12(local2, local3)
+    store t0 -> local4
+    global_store global12, local4
+    ret
+  fun @scoop.$init$ensure$0() -> void
+    local %0 $init.state: i64
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $new.1: ptr<managed>
+    local %6 $sc.1: exception_record
+    local %7 $sc.2: ptr<raw>
+    local %8 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp109 live=[]
+    call managed-direct-target0 sp25 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init0)
+    store t0 -> local0
+    t1 = Eq local0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = Eq local0, 1 : i1
+    cbr t2 then @if.then.16 else @if.else.17
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local6
+    store t4 -> local7
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local7 : ptr<managed>
+    store t5 -> local8
+    call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td2)
+    cbr t6 then @try.catch.13 else @try.next.14
+  block try.handler_pad.6
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
+    store t7 -> local6
+    store t8 -> local7
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local6
+  block try.exit_pad.8
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
+    store t9 -> local6
+    store t10 -> local7
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local6
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp26 roots=[] sig=void0 () local-fn15() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block scope.12
+    br @try.end.10
+  block try.catch.13
+    store local8 -> local1
+    br @scope.15
+  block try.next.14
+    invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.15
+    call managed-direct-target1 sp28 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t13 -> local2
+    call managed-void-target2 sp29 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init0, local2)
+    t14 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
+    br @throw.normal.3
+  block if.then.16
+    br @if.merge.18
+  block if.else.17
+    t15 = Eq local0, 2 : i1
+    cbr t15 then @if.then.19 else @if.else.20
+  block if.merge.18
+    br @if.merge.3
+  block if.then.19
+    call managed-direct-target2 sp30 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init0)
+    store t16 -> local3
+    throw local3
+    unreachable
+  block if.else.20
+    call managed-direct-target3 sp31 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
+    store t17 -> local4
+    call managed-direct-target4 sp32 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    store t18 -> local5
+    t19 = enum_wrap e0 v0 (local4) : enum0
+    call managed-void-target3 sp33 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn38(local5, t19)
+    t20 = aggregate () : {}
+    throw local5
+    unreachable
+  block invoke.normal.1
+    t11 = aggregate () : {}
+    call managed-void-target1 sp27 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init0)
+    t12 = aggregate () : {}
+    br @scope.12
+  block rethrow.normal.2
+    unreachable
+  block throw.normal.3
+    unreachable
+  fun @scoop.$get$zuluOrder() -> i64
+  block entry
+    poll managed-void-target1 sp110 live=[]
+    call managed-void-target0 sp34 live=[] sig=void0 () local-fn16()
+    t0 = aggregate () : {}
+    t1 = global_load global12 : i64
+    ret t1
+  fun @scoop.$init$body$1() -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: i64
+    local %2 $parameter.label: ptr<managed>
+    local %3 $parameter.value: i64
+    local %4 $receiver: i64
+    local %5 $argument.0: i64
+    local %6 $parameter.other: i64
+  block entry
+    poll managed-void-target0 sp111 live=[]
+    call managed-direct-target0 sp35 live=[] t0 = sig=direct0 () -> i64 local-fn26()
+    store t0 -> local4
+    store global2 -> local0
+    store 2 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target1 sp36 live=[local2:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, i64) -> i64 local-fn12(local2, local3)
+    store t1 -> local5
+    store local5 -> local6
+    t2 = Add local4, local6 : i64
+    global_store global13, t2
+    ret
+  fun @scoop.$init$ensure$1() -> void
+    local %0 $init.state: i64
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $new.1: ptr<managed>
+    local %6 $sc.1: exception_record
+    local %7 $sc.2: ptr<raw>
+    local %8 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp112 live=[]
+    call managed-direct-target0 sp37 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init1)
+    store t0 -> local0
+    t1 = Eq local0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = Eq local0, 1 : i1
+    cbr t2 then @if.then.16 else @if.else.17
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local6
+    store t4 -> local7
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local7 : ptr<managed>
+    store t5 -> local8
+    call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td2)
+    cbr t6 then @try.catch.13 else @try.next.14
+  block try.handler_pad.6
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
+    store t7 -> local6
+    store t8 -> local7
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local6
+  block try.exit_pad.8
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
+    store t9 -> local6
+    store t10 -> local7
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local6
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp38 roots=[] sig=void0 () local-fn18() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block scope.12
+    br @try.end.10
+  block try.catch.13
+    store local8 -> local1
+    br @scope.15
+  block try.next.14
+    invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.15
+    call managed-direct-target1 sp40 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t13 -> local2
+    call managed-void-target2 sp41 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init1, local2)
+    t14 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
+    br @throw.normal.3
+  block if.then.16
+    br @if.merge.18
+  block if.else.17
+    t15 = Eq local0, 2 : i1
+    cbr t15 then @if.then.19 else @if.else.20
+  block if.merge.18
+    br @if.merge.3
+  block if.then.19
+    call managed-direct-target2 sp42 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init1)
+    store t16 -> local3
+    throw local3
+    unreachable
+  block if.else.20
+    call managed-direct-target3 sp43 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
+    store t17 -> local4
+    call managed-direct-target4 sp44 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    store t18 -> local5
+    t19 = enum_wrap e0 v0 (local4) : enum0
+    call managed-void-target3 sp45 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn38(local5, t19)
+    t20 = aggregate () : {}
+    throw local5
+    unreachable
+  block invoke.normal.1
+    t11 = aggregate () : {}
+    call managed-void-target1 sp39 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init1)
+    t12 = aggregate () : {}
+    br @scope.12
+  block rethrow.normal.2
+    unreachable
+  block throw.normal.3
+    unreachable
+  fun @scoop.$get$alpha() -> i64
+  block entry
+    poll managed-void-target1 sp113 live=[]
+    call managed-void-target0 sp46 live=[] sig=void0 () local-fn19()
+    t0 = aggregate () : {}
+    t1 = global_load global13 : i64
+    ret t1
+  fun @scoop.$init$body$2() -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp114 live=[]
+    call managed-direct-target0 sp47 live=[] t0 = sig=direct0 () -> ptr<managed> local-fn13()
+    store t0 -> local0
+    global_store global14, local0
+    ret
+  fun @scoop.$init$ensure$2() -> void
+    local %0 $init.state: i64
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $new.1: ptr<managed>
+    local %6 $sc.1: exception_record
+    local %7 $sc.2: ptr<raw>
+    local %8 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp115 live=[]
+    call managed-direct-target0 sp48 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init2)
+    store t0 -> local0
+    t1 = Eq local0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = Eq local0, 1 : i1
+    cbr t2 then @if.then.16 else @if.else.17
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local6
+    store t4 -> local7
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local7 : ptr<managed>
+    store t5 -> local8
+    call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td2)
+    cbr t6 then @try.catch.13 else @try.next.14
+  block try.handler_pad.6
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
+    store t7 -> local6
+    store t8 -> local7
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local6
+  block try.exit_pad.8
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
+    store t9 -> local6
+    store t10 -> local7
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local6
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp49 roots=[] sig=void0 () local-fn21() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block scope.12
+    br @try.end.10
+  block try.catch.13
+    store local8 -> local1
+    br @scope.15
+  block try.next.14
+    invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.15
+    call managed-direct-target1 sp51 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t13 -> local2
+    call managed-void-target2 sp52 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init2, local2)
+    t14 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
+    br @throw.normal.3
+  block if.then.16
+    br @if.merge.18
+  block if.else.17
+    t15 = Eq local0, 2 : i1
+    cbr t15 then @if.then.19 else @if.else.20
+  block if.merge.18
+    br @if.merge.3
+  block if.then.19
+    call managed-direct-target2 sp53 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init2)
+    store t16 -> local3
+    throw local3
+    unreachable
+  block if.else.20
+    call managed-direct-target3 sp54 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init2)
+    store t17 -> local4
+    call managed-direct-target4 sp55 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    store t18 -> local5
+    t19 = enum_wrap e0 v0 (local4) : enum0
+    call managed-void-target3 sp56 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn38(local5, t19)
+    t20 = aggregate () : {}
+    throw local5
+    unreachable
+  block invoke.normal.1
+    t11 = aggregate () : {}
+    call managed-void-target1 sp50 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init2)
+    t12 = aggregate () : {}
+    br @scope.12
+  block rethrow.normal.2
+    unreachable
+  block throw.normal.3
+    unreachable
+  fun @scoop.$get$text() -> ptr<managed>
+  block entry
+    poll managed-void-target1 sp116 live=[]
+    call managed-void-target0 sp57 live=[] sig=void0 () local-fn22()
+    t0 = aggregate () : {}
+    t1 = global_load global14 : ptr<managed>
+    ret t1
+  fun @scoop.$init$body$3() -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: i64
+    local %2 $parameter.label: ptr<managed>
+    local %3 $parameter.value: i64
+    local %4 $call.1: i64
+  block entry
+    poll managed-void-target0 sp117 live=[]
+    store global3 -> local0
+    store 40 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp58 live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i64) -> i64 local-fn12(local2, local3)
+    store t0 -> local4
+    global_store global15, local4
+    ret
+  fun @scoop.$init$ensure$3() -> void
+    local %0 $init.state: i64
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $new.1: ptr<managed>
+    local %6 $sc.1: exception_record
+    local %7 $sc.2: ptr<raw>
+    local %8 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp118 live=[]
+    call managed-direct-target0 sp59 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init3)
+    store t0 -> local0
+    t1 = Eq local0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = Eq local0, 1 : i1
+    cbr t2 then @if.then.16 else @if.else.17
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local6
+    store t4 -> local7
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local7 : ptr<managed>
+    store t5 -> local8
+    call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td2)
+    cbr t6 then @try.catch.13 else @try.next.14
+  block try.handler_pad.6
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
+    store t7 -> local6
+    store t8 -> local7
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local6
+  block try.exit_pad.8
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
+    store t9 -> local6
+    store t10 -> local7
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local6
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp60 roots=[] sig=void0 () local-fn24() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block scope.12
+    br @try.end.10
+  block try.catch.13
+    store local8 -> local1
+    br @scope.15
+  block try.next.14
+    invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.15
+    call managed-direct-target1 sp62 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t13 -> local2
+    call managed-void-target2 sp63 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init3, local2)
+    t14 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
+    br @throw.normal.3
+  block if.then.16
+    br @if.merge.18
+  block if.else.17
+    t15 = Eq local0, 2 : i1
+    cbr t15 then @if.then.19 else @if.else.20
+  block if.merge.18
+    br @if.merge.3
+  block if.then.19
+    call managed-direct-target2 sp64 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init3)
+    store t16 -> local3
+    throw local3
+    unreachable
+  block if.else.20
+    call managed-direct-target3 sp65 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init3)
+    store t17 -> local4
+    call managed-direct-target4 sp66 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    store t18 -> local5
+    t19 = enum_wrap e0 v0 (local4) : enum0
+    call managed-void-target3 sp67 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn38(local5, t19)
+    t20 = aggregate () : {}
+    throw local5
+    unreachable
+  block invoke.normal.1
+    t11 = aggregate () : {}
+    call managed-void-target1 sp61 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init3)
+    t12 = aggregate () : {}
+    br @scope.12
+  block rethrow.normal.2
+    unreachable
+  block throw.normal.3
+    unreachable
+  fun @scoop.$get$zed() -> i64
+  block entry
+    poll managed-void-target1 sp119 live=[]
+    call managed-void-target0 sp68 live=[] sig=void0 () local-fn25()
+    t0 = aggregate () : {}
+    t1 = global_load global15 : i64
+    ret t1
+  fun @scoop.$init$body$4() -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: i64
+    local %2 $parameter.label: ptr<managed>
+    local %3 $parameter.value: i64
+    local %4 $call.1: i64
+  block entry
+    poll managed-void-target0 sp120 live=[]
+    store global4 -> local0
+    store 2 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp69 live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i64) -> i64 local-fn12(local2, local3)
+    store t0 -> local4
+    global_store global16, local4
+    ret
+  fun @scoop.$init$ensure$4() -> void
+    local %0 $init.state: i64
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $new.1: ptr<managed>
+    local %6 $sc.1: exception_record
+    local %7 $sc.2: ptr<raw>
+    local %8 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp121 live=[]
+    call managed-direct-target0 sp70 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init4)
+    store t0 -> local0
+    t1 = Eq local0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = Eq local0, 1 : i1
+    cbr t2 then @if.then.16 else @if.else.17
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local6
+    store t4 -> local7
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local7 : ptr<managed>
+    store t5 -> local8
+    call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td2)
+    cbr t6 then @try.catch.13 else @try.next.14
+  block try.handler_pad.6
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
+    store t7 -> local6
+    store t8 -> local7
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local6
+  block try.exit_pad.8
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
+    store t9 -> local6
+    store t10 -> local7
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local6
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp71 roots=[] sig=void0 () local-fn27() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block scope.12
+    br @try.end.10
+  block try.catch.13
+    store local8 -> local1
+    br @scope.15
+  block try.next.14
+    invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.15
+    call managed-direct-target1 sp73 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t13 -> local2
+    call managed-void-target2 sp74 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init4, local2)
+    t14 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
+    br @throw.normal.3
+  block if.then.16
+    br @if.merge.18
+  block if.else.17
+    t15 = Eq local0, 2 : i1
+    cbr t15 then @if.then.19 else @if.else.20
+  block if.merge.18
+    br @if.merge.3
+  block if.then.19
+    call managed-direct-target2 sp75 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init4)
+    store t16 -> local3
+    throw local3
+    unreachable
+  block if.else.20
+    call managed-direct-target3 sp76 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init4)
+    store t17 -> local4
+    call managed-direct-target4 sp77 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    store t18 -> local5
+    t19 = enum_wrap e0 v0 (local4) : enum0
+    call managed-void-target3 sp78 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn38(local5, t19)
+    t20 = aggregate () : {}
+    throw local5
+    unreachable
+  block invoke.normal.1
+    t11 = aggregate () : {}
+    call managed-void-target1 sp72 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init4)
+    t12 = aggregate () : {}
+    br @scope.12
+  block rethrow.normal.2
+    unreachable
+  block throw.normal.3
+    unreachable
+  fun @scoop.$get$betaOrder() -> i64
+  block entry
+    poll managed-void-target1 sp122 live=[]
+    call managed-void-target0 sp79 live=[] sig=void0 () local-fn28()
+    t0 = aggregate () : {}
+    t1 = global_load global16 : i64
+    ret t1
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp123 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp80 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn10(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp81 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global5 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp82 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I(i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp124 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp83 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn1(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp84 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global6 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp85 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp125 live=[]
+    ret
+  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  block entry
+    poll managed-void-target1 sp126 live=[param0:ptr<managed>@0, param1:enum0@0]
+    call managed-void-target0 sp86 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn32(param0)
+    t0 = aggregate () : {}
+    heap_store param0 +16 param1
+    ret
+  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp127 live=[param0:ptr<managed>@0]
+    store global7 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp87 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp128 live=[param0:ptr<managed>@0]
+    store global8 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp88 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp129 live=[param0:ptr<managed>@0]
+    store global9 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp89 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp130 live=[param0:ptr<managed>@0]
+    store global10 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp90 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp131 live=[param0:ptr<managed>@0, param1:enum0@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp91 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c7(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp132 live=[param0:ptr<managed>@0]
+    store global11 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    call managed-void-target0 sp92 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn38(param0, local2)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.ctor.SourceLocation.$c7(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0
+  block entry
+    poll managed-void-target0 sp133 live=[param0:ptr<managed>@0, param3:ptr<managed>@0, param4:ptr<managed>@0]
+    t0 = aggregate (param0, param1, param2, param3, param4) : struct0
+    ret t0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
+  td td4 Exception @scoop_td_Exception type-id=5 size=24 parent=td2 vtable=[] itables=[]
+  td td5 UnwrapException @scoop_td_UnwrapException type-id=6 size=24 parent=td4 vtable=[] itables=[]
+  td td6 ClassCastException @scoop_td_ClassCastException type-id=7 size=24 parent=td4 vtable=[] itables=[]
+  td td7 ArithmeticException @scoop_td_ArithmeticException type-id=8 size=24 parent=td4 vtable=[] itables=[]
+  td td8 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=9 size=24 parent=td4 vtable=[] itables=[]
+  td td9 IllegalStateException @scoop_td_IllegalStateException type-id=10 size=24 parent=td4 vtable=[] itables=[]
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  entry @scoop_main
+
+== run ==
+zed
+alpha
+beta
+zulu
+42
+managed-initializer
+40
+2
+3

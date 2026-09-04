@@ -3,7 +3,6 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m12-global-errors/invalid-globals.scoop:3:1: error: a local top-level `var` requires exactly one of `@Global` or `@ThreadLocal`
 m12-global-errors/invalid-globals.scoop:6:1: error: a local top-level `val` is not supported; use a local binding or `@Extern val`
 m12-global-errors/invalid-globals.scoop:9:1: error: `@Global` and `@ThreadLocal` cannot be combined
 m12-global-errors/invalid-globals.scoop:20:1: error: an `@Extern` global must not have an initializer

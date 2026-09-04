@@ -13,6 +13,13 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub initialization_units: Arena<InitializationUnit>,
+    pub initialization_failure_roots: Arena<InitializationFailureRoot>,
+    pub objects: Arena<ObjectDecl>,
+    pub object_types: Arena<ObjectType>,
+    pub companion_relations: Arena<CompanionRelation>,
+    pub singleton_values: Arena<SingletonValue>,
+    pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
@@ -46,6 +53,14 @@ pub struct ZeroArgClassConstructor {
     pub callable: ClassConstructorId,
 }
 
+/// A constructor whose only physical parameter is the exact core
+/// `Option<String>` application used for initialization-cycle messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MessageClassConstructor {
+    pub class: ClassId,
+    pub callable: ClassConstructorId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompilerException {
     pub constructor: ZeroArgClassConstructor,
@@ -71,6 +86,45 @@ pub struct CompilerExceptionCore {
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
+    pub illegal_state_message_constructor: MessageClassConstructor,
+}
+
+#[derive(Debug, Clone)]
+pub struct InitializationUnit {
+    pub stable_key: String,
+    pub schedule: InitializationSchedule,
+    pub kind: InitializationUnitKind,
+    pub initializer: FunctionId,
+    pub ensure: FunctionId,
+    pub failure_root: InitializationFailureRootId,
+    pub dependencies: Vec<InitializationDependency>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationSchedule {
+    EagerStartup,
+    LazyAccess,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationUnitKind {
+    EagerTopLevel {
+        storage: GlobalId,
+    },
+    LazySingleton {
+        value: SingletonValueId,
+        published_root: SingletonPublishedRootId,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InitializationDependency {
+    pub unit: InitializationUnitId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InitializationFailureRoot {
+    pub unit: InitializationUnitId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

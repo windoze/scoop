@@ -30,6 +30,21 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
         mir::RuntimeFn::StringCompare => {
             lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringCompare)
         }
+        mir::RuntimeFn::InitializationEnter => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationEnter)
+        }
+        mir::RuntimeFn::InitializationSucceed => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationSucceed)
+        }
+        mir::RuntimeFn::InitializationFail => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationFail)
+        }
+        mir::RuntimeFn::InitializationFailure => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationFailure)
+        }
+        mir::RuntimeFn::InitializationCycleMessage => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationCycleMessage)
+        }
         mir::RuntimeFn::Trap => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Trap),
     }
 }

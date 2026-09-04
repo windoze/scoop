@@ -25,6 +25,7 @@ impl Lowerer {
         &mut self,
         classes: &[(ClassId, &ast::ClassDecl, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         self.check_duplicate_constructor_signatures(classes, structs);
         for &(class, declaration, file) in classes {
@@ -43,6 +44,52 @@ impl Lowerer {
                 self.check_struct_constructor_cycles(structure);
             }
         }
+        for &(object, declaration, file) in objects {
+            self.current_file = file;
+            self.resolve_object_base(object, declaration);
+        }
+    }
+
+    fn resolve_object_base(
+        &mut self,
+        object: hir::ObjectId,
+        source: crate::declarations::ObjectSource<'_>,
+    ) {
+        let backing = self.objects[object].backing_class;
+        let constructor = self.classes[backing]
+            .constructors
+            .first()
+            .copied()
+            .expect("every object has one hidden primary constructor");
+        let Some(base_ty) = self.classes[backing].base_class else {
+            self.set_primary_base(constructor, hir::BaseInitialization::Root);
+            return;
+        };
+        let specification = source.supertypes().iter().find(|specification| {
+            self.resolve_type_ref(&specification.ty)
+                .is_some_and(|ty| self.types_equal(ty, base_ty))
+        });
+        let Some(specification) = specification.cloned() else {
+            return;
+        };
+        let arguments = specification
+            .constructor_arguments
+            .as_deref()
+            .unwrap_or(&[]);
+        let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
+        let previous_unit = self.current_initialization_unit.replace(unit);
+        let Some(base) = self.lower_base_initialization(
+            constructor,
+            base_ty,
+            arguments,
+            specification.span,
+            "object base constructor delegation",
+        ) else {
+            self.current_initialization_unit = previous_unit;
+            return;
+        };
+        self.current_initialization_unit = previous_unit;
+        self.set_primary_base(constructor, base);
     }
 
     fn check_duplicate_constructor_signatures(
@@ -167,7 +214,7 @@ impl Lowerer {
         self.set_primary_base(primary, base);
     }
 
-    fn set_primary_base(
+    pub(crate) fn set_primary_base(
         &mut self,
         constructor: hir::ClassConstructorId,
         base: hir::BaseInitialization,
@@ -342,7 +389,7 @@ impl Lowerer {
         ))
     }
 
-    fn lower_base_initialization(
+    pub(crate) fn lower_base_initialization(
         &mut self,
         source: hir::ClassConstructorId,
         base_ty: TypeId,
@@ -511,13 +558,22 @@ impl Lowerer {
         let (parameters, type_parameters, owner, owner_name) = match source {
             ConstructorSource::Class(constructor) => {
                 let declaration = &self.class_constructors[constructor];
-                let owner = declaration.owner;
-                (
-                    declaration.parameters.clone(),
-                    self.classes[owner].type_params.clone(),
-                    Owner::Class(owner),
-                    self.classes[owner].name.clone(),
-                )
+                let class = declaration.owner;
+                if let Some(&object) = self.object_by_backing_class.get(&class) {
+                    (
+                        declaration.parameters.clone(),
+                        Vec::new(),
+                        Owner::Object(object),
+                        self.objects[object].name.clone(),
+                    )
+                } else {
+                    (
+                        declaration.parameters.clone(),
+                        self.classes[class].type_params.clone(),
+                        Owner::Class(class),
+                        self.classes[class].name.clone(),
+                    )
+                }
             }
             ConstructorSource::Struct(constructor) => {
                 let declaration = &self.struct_constructors[constructor];

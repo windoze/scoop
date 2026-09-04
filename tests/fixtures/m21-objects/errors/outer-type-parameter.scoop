@@ -1,0 +1,8 @@
+class Outer<T> {
+    object Nested {
+        fun leak(value: T): T = value
+    }
+}
+
+fun main() {
+}

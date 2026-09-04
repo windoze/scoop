@@ -1,0 +1,14 @@
+const var mutable: Int = 1
+const val unsupported: Unit = Unit
+
+@Global
+var ordinary: Int = 3
+const val ordinaryRead: Int = ordinary
+const val called: Int = helper()
+
+const val first: Boolean = true || second
+const val second: Boolean = false && first
+
+fun helper(): Int = 1
+
+fun main() {}

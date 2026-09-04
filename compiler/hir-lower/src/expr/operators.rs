@@ -26,6 +26,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Component { index }),
                 infix: false,
+                ..Default::default()
             },
         )
     }
@@ -152,6 +153,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(kind),
                 infix: false,
+                ..Default::default()
             },
         )?;
         if let Some(comparison) = comparison {
@@ -589,6 +591,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(kind),
                 infix: false,
+                ..Default::default()
             },
         )
     }

@@ -3,6 +3,12 @@ use super::*;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
+pub type InitializationUnitId = Idx<InitializationUnit>;
+pub type InitializationFailureRootId = Idx<InitializationFailureRoot>;
+pub type ObjectId = Idx<ObjectDef>;
+pub type ObjectTypeId = Idx<ObjectType>;
+pub type SingletonValueId = Idx<SingletonValue>;
+pub type SingletonPublishedRootId = Idx<SingletonPublishedRoot>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackAdapterId = Idx<ForeignCallbackAdapter>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
@@ -42,6 +48,10 @@ pub fn mangle_function(name: &str, is_entry: bool) -> String {
 
 pub fn mangle_global(name: &str) -> String {
     format!("scoop.global.{name}")
+}
+
+pub fn mangle_singleton_root(link_name: &str) -> String {
+    format!("scoop.singleton.{link_name}")
 }
 
 /// Mangle a monomorphized instance: `scoop.<name>$<encoded type args>`.

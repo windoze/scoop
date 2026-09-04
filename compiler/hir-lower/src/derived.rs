@@ -60,6 +60,7 @@ impl Lowerer {
             Owner::Enum(id) => &self.enums[id].methods,
             Owner::Class(id) => &self.classes[id].methods,
             Owner::Interface(id) => &self.interface_methods[&id],
+            Owner::Object(id) => &self.classes[self.objects[id].backing_class].methods,
         };
         methods.iter().copied().any(|function| {
             let signature = &self.signatures[&function];
@@ -76,6 +77,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enums[id].span,
             Owner::Class(id) => self.classes[id].span,
             Owner::Interface(id) => self.interfaces[id].span,
+            Owner::Object(id) => self.objects[id].span,
         };
         let mut attributes = hir::FunctionAttributes::default();
         if self.requires_unsafe_use(owner_ty) {
@@ -87,12 +89,16 @@ impl Lowerer {
         // without consuming unrelated lexical binding identities.
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
+        let access = self.fixed_representation_access(owner);
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", owner.describe_name(self)),
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {
                 operator: Some(hir::OperatorKind::Equals),
+                property_delegate_operator: None,
                 is_infix: false,
             },
             params: vec![
@@ -124,6 +130,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enum_files[&id],
             Owner::Class(id) => self.class_files[&id],
             Owner::Interface(id) => self.interface_files[&id],
+            Owner::Object(id) => self.object_files[&id],
         };
         self.function_files.insert(function, file);
         self.signatures.insert(
@@ -132,6 +139,7 @@ impl Lowerer {
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
+                    property_delegate_operator: None,
                     is_infix: false,
                 },
                 attributes,
@@ -183,7 +191,7 @@ impl Lowerer {
                 &mut Vec::new(),
             )?;
             return Ok(Some(DerivedEqualityCandidate::Nominal {
-                overload: CallableCandidate::method(function, owner),
+                overload: CallableCandidate::compiler_generated_method(function, owner),
                 application,
             }));
         }
@@ -230,12 +238,16 @@ impl Lowerer {
         }
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
+        let access = self.local_declaration_access();
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", self.type_name(owner_ty)),
+            access,
+            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {
                 operator: Some(hir::OperatorKind::Equals),
+                property_delegate_operator: None,
                 is_infix: false,
             },
             params: vec![
@@ -267,6 +279,7 @@ impl Lowerer {
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
+                    property_delegate_operator: None,
                     is_infix: false,
                 },
                 attributes,

@@ -1,0 +1,9 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m21-delegates/errors/protocol.scoop:16:5: error: type `NoGet` has no applicable property delegate operator `getValue`
+m21-delegates/errors/protocol.scoop:17:5: error: type `OrdinaryOnly` has no applicable property delegate operator `getValue`
+m21-delegates/errors/protocol.scoop:18:5: error: property delegate getter for `wrong` returns String, which is not assignable to Int
+m21-delegates/errors/protocol.scoop:19:5: error: type `NoSet` has no applicable property delegate operator `setValue`

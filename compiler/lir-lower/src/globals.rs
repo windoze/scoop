@@ -11,6 +11,7 @@ pub(super) fn lower_globals(
     globals: &mut Arena<lir::Global>,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
+    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> (
     HashMap<mir::GlobalId, StorageGlobal>,
     Arena<lir::NativeGlobal>,
@@ -21,6 +22,19 @@ pub(super) fn lower_globals(
     let mut bridges = lir::NativeGlobalBridges::default();
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            mir::GlobalStorage::Managed { initializer } => {
+                let lir_id = globals.alloc(lir::Global {
+                    symbol: global.symbol.clone(),
+                    address_kind: lir::PointerKind::Raw,
+                    scan: safepoints::root_scan(&lir_type(&global.ty), structs, enums, 0),
+                    init: lir::GlobalInit::Storage {
+                        ty: lir_type(&global.ty),
+                        initializer: lower_constant(initializer, string_globals),
+                        thread_local: false,
+                    },
+                });
+                StorageGlobal::Local(lir_id)
+            }
             mir::GlobalStorage::Local {
                 thread_local,
                 initializer,
@@ -31,7 +45,7 @@ pub(super) fn lower_globals(
                     scan: safepoints::root_scan(&lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
-                        initializer: lower_constant(initializer),
+                        initializer: lower_constant(initializer, string_globals),
                         thread_local: *thread_local,
                     },
                 });
@@ -74,15 +88,30 @@ pub(super) fn lower_globals(
     (map, native, bridges)
 }
 
-pub(super) fn lower_constant(value: &mir::ConstantValue) -> lir::ConstantValue {
+pub(super) fn lower_constant(
+    value: &mir::ConstantValue,
+    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+) -> lir::ConstantValue {
     match value {
+        mir::ConstantValue::Zero => lir::ConstantValue::Zero,
         mir::ConstantValue::Int(value) => lir::ConstantValue::Int(*value),
         mir::ConstantValue::Bool(value) => lir::ConstantValue::Bool(*value),
+        mir::ConstantValue::String(string) => lir::ConstantValue::GlobalPointer {
+            global: string_globals[string],
+            kind: lir::PointerKind::Managed,
+        },
         mir::ConstantValue::NullPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Raw),
         mir::ConstantValue::NullFunPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Code),
+        mir::ConstantValue::EnumUnit { enum_id, variant } => lir::ConstantValue::EnumUnit {
+            enum_id: enum_def_id(*enum_id),
+            variant: *variant,
+        },
         mir::ConstantValue::Struct { struct_id, fields } => lir::ConstantValue::Struct {
             struct_id: struct_def_id(*struct_id),
-            fields: fields.iter().map(lower_constant).collect(),
+            fields: fields
+                .iter()
+                .map(|field| lower_constant(field, string_globals))
+                .collect(),
         },
     }
 }

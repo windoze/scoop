@@ -1,6 +1,94 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_initialization_units(&mut self, module: &hir::Module) {
+        if module.initialization_units.is_empty() {
+            assert!(module.initialization_failure_roots.is_empty());
+            return;
+        }
+        let throwable_ty =
+            mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
+        for (source_id, _) in module.initialization_failure_roots.iter() {
+            let raw = source_id.into_raw().into_u32();
+            let global = self.globals.alloc(mir::Global {
+                name: format!("$init$failure${raw}"),
+                symbol: format!("scoop.init.failure.{raw}"),
+                ty: throwable_ty.clone(),
+                mutable: true,
+                storage: mir::GlobalStorage::Managed {
+                    initializer: mir::ConstantValue::Zero,
+                },
+            });
+            let id = self
+                .initialization_failure_roots
+                .alloc(mir::InitializationFailureRoot { global });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+
+        let cycle_source = module.exception_core.illegal_state_message_constructor;
+        let message_type = {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            types.lower(
+                module.class_constructors[cycle_source.callable].parameters[0].ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            )
+        };
+        let cycle_exception = mir::MessageClassConstructor {
+            class: self.class_map[&cycle_source.class],
+            initializer: self.ctors[&cycle_source.callable],
+            message_type,
+        };
+        for (source_id, source) in module.initialization_units.iter() {
+            let kind = match source.kind {
+                hir::InitializationUnitKind::EagerTopLevel { storage } => {
+                    mir::InitializationUnitKind::EagerTopLevel {
+                        storage: self.global_map[&storage],
+                    }
+                }
+                hir::InitializationUnitKind::LazySingleton {
+                    value,
+                    published_root,
+                } => mir::InitializationUnitKind::LazySingleton {
+                    value: mir::SingletonValueId::from_raw(value.into_raw()),
+                    published_root: self.singleton_root_map[&published_root],
+                },
+            };
+            let id = self.initialization_units.alloc(mir::InitializationUnit {
+                stable_key: source.stable_key.clone(),
+                schedule: match source.schedule {
+                    hir::InitializationSchedule::EagerStartup => {
+                        mir::InitializationSchedule::EagerStartup
+                    }
+                    hir::InitializationSchedule::LazyAccess => {
+                        mir::InitializationSchedule::LazyAccess
+                    }
+                },
+                kind,
+                initializer: self.function_map[&source.initializer],
+                ensure: self.function_map[&source.ensure],
+                failure_root: mir::InitializationFailureRootId::from_raw(
+                    source.failure_root.into_raw(),
+                ),
+                dependencies: source
+                    .dependencies
+                    .iter()
+                    .map(|dependency| {
+                        mir::InitializationUnitId::from_raw(dependency.unit.into_raw())
+                    })
+                    .collect(),
+                cycle_exception: cycle_exception.clone(),
+            });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+    }
+
     pub(super) fn lower_extern_functions(&mut self, module: &hir::Module) {
         for (hir_id, extern_) in module.extern_functions.iter() {
             let types = Types {
@@ -104,12 +192,25 @@ impl Lowerer {
                 &mut self.shell,
             );
             let storage = match &global.storage {
+                hir::GlobalStorage::Managed { initializer } => mir::GlobalStorage::Managed {
+                    initializer: match initializer {
+                        hir::ManagedGlobalInitializer::Image(value) => {
+                            lower_global_constant(value, &ty, &self.structs.defs, &mut self.strings)
+                        }
+                        hir::ManagedGlobalInitializer::RuntimeZeroed(_) => mir::ConstantValue::Zero,
+                    },
+                },
                 hir::GlobalStorage::Local {
                     thread_local,
                     initializer,
                 } => mir::GlobalStorage::Local {
                     thread_local: *thread_local,
-                    initializer: lower_global_constant(initializer, &ty, &self.structs.defs),
+                    initializer: lower_global_constant(
+                        initializer,
+                        &ty,
+                        &self.structs.defs,
+                        &mut self.strings,
+                    ),
                 },
                 hir::GlobalStorage::Extern {
                     library,

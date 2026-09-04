@@ -83,6 +83,7 @@ struct Concretizer<'a> {
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
+    object_by_backing_class: HashMap<export::ClassId, export::ObjectId>,
     class_constructor_slots: Vec<Option<concrete::ClassConstructor>>,
     class_constructor_by_key:
         HashMap<(export::ClassConstructorId, concrete::ClassId), concrete::ClassConstructorId>,
@@ -93,6 +94,13 @@ struct Concretizer<'a> {
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
+    initialization_units: Arena<concrete::InitializationUnit>,
+    initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
+    objects: Arena<concrete::ObjectDecl>,
+    object_types: Arena<concrete::ObjectType>,
+    companion_relations: Arena<concrete::CompanionRelation>,
+    singleton_values: Arena<concrete::SingletonValue>,
+    singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
     function_slots: Vec<Option<concrete::Function>>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
     /// Concrete ordinary bodies supplied by typed derived-equality
@@ -129,7 +137,61 @@ struct Concretizer<'a> {
 }
 
 impl<'a> Concretizer<'a> {
+    fn lower_nominal_owner(owner: Option<export::NominalOwner>) -> Option<concrete::NominalOwner> {
+        owner.map(|owner| match owner {
+            export::NominalOwner::Class(id) => concrete::NominalOwner::Class(
+                concrete::ClassOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Interface(id) => concrete::NominalOwner::Interface(
+                concrete::InterfaceOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Struct(id) => concrete::NominalOwner::Struct(
+                concrete::StructOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Enum(id) => concrete::NominalOwner::Enum(
+                concrete::EnumOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+            export::NominalOwner::Object(id) => concrete::NominalOwner::Object(
+                concrete::ObjectOriginId::from_raw(id.into_raw().into_u32()),
+            ),
+        })
+    }
+
+    fn source_nominal_name(&self, name: &str, owner: Option<export::NominalOwner>) -> String {
+        let Some(owner) = owner else {
+            return name.to_string();
+        };
+        let prefix = match owner {
+            export::NominalOwner::Class(id) => {
+                let declaration = &self.source.classes[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Interface(id) => {
+                let declaration = &self.source.interfaces[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Struct(id) => {
+                let declaration = &self.source.structs[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Enum(id) => {
+                let declaration = &self.source.enums[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+            export::NominalOwner::Object(id) => {
+                let declaration = &self.source.objects[id];
+                self.source_nominal_name(&declaration.name, declaration.owner)
+            }
+        };
+        format!("{prefix}.{name}")
+    }
+
     fn new(source: &'a export::Module) -> Self {
+        let object_by_backing_class = source
+            .objects
+            .iter()
+            .map(|(object, declaration)| (declaration.backing_class, object))
+            .collect();
         Self {
             source,
             types: Arena::new(),
@@ -153,6 +215,7 @@ impl<'a> Concretizer<'a> {
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
             class_source: HashMap::new(),
+            object_by_backing_class,
             class_constructor_slots: Vec::new(),
             class_constructor_by_key: HashMap::new(),
             struct_constructor_slots: Vec::new(),
@@ -161,6 +224,13 @@ impl<'a> Concretizer<'a> {
             extern_map: HashMap::new(),
             globals: Arena::new(),
             global_map: HashMap::new(),
+            initialization_units: Arena::new(),
+            initialization_failure_roots: Arena::new(),
+            objects: Arena::new(),
+            object_types: Arena::new(),
+            companion_relations: Arena::new(),
+            singleton_values: Arena::new(),
+            singleton_published_roots: Arena::new(),
             function_slots: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
@@ -214,6 +284,76 @@ impl<'a> Concretizer<'a> {
                 self.lower_class_application(declaration.self_application, &[]);
             }
         }
+        for (source_id, declaration) in self.source.objects.iter() {
+            let backing_class = self.lower_class_application(
+                self.source.classes[declaration.backing_class].self_application,
+                &[],
+            );
+            let source_type = &self.source.object_types[declaration.object_type];
+            let canonical_type = self.lower_type(source_type.canonical_type, &[]);
+            let object_type = self.object_types.alloc(concrete::ObjectType {
+                declaration: concrete::ObjectId::from_raw(source_id.into_raw()),
+                representation: backing_class,
+                canonical_type,
+            });
+            assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
+            let object = self.objects.alloc(concrete::ObjectDecl {
+                origin: concrete::ObjectOriginId::from_raw(source_id.into_raw().into_u32()),
+                name: declaration.name.clone(),
+                owner: Self::lower_nominal_owner(declaration.owner),
+                object_type,
+                singleton_value: concrete::SingletonValueId::from_raw(
+                    declaration.singleton_value.into_raw(),
+                ),
+                kind: match declaration.kind {
+                    export::ObjectKind::Standalone => concrete::ObjectKind::Standalone,
+                    export::ObjectKind::Companion(relation) => concrete::ObjectKind::Companion(
+                        concrete::CompanionRelationId::from_raw(relation.into_raw()),
+                    ),
+                },
+                backing_class,
+                span: declaration.span,
+            });
+            assert_eq!(source_id.into_raw(), object.into_raw());
+        }
+        for (source_id, relation) in self.source.companion_relations.iter() {
+            let lowered = self.companion_relations.alloc(concrete::CompanionRelation {
+                host: Self::lower_nominal_owner(Some(relation.host))
+                    .expect("a companion relation always has a nominal host"),
+                object: concrete::ObjectId::from_raw(relation.object.into_raw()),
+                name: match &relation.name {
+                    export::CompanionName::Default => concrete::CompanionName::Default,
+                    export::CompanionName::Named(name) => {
+                        concrete::CompanionName::Named(name.clone())
+                    }
+                },
+            });
+            assert_eq!(source_id.into_raw(), lowered.into_raw());
+        }
+        for (source_id, source) in self.source.singleton_published_roots.iter() {
+            let ty = self.lower_type(source.ty, &[]);
+            let root = self
+                .singleton_published_roots
+                .alloc(concrete::SingletonPublishedRoot {
+                    value: concrete::SingletonValueId::from_raw(source.value.into_raw()),
+                    ty,
+                    link_name: source.link_name.clone(),
+                });
+            assert_eq!(source_id.into_raw(), root.into_raw());
+        }
+        for (source_id, source) in self.source.singleton_values.iter() {
+            let value = self.singleton_values.alloc(concrete::SingletonValue {
+                declaration: concrete::ObjectId::from_raw(source.declaration.into_raw()),
+                object_type: concrete::ObjectTypeId::from_raw(source.object_type.into_raw()),
+                published_root: concrete::SingletonPublishedRootId::from_raw(
+                    source.published_root.into_raw(),
+                ),
+                initialization: concrete::InitializationUnitId::from_raw(
+                    source.initialization.into_raw(),
+                ),
+            });
+            assert_eq!(source_id.into_raw(), value.into_raw());
+        }
         for (id, function) in self.source.functions.iter() {
             if function.method.is_none()
                 && function.type_param_count() == 0
@@ -245,6 +385,68 @@ impl<'a> Concretizer<'a> {
         let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
 
+        for (source_id, source) in self.source.initialization_failure_roots.iter() {
+            let id = self
+                .initialization_failure_roots
+                .alloc(concrete::InitializationFailureRoot {
+                    unit: concrete::InitializationUnitId::from_raw(source.unit.into_raw()),
+                });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+        for (source_id, source) in self.source.initialization_units.iter() {
+            let kind = match source.kind {
+                export::InitializationUnitKind::EagerTopLevel { storage, .. } => {
+                    concrete::InitializationUnitKind::EagerTopLevel {
+                        storage: self.global_map[&storage],
+                    }
+                }
+                export::InitializationUnitKind::LazySingleton {
+                    value,
+                    published_root,
+                } => concrete::InitializationUnitKind::LazySingleton {
+                    value: concrete::SingletonValueId::from_raw(value.into_raw()),
+                    published_root: concrete::SingletonPublishedRootId::from_raw(
+                        published_root.into_raw(),
+                    ),
+                },
+            };
+            let function = |source| {
+                self.function_by_key[&FunctionKey::Free {
+                    source,
+                    arguments: Vec::new(),
+                }]
+            };
+            let id = self
+                .initialization_units
+                .alloc(concrete::InitializationUnit {
+                    stable_key: source.stable_key.clone(),
+                    schedule: match source.schedule {
+                        export::InitializationSchedule::EagerStartup => {
+                            concrete::InitializationSchedule::EagerStartup
+                        }
+                        export::InitializationSchedule::LazyAccess => {
+                            concrete::InitializationSchedule::LazyAccess
+                        }
+                    },
+                    kind,
+                    initializer: function(source.initializer),
+                    ensure: function(source.ensure),
+                    failure_root: concrete::InitializationFailureRootId::from_raw(
+                        source.failure_root.into_raw(),
+                    ),
+                    dependencies: source
+                        .dependencies
+                        .iter()
+                        .map(|dependency| concrete::InitializationDependency {
+                            unit: concrete::InitializationUnitId::from_raw(
+                                dependency.unit.into_raw(),
+                            ),
+                        })
+                        .collect(),
+                });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+
         let intrinsic_type_core = concrete::IntrinsicTypeCore {
             int: self.struct_by_key[&(self.source.intrinsic_type_core.int, Vec::new())],
             uint: self.struct_by_key[&(self.source.intrinsic_type_core.uint, Vec::new())],
@@ -271,6 +473,8 @@ impl<'a> Concretizer<'a> {
             },
         };
         let source_exception_core = self.source.exception_core;
+        let message_constructor = source_exception_core.illegal_state_message_constructor;
+        let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
         let option = &self.source.enums[self.source.option_enum];
         let option_variant = |name: &str| {
             concrete::VariantId::from_raw(
@@ -294,6 +498,13 @@ impl<'a> Concretizer<'a> {
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            initialization_units: self.initialization_units,
+            initialization_failure_roots: self.initialization_failure_roots,
+            objects: self.objects,
+            object_types: self.object_types,
+            companion_relations: self.companion_relations,
+            singleton_values: self.singleton_values,
+            singleton_published_roots: self.singleton_published_roots,
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,
@@ -317,6 +528,11 @@ impl<'a> Concretizer<'a> {
                 illegal_state_exception: lower_exception(
                     source_exception_core.illegal_state_exception,
                 ),
+                illegal_state_message_constructor: concrete::MessageClassConstructor {
+                    class: message_class,
+                    callable: self.class_constructor_by_key
+                        [&(message_constructor.constructor, message_class)],
+                },
             },
             coroutine_protocols,
             foreign_callback_core: concrete::ForeignCallbackCore {

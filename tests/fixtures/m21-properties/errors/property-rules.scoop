@@ -1,0 +1,61 @@
+open class FinalBase {
+    val fixed: Int = 1
+}
+
+class IllegalOverride : FinalBase() {
+    override val fixed: Int = 2
+}
+
+open class MutableBase {
+    open var value: Int = 1
+}
+
+class ImmutableOverride : MutableBase() {
+    override val value: Int
+        get() = 2
+}
+
+class InvalidForms {
+    val optional: Int?
+    var missing: Int
+
+    val noGetter: Int
+        get()
+
+    var noSetter: Int
+        get() = 1
+
+    val immutable: Int = 1
+        set(value) { println(value) }
+
+    val computedField: Int
+        get() = field
+
+    val escapedField: Int = 1
+        get() {
+            fun read(): Int = field
+            return 0
+        }
+}
+
+abstract class InvalidAbstract {
+    abstract val initialized: Int = 1
+}
+
+struct InvalidValue(val value: Int) {
+    var mutable: Int
+        get() = value
+        set(next) {}
+
+    val stored: Int = value
+
+    val computed: Int
+        get() = value
+
+    fun mutate() {
+        computed = 2
+        computed += 1
+    }
+}
+
+fun main() {}

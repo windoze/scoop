@@ -161,6 +161,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     });
     let mut module = Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs,
         enums,
         extern_functions: Default::default(),

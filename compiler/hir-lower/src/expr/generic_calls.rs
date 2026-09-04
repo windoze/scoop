@@ -149,6 +149,74 @@ impl Lowerer {
                         }
                     }
                 }
+                let mut extension_property_state = self.clone();
+                let mut extension_property_sink = Vec::new();
+                let receiver = extension_property_state
+                    .lower_current_this(call.callee.span)
+                    .expect("a lexical receiver has a `this` value");
+                match extension_property_state.resolve_extension_property_on_side(
+                    receiver,
+                    &call.callee,
+                    same_side,
+                    &mut extension_property_sink,
+                    true,
+                ) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        if let Some(layer) = extension_property_state.probe_property_member_invoke(
+                            property.read.clone(),
+                            CallSite {
+                                type_args: &call.type_args,
+                                args: &call.args,
+                                span: call.span,
+                            },
+                            expected,
+                            false,
+                        ) {
+                            match layer {
+                                Ok(mut layer) => {
+                                    let mut setup = extension_property_sink.clone();
+                                    setup.append(&mut layer.sink);
+                                    layer.sink = setup;
+                                    return Some(self.commit_expr_layer(layer, sink));
+                                }
+                                Err(failure) => {
+                                    first_failure.get_or_insert(failure);
+                                }
+                            }
+                        }
+                        if let Some(layer) = extension_property_state
+                            .probe_property_extension_invoke(
+                                property.read,
+                                CallSite {
+                                    type_args: &call.type_args,
+                                    args: &call.args,
+                                    span: call.span,
+                                },
+                                expected,
+                                false,
+                                same_side,
+                            )
+                        {
+                            match layer {
+                                Ok(mut layer) => {
+                                    let mut setup = extension_property_sink;
+                                    setup.append(&mut layer.sink);
+                                    layer.sink = setup;
+                                    return Some(self.commit_expr_layer(layer, sink));
+                                }
+                                Err(failure) => {
+                                    first_failure.get_or_insert(failure);
+                                }
+                            }
+                        }
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => {
+                        if extension_property_state.diagnostics.len() > self.diagnostics.len() {
+                            first_failure.get_or_insert(Box::new(extension_property_state));
+                        }
+                    }
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                }
                 if let Some((property_state, property)) = &property_candidate
                     && let Some(layer) = property_state.probe_property_extension_invoke(
                         property.clone(),
@@ -176,17 +244,81 @@ impl Lowerer {
         // declarations on the call site's own side of the core/user
         // boundary come first, the other side is the implicitly
         // imported layer.
-        let top_level_layers = self.top_level_candidate_layers(&name);
-        if top_level_layers.is_empty() && first_failure.is_none() {
-            self.error(
-                call.callee.span,
-                format!("unknown function `{}`", call.callee.text),
-            );
-            return None;
-        }
-        for candidates in top_level_layers {
+        let top_level = self
+            .functions_by_name
+            .get(&name)
+            .cloned()
+            .unwrap_or_default();
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let mut found_top_level_candidate = false;
+        for same_side in [true, false] {
+            let candidates = top_level
+                .iter()
+                .copied()
+                .filter(|function| self.function_is_accessible(*function, None))
+                .filter(|function| {
+                    ((self.function_files[function] < self.user_file_index) == call_site_is_core)
+                        == same_side
+                })
+                .collect::<Vec<_>>();
+            if !candidates.is_empty() {
+                found_top_level_candidate = true;
+                match self.probe_expr_layer(|state, layer_sink| {
+                    state.lower_top_level_function_layer(
+                        &name,
+                        &candidates,
+                        call,
+                        layer_sink,
+                        expected,
+                    )
+                }) {
+                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
+            }
+
+            let property = self
+                .properties_by_name
+                .get(&name)
+                .into_iter()
+                .flatten()
+                .copied()
+                .find(|property| {
+                    self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
+                        && (((self.property_files[property] < self.user_file_index)
+                            == call_site_is_core)
+                            == same_side)
+                });
+            let Some(property) = property else {
+                continue;
+            };
+            let mut candidate = self.clone();
+            let property_ty = candidate.properties[property].ty;
+            if !candidate.type_exposes_invoke(property_ty, false) {
+                continue;
+            }
+            found_top_level_candidate = true;
             match self.probe_expr_layer(|state, layer_sink| {
-                state.lower_top_level_function_layer(&name, &candidates, call, layer_sink, expected)
+                let callee = state.lower_property_read(
+                    property,
+                    None,
+                    None,
+                    property_ty,
+                    call.callee.span,
+                )?;
+                state.lower_value_invoke(
+                    callee,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    layer_sink,
+                    expected,
+                    false,
+                )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                 Err(failure) => {
@@ -194,7 +326,33 @@ impl Lowerer {
                 }
             }
         }
-
+        if !found_top_level_candidate && first_failure.is_none() {
+            let message = if self
+                .functions_by_name
+                .get(&name)
+                .is_some_and(|candidates| !candidates.is_empty())
+            {
+                format!("function `{}` is not accessible here", call.callee.text)
+            } else if self
+                .properties_by_name
+                .get(&name)
+                .is_some_and(|candidates| {
+                    !candidates.is_empty()
+                        && candidates.iter().all(|property| {
+                            !self.access_domain_allows(
+                                &self.properties[*property].access.lookup.0,
+                                None,
+                            )
+                        })
+                })
+            {
+                format!("property `{}` is not accessible here", call.callee.text)
+            } else {
+                format!("unknown function `{}`", call.callee.text)
+            };
+            self.error(call.callee.span, message);
+            return None;
+        }
         self.commit_layer_diagnostics(*first_failure.expect("at least one callable layer failed"));
         None
     }

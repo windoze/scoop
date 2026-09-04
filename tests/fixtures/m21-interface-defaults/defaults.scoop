@@ -1,0 +1,71 @@
+interface BaseDefault {
+    fun number(): Int = 10
+
+    val delta: Int
+        get() = 1
+}
+
+interface MoreSpecific : BaseDefault {
+    override fun number(): Int = super<BaseDefault>.number() + 1
+}
+
+interface MutableDefault {
+    var value: Int
+        get() = 5
+        set(value) { println(value) }
+}
+
+interface Helper {
+    private fun seed(): Int = 3
+    fun result(): Int = this.seed()
+}
+
+interface Echo<T> {
+    fun echo(value: T): T = value
+}
+
+class Chosen : MoreSpecific
+
+open class ClassWinner : BaseDefault {
+    override fun number(): Int = 20
+}
+
+class DerivedWinner : ClassWinner()
+
+class Combined : BaseDefault {
+    override fun number(): Int = super<BaseDefault>.number() + 2
+
+    fun total(): Int = number() + super<BaseDefault>.delta
+}
+
+class MutableUser : MutableDefault {
+    fun readDirect(): Int = super<MutableDefault>.value
+
+    fun writeDirect(next: Int) {
+        super<MutableDefault>.value = next
+    }
+}
+
+class HelperClass : Helper
+
+struct HelperValue() : Helper
+
+class IntEcho : Echo<Int>
+
+fun readBase(value: BaseDefault): Int = value.number()
+fun readHelper(value: Helper): Int = value.result()
+fun useEcho(value: Echo<Int>): Int = value.echo(8)
+
+fun main() {
+    println(readBase(Chosen()))
+    println(readBase(DerivedWinner()))
+    println(Combined().total())
+
+    val mutable = MutableUser()
+    println(mutable.readDirect())
+    mutable.writeDirect(9)
+
+    println(readHelper(HelperClass()))
+    println(readHelper(HelperValue()))
+    println(useEcho(IntEcho()))
+}

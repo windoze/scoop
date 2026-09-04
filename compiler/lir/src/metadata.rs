@@ -301,9 +301,18 @@ pub enum GlobalInit {
 
 #[derive(Debug)]
 pub enum ConstantValue {
+    Zero,
     Int(i64),
     Bool(bool),
     NullPointer(PointerKind),
+    GlobalPointer {
+        global: GlobalId,
+        kind: PointerKind,
+    },
+    EnumUnit {
+        enum_id: EnumDefId,
+        variant: u32,
+    },
     Struct {
         struct_id: StructDefId,
         fields: Vec<ConstantValue>,

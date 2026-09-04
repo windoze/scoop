@@ -22,7 +22,7 @@ impl Lowerer {
                     .lookup(&name.text)
                     .map(|local| (hir::Place::Local(local), self.locals[local].ty, name.span))
                     .or_else(|| {
-                        self.globals_by_name.get(&name.text).copied().map(|global| {
+                        self.visible_global(&name.text).map(|global| {
                             (
                                 hir::Place::Global(global),
                                 self.globals[global].ty,

@@ -77,8 +77,20 @@ fn function_types_own_unique_canonical_types_in_both_hir_products() {
 
 #[test]
 fn compiler_exception_core_is_complete_in_export_and_local_hir() {
-    let output = lower_user_output(file(vec![fun("main", vec![])]))
-        .expect("the canonical compiler exception core must lower");
+    let output = lower_user_output(file(vec![fun(
+        "main",
+        vec![
+            val("defaultException", call("IllegalStateException", vec![])),
+            val(
+                "cycleException",
+                call(
+                    "IllegalStateException",
+                    vec![some(str_lit("initialization cycle: sample.value"))],
+                ),
+            ),
+        ],
+    )]))
+    .expect("defaulted and explicit compiler exception construction must lower");
 
     let export = output.export.exception_core;
     let export_names = [
@@ -119,6 +131,37 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
         assert_eq!(constructor.class, exception.class());
         assert!(constructor.parameters.is_empty());
     }
+
+    let illegal_state = export.illegal_state_exception.class();
+    let source_constructor = output.export.classes[illegal_state]
+        .constructors
+        .iter()
+        .copied()
+        .find(|constructor| {
+            output.export.class_constructors[*constructor]
+                .parameters
+                .len()
+                == 1
+        })
+        .expect("IllegalStateException retains its message source constructor");
+    let parameter_interface = output
+        .export
+        .source_parameter_interfaces
+        .iter()
+        .find(|interface| {
+            interface.owner == hir::ExportParameterOwner::ClassConstructor(source_constructor)
+        })
+        .expect("the source constructor exports its default protocol");
+    assert!(matches!(
+        parameter_interface.parameters[0].calling,
+        hir::ExportParameterCalling::Default { .. }
+    ));
+    assert!(
+        output.export.class_constructors[export.illegal_state_exception.callable()]
+            .parameters
+            .is_empty(),
+        "compiler control flow receives a physical zero-parameter adapter"
+    );
 }
 
 #[test]
@@ -155,6 +198,39 @@ fn compiler_exception_core_rejects_missing_or_nonzero_arg_targets() {
         .expect_err("a nonzero-argument compiler exception must reject the core");
     assert!(errors.iter().any(|error| {
         error.message
-            == "class `ArithmeticException` in scoop.core must be a non-generic final subtype of `Throwable` with a zero-argument constructor"
+            == "class `ArithmeticException` in scoop.core must be a non-generic final subtype of `Throwable` callable with zero source arguments"
+    }));
+}
+
+#[test]
+fn compiler_exception_core_rejects_an_invalid_default_protocol_without_panicking() {
+    let mut malformed = core_file();
+    let declaration = malformed
+        .declarations
+        .iter_mut()
+        .find(|declaration| {
+            matches!(declaration, Decl::Class(class) if class.name.text == "IllegalStateException")
+        })
+        .expect("IllegalStateException declaration");
+    let Decl::Class(class) = declaration else {
+        unreachable!("the selected declaration is a class")
+    };
+    let ast::ClassConstructorDecl::Declared(constructor) = &mut class.constructor else {
+        unreachable!("IllegalStateException declares a primary constructor")
+    };
+    constructor.parameters[0].syntax = ast::ParameterSyntax::Default {
+        expression: int_lit(1),
+        equals_span: sp(),
+    };
+
+    let errors = lower(&[malformed, file(vec![fun("main", vec![])])])
+        .expect_err("an ill-typed default cannot satisfy the compiler exception contract");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "default value of parameter `message` in `IllegalStateException` must be of type Option<String>, found Int"
+    }));
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "class `IllegalStateException` in scoop.core must be a non-generic final subtype of `Throwable` callable with zero source arguments"
     }));
 }

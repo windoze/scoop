@@ -45,6 +45,7 @@ pub enum MethodOwner {
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
+    Object(ObjectTypeId),
     /// A compiler-derived method on a structural value type such as Unit or
     /// tuple. The exact concrete owner type is part of the identity.
     Structural(TypeId),

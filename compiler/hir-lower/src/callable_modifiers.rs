@@ -13,10 +13,12 @@ impl Lowerer {
         decl: &ast::FunctionDecl,
         receiver: Option<TypeId>,
         is_member: bool,
+        is_ordinary: bool,
         params: &[FnParam],
         return_ty: TypeId,
     ) -> hir::CallableModifiers {
         let diagnostics_before = self.diagnostics.len();
+        let mut property_delegate_operator = None;
         let operator = decl.operator.and_then(|modifier| {
             if receiver.is_none() {
                 self.error(
@@ -25,9 +27,25 @@ impl Lowerer {
                 );
                 return None;
             }
-            let kind = self.operator_kind(&decl.name, modifier.span)?;
-            self.validate_operator_shape(decl, kind, receiver, is_member, params, return_ty);
-            Some(kind)
+            match self.operator_kind(&decl.name, modifier.span)? {
+                CallableOperatorKind::Ordinary(kind) => {
+                    self.validate_operator_shape(
+                        decl, kind, receiver, is_member, params, return_ty,
+                    );
+                    Some(kind)
+                }
+                CallableOperatorKind::PropertyDelegate(kind) => {
+                    self.validate_property_delegate_operator_shape(
+                        decl,
+                        kind,
+                        is_ordinary,
+                        params,
+                        return_ty,
+                    );
+                    property_delegate_operator = Some(kind);
+                    None
+                }
+            }
         });
         if let Some(infix) = decl.infix {
             if receiver.is_none() {
@@ -60,6 +78,7 @@ impl Lowerer {
         } else {
             hir::CallableModifiers {
                 operator,
+                property_delegate_operator,
                 is_infix: decl.infix.is_some(),
             }
         }
@@ -69,32 +88,41 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
         modifier_span: ast::Span,
-    ) -> Option<hir::OperatorKind> {
+    ) -> Option<CallableOperatorKind> {
         let kind = match name.text.as_str() {
-            "unaryPlus" => hir::OperatorKind::UnaryPlus,
-            "unaryMinus" => hir::OperatorKind::UnaryMinus,
-            "not" => hir::OperatorKind::Not,
-            "inc" => hir::OperatorKind::Inc,
-            "dec" => hir::OperatorKind::Dec,
-            "plus" => hir::OperatorKind::Plus,
-            "minus" => hir::OperatorKind::Minus,
-            "times" => hir::OperatorKind::Times,
-            "div" => hir::OperatorKind::Div,
-            "rem" => hir::OperatorKind::Rem,
-            "rangeTo" => hir::OperatorKind::RangeTo,
-            "rangeUntil" => hir::OperatorKind::RangeUntil,
-            "contains" => hir::OperatorKind::Contains,
-            "get" => hir::OperatorKind::Get,
-            "set" => hir::OperatorKind::Set,
-            "invoke" => hir::OperatorKind::Invoke,
-            "plusAssign" => hir::OperatorKind::PlusAssign,
-            "minusAssign" => hir::OperatorKind::MinusAssign,
-            "timesAssign" => hir::OperatorKind::TimesAssign,
-            "divAssign" => hir::OperatorKind::DivAssign,
-            "remAssign" => hir::OperatorKind::RemAssign,
-            "compareTo" => hir::OperatorKind::CompareTo,
-            "equals" => hir::OperatorKind::Equals,
-            "iterator" => hir::OperatorKind::Iterator,
+            "provideDelegate" => CallableOperatorKind::PropertyDelegate(
+                hir::PropertyDelegateOperatorKind::ProvideDelegate,
+            ),
+            "getValue" => {
+                CallableOperatorKind::PropertyDelegate(hir::PropertyDelegateOperatorKind::GetValue)
+            }
+            "setValue" => {
+                CallableOperatorKind::PropertyDelegate(hir::PropertyDelegateOperatorKind::SetValue)
+            }
+            "unaryPlus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryPlus),
+            "unaryMinus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryMinus),
+            "not" => CallableOperatorKind::Ordinary(hir::OperatorKind::Not),
+            "inc" => CallableOperatorKind::Ordinary(hir::OperatorKind::Inc),
+            "dec" => CallableOperatorKind::Ordinary(hir::OperatorKind::Dec),
+            "plus" => CallableOperatorKind::Ordinary(hir::OperatorKind::Plus),
+            "minus" => CallableOperatorKind::Ordinary(hir::OperatorKind::Minus),
+            "times" => CallableOperatorKind::Ordinary(hir::OperatorKind::Times),
+            "div" => CallableOperatorKind::Ordinary(hir::OperatorKind::Div),
+            "rem" => CallableOperatorKind::Ordinary(hir::OperatorKind::Rem),
+            "rangeTo" => CallableOperatorKind::Ordinary(hir::OperatorKind::RangeTo),
+            "rangeUntil" => CallableOperatorKind::Ordinary(hir::OperatorKind::RangeUntil),
+            "contains" => CallableOperatorKind::Ordinary(hir::OperatorKind::Contains),
+            "get" => CallableOperatorKind::Ordinary(hir::OperatorKind::Get),
+            "set" => CallableOperatorKind::Ordinary(hir::OperatorKind::Set),
+            "invoke" => CallableOperatorKind::Ordinary(hir::OperatorKind::Invoke),
+            "plusAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::PlusAssign),
+            "minusAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::MinusAssign),
+            "timesAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::TimesAssign),
+            "divAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::DivAssign),
+            "remAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::RemAssign),
+            "compareTo" => CallableOperatorKind::Ordinary(hir::OperatorKind::CompareTo),
+            "equals" => CallableOperatorKind::Ordinary(hir::OperatorKind::Equals),
+            "iterator" => CallableOperatorKind::Ordinary(hir::OperatorKind::Iterator),
             text if text.starts_with("component") => {
                 let suffix = &text["component".len()..];
                 let Ok(index) = suffix.parse::<u32>() else {
@@ -108,7 +136,7 @@ impl Lowerer {
                     self.error(name.span, "operator `component0` is not valid".to_string());
                     return None;
                 };
-                hir::OperatorKind::Component { index }
+                CallableOperatorKind::Ordinary(hir::OperatorKind::Component { index })
             }
             text => {
                 self.error(modifier_span, format!("unknown operator role `{text}`"));
@@ -116,6 +144,70 @@ impl Lowerer {
             }
         };
         Some(kind)
+    }
+
+    fn validate_property_delegate_operator_shape(
+        &mut self,
+        decl: &ast::FunctionDecl,
+        kind: hir::PropertyDelegateOperatorKind,
+        is_ordinary: bool,
+        params: &[FnParam],
+        return_ty: TypeId,
+    ) {
+        let name = decl.name.text.as_str();
+        let expected = match kind {
+            hir::PropertyDelegateOperatorKind::ProvideDelegate => 0,
+            hir::PropertyDelegateOperatorKind::GetValue => 1,
+            hir::PropertyDelegateOperatorKind::SetValue => 2,
+        };
+        if !is_ordinary {
+            self.error(
+                decl.name.span,
+                format!("property delegate operator `{name}` must be an ordinary function"),
+            );
+        }
+        if params.len() != expected {
+            self.error(
+                decl.name.span,
+                format!(
+                    "property delegate operator `{name}` must have exactly {expected} parameters, found {}",
+                    params.len()
+                ),
+            );
+        }
+        for (index, parameter) in params.iter().enumerate() {
+            if !matches!(parameter.calling, FnParamCalling::Required) {
+                self.error(
+                    decl.params[index].span,
+                    format!(
+                        "property delegate operator `{name}` requires required, non-vararg parameters"
+                    ),
+                );
+            }
+        }
+        if decl.is_suspend {
+            self.error(
+                decl.name.span,
+                format!("property delegate operator `{name}` must not be suspend"),
+            );
+        }
+        if !decl.type_params.is_empty() {
+            self.error(
+                decl.name.span,
+                format!("property delegate operator `{name}` must not declare type parameters"),
+            );
+        }
+        if kind == hir::PropertyDelegateOperatorKind::SetValue
+            && !self.types_equal(return_ty, self.unit)
+        {
+            self.error(
+                decl.name.span,
+                format!(
+                    "property delegate operator `setValue` must return Unit, found {}",
+                    self.type_name(return_ty)
+                ),
+            );
+        }
     }
 
     fn validate_operator_shape(
@@ -272,4 +364,10 @@ impl Lowerer {
             );
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum CallableOperatorKind {
+    Ordinary(hir::OperatorKind),
+    PropertyDelegate(hir::PropertyDelegateOperatorKind),
 }

@@ -45,6 +45,7 @@ impl Function {
             Value::TypeDescriptor(_) => METADATA_PTR,
             Value::RootScan(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
+            Value::InitializationUnit(_) => METADATA_PTR,
         }
     }
 }

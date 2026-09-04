@@ -28,13 +28,53 @@ impl Lowerer {
                 {
                     return self.lower_initializing_field_assign(assign, name, out);
                 }
+                if self
+                    .qualified_object_const_property(receiver, &name.text)
+                    .is_some()
+                {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable property `{}`", name.text),
+                    );
+                    return None;
+                }
                 let mut sink = Vec::new();
-                let Some(receiver) = self.lower_expr(receiver, &mut sink, None) else {
-                    return None; // diagnostic already recorded
+                let forwarding = self
+                    .nominal_qualifier_target(receiver)
+                    .and_then(|host| self.companion_forwarding_property_object(host, &name.text));
+                let receiver = match forwarding {
+                    Some(companion) => self.lower_singleton_value(companion, receiver.span())?,
+                    None => self.lower_expr(receiver, &mut sink, None)?,
                 };
                 let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
                 out.extend(sink);
                 Some(kind)
+            }
+            ast::AssignTarget::QualifiedInterfaceSuperProperty {
+                qualifier,
+                name,
+                span,
+            } => {
+                let property =
+                    self.resolve_qualified_interface_super_property(qualifier, name, *span)?;
+                let mut sink = Vec::new();
+                let value = self.lower_expr(&assign.value, &mut sink, Some(property.ty))?;
+                if !self.is_subtype(value.ty, property.ty) {
+                    self.error(
+                        assign.value.span(),
+                        format!(
+                            "cannot assign value of type {} to property `{}` of type {}",
+                            self.type_name(value.ty),
+                            name.text,
+                            self.type_name(property.ty)
+                        ),
+                    );
+                    return None;
+                }
+                let expected = property.ty;
+                let value = self.adapt_to(value, expected);
+                out.extend(sink);
+                self.lower_direct_interface_property_write(property, value, *span)
             }
         }
     }
@@ -90,42 +130,64 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let application = match self.types[receiver.ty] {
-            Type::Class(application) => application,
-            _ if self.is_value_ty(receiver.ty) => {
-                self.error(
-                    name.span,
-                    "field assignment is not supported (value types are immutable)".to_string(),
+        let receiver_ty = receiver.ty;
+        if let Some((property, owner, property_ty)) =
+            self.find_accessible_nominal_property(receiver_ty, &name.text)
+        {
+            let value = self.lower_expr(&assign.value, sink, Some(property_ty))?;
+            if !self.is_subtype(value.ty, property_ty) {
+                let expected = self.type_name(property_ty);
+                let found = self.type_name(value.ty);
+                let message = self.with_nominal_invariance_detail(
+                    format!(
+                        "cannot assign value of type {found} to property `{}` of type {expected}",
+                        name.text
+                    ),
+                    value.ty,
+                    property_ty,
                 );
+                self.error(assign.value.span(), message);
                 return None;
             }
-            _ => {
-                let found = self.type_name(receiver.ty);
-                self.error(name.span, format!("type `{found}` has no fields"));
-                return None;
-            }
-        };
-        let class_id = self.class_applications[application].template;
-        let Some((declaring, field, field_ty, mutable)) =
-            self.find_class_application_field(application, &name.text)
-        else {
-            let class_name = self.classes[class_id].name.clone();
-            self.error(
+            let value = self.adapt_to(value, property_ty);
+            return self.lower_property_write(
+                property,
+                Some(owner),
+                Some(receiver),
+                value,
                 name.span,
-                format!("class `{class_name}` has no field `{}`", name.text),
             );
-            return None;
-        };
-        if !mutable {
-            self.error(
-                name.span,
-                format!("cannot assign to immutable property `{}`", name.text),
-            );
-            return None;
         }
-        let value = self.lower_expr(&assign.value, sink, Some(field_ty))?;
-        if !self.is_subtype(value.ty, field_ty) {
-            let expected = self.type_name(field_ty);
+        let resolved = match self.resolve_extension_property(receiver, name, sink, false) {
+            crate::properties::ExtensionPropertyResolution::Resolved(property) => property,
+            crate::properties::ExtensionPropertyResolution::Failed => return None,
+            crate::properties::ExtensionPropertyResolution::NoCandidate => {
+                match self.types[receiver_ty] {
+                    Type::Class(application) => {
+                        let class = self.classes[self.class_applications[application].template]
+                            .name
+                            .clone();
+                        self.error(
+                            name.span,
+                            format!("class `{class}` has no property `{}`", name.text),
+                        );
+                    }
+                    _ if self.is_value_ty(receiver_ty) => self.error(
+                        name.span,
+                        "field assignment is not supported (value types are immutable)".to_string(),
+                    ),
+                    _ => {
+                        let found = self.type_name(receiver_ty);
+                        self.error(name.span, format!("type `{found}` has no fields"));
+                    }
+                }
+                return None;
+            }
+        };
+        let property_ty = resolved.read.ty;
+        let value = self.lower_expr(&assign.value, sink, Some(property_ty))?;
+        if !self.is_subtype(value.ty, property_ty) {
+            let expected = self.type_name(property_ty);
             let found = self.type_name(value.ty);
             let message = self.with_nominal_invariance_detail(
                 format!(
@@ -133,22 +195,13 @@ impl Lowerer {
                     name.text
                 ),
                 value.ty,
-                field_ty,
+                property_ty,
             );
             self.error(assign.value.span(), message);
             return None;
         }
-        let value = self.adapt_to(value, field_ty);
-        Some(hir::StatementKind::Assign {
-            target: hir::AssignTarget::Field {
-                receiver: Box::new(receiver),
-                field: hir::FieldRef::ClassField {
-                    application: declaring,
-                    field,
-                },
-            },
-            value,
-        })
+        let value = self.adapt_to(value, property_ty);
+        self.lower_extension_property_write(*resolved, value, name.span)
     }
 
     /// `name = value`: the target must be a declared, mutable local and
@@ -163,6 +216,32 @@ impl Lowerer {
         name: &ast::Ident,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        if name.text == "field" && self.backing_field_context.is_some() {
+            let (read, write) = self.contextual_backing_field(name.span)?;
+            let Some(target) = write else {
+                self.error(
+                    name.span,
+                    "cannot assign to an immutable backing field".to_string(),
+                );
+                return None;
+            };
+            let mut sink = Vec::new();
+            let value = self.lower_expr(&assign.value, &mut sink, Some(read.ty))?;
+            if !self.is_subtype(value.ty, read.ty) {
+                self.error(
+                    assign.value.span(),
+                    format!(
+                        "cannot assign value of type {} to backing field of type {}",
+                        self.type_name(value.ty),
+                        self.type_name(read.ty)
+                    ),
+                );
+                return None;
+            }
+            let value = self.adapt_to(value, read.ty);
+            out.extend(sink);
+            return Some(hir::StatementKind::Assign { target, value });
+        }
         let Some(local) = self.scopes.lookup(&name.text) else {
             if self.constructor_params_in_scope.contains_key(&name.text) {
                 self.error(
@@ -180,6 +259,24 @@ impl Lowerer {
                 return self.lower_initializing_field_assign(assign, name, out);
             }
             if let Some(capture) = self.available_capture(&name.text) {
+                if let Some(plan) = self.local_delegate_plans.get(&capture.binding).copied() {
+                    if !plan.mutable {
+                        self.error(
+                            name.span,
+                            format!("cannot assign to immutable property `{}`", name.text),
+                        );
+                        return None;
+                    }
+                    let storage = self.lower_capture(name)?;
+                    return self.lower_local_delegate_assign(
+                        assign,
+                        name,
+                        storage,
+                        capture.binding,
+                        plan.property_ty,
+                        out,
+                    );
+                }
                 if capture.mutable {
                     self.error(
                         name.span,
@@ -198,16 +295,14 @@ impl Lowerer {
             }
             match self.current_this_ty().map(|ty| self.types[ty].clone()) {
                 Some(Type::Class(application)) => {
-                    if let Some((_, _, _, mutable)) =
-                        self.find_class_application_field(application, &name.text)
+                    if self
+                        .find_accessible_class_application_property(
+                            application,
+                            &name.text,
+                            self.current_this_ty().expect("member receiver type"),
+                        )
+                        .is_some()
                     {
-                        if !mutable {
-                            self.error(
-                                name.span,
-                                format!("cannot assign to immutable property `{}`", name.text),
-                            );
-                            return None;
-                        }
                         let receiver = self
                             .lower_current_this(name.span)
                             .expect("a receiver callable body always has a lexical `this`");
@@ -217,41 +312,59 @@ impl Lowerer {
                         return Some(kind);
                     }
                 }
-                Some(Type::Struct(application))
-                    if self.structs[self.struct_applications[application].template]
-                        .semantic_fields()
-                        .iter()
-                        .any(|field| field.name == name.text) =>
-                {
-                    self.error(
-                        name.span,
-                        format!("cannot assign to immutable property `{}`", name.text),
-                    );
-                    return None;
+                Some(Type::Struct(_)) | Some(Type::Enum(_)) => {
+                    let receiver_ty = self.current_this_ty().expect("member receiver type");
+                    if self
+                        .find_accessible_nominal_property(receiver_ty, &name.text)
+                        .is_some()
+                    {
+                        self.error(
+                            name.span,
+                            format!("cannot assign to immutable property `{}`", name.text),
+                        );
+                        return None;
+                    }
                 }
                 _ => {}
             }
-            if let Some(&global) = self.globals_by_name.get(&name.text) {
-                if !self.globals[global].mutable {
-                    self.error(
-                        name.span,
-                        format!("cannot assign to immutable global `{}`", name.text),
-                    );
-                    return None;
+            if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                let mut sink = Vec::new();
+                match self.resolve_extension_property(receiver, name, &mut sink, false) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        let expected = property.read.ty;
+                        let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+                        if !self.is_subtype(value.ty, expected) {
+                            let message = self.with_nominal_invariance_detail(
+                                format!(
+                                    "cannot assign value of type {} to property `{}` of type {}",
+                                    self.type_name(value.ty),
+                                    name.text,
+                                    self.type_name(expected)
+                                ),
+                                value.ty,
+                                expected,
+                            );
+                            self.error(assign.value.span(), message);
+                            return None;
+                        }
+                        let value = self.adapt_to(value, expected);
+                        out.extend(sink);
+                        return self.lower_extension_property_write(*property, value, name.span);
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => return None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
                 }
-                if matches!(
-                    self.globals[global].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(name.span, "writing an extern global");
-                }
-                let expected = self.globals[global].ty;
+            }
+            if let Some(property) = self.visible_property(&name.text, None) {
+                let expected = self.properties[property].ty;
                 let mut sink = Vec::new();
                 let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
                 if !self.is_subtype(value.ty, expected) {
                     let message = self.with_nominal_invariance_detail(
                         format!(
-                            "cannot assign value of type {} to global `{}` of type {}",
+                            "cannot assign value of type {} to property `{}` of type {}",
                             self.type_name(value.ty),
                             name.text,
                             self.type_name(expected)
@@ -264,14 +377,35 @@ impl Lowerer {
                 }
                 let value = self.adapt_to(value, expected);
                 out.extend(sink);
-                return Some(hir::StatementKind::Assign {
-                    target: hir::AssignTarget::Global(global),
-                    value,
-                });
+                return self.lower_property_write(property, None, None, value, name.span);
             }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
+        let binding = self.locals[local].binding;
+        if let Some(plan) = self.local_delegate_plans.get(&binding).copied() {
+            if !plan.mutable {
+                self.error(
+                    name.span,
+                    format!("cannot assign to immutable property `{}`", name.text),
+                );
+                return None;
+            }
+            let storage = hir::Expr {
+                kind: hir::ExprKind::Local(local),
+                ty: self.locals[local].ty,
+                span: name.span,
+                origin: self.expression_origin(name.span),
+            };
+            return self.lower_local_delegate_assign(
+                assign,
+                name,
+                storage,
+                binding,
+                plan.property_ty,
+                out,
+            );
+        }
         if !self.locals[local].mutable {
             self.error(
                 name.span,
@@ -302,6 +436,37 @@ impl Lowerer {
             target: hir::AssignTarget::Local(local),
             value,
         })
+    }
+
+    fn lower_local_delegate_assign(
+        &mut self,
+        assign: &ast::Assign,
+        name: &ast::Ident,
+        storage: hir::Expr,
+        binding: hir::BindingId,
+        expected: TypeId,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let mut sink = Vec::new();
+        let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+        if !self.is_subtype(value.ty, expected) {
+            let message = self.with_nominal_invariance_detail(
+                format!(
+                    "cannot assign value of type {} to property `{}` of type {}",
+                    self.type_name(value.ty),
+                    name.text,
+                    self.type_name(expected)
+                ),
+                value.ty,
+                expected,
+            );
+            self.error(assign.value.span(), message);
+            return None;
+        }
+        let value = self.adapt_to(value, expected);
+        let call = self.local_delegate_write(storage, binding, value, name.span)?;
+        out.extend(sink);
+        Some(hir::StatementKind::Expr(call))
     }
 
     /// Indexed assignment uses the same typed `operator set` resolver as user
@@ -338,6 +503,7 @@ impl Lowerer {
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Set),
                 infix: false,
+                ..Default::default()
             },
         )?;
         out.extend(sink);

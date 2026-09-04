@@ -16,7 +16,7 @@ class FailureGate(
 )
 
 class FailureRegistration(val gate: FailureGate) : SuspendRegistration<Int> {
-    final override fun register(continuation: Continuation<Int>) {
+    public final override fun register(continuation: Continuation<Int>) {
         @Unsafe {
             val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
                 { value: Int ->
@@ -36,7 +36,7 @@ class FailureRegistration(val gate: FailureGate) : SuspendRegistration<Int> {
 }
 
 class FailureTask(val gate: FailureGate) : SuspendTask<Int> {
-    final override suspend fun run(): Int {
+    public final override suspend fun run(): Int {
         try {
             return suspendCoroutine(FailureRegistration(gate))
         } catch (exception: ForeignResumeError) {
@@ -49,11 +49,11 @@ class FailureTask(val gate: FailureGate) : SuspendTask<Int> {
 }
 
 class FailureCompletion() : Continuation<Int> {
-    final override fun resume(value: Int) {
+    public final override fun resume(value: Int) {
         println(value)
     }
 
-    final override fun resumeWithException(exception: Throwable) {
+    public final override fun resumeWithException(exception: Throwable) {
         println("unexpected failure")
     }
 }
