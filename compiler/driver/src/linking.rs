@@ -2,6 +2,8 @@ use std::process::Command;
 
 use super::*;
 
+mod eh_artifact;
+
 pub(super) fn compile_c_bridge(
     source: &Path,
     object: &Path,
@@ -108,6 +110,13 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
         target_profile,
         file,
     } = request;
+    verify_target_linker_eh_contract(target_profile, libraries).map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|error| no_span(file, format!("linker EH contract failed: {error}")))
+            .collect::<Vec<_>>()
+    })?;
+
     let mut command = Command::new("cc");
     command
         .arg("-target")
@@ -140,5 +149,35 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
             ),
         )]);
     }
-    Ok(())
+    verify_target_executable_eh_contract(target_profile, binary).map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|error| {
+                no_span(
+                    file,
+                    format!("linked executable EH verification failed: {error}"),
+                )
+            })
+            .collect()
+    })
+}
+
+fn verify_target_linker_eh_contract(
+    target_profile: scoop_codegen::TargetProfile,
+    libraries: &[String],
+) -> Result<(), Vec<String>> {
+    match target_profile.id() {
+        scoop_codegen::TargetProfileId::DarwinAarch64 => {
+            eh_artifact::verify_linker_arguments(libraries, target_profile.linker_args())
+        }
+    }
+}
+
+fn verify_target_executable_eh_contract(
+    target_profile: scoop_codegen::TargetProfile,
+    binary: &Path,
+) -> Result<(), Vec<String>> {
+    match target_profile.id() {
+        scoop_codegen::TargetProfileId::DarwinAarch64 => eh_artifact::verify_executable(binary),
+    }
 }

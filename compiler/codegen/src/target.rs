@@ -267,7 +267,7 @@ impl TargetProfile {
             "-fno-omit-frame-pointer",
             "-fno-optimize-sibling-calls",
         ],
-        linker_args: &["-pthread", "-lc++abi"],
+        linker_args: &["-pthread"],
     };
 
     /// Resolve a user/host triple to the one target profile supported by M15.

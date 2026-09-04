@@ -42,7 +42,7 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
                 "-fno-optimize-sibling-calls",
             ]
         );
-        assert_eq!(profile.linker_args(), ["-pthread", "-lc++abi"]);
+        assert_eq!(profile.linker_args(), ["-pthread"]);
         assert_eq!(
             profile.eh_profile(),
             EhProfile {
