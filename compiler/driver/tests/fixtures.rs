@@ -84,6 +84,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m21-initialization/top-level-runtime.scoop"
             | "m21-companions/companions.scoop"
             | "m21-companions/failure.scoop"
+            | "m21-delegated-globals/values.scoop"
             | "m21-objects/failure.scoop"
             | "m21-objects/objects.scoop"
             | "m21-top-level-static/values.scoop"

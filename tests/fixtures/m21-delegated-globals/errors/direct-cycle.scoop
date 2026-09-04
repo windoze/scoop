@@ -1,0 +1,8 @@
+class IntDelegate(val value: Int) {
+    operator fun getValue(thisRef: Unit): Int = value
+}
+
+val left: Int by IntDelegate(right)
+val right: Int = left
+
+fun main() {}

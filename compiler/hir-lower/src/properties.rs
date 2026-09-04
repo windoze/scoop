@@ -216,6 +216,8 @@ impl Lowerer {
         let callee = self.materialize_resolved_callee(&resolved);
         if require_read {
             self.check_call_effects(callee, name.span);
+            let declaration = self.properties[property].clone();
+            self.record_property_initialization_dependency(&declaration, name.span);
         }
         let read = hir::Expr {
             kind: hir::ExprKind::Call {
@@ -241,6 +243,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
         let property = self.properties[resolved.property].clone();
+        self.record_property_initialization_dependency(&property, span);
         let Some(setter) = property.capability.setter() else {
             self.error(
                 span,
@@ -408,30 +411,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::Expr> {
         let declaration = self.properties[property].clone();
-        if let (
-            Some(current),
-            hir::PropertyRepresentation::Stored(hir::StoredProperty {
-                backing:
-                    hir::PropertyBacking::TopLevelGlobal {
-                        initialization: hir::TopLevelInitialization::Runtime(dependency),
-                        ..
-                    },
-            }),
-        ) = (
-            self.current_initialization_unit,
-            &declaration.representation,
-        ) {
-            let dependencies = &mut self.initialization_units[current].dependencies;
-            if !dependencies
-                .iter()
-                .any(|existing| existing.unit == *dependency)
-            {
-                dependencies.push(hir::InitializationDependency {
-                    unit: *dependency,
-                    span,
-                });
-            }
-        }
+        self.record_property_initialization_dependency(&declaration, span);
         let getter = declaration.capability.getter();
         let accessor = self.property_getters[getter].clone();
         if !self.access_domain_allows(
@@ -510,6 +490,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
         let declaration = self.properties[property].clone();
+        self.record_property_initialization_dependency(&declaration, span);
         let Some(setter) = declaration.capability.setter() else {
             self.error(
                 span,
@@ -569,6 +550,57 @@ impl Lowerer {
                 };
                 Some(hir::StatementKind::Expr(expression))
             }
+        }
+    }
+
+    fn record_property_initialization_dependency(
+        &mut self,
+        declaration: &hir::Property,
+        span: ast::Span,
+    ) {
+        let Some(current) = self.current_initialization_unit else {
+            return;
+        };
+        let dependency = match declaration.representation {
+            hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                backing:
+                    hir::PropertyBacking::TopLevelGlobal {
+                        initialization: hir::TopLevelInitialization::Runtime(unit),
+                        ..
+                    },
+            }) => Some(unit),
+            hir::PropertyRepresentation::Delegated { storage } => {
+                match self.delegate_storages[storage].location {
+                    hir::DelegateStorageLocation::ManagedGlobal(global) => {
+                        match self.globals[global].storage {
+                            hir::GlobalStorage::Managed {
+                                initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
+                            } => Some(unit),
+                            _ => {
+                                unreachable!("a global delegate storage has runtime initialization")
+                            }
+                        }
+                    }
+                    hir::DelegateStorageLocation::ClassField(_) => None,
+                }
+            }
+            hir::PropertyRepresentation::Stored(_)
+            | hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::Const { .. }
+            | hir::PropertyRepresentation::NativeStorage { .. } => None,
+        };
+        let Some(dependency) = dependency else {
+            return;
+        };
+        let dependencies = &mut self.initialization_units[current].dependencies;
+        if !dependencies
+            .iter()
+            .any(|existing| existing.unit == dependency)
+        {
+            dependencies.push(hir::InitializationDependency {
+                unit: dependency,
+                span,
+            });
         }
     }
 

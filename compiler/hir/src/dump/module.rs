@@ -302,15 +302,7 @@ pub fn dump(module: &Module) -> String {
         };
         out.push_str(&format!(
             "  {} {}: {} <global{} {storage}>\n",
-            if module.properties[global.property]
-                .capability
-                .setter()
-                .is_some()
-            {
-                "var"
-            } else {
-                "val"
-            },
+            if global.mutable { "var" } else { "val" },
             global.name,
             type_name(module, global.ty),
             id.into_raw()
@@ -551,6 +543,9 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
             let location = match delegate.location {
                 DelegateStorageLocation::ClassField(field) => {
                     format!("class-field{}", field.into_raw())
+                }
+                DelegateStorageLocation::ManagedGlobal(global) => {
+                    format!("managed-global{}", global.into_raw())
                 }
             };
             format!(

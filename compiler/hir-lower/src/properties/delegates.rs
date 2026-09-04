@@ -197,38 +197,60 @@ impl Lowerer {
             return body;
         };
         let delegate = self.delegate_storages[storage].clone();
-        let hir::DelegateStorageLocation::ClassField(field) = delegate.location;
         let parameters = self.functions[source.function].params.clone();
-        let Some(this_parameter) = parameters.first() else {
-            self.error(
-                property.span,
-                "a class delegated-property accessor requires an instance receiver".to_string(),
-            );
-            return body;
+        let this_ref = match property.owner {
+            hir::PropertyOwner::TopLevel => self.unit_delegate_argument(property.span),
+            hir::PropertyOwner::Extension(_)
+            | hir::PropertyOwner::Class(_)
+            | hir::PropertyOwner::Object(_) => {
+                let Some(this_parameter) = parameters.first() else {
+                    self.error(
+                        property.span,
+                        "a receiver delegated-property accessor requires an instance receiver"
+                            .to_string(),
+                    );
+                    return body;
+                };
+                hir::Expr {
+                    kind: hir::ExprKind::Local(this_parameter.local),
+                    ty: this_parameter.ty,
+                    span: property.span,
+                    origin: self.expression_origin(property.span),
+                }
+            }
+            hir::PropertyOwner::Struct(_)
+            | hir::PropertyOwner::Enum(_)
+            | hir::PropertyOwner::Interface(_) => {
+                unreachable!("value types and interfaces cannot own delegated storage")
+            }
         };
-        let hir::Type::Class(application) = self.types[this_parameter.ty] else {
-            self.error(
-                property.span,
-                "a class delegated-property accessor requires a class receiver".to_string(),
-            );
-            return body;
-        };
-        let application_value = self.class_applications[application].clone();
-        let storage_ty = self.instantiate_ty(delegate.ty, &application_value.arguments);
-        let this_ref = hir::Expr {
-            kind: hir::ExprKind::Local(this_parameter.local),
-            ty: this_parameter.ty,
-            span: property.span,
-            origin: self.expression_origin(property.span),
-        };
-        let storage_read = hir::Expr {
-            kind: hir::ExprKind::FieldAccess {
-                receiver: Box::new(this_ref.clone()),
-                field: hir::FieldRef::ClassField { application, field },
+        let storage_read = match delegate.location {
+            hir::DelegateStorageLocation::ClassField(field) => {
+                let hir::Type::Class(application) = self.types[this_ref.ty] else {
+                    self.error(
+                        property.span,
+                        "a class delegated-property accessor requires a class receiver".to_string(),
+                    );
+                    return body;
+                };
+                let application_value = self.class_applications[application].clone();
+                let storage_ty = self.instantiate_ty(delegate.ty, &application_value.arguments);
+                hir::Expr {
+                    kind: hir::ExprKind::FieldAccess {
+                        receiver: Box::new(this_ref.clone()),
+                        field: hir::FieldRef::ClassField { application, field },
+                    },
+                    ty: storage_ty,
+                    span: property.span,
+                    origin: self.expression_origin(property.span),
+                }
+            }
+            hir::DelegateStorageLocation::ManagedGlobal(global) => hir::Expr {
+                kind: hir::ExprKind::GlobalRead(global),
+                ty: delegate.ty,
+                span: property.span,
+                origin: self.expression_origin(property.span),
             },
-            ty: storage_ty,
-            span: property.span,
-            origin: self.expression_origin(property.span),
         };
 
         let signature = self.signatures[&source.function].clone();
@@ -283,42 +305,48 @@ impl Lowerer {
                         }]
                     }
                 }),
-            PropertyAccessorKind::Setter => match parameters.get(1) {
-                Some(value_parameter) => {
-                    let value = hir::Expr {
-                        kind: hir::ExprKind::Local(value_parameter.local),
-                        ty: value_parameter.ty,
-                        span: property.span,
-                        origin: self.expression_origin(property.span),
-                    };
-                    self.require_delegate_role_call(
-                        storage_read,
-                        hir::PropertyDelegateOperatorKind::SetValue,
-                        vec![this_ref, value],
-                        property.span,
-                    )
-                    .map_or_else(Vec::new, |call| {
-                        vec![
-                            hir::Statement {
-                                kind: hir::StatementKind::Expr(call),
-                                span: property.span,
-                            },
-                            hir::Statement {
-                                kind: hir::StatementKind::Return { value: None },
-                                span: property.span,
-                            },
-                        ]
-                    })
+            PropertyAccessorKind::Setter => {
+                match if matches!(property.owner, hir::PropertyOwner::TopLevel) {
+                    parameters.first()
+                } else {
+                    parameters.get(1)
+                } {
+                    Some(value_parameter) => {
+                        let value = hir::Expr {
+                            kind: hir::ExprKind::Local(value_parameter.local),
+                            ty: value_parameter.ty,
+                            span: property.span,
+                            origin: self.expression_origin(property.span),
+                        };
+                        self.require_delegate_role_call(
+                            storage_read,
+                            hir::PropertyDelegateOperatorKind::SetValue,
+                            vec![this_ref, value],
+                            property.span,
+                        )
+                        .map_or_else(Vec::new, |call| {
+                            vec![
+                                hir::Statement {
+                                    kind: hir::StatementKind::Expr(call),
+                                    span: property.span,
+                                },
+                                hir::Statement {
+                                    kind: hir::StatementKind::Return { value: None },
+                                    span: property.span,
+                                },
+                            ]
+                        })
+                    }
+                    None => {
+                        self.error(
+                            property.span,
+                            "a mutable delegated-property accessor requires a value parameter"
+                                .to_string(),
+                        );
+                        Vec::new()
+                    }
                 }
-                None => {
-                    self.error(
-                        property.span,
-                        "a mutable delegated-property accessor requires a value parameter"
-                            .to_string(),
-                    );
-                    Vec::new()
-                }
-            },
+            }
         };
 
         self.pop_safety_context();

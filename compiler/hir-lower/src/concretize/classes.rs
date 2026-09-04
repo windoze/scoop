@@ -540,10 +540,7 @@ impl Concretizer<'_> {
             let id = self.globals.alloc(concrete::Global {
                 name: source.name.clone(),
                 ty,
-                mutable: self.source.properties[source.property]
-                    .capability
-                    .setter()
-                    .is_some(),
+                mutable: source.mutable,
                 storage,
                 span: source.span,
             });

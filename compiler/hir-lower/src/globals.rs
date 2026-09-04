@@ -10,6 +10,7 @@ use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstr
 use crate::{FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext};
 
 mod consts;
+mod delegates;
 mod static_initializers;
 
 struct PendingConst<'a> {
@@ -51,10 +52,22 @@ pub(crate) struct PendingRuntimeInitializer {
     pub(crate) unit: hir::InitializationUnitId,
     pub(crate) function: hir::FunctionId,
     pub(crate) storage: hir::GlobalId,
-    pub(crate) ty: hir::TypeId,
-    pub(crate) expression: ast::Expr,
     pub(crate) file: usize,
     pub(crate) span: ast::Span,
+    pub(crate) kind: PendingRuntimeInitializerKind,
+}
+
+#[derive(Clone)]
+pub(crate) enum PendingRuntimeInitializerKind {
+    Stored {
+        ty: hir::TypeId,
+        expression: ast::Expr,
+    },
+    Delegated {
+        property: hir::PropertyId,
+        delegate_storage: hir::DelegateStorageId,
+        expression: ast::Expr,
+    },
 }
 
 impl Lowerer {
@@ -213,15 +226,8 @@ impl Lowerer {
             if !raw_storage {
                 match &decl.body {
                     ast::PropertyBodySyntax::Initializer { .. }
-                    | ast::PropertyBodySyntax::OptionalOmitted => {}
-                    ast::PropertyBodySyntax::Delegated { by_span, .. } => {
-                        self.error(
-                            *by_span,
-                            "delegated properties require the M21 top-level initialization protocol"
-                                .to_string(),
-                        );
-                        continue;
-                    }
+                    | ast::PropertyBodySyntax::OptionalOmitted
+                    | ast::PropertyBodySyntax::Delegated { .. } => {}
                     ast::PropertyBodySyntax::Abstract => {
                         self.error(
                             decl.span,
@@ -267,7 +273,8 @@ impl Lowerer {
                 ast::PropertyBodySyntax::Delegated { by_span, .. } => {
                     self.error(
                         *by_span,
-                        "delegated properties require the M21 delegate protocol".to_string(),
+                        "delegated properties cannot use raw or extern storage annotations"
+                            .to_string(),
                     );
                     continue;
                 }
@@ -275,8 +282,7 @@ impl Lowerer {
                 ast::PropertyBodySyntax::OptionalOmitted => {
                     self.error(
                         decl.span,
-                        "ordinary top-level Option storage requires the M21 initialization gate"
-                            .to_string(),
+                        "Option shorthand cannot use raw or extern storage annotations".to_string(),
                     );
                     continue;
                 }
@@ -318,6 +324,7 @@ impl Lowerer {
                 name: decl.name.text.clone(),
                 property: expected_property,
                 ty,
+                mutable: decl.mutable,
                 storage,
                 span: decl.span,
             });
@@ -493,10 +500,15 @@ impl Lowerer {
                 }
                 ast::PropertyBodySyntax::Const(_)
                 | ast::PropertyBodySyntax::Computed(_)
-                | ast::PropertyBodySyntax::Delegated { .. }
                 | ast::PropertyBodySyntax::Abstract
                 | ast::PropertyBodySyntax::ExternStorage => {
-                    unreachable!("the ordinary property worklist contains only stored properties")
+                    unreachable!(
+                        "the ordinary property worklist contains only stored or delegated properties"
+                    )
+                }
+                ast::PropertyBodySyntax::Delegated { .. } => {
+                    self.allocate_runtime_top_level_delegate(declaration);
+                    continue;
                 }
             };
             if let Some(initializer) = initializer {
@@ -532,6 +544,7 @@ impl Lowerer {
             name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
+            mutable: declaration.declaration.mutable,
             storage: hir::GlobalStorage::Managed {
                 initializer: hir::ManagedGlobalInitializer::Image(initializer),
             },
@@ -611,6 +624,7 @@ impl Lowerer {
             name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
+            mutable: declaration.declaration.mutable,
             storage: hir::GlobalStorage::Managed {
                 initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
             },
@@ -641,10 +655,12 @@ impl Lowerer {
                 unit,
                 function: initializer,
                 storage: global,
-                ty: declaration.ty,
-                expression,
                 file: declaration.file,
                 span: declaration.declaration.span,
+                kind: PendingRuntimeInitializerKind::Stored {
+                    ty: declaration.ty,
+                    expression,
+                },
             });
     }
 
@@ -722,26 +738,63 @@ impl Lowerer {
 
             let mut statements = Vec::new();
             let mut sink = Vec::new();
-            if let Some(value) = self.lower_expr(&pending.expression, &mut sink, Some(pending.ty)) {
-                if self.is_subtype(value.ty, pending.ty) {
-                    statements.extend(sink);
-                    statements.push(hir::Statement {
-                        kind: hir::StatementKind::Assign {
-                            target: hir::AssignTarget::Global(pending.storage),
-                            value: self.adapt_to(value, pending.ty),
-                        },
-                        span: pending.span,
-                    });
-                } else {
-                    let expected = self.type_name(pending.ty);
-                    let found = self.type_name(value.ty);
-                    self.error(
-                        pending.expression.span(),
-                        format!(
-                            "top-level property initializer must be of type {expected}, found {found}"
-                        ),
-                    );
+            let value = match &pending.kind {
+                PendingRuntimeInitializerKind::Stored { ty, expression } => {
+                    self.lower_expr(expression, &mut sink, Some(*ty))
+                        .and_then(|value| {
+                            if self.is_subtype(value.ty, *ty) {
+                                Some(self.adapt_to(value, *ty))
+                            } else {
+                                let expected = self.type_name(*ty);
+                                let found = self.type_name(value.ty);
+                                self.error(
+                                    expression.span(),
+                                    format!(
+                                        "top-level property initializer must be of type {expected}, found {found}"
+                                    ),
+                                );
+                                None
+                            }
+                        })
                 }
+                PendingRuntimeInitializerKind::Delegated {
+                    property,
+                    delegate_storage,
+                    expression,
+                } => self
+                    .lower_expr(expression, &mut sink, None)
+                    .and_then(|delegate| {
+                        match self.resolve_delegate_role_call(
+                            delegate.clone(),
+                            hir::PropertyDelegateOperatorKind::ProvideDelegate,
+                            Vec::new(),
+                            pending.span,
+                        ) {
+                            crate::properties::DelegateRoleCall::Resolved(effective) => {
+                                Some(effective.expression)
+                            }
+                            crate::properties::DelegateRoleCall::NoApplicable => Some(delegate),
+                            crate::properties::DelegateRoleCall::Failed => None,
+                        }
+                    })
+                    .inspect(|effective| {
+                        self.globals[pending.storage].ty = effective.ty;
+                        self.delegate_storages[*delegate_storage].ty = effective.ty;
+                        debug_assert_eq!(
+                            self.delegate_storages[*delegate_storage].property,
+                            *property
+                        );
+                    }),
+            };
+            if let Some(value) = value {
+                statements.extend(sink);
+                statements.push(hir::Statement {
+                    kind: hir::StatementKind::Assign {
+                        target: hir::AssignTarget::Global(pending.storage),
+                        value,
+                    },
+                    span: pending.span,
+                });
             }
             self.current_initialization_unit = None;
             self.pop_scope();
@@ -853,13 +906,7 @@ impl Lowerer {
                 );
                 return;
             }
-            ast::PropertyBodySyntax::Delegated { by_span, .. } => {
-                self.error(
-                    *by_span,
-                    "delegated properties require the M21 delegate protocol".to_string(),
-                );
-                return;
-            }
+            ast::PropertyBodySyntax::Delegated { .. } => {}
             _ => {
                 self.error(
                     declaration.span,
@@ -909,36 +956,49 @@ impl Lowerer {
         let expected_property = self.next_property_id();
         let expected_extension =
             hir::ExtensionPropertyId::from_raw((self.extension_properties.len() as u32).into());
-        let Some(capability) = self.allocate_property_accessors(
-            expected_property,
-            hir::PropertyOwner::Extension(expected_extension),
-            access.clone(),
-            declaration,
-            None,
-            hir::MethodModifier::Final,
-        ) else {
-            return;
-        };
         let extension = self.extension_properties.alloc(hir::ExtensionProperty {
             property: expected_property,
             receiver_ty,
             type_params,
         });
         assert_eq!(extension, expected_extension);
-        let property = self.properties.alloc(hir::Property {
-            owner: hir::PropertyOwner::Extension(extension),
-            name: declaration.name.text.clone(),
-            access,
-            modifier: hir::MethodModifier::Final,
-            is_override: false,
-            overrides: Vec::new(),
-            override_access: Vec::new(),
-            ty: property_ty,
-            capability,
-            representation: hir::PropertyRepresentation::AccessorOnly,
-            span: declaration.span,
-        });
-        assert_eq!(property, expected_property);
+        let (property, capability) =
+            if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
+                self.allocate_runtime_extension_delegate(
+                    declaration,
+                    file_index,
+                    access,
+                    extension,
+                    receiver_ty,
+                    property_ty,
+                )
+            } else {
+                let Some(capability) = self.allocate_property_accessors(
+                    expected_property,
+                    hir::PropertyOwner::Extension(extension),
+                    access.clone(),
+                    declaration,
+                    None,
+                    hir::MethodModifier::Final,
+                ) else {
+                    return;
+                };
+                let property = self.properties.alloc(hir::Property {
+                    owner: hir::PropertyOwner::Extension(extension),
+                    name: declaration.name.text.clone(),
+                    access,
+                    modifier: hir::MethodModifier::Final,
+                    is_override: false,
+                    overrides: Vec::new(),
+                    override_access: Vec::new(),
+                    ty: property_ty,
+                    capability,
+                    representation: hir::PropertyRepresentation::AccessorOnly,
+                    span: declaration.span,
+                });
+                assert_eq!(property, expected_property);
+                (property, capability)
+            };
         self.extension_properties_by_name
             .entry(declaration.name.text.clone())
             .or_default()

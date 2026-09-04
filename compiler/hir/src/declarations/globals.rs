@@ -6,6 +6,9 @@ pub struct Global {
     pub name: String,
     pub property: PropertyId,
     pub ty: TypeId,
+    /// Physical storage mutability. Hidden delegate slots remain immutable
+    /// even when their logical property exposes a setter.
+    pub mutable: bool,
     pub storage: GlobalStorage,
     pub span: Span,
 }

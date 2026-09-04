@@ -94,6 +94,7 @@ pub struct DelegateStorage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DelegateStorageLocation {
     ClassField(ClassFieldId),
+    ManagedGlobal(GlobalId),
 }
 
 #[derive(Debug, Clone)]

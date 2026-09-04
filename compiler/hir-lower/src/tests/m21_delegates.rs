@@ -197,7 +197,10 @@ fn class_delegate_owns_typed_hidden_storage_and_generated_accessors() {
         panic!("class delegate has a delegated representation")
     };
     let hir::DelegateStorageLocation::ClassField(field) =
-        module.delegate_storages[storage].location;
+        module.delegate_storages[storage].location
+    else {
+        panic!("a class delegate owns class-field storage")
+    };
     assert_eq!(host.fields, [field]);
     let constructor = host.constructors[0];
     let hir::ClassConstructorKind::Primary {
@@ -228,6 +231,141 @@ fn class_delegate_owns_typed_hidden_storage_and_generated_accessors() {
         return_value(&body.statements).kind,
         hir::ExprKind::MethodCall { .. }
     ));
+}
+
+#[test]
+fn top_level_and_extension_delegates_own_eager_managed_storage() {
+    let mut extension = delegated_property(
+        "shared",
+        true,
+        ty_named("Int"),
+        call("GlobalDelegate", vec![int_lit(2)]),
+    );
+    extension.receiver_ty = Some(ty_named("Int"));
+
+    let output = lower_user_output(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "GlobalDelegate",
+            vec![(true, "value", ty_named("Int"))],
+            None,
+            Vec::new(),
+            vec![
+                role_method(
+                    "provideDelegate",
+                    Vec::new(),
+                    Some(ty_named("GlobalDelegate")),
+                    FunctionBody::Expr(Box::new(var("this"))),
+                ),
+                role_method(
+                    "getValue",
+                    vec![("thisRef", ty_named("Unit"))],
+                    Some(ty_named("Int")),
+                    FunctionBody::Expr(Box::new(var("value"))),
+                ),
+                role_method(
+                    "getValue",
+                    vec![("thisRef", ty_named("Int"))],
+                    Some(ty_named("Int")),
+                    FunctionBody::Expr(Box::new(var("value"))),
+                ),
+                role_method(
+                    "setValue",
+                    vec![("thisRef", ty_named("Unit")), ("next", ty_named("Int"))],
+                    None,
+                    FunctionBody::Block(block(vec![assign("value", var("next"))])),
+                ),
+                role_method(
+                    "setValue",
+                    vec![("thisRef", ty_named("Int")), ("next", ty_named("Int"))],
+                    None,
+                    FunctionBody::Block(block(vec![assign("value", var("next"))])),
+                ),
+            ],
+        ),
+        Decl::Global(delegated_property(
+            "number",
+            true,
+            ty_named("Int"),
+            call("GlobalDelegate", vec![int_lit(1)]),
+        )),
+        Decl::Global(extension),
+        fun("main", Vec::new()),
+    ]))
+    .expect("global delegates lower through eager managed initialization");
+    let module = &output.export;
+
+    assert_eq!(module.delegate_storages.len(), 2);
+    assert_eq!(module.initialization_units.len(), 2);
+    let mut stable_keys = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| unit.stable_key.as_str())
+        .collect::<Vec<_>>();
+    stable_keys.sort_unstable();
+    assert_eq!(stable_keys, ["extension:Int:shared", "top-level:number"]);
+    for (storage_id, storage) in module.delegate_storages.iter() {
+        let hir::DelegateStorageLocation::ManagedGlobal(global) = storage.location else {
+            panic!("global delegates own managed-global storage")
+        };
+        assert_eq!(module.globals[global].ty, storage.ty);
+        assert!(!module.globals[global].mutable);
+        assert!(module.globals[global].name.starts_with("$delegate$"));
+        let property = &module.properties[storage.property];
+        assert!(matches!(
+            property.representation,
+            hir::PropertyRepresentation::Delegated { storage } if storage == storage_id
+        ));
+        let unit = module
+            .initialization_units
+            .iter()
+            .find_map(|(unit, initialization)| {
+                matches!(
+                    initialization.kind,
+                    hir::InitializationUnitKind::EagerTopLevel {
+                        property: actual_property,
+                        storage: actual_global,
+                    } if actual_property == storage.property && actual_global == global
+                )
+                .then_some((unit, initialization))
+            })
+            .expect("the delegate storage owns an eager initialization unit");
+        assert_eq!(unit.1.schedule, hir::InitializationSchedule::EagerStartup);
+
+        let getter = property.capability.getter();
+        let hir::PropertyAccessorImplementation::Body(getter) =
+            module.property_getters[getter].implementation
+        else {
+            panic!("a delegated getter is a generated function")
+        };
+        let hir::FunctionKind::User(getter) = &module.functions[getter].kind else {
+            panic!("a delegated getter has a generated body")
+        };
+        assert!(matches!(
+            getter.statements.first().map(|statement| &statement.kind),
+            Some(hir::StatementKind::InitializationEnsure(actual)) if *actual == unit.0
+        ));
+        let hir::ExprKind::MethodCall { args, .. } = &return_value(&getter.statements).kind else {
+            panic!("a delegated getter directly calls its resolved typed role")
+        };
+        assert_eq!(args.len(), 1, "the protocol carries no reflection metadata");
+        match property.owner {
+            hir::PropertyOwner::TopLevel => {
+                assert!(matches!(args[0].kind, hir::ExprKind::UnitLiteral));
+            }
+            hir::PropertyOwner::Extension(_) => {
+                assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
+            }
+            _ => panic!("this test declares only global delegates"),
+        }
+    }
+    assert_eq!(output.local.globals.len(), 2);
+    assert!(
+        output.local.globals.iter().all(|(_, global)| matches!(
+            global.storage,
+            hir::concrete::GlobalStorage::Managed { .. }
+        ))
+    );
 }
 
 #[test]
