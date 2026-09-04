@@ -21,7 +21,6 @@ fn validates_and_preserves_coroutine_core_contract() {
         .find_map(|(_, interface)| (interface.name == "Continuation").then_some(interface))
         .expect("Continuation interface");
     assert_eq!(continuation.type_params.len(), 1);
-    assert_eq!(continuation.type_params[0].variance, hir::Variance::In);
     assert_eq!(continuation.methods.len(), 2);
     assert_eq!(
         module.functions[module.interface_methods[continuation.methods[0]].function]
@@ -59,7 +58,7 @@ fn validates_and_preserves_coroutine_core_contract() {
         .iter()
         .find_map(|(_, interface)| (interface.name == "SuspendTask").then_some(interface))
         .expect("SuspendTask interface");
-    assert_eq!(task.type_params[0].variance, hir::Variance::Out);
+    assert_eq!(task.type_params.len(), 1);
     assert!(module.functions[module.interface_methods[task.methods[0]].function].is_suspend);
 
     let start = function_id(&module, "startCoroutine");
@@ -99,7 +98,7 @@ fn rejects_malformed_continuation_core_contract() {
         .find(|error| {
             error
                 .message
-                .starts_with("interface `Continuation<in T>` in scoop.core must declare exactly")
+                .starts_with("interface `Continuation<T>` in scoop.core must declare exactly")
         })
         .expect("Continuation contract diagnostic");
     assert_eq!(contract.file, 0);

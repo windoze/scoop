@@ -238,11 +238,6 @@ pub(super) fn render_type_parameters(
     let parameters = parameters
         .iter()
         .map(|parameter| {
-            let variance = match parameter.variance {
-                hir::Variance::Invariant => "",
-                hir::Variance::In => "in ",
-                hir::Variance::Out => "out ",
-            };
             let bound = match &parameter.bounds {
                 hir::TypeParamBounds::Unconstrained => String::new(),
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
@@ -261,7 +256,7 @@ pub(super) fn render_type_parameters(
                         .join(" & ")
                 ),
             };
-            format!("{variance}{}{bound}", parameter.name)
+            format!("{}{bound}", parameter.name)
         })
         .collect::<Vec<_>>()
         .join(", ");

@@ -207,7 +207,6 @@ fn generic_interface_applications_get_distinct_mir_identities() {
         vec![hir::TypeParamDecl {
             id: hir::TypeParamId::from_raw(0),
             name: "T".to_string(),
-            variance: hir::Variance::Out,
             bounds: hir::TypeParamBounds::Unconstrained,
             span: SPAN,
         }],

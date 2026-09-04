@@ -46,20 +46,10 @@ impl Lowerer {
                         self.is_subtype(parent, b.canonical_type)
                     });
                 }
-                let variances: Vec<hir::Variance> = self.interfaces[a.template]
-                    .type_params
-                    .iter()
-                    .map(|param| param.variance)
-                    .collect();
-                variances
+                a.arguments
                     .into_iter()
-                    .zip(a.arguments)
                     .zip(b.arguments)
-                    .all(|((variance, a), b)| match variance {
-                        hir::Variance::Invariant => self.types_equal(a, b),
-                        hir::Variance::Out => self.is_subtype(a, b),
-                        hir::Variance::In => self.is_subtype(b, a),
-                    })
+                    .all(|(a, b)| self.types_equal(a, b))
             }
             (Type::Function(source), Type::Function(target)) => {
                 let source = self.function_types[source].clone();

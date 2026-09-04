@@ -2,16 +2,16 @@
 // State machines, frames, and continuation adapters are compiler-generated;
 // these declarations provide the source-level typed boundary.
 
-interface Continuation<in T> {
+interface Continuation<T> {
     fun resume(value: T)
     fun resumeWithException(exception: Throwable)
 }
 
-interface SuspendTask<out T> {
+interface SuspendTask<T> {
     suspend fun run(): T
 }
 
-interface SuspendRegistration<out T> {
+interface SuspendRegistration<T> {
     fun register(continuation: Continuation<T>)
 }
 

@@ -341,11 +341,6 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
     let params = params
         .iter()
         .map(|param| {
-            let variance = match param.variance {
-                Variance::Invariant => "",
-                Variance::In => "in ",
-                Variance::Out => "out ",
-            };
             let bounds = match &param.bounds {
                 TypeParamBounds::Unconstrained => String::new(),
                 TypeParamBounds::Value { .. } => " : value".to_string(),
@@ -373,7 +368,7 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                         .join(" & ")
                 ),
             };
-            format!("{variance}{}{bounds}", param.name)
+            format!("{}{bounds}", param.name)
         })
         .collect::<Vec<_>>();
     format!("<{}>", params.join(", "))

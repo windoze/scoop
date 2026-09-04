@@ -348,7 +348,7 @@ impl Lowerer {
         // Lower bounds request their unique least common supertype. With only
         // upper bounds, inference is dual: select the unique greatest type
         // below every bound. This lets contravariant positions fix a variable
-        // (for example `Continuation<in T>`) without inventing a bottom type.
+        // (for example `Continuation<T>`) without inventing a bottom type.
         let prefer_minimal = !lower.is_empty();
         let mut frontier = Vec::new();
         for &candidate in &candidates {

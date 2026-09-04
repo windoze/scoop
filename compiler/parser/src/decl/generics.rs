@@ -1,8 +1,9 @@
 use super::*;
 
 impl Parser {
-    /// `<T, out U : Interface, ...>`. Variance and upper-bound legality are
-    /// intentionally deferred to HIR; the parser preserves the source form.
+    /// `<T, U : Interface, ...>`. Nominal type parameters are permanently
+    /// invariant, so declaration-site variance is rejected at the grammar
+    /// boundary and never enters the AST.
     pub(super) fn parse_type_params(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
         let mut type_params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Less) {
@@ -10,18 +11,15 @@ impl Parser {
         }
         self.bump();
         loop {
-            let variance_token = self.peek().clone();
-            let variance = match &variance_token.kind {
-                TokenKind::In => {
-                    self.bump();
-                    Variance::In
-                }
-                TokenKind::Ident(text) if text == "out" => {
-                    self.bump();
-                    Variance::Out
-                }
-                _ => Variance::Invariant,
-            };
+            if matches!(self.peek().kind, TokenKind::In)
+                || matches!(&self.peek().kind, TokenKind::Ident(text) if text == "out")
+            {
+                let token = self.bump();
+                return Err(Diagnostic::at(
+                    token.span,
+                    "nominal type parameters are invariant; declaration-site `in`/`out` is not supported",
+                ));
+            }
             let name = self.expect_ident("type parameter name")?;
             let inline_bound = if matches!(self.peek().kind, TokenKind::Colon) {
                 self.bump();
@@ -29,19 +27,13 @@ impl Parser {
             } else {
                 None
             };
-            let start = if variance == Variance::Invariant {
-                name.span.start
-            } else {
-                variance_token.span.start
-            };
             let end = self.tokens[self.pos.saturating_sub(1)]
                 .span
                 .end
                 .max(name.span.end);
             type_params.push(TypeParamDecl {
-                span: Span::new(start, end),
+                span: Span::new(name.span.start, end),
                 name,
-                variance,
                 inline_bound,
             });
             if matches!(self.peek().kind, TokenKind::Comma) {

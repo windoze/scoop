@@ -8,7 +8,6 @@ use super::*;
 fn upper(name: &str, interface: TypeRef) -> ast::TypeParamDecl {
     ast::TypeParamDecl {
         name: ident(name),
-        variance: ast::Variance::Invariant,
         inline_bound: Some(ast::TypeBound::Upper(interface)),
         span: sp(),
     }

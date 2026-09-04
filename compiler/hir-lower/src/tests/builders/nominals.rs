@@ -79,7 +79,7 @@ pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
 
 pub(crate) fn generic_interface_decl(
     name: &str,
-    type_params: Vec<(ast::Variance, &str)>,
+    type_params: Vec<&str>,
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
@@ -87,9 +87,8 @@ pub(crate) fn generic_interface_decl(
         name: ident(name),
         type_params: type_params
             .into_iter()
-            .map(|(variance, name)| ast::TypeParamDecl {
+            .map(|name| ast::TypeParamDecl {
                 name: ident(name),
-                variance,
                 inline_bound: None,
                 span: sp(),
             })

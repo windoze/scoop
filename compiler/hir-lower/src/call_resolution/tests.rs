@@ -12,7 +12,6 @@ fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
         id: hir::TypeParamId::with_substitution_slot(identity, slot),
         name: format!("T{identity}"),
-        variance: hir::Variance::Invariant,
         bounds: hir::TypeParamBounds::Unconstrained,
         span: Span::new(0, 0),
     }

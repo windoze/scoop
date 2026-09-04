@@ -23,12 +23,12 @@ fn class_hierarchy_golden() {
     fun toString(): String
   interface Hash
     fun hash(): Int
-  interface Continuation<in T>
+  interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
-  interface SuspendTask<out T>
+  interface SuspendTask<T>
     suspend fun run(): T0
-  interface SuspendRegistration<out T>
+  interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
   interface Describable
     fun describe(): String

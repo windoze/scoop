@@ -86,7 +86,6 @@ impl Harness {
         let type_param = || hir::TypeParamDecl {
             id: hir::TypeParamId::from_raw(0),
             name: "T".to_string(),
-            variance: hir::Variance::Invariant,
             bounds: hir::TypeParamBounds::Unconstrained,
             span: SPAN,
         };

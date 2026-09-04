@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn interface_bounds_are_complete_ordered_hir_constraints() {
-    let mut renderable =
-        generic_interface_decl("Renderable", vec![(ast::Variance::Invariant, "T")], vec![]);
+    let mut renderable = generic_interface_decl("Renderable", vec!["T"], vec![]);
     let Decl::Interface(renderable_decl) = &mut renderable else {
         unreachable!()
     };
@@ -26,7 +25,7 @@ fn interface_bounds_are_complete_ordered_hir_constraints() {
 
     let module = lower_user(file(vec![
         interface_decl("Marker", vec![]),
-        generic_interface_decl("Comparable", vec![(ast::Variance::Invariant, "T")], vec![]),
+        generic_interface_decl("Comparable", vec!["T"], vec![]),
         renderable,
         constrained,
         fun("main", vec![]),

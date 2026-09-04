@@ -13,20 +13,6 @@ impl Lowerer {
         where_clause: Option<&ast::WhereClause>,
         target: &str,
     ) -> Vec<hir::TypeParamDecl> {
-        if target != "interface" {
-            for declaration in declarations {
-                if declaration.variance != ast::Variance::Invariant {
-                    self.error(
-                        declaration.span,
-                        format!(
-                            "type parameter `{}` of {target} must be invariant",
-                            declaration.name.text
-                        ),
-                    );
-                }
-            }
-        }
-
         self.type_params_in_scope = params.clone();
         let own_indices: std::collections::HashMap<_, _> = params
             .iter()

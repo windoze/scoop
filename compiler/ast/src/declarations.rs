@@ -262,17 +262,9 @@ pub struct InterfaceDecl {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Variance {
-    Invariant,
-    In,
-    Out,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeParamDecl {
     pub name: Ident,
-    pub variance: Variance,
     pub inline_bound: Option<TypeBound>,
     pub span: Span,
 }

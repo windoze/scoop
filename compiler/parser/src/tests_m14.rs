@@ -1,9 +1,9 @@
-//! M14 declaration-surface tests. Semantic legality of bounds, variance,
-//! operator signatures and intrinsic providers belongs to HIR.
+//! M14 declaration-surface tests. Semantic legality of bounds, operator
+//! signatures and intrinsic providers belongs to HIR.
 
 use scoop_ast::{
     ClassConstructorDecl, Decl, StatementKind, StructRepresentationDecl, TypeBound,
-    TypeParamKindBound, TypeRefKind, Variance,
+    TypeParamKindBound, TypeRefKind,
 };
 
 use crate::tests::{block_body, err, ok};
@@ -11,14 +11,13 @@ use crate::tests::{block_body, err, ok};
 #[test]
 fn generic_class_preserves_complete_host_and_supertype_syntax() {
     let file = ok(
-        "class Derived<out T : ToString>(val value: T) : Base<T>(value), Render<T> \
+        "class Derived<T : ToString>(val value: T) : Base<T>(value), Render<T> \
          where T : Hash { operator fun equals(other: Derived<T>): Boolean = true }",
     );
     let Decl::Class(class) = &file.declarations[0] else {
         panic!("expected class");
     };
     assert_eq!(class.type_params.len(), 1);
-    assert_eq!(class.type_params[0].variance, Variance::Out);
     assert!(matches!(
         &class.type_params[0].inline_bound,
         Some(TypeBound::Upper(ty))
@@ -58,7 +57,7 @@ fn generic_class_preserves_complete_host_and_supertype_syntax() {
 
     let dump = scoop_ast::dump(&file);
     assert!(dump.contains(
-        "class Derived<out T : ToString>(val value: T) : Base<T>(<1 args>), Render<T> where T : Hash"
+        "class Derived<T : ToString>(val value: T) : Base<T>(<1 args>), Render<T> where T : Hash"
     ));
     assert!(dump.contains("operator fun equals"));
 }
@@ -69,7 +68,7 @@ fn where_clauses_are_structured_on_every_generic_declaration_kind() {
         "fun <T> render(value: T): String where T : ToString, T : Hash = value.toString()\n\
          struct Box<T>(val value: T) where T : ToString\n\
          enum Choice<T> where T : ToString { Value(T), Empty }\n\
-         interface Source<out T> : Parent<T> where T : ToString { fun get(): T }",
+         interface Source<T> : Parent<T> where T : ToString { fun get(): T }",
     );
 
     let Decl::Function(function) = &file.declarations[0] else {
@@ -104,15 +103,41 @@ fn where_clauses_are_structured_on_every_generic_declaration_kind() {
 }
 
 #[test]
-fn parser_preserves_variance_and_kind_bounds_for_hir() {
-    let file = ok("struct Box<in T : value>(val value: T)");
+fn parser_preserves_kind_bounds_for_hir() {
+    let file = ok("struct Box<T : value>(val value: T)");
     let Decl::Struct(struct_) = &file.declarations[0] else {
         panic!("expected struct");
     };
-    assert_eq!(struct_.type_params[0].variance, Variance::In);
     assert_eq!(
         struct_.type_params[0].inline_bound,
         Some(TypeBound::Kind(TypeParamKindBound::Value))
+    );
+}
+
+#[test]
+fn declaration_and_use_site_variance_are_rejected() {
+    for source in ["interface Producer<out T> {}", "class Sink<in T> {}"] {
+        let (_, message) = err(source);
+        assert_eq!(
+            message,
+            "nominal type parameters are invariant; declaration-site `in`/`out` is not supported"
+        );
+    }
+
+    let (_, message) = err("fun use(value: Box<out Int>) {}");
+    assert_eq!(
+        message,
+        "`out` projections are not supported; nominal generic applications are invariant"
+    );
+    let (_, message) = err("fun use(value: Box<in Int>) {}");
+    assert_eq!(
+        message,
+        "`in` projections are not supported; nominal generic applications are invariant"
+    );
+    let (_, message) = err("fun use(value: Box<*>) {}");
+    assert_eq!(
+        message,
+        "star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper"
     );
 }
 

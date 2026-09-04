@@ -112,10 +112,10 @@ impl Parser {
         } else if matches!(self.peek().kind, TokenKind::Less) {
             let start = name.span.start;
             self.bump();
-            let mut args = vec![self.parse_type_ref()?];
+            let mut args = vec![self.parse_nominal_type_argument()?];
             while matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
-                args.push(self.parse_type_ref()?);
+                args.push(self.parse_nominal_type_argument()?);
             }
             let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
             Ok(TypeRef {
@@ -127,6 +127,25 @@ impl Parser {
                 span: name.span,
                 kind: TypeRefKind::Named(name),
             })
+        }
+    }
+
+    fn parse_nominal_type_argument(&mut self) -> Result<TypeRef, Diagnostic> {
+        let token = self.peek().clone();
+        match &token.kind {
+            TokenKind::In => Err(Diagnostic::at(
+                token.span,
+                "`in` projections are not supported; nominal generic applications are invariant",
+            )),
+            TokenKind::Ident(text) if text == "out" => Err(Diagnostic::at(
+                token.span,
+                "`out` projections are not supported; nominal generic applications are invariant",
+            )),
+            TokenKind::Star => Err(Diagnostic::at(
+                token.span,
+                "star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper",
+            )),
+            _ => self.parse_type_ref(),
         }
     }
 }

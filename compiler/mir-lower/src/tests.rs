@@ -83,7 +83,6 @@ fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
         id: hir::TypeParamId::from_raw(0),
         name: name.into(),
-        variance: hir::Variance::Invariant,
         bounds: hir::TypeParamBounds::Unconstrained,
         span: SPAN,
     }

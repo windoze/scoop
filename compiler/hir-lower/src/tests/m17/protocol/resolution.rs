@@ -162,11 +162,7 @@ fn inherited_default_carries_the_parent_to_child_type_relation() {
     ))];
 
     let output = lower_user_output(file(vec![
-        generic_interface_decl(
-            "Parent",
-            vec![(ast::Variance::Invariant, "P")],
-            vec![inherited],
-        ),
+        generic_interface_decl("Parent", vec!["P"], vec![inherited]),
         child_declaration,
         fun(
             "main",

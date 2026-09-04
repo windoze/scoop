@@ -23,7 +23,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
     let interface = with_kind(
         generic_interface_decl(
             "Source",
-            vec![(ast::Variance::Out, "T")],
+            vec!["T"],
             vec![bodyless_method(false, "get", vec![], Some(ty_named("T")))],
         ),
         ast::TypeParamKindBound::Ref,
@@ -80,7 +80,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
     let dump = hir::dump(&module);
     assert!(dump.contains("struct RefBox<T : ref>"));
     assert!(dump.contains("enum Choice<T : value>"));
-    assert!(dump.contains("interface Source<out T : ref>"));
+    assert!(dump.contains("interface Source<T : ref>"));
     assert!(dump.contains("fun identity<T : value>"));
 }
 

@@ -1,17 +1,9 @@
 use super::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Variance {
-    Invariant,
-    In,
-    Out,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeParamDecl {
     pub id: TypeParamId,
     pub name: String,
-    pub variance: Variance,
     /// Complete declaration-site constraint set. The sum type makes kind
     /// bounds and interface upper bounds mutually exclusive by construction.
     pub bounds: TypeParamBounds,

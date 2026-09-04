@@ -103,13 +103,7 @@ impl Lowerer {
         self.current_file = self.interface_files[&id];
         let interface = &self.interfaces[id];
         let throwable = self.throwable.map(|(_, ty)| ty);
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::In,
-                ..
-            }]
-        );
+        let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
         let valid_methods = match self.interface_methods[&id].as_slice() {
             [resume, resume_exception] => {
                 let resume = &self.functions[*resume];
@@ -130,7 +124,7 @@ impl Lowerer {
         if !valid_type_param || !valid_methods {
             self.error(
                 interface.span,
-                "interface `Continuation<in T>` in scoop.core must declare exactly `fun resume(value: T)` followed by `fun resumeWithException(exception: Throwable)`"
+                "interface `Continuation<T>` in scoop.core must declare exactly `fun resume(value: T)` followed by `fun resumeWithException(exception: Throwable)`"
                     .to_string(),
             );
         }
@@ -139,13 +133,7 @@ impl Lowerer {
     pub(crate) fn validate_suspend_task_contract(&mut self, id: InterfaceId) {
         self.current_file = self.interface_files[&id];
         let interface = &self.interfaces[id];
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::Out,
-                ..
-            }]
-        );
+        let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
         let valid_method = match self.interface_methods[&id].as_slice() {
             [run] => {
                 let run = &self.functions[*run];
@@ -159,7 +147,7 @@ impl Lowerer {
         if !valid_type_param || !valid_method {
             self.error(
                 interface.span,
-                "interface `SuspendTask<out T>` in scoop.core must declare exactly `suspend fun run(): T`"
+                "interface `SuspendTask<T>` in scoop.core must declare exactly `suspend fun run(): T`"
                     .to_string(),
             );
         }
@@ -172,13 +160,7 @@ impl Lowerer {
     ) {
         self.current_file = self.interface_files[&id];
         let interface = &self.interfaces[id];
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::Out,
-                ..
-            }]
-        );
+        let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
         let valid_method = match self.interface_methods[&id].as_slice() {
             [register] => {
                 let register = &self.functions[*register];
@@ -193,7 +175,7 @@ impl Lowerer {
         if !valid_type_param || !valid_method {
             self.error(
                 interface.span,
-                "interface `SuspendRegistration<out T>` in scoop.core must declare exactly `fun register(continuation: Continuation<T>)`"
+                "interface `SuspendRegistration<T>` in scoop.core must declare exactly `fun register(continuation: Continuation<T>)`"
                     .to_string(),
             );
         }
