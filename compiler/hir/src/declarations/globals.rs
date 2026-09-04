@@ -15,7 +15,9 @@ pub enum GlobalStorage {
     /// Compiler-managed backing storage for an ordinary top-level property.
     /// Unlike M12 raw storage, this may contain managed references and is
     /// never exposed through `addressOf`.
-    Managed { initializer: ConstantValue },
+    Managed {
+        initializer: ManagedGlobalInitializer,
+    },
     /// Explicitly addressable M12 `@Global` / `@ThreadLocal` raw storage.
     Local {
         thread_local: bool,
@@ -26,6 +28,12 @@ pub enum GlobalStorage {
         native_symbol: String,
         thread_local: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum ManagedGlobalInitializer {
+    Image(ConstantValue),
+    RuntimeZeroed(InitializationUnitId),
 }
 
 /// A typed initializer whose complete representation can be emitted directly

@@ -48,6 +48,7 @@ fn statement_can_fall_through(statement: &hir::Statement) -> bool {
                     .any(|catch| statements_can_fall_through(&catch.body))
         }
         hir::StatementKind::Expr(_)
+        | hir::StatementKind::InitializationEnsure(_)
         | hir::StatementKind::LocalFunction(_)
         | hir::StatementKind::ValDecl { .. }
         | hir::StatementKind::Assign { .. }

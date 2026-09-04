@@ -20,6 +20,23 @@ impl BodyLowerer<'_> {
         let span = statement.span;
         let kind = match &statement.kind {
             hir::StatementKind::LocalFunction(_) => return,
+            hir::StatementKind::InitializationEnsure {
+                unit,
+                cycle_exception: _,
+            } => {
+                let function = self.module.initialization_units[*unit].ensure;
+                smir::StatementKind::Expr(smir::Expr::new(
+                    mir::Type::Unit,
+                    smir::ExprKind::Call(smir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::User(self.function_map[&function]),
+                        },
+                        args: Vec::new(),
+                        return_ty: mir::Type::Unit,
+                    }),
+                ))
+            }
             hir::StatementKind::Expr(expr) => {
                 let expr = self.lower_expr(expr);
                 self.drain_prelude(span, out);

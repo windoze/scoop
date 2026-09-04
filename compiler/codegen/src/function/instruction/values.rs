@@ -72,6 +72,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .expect("ordinary globals are emitted")
                 .as_pointer_value()
                 .into(),
+            Value::InitializationUnit(id) => self.initialization_units[arena_index(id)]
+                .as_pointer_value()
+                .into(),
         })
     }
 
@@ -89,7 +92,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
             | Value::RootScan(_)
-            | Value::Global(_) => None,
+            | Value::Global(_)
+            | Value::InitializationUnit(_) => None,
         };
         source
             .and_then(|source| live.arguments.get(&source).copied())

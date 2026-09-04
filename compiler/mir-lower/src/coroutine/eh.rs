@@ -248,6 +248,7 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::Local(_)
         | mir::ExprKind::GlobalRead(_)
+        | mir::ExprKind::InitializationUnitAddress(_)
         | mir::ExprKind::AddressOf { .. }
         | mir::ExprKind::GlobalAddress { .. }
         | mir::ExprKind::SizeOf(_)

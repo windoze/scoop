@@ -128,6 +128,8 @@ pub(super) fn mangling_shell(
         functions,
         extern_functions: Arena::new(),
         globals: Arena::new(),
+        initialization_units: Arena::new(),
+        initialization_failure_roots: Arena::new(),
         callback_bridges: Arena::new(),
         foreign_callback_adapters: Arena::new(),
         foreign_callback_bridges: Arena::new(),

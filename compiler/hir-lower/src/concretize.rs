@@ -93,6 +93,8 @@ struct Concretizer<'a> {
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
+    initialization_units: Arena<concrete::InitializationUnit>,
+    initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
     function_slots: Vec<Option<concrete::Function>>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
     /// Concrete ordinary bodies supplied by typed derived-equality
@@ -161,6 +163,8 @@ impl<'a> Concretizer<'a> {
             extern_map: HashMap::new(),
             globals: Arena::new(),
             global_map: HashMap::new(),
+            initialization_units: Arena::new(),
+            initialization_failure_roots: Arena::new(),
             function_slots: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
@@ -245,6 +249,51 @@ impl<'a> Concretizer<'a> {
         let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
 
+        for (source_id, source) in self.source.initialization_failure_roots.iter() {
+            let id = self
+                .initialization_failure_roots
+                .alloc(concrete::InitializationFailureRoot {
+                    unit: concrete::InitializationUnitId::from_raw(source.unit.into_raw()),
+                });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+        for (source_id, source) in self.source.initialization_units.iter() {
+            let kind = match source.kind {
+                export::InitializationUnitKind::EagerTopLevel { storage, .. } => {
+                    concrete::InitializationUnitKind::EagerTopLevel {
+                        storage: self.global_map[&storage],
+                    }
+                }
+            };
+            let function = |source| {
+                self.function_by_key[&FunctionKey::Free {
+                    source,
+                    arguments: Vec::new(),
+                }]
+            };
+            let id = self
+                .initialization_units
+                .alloc(concrete::InitializationUnit {
+                    stable_key: source.stable_key.clone(),
+                    kind,
+                    initializer: function(source.initializer),
+                    ensure: function(source.ensure),
+                    failure_root: concrete::InitializationFailureRootId::from_raw(
+                        source.failure_root.into_raw(),
+                    ),
+                    dependencies: source
+                        .dependencies
+                        .iter()
+                        .map(|dependency| concrete::InitializationDependency {
+                            unit: concrete::InitializationUnitId::from_raw(
+                                dependency.unit.into_raw(),
+                            ),
+                        })
+                        .collect(),
+                });
+            assert_eq!(source_id.into_raw(), id.into_raw());
+        }
+
         let intrinsic_type_core = concrete::IntrinsicTypeCore {
             int: self.struct_by_key[&(self.source.intrinsic_type_core.int, Vec::new())],
             uint: self.struct_by_key[&(self.source.intrinsic_type_core.uint, Vec::new())],
@@ -271,6 +320,8 @@ impl<'a> Concretizer<'a> {
             },
         };
         let source_exception_core = self.source.exception_core;
+        let message_constructor = source_exception_core.illegal_state_message_constructor;
+        let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
         let option = &self.source.enums[self.source.option_enum];
         let option_variant = |name: &str| {
             concrete::VariantId::from_raw(
@@ -294,6 +345,8 @@ impl<'a> Concretizer<'a> {
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            initialization_units: self.initialization_units,
+            initialization_failure_roots: self.initialization_failure_roots,
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,
@@ -317,6 +370,11 @@ impl<'a> Concretizer<'a> {
                 illegal_state_exception: lower_exception(
                     source_exception_core.illegal_state_exception,
                 ),
+                illegal_state_message_constructor: concrete::MessageClassConstructor {
+                    class: message_class,
+                    callable: self.class_constructor_by_key
+                        [&(message_constructor.constructor, message_class)],
+                },
             },
             coroutine_protocols,
             foreign_callback_core: concrete::ForeignCallbackCore {

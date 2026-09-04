@@ -141,6 +141,7 @@ fn classes_module() -> Module {
 
     Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),
@@ -379,6 +380,7 @@ pub(super) fn heap_module() -> Module {
 
     Module {
         globals,
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),

@@ -431,6 +431,8 @@ impl Harness {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: Arena::new(),
+            initialization_units: Arena::new(),
+            initialization_failure_roots: Arena::new(),
             properties: self.properties,
             extension_properties: Arena::new(),
             property_getters: self.property_getters,

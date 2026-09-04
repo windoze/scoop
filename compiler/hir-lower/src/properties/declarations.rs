@@ -112,6 +112,13 @@ impl Lowerer {
         let interface_property = matches!(owner, hir::PropertyOwner::Interface(_));
         let dispatch_storage = matches!(owner, hir::PropertyOwner::Class(_))
             && (modifier != hir::MethodModifier::Final || declaration.is_override);
+        let runtime_storage = matches!(
+            backing,
+            Some(hir::PropertyBacking::TopLevelGlobal {
+                initialization: hir::TopLevelInitialization::Runtime(_),
+                ..
+            })
+        );
         if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
             return Some(self.allocate_delegated_property_accessors(
                 property,
@@ -163,7 +170,9 @@ impl Lowerer {
                     self.functions[function].attributes,
                 )
             }
-            _ if backing.is_some() && (dispatch_storage || getter_source.is_some()) => {
+            _ if backing.is_some()
+                && (runtime_storage || dispatch_storage || getter_source.is_some()) =>
+            {
                 let function_declaration = self.implicit_getter_function_declaration(
                     declaration,
                     ast::AccessorBodySyntax::Expr(Box::new(ast::Expr::Var(ast::Ident {
@@ -267,7 +276,9 @@ impl Lowerer {
                     self.functions[function].attributes,
                 )
             }
-            _ if backing.is_some() && (dispatch_storage || setter_source.is_some()) => {
+            _ if backing.is_some()
+                && (runtime_storage || dispatch_storage || setter_source.is_some()) =>
+            {
                 let parameter = setter_source.map_or_else(
                     || ast::Ident {
                         text: "value".to_string(),
@@ -1058,6 +1069,13 @@ impl Lowerer {
             self.top_level.push(function);
         }
         self.function_files.insert(function, self.current_file);
+        if let Some(hir::PropertyBacking::TopLevelGlobal {
+            initialization: hir::TopLevelInitialization::Runtime(unit),
+            ..
+        }) = backing
+        {
+            self.runtime_accessor_units.insert(function, unit);
+        }
         self.property_accessor_sources.push(PropertyAccessorSource {
             property,
             kind,
@@ -1096,7 +1114,8 @@ impl Lowerer {
             }
             self.current_file = self.function_files[&source.function];
             if source.generated_delegate {
-                let body = self.lower_generated_delegate_accessor(&source);
+                let mut body = self.lower_generated_delegate_accessor(&source);
+                self.prepend_accessor_initialization_ensure(&source, &mut body);
                 self.functions[source.function].kind = FunctionKind::User(body);
                 continue;
             }
@@ -1104,10 +1123,28 @@ impl Lowerer {
                 backing,
                 capture_depth: self.capture_contexts.len(),
             });
-            let body = self.lower_body(source.function, &source.declaration);
+            let mut body = self.lower_body(source.function, &source.declaration);
+            self.prepend_accessor_initialization_ensure(&source, &mut body);
             self.functions[source.function].kind = FunctionKind::User(body);
             self.backing_field_context = None;
         }
+    }
+
+    fn prepend_accessor_initialization_ensure(
+        &self,
+        source: &PropertyAccessorSource,
+        body: &mut hir::Body,
+    ) {
+        let Some(&unit) = self.runtime_accessor_units.get(&source.function) else {
+            return;
+        };
+        body.statements.insert(
+            0,
+            hir::Statement {
+                kind: hir::StatementKind::InitializationEnsure(unit),
+                span: source.declaration.span,
+            },
+        );
     }
 
     fn getter_function_declaration(

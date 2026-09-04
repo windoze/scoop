@@ -223,6 +223,17 @@ pub(crate) fn emit_llvm_module<'ctx>(
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
+    for function in &module.functions {
+        declare_function(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            profile,
+            function,
+        )?;
+    }
+    let initialization_units = initialization::emit(context, &llvm, module, &globals)?;
     let module_ctx = ModuleCtx {
         managed_address_space,
         functions: &module.functions,
@@ -234,6 +245,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,
         globals: &globals,
+        initialization_units: &initialization_units,
         arrays: &module.meta.arrays,
         array_tds: &array_tds,
         type_tds: &type_tds,
@@ -242,16 +254,6 @@ pub(crate) fn emit_llvm_module<'ctx>(
         bounds_message,
         array_size_message,
     };
-    for function in &module.functions {
-        declare_function(
-            context,
-            &llvm,
-            &module.structs,
-            &module.enums,
-            profile,
-            function,
-        )?;
-    }
     for (_, callback) in module.callback_bridges.iter() {
         declare_callback_trampoline(
             context,

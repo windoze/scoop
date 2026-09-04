@@ -173,6 +173,7 @@ impl TargetProfile {
         tail_calls: TailCallPolicy::Disabled,
         runtime_sources: &[
             "runtime/src/rt.c",
+            "runtime/src/initialization.c",
             "runtime/src/gc.c",
             "runtime/src/gc/allocation.c",
             "runtime/src/gc/collector.c",

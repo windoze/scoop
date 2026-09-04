@@ -9,6 +9,10 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::InitializationEnsure(_) => out.push((
+                    statement.span,
+                    "an initialization gate is not allowed in `@NoGC` code".to_string(),
+                )),
                 hir::StatementKind::Expr(expr) => {
                     self.collect_no_gc_expr_violations(expr, out, requirements)
                 }

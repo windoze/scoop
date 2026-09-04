@@ -371,6 +371,30 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::Expr> {
         let declaration = self.properties[property].clone();
+        if let (
+            Some(current),
+            hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                backing:
+                    hir::PropertyBacking::TopLevelGlobal {
+                        initialization: hir::TopLevelInitialization::Runtime(dependency),
+                        ..
+                    },
+            }),
+        ) = (
+            self.current_initialization_unit,
+            &declaration.representation,
+        ) {
+            let dependencies = &mut self.initialization_units[current].dependencies;
+            if !dependencies
+                .iter()
+                .any(|existing| existing.unit == *dependency)
+            {
+                dependencies.push(hir::InitializationDependency {
+                    unit: *dependency,
+                    span,
+                });
+            }
+        }
         let getter = declaration.capability.getter();
         let accessor = self.property_getters[getter].clone();
         if !self.access_domain_allows(
@@ -523,7 +547,7 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let kind = match &declaration.representation {
             hir::PropertyRepresentation::Stored(stored) => match stored.backing {
-                hir::PropertyBacking::TopLevelGlobal { storage } => {
+                hir::PropertyBacking::TopLevelGlobal { storage, .. } => {
                     debug_assert!(receiver.is_none());
                     hir::ExprKind::GlobalRead(storage)
                 }
@@ -583,7 +607,7 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let target = match &declaration.representation {
             hir::PropertyRepresentation::Stored(stored) => match stored.backing {
-                hir::PropertyBacking::TopLevelGlobal { storage } => {
+                hir::PropertyBacking::TopLevelGlobal { storage, .. } => {
                     debug_assert!(receiver.is_none());
                     hir::AssignTarget::Global(storage)
                 }
@@ -634,7 +658,7 @@ impl Lowerer {
             return None;
         }
         match context.backing {
-            hir::PropertyBacking::TopLevelGlobal { storage } => {
+            hir::PropertyBacking::TopLevelGlobal { storage, .. } => {
                 let global = self.globals[storage].clone();
                 let read = hir::Expr {
                     kind: hir::ExprKind::GlobalRead(storage),

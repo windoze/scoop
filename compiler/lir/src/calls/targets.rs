@@ -338,6 +338,11 @@ pub enum ManagedRuntimeFunction {
     GcCollect,
     MaterializeException,
     StringConcat,
+    InitializationEnter,
+    InitializationSucceed,
+    InitializationFail,
+    InitializationFailure,
+    InitializationCycleMessage,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -375,6 +380,13 @@ impl RuntimeFunction {
                 "scoop_rt_materialize_exception"
             }
             Self::Managed(ManagedRuntimeFunction::StringConcat) => "scoop_rt_string_concat",
+            Self::Managed(ManagedRuntimeFunction::InitializationEnter) => "scoop_rt_init_enter",
+            Self::Managed(ManagedRuntimeFunction::InitializationSucceed) => "scoop_rt_init_succeed",
+            Self::Managed(ManagedRuntimeFunction::InitializationFail) => "scoop_rt_init_fail",
+            Self::Managed(ManagedRuntimeFunction::InitializationFailure) => "scoop_rt_init_failure",
+            Self::Managed(ManagedRuntimeFunction::InitializationCycleMessage) => {
+                "scoop_rt_init_cycle_message"
+            }
             Self::NoGc(NoGcRuntimeFunction::IsInstance) => "scoop_rt_is_instance",
             Self::NoGc(NoGcRuntimeFunction::ITableLookup) => "scoop_rt_itable_lookup",
             Self::NoGc(NoGcRuntimeFunction::Pin) => "scoop_rt_pin",

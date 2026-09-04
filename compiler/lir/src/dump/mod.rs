@@ -32,6 +32,25 @@ pub fn dump(module: &Module) -> String {
             )),
         }
     }
+    for (id, unit) in module.initialization_units.iter() {
+        let initializer =
+            &module.functions[unit.initializer.declaration().into_u32() as usize].symbol;
+        let ensure = &module.functions[unit.ensure.declaration().into_u32() as usize].symbol;
+        out.push_str(&format!(
+            "  init{} {} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
+            id.into_raw().into_u32(),
+            unit.stable_key,
+            module.globals[unit.storage].symbol,
+            module.globals[unit.failure_root].symbol,
+            initializer,
+            ensure,
+            unit.dependencies
+                .iter()
+                .map(|dependency| dependency.into_raw().into_u32().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
     for (id, global) in module.native_globals.iter() {
         let access = match global.access {
             NativeGlobalAccess::ReadOnly { get, address } => format!(

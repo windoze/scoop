@@ -11,6 +11,7 @@ pub(super) fn patch_local_function_calls(
 ) {
     for statement in statements {
         match &mut statement.kind {
+            hir::StatementKind::InitializationEnsure(_) => {}
             hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                 patch_local_function_call_expr(expr, target, captures)
             }

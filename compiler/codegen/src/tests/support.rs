@@ -239,6 +239,7 @@ pub(super) fn values_module() -> Module {
 
     Module {
         globals,
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),

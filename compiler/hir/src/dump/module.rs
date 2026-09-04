@@ -449,8 +449,17 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
         });
     let representation = match &property.representation {
         PropertyRepresentation::Stored(stored) => match stored.backing {
-            PropertyBacking::TopLevelGlobal { storage } => {
-                format!("stored global{}", storage.into_raw())
+            PropertyBacking::TopLevelGlobal {
+                storage,
+                initialization,
+            } => {
+                let initialization = match initialization {
+                    TopLevelInitialization::Image => "image".to_string(),
+                    TopLevelInitialization::Runtime(unit) => {
+                        format!("init{}", unit.into_raw())
+                    }
+                };
+                format!("stored global{} {initialization}", storage.into_raw())
             }
             PropertyBacking::ClassField { field, initializer } => format!(
                 "stored field{} init={}",

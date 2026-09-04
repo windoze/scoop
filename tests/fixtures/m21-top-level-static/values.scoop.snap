@@ -314,12 +314,12 @@ Module
   interface Hash
     fun hash(): Int
   property14 val BASE: Int getter14=constant <const Integer(40)>
-  property15 val answer: Int getter15=storage <stored global0>
-  property16 val staticText: String getter16=storage <stored global1>
-  property17 var label: String getter17=storage setter0=storage <stored global2>
-  property18 var maybe: Option<String> getter18=storage setter1=storage <stored global3>
-  property19 var explicitNone: Option<String> getter19=storage setter2=storage <stored global4>
-  property20 var adjusted: Int getter20=body($get$adjusted) setter3=body($set$adjusted) <stored global5>
+  property15 val answer: Int getter15=storage <stored global0 image>
+  property16 val staticText: String getter16=storage <stored global1 image>
+  property17 var label: String getter17=storage setter0=storage <stored global2 image>
+  property18 var maybe: Option<String> getter18=storage setter1=storage <stored global3 image>
+  property19 var explicitNone: Option<String> getter19=storage setter2=storage <stored global4 image>
+  property20 var adjusted: Int getter20=body($get$adjusted) setter3=body($set$adjusted) <stored global5 image>
   val answer: Int <global0 managed>
   val staticText: String <global1 managed>
   var label: String <global2 managed>

@@ -245,7 +245,7 @@ pub struct Global {
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
     Managed {
-        initializer: ConstantValue,
+        initializer: ManagedGlobalInitializer,
     },
     Local {
         thread_local: bool,
@@ -256,6 +256,12 @@ pub enum GlobalStorage {
         native_symbol: String,
         thread_local: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum ManagedGlobalInitializer {
+    Image(ConstantValue),
+    RuntimeZeroed(InitializationUnitId),
 }
 
 #[derive(Debug, Clone)]

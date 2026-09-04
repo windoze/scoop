@@ -109,6 +109,7 @@ mod coroutine;
 mod coroutine_registry;
 mod dispatch;
 mod globals;
+mod initialization;
 mod instances;
 mod lowering_support;
 mod members;
@@ -138,6 +139,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         extern_map: HashMap::new(),
         globals: Arena::new(),
         global_map: HashMap::new(),
+        initialization_units: Arena::new(),
+        initialization_failure_roots: Arena::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
@@ -185,6 +188,8 @@ struct Lowerer {
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     globals: Arena<mir::Global>,
     global_map: HashMap<hir::GlobalId, mir::GlobalId>,
+    initialization_units: Arena<mir::InitializationUnit>,
+    initialization_failure_roots: Arena<mir::InitializationFailureRoot>,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,

@@ -23,6 +23,10 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
+    /// Enter the exactly-once gate before a runtime-backed accessor touches
+    /// its storage. LocalConcrete HIR enriches this with the exact cycle
+    /// exception constructor.
+    InitializationEnsure(InitializationUnitId),
     /// Compile-time declaration marker. The lifted body lives in
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),

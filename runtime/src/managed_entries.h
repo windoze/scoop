@@ -29,6 +29,25 @@ void *scoop_rt_materialize_exception_impl(const void *caught,
                                           uintptr_t return_pc,
                                           uintptr_t stack_pointer,
                                           uintptr_t frame_pointer);
+uint64_t scoop_rt_init_enter_impl(const ScoopInitializationUnitDescriptor *unit,
+                                  uintptr_t return_pc,
+                                  uintptr_t stack_pointer,
+                                  uintptr_t frame_pointer);
+void scoop_rt_init_succeed_impl(const ScoopInitializationUnitDescriptor *unit,
+                                uintptr_t return_pc,
+                                uintptr_t stack_pointer,
+                                uintptr_t frame_pointer);
+void scoop_rt_init_fail_impl(const ScoopInitializationUnitDescriptor *unit,
+                             void *exception, uintptr_t return_pc,
+                             uintptr_t stack_pointer,
+                             uintptr_t frame_pointer);
+void *scoop_rt_init_failure_impl(const ScoopInitializationUnitDescriptor *unit,
+                                 uintptr_t return_pc,
+                                 uintptr_t stack_pointer,
+                                 uintptr_t frame_pointer);
+const ScoopString *scoop_rt_init_cycle_message_impl(
+    const ScoopInitializationUnitDescriptor *unit, uintptr_t return_pc,
+    uintptr_t stack_pointer, uintptr_t frame_pointer);
 const void *scoop_rt_array_clone_impl(const void *object,
                                       const ScoopTypeDescriptor *target_td,
                                       uint64_t element_size,

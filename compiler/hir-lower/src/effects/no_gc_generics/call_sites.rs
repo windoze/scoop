@@ -107,6 +107,7 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::InitializationEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                     self.collect_generic_calls_in_expr(caller, expr, out);
                 }

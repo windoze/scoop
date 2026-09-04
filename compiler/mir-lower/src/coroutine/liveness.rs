@@ -333,6 +333,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::GlobalRead(_)
+        | mir::ExprKind::InitializationUnitAddress(_)
         | mir::ExprKind::GlobalAddress { .. }
         | mir::ExprKind::CaughtException
         | mir::ExprKind::SizeOf(_)

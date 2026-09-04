@@ -546,7 +546,16 @@ impl Concretizer<'_> {
     ) -> concrete::GlobalStorage {
         match storage {
             export::GlobalStorage::Managed { initializer } => concrete::GlobalStorage::Managed {
-                initializer: self.lower_constant(initializer),
+                initializer: match initializer {
+                    export::ManagedGlobalInitializer::Image(value) => {
+                        concrete::ManagedGlobalInitializer::Image(self.lower_constant(value))
+                    }
+                    export::ManagedGlobalInitializer::RuntimeZeroed(unit) => {
+                        concrete::ManagedGlobalInitializer::RuntimeZeroed(
+                            concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                        )
+                    }
+                },
             },
             export::GlobalStorage::Local {
                 thread_local,

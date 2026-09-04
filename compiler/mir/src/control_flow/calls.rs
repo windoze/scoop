@@ -87,6 +87,11 @@ pub enum RuntimeFn {
     MaterializeException,
     StringConcat,
     StringCompare,
+    InitializationEnter,
+    InitializationSucceed,
+    InitializationFail,
+    InitializationFailure,
+    InitializationCycleMessage,
     /// Noreturn runtime trap, called with a message string constant
     /// (M4: `!!` on `None`; M8: real exceptions).
     Trap,
@@ -107,6 +112,11 @@ impl RuntimeFn {
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
             RuntimeFn::StringCompare => "scoop_rt_string_compare",
+            RuntimeFn::InitializationEnter => "scoop_rt_init_enter",
+            RuntimeFn::InitializationSucceed => "scoop_rt_init_succeed",
+            RuntimeFn::InitializationFail => "scoop_rt_init_fail",
+            RuntimeFn::InitializationFailure => "scoop_rt_init_failure",
+            RuntimeFn::InitializationCycleMessage => "scoop_rt_init_cycle_message",
             RuntimeFn::Trap => "scoop_rt_trap",
         }
     }

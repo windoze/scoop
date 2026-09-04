@@ -114,6 +114,9 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::Statement {
         let kind = match &source.kind {
+            hir::StatementKind::InitializationEnsure(unit) => {
+                hir::StatementKind::InitializationEnsure(*unit)
+            }
             hir::StatementKind::Expr(value) => {
                 hir::StatementKind::Expr(self.instantiate_default_expr(value, context))
             }

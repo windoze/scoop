@@ -2,11 +2,12 @@
 
 use scoop_ast as ast;
 use scoop_hir as hir;
+use std::path::{Component, Path};
 
-use crate::Lowerer;
 use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
+use crate::{FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext};
 
 mod consts;
 mod static_initializers;
@@ -23,6 +24,36 @@ struct PendingOrdinary<'a> {
     file: usize,
     access: hir::DeclarationAccess,
     ty: hir::TypeId,
+}
+
+fn stable_source_identity(name: &str) -> String {
+    let path = Path::new(name);
+    let mut components = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(value) => components.push(value.to_string_lossy().into_owned()),
+            Component::ParentDir => components.push("__parent__".to_string()),
+            Component::CurDir | Component::RootDir | Component::Prefix(_) => {}
+        }
+    }
+    if path.is_absolute() {
+        components.pop().unwrap_or_else(|| "<user>".to_string())
+    } else if components.is_empty() {
+        "<user>".to_string()
+    } else {
+        components.join("/")
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct PendingRuntimeInitializer {
+    pub(crate) unit: hir::InitializationUnitId,
+    pub(crate) function: hir::FunctionId,
+    pub(crate) storage: hir::GlobalId,
+    pub(crate) ty: hir::TypeId,
+    pub(crate) expression: ast::Expr,
+    pub(crate) file: usize,
+    pub(crate) span: ast::Span,
 }
 
 impl Lowerer {
@@ -387,62 +418,309 @@ impl Lowerer {
                     unreachable!("the ordinary property worklist contains only stored properties")
                 }
             };
-            let Some(initializer) = initializer else {
-                if let Some(expression) = declaration.declaration.initializer() {
+            if let Some(initializer) = initializer {
+                self.allocate_image_top_level_property(declaration, initializer);
+            } else if let Some(expression) = declaration.declaration.initializer() {
+                self.allocate_runtime_top_level_property(declaration, expression.clone());
+            }
+        }
+    }
+
+    fn allocate_image_top_level_property(
+        &mut self,
+        declaration: &PendingOrdinary<'_>,
+        initializer: hir::ConstantValue,
+    ) {
+        let expected_property = self.next_property_id();
+        let expected_global = hir::GlobalId::from_raw((self.globals.len() as u32).into());
+        let backing = hir::PropertyBacking::TopLevelGlobal {
+            storage: expected_global,
+            initialization: hir::TopLevelInitialization::Image,
+        };
+        let Some(capability) = self.allocate_property_accessors(
+            expected_property,
+            hir::PropertyOwner::TopLevel,
+            declaration.access.clone(),
+            declaration.declaration,
+            Some(backing),
+            hir::MethodModifier::Final,
+        ) else {
+            return;
+        };
+        let global = self.globals.alloc(hir::Global {
+            name: declaration.declaration.name.text.clone(),
+            property: expected_property,
+            ty: declaration.ty,
+            storage: hir::GlobalStorage::Managed {
+                initializer: hir::ManagedGlobalInitializer::Image(initializer),
+            },
+            span: declaration.declaration.span,
+        });
+        assert_eq!(global, expected_global);
+        let property = self.properties.alloc(hir::Property {
+            owner: hir::PropertyOwner::TopLevel,
+            name: declaration.declaration.name.text.clone(),
+            access: declaration.access.clone(),
+            modifier: hir::MethodModifier::Final,
+            is_override: false,
+            overrides: Vec::new(),
+            override_access: Vec::new(),
+            ty: declaration.ty,
+            capability,
+            representation: hir::PropertyRepresentation::Stored(hir::StoredProperty { backing }),
+            span: declaration.declaration.span,
+        });
+        assert_eq!(property, expected_property);
+        self.properties_by_name
+            .entry(declaration.declaration.name.text.clone())
+            .or_default()
+            .push(property);
+        self.property_files.insert(property, declaration.file);
+    }
+
+    fn allocate_runtime_top_level_property(
+        &mut self,
+        declaration: &PendingOrdinary<'_>,
+        expression: ast::Expr,
+    ) {
+        let expected_property = self.next_property_id();
+        let expected_global = hir::GlobalId::from_raw((self.globals.len() as u32).into());
+        let expected_unit =
+            hir::InitializationUnitId::from_raw((self.initialization_units.len() as u32).into());
+        let failure_root =
+            self.initialization_failure_roots
+                .alloc(hir::InitializationFailureRoot {
+                    unit: expected_unit,
+                });
+        let (initializer, ensure) = self.allocate_initialization_functions(
+            expected_unit,
+            declaration.declaration.span,
+            declaration.file,
+        );
+        let stable_key = self.top_level_initialization_key(declaration);
+        let unit = self.initialization_units.alloc(hir::InitializationUnit {
+            stable_key,
+            kind: hir::InitializationUnitKind::EagerTopLevel {
+                property: expected_property,
+                storage: expected_global,
+            },
+            initializer,
+            ensure,
+            failure_root,
+            dependencies: Vec::new(),
+            span: declaration.declaration.span,
+        });
+        assert_eq!(unit, expected_unit);
+        let backing = hir::PropertyBacking::TopLevelGlobal {
+            storage: expected_global,
+            initialization: hir::TopLevelInitialization::Runtime(unit),
+        };
+        let Some(capability) = self.allocate_property_accessors(
+            expected_property,
+            hir::PropertyOwner::TopLevel,
+            declaration.access.clone(),
+            declaration.declaration,
+            Some(backing),
+            hir::MethodModifier::Final,
+        ) else {
+            return;
+        };
+        let global = self.globals.alloc(hir::Global {
+            name: declaration.declaration.name.text.clone(),
+            property: expected_property,
+            ty: declaration.ty,
+            storage: hir::GlobalStorage::Managed {
+                initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
+            },
+            span: declaration.declaration.span,
+        });
+        assert_eq!(global, expected_global);
+        let property = self.properties.alloc(hir::Property {
+            owner: hir::PropertyOwner::TopLevel,
+            name: declaration.declaration.name.text.clone(),
+            access: declaration.access.clone(),
+            modifier: hir::MethodModifier::Final,
+            is_override: false,
+            overrides: Vec::new(),
+            override_access: Vec::new(),
+            ty: declaration.ty,
+            capability,
+            representation: hir::PropertyRepresentation::Stored(hir::StoredProperty { backing }),
+            span: declaration.declaration.span,
+        });
+        assert_eq!(property, expected_property);
+        self.properties_by_name
+            .entry(declaration.declaration.name.text.clone())
+            .or_default()
+            .push(property);
+        self.property_files.insert(property, declaration.file);
+        self.pending_runtime_initializers
+            .push(PendingRuntimeInitializer {
+                unit,
+                function: initializer,
+                storage: global,
+                ty: declaration.ty,
+                expression,
+                file: declaration.file,
+                span: declaration.declaration.span,
+            });
+    }
+
+    fn allocate_initialization_functions(
+        &mut self,
+        unit: hir::InitializationUnitId,
+        span: ast::Span,
+        file: usize,
+    ) -> (hir::FunctionId, hir::FunctionId) {
+        let allocate = |this: &mut Self, role: &str| {
+            let function = this.functions.alloc(Function {
+                name: format!("$init${role}${}", unit.into_raw()),
+                access: this.local_declaration_access(),
+                override_access: Vec::new(),
+                genericity: hir::FunctionGenericity::Plain,
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: this.unit,
+                attributes: hir::FunctionAttributes::default(),
+                kind: FunctionKind::User(hir::Body {
+                    locals: la_arena::Arena::new(),
+                    statements: Vec::new(),
+                }),
+                method: None,
+                span,
+            });
+            this.function_files.insert(function, file);
+            this.signatures.insert(
+                function,
+                FnSig {
+                    is_suspend: false,
+                    modifiers: hir::CallableModifiers::default(),
+                    attributes: hir::FunctionAttributes::default(),
+                    owner_type_param_count: 0,
+                    type_params: Vec::new(),
+                    params: Vec::new(),
+                    return_ty: this.unit,
+                },
+            );
+            this.top_level.push(function);
+            function
+        };
+        (allocate(self, "body"), allocate(self, "ensure"))
+    }
+
+    fn top_level_initialization_key(&self, declaration: &PendingOrdinary<'_>) -> String {
+        if declaration.access.declared == hir::DeclaredVisibility::Private {
+            let source = stable_source_identity(&self.intrinsic_sources[declaration.file].name);
+            format!(
+                "top-level-private:{source}:{}",
+                declaration.declaration.name.text
+            )
+        } else {
+            format!("top-level:{}", declaration.declaration.name.text)
+        }
+    }
+
+    pub(crate) fn lower_runtime_top_level_initializers(&mut self) {
+        for pending in self.pending_runtime_initializers.clone() {
+            self.current_file = pending.file;
+            let outer_source_context = self.current_source_context;
+            self.type_params_in_scope.clear();
+            self.current_return_ty = self.unit;
+            self.current_fn_name = self.functions[pending.function].name.clone();
+            self.push_suspension_context(SuspensionContext::Forbidden(
+                ForbiddenSuspendContext::Function,
+            ));
+            self.push_safety_context(hir::Safety::Safe);
+            self.current_owner = None;
+            self.current_this = None;
+            self.set_source_context(self.current_fn_name.clone());
+            self.push_scope();
+            self.current_initialization_unit = Some(pending.unit);
+
+            let mut statements = Vec::new();
+            let mut sink = Vec::new();
+            if let Some(value) = self.lower_expr(&pending.expression, &mut sink, Some(pending.ty)) {
+                if self.is_subtype(value.ty, pending.ty) {
+                    statements.extend(sink);
+                    statements.push(hir::Statement {
+                        kind: hir::StatementKind::Assign {
+                            target: hir::AssignTarget::Global(pending.storage),
+                            value: self.adapt_to(value, pending.ty),
+                        },
+                        span: pending.span,
+                    });
+                } else {
+                    let expected = self.type_name(pending.ty);
+                    let found = self.type_name(value.ty);
                     self.error(
-                        expression.span(),
-                        "top-level property initializer is not statically representable and requires a runtime initialization unit"
-                            .to_string(),
+                        pending.expression.span(),
+                        format!(
+                            "top-level property initializer must be of type {expected}, found {found}"
+                        ),
                     );
                 }
-                continue;
-            };
-
-            let expected_property = self.next_property_id();
-            let expected_global = hir::GlobalId::from_raw((self.globals.len() as u32).into());
-            let backing = hir::PropertyBacking::TopLevelGlobal {
-                storage: expected_global,
-            };
-            let Some(capability) = self.allocate_property_accessors(
-                expected_property,
-                hir::PropertyOwner::TopLevel,
-                declaration.access.clone(),
-                declaration.declaration,
-                Some(backing),
-                hir::MethodModifier::Final,
-            ) else {
-                continue;
-            };
-            let global = self.globals.alloc(hir::Global {
-                name: declaration.declaration.name.text.clone(),
-                property: expected_property,
-                ty: declaration.ty,
-                storage: hir::GlobalStorage::Managed { initializer },
-                span: declaration.declaration.span,
+            }
+            self.current_initialization_unit = None;
+            self.pop_scope();
+            self.current_source_context = outer_source_context;
+            self.pop_safety_context();
+            self.pop_suspension_context();
+            self.functions[pending.function].kind = FunctionKind::User(hir::Body {
+                locals: std::mem::take(&mut self.locals),
+                statements,
             });
-            assert_eq!(global, expected_global);
-            let property = self.properties.alloc(hir::Property {
-                owner: hir::PropertyOwner::TopLevel,
-                name: declaration.declaration.name.text.clone(),
-                access: declaration.access.clone(),
-                modifier: hir::MethodModifier::Final,
-                is_override: false,
-                overrides: Vec::new(),
-                override_access: Vec::new(),
-                ty: declaration.ty,
-                capability,
-                representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
-                    backing,
-                }),
-                span: declaration.declaration.span,
-            });
-            assert_eq!(property, expected_property);
-            self.properties_by_name
-                .entry(declaration.declaration.name.text.clone())
-                .or_default()
-                .push(property);
-            self.property_files.insert(property, declaration.file);
         }
+        self.diagnose_initialization_cycles();
+    }
+
+    fn diagnose_initialization_cycles(&mut self) {
+        let mut states = vec![0_u8; self.initialization_units.len()];
+        let mut stack = Vec::new();
+        for raw in 0..self.initialization_units.len() {
+            let unit = hir::InitializationUnitId::from_raw((raw as u32).into());
+            self.visit_initialization_unit(unit, &mut states, &mut stack);
+        }
+    }
+
+    fn visit_initialization_unit(
+        &mut self,
+        unit: hir::InitializationUnitId,
+        states: &mut [u8],
+        stack: &mut Vec<hir::InitializationUnitId>,
+    ) {
+        let index = unit.into_raw().into_u32() as usize;
+        if states[index] != 0 {
+            return;
+        }
+        states[index] = 1;
+        stack.push(unit);
+        for dependency in self.initialization_units[unit].dependencies.clone() {
+            let dependency_index = dependency.unit.into_raw().into_u32() as usize;
+            if states[dependency_index] == 0 {
+                self.visit_initialization_unit(dependency.unit, states, stack);
+            } else if states[dependency_index] == 1 {
+                let start = stack
+                    .iter()
+                    .position(|candidate| *candidate == dependency.unit)
+                    .expect("an active dependency is present in the DFS stack");
+                let mut path = stack[start..]
+                    .iter()
+                    .map(|candidate| self.initialization_units[*candidate].stable_key.clone())
+                    .collect::<Vec<_>>();
+                path.push(
+                    self.initialization_units[dependency.unit]
+                        .stable_key
+                        .clone(),
+                );
+                self.error(
+                    dependency.span,
+                    format!("top-level initialization cycle: {}", path.join(" -> ")),
+                );
+            }
+        }
+        stack.pop();
+        states[index] = 2;
     }
 
     fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::ConstantValue> {

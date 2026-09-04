@@ -104,6 +104,7 @@ pub struct StoredProperty {
 pub enum PropertyBacking {
     TopLevelGlobal {
         storage: GlobalId,
+        initialization: TopLevelInitialization,
     },
     ClassField {
         field: ClassFieldId,
@@ -113,6 +114,12 @@ pub enum PropertyBacking {
         owner: StructId,
         index: u32,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopLevelInitialization {
+    Image,
+    Runtime(InitializationUnitId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

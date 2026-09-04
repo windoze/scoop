@@ -30,6 +30,26 @@ pub fn dump(module: &Module) -> String {
             type_name(module, &global.ty)
         ));
     }
+    for (id, unit) in module.initialization_units.iter() {
+        let InitializationUnitKind::EagerTopLevel { storage } = unit.kind;
+        out.push_str(&format!(
+            "  init{} {} eager global{} initializer={} ensure={} failure={} deps=[{}]\n",
+            id.into_raw().into_u32(),
+            unit.stable_key,
+            storage.into_raw().into_u32(),
+            module.functions[unit.initializer].symbol,
+            module.functions[unit.ensure].symbol,
+            module.initialization_failure_roots[unit.failure_root]
+                .global
+                .into_raw()
+                .into_u32(),
+            unit.dependencies
+                .iter()
+                .map(|dependency| dependency.into_raw().into_u32().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
     for (id, extern_) in module.extern_functions.iter() {
         let abi = match extern_.abi {
             ExternAbi::C => "c",

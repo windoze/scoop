@@ -10,6 +10,10 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
+    InitializationEnsure {
+        unit: InitializationUnitId,
+        cycle_exception: MessageClassConstructor,
+    },
     LocalFunction(LocalFunctionId),
     Return {
         value: Option<Expr>,

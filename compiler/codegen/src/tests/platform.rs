@@ -167,6 +167,26 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
         ),
         (
+            "_scoop_rt_init_enter:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_init_succeed:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_init_fail:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_init_failure:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_init_cycle_message:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
             "_scoop_rt_array_clone:",
             ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
         ),
@@ -212,6 +232,11 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_rt_string_concat_impl",
         "_scoop_rt_box_impl",
         "_scoop_rt_materialize_exception_impl",
+        "_scoop_rt_init_enter_impl",
+        "_scoop_rt_init_succeed_impl",
+        "_scoop_rt_init_fail_impl",
+        "_scoop_rt_init_failure_impl",
+        "_scoop_rt_init_cycle_message_impl",
         "_scoop_rt_array_clone_impl",
         "_scoop_rt_enter_native_safe_impl",
         "_scoop_rt_enter_native_borrowed_impl",
@@ -223,5 +248,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 9);
+    assert_eq!(relocations.matches("BR26").count(), 14);
 }

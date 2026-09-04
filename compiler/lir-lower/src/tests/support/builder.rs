@@ -352,6 +352,8 @@ impl Builder {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: Arena::new(),
+            initialization_units: Arena::new(),
+            initialization_failure_roots: Arena::new(),
             callback_bridges: Arena::new(),
             foreign_callback_adapters: Arena::new(),
             foreign_callback_bridges: Arena::new(),

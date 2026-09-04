@@ -171,6 +171,8 @@ pub fn lower(module: &mir::Module) -> lir::Module {
             (*id, reference)
         })
         .collect::<HashMap<_, _>>();
+    let initialization_units =
+        lower_initialization_units(module, &storage_globals, &local_function_map);
     let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =
         type_descriptors(module, &enums, &local_function_map);
     let (arrays, array_type_map) = array_types(module, &enums, &type_descriptor_refs);
@@ -210,6 +212,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let (layouts, well_known_layouts) = layouts(module, &enums, &layout_types);
     lir::Module {
         globals,
+        initialization_units,
         structs,
         enums,
         functions,
@@ -234,6 +237,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
 mod callbacks;
 mod externs;
 mod globals;
+mod initialization;
 mod locals;
 mod metadata;
 mod runtime;
@@ -242,6 +246,7 @@ mod safepoints;
 use callbacks::*;
 use externs::*;
 use globals::*;
+use initialization::*;
 use metadata::*;
 use runtime::*;
 

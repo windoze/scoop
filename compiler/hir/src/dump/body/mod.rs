@@ -14,6 +14,11 @@ pub(super) fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::InitializationEnsure(unit) => out.push_str(&format!(
+                "{pad}ensure init{} {}\n",
+                unit.into_raw(),
+                module.initialization_units[*unit].stable_key
+            )),
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];
                 out.push_str(&format!(

@@ -175,6 +175,7 @@ pub(super) fn exceptions_module() -> Module {
 
     Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),

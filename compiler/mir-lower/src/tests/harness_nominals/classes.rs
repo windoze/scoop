@@ -207,6 +207,50 @@ impl Harness {
         &mut self,
         include: bool,
     ) -> hir::CompilerExceptionCore {
+        let illegal_state_exception = self.exception_target("IllegalStateException", include);
+        let illegal_state_class = illegal_state_exception.constructor.class;
+        let zero_argument_constructor = illegal_state_exception.constructor.constructor;
+        let parameter = hir::ConstructorParameter {
+            id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
+            name: "message".to_string(),
+            // Handcrafted MIR-lower unit modules contain no initialization
+            // units. A concrete one-parameter callable keeps the typed core
+            // shell structurally complete without materializing an unrelated
+            // Option<String> application into every focused dump.
+            ty: self.string,
+        };
+        self.next_constructor_param += 1;
+        let owner = self.classes[illegal_state_class].self_application;
+        let target = self
+            .class_constructor_applications
+            .alloc(hir::ClassConstructorApplication {
+                constructor: zero_argument_constructor,
+                owner,
+            });
+        let message_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            owner: illegal_state_class,
+            access: hir::DeclarationAccess::public(),
+            parameters: vec![parameter],
+            kind: hir::ClassConstructorKind::Secondary {
+                delegation: hir::ClassSecondaryDelegation::This {
+                    target,
+                    arguments: hir::ConstructorArguments {
+                        locals: Arena::new(),
+                        statements: Vec::new(),
+                        args: Vec::new(),
+                    },
+                },
+                body: hir::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                },
+            },
+            span: SPAN,
+            origin: definition_origin(),
+        });
+        self.classes[illegal_state_class]
+            .constructors
+            .push(message_constructor);
         hir::CompilerExceptionCore {
             throwable: self.exception_target("Throwable", include),
             unwrap_exception: self.exception_target("UnwrapException", include),
@@ -214,7 +258,11 @@ impl Harness {
             arithmetic_exception: self.exception_target("ArithmeticException", include),
             index_out_of_bounds_exception: self
                 .exception_target("IndexOutOfBoundsException", include),
-            illegal_state_exception: self.exception_target("IllegalStateException", include),
+            illegal_state_exception,
+            illegal_state_message_constructor: hir::MessageClassConstructor {
+                class: illegal_state_class,
+                constructor: message_constructor,
+            },
         }
     }
 }

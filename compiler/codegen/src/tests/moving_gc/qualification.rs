@@ -53,6 +53,7 @@ fn stackmap_qualification_module() -> Module {
     let pair = LirType::Aggregate(vec![MANAGED_PTR, MANAGED_PTR]);
     Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),

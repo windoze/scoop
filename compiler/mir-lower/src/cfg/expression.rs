@@ -76,6 +76,9 @@ impl<'a> CfgLowerer<'a> {
             },
             smir::ExprKind::Local(local) => mir::ExprKind::Local(*local),
             smir::ExprKind::GlobalRead(global) => mir::ExprKind::GlobalRead(*global),
+            smir::ExprKind::InitializationUnitAddress(unit) => {
+                mir::ExprKind::InitializationUnitAddress(*unit)
+            }
             smir::ExprKind::PtrFromUInt { operand, pointee } => mir::ExprKind::PtrFromUInt {
                 operand: Box::new(self.lower_expr(operand, span)),
                 pointee: pointee.clone(),

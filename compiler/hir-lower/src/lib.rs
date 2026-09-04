@@ -321,6 +321,8 @@ pub(crate) struct Lowerer {
         HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
+    pub(crate) initialization_units: Arena<hir::InitializationUnit>,
+    pub(crate) initialization_failure_roots: Arena<hir::InitializationFailureRoot>,
     pub(crate) properties: Arena<hir::Property>,
     pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
@@ -382,6 +384,9 @@ pub(crate) struct Lowerer {
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
     pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
+    pub(crate) runtime_accessor_units: HashMap<FunctionId, hir::InitializationUnitId>,
+    pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
+    pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
     pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.

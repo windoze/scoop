@@ -248,6 +248,7 @@ impl Lowerer {
         // validated and before body lowering. MIR never recovers these
         // targets from names.
         let exception_core = self.validate_exception_core(files);
+        self.lower_runtime_top_level_initializers();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
@@ -379,6 +380,8 @@ impl Lowerer {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            initialization_units: self.initialization_units,
+            initialization_failure_roots: self.initialization_failure_roots,
             properties: self.properties,
             extension_properties: self.extension_properties,
             property_getters: self.property_getters,

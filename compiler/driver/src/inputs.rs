@@ -12,10 +12,61 @@ pub fn load_inputs(user_path: &Path) -> Result<Vec<SourceFileInput>, Vec<Diagnos
         )]
     })?;
     inputs.push(SourceFileInput {
-        name: user_path.display().to_string(),
+        name: stable_user_source_name(user_path),
         source,
     });
     Ok(inputs)
+}
+
+/// Produce a host-independent source identity for HIR declaration keys. M21
+/// accepts one user file, so a containing Cone (when present) is the strongest
+/// root; otherwise the current compilation directory is the portable root.
+fn stable_user_source_name(user_path: &Path) -> String {
+    if !user_path.is_absolute() {
+        return normalized_relative_path(user_path);
+    }
+    let canonical = user_path
+        .canonicalize()
+        .unwrap_or_else(|_| user_path.to_path_buf());
+    let cone_root = canonical
+        .ancestors()
+        .find(|ancestor| ancestor.join("Cone.toml").is_file());
+    let relative = cone_root
+        .and_then(|root| canonical.strip_prefix(root).ok())
+        .map(Path::to_path_buf)
+        .or_else(|| {
+            std::env::current_dir()
+                .ok()
+                .and_then(|dir| dir.canonicalize().ok())
+                .and_then(|dir| canonical.strip_prefix(dir).ok().map(Path::to_path_buf))
+        })
+        .or_else(|| canonical.file_name().map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("<user>"));
+    normalized_relative_path(&relative)
+}
+
+fn normalized_relative_path(path: &Path) -> String {
+    let mut components = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(value) => {
+                components.push(value.to_string_lossy().into_owned());
+            }
+            std::path::Component::ParentDir => {
+                if components.pop().is_none() {
+                    components.push("__parent__".to_string());
+                }
+            }
+            std::path::Component::CurDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => {}
+        }
+    }
+    if components.is_empty() {
+        "<user>".to_string()
+    } else {
+        components.join("/")
+    }
 }
 
 /// Render diagnostics against the loaded inputs, selecting each
@@ -126,4 +177,25 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
         )));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_source_identity_is_independent_from_absolute_invocation() {
+        let relative = Path::new("tests/fixtures/m21-initialization/top-level-runtime.scoop");
+        let absolute = std::env::current_dir()
+            .expect("current directory")
+            .join(relative);
+        assert_eq!(
+            stable_user_source_name(relative),
+            relative.to_string_lossy()
+        );
+        assert_eq!(
+            stable_user_source_name(&absolute),
+            relative.to_string_lossy()
+        );
+    }
 }

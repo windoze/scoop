@@ -267,6 +267,7 @@ fn native_calls_publish_roots_transition_and_reload() {
 
     let module = Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions,
@@ -343,6 +344,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     });
     let module = Module {
         globals: Arena::default(),
+        initialization_units: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
         extern_functions: Default::default(),

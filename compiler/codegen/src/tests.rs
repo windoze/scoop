@@ -24,6 +24,7 @@ mod c_layout;
 mod closures;
 mod enums;
 mod exceptions;
+mod initialization;
 mod moving_gc;
 mod objects;
 mod platform;

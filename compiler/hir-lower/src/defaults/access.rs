@@ -133,6 +133,7 @@ impl ReferenceCollector<'_> {
 
     fn statement(&mut self, statement: &hir::Statement) {
         match &statement.kind {
+            hir::StatementKind::InitializationEnsure(_) => {}
             hir::StatementKind::Expr(value) | hir::StatementKind::Throw(value) => {
                 self.expression(value);
             }

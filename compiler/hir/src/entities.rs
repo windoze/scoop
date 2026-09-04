@@ -46,6 +46,8 @@ pub struct Module {
     /// Top-level storage declarations. Globals use an identity distinct from
     /// functions and locals, and every entry carries a complete storage kind.
     pub globals: Arena<Global>,
+    pub initialization_units: Arena<InitializationUnit>,
+    pub initialization_failure_roots: Arena<InitializationFailureRoot>,
     /// Logical properties and their independently typed accessor identities.
     /// Physical fields/globals are reachable only through a representation.
     pub properties: Arena<Property>,
@@ -315,6 +317,14 @@ pub struct ZeroArgClassConstructor {
     pub constructor: ClassConstructorId,
 }
 
+/// A constructor whose single source/physical parameter is the exact core
+/// `Option<String>` application used for compiler-generated messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MessageClassConstructor {
+    pub class: ClassId,
+    pub constructor: ClassConstructorId,
+}
+
 /// One compiler-known exception type together with its only construction
 /// target needed by compiler-generated control flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -342,6 +352,7 @@ pub struct CompilerExceptionCore {
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
+    pub illegal_state_message_constructor: MessageClassConstructor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -69,6 +69,7 @@ pub(crate) fn llvm_constant<'ctx>(
     value: &ConstantValue,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
     Ok(match value {
+        ConstantValue::Zero => ty.const_zero(),
         ConstantValue::Int(value) => context.i64_type().const_int(*value as u64, true).into(),
         ConstantValue::Bool(value) => context
             .bool_type()

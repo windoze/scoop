@@ -47,6 +47,17 @@ impl Concretizer<'_> {
             export::StatementKind::Expr(expr) => {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
             }
+            export::StatementKind::InitializationEnsure(unit) => {
+                let source = self.source.exception_core.illegal_state_message_constructor;
+                let class = self.class_by_key[&(source.class, Vec::new())];
+                concrete::StatementKind::InitializationEnsure {
+                    unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                    cycle_exception: concrete::MessageClassConstructor {
+                        class,
+                        callable: self.class_constructor_by_key[&(source.constructor, class)],
+                    },
+                }
+            }
             // This marker has no runtime semantics. Concrete local-function
             // entities are requested by direct calls/references instead.
             export::StatementKind::LocalFunction(_) => return None,

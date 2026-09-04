@@ -43,8 +43,8 @@ pub struct CompileOptions {
 pub struct SourceFileInput {
     /// Display name used when rendering diagnostics. Core library files
     /// are named relative to the sysroot (`scoop.core/src/option.scoop`)
-    /// so rendered output stays portable; the user file keeps the path
-    /// it was given as.
+    /// and the user file relative to its Cone or compilation directory,
+    /// so diagnostics and private initialization identities stay portable.
     pub name: String,
     pub source: String,
 }

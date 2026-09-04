@@ -244,6 +244,11 @@ impl<'a> FunctionLowerer<'a> {
                     | mir::RuntimeFn::Unpin
                     | mir::RuntimeFn::ReleaseHandle
                     | mir::RuntimeFn::MaterializeException => 1,
+                    mir::RuntimeFn::InitializationEnter
+                    | mir::RuntimeFn::InitializationSucceed
+                    | mir::RuntimeFn::InitializationFailure
+                    | mir::RuntimeFn::InitializationCycleMessage => 1,
+                    mir::RuntimeFn::InitializationFail => 2,
                     mir::RuntimeFn::GcCollect | mir::RuntimeFn::GcStats => 0,
                     // The M6 runtime functions are emitted by dedicated
                     // Box / IsInstance / dispatch lowerings, never as plain
@@ -287,6 +292,22 @@ impl<'a> FunctionLowerer<'a> {
                     // though its base is outside the moving heap.
                     mir::RuntimeFn::MaterializeException => {
                         (vec![lir::MANAGED_PTR], lir::MANAGED_PTR)
+                    }
+                    mir::RuntimeFn::InitializationEnter => {
+                        (vec![lir::METADATA_PTR], lir::LirType::I64)
+                    }
+                    mir::RuntimeFn::InitializationSucceed => {
+                        (vec![lir::METADATA_PTR], lir::LirType::Void)
+                    }
+                    mir::RuntimeFn::InitializationFail => (
+                        vec![lir::METADATA_PTR, lir::MANAGED_PTR],
+                        lir::LirType::Void,
+                    ),
+                    mir::RuntimeFn::InitializationFailure => {
+                        (vec![lir::METADATA_PTR], lir::MANAGED_PTR)
+                    }
+                    mir::RuntimeFn::InitializationCycleMessage => {
+                        (vec![lir::METADATA_PTR], lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::GcCollect => (Vec::new(), lir::LirType::Void),
                     mir::RuntimeFn::Box

@@ -351,6 +351,7 @@ int main(void) {
      * generated frame chain reaches this exact address independently of C
      * local-variable placement. */
     scoop_thread_attach_main(__builtin_frame_address(0));
+    scoop_rt_initialize_image();
     scoop_main();
     scoop_callback_prepare_shutdown();
     scoop_thread_prepare_shutdown();

@@ -3,6 +3,8 @@ use super::*;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
+pub type InitializationUnitId = Idx<InitializationUnit>;
+pub type InitializationFailureRootId = Idx<InitializationFailureRoot>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackAdapterId = Idx<ForeignCallbackAdapter>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;

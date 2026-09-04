@@ -126,9 +126,19 @@ impl Lowerer {
             let id = self.declare_struct_ctor(module, constructor_id);
             struct_ctor_functions.push((constructor_id, id));
         }
+        self.lower_initialization_units(module);
+        let ensure_units = self
+            .initialization_units
+            .iter()
+            .map(|(unit, declaration)| (declaration.ensure, unit))
+            .collect::<HashMap<_, _>>();
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = self.lower_user_function(module, hir_id);
+            let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
+                self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
+            } else {
+                self.lower_user_function(module, hir_id)
+            };
             let body = cfg::lower(body, return_ty.clone());
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
@@ -202,6 +212,8 @@ impl Lowerer {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            initialization_units: self.initialization_units,
+            initialization_failure_roots: self.initialization_failure_roots,
             callback_bridges: self.callback_bridges,
             foreign_callback_adapters: self.foreign_callback_adapters,
             foreign_callback_bridges: self.foreign_callback_bridges,

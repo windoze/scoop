@@ -93,6 +93,7 @@ pub(super) fn lower_constant(
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> lir::ConstantValue {
     match value {
+        mir::ConstantValue::Zero => lir::ConstantValue::Zero,
         mir::ConstantValue::Int(value) => lir::ConstantValue::Int(*value),
         mir::ConstantValue::Bool(value) => lir::ConstantValue::Bool(*value),
         mir::ConstantValue::String(string) => lir::ConstantValue::GlobalPointer {

@@ -6,6 +6,28 @@ use crate::{
 };
 
 impl Lowerer {
+    fn illegal_state_message_constructor(
+        &mut self,
+        class: ClassId,
+    ) -> Option<hir::MessageClassConstructor> {
+        let constructor = self.classes[class]
+            .constructors
+            .iter()
+            .copied()
+            .find(|constructor| {
+                let parameters = &self.class_constructors[*constructor].parameters;
+                parameters.len() == 1 && self.as_option(parameters[0].ty) == Some(self.string)
+            });
+        if constructor.is_none() {
+            self.error(
+                self.classes[class].span,
+                "class `IllegalStateException` in scoop.core must provide a constructor whose parameter is `String?`"
+                    .to_string(),
+            );
+        }
+        constructor.map(|constructor| hir::MessageClassConstructor { class, constructor })
+    }
+
     fn zero_source_argument_constructor(&self, class: ClassId) -> Option<hir::ClassConstructorId> {
         self.classes[class]
             .constructors
@@ -179,6 +201,10 @@ impl Lowerer {
                 constructor: zero_arg?,
             },
         };
+        let illegal_state =
+            self.compiler_exception("IllegalStateException", files, throwable.class())?;
+        let illegal_state_message_constructor =
+            self.illegal_state_message_constructor(illegal_state.class())?;
         Some(hir::CompilerExceptionCore {
             throwable,
             unwrap_exception: self.compiler_exception(
@@ -201,11 +227,8 @@ impl Lowerer {
                 files,
                 throwable.class(),
             )?,
-            illegal_state_exception: self.compiler_exception(
-                "IllegalStateException",
-                files,
-                throwable.class(),
-            )?,
+            illegal_state_exception: illegal_state,
+            illegal_state_message_constructor,
         })
     }
 

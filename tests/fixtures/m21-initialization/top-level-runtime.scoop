@@ -1,0 +1,24 @@
+fun runtimeValue(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun movingText(): String {
+    val text = "managed-initializer"
+    gcCollect()
+    return text
+}
+
+val zuluOrder: Int = runtimeValue("zulu", 3)
+val alpha: Int = zed + runtimeValue("alpha", 2)
+val text: String = movingText()
+val zed: Int = runtimeValue("zed", 40)
+val betaOrder: Int = runtimeValue("beta", 2)
+
+fun main() {
+    println(alpha)
+    println(text)
+    println(zed)
+    println(betaOrder)
+    println(zuluOrder)
+}

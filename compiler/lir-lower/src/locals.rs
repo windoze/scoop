@@ -113,6 +113,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::UnitLiteral
             | mir::ExprKind::Local(_)
             | mir::ExprKind::GlobalRead(_)
+            | mir::ExprKind::InitializationUnitAddress(_)
             | mir::ExprKind::GlobalAddress { .. }
             | mir::ExprKind::CaughtException
             | mir::ExprKind::SizeOf(_)

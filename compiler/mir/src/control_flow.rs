@@ -255,6 +255,8 @@ pub enum ExprKind {
     },
     Local(LocalId),
     GlobalRead(GlobalId),
+    /// Address of the image descriptor for one typed exactly-once unit.
+    InitializationUnitAddress(InitializationUnitId),
     PtrFromUInt {
         operand: Box<Expr>,
         pointee: Box<Type>,

@@ -301,6 +301,7 @@ pub enum GlobalInit {
 
 #[derive(Debug)]
 pub enum ConstantValue {
+    Zero,
     Int(i64),
     Bool(bool),
     NullPointer(PointerKind),

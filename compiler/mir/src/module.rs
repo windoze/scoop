@@ -5,6 +5,8 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub initialization_units: Arena<InitializationUnit>,
+    pub initialization_failure_roots: Arena<InitializationFailureRoot>,
     pub callback_bridges: Arena<CallbackBridge>,
     pub foreign_callback_adapters: Arena<ForeignCallbackAdapter>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
@@ -74,6 +76,34 @@ pub struct Global {
     pub storage: GlobalStorage,
 }
 
+#[derive(Debug)]
+pub struct InitializationUnit {
+    pub stable_key: String,
+    pub kind: InitializationUnitKind,
+    pub initializer: FunctionId,
+    pub ensure: FunctionId,
+    pub failure_root: InitializationFailureRootId,
+    pub dependencies: Vec<InitializationUnitId>,
+    pub cycle_exception: MessageClassConstructor,
+}
+
+#[derive(Debug, Clone)]
+pub struct MessageClassConstructor {
+    pub class: ClassId,
+    pub initializer: FunctionId,
+    pub message_type: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationUnitKind {
+    EagerTopLevel { storage: GlobalId },
+}
+
+#[derive(Debug)]
+pub struct InitializationFailureRoot {
+    pub global: GlobalId,
+}
+
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
     Managed {
@@ -92,6 +122,7 @@ pub enum GlobalStorage {
 
 #[derive(Debug, Clone)]
 pub enum ConstantValue {
+    Zero,
     Int(i64),
     Bool(bool),
     String(StringConstId),
