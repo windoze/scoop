@@ -169,17 +169,31 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 默认visibility改为`internal`，对外API逐项显式写`public`；四种visibility以typed access domain贯穿候选、override、signature exposure、M17 default witness及未来`.slib`。M12的raw `@Global`/`@ThreadLocal`与普通managed top-level property正式分离；
 - 支持static nested nominal/object声明；`inner`/anonymous/local object、generic delegated extension及class/interface delegation仍不在本里程碑。
 
-### M22 基础语言能力补齐（待设计）
+### M22 循环、值模式与定宽整数（设计见 `docs/milestone22/DESIGN.md`）
 
-`for`/`break`/`continue`、副本更新、模式完备性、定宽整数与溢出等其他基础backlog。
+- `for`、不带标签的`break`/`continue`与typed loop target；统一while/for header，控制转移按目标cleanup深度穿越catch/finally/suspend状态，所有回边继续满足M15 poll契约；
+- public exact `Iterator<T>`/`Iterable<T>`协议、Array/MutableArray迭代器，以及普通core `IntRange`/`UIntRange`、`until`/`downTo`/`step`；
+- struct/enum命名字段副本更新，固定base/表示无关的active-variant检查/RHS求值顺序与enum variant歧义/运行期错误；
+- binding pattern与match pattern分流、命名字段递归subpattern、sound pattern-matrix完备性/witness，以及由import或唯一expected enum application驱动的通用裸variant；
+- 八种signed/unsigned定宽整数、candidate-local literal fit、显式转换与全宽layout/C ABI；`Int`/`UInt`永久固定64位，算术采用定义良好的wrapping并显式处理LLVM division/shift边界；当前可执行profile同时要求64位data/code pointer、全零null carrier及合法地址逐bit往返，裸pointer固定非零、null只由`Option`的niche表示；
+- `Ptr<T>`/`FunPtr<F>`迁为无公开representation field的compiler-represented family，阻断解构/copy update伪造；`Ptr`仅保留typed unsafe nonzero-UInt入口且pointee必须GC-free，`FunPtr`不提供源码constructor；
+- 为整数与range名称提供top-level非generic透明`typealias`；alias只有声明/可见性身份，不产生第二个类型/layout/RTTI/ABI。generic alias及真实跨Cone编码仍留后续。
 
-### M23 多 Cone 与 `.slib`（待设计）
+### M23 多 Cone 与 `.slib`（设计见 `docs/milestone23/DESIGN.md`）
 
-`Cone.toml`、依赖图、import/re-export、meta打包/reader及跨image登记；M16/M17的resolver和default template格式必须原样跨Cone工作。
+- Cone固定为module/distribution/build unit，source package只作namespace；`Cone.toml` v1声明canonical exact coordinate、library/executable kind与已解析dependency locator，driver只消费静态无环且同一`group:name`单版本的resolved graph，不承担package registry、版本求解、lockfile或动态image；
+- 一次落地`package`、exact/star import、`as`alias与`public import`re-export；re-export保留最终实体的typed origin，import只增加typed candidate source，M16 applicability/MSC、M17 default template hygiene与typed access witness原样跨Cone工作；
+- 以按kind隔离的persistent typed id承载跨artifact identity，reader验证后重映射为consumer-local typed id；FQN、link symbol、host path、输入顺序与arena index均不得作为identity/lookup fallback，所有Scoop-owned linker-visible symbol统一由persistent identity派生；
+- `.slib` v1是target-specific、schema-versioned且bitwise reproducible的archive，包含manifest、Export HIR/MIR/LIR metadata、本Cone object与可选C bridge object；Export HIR严格区分public lookup、inheritance/slot与generic hidden support closure，不序列化`LocalConcreteHir`、solver scratch、无关private body或raw arena id，reader须有界验证完整损坏矩阵并返回typed error而不panic；
+- 上游generic template在实际使用它的下游Cone完成concretization；重复specialization的function/layout/TypeDescriptor/dispatch/adapter/static storage按完整ODR group与fingerprint共同coalesce。M21延期的generic delegated extension按exact receiver application生成全程序唯一、lazy exactly-once storage；`scoop.core`迁为trusted独立library `.slib`并提供typed prelude；
+- 跨Cone layout/typed ABI显式区分ZST：未装箱logical size为0且scan为空，Scoop ABI elide payload但保留exact signature，address-taken/static place用1-byte identity token；exact ZST装箱的TypeDescriptor使用`BoxedValue::ZeroSized`并保留非零managed allocation，`Array`/`MutableArray<ZST>`则使用`InlineArray::ZeroSized`、只保存logical length并以index推进，object/inline scan及实际array首元素偏移相互分离；C ABI拒绝零尺寸by-value object；
+- 每个Cone artifact的`code.o`发射唯一`ScoopImageDescriptorV1`，最终link生成唯一`ScoopProgramDescriptorV1`显式列出静态依赖闭包、no-throw root gateway与validated core binding；runtime在任何managed initializer前验证并登记全部image/stackmap/callable/TypeDescriptor/static storage/root/immortal/init metadata，再按dependency-first、同层coordinate、Cone内persistent unit id的canonical顺序初始化；
+- artifact完成门：无`main`的library可独立产生可重复`.slib`，direct/re-export/import、non-generic alias、protected inheritance、default与generic hidden closure跨artifact信息完备且不越权，钻石依赖同origin只intern一次，跨Cone generic及generic delegate的全部runtime identity真正coalesce；
+- 端到端完成门：core不再与用户源码同单元编译，静态multi-Cone最终程序从typed no-throw gateway启动，multi-object连续stackmap v3 blob与moving-GC/exception/closure/coroutine/FFI组合通过，Darwin profile拒绝会丢stackmap的dead-strip，且不存在旧固定`scoop_main`/`scoop_image_*`入口、未namespaced symbol或由native linker任选的ODR冲突。
 
 ### M24 字符串底层能力与字符串插值（待设计）
 
-在 M22 完成 UInt8/Byte 后，补齐 String byte API 与普通 class StringBuilder 的底层能力，再重新设计字符串插值。原 M16 字符串设计已删除，不作为后续实现依据。
+在 M22 完成 UInt8/UByte 后，补齐 String byte API 与普通 class StringBuilder 的底层能力，再重新设计字符串插值。原 M16 字符串设计已删除，不作为后续实现依据。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 
@@ -204,6 +218,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 2026-09-04 M21可见性修订：默认visibility由Kotlin式public改为internal；public API、public interface contract、public override与public constructor都要求源码显式标记，`main`仍可internal。sysroot不享有默认public特权，计划导出的core API也必须显式标记。
 - 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
 - 2026-09-05 完成M25：Scoop runtime自有record/personality/caught栈与moving-GC external payload生命周期落地；object与最终Mach-O门禁锁定LLVM 22.1封闭LSDA、八个Level-I导入及`libSystem` provider，生成程序不再链接`libc++abi`。
+- 2026-09-05 M22设计决定：`Int`/`UInt`永久固定64位并通过非generic透明alias承载`Int64`/`Long`等拼写；整数算术采用按位宽wrapping语义，可执行target须有64位data/code pointer及对应内部carrier逐bit往返能力。为保持普通Option语义，裸`Ptr`/`FunPtr`固定非零并由`Option`唯一承载null。M22只实现无标签break/continue与for，以exact Iterator协议、递归pattern matrix和typed cleanup target闭合控制流/模式；label、do-while、CharRange与generic alias继续留后续。
+- 2026-09-05 M23设计决定：Cone与source package分离，以canonical `group:name:version`及按kind隔离的persistent typed id表达跨artifact identity，v1只消费exact、静态、无环resolved graph。`package`、exact/star/alias/public import与re-export只扩展既有typed resolver层；target-specific确定性`.slib`显式打包三层metadata、native object与闭合export surface，下游完成generic concretization并以完整ODR group coalesce。跨artifact ABI同时固定ZST为零payload/typed elision/显式address token，并为Array采用zero-sized element分支而非零stride通用路径。最终静态程序通过唯一program descriptor登记全部Cone image及runtime metadata后按canonical dependency order初始化；package registry/版本求解、动态加载、generic typealias、interface方法级泛型与跨版本ABI不属于M23。
 
 ## 4. 待补齐清单（backlog）
 
@@ -219,9 +235,9 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 - struct字段默认值与命名参数调用 → M17；次构造函数 → M19；
 - 副本更新表达式 `s.{ f: v }`（spec 4.5）→ M22；
-- `break` / `continue` / `for` 循环（`for` 与区间见 M5 行）→ M22；
+- 不带标签的`break`/`continue`/`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
 - 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；`Int` 已固定 i64）→ M22；
-- 整数溢出语义 → M22（spec 未定，需先回 spec 补充）；
+- 整数溢出语义 → M22（spec 11.2已固定wrapping、除法与shift边界）；
 - 内建 print 重载 → M7 转为 core 普通重载（设计已含）。
 
 ### 来自 M3
@@ -245,7 +261,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）→ M22；
 - tuple/struct 的穷尽性按"穷尽模式组合"判定（当前要求 catch-all 或 `else`；spec 5.2/5.3 的组合判定是保守简化）→ M22；
 - ~~tagged enum嵌入struct/tuple/class字段时精确扫描~~（M13修订：pure-value variant共享payload，含ref variant使用独占slot及固定ref偏移，扫描不读取tag）；
-- `for` 循环变量与 lambda 参数的解构 → M22。
+- `for`解构，以及lambda/`val`既有解构与M18 class `componentN`能力的共享binding plan → M22。
 
 ### 来自 M5
 
@@ -299,7 +315,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - ~~多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13~~（已完成：pthread registry、合作式epoch握手、per-thread TLAB及同步heap/root/handle/pin元数据；parallel/concurrent collector仍待后续）；
 - ~~tagged enum的精确扫描描述发射~~（M13修订：移除`SCOOP_REFS_ENUM`按tag分派，独占ref-bearing slot的固定偏移可与`SCOOP_REFS_SEQUENCE`及数组元素扫描组合）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
-- 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）→ M22。
+- 其余定宽整数族（Int8/16/32、UInt8/16/32）及固定宽度alias（含Int64/UInt64）→ M22；既有Int/UInt实现保留为canonical 64位identity。
 
 ### 来自 M10
 
@@ -323,7 +339,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - class upper bound → M20；M14的upper bound只接受完整interface application；
 - 可作为普通表达式静态类型的交叉类型；M14的多个interface bound只构成type parameter能力集合；
 - interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类；
-- generic `typealias`：type parameter/bound、透明展开、递归alias诊断、可见性和跨Cone export；alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
+- generic `typealias`：M22只落地top-level非generic透明alias；带type parameter/bound的alias、递归generic alias及跨Cone打包/re-export仍待后续。alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
 - generic extension property；普通member/top-level property自身不允许method式type parameter。该能力随extension property基础语义落地，并须定义receiver参数如何参与推导及getter/setter单态化；
 - static nested generic type与generic class companion参数作用域 → M21：二者不隐式继承宿主参数，object/companion不按host application复制；`inner` type及outer application/ref捕获仍待后续；
 - 显式type argument中的`_`占位及部分推断 → M20；当前只允许“整组省略并推断”或“整组完整写出”；

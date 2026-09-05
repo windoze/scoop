@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-版本：0.7（草案）
+版本：0.9（草案）
 
 ## 1. 概述
 
@@ -104,6 +104,12 @@ Scoop 的类型分为两大类：
 - `is` / `as` / `as?`不擦除generic argument，generic nominal目标必须是参数完整的exact application。例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同检查目标，前者不会仅因`Int <: Any`匹配`Box<Any>`。generic body中的type parameter在普通单态化后引用concrete TypeDescriptor；不存在裸generic、star或projected runtime descriptor。
 - 单态化必须结构上保证实例化闭包终止。同一generic callable递归SCC中的每个调用环，把宿主参数与callable参数组成的完整向量代回起点后必须逐项保持identity；普通直接/互递归因此复用同一concrete实例。参数替换非identity的环属于当前不支持的polymorphic recursion，在template定义检查时报错。非递归调用边仍可任意变换实参。编译器不得用递归深度、实例数量或超时阈值决定源码是否合法。
 
+#### 3.2.1 非泛型透明 `typealias`
+
+当前语言子集支持top-level、非generic透明alias，例如`public typealias UserId = UInt64`、`typealias Names = Array<String>`。右侧必须是声明点可访问、参数完整的普通类型，可以是nominal application、tuple或函数类型；alias不能声明type parameter、捕获外层type parameter或出现在nested/local位置。alias可以引用其他alias，但展开依赖图必须无环；直接或间接递归均为定义处错误。
+
+alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。类型检查与codegen一律使用完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。visibility默认仍为`internal`；完全展开目标type tree中每个被引用声明的effective access domain必须覆盖alias自身的effective domain。因此internal alias也不能暴露file-private目标，public alias只是同一signature-exposure规则的更宽特例。M22定义的这一top-level、non-generic alias在M23起可写入`.slib`并经普通import、`public import` re-export与链式re-export跨Cone使用；它的alias identity保持origin Cone，使用处仍展开到同一typed target。声明type parameter的generic alias以及nested/local alias仍不在当前语言子集中，不因M23的跨Cone打包能力而获得半成品形态。
+
 ### 3.3 参数传递、receiver 与 `this`
 
 Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：
@@ -201,8 +207,9 @@ enum E {
 - **enum 自身不支持构造函数、不支持 `init` 块、不支持成员属性**；body 中只允许声明成员函数与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
 - 每个变体是一个构造器：`E.SimpleVariant`、`E.VariantWithValue(42)`、`E.VariantWithNamedField(f1 = 1, f2 = "x")`、`E.VariantWithDefaults(1)`、`E.VariantWithDefaults(f1 = 1)`。命名字段变体（含 block 式）一律以命名参数方式构造，不提供花括号构造形式（与 struct 字面量同样存在解析歧义）。
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
-- 与 Kotlin enum class 的 entries 类似，变体名可以通过 `import some.package.E.*` 引入后不写前缀直接使用；`scoop.core.Option.*` 由核心库默认引入（见第 7 章），因此在上下文能确定类型时可以直接写 `Some(...)` 和 `None`。
-- 在 `when` 匹配处，变体名可以省略 `E.` 前缀（见第 5 章）。
+- 与 Kotlin enum class 的 entries 类似，变体名可以通过`import some.package.E.*`引入后不写前缀直接使用；`scoop.core.Option.*`由core prelude的typed default import引入（见第7章），`Some`/`None`不具有短名称特判。
+- 表达式位的裸`V`/`V(...)`除普通可见候选外，还可由唯一的expected exact enum application `E<Args...>`引入：只在该enum内寻找同名variant。expected type仍未固定时，该构造与`None`、lambda、空数组一样进入8.6的candidate-local postponed检查；最终expected为`Any`/interface、多个enum或未解变量时，不扫描全程序猜测，必须写`E.V`或补type annotation。普通词法/import候选遵守既有分层并优先；contextual variant不能绕过遮蔽，也不能扩展为按返回类型选择普通函数。unit variant的contextual name只在普通value-name lookup没有找到实体时启用，词法value binding即使类型不适配也hard-shadow该回退；payload variant call继续服从8.6既有named-call与local-value shadow规则。
+- 在`when`匹配处，变体名可以省略`E.`前缀，由subject的exact enum type解析（见第5章）；这与表达式位的contextual candidate是两个不同入口。
 - 与 struct 一样：immutable、无 identity，可条件派生结构相等；`ToString`与`Hash`必须显式adopt并实现（见11.11）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
@@ -235,7 +242,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 
 #### 4.4.1 不可变性
 
-值类型实例构造后不可修改。修改的唯一方式是通过副本更新表达式创建新值（见 4.5），或把新值重新绑定到 `var` 变量（这是重绑定，不是原地修改）。
+值类型实例构造后不可修改。对具有字段名的struct或enum命名字段variant，可通过副本更新表达式创建新值（见4.5）；其他值类型必须显式重建。也可以把任意新值重新绑定到`var`变量（这是重绑定，不是原地修改）。
 
 #### 4.4.2 无 identity
 
@@ -288,13 +295,12 @@ s3 = s3.{ f1: 84 }        // var 重绑定，不是原地修改
 
 规则：
 
-- 形式：`baseExpr.{ field: expr, ... }`。`.` 之后只能出现标识符的既有语法使得 `{` 在该位置无歧义，因此不需要引入额外的关键字。
-- `baseExpr` 必须是值类型（struct、enum 的命名字段变体值；tuple 不支持，因为 tuple 无字段名）。
-- 块内用 `:` 给字段赋新值；未提及的字段从 `baseExpr` 拷贝。
-- 结果为**新值**，`baseExpr` 本身不变。
-- 块内只能给目标类型的字段赋值，不能引入其他语句（块内是字段绑定列表而非任意代码块）。
-- 对 enum：只能用于命名字段变体的值，且不能改变变体种类；静态类型含多个命名字段变体时按所写字段解析目标变体，运行期值不属于该变体时抛出异常（具体异常类型由实现定义）。
-- 不支持穿透 `Option` 的写法（`opt?.{ f: 1 }`）：先用 `when` 拆包，再做副本更新。
+- 形式为非空`baseExpr.{ field: expr, ... }`。`.`之后的`{`进入专用字段列表，因此不需要新关键字；块内不能出现语句、rest或嵌套field path。
+- `baseExpr`先求值且只求值一次，静态类型必须是exact struct或enum value；class、interface、tuple、basic type与函数值均不支持。结果为完整新值，原值及其storage不发生原地修改。
+- 更新字段不能重复。目标确定后，各RHS按源码从左到右各求值一次并必须可赋给对应exact field type；未提及字段从保存的base值复制，最终按字段声明顺序构造结果。任一RHS抛出或挂起时后续RHS不求值，已发生的外部副作用不回滚。
+- struct字段由base exact type直接确定。enum候选只包括“命名字段payload中包含全部所写字段”的variant，选择只看字段名、不用RHS type反向消歧：零个候选、多个候选、未知/跨variant字段都是编译错误；诊断应列出歧义variant并建议用`when`显式重建。
+- enum得到唯一目标variant后，必须在求值任何RHS之前检查base active variant；不匹配时抛`IllegalStateException`，message包含enum和期望variant，且RHS均不执行。匹配后只读取active payload并重建同一variant，副本更新不能改变variant种类。该语义检查不承诺物理tag；7.4的tagged与niche表示必须得到相同结果。
+- 不支持穿透`Option`的写法（`opt?.{ f: 1 }`）：先用`when`拆包，再做副本更新。
 
 ### 4.6 解构声明（destructuring）
 
@@ -312,14 +318,17 @@ val t2 = (4, 5, s)
 val (a, b, { f1, f2: renamedF2 }) = t2   // 解构可以嵌套
 ```
 
+本节定义的是**binding pattern**：用于`val`/`var`声明、`for`循环变量和lambda参数，必须对输入静态类型递归不可失败。第5章的`when`使用范围更大的**match pattern**，额外允许literal与enum variant。一个外层tuple/struct不能用嵌套的可失败子模式绕过本条；`for (Some(x) in values)`不是过滤语法。
+
 规则：
 
-- **tuple 模式** `(p1, p2, ...)`：按位置解构；每个位置可以是绑定名、`_`（跳过单个元素）、`..`（见下）或嵌套模式。不使用 `..` 时，模式的元数必须与被解构值的元数/字段数一致，否则编译错误。
-- **字段模式** `{ f1, f2: renamed, ... }`：按字段名解构 struct（或命名字段的 enum 变体值）；写 `f1` 绑定同名变量，`f2: renamed` 绑定到 `renamed`；`_` 不用于字段模式。**未列出全部字段时必须以 `..` 结尾，否则是编译错误**（与 Rust 一致）。字段模式可带类型名前缀（`S { f1: x, .. }`），语义相同，前缀用于提高可读性或在必要时消除歧义。
-- struct 既可按位置（`(n, _)`，按主构造函数字段顺序）也可按字段名（`{ f1, f2 }`）解构。
-- 解构可任意嵌套：内层可以是 tuple 模式或字段模式。
-- struct / tuple 的解构是语言内建能力，不依赖 `componentN`。
-- **同样的模式规则适用于一切"赋值"位置**：除 `val` / `var` 声明外，还包括 `for` 循环变量（`for ((a, b) in pairs) { ... }`）与 lambda 参数（`{ (a, b) -> ... }`）。这些位置的语法消歧（例如 lambda 参数列表与单参数括号形式的区分）只允许在 parsing 阶段施加限制，对后续语义分析没有影响。
+- **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。class component位置模式不适用该元数规则，单独按下文处理。
+- **字段模式**由`field`、`field: subpattern`和末尾可选`..`组成。`field`是`field: field`的shorthand；`field: renamed`绑定到`renamed`；`field: _`显式忽略该字段。冒号右侧是完整递归pattern，不再只是rename。`_`不能作为字段key，但可以作为RHS。字段不能未知或重复，整个pattern内的binding名称必须唯一。
+- 未列出全部字段时必须以`..`结尾；列全时可省略。字段模式可带type前缀（`S { f1: x, .. }`），前缀必须解析到subject的exact type。
+- struct既可按主构造字段顺序位置解构，也可按字段名解构；tuple/struct投影是语言内建能力，不查找`componentN`。
+- 普通class可以按位置使用9.3的`componentN` operator解构。subject只求值一次，每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`。class没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。
+- binding pattern的不可失败性递归成立：binding、`_`、rest补位不可失败；tuple/struct只有全部展开后的子模式不可失败时才合法；literal与任何enum variant pattern在binding位置均非法。lambda和`for`引入的binding不可重新绑定，`var`解构声明沿用mutable binding语义。
+- 三种binding位置共享同一求值、投影与component计划；parser可以为lambda参数消歧施加语法限制，但不能改变后续语义。
 
 #### `..` 忽略其余字段
 
@@ -335,7 +344,7 @@ val s = S(1, 2, 3, 4)
 val S { f1: x, f2: y, .. } = s
 ```
 
-- 在 tuple / 位置模式中：`..` 忽略任意数量（含 0 个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用 `..` 时不要求模式元数与值的元数一致。
+- 在tuple、struct及enum variant的固定元数位置模式中：`..`忽略任意数量（含0个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用`..`时不要求模式元数与值的元数一致。class component位置模式始终禁止`..`，不适用本条。
 - 在字段模式中：`..` 只能出现在最后，表示忽略所有未列出的字段；**未列出全部字段时必须写 `..`**（列出全部字段时 `..` 可省略）。
 - `..` 自身不绑定任何值。
 
@@ -347,22 +356,45 @@ val S { f1: x, f2: y, .. } = s
 - 区间运算符只出现在**表达式位置**（普通表达式、when 的 `in 1..4` 分支等）；
 - 模式位置的元素位只接受绑定名、字面量、`_`、`..`、嵌套模式，区间表达式本来就不是合法的模式元素。parser 在模式位置看到裸 `..` 即 rest；看到 `expr .. expr` 形式则报"模式中不允许区间表达式"。
 
+### 4.7 零尺寸值类型（ZST）
+
+零尺寸是concrete exact value type的结构属性，不是新的source kind；M23 v1的`ZstStatus`与target无关，target profile只决定其正alignment及外层ABI细节。`sizeOf<T>() == 0u`的concrete value type称为ZST；它仍保留自己的nominal/structural identity、generic application、方法、构造过程与TypeDescriptor，不能因layout相同而与另一类型合并。
+
+- `Unit`和空的普通非`@CLayout` struct固定为size 0、alignment 1；非空tuple及其他普通非`@CLayout` struct在每个元素/字段都是ZST时也是ZST，alignment取字段alignment的最大值且始终为正的2次幂。ZST字段不增加aggregate size，可以共享offset 0；wire/runtime模型仍保留大于1的ZST alignment以便组合layout与未来扩展，但M23不新增独立的源码over-alignment语法。M23也不对enum做“单值所以删除discriminant”的新优化：tagged enum至少保留现有tag，`Option<ZST>`必须保留可区分`None`/`Some`的tag；
+- ZST必须是GC-free且递归scan为空；反向不成立。它没有可区分值的存储bit，但构造器、initializer、getter、函数调用、array literal元素、赋值RHS及用户方法的求值和副作用一律保留。复制ZST不复制字节，不得借此删除产生该值的求值；
+- ZST值仍遵守4.4.2的“无identity”。需要`addressOf`的独立source place必须在其有效期内物化满足alignment的非null 1-byte **address token**；同时存活且语义上不同的address-taken place不得共址，生命周期不重叠时可复用。token只提供place地址，不把语言值的size改成1，也不允许读写该token作为payload。字段和array元素仍不在13.10现有`addressOf` lvalue集合内；
+- Scoop typed ABI保留完整source signature中的exact ZST参数/结果identity，但machine ABI使用显式`ElidedZst`分类，不传递payload byte。参数表达式仍按顺序求值；callee仅在地址被观察时物化自己的place token。`Unit`的void result与其他ZST的elided typed result在IR中是不同variant，不能因物理签名相同而合并overload、symbol或callable identity；
+- 装箱ZST仍分配带对象头的普通managed object，每次装箱产生普通ref identity；未装箱payload size为0、scan为空，但TypeDescriptor以runtime spec 2.2的`BoxedValue { ZeroSized }`保存对齐后的payload offset与非零minimum object allocation。不同exact ZST继续使用不同TypeDescriptor，即使最终对象大小相同。
+
 ---
 
 ## 5. `when` 表达式扩展
 
-Kotlin 原有的 `when` 语法（等值匹配、类型匹配、区间、条件分支）原样保留。以下扩展对 **enum、tuple 与 struct** 生效，其模式的形式与功能同 4.6 的解构声明完全对齐。
+Kotlin 原有的`when`语法（等值匹配、类型匹配、区间、条件分支）原样保留。以下扩展对**enum、tuple与struct**生效。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性算法。
 
-`if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以 `return` / `throw` 结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
+`if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以`return`/`throw`或8.7的`break`/`continue`结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
 
-值位置的 `if` 必须有 `else`；结果被丢弃时可以省略。值位置的 `when` 必须穷尽。`try` 的结果由正常完成的 try body 与各 catch body 共同决定；`finally` 的结果值始终丢弃，但其中的 `return` / `throw` 仍按第 8 章覆盖先前路径。
+值位置的 `if` 必须有 `else`；结果被丢弃时可以省略。值位置的 `when` 必须穷尽。`try` 的结果由正常完成的 try body 与各 catch body 共同决定；`finally` 的结果值始终丢弃，但其中实际离开当前finally的`return`/`throw`/`break`/`continue`仍按第8章覆盖先前路径。
 
 **统一规则**：仅当 subject 的静态类型是 enum / struct / tuple 时，`when` 才按模式匹配解析（下称**模式 when**）；其余 `when` 一律保持 Kotlin 的表达式语义——分支条件是普通表达式（等值比较）、`is` 检查、`in` 区间等，穷尽性也遵循 Kotlin 自身规则（表达式形式须穷尽，语句形式不强制）。两种解释的适用 subject 类型不相交，因此同一分支写法不会产生二义结果：parser 在分支条件位置同时接受模式语法与表达式语法，由语义分析按 subject 类型裁定。
 
-模式 when 适用两条全局规则：
+模式when适用两条全局规则：
 
-- **穷尽性**：模式 when（无论作为语句还是表达式）必须穷尽；编译器无法静态确认穷尽时是编译错误，此时应加上 `else` 分支兜底。带守卫的分支不计入穷尽性（编译器将其视为可能不匹配）。
-- **绑定优先**：分支模式中的裸标识符一律是新的绑定，而不是对既有变量的引用；要匹配既有常量，需写字面量或限定名（如 `SomeObject.CONST`）。enum 匹配中未解析为变体名的裸标识符是匹配一切的通配绑定（效果等同 `else`），编译器应给出告警。
+- **穷尽性**：模式when（无论作为语句还是表达式）必须由递归pattern-matrix证明穷尽；不能证明时是编译错误并给出至少一个稳定missing witness，也可以显式加`else`。带guard的arm不贡献覆盖，因为guard可能为false。
+- **绑定优先**：分支模式中的裸标识符是新的binding而不是对既有变量的引用；M22只允许literal直接匹配值，匹配既有const须改用guard，限定名只用于enum variant。enum subject下先按其exact type解析同名variant，未解析为variant的裸标识符是匹配一切的binding（效果同`else`），编译器必须给出非致命warning以避免variant拼写错误。
+
+穷尽性按以下typed constructor递归定义：
+
+- enum的有限constructor集合是其全部variant，variant payload继续作为子列检查；出现variant名称本身不代表覆盖其全部payload；
+- tuple与struct各有一个product constructor，字段按位置/声明顺序展开；命名字段与`..`先补全为完整wildcard vector；
+- `Boolean`有`false`/`true`两个有限constructor，`Unit`有一个constructor；
+- binding、`_`、rest补位与`else`均为wildcard；fixed-width integer是有限域，实现以已出现literal singleton与符号化other partition计算覆盖，不实际枚举`2^W`个值。若不同无guard literal确已覆盖全部bit pattern，则无需wildcard；否则missing witness必须是该exact signed/unsigned数学次序中的真实缺失值，unsigned witness始终使用`u`后缀以保证可按subject type重新解析。String是无限开放域，有限literal arm仍必须有覆盖余值的wildcard；Char/Float/Double literal coverage由其进入已实现子集时另行规定；
+- 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
+- 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
+
+integer literal pattern还允许unary minus直接作用于literal；括号不形成语义节点，空白或注释不影响识别。它以subject的exact integer type复用11.2的fit、wrapping unary-minus与signed `MIN`边界，其他常量表达式不属于literal pattern。
+
+实现可同时计算pattern usefulness，但任何优化只能消费已经类型化的proof；不得因为最后一个arm或每个variant名至少出现一次，就把其条件视为恒真。
 
 ### 5.1 enum 变体模式
 
@@ -386,9 +418,9 @@ when (v) {
 - 匹配对象是 enum 值时，分支条件可以是**变体模式**：
   - 单元变体：直接写变体名；
   - 位置参数变体：`Variant(p1, p2, ...)`，参数位可以是绑定名、字面量（等值匹配）、`_`（通配）、`..`（忽略其余，规则见 4.6）或嵌套模式；
-  - 命名字段变体：`Variant { f1, f2: renamed, ... }`；写 `f1` 表示绑定同名变量，`f2: renamed` 表示绑定到 `renamed`；**未列出全部字段时必须以 `..` 结尾，否则是编译错误**；`_` 不能用于命名字段模式。
+  - 命名字段变体：`Variant { f1, f2: subpattern, .. }`；`f1`是`f1: f1`的shorthand，冒号右侧可为binding、literal、`_`或任意嵌套match pattern；未列出全部字段时必须以`..`结尾。
 - 变体名可省略 enum 类型前缀（`E.`），编译器按被匹配值的类型解析；存在歧义时需写全限定名。
-- 用变体模式匹配 enum 时，穷尽性要求覆盖全部变体（或提供 `else`）。
+- enum穷尽性按全局pattern matrix递归检查variant payload；仅列出全部variant名称但payload覆盖不全仍不穷尽。
 
 ### 5.2 tuple 模式
 
@@ -406,7 +438,7 @@ when (t) {
 - 匹配对象是 tuple 时，分支条件可以是 **tuple 模式** `(p1, p2, ...)`；元素位规则同 4.6 的解构（绑定名、字面量、`_`、`..`、嵌套模式）。
 - tuple 模式要求 subject 的静态类型就是 tuple；tuple 没有类型名，不能像 struct 模式那样作为类型测试使用。
 - 不使用 `..` 时，模式的元数必须与被匹配 tuple 的元数一致，否则编译错误。
-- tuple 无变体之分：一个元数一致、各位置均为绑定名或 `_`、且无守卫的 tuple 模式天然穷尽，不需要 `else`；含字面量或守卫时，按全局穷尽性规则处理（通常需要 `else` 兜底）。
+- tuple无sum variant，但各字段的有限constructor组合可由多个arm共同覆盖；是否需要`else`完全由全局pattern matrix决定，而不是只寻找单个irrefutable arm。
 
 ### 5.3 struct 模式
 
@@ -431,7 +463,7 @@ when (s) {
 
 - struct 模式的形式与 4.6 的解构声明完全对齐：字段模式（可带类型名前缀）或位置模式；元素位可以是绑定名、字面量（等值匹配）、`_`、`..` 或嵌套模式，与 enum 变体模式、tuple 模式一致。
 - 字段模式未列出全部字段时必须以 `..` 结尾（同 4.6，与 Rust 一致）。
-- 被匹配值的静态类型就是该 struct 时，类型名前缀可省略（`(x, ..)` 或 `{ f1, .. }` 均可）；各位置均为绑定名 / `_` / `..` 且无守卫的 struct 模式天然穷尽，不需要 `else`。
+- 被匹配值的静态类型就是该struct时，type前缀可省略（`(x, ..)`或`{ f1, .. }`均可）；多个struct arm可以通过字段子模式组合证明穷尽，不要求存在单个全wildcard arm。
 - struct 模式要求 subject 的静态类型就是该 struct（统一规则）。对父类型（`Any`、interface、装箱后的值等）的类型判断使用 Kotlin 的 `is` 分支（`is S -> ...`），智能转换后可在分支体内按 4.6 解构。
 
 ### 5.4 守卫（guard）
@@ -501,7 +533,7 @@ enum Option<T> {
 }
 ```
 
-`Option<T>`是普通invariant enum，享有第4.2节与第5章的全部能力（解构、穷尽性检查等）。即使`S <: T`，`Option<S>`也不是`Option<T>`的子类型；需要改变payload类型时必须显式`map`/重建。构造处存在`Option<T>`期望类型时，`Some(value)`和`None`直接按该目标application推断，因此常见返回与赋值不需要先产生另一个`Option<S>`。`scoop.core.Option.*`由核心库默认引入，因此在上下文能确定类型时可以直接写`Some(...)`与`None`，无需`Option.None`这样的前缀。
+`Option<T>`是普通invariant enum，享有第4.2节与第5章的全部能力（解构、穷尽性检查等）。即使`S <: T`，`Option<S>`也不是`Option<T>`的子类型；需要改变payload类型时必须显式`map`/重建。构造处存在`Option<T>`期望类型时，`Some(value)`和`None`按4.2适用于所有enum的contextual variant规则绑定该exact application，因此常见返回与赋值不需要先产生另一个`Option<S>`。`scoop.core.Option.*`由core prelude的typed default import引入；这只增加普通可见候选，不构成Option专用resolver或短名称特判。
 
 ### 7.3 空安全运算符的语义
 
@@ -517,12 +549,12 @@ enum Option<T> {
 
 ### 7.4 enum 布局与 `Option` niche 保证
 
-对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None` 编码为该空位，`Some(v)` 与 `v` 的表示相同。这是语言的固定特性，而非可选优化。适用类型：
+对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None`编码为该空位，`Some(v)`与`v`的表示相同。空位按定义不是合法的裸`T`值；所有安全构造、compiler-generated值与声明为返回裸`T`的FFI边界都必须维持该不变量，unsafe代码破坏它后行为未定义。这是语言的固定特性，而非可选优化。适用类型：
 
 - **引用类型**：空位是全 0 的机器字（GC 不会产生该引用值）；
-- **`Ptr<U>` 与 `FunPtr<F>`**：空位是 `_rawPointer == 0u`（null 指针）。
+- **`Ptr<U>` 与 `FunPtr<F>`**：空位是内部raw pointer carrier的全0位模式；裸`Ptr`/`FunPtr`值必须非零，null pointer只编码为对应`Option`的`None`。
 
-因此 `Option<Ptr<T>>` / `Option<FunPtr<F>>` 可以直接出现在 C ABI 边界上表示可空指针（见 13.10），`Option` 包裹的引用类型与裸引用布局相同。对其他类型 `Option<T>` 带 tag，具体布局不保证。
+因此`Option<FunPtr<F>>`在`F`满足C ABI规则时可以直接表示可空函数指针；`Option<Ptr<T>>`只有在`T`本身有本章定义的portable C pointee representation，或`T == Unit`作为opaque `void *`例外时，才能直接出现在C ABI边界。`Option`的niche不绕过C-FFI-safe classifier，尤其`Option<Ptr<其他ZST>>`仍被拒绝。`Option`包裹的引用类型与裸引用布局相同，但引用类型本身仍不能进入C ABI。对其他类型`Option<T>`带tag，具体布局不保证。
 
 niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
 
@@ -534,8 +566,9 @@ tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及
 
 函数语法整体与 Kotlin 一致：默认参数、命名参数、`vararg`、扩展函数、中缀调用、运算符重载、lambda 与尾随 lambda、函数类型 `(A, B) -> R` 等。
 
-- 非 `Unit` 函数的块体必须在所有可达路径上返回值或以 `throw` 退出；无法静态证明时是编译错误。顺序语句从前向后分析，路径遇到 `return` / `throw` 后不再落空；`if` 必须有 `else` 且两支都不落空；穷尽的 `when` 必须每个可执行分支都不落空。循环在没有更强证明时按可能落空处理。
-- `try` 的正常路径及每个 `catch` 路径都不落空时，整个 `try` 不落空；如果 `finally` 自身在所有路径上 `return` 或 `throw`，则它覆盖先前待执行的返回、异常或正常继续路径，整个 `try` 不落空。否则 `finally` 不改变先前路径是否落空。
+- 控制流分析产生目标化outcome集合：`Fallthrough`、`Return`、`Throw`、`Break(LoopId)`与`Continue(LoopId)`，而不是单个“落空”bool。顺序语句只把`Fallthrough`送入下一语句，其他outcome原样传播；`if`/穷尽`when`合并可执行分支集合。每个loop消费指向自己的`Break`为该loop的正常退出、消费自己的`Continue`为回边；循环在没有更强证明时仍加入`Fallthrough`。因此`break`/`continue`不会逃出其callable，也不会被误当作函数返回。
+- 非`Unit`函数的块体在callable边界不得留下`Fallthrough`，所有可达正常完成路径必须以有值`Return`结束；`Throw`也可终止路径。无法静态证明时是编译错误。
+- `try`合并try body与各catch的outcome。执行`finally`时，其`Fallthrough`恢复进入finally前的outcome；任何实际离开当前finally的`Return`/`Throw`/`Break`/`Continue`替换旧outcome，目标位于finally内部并已由内层loop/catch消费的动作不替换。这样finally的target-aware outcome规则同时决定definite return、后续语句可达性与8.7的cleanup语义。
 
 ### 8.1 函数类型、函数值与 closure
 
@@ -631,7 +664,7 @@ fun references() {
 - 挂起性是 callable 签名的一部分：override / interface 实现的挂起性必须与被覆写声明完全一致；`suspend (A) -> R` 与普通函数类型 `(A) -> R` 不兼容。挂起性不作为同名声明的重载区分项，参数列表相同而只相差 `suspend` 的两个函数是重复声明。
 - 调用挂起函数可能在当前调用栈内立即产生 `R`，也可能保存当前计算并返回到协程启动者，随后经 `Continuation` 恢复。无论采用哪条路径，源码都只观察到一次普通的 `R` 结果或一次在该调用点抛出的异常；挂起本身不是返回、异常或 `finally` 的退出原因。
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
-- `try` / `catch` / `finally` 的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点 `throw`；仅仅挂起不会执行 `finally`；当计算随后正常返回、抛出或由 `finally` 覆盖退出时，`finally` 仍恰好执行一次。
+- `try`/`catch`/`finally`的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点`throw`；仅仅挂起不会执行`finally`；跨挂起保存的待执行动作包括正常继续、return、throw以及8.7的break/continue。finally正常结束后恢复原动作；只有实际从当前finally向外离开的新控制转移才覆盖原动作，finally内部被catch或只退出其内层loop的转移不覆盖。每个被退出的finally仍恰好执行一次。
 - `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
 - 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，其声明引用也不得在 `FunPtr` 上下文中解析为原生地址；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
 - 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
@@ -698,16 +731,27 @@ fun references() {
 
 ### 8.6 调用决议与泛型约束求解
 
-- 调用决议先按词法/成员/import优先级建立候选层，并在每层内按9.3.4的function-like/property-like c-level继续分区；对每个最终分区完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的分区中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。多Cone及显式/星号import加入时只扩展候选层，不改变后续算法。
+- 调用决议先按词法/成员/import优先级建立候选层；无显式receiver与extension scope的完整层序见12.4.3。每层内继续按9.3.4的function-like/property-like c-level分区；对每个最终分区完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的分区中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。当前Cone、上游`.slib`、exact/star import与core prelude只决定候选来自哪一层，不改变后续算法。
 - 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、显式fixed/`_`类型实参、函数/nominal invariant relation及upper bound共同产生等式与子类型约束；generic owner参数、callable自身参数和待推断变量保持不同identity，不能压平成一组后再按长度或span反推。
-- 依赖候选期望类型的lambda、匿名函数、callable reference、`None`、空数组和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
+- 依赖候选期望类型的lambda、匿名函数、callable reference、裸enum variant、`None`、空数组、整数字面量和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
 - constraint system必须同时满足kind/class/interface bound、函数类型型变、nominal application逐项相等、普通subtyping及装箱规则。一个候选只有在所有实例化参数得到唯一、可表达且满足bound的concrete解，并且全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
 - 外层期望类型可以在唯一callable目标已经不依赖返回类型选择时帮助固定只出现在返回结果中的类型参数，也可以为generic nominal构造提供宿主application；它不能使两个仅靠结果类型才能区分的overload变得合法或在多个候选间充当MSC比较项。普通函数签名仍不含返回类型，返回类型不同不能单独形成重载。
 - 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可按同一普通subtyping/nominal-invariance关系转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
 - 若唯一候选能转发给所有其他候选而反向不成立，则它胜出；互相可转发或互相都不能转发时，依次应用规范已有的附加规则：非参数化候选优先；M17起，在互相可转发的集合中实际使用更少默认值者优先，仍相同时无`vararg`者优先。命名/位置写法本身不参与优先级。仍不唯一即为歧义。
 - 无外层expected type的分支、数组元素或其他LUB计算只有在同一generic template的全部类型实参逐项相等时才能保留该application；`G<A>`与`G<B>`不会合成为`G<LUB(A, B)>`。否则沿普通共同父class/interface/`Any`规则寻找上界，必要时装箱整个value。expected type存在时可让各分支直接按同一个exact target构造/检查，但不能把已经形成的不同application隐式转换到该target。多个互不可比较的nominal共同上界仍不产生交叉类型。
-- 整数字面量专用widen规则在定宽整数及其字面量类型正式落地前不生效；当前`Int`字面量只有`Int`类型。部分type argument、普通完整application与既有postponed argument必须使用本节同一candidate/constraint/MSC框架，不能为`_`建立旁路resolver。
+- 整数字面量按11.2持有candidate-local可表示type集合；assignment/return/argument/call-or-operator receiver等位置的exact expected integer type可提交一个可表示literal。literal receiver对integer representation intrinsic及11.8的四个core range member都适用：只枚举八个canonical integer owner，再在假设owner上执行普通core-member决议，不能在查找`and`/`shl`/`rangeTo`/`until`前抢先默认。该规则不枚举任意用户或extension member，也不扩展为普通类型的全局反向推断。fixed point后仍未被约束的无后缀/`u`literal分别默认`Int`/`UInt`。普通MSC及上述附加规则仍并列时，默认类型exact commit优于同族其他fit；多个非默认fit互不支配。literal fit不建立整数type间的subtyping/coercion，失败probe不得泄漏已提交type。
 - 无匹配与歧义都是HIR编译错误。诊断必须列出所在候选层、每个相关候选的完整签名及其失败原因（形态映射、类型实参数量、未解变量、bound、实参类型或MSC并列），不能只报告“unknown function”或由下游根据缺失callee猜测失败原因。
+
+### 8.7 循环控制
+
+本规范在M22规定的循环控制子集是`while`、`for`与不带标签的`break`/`continue`；`do-while`及带标签控制流仍属于2.1所列完整语言的后续子集。
+
+- `break`退出当前callable内词法最内层循环，`continue`进入其下一轮；函数、匿名函数、lambda和局部函数各自建立控制边界，不能跳到外层callable的循环。循环外使用是编译错误；
+- `break`/`continue`终止当前路径且类型为`Nothing`。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
+- while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
+- 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
+
+`for (pattern in source)`严格遵守11.8的typed迭代协议；`source`、`iterator()`各求值一次，每轮只调用一次`next()`。每个`Some`建立新的只读binding scope，因此closure捕获对应轮次的值，而不是一个跨轮次覆写的隐藏mutable slot。pattern必须满足4.6的irrefutable binding规则。
 
 ---
 
@@ -726,14 +770,14 @@ fun references() {
 
 **property实体与源码形态：**
 
-- property是“显式声明type + getter + 可选setter”的逻辑实体，不等同于field。所有非局部property必须写显式type；同一owner内property名称唯一，不能按type、mutability或accessor重载。public/internal top-level property在package namespace内唯一；file-private property的owner包含source file，不同文件可以同名。function和property可以同名并按8.6/9.3.4分区；
+- property是“显式声明type + getter + 可选setter”的逻辑实体，不等同于field。所有非局部property必须写显式type；同一owner内property名称唯一，不能按type、mutability或accessor重载。同一Cone的package namespace内public/internal top-level property名称唯一；split package中不同origin Cone的同名实体保持不同identity，并在同时导入时按12.4诊断。file-private property的owner包含source file，不同文件可以同名。function和property可以同名并按8.6/9.3.4分区；
 - `val/var p: T = expr`是stored property并一定拥有backing storage；accessor语法可以全部省略，也可以自定义getter/setter。`val p: T get() ...`是无field的computed read-only property；interface以外的computed `var`必须同时提供getter和setter。`abstract val/var`把全部required accessor正规化为abstract slot；interface中每个required accessor独立分类，有body为default、未提供body为abstract，因而允许getter/setter混合default/abstract。`val/var p: T by expr`是delegated property，见9.2；
 - Scoop永久不支持`lateinit`。唯一可以省略initializer的stored形态是无custom accessor的`var p: Option<T>`/`var p: T?`，其语义等价于在同一初始化位置写`= None`。`val p: T?`、`var p: T`仍须提供initializer或合法computed/abstract body。若需要optional backing field与custom accessor，必须显式写`= None`；generic type parameter不能因某个实例恰为Option而改变声明representation；
 - getter无显式参数并返回property type；setter恰有一个不可重新绑定的参数（缺省名`value`）并返回Unit。`val`不能有setter；`var`可只customize一个stored accessor。`field`只在stored accessor的直接body内表示typed backing-field place，computed/abstract/delegated property及nested lambda/local function中不可用；
 - primary-constructor property只有implicit field accessor。class/object的stored/delegated property进入common initialization sequence；struct/enum不能拥有stored/delegated member state，但可以声明computed `val`；interface不能有field、initializer、delegate或`init`；
 - class property与method使用相同的final/open/abstract/override规则。property override要求名称与type exact相同；`var`可以override `val`并增加setter，`val`不能override `var`。stored/computed/delegated表示都可实现property contract。value type不能实现要求setter的`var`contract；
 - property read要求getter可访问，write要求同一property的setter可访问。选中logical property后不能因缺少/不可见setter退回较低候选。receiver与右值各求值一次；assignment、`++`/`--`和复合赋值使用9.3.3的typed place。`?.property`只在Some分支执行getter并把结果再包一层Option，不展平嵌套Option；
-- extension property只在top level声明且没有backing field，可以是computed或非genericdelegated property。generic extension写作`val <T> Receiver<T>.p: U ...`；全部type parameter必须只由receiver exact静态type与bound唯一确定，不能用result expected type或setter value补推断。generic delegated extension在M23确定跨Cone实例storage归属前不支持。
+- extension property只在top level声明且没有backing field，可以是computed或delegated property。generic extension写作`val <T> Receiver<T>.p: U ...`；全部type parameter必须只由receiver exact静态type与bound唯一确定，不能用result expected type或setter value补推断。generic delegated extension的每个成功使用的exact receiver application拥有program-wide唯一、lazy exactly-once的effective delegate storage与失败状态；其`GenericDelegateStorageSpecializationId`只由origin `PersistentExtensionPropertyId`和完整receiver concrete type arguments决定，不包含result expected type、setter value、re-export路径或使用它的Cone。不同application互不共享storage，多个Cone使用同一application也只执行一次delegate初始化；
 
 **constructor与body member：**
 
@@ -783,9 +827,9 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - class/struct/enum/interface/object至多有一个`companion object`，省略名称时为`Companion`。companion是独立、非generic singleton，不捕获host instance/primary parameter/type parameter，也不按generic host application复制；内部generic function仍可自行声明type parameter。`Host.member`可在无冲突时forward到companion，`Host.Companion.member`或显式名称始终明确；companion member不进入instance lookup或继承；
 - body可以声明static nested class/struct/enum/interface/object。nested declaration没有implicit outer receiver或outer type parameter；需要关联时显式声明参数。generic outer名称可作为owner qualifier而不构成裸generic application。`inner class`、anonymous/local object/type及implicit outer capture不支持；
 - ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
-- 需要runtime求值的top-level property在GC、主线程、root与image metadata登记后、`main`前exactly once初始化。只有无需执行Scoop代码、无需读取ordinary property且可直接编码为目标静态数据的literal/内建纯常量表达式、immortal String ref及Option `None` shorthand可省略unit；优化器不得因事后fold而改变有可观察求值的初始化语义。文件之间没有source order；无依赖unit按稳定typed declaration key排序，key编码owner chain、package、kind与name，只有file-private owner再加入标准化Cone-relative source identity；它不依赖输入枚举、arena id或host绝对路径，M23再前缀stable Cone identity。访问另一个unit会先ensure目标。HIR只对该unit自有且经脱糖展开的initializer/delegate expression、object base argument与`init`body中的直接typed unit引用形成依赖图并报告结构环，不递归进入被调用的普通function/constructor/default/dynamic/FFI body；这些间接环由runtime gate检测。startup失败则`main`不执行；
+- 需要runtime求值的top-level property使用`StaticInitialState::ZeroedForRuntimeUnit`：其完整storage先以canonical zero/null carrier登记，在全部Cone的image/stackmap/type/root/init metadata、GC与主线程就绪后、`main`前由对应unit exactly once求值并写入。只有无需执行Scoop代码、无需读取ordinary property且可直接编码为目标静态数据的literal/内建纯常量表达式、immortal String ref及Option `None` shorthand可省略unit；这些声明必须改用`StaticInitialState::EncodedStaticValue`，不能仅因为最终bits为零冒充前一分支。Encoded状态包含恰为storage allocation extent的canonical target-representation template（padding、ZST token及managed-ref位置为零）和按pointer offset排序的typed immortal relocation；非null managed ref只能重定位到已登记immutable String对象的精确object start，`None`不产生relocation，不允许任意heap/interior ref。链接与runtime在执行任何managed代码前验证template、relocation与实际初值一致；验证完成后该storage无需cell/unit即可作为合法初值读取。优化器不得因事后fold而改变有可观察求值的初始化语义。文件之间没有source order；二进制判等与同Cone排序唯一使用kind-specific `PersistentInitializationUnitId` bytes。其canonical declaration/specialization key已经编码origin `ConeIdentity`、owner chain、package、kind与name，只有file-private owner再加入标准化Cone-relative source identity；canonical Cone coordinate与declaration path只形成独立的稳定诊断path，不参与第二套unit hash。identity不依赖输入枚举、session arena id、re-export路径或host绝对路径，runtime不得退回table index或可读path。多Cone顺序见12.3；访问另一个unit会先ensure目标。HIR只对该unit自有且经脱糖展开的initializer/delegate expression、object base argument与`init`body中的直接typed unit引用形成依赖图并报告结构环，不递归进入被调用的普通function/constructor/default/dynamic/FFI body；这些间接环由runtime gate检测。startup失败则`main`不执行；
 - object/companion在首次非const访问时线程安全、同步初始化；static nested declaration或const引用不初始化外层。每个runtime unit状态为Uninitialized、Initializing(owner/dependency stack)、Initialized或Failed(rooted Throwable)。成功singleton只在完整初始化后release发布；失败不发布、记忆异常且不重试。同线程或跨线程wait-for环抛出`message`含稳定unit path的`IllegalStateException`；该异常若未在initializer内被普通`try`捕获才使unit失败。其他线程以可参与safepoint的方式等待terminal state；
-- 上述exactly-once cell只管理完整initializer的发布，不表示property可以缺少声明type的值。Initialized storage始终包含合法值；9.1.1 Option shorthand的值是普通`None`。
+- 上述exactly-once cell只管理`ZeroedForRuntimeUnit`完整initializer的发布，不表示property可以缺少声明type的值；`EncodedStaticValue`没有cell/unit，在全程序metadata验证成功时即已包含合法声明type值。Initialized storage始终包含合法值；9.1.1 Option shorthand的值是普通`None`。
 
 #### 9.1.4 Interface default implementation
 
@@ -811,7 +855,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - property delegate使用reflection-free协议。角色必须显式声明为ordinary、non-suspend、non-generic `operator fun`，不得带default/`vararg`：可选`provideDelegate(): D2`、必需`getValue(thisRef: R): T`，以及`var`必需`setValue(thisRef: R, value: T): Unit`。它们是与9.3普通operator不同的typed role；无role的同名函数不参与；
 - `R`对class/object member是owner type，对extension是extension receiver，对top-level/local是Unit。先求值`by`表达式一次，再可选调用一次无owner参数的provideDelegate并把effective delegate存入hidden field/global/local；之后每次access读取delegate并调用唯一get/set target。协议没有`KProperty`、property name或annotation metadata；需要这些值必须在`by`表达式中显式传入；
 - 非局部delegate必须显式声明property type。local delegate省略type时，先在没有result expected type的条件下选出唯一`getValue`role，再以其concrete结果作为property type；`var`的`setValue`必须接受同一type，不能从多个get/set组合反向猜type或让setter改变getter结果；
-- class/object delegate storage进入9.1.1 common sequence/readiness和GC scan；top-level/non-generic extension delegate进入9.1.3 eager unit；local delegate是不可重新绑定的hidden local。struct/enum member及generic extension不能delegated。delegate调用同步，可分配、GC、抛异常但不能挂起；
+- class/object delegate storage进入9.1.1 common sequence/readiness和GC scan；top-level与non-generic extension delegate进入9.1.3 eager unit；generic extension delegate按9.1.1为每个exact receiver application建立独立的program-wide lazy unit，第一次访问该application时才求值`by`表达式并发布effective delegate，不能因最终程序已知使用点而改成eager startup。`by`表达式与可选`provideDelegate`按定义处已绑定的typed template在consumer Cone替换receiver type arguments，不重新解析name、import或operator。该specialization的ODR group整体包含effective delegate storage、managed root descriptor、init cell、failure root、initializer/ensure entry与init descriptor；多个Cone产生同一specialization时必须共享并整体coalesce这一组成员，re-export不复制它。local delegate是不可重新绑定的hidden local。struct/enum member不能delegated。delegate调用同步，可分配、GC、抛异常但不能挂起；
 - class/interface delegation `class C : I by impl`尚未定义，不因property delegate落地而继承Kotlin语义。
 
 ### 9.3 运算符重载与约定
@@ -931,6 +975,10 @@ Scoop 内置两个数组类型（引用类型，属于核心库）：
 
 当 `T` 是引用类型时，数组存储引用。
 
+当`T`是ZST时，`Array<T>`/`MutableArray<T>`使用专门的zero-sized element storage：对象仍保存普通ref identity与精确`size: Int`，元素区起点仍按`alignOf<T>()`对齐，但任意长度都不分配element payload bytes。所有literal/assembly/spread输入仍按源码顺序求值并计算逻辑元素数。`get`先按普通调用规则求值receiver与index，再检查`0 <= index < size`并返回该exact ZST值；`set`先按普通调用规则依次求值receiver、index与RHS，随后执行bounds check，成功时不写物理字节。因而即使index越界，RHS的副作用或异常也不能因ZST被跳过。不同index表示不同逻辑元素，但不承诺不同物理地址；现有`addressOf`不能用于array元素。
+
+ZST array的iterator必须保存array ref与整数index，以`index < size`终止并按1递增；不得用element pointer是否到达end判断进度。`Array`/`MutableArray`互转和clone仍分配新的array对象并保留size，所以结果ref identity与源不同，但不执行payload `memcpy`。物理分配大小恰为对齐后的元素区起点，与size无关；size仍须是非负可表示`Int`，因此不能用“分配字节数很小”绕过长度、assembly求和或迭代index的overflow检查。M23公开表面没有接受任意signed length的array constructor：literal与spread/vararg assembly只从非负元素/component count经checked求和得到size；clone/互转则先验证source exact array TypeDescriptor、side metadata与`0 <= source.size <= Int.MAX_VALUE`一致，再读取该source size作为目标logical count。未来若增加length-based core API须另行规定其源码前置条件与异常。
+
 ### 10.2 数组字面量
 
 ```
@@ -974,7 +1022,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 - `Array<T>` 与 `MutableArray<T>` 之间**没有父子类型关系**，互转必须显式进行：
   - `m.toArray(): Array<T>`、`a.toMutableArray(): MutableArray<T>`；
   - 或以对方为参数的构造函数：`Array(m)`、`MutableArray(a)`。
-- 互转**执行一次真正的复制（memcpy）**，结果是与原数组相互独立的快照：之后对原数组的修改不影响转换结果，反之亦然。
+- 互转总是分配新对象并复制logical `size`，结果是与原数组相互独立的快照：之后对原数组的修改不影响转换结果，反之亦然。非ZST `Inline`元素复制完整inline payload（实现可用`memcpy`）；`ZeroSized`元素没有payload，不调用`memcpy`，但这不允许复用原对象或丢失size。
   - 不能像 Rust 那样转交（move）内存块：Scoop 没有 move 语义，转交意味着清空原 `MutableArray`，与引用语义冲突。
   - 也不能仅改写对象头复用原存储：在 LLVM + GC 的实现中，每个引用类型对象的头中带有 TypeDescriptor（类似 vpointer），就地改写它会破坏 GC 的状态，因此转换必须分配新对象并复制数据。
 
@@ -1002,12 +1050,32 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 均为值类型（struct 语义）：
 
 - `Boolean`；
-- 定宽整数：`Int8` / `Int16` / `Int32` / `Int64` 与 `UInt8` / `UInt16` / `UInt32` / `UInt64`（对应 C stdint 的定宽类型）；
-- Kotlin 风格的整数名称：`Byte` / `Short` / `Int` / `Long` / `UByte` / `UShort` / `UInt` / `ULong`。其中 `Byte` ≡ `Int8`、`Short` ≡ `Int16`、`Long` ≡ `Int64`（无符号同理）；`Int` / `UInt` 的宽度由目标平台决定，但**编译器必须保证 `Int` 与 `Int32` 或 `Int64` 之一完全等价**（`UInt` 同理），并对每个目标平台明确该对应关系——FFI 场景中据此确定 C 类型映射；
+- 八种整数表示：8/16/32/64位二进制补码signed/unsigned标量。其固定宽度拼写为`Int8`/`Int16`/`Int32`/`Int64`与`UInt8`/`UInt16`/`UInt32`/`UInt64`；64位canonical源码声明仍是`Int`/`UInt`，`Int64`/`UInt64`是它们的透明alias；
+- Kotlin风格名称是3.2.1的透明alias：`Byte ≡ Int8`、`Short ≡ Int16`、`Int ≡ Int64 ≡ Long`，以及`UByte ≡ UInt8`、`UShort ≡ UInt16`、`UInt ≡ UInt64 ≡ ULong`。`Int`/`UInt`在所有target上永久固定64位；等价拼写不产生overload、RTTI、layout、mangling或ABI差异；
 - 浮点：`Float`（f32）/ `Double`（f64）；
 - `Char`。
 
-字面量、算术/位运算/比较运算与 Kotlin 一致。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按具体value工作，不经过装箱或`Any`分派。
+core中的对应声明是`public typealias Byte = Int8`、`public typealias Short = Int16`、`public typealias Int64 = Int`、`public typealias Long = Int`、`public typealias UByte = UInt8`、`public typealias UShort = UInt16`、`public typealias UInt64 = UInt`与`public typealias ULong = UInt`。
+
+整数literal接受十进制、`0b`/`0B`二进制、`0x`/`0X`十六进制及位于两个有效数字之间的`_`，不接受八进制。后缀规则为：无后缀候选域是可精确表示magnitude的signed整数且默认`Int`；`u/U`候选域是unsigned整数且默认`UInt`；`l/L`固定signed 64位；`uL/UL`及大小写组合固定unsigned 64位。radix前缀后必须有数字，separator不能位于首尾或紧邻前缀/后缀。各进制literal先表示非负数学magnitude，不按bit pattern自动重解释；超过数学值`2^64 - 1`的magnitude非法。
+
+literal在8.6 winner commit前持有candidate-local可表示type集合。exact expected同符号族integer type可在值可表示时直接提交；该能力也适用于call/operator receiver，不建立整数type间的一般subtyping或conversion。无后缀不能适配unsigned，带`u`不能适配signed；`L`/`UL`不能适配窄type。AST上的`unaryMinus`直接作用于无`u`literal时，二者作为完整负数学值检查边界，使每种signed `MIN`可表示；括号不形成语义节点，空白/注释不改变该关系。`-1u`则是普通unsigned `unaryMinus`。默认`Int`/`UInt`commit在其他8.6规则后优于同族非默认fit；多个非默认fit仍歧义。
+
+core整数的二元算术、逐bit运算和比较要求两个已定型operand为同一canonical type；literal可按上段直接提交。shift例外地要求左operand/result保持该integer type、count为canonical `Int`。不同width或signedness的非literal不隐式提升，必须显式转换。对宽度W：
+
+- `+`、`-`、`*`、一元`-`、`inc`/`dec`及bit操作按`2^W`wrapping；一元`+`是同类型identity。signed结果按W位二进制补码解释，overflow不抛异常；
+- `/`向零截断，`%`余数与被除数同号；除数为0抛`ArithmeticException`。signed `MIN / -1 == MIN`且`MIN % -1 == 0`，不能继承后端poison/trap；
+- `and`/`or`/`xor`/`inv`逐bit工作。`shl`/`shr`/`ushr`的count为`Int`，有效count取低`log2(W)`位；signed `shr`为算术右移，signed `ushr`和unsigned右移为逻辑右移；
+- signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Int`的`-1/0/1`；
+- const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。
+
+每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按具体value工作，不经过装箱或`Any`分派。
+
+八个canonical integer struct及`Byte`/`Short`/`Int64`/`Long`/`UByte`/`UShort`/`UInt64`/`ULong` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
+
+每个kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个kind的转换；unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除`compareTo: Int`、`equals: Boolean`和shift count `Int`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
+
+除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
 ### 11.3 `Unit`
 
@@ -1052,6 +1120,7 @@ class StringBuilder {
   - `ClassCastException`：`as` 失败时抛出；
   - `ArithmeticException`：整数除零等算术错误；
   - `IndexOutOfBoundsException`：数组下标越界（见 10.5）；
+  - `IllegalArgumentException(message: String? = Some("illegal argument"))`：实参值违反普通core API的运行期前置条件；11.8的非正range step使用该异常；
   - `IllegalStateException(message: String? = Some("illegal state"))`：运行期状态协议被破坏；默认参数保持既有零实参调用，M21 initialization cycle使用显式message报告稳定unit path。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
@@ -1062,33 +1131,56 @@ class StringBuilder {
 `for` 循环、区间表达式的最小支撑：
 
 ```
-interface Iterator<T> {
-    fun next(): Option<T>
+public interface Iterator<T> {
+    public fun next(): Option<T>
 }
 
-interface Iterable<T> {
-    operator fun iterator(): Iterator<T>
+public interface Iterable<T> {
+    public operator fun iterator(): Iterator<T>
 }
 ```
 
-`next()`直接返回`Option<T>`：有元素返回`Some(v)`，耗尽返回`None`。相比`hasNext()` + `next()`的双方法协议，这避免了`hasNext()`必须缓存下一个元素的问题。`Iterator<T>`与`Iterable<T>`都是invariant exact application；需要消费任意满足上界的iterator时，让消费函数自身声明`<T : Bound>`。
+`next()`直接返回`Option<T>`：有元素返回`Some(v)`，耗尽返回`None`。`Iterator<T>`与`Iterable<T>`都是invariant exact application；所有public modifier显式写出，sysroot不绕过9.1.5。
 
-`for (v in s)` 脱糖为（变量名仅作示意）：
+对`for (pattern in source)`：
+
+1. `source`先求值且只求值一次；
+2. 按9.3普通operator规则选择唯一零参数`iterator()`并调用一次；其返回协议不参与挑选另一个低优先级operator；
+3. winner返回type的完整base/interface/bound闭包在去重相同diamond路径后必须恰好到达一个exact `Iterator<T>` application；零个或多个不同application均为编译错误；
+4. iterator值按该conformance物化一次，每轮经core `Iterator<T>.next` exact interface target调用一次；用户同名`next`、`Some`或`None`不参与；
+5. `Some(value)`建立该轮新的只读scope，以4.6的irrefutable binding pattern绑定后执行body；`None`正常退出。普通body末尾与`continue`都进入下一次`next()`，`break`退出循环。
+
+概念展开为（名称仅作示意）：
 
 ```
-val __it = s.iterator()
+val __it: Iterator<T> = source.iterator()
 while (true) {
     when (__it.next()) {
-        Some(v) -> { /* for 循环体 */ }
+        Some(__value) -> {
+            val pattern = __value
+            /* body */
+        }
         None -> break
     }
 }
 ```
 
-- 循环体中的 `break` / `continue` 语义不变（`continue` 即进入下一轮 `next()`）。
-- 循环变量的解构模式（`for ((a, b) in s)`，见 4.6）同样脱糖进 `Some(...)` 分支的模式位置。
+展开实际使用hygienic temporary、typed loop/interface/variant identity，不进行源码名称查找。`iterator()`若为suspend，只能在允许挂起的上下文选择，可在首轮前挂起但仍只调用一次；core `next()`固定ordinary。每轮binding都是新值，closure捕获对应轮次，不共享一个反复覆写的隐藏`var`。Array/MutableArray必须以普通public conformance实现`Iterable<T>`。
 
-区间：`IntRange` / `LongRange` / `CharRange`（`..`调用`rangeTo`，`..<`调用`rangeUntil`；`until` / `downTo` / `step`使用普通infix函数），实现 `Iterable`。`..` 与 rest 模式的消歧见 4.6。
+integer range只有两个canonical nominal type：`public final class IntRange : Iterable<Int>`与`public final class UIntRange : Iterable<UInt>`。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。core显式声明`public typealias LongRange = IntRange`与`public typealias ULongRange = UIntRange`；二者没有独立layout或overload identity。`CharRange`等到Char进入已实现子集后另行定义。
+
+每个signed canonical integer owner `S`都提供public member `operator fun rangeTo(other: S): IntRange`、`operator fun rangeUntil(other: S): IntRange`、`infix fun until(other: S): IntRange`与`infix fun downTo(other: S): IntRange`；每个unsigned owner `U`提供同形public member并返回`UIntRange`。这里的`S`/`U`只是规范元变量，各实际声明都使用owner自己的exact type，不是generic API。`IntRange`精确提供`public override operator fun iterator(): Iterator<Int>`、`public infix fun step(value: Int): IntRange`与`public operator fun contains(value: Int): Boolean`；`UIntRange`分别提供返回`Iterator<UInt>`、接受/返回`UInt`/`UIntRange`的同形成员。它们都是member而非extension。Array/MutableArray同样以`public override operator fun iterator(): Iterator<T>`实现Iterable；internal iterator owner中的`next`以显式`public override`满足slot，其effective domain仍受owner限制。
+
+对同一canonical signed integer type的两个endpoint，core提供返回`IntRange`的`rangeTo`/`rangeUntil`/`until`/`downTo`；unsigned对应返回`UIntRange`。窄endpoint在已选core函数体内显式、无损扩展为`Int`/`UInt`，所以窄range元素也是`Int`/`UInt`；这不建立一般隐式conversion，两个已定型且类型不同的endpoint仍不能混用。
+
+- `a..b`从a以1升序并包含b，`a > b`为空；
+- `a..<b`与`a until b`从a升序且不包含b，`a >= b`为空；
+- `a downTo b`从a以1降序并包含b，`a < b`为空；
+- `IntRange step n`要求`n: Int > 0`，`UIntRange step n`要求`n: UInt > 0u`，否则求值时抛`IllegalArgumentException`。它保留原方向、端点包含性与first，只替换步长绝对值；
+- `contains`的value参数分别为`Int`/`UInt`，只在值位于端点范围且与first的step对齐时为true；实现差值/对齐判断时不能让源码整数overflow改变结果；
+- iterator先判断下一步是否越过endpoint或发生机器溢出，再更新current；不得依赖wrapping sentinel，因而MIN/MAX端点也必须正确终止。
+
+range、iterator、`until`/`downTo`/`step`/`contains`均为普通public core声明，除9.3 operator展开和上述for协议外没有按type name识别的编译器旁路。`..`与rest pattern的消歧见4.6。
 
 ### 11.9 协程原语
 
@@ -1176,79 +1268,191 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ---
 
-## 12. 库与包（Cone）
+## 12. Cone模块、package与库
 
 ### 12.1 基本概念
 
-- Scoop 的包称为 **Cone**。每个 Cone 是文件系统上的一个独立目录，包含：
-  - 元文件 **`Cone.toml`**；
-  - 一个或多个 **`.scoop`** 源文件。
-- Cone 是分发、依赖与编译的基本单位。
+- **Cone是module、分发、依赖、编译与静态链接的基本单位；package只是源码namespace。** Cone不等于package，二者不能由名称或目录互相推导。一个Cone可以包含多个package，同一package也可以由多个Cone贡献声明；后一情形称为split package，不会把不同origin的实体合并为同一identity；
+- source Cone是包含`Cone.toml`与固定`src/`目录的独立目录；binary Cone是该语义单元编译得到的`.slib` artifact。上游依赖可以由source Cone或已经验证的binary Cone提供，二者必须声明同一Cone identity；
+- 文件路径不决定package。source file至多声明一个`package` header，省略时属于root package；跨package引用必须按12.4导入或使用合法qualified path；
+- package/FQN只参与名称组织与诊断，不是type、callable、property或其他实体的全局identity。相同package/name来自不同Cone时保持不同typed origin，并在同一lookup层相遇时按12.4诊断，而不是按依赖或链接顺序任选一个。
 
-### 12.2 标识符
+### 12.2 Cone identity与`Cone.toml`
 
-- 每个 Cone 有全局唯一的 identifier，参照 Maven/Gradle 的规范：`group:name:version`（如 `dev.scoop:scoop-core:0.1.0`）。
-- `group` 采用反域名惯例，`version` 建议语义化版本。
-- 版本解析、冲突调停（同一 group:name 的不同版本）由构建工具负责，不属于语言规范。
+每个Cone具有canonical coordinate `group:name:version`。`group`与`name`各由一个或多个`.`分隔的lowercase ASCII segment组成，每段精确匹配`[a-z][a-z0-9-]*`；`version`是canonical SemVer 2.0.0文本，禁止多余`v`与非法前导零，合法pre-release/build metadata原样参与identity。不做trim、大小写折叠、Unicode归一化或路径别名解析，不满足grammar直接拒绝。`ConeIdentity = SHA-256("scoop-cone-id-v1" || canonical(ConeCoordinate))`，其中hash输入使用domain tag、固定字段顺序和长度前缀而非分隔符拼接；manifest同时保存canonical record与digest，reader必须重算。version属于identity，因此两个版本即使源码相同也不是同一声明/type origin。artifact内容另有`ArtifactFingerprint`，不能用它、package、FQN、manifest路径或session-local provider编号代替`ConeIdentity`。
 
-### 12.3 依赖关系
-
-- Cone 可以依赖多个上游 Cone；依赖在 `Cone.toml` 中声明：
+生产source Cone的最小manifest schema为：
 
 ```toml
+schema = 1
+
 [cone]
 group = "dev.example"
 name = "my-lib"
 version = "0.1.0"
+kind = "library" # 或 "executable"
 
 [dependencies]
-"org.foo:bar" = "1.2.3"
+"org.foo:bar" = { version = "1.2.3", path = "../bar" }
+"org.acme:util" = { version = "2.0.0", artifact = "../artifacts/util.slib" }
+"org.other:log" = "3.1.0"
 ```
 
-- **依赖关系必须无环**：依赖图中存在环是编译期错误。
-- 只能 `import` 在 `Cone.toml` 中声明的直接依赖的内容；普通 `import` 只影响当前源文件，下游 Cone 无法经由你看到你导入的符号。
-- **re-export 采用语言内建机制**（参考 Rust 的 `pub use`，而非 Gradle 的 `api`/`implementation`）：`public import` 把直接依赖中的符号再导出给自己的下游。
+- `schema`以及`[cone]`中的`group`、`name`、`version`、`kind`必需；`kind`只能是`library`或`executable`。拼错或未知的semantic field不能被静默忽略；
+- dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，driver在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
+- locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
+- M23没有version range、`latest`、optional/dev/build dependency、feature、platform条件、dependency alias或manifest提供的native link option。版本选择与冲突调停由上层构建工具完成；Scoop编译器只消费12.3的exact resolved graph；
+- source identity是`(ConeIdentity, normalized Cone-relative src path)`。host绝对路径、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。
 
+### 12.3 静态exact依赖图
+
+- M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
+- `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
+- driver为除core自身外的每个Cone注入12.6的trusted core direct dependency。除该边外不存在隐式dependency；
+- dependency path、manifest枚举与输入顺序不影响结果。canonical topological order使用dependency-first的Kahn顺序，并在每个ready set按`(group UTF-8 bytes, name UTF-8 bytes, canonical version)`取最小者；
+- driver必须先只读解析全部source manifest与prebuilt `.slib` manifest并验证完整resolved graph，之后才按上述dependency-first顺序执行parse、HIR、MIR、LIR、codegen与pack。每个`.slib`记录编译时direct dependency的`ConeIdentity`及HIR/MIR/LIR semantic fingerprint；当前source dependency不匹配时必须重编译，只有prebuilt artifact时报告stale dependency，不能把旧typed identity接到新metadata；
+- runtime在执行任何managed initializer前登记整个图的image、stackmap、TypeDescriptor、static storage/root、immortal object与initialization-unit metadata。eager top-level initialization按上述Cone顺序执行，每个Cone内再按9.1.3的`PersistentInitializationUnitId` bytes排序；object/companion及generic delegated extension等lazy unit只登记、不进入eager loop。直接读取另一个unit仍先ensure目标，可以使该目标早于其普通排序位置执行；
+- driver为链接与typed metadata closure加载完整transitive artifact图，但这不使间接依赖自动成为源码候选。源码可到达性只由12.4的current Cone、direct dependency surface、re-export和core prelude决定；
+- M23不提供registry下载、版本求解、lockfile、shared-library ABI、`dlopen`/`dlclose`、hot reload、image卸载或运行期新增Cone。
+
+### 12.4 `package`、`import`、re-export与编译单元
+
+#### 12.4.1 文件头语法
+
+每个source file的顺序固定为：
+
+```text
+packageHeader? importHeader* declaration*
+
+packageHeader  = package QualifiedName
+importHeader   = public? import ImportSelector (as Identifier)?
+ImportSelector = QualifiedName | QualifiedName . *
 ```
-// 在 Cone A 中：
-public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的一部分
 
-// 下游 Cone B 只依赖 A 即可使用 SomeType，
-// 无需在自己的 Cone.toml 中声明对 org.foo:bar 的依赖
-```
+- `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
+- 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
+- `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
+- qualified type path先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；不能把点连接的字符串直接当作FQN扫描全部artifact。M23的top-level value/function表达式仍通过import后的短名或普通receiver语法访问，不新增dependency-coordinate-qualified源码名称。
 
-- `public import` 的符号可以被下游继续 `public import`（re-export 可以成链）；但被 re-export 的符号必须来自 `Cone.toml` 中声明的直接依赖。
-- `public` 在这里是上下文关键字用法，与可见性修饰符不冲突；语法上只修饰 `import` 声明。
-- 钻石依赖（同一 `group:name` 的多个版本出现在依赖树中）的选取与调停是构建工具的职责，规范不做要求。
-- `Cone.toml` 的具体 schema 由构建工具定义，本节只给出最小示意。
+#### 12.4.2 import可到达性与re-export
 
-### 12.4 编译单元
+普通exact/star import selector只能解析：
 
-- Cone 是独立的编译/链接单元。**不对每个源文件单独编译**（不像 C 的 `.c` → `.o` 方式），而是把整个 Cone 的全部源文件一起处理，生成单体编译输出（类似 Rust 的 crate）。
-- 同一 Cone 内的源文件之间没有编译顺序，声明互相可见（受可见性修饰符约束）。
-- Kotlin 的 `internal` 可见性在 Scoop 中定义为 **Cone 内可见**。
-- Scoop中允许visibility的声明省略modifier时默认internal，而不是Kotlin式public；完整规则见9.1.5。入口`main`不因此要求public。
-- 源文件中的 `package` 声明仍是 Kotlin 式的命名空间机制，与 Cone 的目录边界无强制对应关系；惯例上同一 Cone 使用统一的包名前缀（如核心库统一使用 `scoop.core`）。
-- 可执行程序的入口为顶层 `main` 函数（形式与 Kotlin 一致）；纯库 Cone 不需要入口。
+1. 当前Cone中按visibility允许当前file访问的声明；
+2. manifest direct dependency的public lookup binding；
+3. 该direct dependency已经解析并公开的re-export binding；
+4. trusted core direct dependency的public/prelude binding。
+
+每个成功解析的import target都非可选地保存最终typed实体origin及一个非空、canonical排序去重的来源集合：`CurrentCone`表示从当前Cone声明解析，`DirectDependency { provider ConeIdentity, export binding persistent id, witness hops }`表示由某一direct dependency的已验证公开表面赋予访问权；implicit core也使用后一分支。链式re-export只延长`DirectDependency` witness，不改变target的`ConeIdentity`或entity identity。同一origin经钻石图到达时合并target并保留全部合法source witness，不能按首次加载路径任选一个；source按provider coordinate/identity、export binding id及逐跳persistent witness排序，session-local id、路径长度与artifact加载顺序不参与判等。transitive `.slib`虽可作为template/layout/link support加载，但未由direct dependency re-export的public binding不会自动成为源码候选。
+
+- `public import`的每个最终target都必须至少有一个source且全部source都是`DirectDependency`；`CurrentCone` target不能用于public import/re-export。同一origin可以由多个direct dependency surface共同授权并把全部witness写入snapshot。它也不能导出internal、private或protected target。target本身可以是该dependency的re-export，因此re-export可以成链；
+- re-export只建立destination package/name到origin typed实体的公开binding，不生成wrapper、forwarder、第二个TypeDescriptor、第二个typealias target、generic body或storage，也不扩大target member的visibility；
+- public star在编译当前Cone时展开为逐项、已经解析的API snapshot；下游不重新执行上游的文本glob。target集合变化会改变当前Cone的re-export metadata/fingerprint；
+- 同一typed origin经重复import、多个star或钻石re-export路径到达同一层时合并为一个target并union其排序后的source witness集合；删除一条路径会确定性改变snapshot/fingerprint，但只要另一合法路径保留就仍可访问。不同origin即使package/name/signature文本相同也不合并：非overloadable实体产生歧义；function/extension可进入同一overload层，但展开后签名相同仍是冲突；
+- split package合法，但不授予跨Cone可见性。exact selector命中多个不同origin的非overloadable实体时报告包含Cone coordinate的歧义；`as`只作用于已经唯一解析的exact selector，不能靠alias从一个本身歧义的selector中任选；
+- 两个local public declaration/re-export在同一destination namespace形成不可重载冲突时，当前Cone本身即为定义错误，不能发布带歧义的`.slib`；
+- public API签名通过typed dependency closure引用但未re-export的外部public type仍可供下游类型检查、推导、layout与member检查使用，却不会自动获得可书写的短名。希望只依赖当前Cone的用户直接写出该名称时，API作者应显式`public import`。
+
+#### 12.4.3 名称与调用候选层
+
+无显式receiver的名称/调用候选层从高到低为：
+
+1. 词法binding与local function；
+2. 隐含`this`的真实member；
+3. 当前文件的exact import，包括alias与`public import`；
+4. 当前package中可访问的本地声明与re-export binding；
+5. 当前文件的全部star import；
+6. core `.slib`提供的typed prelude；
+7. 4.2/8.6由唯一expected exact enum application产生的contextual variant fallback。
+
+显式receiver先查真实member；extension scope再按exact import → current package → star import → core prelude分层。property-like `invoke`在每层内继续使用9.3.4的c-level分区，property读写继续使用9.1.1的typed accessor/place规则，constructor、variant、operator、callable reference与typealias qualifier继续进入各自既有typed入口。
+
+对callable层，每层独立执行8.6的shape filter、candidate-local applicability与MSC，只选择第一个至少含一个适用候选的层；某个高层只有不适用同名callable时继续到下一层。callable-value hard shadow等既有词法规则不变。type、object、property name等非overloadable lookup在同层出现多个不同origin时直接歧义。visibility在applicability前按9.1.5产生typed access witness；声明顺序、dependency枚举、re-export链长与artifact加载顺序都不能作为tie-break。
+
+跨Cone普通lookup只枚举public lookup surface。public open/abstract owner所需的protected constructor/member、abstract obligation、interface default source与override relation属于独立inheritance/slot surface，只能在合法subclass/implementation上下文经相应access witness使用；generic template的internal/private hidden support也不进入普通import或名称候选。
+
+#### 12.4.4 编译单元与entry
+
+- Cone是独立的编译/静态链接单元，不按单个`.scoop`文件分别生成语言模块。driver递归收集`src/`下扩展名精确为`.scoop`的regular file，以normalized Cone-relative `/` path的UTF-8 byte order排序；空source set、逃出Cone root的symlink、非UTF-8或归一化后重复的relative path都是构建错误；
+- 同一Cone的全部source file一起建立语义环境，文件之间没有编译顺序。声明能否用短名访问仍由package/import与visibility决定，“同一Cone编译”不等于忽略namespace；
+- `internal`精确表示origin Cone内可见；默认visibility及其他access domain见9.1.5；
+- library不需要entry；其中名为`main`的普通声明不会因此获得entry linkage。executable root必须恰有一个top-level ordinary、non-generic、non-suspend、无参数且返回`Unit`的`main`；只在root Cone中发现，dependency中的`main`不参与竞争，entry可以保持internal；
+- 最终程序从program metadata保存的typed root entry调用`main`；源码package或固定native符号名不决定entry。
 
 ### 12.5 编译产物 `.slib`
 
-泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
+泛型采用单态化（见3.2），上游generic定义必须能在实际使用它的下游Cone完成实例化。因此每个Cone产生target-specific、版本化且确定性的`.slib`，而不是只有`.o`/`.a`；library root以该artifact为最终产物，executable root再用它和完整依赖闭包执行最终静态链接。v1 artifact至少包含：
 
-- 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 下游HIR所需的export metadata：只有源码显式标记且effective domain为public的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、参数完整的exact application、class/interface bound、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；省略visibility得到的internal声明不能因linkage、使用频率或core身份进入导出表面；
-- 后续stage所需的MIR/LIR metadata：符号表、各导出exact类型的分派表结构（vtable/itable）、exact generic ancestry/conformance、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
+- canonical manifest、Cone identity、exact direct dependency identity/fingerprint、language/runtime/target/identity/mangling与三层wire-schema compatibility信息；
+- 非空、有序、无重复的`object_members`清单及其native object bytes：`code.o`必需，需要C ABI bridge时再含`bridge.o`；不能假设一个artifact只有一个object；
+- 供下游HIR使用的Export HIR metadata；
+- 供下游MIR使用的符号、exact ancestry/conformance、dispatch与external-target metadata；
+- 供下游LIR使用的layout、ABI、recursive scan与TypeDescriptor metadata；
+- re-export/prelude binding index、definition source table、ODR records、target-tagged transitive native link requirements以及各层semantic/code fingerprint。
 
-本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
+v1使用标准deterministic `ar`容器；规范成员顺序为`manifest.cbor`、`hir.meta.cbor`、`mir.meta.cbor`、`lir.meta.cbor`、`code.o`、可选`bridge.o`、可选`sources.cbor`，实际object提取严格服从已验证的`object_members`。metadata使用RFC 8949 deterministic/canonical CBOR：只用integer field tag、definite length、canonical map key order与最短整数编码，拒绝重复key、indefinite item和浮点semantic field。archive header的timestamp/uid/gid/mode采用规范固定值，member/map顺序及其他非语义字段不得依赖producer host、build目录或临时文件名。
 
-下游 Cone 编译时读取上游 `.slib` 的 metadata 完成导入解析、类型检查与泛型实例化；最终链接时合并各 Cone 的 `.o`。因此：
+`ArtifactFingerprint`精确定义为SHA-256长度前缀hash：依次输入domain tag `scoop-artifact-v1`、删除`artifact_fingerprint`字段后的canonical manifest bytes，以及按manifest顺序排列的每个非manifest member之`{name, length, sha256}`；writer最后回填fingerprint并重新canonical encode，reader按同一排除规则重算。manifest不记录自身member hash，archive header也不进入该fingerprint，从而不存在自引用。fingerprint只用于一致性与cache验证，不是发行者签名。
 
-- 上游 `.slib` 的 metadata 变化会使下游的编译缓存失效（下游需要重编译），这是单态化的自然结果；
-- 符号命名（name mangling）与 ABI 细节由实现定义。
+required schema、language/runtime ABI、identity/mangling version与target profile必须exact compatible；reader必须先限制archive/member资源、验证manifest、section完整性与hash，再依次执行wire decode、structural validation、typed remap和semantic-world commit，并验证typed kind/index/arity、identity record、external origin、access witness与跨层bridge。任何失败丢弃整个artifact；损坏或不兼容artifact是构建错误，不能以名称、默认值或部分可读section继续编译。
+
+Export HIR metadata逻辑上区分：
+
+1. **public lookup surface**：可供普通跨Cone lookup的显式public声明、public non-generic typealias与resolved re-export binding；
+2. **inheritance/slot surface**：public可继承owner需要的protected constructor/member、slot/default/override contract与typed access witness；
+3. **generic hidden support closure**：公开generic nominal/callable/property中依赖consumer type arguments的template-owned body、lambda/local function、predicate与其他必须在下游具体化的递归typed依赖；
+4. **interface dependency closure**：上述表面的signature type、exact ancestry/conformance、annotation、const、default source与well-known core relation；
+5. **source interface templates**：M17参数形态及只使用refined export-interface reference的hygienic default template；
+6. **binding index**：package/name/namespace到typed root的映射，以及prelude/re-export provenance。
+
+同一实体可以被多个closure引用，但wire definition只有一份并标明用途集合。inheritance-only和hidden-support实体没有普通binding index entry。语言visibility与native linkage是不同概念：只有依赖consumer type arguments的generic/template-owned body随closure交给下游具体化；origin Cone已经发射的param-free private/internal helper只携带typed signature、persistent external target与link requirement，不复制body，也不得在consumer中转成`LocalConcreteHir`重新发射。该helper可供下游specialization链接，但不能因此被import或re-export；default template仍不能携带private/internal hidden dependency closure。public `const val`值、exact definition/evaluation source与line information按其用途进入相应closure/source table。
+
+每类可跨artifact引用的实体都使用kind-specific persistent typed identity；不同kind在内存与wire上都不得通过统一裸digest互相cast。identity是对domain-separated canonical definition key的SHA-256，key至少包含origin `ConeIdentity`、package、typed owner chain、实体kind、源码name与对应duplicate-declaration规则采用的normalized signature；signature使用alias展开后的persistent type refs与binder位置。每条wire identity record同时保存typed id与canonical key供reader重算验证。serialized table index只允许作为wire内压缩索引；reader必须验证并重映射到consumer session-local typed id。FQN、link symbol、arena id与archive顺序都不能作为identity缺失时的回退。re-export保留origin identity；non-generic typealias保留独立alias identity与typed target，使用时透明展开。
+
+concrete exact type另由`PersistentExactTypeId = SHA-256("scoop-exact-type-v1" || canonical(ExactTypeKey))`标识，`ExactTypeKey`是封闭sum：param-free nominal declaration、generic nominal origin加非空exact arguments、非空tuple elements、ordinary/suspend managed function parameters/result、`Ptr<T>`的`RawPointer { pointee }`、以及`FunPtr<F>`的`NativeFunctionPointer { calling convention, parameters, result }`。`Unit`与primitive走core nominal identity；`T?`先脱糖为core `Option<T>`，non-generic alias先展开。`Ptr`不能伪装成普通nominal application，`FunPtr`不能伪装成managed function；M23 native function-pointer convention封闭为C，未来新增convention必须新增stable tag。template binder ref不是exact type，只有完全替换后才产生该id。tuple/managed function的相同有序结构跨Cone具有同一identity；不同结构或pointer provenance即使target layout相同也不能合并。wire按dependency-first保存`{ id, key }`并重算，不能保存session `TypeId`或display string。
+
+runtime TypeDescriptor中的诊断类型名不是源码display spelling，而是从上述已验证key唯一派生的`CanonicalExactTypeDiagnosticName`。其规范ASCII grammar由M23设计3.1冻结：transparent alias先展开；nominal使用canonical origin coordinate、package、typed owner与声明名；application、tuple、ordinary/suspend function、raw data pointer及native function pointer按不同固定tag/delimiter递归打印，除`[A-Za-z0-9._-]`外的每个UTF-8 byte使用唯一大写十六进制percent escape。同一`PersistentExactTypeId`必须产生逐byte相同的UTF-8名字，import/re-export alias、使用点限定路径与consumer pretty-printer都不能改变它；producer/reader在展开共享type DAG前按每条路径checked计算成本并执行单个语义文本字段16 MiB上限。这些bytes进入TypeDescriptor及其diagnostic atom的definition/ODR fingerprint，但runtime不得按该名字判断类型。
+
+前述nominal source atom只适用于源码声明；compiler-generated closure/adapter/coroutine等nominal使用M23设计3.1封闭的generated-role tag与`PersistentTypeId`分支，不能伪造源码owner/name或把arena ordinal、临时display name写入诊断身份。
+
+layout、callable body、static storage、immortal object、initialization unit与safepoint site分别使用不同persistent id。每个由LIR定义并发射到Cone `code.o`的Scoop callable body，其callable-body key是封闭sum，区分strong entity、callable ODR member、root no-throw gateway与initialization startup gateway；后两者不能冒充其调用的main/ensure。只有声明的native extern、runtime archive函数及C compiler生成到`bridge.o`的native storage bridge不属于该集合，使用各自typed identity与object verifier。layout id由exact type、target profile与representation role派生；storage/object id由typed owner declaration或specialization、stable definition path与封闭生成role派生，内容变化进入definition fingerprint而不另造content identity；safepoint site id由callable body id与CFG site role/ordinal派生。TypeDescriptor直接以`PersistentExactTypeId`登记，不另设与exact type竞争的type identity。凡concrete exact type进入LIR layout/type closure或param-free exported LIR bridge就必须runtime-materialize一份TD registration；只存在于未替换Export HIR template/binder中的type尚不materialize。非nominal exact type以exact id建立12.5的`StructuralType` ODR group；最终程序中每个materialized exact type恰有一个TD地址，是否materialize不改变语言type identity。
+
+跨artifact layout wire以封闭`ValueStorageLayout::{ZeroSized { nonzero alignment }, NonZero { nonzero size, nonzero alignment, RefScan }}`表达，不能用裸`size == 0`配可选stride/scan让consumer补猜。ZST exact type的layout/TypeDescriptor仍按persistent identity登记；compiler-owned static ZST storage使用runtime spec 2.8的独立1-byte identity token。未装箱layout与box shape严格分离：前者logical size为0，后者以`BoxedValue.inline_size == 0`及非零minimum allocation表示，不能把0当managed object allocation size。Scoop ABI的`ElidedZst`参数/结果分类、array的zero-sized element storage分支及其layout fingerprint都必须进入LIR metadata和definition fingerprint，保证上下游不会以不同物理ABI解释同一signature。
+
+compiler-owned static storage的跨artifact初值wire也是封闭`StaticInitialState::{ZeroedForRuntimeUnit, EncodedStaticValue { canonical allocation-extent template bytes, sorted typed immortal relocations }}`，不得用可空initializer或raw linker address补猜。前者只能对应9.1.3需要runtime写入的unit/published/failure storage；后者只能对应9.1.3明确可省unit的值。template内容与`{pointer offset, PersistentImmortalObjectId}`序列进入LIR/strong或ODR definition及RuntimeImage canonical key，C指针、ASLR后的storage bits与object-local relocation index不进入key；同一ODR storage的variant、template或typed target不同必须在native coalesce前失败。
+
+本Cone为自身object建立的`LocalConcreteHir`函数体/类型实例只供本Cone MIR消费，不写入`.slib`。下游读取上游Export template后，对实际需要且尚不存在的exact generic application在**当前消费Cone**完成HIR concretization、MIR/LIR、layout与发射；定义Cone只负责预先导出param-free实体及自己已经materialize的application。
+
+program-wide specialization key是区分语义实体种类的封闭sum：
+
+```text
+SpecializationKey = Nominal { origin: PersistentGenericTypeId, exact arguments }
+                  | Callable { origin: PersistentGenericCallableId,
+                               exact owner application,
+                               exact callable arguments }
+                  | DelegatedProperty { origin: PersistentExtensionPropertyId,
+                                        exact receiver arguments }
+                  | StructuralType { exact_type: PersistentExactTypeId }
+OdrGroupId  = SHA-256("scoop-odr-v1" || canonical(SpecializationKey))
+OdrMemberId = SHA-256("scoop-odr-member-v1" || OdrGroupId || generated role || typed owner path)
+```
+
+全部argument/application必须使用persistent exact type identity；没有owner/application/argument时使用对应variant的typed空分支，不能靠空vector推断entity kind。`generated role`只区分同一group内的member，不进入`SpecializationKey`或`OdrGroupId`。多个Cone产生同一specialization时发射相同group，且相同role member具有相同`OdrMemberId`、symbol与ODR linkage：nominal group完整包含由该nominal application产生的layout、TypeDescriptor、vtable/itable、scan及相关box/adjust member；callable group包含由该callable application产生的body、closure/coroutine/adapter；delegated-property group包含其storage/root/cell/failure/init/ensure/descriptor；structural-type group包含materialized layout/scan/box/TypeDescriptor。specialization-owned registration、address-taken string/constant/diagnostic bytes及其他relocation target都必须进入同组，不能指向consumer-local private定义，也不能增加未列入上述封闭sum的content-group旁路。一个group可以通过typed ref引用另一既有canonical group，但不能把自身产生的runtime identity漏在组外。
+
+各producer记录相同的完整member set、ABI fingerprint与`OdrDefinitionFingerprint`；link前必须比较definition fingerprint，ABI相同不足以合并。每个member的canonical LIR/constant payload以`scoop-lir-definition-v1`形成独立leaf，最终ODR digest覆盖完整member set、这些LIR leaf、归一化object atom/typed relocation及stackmap leaf，且不得反向进入LIR own-layer。LIR另携带typed digest DAG与单writer patch plan；每个node只观察声明的传递依赖，hash视图把node自身、peer、descendant与无关slot归零，不能把已经完成的上游leaf统一归零或按遍历时机决定输入。Darwin/Mach-O按同一`OdrMemberId`的`linkonce_odr`/`weak_odr` symbol逐member coalesce，不假设原子COMDAT；完整definition验证保证任意winner等价。最终程序必须验证同一exact type只有一个TypeDescriptor地址且不同exact type没有被constant merge/ICF折到同一地址，不能只合并函数而留下重复TypeDescriptor或static storage。
+
+最终静态链接按`ConeIdentity`去重完整dependency closure，并按每个已验证artifact的`object_members`提取全部object，按target profile稳定合并其传递native link requirements；不能因root Cone未直接声明某项FFI而漏掉上游object的native dependency。每个Cone artifact的`code.o`恰好提供一个由其identity唯一命名的logical `ScoopImageDescriptorV1`，可选`bridge.o`不重复发射；executable另以精确声明`extern const ScoopProgramDescriptorV1 scoop_program_descriptor`提供唯一program record，以canonical topological order强引用每个image，并保存versioned prefix、canonical coordinate、typed registration pointer表、root entry与well-known core bindings。固定字段、magic/size、`RuntimeImageFingerprint`及storage/type/init/safepoint/callable record见runtime spec 2.8。root main与eager init从C启动时只能经返回Success/Failed的generated no-throw gateway，未捕获Scoop异常不得穿越C frame。链接/运行期在任何managed代码执行前验证并登记全部image metadata。Darwin/AArch64 M23 profile禁止会删除无符号stackmap section的`-dead_strip`及会让不同body id共址的function ICF；runtime逐个解析最终section中串接的LLVM v3 blob，并以callable registration核对function/entry owner。`.slib`不是动态加载格式，M23也不承诺跨不兼容schema、target或compiler ABI的稳定二进制接口。
+
+HIR/MIR/LIR semantic fingerprint都是Merkle值：除本层canonical payload外，还按typed support/re-export edge纳入origin artifact对应层fingerprint；保守实现可纳入全部direct dependency同层fingerprint。HIR缓存尤其必须覆盖lookup observation surface，包括空binding、全部不适用的高层候选、star snapshot与MSC rejected candidate，不能只记录最终winner；M23 v1在没有完整observation set实现前必须保守纳入全部direct dependency HIR fingerprint。相应semantic fingerprint变化使下游缓存失效；仅object/code变化至少使最终link失效。导出`const val`值、default body/绑定target、re-export snapshot/witness集合、alias target、generic template/hidden closure、inheritance contract、layout或ABI的变化都必须进入对应fingerprint，不能因版本文本未变而复用旧typed metadata。
 
 ### 12.6 核心库
 
-核心库 `scoop.core`（第 11 章）本身是一个 Cone；每个 Cone 都**隐式依赖**它，无需在 `Cone.toml` 中声明。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，由当前sysroot以独立`.slib`提供；`scoop.core`同时是其源码当前使用的package和Cone `name`，这只是明确约定，不是package与Cone identity之间的语言推导规则。
+
+- 除core自身外，每个Cone都具有到该exact core Cone的隐式direct dependency，无需且不得在用户`Cone.toml`中声明、覆盖或以`path`/`artifact`伪造；
+- core自身不隐式依赖自身。只有trusted sysroot locator解析出的reserved identity拥有声明`@Intrinsic`及提供compiler/runtime well-known binding的authority；相同coordinate的普通artifact不能取得该权限；
+- `scoop.core.*`与`scoop.core.Option.*`默认可见性来自core `.slib`中的typed prelude binding，不通过把core源码拼入用户AST、扫描package name或对`Some`/`None`写短名特判实现；
+- core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime/target fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 
 ---
 
@@ -1264,34 +1468,39 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 annotation class Intrinsic(val name: String)
 ```
 
-- 用于function/method：该函数是compiler intrinsic，由编译器生成实现；**函数体必须省略**；`name`是intrinsic的编译器内部标识。
-
-```
-@Intrinsic("int_add")
-operator fun Int.plus(rhs: Int): Int
-```
+- 用于function/method：该函数是compiler intrinsic，由编译器生成实现；**函数体必须省略**；`name`是intrinsic的编译器内部标识。method必须仍按普通member语法、visibility与operator签名规则声明，不能用extension形态绕过登记shape。
 
 - 也可用于登记表明确允许的core struct/class，声明一个**intrinsic type**：该类型的representation、literal lowering、ABI及内部构造机制由编译器提供，源码声明其nominal interface与成员语义。例如：
 
 ```
 @Intrinsic("core_int")
-struct Int : ToString, Hash {
+public struct Int : ToString, Hash {
+    @Intrinsic("int_add")
+    @NoGC
+    public operator fun plus(rhs: Int): Int
+
     @Intrinsic("int_equals")
-    operator fun equals(other: Int): Boolean
+    @NoGC
+    public operator fun equals(other: Int): Boolean
 
-    @Intrinsic("int_to_string")
-    override fun toString(): String
+    public override fun toString(): String = coreIntToString(this)
 
-    override fun hash(): Int = this
+    public override fun hash(): Int = coreIntHash(this)
 }
+
+@Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+internal fun coreIntToString(value: Int): String
+
+@Extern(name = "scoop_rt_int_hash", abi = "scoop")
+internal fun coreIntHash(value: Int): Int
 ```
 
-- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、解构或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明；
-- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖进入已实现语言子集的Int/UInt/Boolean、String以及`Array<T>`/`MutableArray<T>`，并允许登记表按同一契约增加其他compiler-represented value/reference type；
+- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明，唯一例外是13.10封闭规定的`Ptr<T>(raw: UInt)` unsafe construction entry；
+- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/bound及representation family；所有参数按3.2固定为invariant。`Array<T>`与`MutableArray<T>`各要求一个无bound参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
 - 生产语言只允许指定的`scoop.core` provider声明intrinsic。编译器测试可以通过实现内部的、按输入provider授权的策略绕过这一条来源检查；该能力不是源码、manifest或稳定CLI的一部分，也不放宽以下name、target、shape、signature与唯一性规则。
 
-- 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。
+- 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
 - `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。各intrinsic在编译pipeline中的展开阶段由实现大纲规定。
 
 ### 13.2 `@NoGC`
@@ -1348,13 +1557,17 @@ annotation class Extern(val lib: String = "", val name: String = "", val abi: St
 annotation class CallingConvention(val name: String)
 ```
 
-- `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。声明可以带普通Scoop默认参数；缺省表达式按8.5在定义处解析、调用处实例化，不进入native symbol的ABI，native调用始终接收完整参数列表。`vararg`在ABI中表现为一个普通`Array<T>`参数，因此只有该实际参数类型满足对应ABI classifier时才合法：C ABI因ref不安全而拒绝，Scoop ABI可以接受；这不表示支持C的`...`可变参数。
-- `@Extern` 与 `suspend` **互斥**：无论 `abi` 取值为何，`@Extern suspend fun` 都是编译错误。编译器不为这种声明生成 continuation 参数、`CoroutineStep` 返回值或同步/挂起 wrapper；M10 的 hidden continuation ABI 不得作为外部符号 ABI 暴露。
+- `@Extern` 用于top-level、non-generic function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。声明可以带普通Scoop默认参数；缺省表达式按8.5在定义处解析、调用处实例化，不进入native symbol的ABI，native调用始终接收完整参数列表。`vararg`在ABI中表现为一个普通`Array<T>`参数，因此只有该实际参数类型满足对应ABI classifier时才合法：C ABI因ref不安全而拒绝，Scoop ABI可以接受；这不表示支持C的`...`可变参数。
+- `@Extern` function与member/local、generic或`suspend`均互斥，无论`abi`取值为何都在声明处报编译错误。尤其不能把generic extern的多个concrete ABI绑定到同一个native symbol。编译器不为这些非法声明生成receiver、type-argument或continuation bridge；M10的hidden continuation ABI不得作为外部符号ABI暴露。
 - `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；extern `var` 仍须带 `@Global` / `@ThreadLocal` 且 GC-free（见 13.6），这些注解可以组合。extern 变量当前只支持 C data ABI，显式写 `abi = "scoop"` 是编译错误；Scoop ABI 只定义函数调用边界。
 - **按 ABI 分类的边界类型约束**：`abi = "c"` 的函数签名及 extern 变量必须满足 13.8 的 C-FFI-safe 约束，因而全部 GC-free；ref type 出现在这些边界上是编译错误。`abi = "scoop"` 的函数复用普通 Scoop typed ABI，可以按第 14 章直接传递 managed ref，不套用 C-FFI-safe classifier。
 - 不支持 C varargs（`printf` 式可变参数）；需要时用 wrapper 函数绕行。
 - `abi = "c"`（默认）的 extern 函数是 unsafe function，只能在 unsafe context 中调用（见 13.3）；`abi = "scoop"` 的 extern 函数例外，调用点不要求 unsafe context（见第 14 章）。
 - `@CallingConvention` 用于 function，标明 calling convention（如 `cdecl` / `stdcall` 等，具体含义由实现确定）；可与 `@Extern` 组合使用，指定 FFI function 的 calling convention。
+
+每个合法extern声明还建立一个跨Cone的**native symbol contract**。编译器先把省略的`name`解析为声明名，再按target profile得到最终native linker symbol bytes；当前Darwin链接模型以该bytes作为冲突键，因为object中的undefined reference不携带源码`lib`归属。contract非可选地记录：规范化的逻辑library requirement（空`lib`使用封闭`DefaultNativeNamespace`）、symbol kind（function、read-only/mutable data或read-only/mutable TLS）、`C | Scoop` ABI、target-normalized calling convention，以及完整native函数签名或data storage type/layout。默认参数、形参名、`vararg`源码拼写和transparent alias不进入native签名：它们先按本节规则展开/物化；参数顺序、C storage type tree及target ABI classifier必须进入，Scoop ABI还保留每个exact parameter/result type与`ElidedZst`等物理分类。data contract的ABI固定为C且calling convention为`None`。
+
+M23 `.slib`导出当前Cone全部extern contract；import/re-export只传播原contract，不以本地声明重写。最终静态程序在调用native linker前，按native linker symbol bytes合并完整dependency closure：同一symbol只允许字段逐项相同的contract，完全相同者去重；library、kind/TLS/mutability、ABI、calling convention或完整签名任一不同都是链接诊断，即使native linker本来会任选一个定义。诊断列出全部声明origin及首个不同字段。不同源码type只有在各自ABI的canonical native signature确实相同时才可合并；相同bit宽但pointer provenance、C aggregate分类或Scoop exact type不同不能靠字符串/size碰巧相同放行。该检查覆盖extern call/global use及C bridge为这些extern目标产生的native undefined reference；每个此类symbol必须有且只有一个已验证contract。编译器生成的bridge入口、runtime entry及target toolchain support采用独立typed link requirement，不伪造源码extern声明，也不能通过任意symbol前缀豁免检查。`FunPtr` native-address target按13.10必须是Scoop-owned、非extern的`@NoGC`函数，继续走callable/object verifier；只有`FunPtr`作为extern签名中的C code-pointer type时才作为该signature的一部分。该闭包不验证外部二进制真实实现是否遵守声明，那仍是FFI作者责任。
 
 ### 13.5 `@CLayout`
 
@@ -1363,7 +1576,7 @@ annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
 ```
 
 - 用于 struct，指定该结构体内部成员的 align/pack 规范。
-- 带有此注解的 struct，其内部不能直接或间接包含**任何** ref type，否则是编译错误。
+- 带有此注解的 struct，其每个字段都必须递归具有稳定C表示、且字段的concrete type不能是ZST；因此它不能直接或间接包含任何ref type，也不能以空字段或零尺寸字段依赖C实现扩展。字段类型不依赖type parameter时在声明处检查；generic `@CLayout`字段依赖type parameter时，声明保存逐字段的`C-FFI-safe && NonZst`条件，每个fully concrete application在替换后检查。失败诊断位于该application/concretization点并同时指出原始字段路径；跨Cone导入不得提前接受、删除或重新解释该条件。无字段的`@CLayout`在声明处直接报错。
 
 ### 13.6 `@Global` / `@ThreadLocal`
 
@@ -1396,7 +1609,11 @@ Scoop 的 FFI 函数有两种 ABI：
 
 C ABI callee本身始终是 GC leaf，不能直接接收managed ref或调用Scoop GC；多线程runtime下 caller仍须按 runtime spec 3.5 发布roots并切换到native-safe状态。C代码只有在持有14.3注册得到的静态trampoline与cookie时，才能经独立的反向边界进入managed callback；这不改变该C函数自身的参数ABI或赋予它Scoop ABI能力。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
 
+C没有跨当前支持profile可依赖的零尺寸object ABI。C-FFI-safe classifier因此只允许`Unit`作为函数返回并映射为C `void`；ZST不能作为C参数、callback参数、extern global/TLS或by-value result，也不能成为`@CLayout`字段。无字段的`@CLayout`、不依赖type parameter且已知含ZST/最终size为0的声明在声明处报错；依赖type parameter的字段按13.5在每个fully concrete application的concretization点检查，不能等到C bridge或native linker才失败。`Ptr<Unit>`仍是显式的`void *`/opaque handle例外；其他`Ptr<ZST>`可在Scoop unsafe代码中使用，但不能凭“pointer本身有C表示”自动获得一个不存在的C pointee object type。
+
 ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
+
+定宽integer在C ABI参数、返回、extern global/TLS及`@CLayout`字段中精确映射：`Int8/16/32/64`分别为`int8_t/int16_t/int32_t/int64_t`，`UInt8/16/32/64`分别为`uint8_t/uint16_t/uint32_t/uint64_t`。transparent alias先展开；因此`Int`/`Long`都是`int64_t`而不是C的`int`/`long`/`intptr_t`，`UInt`/`ULong`都是`uint64_t`。窄integer实参/返回的寄存器extension与aggregate分类继续由M12的host C bridge按真实`stdint.h`签名处理，不能假定Scoop typed ABI恰好等于目标C ABI。
 
 ### 13.9 `value` / `ref` 类型约束
 
@@ -1420,55 +1637,65 @@ needValue("hello")    // 编译错误：String 不是值类型
 
 二者定义于 `scoop.core`，是 FFI 的基础辅助类型，均为值类型。
 
+当前可执行target profile要求C ABI data pointer与code pointer都恰为64位、两类null都对应内部carrier的全零位模式，并保证合法非null地址与编译器/runtime内部64位raw carrier逐bit往返；因此`Ptr`的公开`toUInt`及两种pointer value的内部表示可使用canonical 64位`UInt`。这只是target与表示契约，不新增隐式pointer/integer转换：既有`Ptr<T>(raw: UInt)`仍是显式unsafe构造，`FunPtr`则没有integer构造或转换；非null `FunPtr`只能来自本节下述合法入口。任何不满足该宽度、null表示或往返能力的target都必须在生成IR前报unsupported target；未来支持此类target必须先修订本节source surface、C ABI classifier与runtime callback token契约，不能把固定64位`UInt`静默当作另一宽度的pointer word。
+
 #### `Ptr<T>`
 
 `Ptr` 能容纳一个 raw pointer；`addressOf` 用于取一个变量的内存地址：
 
 ```
-struct Ptr<T : value>(val _rawPointer: UInt) {
+@Intrinsic("core_ptr")
+public struct Ptr<T : value> {
+    public operator fun equals(other: Ptr<T>): Boolean {
+        @Unsafe {
+            return this.toUInt() == other.toUInt()
+        }
+    }
+
     @NoGC @Unsafe
     @Intrinsic("ptr_to_uint")
-    fun toUInt(): UInt
+    public fun toUInt(): UInt
 
     @NoGC @Unsafe
     @Intrinsic("ptr_cast")
-    fun <U : value> cast(): Ptr<U>
+    public fun <U : value> cast(): Ptr<U>
 
     @NoGC @Unsafe
     @Intrinsic("ptr_load")
-    fun load(): T
+    public fun load(): T
 
     @NoGC @Unsafe
     @Intrinsic("ptr_load_offset")
-    fun load(offset: Int): T
+    public fun load(offset: Int): T
 
     @NoGC @Unsafe
     @Intrinsic("ptr_store")
-    fun store(value: T)
+    public fun store(value: T)
 
     @NoGC @Unsafe
     @Intrinsic("ptr_store_offset")
-    fun store(offset: Int, value: T)
+    public fun store(offset: Int, value: T)
 
     @NoGC @Unsafe
     @Intrinsic("ptr_plus")
-    fun plus(offset: Int): Ptr<T>
+    public operator fun plus(offset: Int): Ptr<T>
 
     @NoGC @Unsafe
     @Intrinsic("ptr_minus")
-    fun minus(offset: Int): Ptr<T>
+    public operator fun minus(offset: Int): Ptr<T>
 }
 
 @Unsafe
 @Intrinsic("address_of")
-fun <T : value> addressOf(v: T): Ptr<T>
+public fun <T : value> addressOf(v: T): Ptr<T>
 ```
 
-- `Ptr` 的上述方法均为编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
-- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。
+- `core_ptr`登记为一个以exact GC-free value pointee type参数化、以data pointer表示的compiler-represented value family；它没有源码可见field或普通primary constructor，不能被字段访问、解构或copy update。源码`T : value`只表达kind，不能证明GC-free：每个concrete `Ptr<T>` application还必须递归证明`T`为GC-free；generic template中出现`Ptr<T>`时保存并向实例化者传播该typed deferred条件，所有type argument具体化后失败即为编译错误。`equals`是普通core body；其余上述方法均为compiler intrinsic且都是unsafe function（见13.3）。按13.1的规则`@Intrinsic`通常不得与其他注解共存；此处是单独说明的例外：这些intrinsic允许与`@NoGC`/`@Unsafe`组合。
+- registry只为显式`Ptr<T>(raw: UInt)`提供一个call-shaped、`@NoGC @Unsafe`的特殊construction entry；它不是普通struct constructor，也不能由representation field合成。该entry是从integer显式制造data pointer的唯一形态，要求unsafe context及`raw != 0u`前置条件。编译期常量零直接诊断；运行期值违反该unsafe前置条件时行为未定义。它不建立隐式conversion，未对齐、越界、悬垂地址、算术结果变为零及生命周期均由unsafe调用者负责。
+- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与非ZST C object pointer算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。对ZST pointee，任意offset的物理byte displacement恒为0且所得pointer bit值不变；`load`产生该exact ZST值，`store`不写payload byte，但receiver、offset、value仍求值，且unsafe调用者仍必须保证pointer非null、满足alignment/lifetime并指向相应逻辑place。算法不得用ZST pointer值变化表达迭代进度；`Ptr<Unit>`若需要逐byte移动必须先使用语义上正确的`Ptr<UInt8>`，不能把opaque `void *`自动当byte pointer；
 - `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
-- **null 与可空指针**：`_rawPointer == 0u` 表示 null 指针；FFI 边界上的可空指针用 `Option<Ptr<T>>` 表示，布局由 niche 优化保证（见 7.4）。
+- **null与可空指针**：裸`Ptr<T>`没有null值，内部data-pointer carrier的全零位模式保留给`Option<Ptr<T>>.None`及inactive/zeroed storage。FFI边界上的可空data pointer必须用`Option<Ptr<T>>`表示；声明返回裸`Ptr<T>`的native函数返回null属于契约违反。布局由niche保证（见7.4）。
 - **`void*` 与 opaque 类型**：`void*` 及 C 的 opaque handle（不完全类型指针）统一用 `Ptr<Unit>` 表示。
 
 #### `sizeOf` / `alignOf`
@@ -1476,32 +1703,35 @@ fun <T : value> addressOf(v: T): Ptr<T>
 ```
 @NoGC
 @Intrinsic("size_of")
-fun <T : value> sizeOf(): UInt
+public fun <T : value> sizeOf(): UInt
 
 @NoGC
 @Intrinsic("align_of")
-fun <T : value> alignOf(): UInt
+public fun <T : value> alignOf(): UInt
 ```
 
-- 返回 `T` 的大小 / 对齐（字节数），编译期求值；手工内存管理（配合 C 的 `malloc` / `free` 等）时使用。
+- 返回 `T` 的大小 / 对齐（字节数），编译期求值；ZST返回size 0和严格大于0的alignment。手工内存管理（配合 C 的 `malloc` / `free` 等）时不能把`malloc(0)`结果当成可取址ZST place，需按4.7自行提供至少1 byte且满足alignment的token。
 
 #### `FunPtr<F>`
 
 `FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**普通、非挂起且完全具体化**的函数类型：
 
 ```
-struct FunPtr<F>(val _rawPointer: UInt = 0u)
+@Intrinsic("core_fun_ptr")
+public struct FunPtr<F>
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充。用户源码中独立的静态非null地址只能由编译器对`::name`执行native-address contextual resolution生成（见下）；14.3 的`ForeignCallback.function`是编译器生成的另一种非null值，指向必须与opaque context cookie配对使用的managed-callback trampoline，不是静态目标地址。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。`ForeignCallback.function`只能从已注册值读取，不能用构造器仿造。
+- `core_fun_ptr`登记为一个由exact函数类型参数化、以code pointer表示的compiler-represented value family；它没有源码可见field、primary representation constructor或integer accessor。不能由零字段普通struct规则推出zero-size layout或任意构造能力。
+- `core_fun_ptr`不提供任何源码constructor；`FunPtr<F>()`、`FunPtr<F>(0u)`与`FunPtr<F>(123u)`都没有合法candidate。裸`FunPtr<F>`始终非null；需要null或可选字段时使用`Option<FunPtr<F>>`并以`None`初始化。这保证7.4中的全零niche不是合法payload，`Some(value)`与`None`始终可区分。
+- 用户不能直接构造`FunPtr`值；在期望类型明确为`FunPtr<F>`的位置使用顶层函数声明引用`::name`，由编译器直接生成非null原生callback地址。`::name`是8.1.4的中性源码语法，不具有固有的`FunPtr`类型；因此`val callback = ::name`仍推导为managed函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供`FunPtr<F>`期望类型。目标声明签名必须与`F`**精确相同**，不应用8.1.1的函数类型型变。14.3的`ForeignCallback.function`是编译器生成的另一种非null值，指向必须与opaque context cookie配对使用的managed-callback trampoline；它只能从已注册值读取，不能用构造器仿造。声明返回裸`FunPtr<F>`的native函数返回null同样属于契约违反。
 - `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
 - native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
 - `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。由`::name`得到的M12静态callback仅允许原生方在发起extern调用的同一已注册线程上同步调用；保存后异步、跨线程或在Scoop程序退出后调用不隐式获得安全性。M13只有14.3 registration返回的`ForeignCallback.function + context`配对具备对应token/attach协议，单独保存或调用其中的function而不携带仍存活的配对context同样非法。
 
 ```
-// C 侧：int compare_int(int a, int b, int (*cmp)(int, int))
+// C 侧：int64_t compare_int(int64_t a, int64_t b,
+//                         int64_t (*cmp)(int64_t, int64_t))
 
 @Extern(lib = "sample", name = "compare_int")
 fun compareInt(a: Int, b: Int, cmp: FunPtr<(Int, Int) -> Int>): Int
@@ -1555,6 +1785,7 @@ Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 typed na
 - `@NoGC`只保证native callee不调用GC/runtime/managed callback；M15多mutator moving实现仍保留native-borrowed transition、caller-root publication与返回reload，不能把该边界降为无root的普通NoGC call；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
+- `@Extern` native callee不得把Scoop异常展开回generated caller；初版遇到这种unwind终止进程。源码可见的失败必须由managed函数/wrapper在native返回状态后构造并抛出，runtime-only的no-return throw入口不属于可由用户声明调用的Scoop ABI FFI surface。
 
 Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge：ref value 是直接 managed pointer；aggregate/value return沿用普通 Scoop 函数的 typed return storage规则。被调方必须按同一签名实现该 ABI，不能假设 C 编译器为同形 struct 选择的 ABI 与 Scoop value ABI 相同。
 
@@ -1565,7 +1796,7 @@ Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C
 ### 14.3 direct ref、native root 与 safepoint
 
 - Scoop ABI FFI 函数的机器码中**没有 safepoint poll**（它可能是用其他语言写的）。传入的 direct ref 是调用期间的借用 managed value：在被调方尚未执行可能触发 GC 的 runtime 调用或回调 Scoop 代码前，可以直接读取，无需 pin；不得写入长期存储或在返回后继续使用。
-- 若被调方需要让某个 direct ref 跨越可能触发 GC 的操作，必须先把它写入可寻址的 **native root slot** 并把对应 root frame登记到当前线程。登记/移除 root frame本身不得分配或触发 GC；collector 必须扫描并在移动对象时更新这些 slot。操作返回后，被调方必须从 slot 重新读取引用，不能继续使用登记前保存的裸指针副本。
+- 若被调方需要让某个 direct ref 跨越可能触发 GC 的操作，必须先把它写入可寻址的 **native root slot** 并把对应 root frame登记到当前线程。含managed leaf的内联aggregate/value place不能被拆成登记后仍从旧aggregate读取的临时ref；它使用`RecursiveRegion { stable base, byte extent, NonEmptyRefScan }` frame，由collector以与TypeDescriptor相同的递归slot visitor原地更新。登记/移除两种root frame本身都不得分配或触发GC；操作返回后，被调方必须从slot或region base重新读取，不能继续使用登记前保存的裸指针/aggregate副本。
 - root frame 必须按栈严格嵌套，并在所有正常/错误出口移除。需要把引用保存到本次调用之后时，使用 `GcHandle`；需要把稳定裸地址交给 C ABI 或跨 safepoint保持同一地址时，使用 `PinnedPtr`。两者都不是普通 direct-ref 参数的默认表示。
 - GC 只在 managed safepoint或显式 runtime 入口协调线程；实现不得在 Scoop ABI native code的任意两条普通指令之间无握手地移动对象。未来的并行/并发 collector 必须把 native root frame 与线程握手纳入同一协议，不能通过要求所有 Scoop ABI 参数预先 pin 来回避该契约。
 - `abi = "scoop"` 的调用点安全的前提是**被调方遵守上述契约**。这类底层 extern 声明按约定仅由 runtime / 核心库作者使用；违反借用、root frame或保活规则是 runtime ABI 错误。

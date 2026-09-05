@@ -5,6 +5,10 @@
 对应 `docs/ROADMAP.md` 的 M12。目标：落地 spec 第 13、14 章的 FFI 最小闭环——核心注解、unsafe / NoGC 检查、C 布局、受控全局存储、`Ptr` / `FunPtr`，以及 C ABI / Scoop ABI 的 extern 调用；同时退役能够由正式 FFI 表达的临时 runtime intrinsic。M12 必须以真实 C 库、双向 struct 传值、全局符号、callback与 direct managed ref通过端到端验证，不能只停留在“发射一个未定义函数声明”。
 
 > M20 更新：type parameter AST不再携带variance；M12时期的既有字段由M20迁移删除，本文stage契约已按最终invariant模型修订。
+>
+> M22 更新：为保持普通`Option`的niche语义，裸`Ptr`/`FunPtr`改为无公开raw field的intrinsic family并固定非null；全零pointer只由`Option<Ptr/FunPtr>.None`表示。下文pointer表面已按M22最终规则修订。
+>
+> M23 更新：C classifier进一步区分ZST pointee。`Ptr<Unit>`/`Option<Ptr<Unit>>`保留为opaque `void *`例外；其他`Ptr<T>`只有在`T`具有非零、可移植的C object表示时才可过C边界，不能因pointer本身是一个machine word而绕过pointee检查。
 
 ## 0. 范围与关键决策
 
@@ -126,7 +130,7 @@ AnnotationArg {
 - `@Unsafe` function 的整个 body 处于 unsafe context，且调用该函数也要求调用者位于 unsafe context；普通函数与 `@Safe` function 的 body 从 safe context 开始；
 - `@Unsafe {}` 压入 unsafe，嵌套 `@Safe {}` 再压回 safe；离开 block 必须恢复外层状态。控制流跨 `return` / `throw` 不改变该词法规则；
 - unsafe 检查发生在重载决议之后，不通过“只在 unsafe context 展示候选”改变候选层级或 MSC；
-- 需要 unsafe 的操作包括：调用 unsafe function、`Ptr` 读写/算术/转换、`addressOf`、使用含 `@InteriorMutable` 的值。仅仅声明一个 `FunPtr` null 值不要求 unsafe；把 safe `@NoGC` 顶层函数引用在 `FunPtr` 上下文中解析为原生地址也不要求。若 callback 本身带 `@Unsafe`，该 resolution 表达式必须位于 unsafe context，由该显式动作授权 native code 随后调用它。
+- 需要unsafe的操作包括：调用unsafe function、`Ptr`构造/读写/算术/转换、`addressOf`、使用含`@InteriorMutable`的值。声明或初始化`Option<FunPtr>.None`不要求unsafe；把safe `@NoGC`顶层函数引用在`FunPtr`上下文中解析为原生地址也不要求。若callback本身带`@Unsafe`，该resolution表达式必须位于unsafe context，由该显式动作授权native code随后调用它。
 
 ### 1.5 `@NoGC` 的可验证契约
 
@@ -165,8 +169,10 @@ M12 的 C ABI 边界类型集合：
 |---|---|
 | `Unit` | 只允许作返回值，映射 C `void` |
 | `Int` / `UInt` / `Boolean` | `int64_t` / `uint64_t` / `_Bool` |
-| `Ptr<T>` / `Option<Ptr<T>>` | `void *`，null 对应 `None` |
-| `FunPtr<F>` / `Option<FunPtr<F>>` | 与 `F` 精确匹配的 C function pointer，null 对应 `None` |
+| `Ptr<T>` | 当`T`有非零、可移植的C object表示时为对应non-null pointer；`Ptr<Unit>`例外映射opaque `void *`；native返回/传入null违反声明契约 |
+| `Option<Ptr<T>>` | 与上述pointee规则相同；null对应`None` |
+| `FunPtr<F>` | 与`F`精确匹配的非null C function pointer |
+| `Option<FunPtr<F>>` | 与`F`精确匹配的C function pointer；null对应`None` |
 | `@CLayout` struct | 按第 2.5 节的固定布局按值传递；字段必须递归 C-FFI-safe |
 | core `PinnedPtr<T>` / `GcHandle<T>` | 经 core contract 验证的透明 `UInt` 表示；二者类型身份仍不同 |
 
@@ -176,12 +182,12 @@ M12 的 Scoop ABI 至少接受 `Unit`、基本/GC-free边界值，以及所有�
 
 ### 2.3 `Ptr<T>` 与内存 primitive
 
-`Ptr` / `FunPtr` 在 core 中有源码声明，但 HIR 在验证唯一的 core contract 后将应用正规化为专用类型节点；下游不靠 FQN 或“单字段恰好是 UInt”猜测指针身份。
+`Ptr`/`FunPtr`在core中有无representation field的intrinsic type声明，HIR验证唯一core contract后将application正规化为专用类型节点；下游不靠FQN、空字段或使用点猜测pointer身份。`Ptr<T>(raw)`是registry单独登记的call-shaped unsafe construction entry，不是从公开field合成的普通struct constructor。
 
 M12 同时落地调用点显式类型实参语法，因为 `sizeOf<T>()` / `alignOf<T>()` 没有 value argument 可供推断，`Ptr<T>.cast<U>()` 也必须直接给出目标类型。语法统一适用于普通/局部/重载函数、generic 值构造和 generic member/extension 调用；列表要么省略并完整推断，要么完整写出 callee 自己声明的参数。generic receiver 已经确定的宿主参数不在 member call 处重复。
 
 - `Ptr<T>` 的具体 `T` 在 M12 必须是 GC-free value；`Ptr<Unit>` 表示 `void *`。这项 M12 限制保证 `@NoGC` 的 `load` / `store` 不会暗中搬运 managed ref；指向 managed 对象必须使用 pin 后得到的 opaque 地址，而不是 `Ptr<含 ref 的值类型>`；
-- `Ptr<T>(raw: UInt)` 允许从整数显式制造地址，但构造本身要求 unsafe context；`raw == 0u` 产生 null。通常应优先从 extern、`addressOf` 或其他 `Ptr` 转换取得地址；
+- `Ptr<T>(raw: UInt)`允许从整数显式制造地址，但构造本身要求unsafe context及`raw != 0u`前置条件；可证明的零值直接诊断，其他违反行为未定义。null必须写成`Option<Ptr<T>>.None`。通常应优先从extern、`addressOf`或其他`Ptr`转换取得地址；
 - `load` / `store` 按 `alignOf<T>()` 访问；用户构造未对齐指针时行为未定义。packed struct 字段由编译器自己的 field lowering 使用较低对齐，不通过普通 `Ptr<T>.load` 猜测；
 - `plus` / `minus` 做 `offset * sizeOf<T>()` 的字节步进；整数溢出、越界、悬垂、别名与对象生命周期均由 unsafe 调用者负责；
 - `cast<U>()` 只改静态 pointee type，不改地址；目标 `U` 同样必须是 GC-free value；
@@ -194,7 +200,7 @@ M12 同时落地调用点显式类型实参语法，因为 `sizeOf<T>()` / `alig
 ### 2.4 `FunPtr<F>` 与 callback bridge
 
 - `F` 直接使用 M11 的 `FunctionTypeId`，必须是 ordinary、完全具体化的函数类型；参数与返回值还必须逐项通过本章 C-FFI-safe classifier。managed 函数类型继续可以正常出现在变量、参数、返回值与字段中，但这些函数值本身不能作为 native callback穿越 C ABI；
-- `FunPtr<F>()` 是唯一用户可直接构造的值，产生 null；传 raw integer 构造非 null `FunPtr` 是编译错误；
+- `FunPtr<F>`没有用户可调用constructor；`FunPtr<F>()`和传raw integer均为编译错误。非null值只来自下述native-address resolution或M13 compiler-generated trampoline；null必须写成`Option<FunPtr<F>>.None`；
 - `::name` 是中性的函数声明引用语法，不具有固有的 managed 或 `FunPtr` 类型。期望类型是 managed 函数类型时继续进入 M11 callable-reference resolution；没有期望类型时也只推导 managed 结果，绝不因为目标带 `@NoGC` 而自动选择 `FunPtr`；
 - 在期望类型明确为 `FunPtr<F>` 的位置出现 `::name` 时，HIR 复用 M11 的声明候选查找，但进入独立的 native-address contextual resolution：目标声明签名必须与 `F` 精确相同，不应用 managed 函数类型型变；
 - 目标必须是顶层、非 generic、非 suspend、非 extern、已验证的 `@NoGC` user function，且 calling convention 为 cdecl；局部/成员/扩展函数、lambda、匿名函数、绑定引用、intrinsic 与已有 managed 函数值都不能作为非 null `FunPtr` 的来源。目标同时带 `@Unsafe` 时，native-address resolution 表达式要求 unsafe context；
@@ -302,7 +308,7 @@ AST 新增顶层 `GlobalDecl`，但不假装已经实现完整 Kotlin property�
 - extern global 当前只支持 C data ABI；`abi = "scoop"` 只对函数调用有定义，用在 `val` / `var` 上直接诊断；
 - extern `var` 必须带且只带一个 `@Global` / `@ThreadLocal`；extern `val` 不要求二者，并且不能带这两个仅用于 `var` 的注解。只读 native TLS 不在 M12 的声明子集；
 - 本 Cone 只接受 `@Global var` / `@ThreadLocal var`，必须显式类型和 GC-free 编译期常量 initializer；无注解 var、普通 top-level val、动态 initializer 与 delegate 均给指向既有 backlog 的不支持诊断；
-- 常量 initializer 支持数值/布尔、null `Ptr` / `FunPtr`、以及由这些值构成的 GC-free struct；不调用函数、不分配、不读取其他 global，因此没有初始化顺序或循环；
+- 常量initializer支持数值/布尔、`Option<Ptr>`/`Option<FunPtr>`的`None`、以及由这些值构成的GC-free struct；不调用函数、不分配、不读取其他global，因此没有初始化顺序或循环；
 - 本地 global 在 LLVM 中发射为可写 global 或 TLS global，符号使用 Scoop mangling；extern global 经 C bridge 生成 typed get/set/address helper，TLS helper 每次在当前线程解析该 TLS symbol；
 - HIR 使用 `GlobalId`，表达式为 `GlobalRead(GlobalId)`，赋值目标为 `GlobalWrite(GlobalId)`，`addressOf` 保存同一 typed place。MIR/LIR 不用函数名或字符串区分 local/global/extern global。
 
@@ -418,7 +424,7 @@ fixture runner 约定同目录可带 `native.c`（需要 foreign unwind 的未�
 - scalar：Int/UInt/Boolean/Unit、显式/缺省 symbol、多个 extern library；
 - CLayout：struct 参数、struct 返回、nested/aligned/packed、C→Scoop→C 往返字节一致；
 - pointer：malloc/free extern、Ptr offset/load/store/cast、nullable pointer、addressOf parameter/local/global/value-type `this`；通过 `addressOf(this)` 改写 method-local copy 不得改变原 receiver 或 boxed payload；
-- callback：同一顶层 `@NoGC ::name` 同时作为 managed 函数值调用和 native callback 使用；C→NoGC Scoop→C，重载目标按 expected `FunPtr` 精确选择，另覆盖 null callback；
+- callback：同一顶层`@NoGC ::name`同时作为managed函数值调用和native callback使用；C→NoGC Scoop→C，重载目标按expected `FunPtr`精确选择，另以`Option<FunPtr>.None`覆盖nullable callback；
 - global：extern val、extern global var、extern TLS、本地 Global/TLS 的读写与 addressOf；
 - managed ABI：core `write(String)` 直接进入 Scoop ABI runtime symbol；另用 native root slot跨一次强制 GC 保活并 reload一个 direct ref，验证 root登记、扫描、移除与 reload路径；未来 moving collector沿同一 slot写回新地址而无需改变 ABI。pin/handle public API仍只在显式请求稳定地址/长期保活时要求 unsafe context；
 - 组合：suspend function 内在 `@Unsafe` block 调 ordinary extern，验证它是普通调用而非 resume point；M1–M11 全部 fixture 原样通过。
@@ -428,7 +434,7 @@ fixture runner 约定同目录可带 `native.c`（需要 foreign unwind 的未�
 - ref / ordinary struct / enum / tuple 穿越 C ABI、含 managed ref的 value aggregate穿越 M12 Scoop ABI、CLayout 间接含 ref或嵌套非 CLayout、非法 pack/align；
 - safe context 调 C extern或指针操作、Safe block嵌套后仍调用 unsafe、InteriorMutable 在 safe signature/body 中使用；
 - NoGC body分配/装箱/字符串/异常/检查型操作/managed call，NoGC class method；
-- addressOf rvalue/field/array element，Ptr pointee非 GC-free，非空 FunPtr直接构造；
+- addressOf rvalue/field/array element，Ptr pointee非GC-free，`Ptr(0u)`或任意FunPtr直接构造；
 - `FunPtr` native-address resolution 的目标为 generic/local/member/extension/suspend/non-NoGC，向 `FunPtr` 位置传入 lambda/匿名函数/绑定引用、已有 managed 函数值或无 expected type时已经推导出的 `::name`；把 M12 callback 保存后异步调用、从 foreign thread调用，或把 managed closure直接交给 C 均不是合法 fixture，并明确指向 M13 managed callback协议；
 - extern有body、generic、method、suspend、M12阶段尚未支持的language vararg、C `...` varargs、unsupported stdcall；M17后保留C ABI language vararg/C `...` negative，并允许实际`Array<T>`参数合法的Scoop ABI vararg。global缺annotation、动态initializer或ref type。
 
