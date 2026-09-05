@@ -4,6 +4,8 @@
 
 对应 `docs/ROADMAP.md` 的 M13。目标：把 M9 的单 mutator、单线程 runtime 升级为**多 mutator、stop-the-world、单线程 collector、非移动**的正确性基线，并实现带显式 `void *context` 槽的 GC-aware managed closure 反向回调。完成后，`pthread_create` 一类 C API 可以在 foreign thread 上执行普通 Scoop closure；closure 内可以分配、触发 GC、抛出 Scoop 异常或恢复既有 continuation，而不会把 managed ref、Scoop 异常或未登记线程暴露给 C ABI。
 
+> M22更新：裸`Ptr`/`FunPtr`改为非null，C的nullable pointer由`Option`承载；下方`pthread_create`组合示例已据此迁移返回类型。
+
 ## 0. 范围与关键决策
 
 M13 交付以下闭环：主线程注册普通、非挂起 closure，runtime 用 `GcHandle` 保活它并返回“静态 C trampoline + opaque context cookie”；C 创建 foreign thread并把 cookie传入；新线程经 callback gateway自动 attach，进入 managed状态并调用 closure；closure可以与其他 mutator并发分配并触发 STW GC；返回或抛出后 gateway恢复 native状态、消费约定的 callback ownership并按需detach；原线程在 `join` 后读取完成/失败状态，重新抛出受管异常并释放最后一份 ownership。
@@ -289,7 +291,7 @@ fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
 ```
 @Extern(lib = "m13_fixture", name = "start_worker")
 fun startWorker(
-    entry: FunPtr<(Ptr<Unit>) -> Ptr<Unit>>,
+    entry: FunPtr<(Ptr<Unit>) -> Option<Ptr<Unit>>>,
     context: Ptr<Unit>
 ): Int
 
@@ -298,10 +300,10 @@ fun joinWorker(): Int
 
 fun runOnWorker(work: () -> Unit) {
     @Unsafe {
-        val worker = foreignCallback<(Ptr<Unit>) -> Ptr<Unit>>(
-            callback = fun(): Ptr<Unit> {
+        val worker = foreignCallback<(Ptr<Unit>) -> Option<Ptr<Unit>>>(
+            callback = fun(): Option<Ptr<Unit>> {
                 work()
-                return Ptr<Unit>(0u)
+                return None
             },
             contextIndex = 0,
             mode = OneShot

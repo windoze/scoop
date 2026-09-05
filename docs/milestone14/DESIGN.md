@@ -6,6 +6,8 @@
 
 > M20 更新：M14实现时继承的interface声明点variance与bridge现已撤销；本文的generic nominal契约按M20后的统一invariant模型修订，历史实现清理由M20完成。
 
+> M22 更新：§3.1中的整数示例只记录M14引入intrinsic type时的历史形态；整数scalar operation/effect以M22的typed registry为准，`toString`是调用Scoop-ABI runtime后备的普通managed core body，不是integer intrinsic。
+
 M14 完成后，class/struct/enum/interface都使用同一原则下、按declaration kind隔离的generic template/application/concrete模型；普通用户声明的`class C<T>`与core的`Array<T>` / `MutableArray<T>`使用同一套generic class解析、约束、单态化和跨Cone export模型，数组只在representation与专用操作上是intrinsic，不在类型身份或泛型规则上另建特例。`Any`仍是所有类型的根，但没有成员；vtable不再保留固定前三槽，`TypeDescriptor`也不承担通用equals/hash/toString分发。M15 moving compaction因而不再背负按对象地址实现的默认字符串化或哈希语义。
 
 ## 0. 范围与关键决策
@@ -710,7 +712,7 @@ LIR把无类型 `Value::NullPtr` / `ConstantValue::NullPtr` 替换为携带 `Poi
 NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 ```
 
-`FunPtr` / callback地址null是Code，`Ptr`是Raw，managed niche `None`是Managed，metadata链尾是Metadata。`value_ty`不得统一返回Raw。所有pointer cast必须是显式instruction，不能靠同一个null常量抹掉provenance。
+`Option<FunPtr>.None`/内部callback地址null是Code，`Option<Ptr>.None`是Raw，managed niche `None`是Managed，metadata链尾是Metadata；M22起裸`Ptr`/`FunPtr`本身保持非null。`value_ty`不得统一返回Raw。所有pointer cast必须是显式instruction，不能靠同一个null常量抹掉provenance。
 
 ### 8.6 metadata只用typed identity连接
 
