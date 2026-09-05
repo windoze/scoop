@@ -1,0 +1,164 @@
+use super::*;
+
+#[test]
+fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
+    let mut h = Harness::new();
+    let callback = h.strukt("Callback", &[]);
+    let callback_ty = h.struct_ty(callback);
+    let mut target_locals = Arena::new();
+    let first = target_locals.alloc(local("first", h.int));
+    let second = target_locals.alloc(local("second", h.int));
+    let target = h.user_fn_full(
+        "callbackTarget",
+        Vec::new(),
+        vec![param("first", h.int, first), param("second", h.int, second)],
+        h.int,
+        hir::Body {
+            locals: target_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(local_ref(first, h.int)),
+            })],
+        },
+    );
+    let main = empty_main(&mut h);
+    let mut source = h.finish(main);
+    source.foreign_callback_core.callback = callback;
+
+    let canonical_type = hir::TypeId::from_raw(
+        u32::try_from(source.types.len())
+            .expect("type id fits u32")
+            .into(),
+    );
+    let function_type = source.function_types.alloc(hir::FunctionType {
+        canonical_type,
+        is_suspend: false,
+        parameter_types: vec![source.int, source.int],
+        return_type: source.int,
+    });
+    assert_eq!(
+        source.types.alloc(hir::Type::Function(function_type)),
+        canonical_type
+    );
+    let reference = source.callable_references.alloc(hir::CallableReference {
+        target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
+        function_type,
+        owner_type_param_count: 0,
+        captures: Vec::new(),
+        span: SPAN,
+    });
+    let registration =
+        source
+            .foreign_callback_registrations
+            .alloc(hir::ForeignCallbackRegistration {
+                native_function_type: function_type,
+                managed_function_type: function_type,
+                context_index: 0,
+                mode: hir::ForeignCallbackMode::Reusable,
+            });
+    let hir::FunctionKind::User(main_body) = &mut source.functions[main].kind else {
+        panic!("main is a user function")
+    };
+    main_body.statements.push(expr_stmt(expr(
+        hir::ExprKind::ForeignCallbackRegister {
+            registration,
+            closure: Box::new(expr(
+                hir::ExprKind::CallableReference(reference),
+                canonical_type,
+            )),
+        },
+        callback_ty,
+    )));
+
+    let module = lower(&source);
+    let (_, bridge) = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("registration generates one native bridge");
+    let family = module.foreign_callback_families[bridge.family];
+    assert_eq!(family.callback, module.structs.iter().next().unwrap().0);
+    assert_eq!(module.enums[family.state].name, "ForeignCallbackState");
+    assert!(module.enums[family.failure].name.starts_with("Option$"));
+    let (_, adapter) = module
+        .foreign_callback_adapters
+        .iter()
+        .next()
+        .expect("registration generates one managed adapter");
+    let function = &module.functions[adapter.function];
+    assert_eq!(
+        function.return_ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus)
+    );
+    assert_callback_status(
+        &function.body.blocks[function.body.entry].terminator,
+        mir::ForeignCallbackStatus::Returned,
+    );
+    let catch = function.body.blocks[function.body.entry]
+        .unwind
+        .expect("the adapter catches managed exceptions");
+    assert_callback_status(
+        &function.body.blocks[catch].terminator,
+        mir::ForeignCallbackStatus::Threw,
+    );
+
+    let (call, _) = statement_call(&function.body.blocks[function.body.entry].statements[0]);
+    let offsets = call.args[1..]
+        .iter()
+        .map(callback_argument_offset)
+        .collect::<Vec<_>>();
+    assert_eq!(offsets, [0, 1]);
+
+    let dump = mir::dump(&module);
+    assert!(dump.contains("-> machine<foreign-callback-status>"));
+    assert!(dump.contains("MachineScalarLiteral ForeignCallbackStatus(Returned)"));
+    assert!(dump.contains("MachineScalarLiteral ForeignCallbackStatus(Threw)"));
+    assert!(dump.contains("MachineScalarLiteral PointerElementOffset(0)"));
+    assert!(dump.contains("MachineScalarLiteral PointerElementOffset(1)"));
+}
+
+fn assert_callback_status(terminator: &mir::Terminator, expected: mir::ForeignCallbackStatus) {
+    let mir::Terminator::Return { value: Some(value) } = terminator else {
+        panic!("callback adapter exits with a status")
+    };
+    assert_eq!(
+        value.ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus)
+    );
+    assert!(matches!(
+        value.kind,
+        mir::ExprKind::MachineScalarLiteral(
+            mir::MachineScalarValue::ForeignCallbackStatus(status)
+        ) if status == expected
+    ));
+}
+
+fn callback_argument_offset(argument: &mir::Expr) -> u64 {
+    let mir::ExprKind::PtrLoad {
+        pointer,
+        offset: None,
+        ..
+    } = &argument.kind
+    else {
+        panic!("managed callback argument is loaded through its typed pointer")
+    };
+    let mir::ExprKind::PtrCast { operand, .. } = &pointer.kind else {
+        panic!("the opaque callback argument pointer is cast to its pointee type")
+    };
+    let mir::ExprKind::PtrLoad {
+        offset: Some(offset),
+        ..
+    } = &operand.kind
+    else {
+        panic!("the callback argument slot load carries an element offset")
+    };
+    assert_eq!(
+        offset.ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::PointerElementOffset)
+    );
+    let mir::ExprKind::MachineScalarLiteral(mir::MachineScalarValue::PointerElementOffset(offset)) =
+        offset.kind
+    else {
+        panic!("callback argument offsets are compiler-owned machine scalars")
+    };
+    offset
+}

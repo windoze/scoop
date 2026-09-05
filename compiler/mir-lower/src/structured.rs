@@ -95,6 +95,37 @@ impl Expr {
         Self::new(mir::Type::Int, ExprKind::IntLiteral(value))
     }
 
+    pub(crate) fn machine_scalar(value: mir::MachineScalarValue) -> Self {
+        Self::new(
+            mir::Type::MachineScalar(value.kind()),
+            ExprKind::MachineScalarLiteral(value),
+        )
+    }
+
+    pub(crate) fn machine_eq(lhs: Self, rhs: mir::MachineScalarValue) -> Self {
+        let kind = rhs.kind();
+        assert_eq!(
+            lhs.ty,
+            mir::Type::MachineScalar(kind),
+            "machine scalar equality operands have the same semantic kind"
+        );
+        Self::new(
+            mir::Type::Boolean,
+            ExprKind::Binary {
+                op: mir::BinOp::MachineEq(kind),
+                lhs: Box::new(lhs),
+                rhs: Box::new(Self::machine_scalar(rhs)),
+            },
+        )
+    }
+
+    pub(crate) fn enum_tag(operand: Self) -> Self {
+        Self::new(
+            mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag),
+            ExprKind::EnumTag(Box::new(operand)),
+        )
+    }
+
     pub(crate) fn bool(value: bool) -> Self {
         Self::new(mir::Type::Boolean, ExprKind::BoolLiteral(value))
     }
@@ -108,6 +139,7 @@ impl Expr {
 pub(crate) enum ExprKind {
     StringConst(mir::StringConstId),
     IntLiteral(i64),
+    MachineScalarLiteral(mir::MachineScalarValue),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),

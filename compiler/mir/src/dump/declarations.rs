@@ -103,6 +103,28 @@ pub fn dump(module: &Module) -> String {
             callback.signature.into_raw().into_u32()
         ));
     }
+    for (id, family) in module.foreign_callback_families.iter() {
+        out.push_str(&format!(
+            "  foreign_callback_family fcf{} callback={} state={} failure={}\n",
+            id.into_raw().into_u32(),
+            module.structs[family.callback].name,
+            module.enums[family.state].name,
+            module.enums[family.failure].name,
+        ));
+    }
+    for (id, bridge) in module.foreign_callback_bridges.iter() {
+        let adapter = &module.foreign_callback_adapters[bridge.adapter];
+        out.push_str(&format!(
+            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={:?} adapter=@{}\n",
+            id.into_raw().into_u32(),
+            bridge.family.into_raw().into_u32(),
+            bridge.native_signature.into_raw().into_u32(),
+            adapter.managed_signature.into_raw().into_u32(),
+            bridge.context_index,
+            bridge.mode,
+            module.functions[adapter.function].symbol,
+        ));
+    }
     for (_, def) in module.structs.iter() {
         match &def.representation {
             StructRepresentation::Declared {
@@ -273,7 +295,7 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_resume cp{} state={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
             id.into_raw().into_u32(),
-            point.state,
+            point.state.get(),
             type_name(module, &point.result),
             point.frame.into_raw().into_u32(),
             module.classes[point.adapter].name,

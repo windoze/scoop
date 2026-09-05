@@ -61,6 +61,7 @@ impl LiveValue {
             lir::Value::Local(id) => Some(Self::Local(id)),
             lir::Value::Temp(id) => Some(Self::Temp(id)),
             lir::Value::IntConst(_)
+            | lir::Value::MachineScalar(_)
             | lir::Value::BoolConst(_)
             | lir::Value::NullPointer(_)
             | lir::Value::TypeDescriptor(_)

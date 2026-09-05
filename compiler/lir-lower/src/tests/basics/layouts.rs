@@ -195,3 +195,114 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!((padded.size, padded.align), (16, 8));
     assert!(plain_refs(padded).is_empty());
 }
+
+#[test]
+fn compiler_pointer_element_offsets_keep_their_domain_and_dedicated_stride() {
+    let mut b = Builder::new();
+    let pointer_ty = mir::Type::Ptr(Box::new(mir::Type::Int));
+    let mut locals = Arena::new();
+    let pointer = locals.alloc(local("pointer", pointer_ty.clone()));
+    let displaced = locals.alloc(local("displaced", pointer_ty.clone()));
+    let main = b.main(
+        locals,
+        vec![
+            val_decl(
+                pointer,
+                expr(
+                    pointer_ty.clone(),
+                    mir::ExprKind::PtrFromUInt {
+                        operand: Box::new(expr(mir::Type::UInt, mir::ExprKind::IntLiteral(0))),
+                        pointee: Box::new(mir::Type::Int),
+                    },
+                ),
+            ),
+            val_decl(
+                displaced,
+                expr(
+                    pointer_ty.clone(),
+                    mir::ExprKind::PtrOffset {
+                        pointer: Box::new(local_expr(pointer, pointer_ty)),
+                        pointee: Box::new(mir::Type::Int),
+                        offset: Box::new(mir::Expr::machine_scalar(
+                            mir::MachineScalarValue::PointerElementOffset(2),
+                        )),
+                        subtract: false,
+                    },
+                ),
+            ),
+        ],
+    );
+    let module = lower(&b.finish(main));
+    let function = &module.functions[0];
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::PtrOffset {
+        element_offset,
+        element_size,
+        subtract,
+        ..
+    } = instructions[2]
+    else {
+        panic!("the pointer displacement must stay a dedicated instruction")
+    };
+    assert_eq!(*element_size, 8);
+    assert!(!subtract);
+    assert_eq!(
+        function.value_ty(&module.globals, *element_offset),
+        lir::LirType::MachineScalar(lir::MachineScalarKind::PointerElementOffset)
+    );
+    let dump = lir::dump(&module);
+    assert!(dump.contains(
+        "element-offset=machine<pointer-element-offset>(PointerElementOffset(2)) element-size=8"
+    ));
+}
+
+#[test]
+#[should_panic(expected = "PtrLoad result must match its pointee")]
+fn pointer_load_cannot_relabel_a_machine_pointee_as_source_integer() {
+    let mut b = Builder::new();
+    let machine = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
+    let pointer_ty = mir::Type::Ptr(Box::new(machine.clone()));
+    let mut locals = Arena::new();
+    let pointer = locals.alloc(local("pointer", pointer_ty.clone()));
+    let integer = locals.alloc(local("integer", mir::Type::Int));
+    let main = b.main(
+        locals,
+        vec![val_decl(
+            integer,
+            expr(
+                mir::Type::Int,
+                mir::ExprKind::PtrLoad {
+                    pointer: Box::new(local_expr(pointer, pointer_ty)),
+                    pointee: Box::new(machine),
+                    offset: None,
+                },
+            ),
+        )],
+    );
+
+    let _ = lower(&b.finish(main));
+}
+
+#[test]
+#[should_panic(expected = "PtrStore value must match its pointee")]
+fn pointer_store_cannot_write_a_source_integer_as_a_machine_pointee() {
+    let mut b = Builder::new();
+    let machine = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
+    let pointer_ty = mir::Type::Ptr(Box::new(machine.clone()));
+    let mut locals = Arena::new();
+    let pointer = locals.alloc(local("pointer", pointer_ty.clone()));
+    let main = b.main(
+        locals,
+        vec![stmt(mir::StatementKind::Expr(expr(
+            mir::Type::Unit,
+            mir::ExprKind::PtrStore {
+                pointer: Box::new(local_expr(pointer, pointer_ty)),
+                pointee: Box::new(machine),
+                offset: None,
+                value: Box::new(mir::Expr::int(1)),
+            },
+        )))],
+    );
+
+    let _ = lower(&b.finish(main));
+}

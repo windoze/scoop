@@ -55,17 +55,9 @@ impl BodyLowerer<'_> {
                 };
                 let enum_id = *enum_id;
                 let variant = variant.into_raw();
-                let tag = smir::Expr::new(
-                    mir::Type::Int,
-                    smir::ExprKind::EnumTag(Box::new(self.accessed(root, path))),
-                );
-                let mut cond = smir::Expr::new(
-                    mir::Type::Boolean,
-                    smir::ExprKind::Binary {
-                        op: mir::BinOp::IntEq,
-                        lhs: Box::new(tag),
-                        rhs: Box::new(smir::Expr::int(i64::from(variant))),
-                    },
+                let mut cond = smir::Expr::machine_eq(
+                    smir::Expr::enum_tag(self.accessed(root, path)),
+                    mir::MachineScalarValue::EnumTag(variant),
                 );
                 for (index, sub) in fields {
                     let field_ty = self.enums.defs[enum_id].variants[variant as usize].fields

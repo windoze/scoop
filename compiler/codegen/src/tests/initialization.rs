@@ -84,3 +84,28 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     assert!(alpha < zed, "descriptor table must be sorted by stable key");
     assert!(ir.contains("@scoop_image_initialization_unit_count = constant i64 2"));
 }
+
+#[test]
+fn storage_global_rejects_machine_scalar_type() {
+    let mut module = values_module();
+    module.globals.alloc(Global {
+        symbol: "scoop.machine.global".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
+            initializer: scoop_lir::ConstantValue::Zero,
+            thread_local: false,
+        },
+    });
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("compiler-only scalar domains must not acquire global storage");
+    assert!(
+        error.0.contains("storage global `scoop.machine.global`")
+            && error.0.contains("machine<initialization-outcome>"),
+        "unexpected error: {error}"
+    );
+}

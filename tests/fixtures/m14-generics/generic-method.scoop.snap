@@ -1388,7 +1388,7 @@ Module
     poll managed-void-target6 sp58 live=[]
     store global0 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp12 live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
+    call managed-direct-target0 sp12 live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
     store t0 -> local27
     call managed-void-target0 sp13 live=[local1:ptr<managed>@0, local27:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn30(local27, local1)
     t1 = aggregate () : {}
@@ -1412,7 +1412,7 @@ Module
     store local13 -> local14
     call managed-void-target2 sp18 live=[local2:ptr<managed>@0, local14:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn15(local14)
     t5 = aggregate () : {}
-    call managed-direct-target3 sp19 live=[local2:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    call managed-direct-target3 sp19 live=[local2:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
     store t6 -> local28
     call managed-void-target3 sp20 live=[local2:ptr<managed>@0, local28:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn28(local28)
     t7 = aggregate () : {}
@@ -1427,7 +1427,7 @@ Module
     store local20 -> local21
     call managed-void-target4 sp23 live=[local2:ptr<managed>@0] sig=void4 (i64) local-fn14(local21)
     t9 = aggregate () : {}
-    call managed-direct-target5 sp24 live=[local2:ptr<managed>@0] t10 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 32)
+    call managed-direct-target5 sp24 live=[local2:ptr<managed>@0] t10 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(32)))
     t11 = function_address @scoop.$reference.0 : ptr
     heap_store t10 +16 t11
     heap_store t10 +24 local2

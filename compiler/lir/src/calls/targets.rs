@@ -312,6 +312,11 @@ impl DispatchSlots {
     pub fn alloc_no_gc(&mut self, slot: DispatchSlot) -> NoGcDispatchSlotRef {
         NoGcDispatchSlotRef(self.declarations.alloc(slot))
     }
+
+    pub fn get(&self, id: DispatchSlotId) -> Option<&DispatchSlot> {
+        let index = id.into_raw().into_u32() as usize;
+        (index < self.declarations.len()).then(|| &self.declarations[id])
+    }
 }
 
 impl std::ops::Index<DispatchSlotId> for DispatchSlots {

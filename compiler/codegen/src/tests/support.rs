@@ -246,6 +246,7 @@ pub(super) fn values_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,

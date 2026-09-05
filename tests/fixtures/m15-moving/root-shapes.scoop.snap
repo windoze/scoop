@@ -1112,13 +1112,13 @@ Module
           Local bundle
       branch bb4 bb5
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type MovingChoice
             Local $when.2
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb3 while.exit.3
       return
         Type String
@@ -2064,8 +2064,8 @@ Module
     t12 = aggregate () : {}
     t13 = extract param1, 2 : enum0
     store t13 -> local36
-    t14 = enum_tag e0 local36 : i64
-    t15 = Eq t14, 0 : i1
+    t14 = enum_tag e0 local36 : machine<enum-tag>
+    t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @if.then.4 else @if.else.5
   block while.exit.3
     ret local0
@@ -2110,7 +2110,7 @@ Module
   block logic.merge.9
     cbr local41 then @if.then.10 else @if.merge.11
   block if.then.10
-    call managed-direct-target0 sp20 live=[] t26 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    call managed-direct-target0 sp20 live=[] t26 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
     store t26 -> local42
     call managed-void-target8 sp21 live=[local42:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn23(local42)
     t27 = aggregate () : {}
@@ -2149,7 +2149,7 @@ Module
   block logic.merge.14
     cbr local43 then @if.then.15 else @if.merge.16
   block if.then.15
-    call managed-direct-target2 sp25 live=[] t38 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    call managed-direct-target2 sp25 live=[] t38 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
     store t38 -> local44
     call managed-void-target11 sp26 live=[local44:ptr<managed>@0] sig=void11 (ptr<managed>) local-fn23(local44)
     t39 = aggregate () : {}
@@ -2257,7 +2257,7 @@ Module
     call managed-direct-target2 sp30 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local8, local10)
     store t2 -> local11
     store local11 -> local12
-    call managed-direct-target3 sp31 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local12:ptr<managed>@0] t3 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td3, 24)
+    call managed-direct-target3 sp31 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local12:ptr<managed>@0] t3 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
     store t3 -> local46
     call managed-void-target0 sp32 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local12:ptr<managed>@0, local46:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn17(local46, local12)
     t4 = aggregate () : {}

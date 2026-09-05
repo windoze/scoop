@@ -221,6 +221,7 @@ impl Lowerer {
             singleton_published_roots: self.singleton_published_roots,
             callback_bridges: self.callback_bridges,
             foreign_callback_adapters: self.foreign_callback_adapters,
+            foreign_callback_families: self.foreign_callback_families,
             foreign_callback_bridges: self.foreign_callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,

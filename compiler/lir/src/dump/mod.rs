@@ -163,6 +163,27 @@ pub fn dump(module: &Module) -> String {
             callback.trampoline_symbol
         ));
     }
+    for (id, family) in module.foreign_callback_families.iter() {
+        out.push_str(&format!(
+            "  foreign_callback_family fcf{} callback=struct{} state=enum{} failure=enum{}\n",
+            id.into_raw(),
+            family.callback.into_raw(),
+            family.state.into_raw(),
+            family.failure.into_raw(),
+        ));
+    }
+    for (id, bridge) in module.foreign_callback_bridges.iter() {
+        out.push_str(&format!(
+            "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={:?}\n",
+            id.into_raw(),
+            bridge.family.into_raw(),
+            bridge.adapter_symbol,
+            bridge.trampoline_symbol,
+            bridge.signature_symbol,
+            bridge.context_index,
+            bridge.mode,
+        ));
+    }
     for function in &module.functions {
         let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
         out.push_str(&format!(

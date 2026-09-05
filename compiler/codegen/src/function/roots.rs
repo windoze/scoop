@@ -47,6 +47,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         source: scoop_lir::CallerRootSource,
     ) -> Result<RootStorage<'ctx>, CodegenError> {
+        let source_ty = self.statepoint_source_type(source)?;
+        if validation::contains_machine_scalar(self.structs, self.enums, source_ty) {
+            return Err(CodegenError(format!(
+                "root source in @{} cannot contain an internal machine scalar",
+                self.function.symbol
+            )));
+        }
         match source {
             scoop_lir::CallerRootSource::Local(id) => Ok(RootStorage {
                 pointer: self.allocas[arena_index(id)],
@@ -82,6 +89,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             if source_ty != &item.ty {
                 return Err(CodegenError(format!(
                     "statepoint {} source type is incomplete or inconsistent",
+                    safepoint.get()
+                )));
+            }
+            if validation::contains_machine_scalar(self.structs, self.enums, &item.ty) {
+                return Err(CodegenError(format!(
+                    "statepoint {} cannot treat an internal machine scalar as a managed root",
                     safepoint.get()
                 )));
             }

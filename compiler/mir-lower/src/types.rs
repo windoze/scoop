@@ -196,6 +196,7 @@ pub(super) fn mir_type_gc_free(
         mir::Type::Unit
         | mir::Type::Int
         | mir::Type::UInt
+        | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::Ptr(_)
         | mir::Type::FunPtr(_) => true,

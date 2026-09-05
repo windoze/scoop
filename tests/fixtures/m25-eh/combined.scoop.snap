@@ -1346,13 +1346,13 @@ Module
           Local error
       branch bb13 bb14
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type TaggedPayload
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb13 if.then.13 unwind bb3
       val first: String
         Type String
@@ -2124,7 +2124,7 @@ Module
     store local37 -> local41
     store local38 -> local42
     store local39 -> local43
-    call managed-direct-target8 sp22 live=[local40:ptr<managed>@0, local41:struct4@0+8+16, local42:enum1@8+16, local43:ptr<managed>@0] t16 = sig=direct8 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 88)
+    call managed-direct-target8 sp22 live=[local40:ptr<managed>@0, local41:struct4@0+8+16, local42:enum1@8+16, local43:ptr<managed>@0] t16 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(88)))
     store t16 -> local50
     invoke managed-void-target0 sp23 roots=[local40:argument, local41:refs[0, 8, 16]:argument, local42:refs[8, 16]:argument, local43:argument, local50:normal] sig=void0 (ptr<managed>, ptr<managed>, struct4, enum1, ptr<managed>) local-fn24(local50, local40, local41, local42, local43) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
@@ -2336,7 +2336,7 @@ Module
   block logic.merge.18
     cbr local32 then @if.then.19 else @if.merge.20
   block if.then.19
-    call managed-direct-target0 sp37 live=[] t35 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp37 live=[] t35 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t35 -> local33
     invoke managed-void-target9 sp38 roots=[local33:normal] sig=void10 (ptr<managed>) local-fn21(local33) normal @invoke.normal.10 unwind @try.handler_pad.3
     br @invoke.normal.10
@@ -2357,7 +2357,7 @@ Module
   block logic.merge.23
     cbr local34 then @if.then.24 else @if.merge.25
   block if.then.24
-    call managed-direct-target1 sp40 live=[] t43 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target1 sp40 live=[] t43 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t43 -> local35
     invoke managed-void-target11 sp41 roots=[local35:normal] sig=void13 (ptr<managed>) local-fn21(local35) normal @invoke.normal.13 unwind @try.handler_pad.3
     br @invoke.normal.13
@@ -2405,8 +2405,8 @@ Module
     t22 = aggregate () : {}
     t23 = heap_load local0 +56 : enum1
     store t23 -> local27
-    t24 = enum_tag e1 local27 : i64
-    t25 = Eq t24, 0 : i1
+    t24 = enum_tag e1 local27 : machine<enum-tag>
+    t25 = MachineEq(EnumTag) t24, machine<enum-tag>(EnumTag(0)) : i1
     cbr t25 then @if.then.13 else @if.else.14
   block invoke.normal.7
     t28 = aggregate () : {}

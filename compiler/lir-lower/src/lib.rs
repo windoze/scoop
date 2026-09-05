@@ -154,6 +154,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let (storage_globals, native_globals, native_global_bridges) =
         lower_globals(module, &mut globals, &structs, &enums, &string_global_map);
     let callback_bridges = lower_callback_bridges(module);
+    let foreign_callback_families = lower_foreign_callback_families(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
@@ -220,6 +221,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         native_globals,
         native_global_bridges,
         callback_bridges,
+        foreign_callback_families,
         foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {

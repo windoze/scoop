@@ -4,7 +4,7 @@
 //! flat public data model while keeping identity/types, module entities,
 //! metadata, functions, instructions and calls in separate source modules.
 
-use std::num::NonZeroU64;
+use std::num::{NonZeroU32, NonZeroU64};
 
 use la_arena::{Arena, Idx};
 

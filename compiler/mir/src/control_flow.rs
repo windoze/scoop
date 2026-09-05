@@ -128,6 +128,7 @@ pub enum StatementKind {
     /// distinct MIR operation so coroutine synchronization cannot be lost by
     /// reconstructing atomic intent from field names downstream.
     AtomicFieldStore {
+        kind: MachineScalarKind,
         object: Expr,
         index: u32,
         value: Expr,
@@ -208,6 +209,30 @@ impl Expr {
         Self::new(Type::Int, ExprKind::IntLiteral(value))
     }
 
+    pub fn machine_scalar(value: MachineScalarValue) -> Self {
+        Self::new(
+            Type::MachineScalar(value.kind()),
+            ExprKind::MachineScalarLiteral(value),
+        )
+    }
+
+    pub fn machine_eq(lhs: Self, rhs: MachineScalarValue) -> Self {
+        let kind = rhs.kind();
+        assert_eq!(
+            lhs.ty,
+            Type::MachineScalar(kind),
+            "machine scalar equality operands have the same semantic kind"
+        );
+        Self::new(
+            Type::Boolean,
+            ExprKind::Binary {
+                op: BinOp::MachineEq(kind),
+                lhs: Box::new(lhs),
+                rhs: Box::new(Self::machine_scalar(rhs)),
+            },
+        )
+    }
+
     pub fn bool(value: bool) -> Self {
         Self::new(Type::Boolean, ExprKind::BoolLiteral(value))
     }
@@ -221,7 +246,10 @@ impl Expr {
     }
 
     pub fn enum_tag(operand: Expr) -> Self {
-        Self::new(Type::Int, ExprKind::EnumTag(Box::new(operand)))
+        Self::new(
+            Type::MachineScalar(MachineScalarKind::EnumTag),
+            ExprKind::EnumTag(Box::new(operand)),
+        )
     }
 }
 
@@ -229,6 +257,7 @@ impl Expr {
 pub enum ExprKind {
     StringConst(StringConstId),
     IntLiteral(i64),
+    MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
@@ -323,12 +352,14 @@ pub enum ExprKind {
     },
     /// Acquire-load an aligned 64-bit synthetic state field.
     AtomicFieldLoad {
+        kind: MachineScalarKind,
         object: Box<Expr>,
         index: u32,
     },
     /// Compare-exchange an aligned 64-bit synthetic state field. The returned
     /// value is the observed old word; success is acq_rel and failure acquire.
     AtomicFieldCompareExchange {
+        kind: MachineScalarKind,
         object: Box<Expr>,
         index: u32,
         expected: Box<Expr>,
@@ -394,7 +425,7 @@ pub enum ExprKind {
         variant: u32,
         fields: Vec<Expr>,
     },
-    /// Read the variant tag of an enum value (Int).
+    /// Read the variant tag of an enum value (internal enum-tag scalar).
     EnumTag(Box<Expr>),
     /// Read field `index` of variant `variant` from an enum value.
     /// Only evaluated on a path where the tag is known to match.
@@ -430,6 +461,9 @@ pub enum BinOp {
     IntGe,
     IntEq,
     IntNe,
+    /// Equality within one compiler-owned scalar domain. The kind is carried
+    /// explicitly so lower stages never infer it from a physical integer.
+    MachineEq(MachineScalarKind),
     BoolEq,
     BoolNe,
 }

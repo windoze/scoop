@@ -40,6 +40,7 @@ impl Function {
             Value::Temp(id) => self.temps[id].ty.clone(),
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
+            Value::MachineScalar(value) => LirType::MachineScalar(value.kind()),
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),
             Value::TypeDescriptor(_) => METADATA_PTR,

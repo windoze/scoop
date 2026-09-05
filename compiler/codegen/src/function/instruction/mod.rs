@@ -20,8 +20,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.emit_aggregate_instruction(instruction)
             }
             Instruction::HeapLoad { .. }
+            | Instruction::MachineHeapLoad { .. }
             | Instruction::AtomicLoad { .. }
             | Instruction::HeapStore { .. }
+            | Instruction::MachineHeapStore { .. }
             | Instruction::AtomicStore { .. }
             | Instruction::AtomicCompareExchange { .. } => self.emit_heap_instruction(instruction),
             Instruction::FunctionAddress { .. }

@@ -136,6 +136,7 @@ pub(super) fn mangling_shell(
         singleton_published_roots: Arena::new(),
         callback_bridges: Arena::new(),
         foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),

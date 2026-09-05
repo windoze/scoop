@@ -1438,7 +1438,7 @@ Module
     t2 = aggregate () : {}
     store local2 -> local35
     t3 = local_address local35 : ptr
-    call managed-direct-target1 sp16 live=[] t4 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td7, t3, 8, root-scan0)
+    call managed-direct-target1 sp16 live=[] t4 = sig=direct1 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td7, t3, machine<byte-size>(ByteSize(8)), root-scan0)
     store t4 -> local12
     store local12 -> local13
     call managed-direct-target2 sp17 live=[local13:ptr<managed>@0] t5 = sig=direct2 (ptr<managed>) -> i64 local-fn13(local13)
@@ -1446,7 +1446,7 @@ Module
     store local14 -> local15
     call managed-void-target1 sp18 live=[] sig=void1 (i64) local-fn16(local15)
     t6 = aggregate () : {}
-    call managed-direct-target3 sp19 live=[] t7 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 16)
+    call managed-direct-target3 sp19 live=[] t7 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(16)))
     store t7 -> local32
     call managed-void-target2 sp20 live=[local32:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn29(local32)
     t8 = aggregate () : {}
@@ -1458,7 +1458,7 @@ Module
     store local19 -> local20
     call managed-void-target3 sp22 live=[local20:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn15(local20)
     t10 = aggregate () : {}
-    call managed-direct-target5 sp23 live=[] t11 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 16)
+    call managed-direct-target5 sp23 live=[] t11 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(16)))
     store t11 -> local33
     call managed-void-target4 sp24 live=[local33:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn30(local33)
     t12 = aggregate () : {}

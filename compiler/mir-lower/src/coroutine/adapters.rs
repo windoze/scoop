@@ -27,8 +27,8 @@ pub(super) fn generate_adapter(
     outer_failure: mir::FunctionId,
     source_symbol: &str,
     driver: mir::FunctionId,
-    state: u32,
-    failure_state: i64,
+    state: mir::CoroutineSuspendStateId,
+    failure_state: mir::CoroutineFrameState,
     result: &mir::Type,
     safe_latches: Option<(FrameSlot, FrameSlot)>,
 ) -> GeneratedAdapter {
@@ -42,7 +42,7 @@ pub(super) fn generate_adapter(
         },
         mir::Field {
             name: "status".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
         },
     ];
     if let Some((success, failure)) = safe_latches.as_ref() {

@@ -198,6 +198,7 @@ fn arrays_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
@@ -249,4 +250,108 @@ fn emits_m5_arrays() {
         .len();
     assert!(len > 0, "object file is empty");
     std::fs::remove_file(&output).ok();
+}
+
+fn array_codegen_error(module: &Module) -> CodegenError {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    emit_llvm_module(&context, module, &machine, host_profile())
+        .expect_err("malformed array LIR must be rejected")
+}
+
+#[test]
+fn array_alloc_rejects_wrong_element_domain() {
+    let mut module = arrays_module();
+    let function = &mut module.functions[0];
+    let Instruction::ArrayAlloc { elements, .. } =
+        &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("array fixture must start with ArrayAlloc")
+    };
+    elements[0] = Value::MachineScalar(MachineScalarValue::EnumTag(1));
+
+    let error = array_codegen_error(&module);
+    assert!(
+        error.0.contains("array_alloc")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn array_get_rejects_machine_scalar_result_for_i64_element() {
+    let mut module = arrays_module();
+    let function = &mut module.functions[0];
+    let out = match &function.blocks[function.entry].instructions[3] {
+        Instruction::ArrayGet { out, .. } => *out,
+        _ => panic!("array fixture must get its first element"),
+    };
+    function.temps[out].ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
+
+    let error = array_codegen_error(&module);
+    assert!(
+        error.0.contains("array_get")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn array_set_rejects_machine_scalar_for_i64_element() {
+    let mut module = arrays_module();
+    let function = &mut module.functions[0];
+    let Instruction::ArraySet { value, .. } = &mut function.blocks[function.entry].instructions[4]
+    else {
+        panic!("array fixture must set its first element")
+    };
+    *value = Value::MachineScalar(MachineScalarValue::EnumTag(0));
+
+    let error = array_codegen_error(&module);
+    assert!(
+        error.0.contains("array_set")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn array_assembly_rejects_wrong_element_domain() {
+    let mut module = arrays_module();
+    let function = &mut module.functions[0];
+    let Instruction::ArrayAssembly { parts, .. } =
+        &mut function.blocks[function.entry].instructions[15]
+    else {
+        panic!("array fixture must assemble its spread array")
+    };
+    parts[0] =
+        scoop_lir::ArrayAssemblyPart::Element(Value::MachineScalar(MachineScalarValue::EnumTag(9)));
+
+    let error = array_codegen_error(&module);
+    assert!(
+        error.0.contains("array_assembly")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn array_metadata_rejects_recursive_machine_scalar_element() {
+    let mut module = arrays_module();
+    let (_, array) = module
+        .meta
+        .arrays
+        .iter_mut()
+        .next()
+        .expect("array metadata");
+    array.element = LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]);
+
+    let error = array_codegen_error(&module);
+    assert!(
+        error.0.contains("array element type") && error.0.contains("machine scalar"),
+        "unexpected error: {error}"
+    );
 }

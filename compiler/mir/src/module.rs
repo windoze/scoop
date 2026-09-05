@@ -13,6 +13,7 @@ pub struct Module {
     pub singleton_published_roots: Arena<SingletonPublishedRoot>,
     pub callback_bridges: Arena<CallbackBridge>,
     pub foreign_callback_adapters: Arena<ForeignCallbackAdapter>,
+    pub foreign_callback_families: Arena<ForeignCallbackFamily>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
@@ -45,13 +46,23 @@ pub struct ForeignCallbackAdapter {
     pub managed_signature: FunctionTypeId,
 }
 
+/// One concrete `ForeignCallback<F>` protocol family. The record atomically
+/// binds the callback value, state result, and failure result to their exact
+/// nominal identities; callback instructions carry only this typed id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFamily {
+    pub callback: StructId,
+    pub state: EnumId,
+    pub failure: EnumId,
+}
+
 /// Native-signature side of one typed managed callback registration.
 /// Adapter and bridge ids are intentionally distinct from M12's static
 /// `CallbackBridgeId` so a closure can never enter the NoGC callback path.
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
     pub adapter: ForeignCallbackAdapterId,
-    pub callback: StructId,
+    pub family: ForeignCallbackFamilyId,
     pub native_signature: FunctionTypeId,
     pub context_index: u32,
     pub mode: ForeignCallbackMode,
@@ -65,10 +76,30 @@ pub enum ForeignCallbackMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForeignCallbackOperation {
-    Retain,
-    Release,
-    State,
-    Failure,
+    Retain(ForeignCallbackFamilyId),
+    Release(ForeignCallbackFamilyId),
+    State(ForeignCallbackFamilyId),
+    Failure(ForeignCallbackFamilyId),
+}
+
+impl ForeignCallbackOperation {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Retain(_) => "Retain",
+            Self::Release(_) => "Release",
+            Self::State(_) => "State",
+            Self::Failure(_) => "Failure",
+        }
+    }
+
+    pub const fn family(self) -> ForeignCallbackFamilyId {
+        match self {
+            Self::Retain(family)
+            | Self::Release(family)
+            | Self::State(family)
+            | Self::Failure(family) => family,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -259,7 +290,7 @@ pub struct CoroutineFrame {
 #[derive(Debug)]
 pub struct CoroutineResumePoint {
     pub frame: CoroutineFrameId,
-    pub state: u32,
+    pub state: CoroutineSuspendStateId,
     pub result: Type,
     pub adapter: ClassId,
     pub resume: FunctionId,

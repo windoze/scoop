@@ -38,11 +38,15 @@ pub(super) fn dump_statements(
                 dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::AtomicFieldStore {
+                kind,
                 object,
                 index,
                 value,
             } => {
-                out.push_str(&format!("{pad}atomic_store_release field={index}\n"));
+                out.push_str(&format!(
+                    "{pad}atomic_store_release kind={} field={index}\n",
+                    kind.name()
+                ));
                 dump_expr(module, locals, object, indent + 1, out);
                 dump_expr(module, locals, value, indent + 1, out);
             }

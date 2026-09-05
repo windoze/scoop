@@ -778,13 +778,13 @@ Module
         Local a
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$E8_Option$IX<Option$I<Int>>
             Local $opt.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val $uw.2: Option$I<Int>
         Type Option$I<Int>
@@ -808,13 +808,13 @@ Module
         Local $uw.2
       branch bb4 bb5
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.0
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb4 if.then.4
       val $res.1: Int
         Type Int
@@ -842,13 +842,13 @@ Module
         Local b
       branch bb7 bb8
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$E8_Option$IX<Option$I<Int>>
             Local $opt.3
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb7 if.then.7
       val $uw.4: Option$I<Int>
         Type Option$I<Int>
@@ -872,13 +872,13 @@ Module
         Local $uw.4
       branch bb10 bb11
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.2
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb10 if.then.10
       val $res.3: Int
         Type Int
@@ -906,13 +906,13 @@ Module
         Local c
       branch bb13 bb14
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$E8_Option$IX<Option$I<Int>>
             Local $opt.4
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb13 if.then.13
       val $res.5: Option$I<Int>
         Type Option$I<Int>
@@ -939,13 +939,13 @@ Module
         Local $res.5
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.6
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb16 if.then.16
       val $res.7: Int
         Type Int
@@ -1380,15 +1380,15 @@ Module
     t4 = enum_wrap e2 v1 () : enum2
     store t4 -> local8
     store local4 -> local25
-    t5 = enum_tag e2 local25 : i64
-    t6 = Eq t5, 0 : i1
+    t5 = enum_tag e2 local25 : machine<enum-tag>
+    t6 = MachineEq(EnumTag) t5, machine<enum-tag>(EnumTag(0)) : i1
     cbr t6 then @if.then.1 else @if.else.2
   block if.then.1
     t7 = enum_field e2 v0 f0 local25 : enum1
     store t7 -> local26
     br @if.merge.3
   block if.else.2
-    call managed-direct-target0 sp12 live=[] t8 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target0 sp12 live=[] t8 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t8 -> local29
     call managed-void-target0 sp13 live=[local29:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn16(local29)
     t9 = aggregate () : {}
@@ -1396,8 +1396,8 @@ Module
     unreachable
   block if.merge.3
     store local26 -> local9
-    t10 = enum_tag e1 local9 : i64
-    t11 = Eq t10, 0 : i1
+    t10 = enum_tag e1 local9 : machine<enum-tag>
+    t11 = MachineEq(EnumTag) t10, machine<enum-tag>(EnumTag(0)) : i1
     cbr t11 then @if.then.4 else @if.else.5
   block if.then.4
     t12 = enum_field e1 v0 f0 local9 : i64
@@ -1412,15 +1412,15 @@ Module
     call managed-void-target1 sp14 live=[] sig=void1 (i64) local-fn13(local12)
     t13 = aggregate () : {}
     store local7 -> local27
-    t14 = enum_tag e2 local27 : i64
-    t15 = Eq t14, 0 : i1
+    t14 = enum_tag e2 local27 : machine<enum-tag>
+    t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @if.then.7 else @if.else.8
   block if.then.7
     t16 = enum_field e2 v0 f0 local27 : enum1
     store t16 -> local28
     br @if.merge.9
   block if.else.8
-    call managed-direct-target1 sp15 live=[] t17 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target1 sp15 live=[] t17 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t17 -> local30
     call managed-void-target2 sp16 live=[local30:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn16(local30)
     t18 = aggregate () : {}
@@ -1428,8 +1428,8 @@ Module
     unreachable
   block if.merge.9
     store local28 -> local13
-    t19 = enum_tag e1 local13 : i64
-    t20 = Eq t19, 0 : i1
+    t19 = enum_tag e1 local13 : machine<enum-tag>
+    t20 = MachineEq(EnumTag) t19, machine<enum-tag>(EnumTag(0)) : i1
     cbr t20 then @if.then.10 else @if.else.11
   block if.then.10
     t21 = enum_field e1 v0 f0 local13 : i64
@@ -1444,8 +1444,8 @@ Module
     call managed-void-target3 sp17 live=[] sig=void3 (i64) local-fn13(local16)
     t22 = aggregate () : {}
     store local8 -> local19
-    t23 = enum_tag e2 local19 : i64
-    t24 = Eq t23, 0 : i1
+    t23 = enum_tag e2 local19 : machine<enum-tag>
+    t24 = MachineEq(EnumTag) t23, machine<enum-tag>(EnumTag(0)) : i1
     cbr t24 then @if.then.13 else @if.else.14
   block if.then.13
     t25 = enum_field e2 v0 f0 local19 : enum1
@@ -1459,8 +1459,8 @@ Module
     br @if.merge.15
   block if.merge.15
     store local20 -> local21
-    t27 = enum_tag e1 local21 : i64
-    t28 = Eq t27, 0 : i1
+    t27 = enum_tag e1 local21 : machine<enum-tag>
+    t28 = MachineEq(EnumTag) t27, machine<enum-tag>(EnumTag(0)) : i1
     cbr t28 then @if.then.16 else @if.else.17
   block if.then.16
     t29 = enum_field e1 v0 f0 local21 : i64

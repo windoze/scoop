@@ -9,6 +9,34 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         match instruction {
             Instruction::BinOp { out, op, lhs, rhs } => {
+                let lhs_ty = function.value_ty(self.globals_arena, *lhs);
+                let rhs_ty = function.value_ty(self.globals_arena, *rhs);
+                if let BinOp::MachineEq(kind) = op {
+                    let expected = LirType::MachineScalar(*kind);
+                    if lhs_ty != expected || rhs_ty != expected {
+                        return Err(CodegenError(format!(
+                            "machine equality {:?} in @{} has operand types {} and {}",
+                            kind,
+                            function.symbol,
+                            lhs_ty.dump(),
+                            rhs_ty.dump()
+                        )));
+                    }
+                    if function.temps[*out].ty != LirType::I1 {
+                        return Err(CodegenError(format!(
+                            "machine equality in @{} does not produce i1",
+                            function.symbol
+                        )));
+                    }
+                } else if matches!(lhs_ty, LirType::MachineScalar(_))
+                    || matches!(rhs_ty, LirType::MachineScalar(_))
+                    || matches!(function.temps[*out].ty, LirType::MachineScalar(_))
+                {
+                    return Err(CodegenError(format!(
+                        "source operator {op:?} in @{} cannot consume or produce a machine scalar",
+                        function.symbol
+                    )));
+                }
                 let lhs = self.value(*lhs)?;
                 let rhs = self.value(*rhs)?;
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -89,7 +117,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             BinOp::Ge => {
                                 builder.build_int_compare(IntPredicate::SGE, lhs, rhs, &name)
                             }
-                            BinOp::Eq => {
+                            BinOp::Eq | BinOp::MachineEq(_) => {
                                 builder.build_int_compare(IntPredicate::EQ, lhs, rhs, &name)
                             }
                             BinOp::Ne => {
@@ -104,6 +132,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, result.into());
             }
             Instruction::UnaryOp { out, op, operand } => {
+                if matches!(
+                    function.value_ty(self.globals_arena, *operand),
+                    LirType::MachineScalar(_)
+                ) || matches!(function.temps[*out].ty, LirType::MachineScalar(_))
+                {
+                    return Err(CodegenError(format!(
+                        "source unary operator {op:?} in @{} cannot consume or produce a machine scalar",
+                        function.symbol
+                    )));
+                }
                 let operand = self.value(*operand)?.into_int_value();
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result = match op {

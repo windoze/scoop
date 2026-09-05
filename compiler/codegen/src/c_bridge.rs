@@ -8,6 +8,7 @@ pub use layout::c_layout_assertions;
 /// and inbound callback trampolines. `None` means the module needs no second
 /// object file.
 pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> {
+    validation::validate_module(module)?;
     let c_externs = module
         .extern_functions
         .iter()

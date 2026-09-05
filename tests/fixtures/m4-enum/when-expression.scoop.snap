@@ -710,13 +710,13 @@ Module
         Local choice
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Choice
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val value: Int
         Type Int
@@ -1186,8 +1186,8 @@ Module
   block entry
     poll managed-void-target0 sp38 live=[]
     store param0 -> local6
-    t0 = enum_tag e1 local6 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e1 local6 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     t2 = enum_field e1 v0 f0 local6 : i64

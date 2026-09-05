@@ -897,13 +897,13 @@ Module
         Local this
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$D1_SX<S>
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val $left.0.0: S
         Type S
@@ -915,26 +915,26 @@ Module
         Local other
       branch bb4 bb5
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$D1_SX<S>
             Local $when.2
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb2 if.else.2
       val $when.3: Option$D1_SX<S>
         Type Option$D1_SX<S>
         Local other
       branch bb7 bb8
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$D1_SX<S>
             Local $when.3
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb3 if.merge.3
       unreachable
     bb4 if.then.4
@@ -1349,7 +1349,7 @@ Module
     store local16 -> local14
     store local14 -> local17
     t0 = local_address local17 : ptr
-    call managed-direct-target0 sp13 live=[] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td4, t0, 8, root-scan0)
+    call managed-direct-target0 sp13 live=[] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td4, t0, machine<byte-size>(ByteSize(8)), root-scan0)
     store t1 -> local2
     call no-gc-direct-target0 t2 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local2, td4)
     cbr t2 then @if.then.1 else @if.merge.2
@@ -1476,20 +1476,20 @@ Module
   block entry
     poll managed-void-target0 sp54 live=[]
     store param0 -> local2
-    t0 = enum_tag e1 local2 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e1 local2 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     t2 = enum_field e1 v0 f0 local2 : struct4
     store t2 -> local0
     store param1 -> local3
-    t3 = enum_tag e1 local3 : i64
-    t4 = Eq t3, 0 : i1
+    t3 = enum_tag e1 local3 : machine<enum-tag>
+    t4 = MachineEq(EnumTag) t3, machine<enum-tag>(EnumTag(0)) : i1
     cbr t4 then @if.then.4 else @if.else.5
   block if.else.2
     store param1 -> local4
-    t5 = enum_tag e1 local4 : i64
-    t6 = Eq t5, 1 : i1
+    t5 = enum_tag e1 local4 : machine<enum-tag>
+    t6 = MachineEq(EnumTag) t5, machine<enum-tag>(EnumTag(1)) : i1
     cbr t6 then @if.then.7 else @if.else.8
   block if.then.4
     t7 = enum_field e1 v0 f0 local3 : struct4

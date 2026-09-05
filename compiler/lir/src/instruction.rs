@@ -16,6 +16,7 @@ pub enum Value {
     Param(u32),
     Temp(TempId),
     IntConst(i64),
+    MachineScalar(MachineScalarValue),
     BoolConst(bool),
     NullPointer(PointerKind),
     /// Address of a local or external TypeDescriptor.
@@ -64,9 +65,19 @@ pub enum Instruction {
         object: Value,
         offset: u64,
     },
+    /// Non-atomic load of one compiler-owned state word from managed storage.
+    /// This is separate from `HeapLoad` so an `i64` field access cannot relabel
+    /// a machine state, and one machine domain cannot be read as another.
+    MachineHeapLoad {
+        out: TempId,
+        kind: MachineScalarKind,
+        object: Value,
+        offset: u64,
+    },
     /// Acquire-load a 64-bit synthetic state word from managed storage.
     AtomicLoad {
         out: TempId,
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
     },
@@ -114,8 +125,17 @@ pub enum Instruction {
         offset: u64,
         value: Value,
     },
+    /// Non-atomic initialization store of one compiler-owned state word into
+    /// managed storage. Later concurrent accesses use the atomic variants.
+    MachineHeapStore {
+        kind: MachineScalarKind,
+        object: Value,
+        offset: u64,
+        value: Value,
+    },
     /// Release-store a 64-bit synthetic state word in managed storage.
     AtomicStore {
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
         value: Value,
@@ -124,6 +144,7 @@ pub enum Instruction {
     /// `out` receives the observed old word.
     AtomicCompareExchange {
         out: TempId,
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
         expected: Value,
@@ -159,11 +180,16 @@ pub enum Instruction {
         value: Value,
         align: u64,
     },
-    /// Byte-wise pointer displacement. `bytes` may be negative.
+    /// Pointer displacement by `element_offset * element_size`.  The offset
+    /// remains either a source pointer index or the compiler-owned
+    /// `PointerElementOffset` domain; the layout stride is a dedicated field
+    /// and never becomes a source integer value.
     PtrOffset {
         out: TempId,
         pointer: Value,
-        bytes: Value,
+        element_offset: Value,
+        element_size: u64,
+        subtract: bool,
     },
     LocalAddress {
         out: TempId,
@@ -274,7 +300,8 @@ pub enum Instruction {
         variant: u32,
         fields: Vec<Value>,
     },
-    /// Read the variant tag (result `I64`; niche: null test).
+    /// Read the variant tag (result `MachineScalar(EnumTag)`; niche: null
+    /// test).
     EnumTag {
         out: TempId,
         enum_id: EnumDefId,
@@ -314,6 +341,9 @@ pub enum BinOp {
     Ge,
     Eq,
     Ne,
+    /// Equality in one internal scalar domain.  The kind is part of the
+    /// opcode rather than inferred from the current `i64` representation.
+    MachineEq(MachineScalarKind),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

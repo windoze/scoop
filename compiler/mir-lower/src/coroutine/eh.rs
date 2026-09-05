@@ -244,6 +244,7 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
         mir::ExprKind::ClassAlloc { .. }
         | mir::ExprKind::StringConst(_)
         | mir::ExprKind::IntLiteral(_)
+        | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::Local(_)

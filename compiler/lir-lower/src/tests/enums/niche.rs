@@ -13,14 +13,14 @@ Module
   enum Option$S niche(payload_variant=0)
   fun @scoop_main() -> void
     local %0 o: enum0
-    local %1 t: i64
+    local %1 t: machine<enum-tag>
     local %2 p: ptr<managed>
     local %3 o2: enum0
   block entry
     poll managed-void-target0 sp1 live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
-    t1 = enum_tag e0 local0 : i64
+    t1 = enum_tag e0 local0 : machine<enum-tag>
     store t1 -> local1
     t2 = enum_field e0 v0 f0 local0 : ptr<managed>
     store t2 -> local2
@@ -66,14 +66,14 @@ Module
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   fun @scoop_main() -> void
     local %0 o: enum0
-    local %1 t: i64
+    local %1 t: machine<enum-tag>
     local %2 p: i64
     local %3 o2: enum0
   block entry
     poll managed-void-target0 sp1 live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
-    t1 = enum_tag e0 local0 : i64
+    t1 = enum_tag e0 local0 : machine<enum-tag>
     store t1 -> local1
     t2 = enum_field e0 v0 f0 local0 : i64
     store t2 -> local2

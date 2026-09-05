@@ -1581,31 +1581,31 @@ Module
     local %28 $parameter.value: ptr<managed>
   block entry
     poll managed-void-target11 sp72 live=[]
-    call managed-direct-target0 sp13 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
+    call managed-direct-target0 sp13 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
-    call managed-direct-target1 sp14 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td20, 24)
+    call managed-direct-target1 sp14 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(24)))
     t3 = function_address @scoop.$reference.0 : ptr
     heap_store t2 +16 t3
     store t2 -> local1
-    call managed-direct-target2 sp15 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td21, 24)
+    call managed-direct-target2 sp15 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td21, machine<byte-size>(ByteSize(24)))
     t5 = function_address @scoop.$reference.1 : ptr
     heap_store t4 +16 t5
     store t4 -> local2
-    call managed-direct-target3 sp16 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
+    call managed-direct-target3 sp16 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
     t7 = function_address @scoop.$lambda.1 : ptr
     heap_store t6 +16 t7
     store t6 -> local3
-    call managed-direct-target4 sp17 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t8 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
+    call managed-direct-target4 sp17 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
     t9 = function_address @scoop.$lambda.2 : ptr
     heap_store t8 +16 t9
     store t8 -> local4
-    call managed-direct-target5 sp18 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 24)
+    call managed-direct-target5 sp18 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(24)))
     t11 = function_address @scoop.$lambda.3 : ptr
     heap_store t10 +16 t11
     store t10 -> local5
-    call managed-direct-target6 sp19 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t12 = sig=direct6 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 24)
+    call managed-direct-target6 sp19 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t12 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
     t13 = function_address @scoop.$lambda.4 : ptr
     heap_store t12 +16 t13
     store t12 -> local6
@@ -1622,7 +1622,7 @@ Module
     call managed-void-target2 sp24 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] sig=void2 (i64) local-fn22(local10)
     t18 = aggregate () : {}
     store 40 -> local11
-    call managed-direct-target9 sp25 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t19 = sig=direct9 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td18, 24)
+    call managed-direct-target9 sp25 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t19 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(24)))
     t20 = function_address @scoop.$lambda.5 : ptr
     heap_store t19 +16 t20
     store t19 -> local12
@@ -1648,7 +1648,7 @@ Module
     store local21 -> local22
     call managed-void-target6 sp33 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0] sig=void6 (i64) local-fn22(local22)
     t28 = aggregate () : {}
-    call managed-direct-target14 sp34 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0] t29 = sig=direct14 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 24)
+    call managed-direct-target14 sp34 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0] t29 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(24)))
     t30 = function_address @scoop.$lambda.6 : ptr
     heap_store t29 +16 t30
     call managed-direct-target15 sp35 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0, t29:ptr<managed>@0] t31 = sig=direct15 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t29(t29, 40)

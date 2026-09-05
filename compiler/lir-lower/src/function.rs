@@ -25,6 +25,7 @@ fn binary_op(op: mir::BinOp) -> lir::BinOp {
         mir::BinOp::IntGe => lir::BinOp::Ge,
         mir::BinOp::IntEq | mir::BinOp::BoolEq => lir::BinOp::Eq,
         mir::BinOp::IntNe | mir::BinOp::BoolNe => lir::BinOp::Ne,
+        mir::BinOp::MachineEq(kind) => lir::BinOp::MachineEq(machine_scalar_kind(kind)),
     }
 }
 

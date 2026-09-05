@@ -15,7 +15,7 @@ pub(super) fn generate_resume_method(
     outer_failure: mir::FunctionId,
     driver: mir::FunctionId,
     source_symbol: &str,
-    state: u32,
+    state: mir::CoroutineSuspendStateId,
     result: &mir::Type,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
@@ -23,8 +23,14 @@ pub(super) fn generate_resume_method(
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let value = locals.alloc(local("value", result.clone()));
     let step = locals.alloc(local("$step", outer_step.clone()));
-    let adapter_claim = locals.alloc(local("$adapter_claim", mir::Type::Int));
-    let frame_claim = locals.alloc(local("$frame_claim", mir::Type::Int));
+    let adapter_claim = locals.alloc(local(
+        "$adapter_claim",
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+    ));
+    let frame_claim = locals.alloc(local(
+        "$frame_claim",
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+    ));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
     let exits = drive_exit_blocks(
@@ -55,7 +61,7 @@ pub(super) fn generate_resume_method(
             statements.push(atomic_field_store(
                 mir::Expr::local(this, mir::Type::Class(adapter)),
                 1,
-                mir::Expr::int(ADAPTER_CONSUMED),
+                adapter_state(ADAPTER_CONSUMED),
             ));
             statements.push(statement(mir::StatementKind::Call(
                 mir::CallEffect::Value {
@@ -67,7 +73,7 @@ pub(super) fn generate_resume_method(
                         },
                         args: vec![
                             adapter_frame(this, adapter, frame_class),
-                            mir::Expr::int(i64::from(state)),
+                            frame_state(suspended_state(state)),
                         ],
                     },
                 },
@@ -86,7 +92,7 @@ pub(super) fn generate_resume_method(
         statements: vec![atomic_field_store(
             mir::Expr::local(this, mir::Type::Class(adapter)),
             1,
-            mir::Expr::int(ADAPTER_CONSUMED),
+            adapter_state(ADAPTER_CONSUMED),
         )],
         terminator: mir::Terminator::Goto(invalid),
         unwind: None,
@@ -98,14 +104,17 @@ pub(super) fn generate_resume_method(
             init: atomic_field_compare_exchange(
                 adapter_frame(this, adapter, frame_class),
                 0,
-                i64::from(state),
-                STATE_RUNNING,
+                frame_state_value(suspended_state(state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(state)),
             ),
             then_block: valid,
             else_block: invalid_frame,
@@ -119,14 +128,17 @@ pub(super) fn generate_resume_method(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(this, mir::Type::Class(adapter)),
                 1,
-                ADAPTER_WAITING,
-                ADAPTER_COMPLETING_SUCCESS,
+                adapter_state_value(ADAPTER_WAITING),
+                adapter_state_value(ADAPTER_COMPLETING_SUCCESS),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(adapter_claim, mir::Type::Int),
-                ADAPTER_WAITING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    adapter_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_WAITING),
             ),
             then_block: claim_frame,
             else_block: invalid,
@@ -145,7 +157,7 @@ pub(super) fn generate_resume_method(
                 atomic_field_store(
                     mir::Expr::local(this, mir::Type::Class(adapter)),
                     1,
-                    mir::Expr::int(ADAPTER_LATCHED_SUCCESS),
+                    adapter_state(ADAPTER_LATCHED_SUCCESS),
                 ),
             ],
             terminator: mir::Terminator::Return { value: None },
@@ -158,14 +170,17 @@ pub(super) fn generate_resume_method(
                 init: atomic_field_compare_exchange(
                     mir::Expr::local(this, mir::Type::Class(adapter)),
                     1,
-                    ADAPTER_REGISTERING,
-                    ADAPTER_COMPLETING_SUCCESS,
+                    adapter_state_value(ADAPTER_REGISTERING),
+                    adapter_state_value(ADAPTER_COMPLETING_SUCCESS),
                 ),
             })],
             terminator: mir::Terminator::Branch {
-                cond: int_eq(
-                    mir::Expr::local(adapter_claim, mir::Type::Int),
-                    ADAPTER_REGISTERING,
+                cond: machine_eq(
+                    mir::Expr::local(
+                        adapter_claim,
+                        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                    ),
+                    adapter_state_value(ADAPTER_REGISTERING),
                 ),
                 then_block: latched,
                 else_block: claim_waiting,

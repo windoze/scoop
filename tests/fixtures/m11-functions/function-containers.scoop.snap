@@ -860,13 +860,13 @@ Module
         Local optional
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$FIRIX<(Int) -> Int>
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val selected: (Int) -> Int
         Type (Int) -> Int
@@ -1543,7 +1543,7 @@ Module
   block entry
     poll managed-void-target9 sp57 live=[]
     store 2 -> local0
-    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 32)
+    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
@@ -1552,7 +1552,7 @@ Module
     store local2 -> local3
     t2 = enum_wrap e1 v0 (local3) : enum1
     store t2 -> local4
-    call managed-direct-target1 sp13 live=[local1:ptr<managed>@0, local4:enum1@0] t3 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 24)
+    call managed-direct-target1 sp13 live=[local1:ptr<managed>@0, local4:enum1@0] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(24)))
     t4 = function_address @scoop.$reference.0 : ptr
     heap_store t3 +16 t4
     t5 = array_alloc array0 (local1, t3) sp14 live local1:ptr<managed>@0, local4:enum1@0, t3:ptr<managed>@0 : ptr<managed>
@@ -1561,15 +1561,15 @@ Module
     store local6 -> local7
     call managed-indirect-target0 sp15 live=[local4:enum1@0, local5:ptr<managed>@0, local7:ptr<managed>@0] local38 = sig=indirect0 (sret struct4, ptr<managed>) local-fn27(local7)
     store local38 -> local8
-    call managed-direct-target2 sp16 live=[local4:enum1@0, local5:ptr<managed>@0, local8:struct4@0] t6 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
+    call managed-direct-target2 sp16 live=[local4:enum1@0, local5:ptr<managed>@0, local8:struct4@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
     t7 = function_address @scoop.$lambda.1 : ptr
     heap_store t6 +16 t7
     store t6 -> local9
     call managed-void-target0 sp17 live=[local4:enum1@0, local5:ptr<managed>@0, local8:struct4@0, local9:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
     store local4 -> local29
-    t9 = enum_tag e1 local29 : i64
-    t10 = Eq t9, 0 : i1
+    t9 = enum_tag e1 local29 : machine<enum-tag>
+    t10 = MachineEq(EnumTag) t9, machine<enum-tag>(EnumTag(0)) : i1
     cbr t10 then @if.then.1 else @if.else.2
   block if.then.1
     t11 = enum_field e1 v0 f0 local29 : ptr<managed>
@@ -1605,7 +1605,7 @@ Module
   block logic.merge.6
     cbr local34 then @if.then.7 else @if.merge.8
   block if.then.7
-    call managed-direct-target4 sp21 live=[] t18 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    call managed-direct-target4 sp21 live=[] t18 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
     store t18 -> local35
     call managed-void-target3 sp22 live=[local35:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn23(local35)
     t19 = aggregate () : {}
@@ -1636,7 +1636,7 @@ Module
   block logic.merge.11
     cbr local36 then @if.then.12 else @if.merge.13
   block if.then.12
-    call managed-direct-target6 sp25 live=[] t26 = sig=direct6 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    call managed-direct-target6 sp25 live=[] t26 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
     store t26 -> local37
     call managed-void-target5 sp26 live=[local37:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn23(local37)
     t27 = aggregate () : {}

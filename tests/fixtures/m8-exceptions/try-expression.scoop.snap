@@ -1140,7 +1140,7 @@ Module
   block try.end.7
     ret local1
   block try.body.8
-    call managed-direct-target0 sp13 live=[] t9 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target0 sp13 live=[] t9 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t9 -> local4
     invoke managed-void-target1 sp14 roots=[local4:normal] sig=void1 (ptr<managed>) local-fn17(local4) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1

@@ -58,6 +58,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
             }
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
+            Value::MachineScalar(value) => {
+                context.i64_type().const_int(value.raw_bits(), false).into()
+            }
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
             Value::NullPointer(kind) => pointer_ty(context, self.managed_address_space, kind)
                 .const_null()
@@ -88,6 +91,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Local(id) => Some(scoop_lir::CallerRootSource::Local(id)),
             Value::Temp(id) => Some(scoop_lir::CallerRootSource::Temp(id)),
             Value::IntConst(_)
+            | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)

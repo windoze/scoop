@@ -48,13 +48,28 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             offset,
             function.temps[*out].ty.dump()
         )),
-        Instruction::AtomicLoad {
+        Instruction::MachineHeapLoad {
             out,
+            kind,
             object,
             offset,
         } => buf.push_str(&format!(
-            "    t{} = atomic_load acquire {} +{} : {}\n",
+            "    t{} = machine_heap_load {} {} +{} : {}\n",
             out.into_raw(),
+            kind.name(),
+            value_name(*object),
+            offset,
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::AtomicLoad {
+            out,
+            kind,
+            object,
+            offset,
+        } => buf.push_str(&format!(
+            "    t{} = atomic_load acquire {} {} +{} : {}\n",
+            out.into_raw(),
+            kind.name(),
             value_name(*object),
             offset,
             function.temps[*out].ty.dump()
@@ -122,25 +137,41 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             offset,
             value_name(*value)
         )),
-        Instruction::AtomicStore {
+        Instruction::MachineHeapStore {
+            kind,
             object,
             offset,
             value,
         } => buf.push_str(&format!(
-            "    atomic_store release {} +{} {}\n",
+            "    machine_heap_store {} {} +{} {}\n",
+            kind.name(),
+            value_name(*object),
+            offset,
+            value_name(*value)
+        )),
+        Instruction::AtomicStore {
+            kind,
+            object,
+            offset,
+            value,
+        } => buf.push_str(&format!(
+            "    atomic_store release {} {} +{} {}\n",
+            kind.name(),
             value_name(*object),
             offset,
             value_name(*value)
         )),
         Instruction::AtomicCompareExchange {
             out,
+            kind,
             object,
             offset,
             expected,
             replacement,
         } => buf.push_str(&format!(
-            "    t{} = atomic_cmpxchg acq_rel/acquire {} +{} expected={} replacement={} : {}\n",
+            "    t{} = atomic_cmpxchg acq_rel/acquire {} {} +{} expected={} replacement={} : {}\n",
             out.into_raw(),
+            kind.name(),
             value_name(*object),
             offset,
             value_name(*expected),
@@ -164,29 +195,45 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             function.temps[*out].ty.dump()
         )),
         Instruction::ForeignCallbackOperation(operation) => match *operation {
-            ForeignCallbackOperation::Retain { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::Retain {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "Retain",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::State { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::State {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "State",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::Failure { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::Failure {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "Failure",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::Release { callback } => buf.push_str(&format!(
-                "    foreign_callback_Release {}\n",
+            ForeignCallbackOperation::Release { family, callback } => buf.push_str(&format!(
+                "    foreign_callback_Release family{} {}\n",
+                family.into_raw(),
                 value_name(callback)
             )),
         },
@@ -224,12 +271,16 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::PtrOffset {
             out,
             pointer,
-            bytes,
+            element_offset,
+            element_size,
+            subtract,
         } => buf.push_str(&format!(
-            "    t{} = ptr_offset {} {} : ptr\n",
+            "    t{} = ptr_offset {} element-offset={} element-size={} subtract={} : ptr\n",
             out.into_raw(),
             value_name(*pointer),
-            value_name(*bytes)
+            value_name(*element_offset),
+            element_size,
+            subtract,
         )),
         Instruction::LocalAddress { out, local } => buf.push_str(&format!(
             "    t{} = local_address local{} : ptr\n",

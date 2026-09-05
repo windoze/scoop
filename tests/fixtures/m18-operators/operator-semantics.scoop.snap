@@ -3854,7 +3854,7 @@ Module
     t2 = Eq local6, 0 : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1
-    call managed-direct-target0 sp16 live=[] t3 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp16 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t3 -> local7
     call managed-void-target0 sp17 live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn44(local7)
     t4 = aggregate () : {}
@@ -3890,7 +3890,7 @@ Module
     t2 = Eq local6, 0 : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1
-    call managed-direct-target0 sp19 live=[] t3 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp19 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t3 -> local7
     call managed-void-target0 sp20 live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn44(local7)
     t4 = aggregate () : {}
@@ -4131,7 +4131,7 @@ Module
     t0 = aggregate () : {}
     store param1 -> local2
     store local2 -> local3
-    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td4, 24)
+    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t1 -> local4
     call managed-void-target1 sp33 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i64) local-fn48(local4, local3)
     t2 = aggregate () : {}
@@ -4150,7 +4150,7 @@ Module
     t0 = aggregate () : {}
     store 0 -> local2
     store local2 -> local3
-    call managed-direct-target0 sp35 live=[] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target0 sp35 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t1 -> local4
     call managed-void-target1 sp36 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i64) local-fn49(local4, local3)
     t2 = aggregate () : {}
@@ -4674,7 +4674,7 @@ Module
     t33 = aggregate () : {}
     store 7 -> local111
     store local111 -> local112
-    call managed-direct-target2 sp87 live=[] t34 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td4, 24)
+    call managed-direct-target2 sp87 live=[] t34 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t34 -> local247
     call managed-void-target16 sp88 live=[local247:ptr<managed>@0] sig=void16 (ptr<managed>, i64) local-fn48(local247, local112)
     t35 = aggregate () : {}
@@ -4691,7 +4691,7 @@ Module
     t37 = aggregate () : {}
     store 7 -> local120
     store local120 -> local121
-    call managed-direct-target4 sp92 live=[] t38 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td4, 24)
+    call managed-direct-target4 sp92 live=[] t38 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t38 -> local248
     call managed-void-target18 sp93 live=[local248:ptr<managed>@0] sig=void18 (ptr<managed>, i64) local-fn48(local248, local121)
     t39 = aggregate () : {}
@@ -4786,7 +4786,7 @@ Module
     t51 = aggregate () : {}
     store 1 -> local177
     store local177 -> local178
-    call managed-direct-target8 sp114 live=[] t52 = sig=direct8 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target8 sp114 live=[] t52 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t52 -> local253
     call managed-void-target24 sp115 live=[local253:ptr<managed>@0] sig=void24 (ptr<managed>, i64) local-fn49(local253, local178)
     t53 = aggregate () : {}
@@ -4844,7 +4844,7 @@ Module
     store 22 -> local217
     store local216 -> local218
     store local217 -> local219
-    call managed-direct-target14 sp125 live=[] t63 = sig=direct14 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 32)
+    call managed-direct-target14 sp125 live=[] t63 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
     store t63 -> local254
     call managed-void-target29 sp126 live=[local254:ptr<managed>@0] sig=void29 (ptr<managed>, i64, i64) local-fn50(local254, local218, local219)
     t64 = aggregate () : {}

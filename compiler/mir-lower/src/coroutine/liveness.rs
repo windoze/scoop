@@ -53,14 +53,13 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
             if let Some((destination, result, kind)) = suspend_effect(lowerer, body, statement) {
                 let mut live_after: Vec<_> = live.iter().copied().collect();
                 live_after.sort_by_key(|local| raw(*local));
-                sites.push(SuspendSite {
+                sites.push(DiscoveredSuspendSite {
                     block: block_id,
                     statement: statement_index,
                     destination,
                     result,
                     kind,
                     live_after,
-                    state: 0,
                 });
             }
             let (statement_uses, statement_defs) = statement_use_def(statement);
@@ -72,6 +71,26 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
     }
     sites.sort_by_key(|site| (raw(site.block), site.statement));
     sites
+        .into_iter()
+        .enumerate()
+        .map(|(index, site)| {
+            let one_based = index
+                .checked_add(1)
+                .expect("coroutine suspension-site count fits usize");
+            SuspendSite {
+                block: site.block,
+                statement: site.statement,
+                destination: site.destination,
+                result: site.result,
+                kind: site.kind,
+                live_after: site.live_after,
+                state: mir::CoroutineSuspendStateId::new(
+                    u32::try_from(one_based).expect("coroutine suspension-site count fits u32"),
+                )
+                .expect("coroutine suspension states are one-based"),
+            }
+        })
+        .collect()
 }
 
 fn suspend_effect(
@@ -330,6 +349,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         mir::ExprKind::ClassAlloc { .. }
         | mir::ExprKind::StringConst(_)
         | mir::ExprKind::IntLiteral(_)
+        | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::GlobalRead(_)

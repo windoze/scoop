@@ -906,13 +906,13 @@ Module
         Local x
       branch bb27 bb28
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.3
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb27 if.then.27 unwind bb19
       val $uw.4: Int
         Type Int
@@ -1649,7 +1649,7 @@ Module
   block logic.merge.11
     cbr local37 then @if.then.12 else @if.merge.13
   block if.then.12
-    call managed-direct-target0 sp13 live=[] t12 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
+    call managed-direct-target0 sp13 live=[] t12 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
     store t12 -> local38
     invoke managed-void-target0 sp14 roots=[local38:normal] sig=void0 (ptr<managed>) local-fn20(local38) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
@@ -1707,15 +1707,15 @@ Module
     t25 = enum_wrap e1 v1 () : enum1
     store t25 -> local9
     store local9 -> local32
-    t26 = enum_tag e1 local32 : i64
-    t27 = Eq t26, 0 : i1
+    t26 = enum_tag e1 local32 : machine<enum-tag>
+    t27 = MachineEq(EnumTag) t26, machine<enum-tag>(EnumTag(0)) : i1
     cbr t27 then @if.then.27 else @if.else.28
   block if.then.27
     t28 = enum_field e1 v0 f0 local32 : i64
     store t28 -> local33
     br @if.merge.29
   block if.else.28
-    call managed-direct-target1 sp17 live=[] t29 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target1 sp17 live=[] t29 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t29 -> local39
     invoke managed-void-target3 sp18 roots=[local39:normal] sig=void5 (ptr<managed>) local-fn17(local39) normal @invoke.normal.6 unwind @try.unwind.19
     br @invoke.normal.6
@@ -1771,14 +1771,14 @@ Module
   block try.body.42
     store 1 -> local45
     t41 = local_address local45 : ptr
-    call managed-direct-target2 sp21 live=[] t42 = sig=direct5 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td6, t41, 8, root-scan0)
+    call managed-direct-target2 sp21 live=[] t42 = sig=direct5 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td6, t41, machine<byte-size>(ByteSize(8)), root-scan0)
     store t42 -> local15
     store local15 -> local34
     call no-gc-direct-target3 t43 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local34, td3)
     t44 = Not t43 : i1
     cbr t44 then @if.then.43 else @if.merge.44
   block if.then.43
-    call managed-direct-target3 sp22 live=[] t45 = sig=direct7 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    call managed-direct-target3 sp22 live=[] t45 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
     store t45 -> local40
     invoke managed-void-target6 sp23 roots=[local40:normal] sig=void10 (ptr<managed>) local-fn18(local40) normal @invoke.normal.11 unwind @try.unwind.35
     br @invoke.normal.11
@@ -1841,7 +1841,7 @@ Module
     t57 = Eq local36, 0 : i1
     cbr t57 then @if.then.58 else @if.merge.59
   block if.then.58
-    call managed-direct-target4 sp26 live=[] t58 = sig=direct9 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target4 sp26 live=[] t58 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t58 -> local41
     invoke managed-void-target9 sp27 roots=[local41:normal] sig=void15 (ptr<managed>) local-fn19(local41) normal @invoke.normal.16 unwind @try.unwind.50
     br @invoke.normal.16

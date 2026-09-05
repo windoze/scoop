@@ -1243,7 +1243,7 @@ Module
     store local0 -> local3
     store local1 -> local4
     store local2 -> local5
-    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td4, 32)
+    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(32)))
     store t0 -> local17
     call managed-void-target0 sp13 live=[local17:ptr<managed>@0] sig=void0 (ptr<managed>, i1, i1, i64) local-fn23(local17, local3, local4, local5)
     t1 = aggregate () : {}

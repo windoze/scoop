@@ -11,6 +11,7 @@ pub type SingletonValueId = Idx<SingletonValue>;
 pub type SingletonPublishedRootId = Idx<SingletonPublishedRoot>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackAdapterId = Idx<ForeignCallbackAdapter>;
+pub type ForeignCallbackFamilyId = Idx<ForeignCallbackFamily>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
@@ -108,6 +109,7 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Unit => "U".to_string(),
         Type::Int => "I".to_string(),
         Type::UInt => "V".to_string(),
+        Type::MachineScalar(kind) => format!("Q{}X", kind.name().replace('-', "_")),
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => {

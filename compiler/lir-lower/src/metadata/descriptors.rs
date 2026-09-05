@@ -46,6 +46,7 @@ impl TypeDescriptorRefs {
             | mir::Type::Tuple(_)
             | mir::Type::Int
             | mir::Type::UInt
+            | mir::Type::MachineScalar(_)
             | mir::Type::Boolean
             | mir::Type::Unit
             | mir::Type::Ptr(_)

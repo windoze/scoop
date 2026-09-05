@@ -44,6 +44,7 @@ pub(crate) fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<m
         mir::Type::Unit
         | mir::Type::Int
         | mir::Type::UInt
+        | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::String
         | mir::Type::Class(_)

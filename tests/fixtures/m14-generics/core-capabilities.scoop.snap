@@ -1196,13 +1196,13 @@ Module
         Local this
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type RenderState$D5_PointX<Point>
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val value: Point
         Type Point
@@ -1784,14 +1784,14 @@ Module
     t2 = aggregate () : {}
     store 42 -> local10
     store local10 -> local11
-    call managed-direct-target1 sp18 live=[] t3 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target1 sp18 live=[] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t3 -> local36
     call managed-void-target2 sp19 live=[local36:ptr<managed>@0] sig=void2 (ptr<managed>, i64) local-fn38(local36, local11)
     t4 = aggregate () : {}
     store local36 -> local12
     store 42 -> local13
     store local13 -> local14
-    call managed-direct-target2 sp20 live=[local12:ptr<managed>@0] t5 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target2 sp20 live=[local12:ptr<managed>@0] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t5 -> local37
     call managed-void-target3 sp21 live=[local12:ptr<managed>@0, local37:ptr<managed>@0] sig=void3 (ptr<managed>, i64) local-fn38(local37, local14)
     t6 = aggregate () : {}
@@ -1803,7 +1803,7 @@ Module
     t8 = aggregate () : {}
     store local4 -> local18
     store local18 -> local19
-    call managed-direct-target4 sp24 live=[] t9 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 32)
+    call managed-direct-target4 sp24 live=[] t9 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
     store t9 -> local38
     call managed-void-target5 sp25 live=[local38:ptr<managed>@0] sig=void5 (ptr<managed>, struct4) local-fn39(local38, local19)
     t10 = aggregate () : {}
@@ -1970,8 +1970,8 @@ Module
   block entry
     poll managed-void-target0 sp92 live=[]
     store param0 -> local3
-    t0 = enum_tag e1 local3 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e1 local3 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     t2 = enum_field e1 v0 f0 local3 : struct4

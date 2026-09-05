@@ -12,6 +12,43 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::MakeAggregate { out, elements } => {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let lir_ty = &function.temps[*out].ty;
+                let expected_elements = match lir_ty {
+                    LirType::Aggregate(elements) => elements.iter().collect::<Vec<_>>(),
+                    LirType::Struct(id) => self.structs[*id]
+                        .fields
+                        .iter()
+                        .map(|field| &field.ty)
+                        .collect::<Vec<_>>(),
+                    other => {
+                        return Err(CodegenError(format!(
+                            "aggregate construction @{} has non-aggregate result type {}",
+                            function.symbol,
+                            other.dump()
+                        )));
+                    }
+                };
+                if elements.len() != expected_elements.len() {
+                    return Err(CodegenError(format!(
+                        "aggregate construction @{} has {} elements, expected {}",
+                        function.symbol,
+                        elements.len(),
+                        expected_elements.len()
+                    )));
+                }
+                for (index, (element, expected)) in
+                    elements.iter().zip(&expected_elements).enumerate()
+                {
+                    let actual = function.value_ty(self.globals_arena, *element);
+                    if &actual != *expected {
+                        return Err(CodegenError(format!(
+                            "aggregate construction @{} element {} has type {}, expected {}",
+                            function.symbol,
+                            index,
+                            actual.dump(),
+                            expected.dump()
+                        )));
+                    }
+                }
                 let ty = basic_ty(
                     context,
                     self.structs,
@@ -84,6 +121,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } => {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let aggregate_ty = function.value_ty(self.globals_arena, *aggregate);
+                let expected = match &aggregate_ty {
+                    LirType::Aggregate(elements) => elements.get(*index as usize).cloned(),
+                    LirType::Struct(id) => self.structs[*id]
+                        .fields
+                        .get(*index as usize)
+                        .map(|field| field.ty.clone()),
+                    _ => None,
+                }
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "aggregate extraction @{} has invalid index {} for {}",
+                        function.symbol,
+                        index,
+                        aggregate_ty.dump()
+                    ))
+                })?;
+                let out_ty = &function.temps[*out].ty;
+                if out_ty != &expected {
+                    return Err(CodegenError(format!(
+                        "aggregate extraction @{} produces {}, expected {}",
+                        function.symbol,
+                        out_ty.dump(),
+                        expected.dump()
+                    )));
+                }
                 let aggregate = self.value(*aggregate)?.into_struct_value();
                 let element = if let LirType::Struct(id) = aggregate_ty
                     && self.structs[id].c_layout.is_some()

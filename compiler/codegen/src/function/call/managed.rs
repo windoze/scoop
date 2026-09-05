@@ -53,6 +53,227 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 call.args().len()
             )));
         }
+        for (index, (argument, parameter)) in call.args().iter().zip(params).enumerate() {
+            let argument_ty = self.function.value_ty(self.globals_arena, *argument);
+            if &argument_ty != parameter {
+                return Err(CodegenError(format!(
+                    "typed call @{}: argument {} has type {}, expected {}",
+                    self.function.symbol,
+                    index,
+                    argument_ty.dump(),
+                    parameter.dump()
+                )));
+            }
+        }
+
+        match destination {
+            scoop_lir::CallDestination::Local(id) => {
+                let declaration = self.functions.get(id.into_u32() as usize).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed local call @{} has invalid function id {}",
+                        self.function.symbol,
+                        id.into_u32()
+                    ))
+                })?;
+                if params != declaration.params.as_slice() {
+                    return Err(CodegenError(format!(
+                        "typed local call @{} does not match the parameters of `{}`",
+                        self.function.symbol, declaration.symbol
+                    )));
+                }
+                let result_matches = match &result {
+                    TypedCallResult::Void => declaration.return_ty == LirType::Void,
+                    TypedCallResult::Direct { ty, .. } => {
+                        !uses_return_slot(self.enums, &declaration.return_ty)
+                            && declaration.return_ty != LirType::Void
+                            && **ty == declaration.return_ty
+                    }
+                    TypedCallResult::Indirect { ty, .. } => {
+                        uses_return_slot(self.enums, &declaration.return_ty)
+                            && **ty == declaration.return_ty
+                    }
+                };
+                if !result_matches {
+                    return Err(CodegenError(format!(
+                        "typed local call @{} result convention/type does not match `{}` returning {}",
+                        self.function.symbol,
+                        declaration.symbol,
+                        declaration.return_ty.dump()
+                    )));
+                }
+                let expected_effect = match &protocol {
+                    CallProtocol::Managed { .. } | CallProtocol::ManagedInvoke { .. } => {
+                        scoop_lir::GcEffect::Managed
+                    }
+                    CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
+                    CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
+                        return Err(CodegenError(format!(
+                            "typed local call @{} cannot use a native transition protocol",
+                            self.function.symbol
+                        )));
+                    }
+                };
+                if declaration.gc_effect != expected_effect {
+                    return Err(CodegenError(format!(
+                        "typed local call @{} protocol does not match the GC effect of `{}`",
+                        self.function.symbol, declaration.symbol
+                    )));
+                }
+            }
+            scoop_lir::CallDestination::Extern(id) => {
+                let declaration = &self.extern_functions[id];
+                let declaration_is_unit = declaration.return_type == LirType::Void
+                    || matches!(
+                        &declaration.return_type,
+                        LirType::Aggregate(elements) if elements.is_empty()
+                    );
+                let (params_match, result_matches, protocol_matches) = match &declaration.kind {
+                    ExternFunctionKind::C { .. } => (
+                        params.len() == declaration.params.len()
+                            && params.iter().all(|ty| *ty == scoop_lir::RAW_PTR),
+                        match &result {
+                            TypedCallResult::Void => declaration_is_unit,
+                            TypedCallResult::Indirect { ty, .. } => {
+                                !declaration_is_unit && **ty == declaration.return_type
+                            }
+                            TypedCallResult::Direct { .. } => false,
+                        },
+                        matches!(protocol, CallProtocol::NativeSafe { .. }),
+                    ),
+                    ExternFunctionKind::Scoop { .. } => (
+                        params == declaration.params.as_slice(),
+                        match &result {
+                            TypedCallResult::Void => declaration_is_unit,
+                            TypedCallResult::Direct { ty, .. } => {
+                                !declaration_is_unit
+                                    && !uses_return_slot(self.enums, &declaration.return_type)
+                                    && **ty == declaration.return_type
+                            }
+                            TypedCallResult::Indirect { ty, .. } => {
+                                !declaration_is_unit
+                                    && uses_return_slot(self.enums, &declaration.return_type)
+                                    && **ty == declaration.return_type
+                            }
+                        },
+                        matches!(protocol, CallProtocol::NativeBorrowed { .. }),
+                    ),
+                };
+                if !params_match || !result_matches || !protocol_matches {
+                    return Err(CodegenError(format!(
+                        "typed extern call @{} ABI does not match the declaration of `{}`",
+                        self.function.symbol, declaration.source_name
+                    )));
+                }
+            }
+            scoop_lir::CallDestination::Runtime(_)
+            | scoop_lir::CallDestination::Dispatch { .. } => {}
+        }
+
+        if let scoop_lir::CallDestination::Runtime(runtime) = destination {
+            let (expected_params, expected_result, protocol_matches) = match runtime {
+                scoop_lir::RuntimeFunction::Managed(function) => {
+                    let shape = match function {
+                        scoop_lir::ManagedRuntimeFunction::Safepoint
+                        | scoop_lir::ManagedRuntimeFunction::GcCollect => {
+                            (Vec::new(), LirType::Void)
+                        }
+                        scoop_lir::ManagedRuntimeFunction::Alloc => (
+                            vec![
+                                scoop_lir::METADATA_PTR,
+                                LirType::MachineScalar(MachineScalarKind::ByteSize),
+                            ],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::Box => (
+                            vec![
+                                scoop_lir::METADATA_PTR,
+                                scoop_lir::RAW_PTR,
+                                LirType::MachineScalar(MachineScalarKind::ByteSize),
+                                scoop_lir::METADATA_PTR,
+                            ],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::MaterializeException => {
+                            (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::ManagedRuntimeFunction::StringConcat => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::InitializationEnter => (
+                            vec![scoop_lir::METADATA_PTR],
+                            LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::InitializationSucceed => {
+                            (vec![scoop_lir::METADATA_PTR], LirType::Void)
+                        }
+                        scoop_lir::ManagedRuntimeFunction::InitializationFail => (
+                            vec![scoop_lir::METADATA_PTR, scoop_lir::MANAGED_PTR],
+                            LirType::Void,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::InitializationFailure
+                        | scoop_lir::ManagedRuntimeFunction::InitializationCycleMessage => {
+                            (vec![scoop_lir::METADATA_PTR], scoop_lir::MANAGED_PTR)
+                        }
+                    };
+                    (
+                        shape.0,
+                        shape.1,
+                        matches!(
+                            protocol,
+                            CallProtocol::Managed { .. } | CallProtocol::ManagedInvoke { .. }
+                        ),
+                    )
+                }
+                scoop_lir::RuntimeFunction::NoGc(function) => {
+                    let shape = match function {
+                        scoop_lir::NoGcRuntimeFunction::IsInstance => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
+                            LirType::I1,
+                        ),
+                        scoop_lir::NoGcRuntimeFunction::ITableLookup => (
+                            vec![scoop_lir::METADATA_PTR, scoop_lir::METADATA_PTR],
+                            scoop_lir::METADATA_PTR,
+                        ),
+                        scoop_lir::NoGcRuntimeFunction::Pin
+                        | scoop_lir::NoGcRuntimeFunction::GetHandle => {
+                            (vec![scoop_lir::MANAGED_PTR], LirType::I64)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::Unpin
+                        | scoop_lir::NoGcRuntimeFunction::ReleaseHandle => {
+                            (vec![LirType::I64], scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::GcStats => (Vec::new(), LirType::I64),
+                        scoop_lir::NoGcRuntimeFunction::StringCompare => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
+                            LirType::I64,
+                        ),
+                        scoop_lir::NoGcRuntimeFunction::Trap => {
+                            (vec![scoop_lir::RAW_PTR], LirType::Void)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::Throw => {
+                            (vec![scoop_lir::MANAGED_PTR], LirType::Void)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::Rethrow => (Vec::new(), LirType::Void),
+                    };
+                    (shape.0, shape.1, matches!(protocol, CallProtocol::NoGc))
+                }
+            };
+            let result_matches = match &result {
+                TypedCallResult::Void => expected_result == LirType::Void,
+                TypedCallResult::Direct { ty, .. } => {
+                    expected_result != LirType::Void && **ty == expected_result
+                }
+                TypedCallResult::Indirect { .. } => false,
+            };
+            if params != expected_params.as_slice() || !result_matches || !protocol_matches {
+                return Err(CodegenError(format!(
+                    "typed runtime call @{} has a signature or protocol outside the closed runtime ABI for `{}`",
+                    self.function.symbol,
+                    runtime.symbol()
+                )));
+            }
+        }
 
         match &result {
             TypedCallResult::Void => {}

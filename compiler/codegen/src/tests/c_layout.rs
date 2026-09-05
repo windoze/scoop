@@ -1,5 +1,129 @@
 use super::*;
 
+fn foreign_callback_adapter(symbol: &str) -> Function {
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![],
+        terminator: Terminator::Return {
+            value: Some(Value::MachineScalar(
+                MachineScalarValue::ForeignCallbackStatus(
+                    scoop_lir::ForeignCallbackStatus::Returned,
+                ),
+            )),
+        },
+    });
+    Function {
+        gc_effect: GcEffect::Managed,
+        symbol: symbol.to_string(),
+        params: vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
+        return_ty: LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks,
+        entry,
+    }
+}
+
+fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
+    module.structs.alloc(StructDef {
+        name: name.to_string(),
+        fields: vec![
+            scoop_lir::StructField {
+                ty: CODE_PTR,
+                layout: scoop_lir::FieldLayout {
+                    offset: 0,
+                    access_align: 8,
+                },
+            },
+            scoop_lir::StructField {
+                ty: RAW_PTR,
+                layout: scoop_lir::FieldLayout {
+                    offset: 8,
+                    access_align: 8,
+                },
+            },
+        ],
+        size: 16,
+        align: 8,
+        c_layout: None,
+        interior_mutable: false,
+    })
+}
+
+fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
+    module.enums.alloc(EnumDef {
+        name: name.to_string(),
+        repr: EnumRepr::Tagged {
+            variants: (0..4)
+                .map(|_| EnumVariantRepr {
+                    fields: Vec::new(),
+                    slot_offset: 8,
+                    slot_size: 0,
+                    slot_align: 1,
+                    gc_free: true,
+                })
+                .collect(),
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    })
+}
+
+fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
+    module.enums.alloc(EnumDef {
+        name: name.to_string(),
+        repr: EnumRepr::Niche { payload_variant: 0 },
+        scan: RefScan::References(vec![0]),
+    })
+}
+
+pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::ForeignCallbackFamilyId {
+    let callback = callback_struct(module, "ForeignCallback<F>");
+    let state = callback_state(module, "ForeignCallbackState");
+    let failure = callback_failure(module, "Option<Throwable>");
+    module
+        .foreign_callback_families
+        .alloc(scoop_lir::ForeignCallbackFamily {
+            callback,
+            state,
+            failure,
+        })
+}
+
+struct ForeignCallbackBridgeFixture<'a> {
+    adapter: &'a str,
+    trampoline: &'a str,
+    signature: &'a str,
+    params: Vec<scoop_lir::CType>,
+    return_type: scoop_lir::CType,
+    context_index: u32,
+}
+
+fn add_foreign_callback_bridge(
+    module: &mut Module,
+    family: scoop_lir::ForeignCallbackFamilyId,
+    fixture: ForeignCallbackBridgeFixture<'_>,
+) {
+    module
+        .foreign_callback_bridges
+        .alloc(scoop_lir::ForeignCallbackBridge {
+            family,
+            adapter_symbol: fixture.adapter.to_string(),
+            trampoline_symbol: fixture.trampoline.to_string(),
+            signature_symbol: fixture.signature.to_string(),
+            params: fixture.params,
+            return_type: fixture.return_type,
+            context_index: fixture.context_index,
+            mode: scoop_lir::ForeignCallbackMode::Reusable,
+        });
+    module
+        .functions
+        .push(foreign_callback_adapter(fixture.adapter));
+}
+
 #[test]
 fn c_layout_matches_llvm_and_generated_c_assertions() {
     let mut structs = Arena::default();
@@ -168,6 +292,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
@@ -248,6 +373,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: scoop_lir::CType::Struct(outer),
     });
+    let foreign_callback_family = foreign_callback_family(&mut module);
     for (adapter, mode) in [
         (
             "scoop_foreign_callback_adapter_0",
@@ -261,6 +387,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         module
             .foreign_callback_bridges
             .alloc(scoop_lir::ForeignCallbackBridge {
+                family: foreign_callback_family,
                 adapter_symbol: adapter.to_string(),
                 trampoline_symbol: "scoop_foreign_callback_0".to_string(),
                 signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
@@ -269,6 +396,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 context_index: 1,
                 mode,
             });
+        module.functions.push(foreign_callback_adapter(adapter));
     }
     let bridge = c_bridge_source(&module)
         .expect("C bridge")
@@ -315,7 +443,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i32 32"),
+        ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i64 32"),
         "over-aligned array data must start at offset 32:\n{ir}"
     );
     assert!(
@@ -323,5 +451,311 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
         ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
+    );
+}
+
+#[test]
+fn c_extern_rejects_machine_scalar_lir_type() {
+    let mut module = values_module();
+    module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        declaration: scoop_lir::ExternFunctionDeclaration {
+            source_name: "machineSize".to_string(),
+            native_symbol: "machine_size".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: vec![LirType::MachineScalar(MachineScalarKind::ByteSize)],
+            return_type: LirType::Void,
+        },
+        bridge_symbol: "scoop_c_bridge_machine_size".to_string(),
+        params: vec![scoop_lir::CType::UInt],
+        return_type: scoop_lir::CType::Unit,
+    });
+
+    let error = c_bridge_source(&module).expect_err("C ABI must reject internal machine scalars");
+    assert!(
+        error.0.contains("C extern `machineSize` parameter 0")
+            && error.0.contains("machine<byte-size>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn native_global_rejects_machine_scalar_lir_type() {
+    let mut module = values_module();
+    let get = module
+        .native_global_bridges
+        .gets
+        .alloc(scoop_lir::NativeGlobalGetBridge {
+            symbol: "get_machine_global".to_string(),
+        });
+    let address =
+        module
+            .native_global_bridges
+            .addresses
+            .alloc(scoop_lir::NativeGlobalAddressBridge {
+                symbol: "address_machine_global".to_string(),
+            });
+    module.native_globals.alloc(scoop_lir::NativeGlobal {
+        source_name: "machineGlobal".to_string(),
+        native_symbol: "machine_global".to_string(),
+        library: "fixture".to_string(),
+        ty: LirType::MachineScalar(MachineScalarKind::ByteSize),
+        c_type: scoop_lir::CType::UInt,
+        thread_local: false,
+        access: scoop_lir::NativeGlobalAccess::ReadOnly { get, address },
+    });
+
+    let error =
+        c_bridge_source(&module).expect_err("native C globals must reject machine scalar storage");
+    assert!(
+        error.0.contains("native global `machineGlobal`") && error.0.contains("machine<byte-size>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    module
+        .foreign_callback_bridges
+        .alloc(scoop_lir::ForeignCallbackBridge {
+            family,
+            adapter_symbol: "scoop_main".to_string(),
+            trampoline_symbol: "foreign_callback".to_string(),
+            signature_symbol: "foreign_callback_signature".to_string(),
+            params: vec![scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Unit,
+            context_index: 0,
+            mode: scoop_lir::ForeignCallbackMode::Reusable,
+        });
+
+    let error = c_bridge_source(&module)
+        .expect_err("foreign callback bridge must point at an exact managed adapter");
+    assert!(
+        error.0.contains("foreign callback adapter @scoop_main")
+            && error.0.contains("machine<foreign-callback-status>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_operation_rejects_lookalike_callback_struct() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    let lookalike = callback_struct(&mut module, "LookalikeForeignCallback");
+    let function = &mut module.functions[0];
+    let callback = function.temps.alloc(Temp {
+        ty: LirType::Struct(lookalike),
+    });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ForeignCallbackOperation(
+            scoop_lir::ForeignCallbackOperation::Release {
+                family,
+                callback: Value::Temp(callback),
+            },
+        ));
+
+    let error = c_bridge_source(&module)
+        .expect_err("callback operations must preserve nominal callback identity");
+    assert!(
+        error.0.contains("requires exact callback struct")
+            && error.0.contains(&format!("struct{}", lookalike.into_raw())),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_state_operation_rejects_lookalike_state_enum() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    let callback = module.foreign_callback_families[family].callback;
+    let lookalike = callback_state(&mut module, "LookalikeForeignCallbackState");
+    let function = &mut module.functions[0];
+    let callback = function.temps.alloc(Temp {
+        ty: LirType::Struct(callback),
+    });
+    let out = function.temps.alloc(Temp {
+        ty: LirType::Enum(lookalike),
+    });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ForeignCallbackOperation(
+            scoop_lir::ForeignCallbackOperation::State {
+                family,
+                out,
+                callback: Value::Temp(callback),
+            },
+        ));
+
+    let error = c_bridge_source(&module)
+        .expect_err("callback state operations must preserve nominal state identity");
+    assert!(
+        error.0.contains("foreign callback operation")
+            && error.0.contains("non-protocol result type"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_failure_operation_rejects_lookalike_failure_enum() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    let callback = module.foreign_callback_families[family].callback;
+    let lookalike = callback_failure(&mut module, "LookalikeOptionThrowable");
+    let function = &mut module.functions[0];
+    let callback = function.temps.alloc(Temp {
+        ty: LirType::Struct(callback),
+    });
+    let out = function.temps.alloc(Temp {
+        ty: LirType::Enum(lookalike),
+    });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ForeignCallbackOperation(
+            scoop_lir::ForeignCallbackOperation::Failure {
+                family,
+                out,
+                callback: Value::Temp(callback),
+            },
+        ));
+
+    let error = c_bridge_source(&module)
+        .expect_err("callback failure operations must preserve nominal failure identity");
+    assert!(
+        error.0.contains("foreign callback operation")
+            && error.0.contains("non-protocol result type"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter",
+            trampoline: "foreign_callback",
+            signature: "foreign_callback_signature",
+            params: vec![scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Unit,
+            context_index: 1,
+        },
+    );
+
+    let error = c_bridge_source(&module).expect_err("context index must name a C parameter");
+    assert!(
+        error
+            .0
+            .contains("context index 1 is outside its 1 C parameters"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_bridge_rejects_non_pointer_context() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter",
+            trampoline: "foreign_callback",
+            signature: "foreign_callback_signature",
+            params: vec![scoop_lir::CType::Int],
+            return_type: scoop_lir::CType::Unit,
+            context_index: 0,
+        },
+    );
+
+    let error = c_bridge_source(&module).expect_err("callback context must be a C pointer");
+    assert!(
+        error
+            .0
+            .contains("context parameter 0 must be CType::Pointer, found Int"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter_0",
+            trampoline: "shared_foreign_callback",
+            signature: "foreign_callback_signature_0",
+            params: vec![scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Unit,
+            context_index: 0,
+        },
+    );
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter_1",
+            trampoline: "shared_foreign_callback",
+            signature: "foreign_callback_signature_1",
+            params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Int,
+            context_index: 1,
+        },
+    );
+
+    let error = c_bridge_source(&module)
+        .expect_err("a shared trampoline symbol must have one ABI description");
+    assert!(
+        error
+            .0
+            .contains("trampoline symbol @shared_foreign_callback has conflicting ABI metadata"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_bridge_rejects_conflicting_signature_abi_metadata() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter_0",
+            trampoline: "foreign_callback_0",
+            signature: "shared_foreign_callback_signature",
+            params: vec![scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Unit,
+            context_index: 0,
+        },
+    );
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter_1",
+            trampoline: "foreign_callback_1",
+            signature: "shared_foreign_callback_signature",
+            params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
+            return_type: scoop_lir::CType::Int,
+            context_index: 1,
+        },
+    );
+
+    let error = c_bridge_source(&module)
+        .expect_err("a shared signature symbol must have one ABI description");
+    assert!(
+        error.0.contains(
+            "signature symbol @shared_foreign_callback_signature has conflicting ABI metadata"
+        ),
+        "unexpected error: {error}"
     );
 }

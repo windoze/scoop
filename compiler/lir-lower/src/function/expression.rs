@@ -8,6 +8,9 @@ impl<'a> FunctionLowerer<'a> {
         match &expr.kind {
             mir::ExprKind::StringConst(id) => lir::Value::Global(self.global_map[id]),
             mir::ExprKind::IntLiteral(value) => lir::Value::IntConst(*value),
+            mir::ExprKind::MachineScalarLiteral(value) => {
+                lir::Value::MachineScalar(machine_scalar_value(*value))
+            }
             mir::ExprKind::BoolLiteral(value) => lir::Value::BoolConst(*value),
             mir::ExprKind::UnitLiteral => self.unit_value(),
             mir::ExprKind::CaughtException => lir::Value::Local(
@@ -40,9 +43,15 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.td_ref(&mir::Type::Class(*class_id));
                 self.emit_plain_call(
                     LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
-                    vec![lir::METADATA_PTR, lir::LirType::I64],
+                    vec![
+                        lir::METADATA_PTR,
+                        lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
+                    ],
                     lir::MANAGED_PTR,
-                    vec![td, lir::Value::IntConst(size as i64)],
+                    vec![
+                        td,
+                        lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
+                    ],
                 )
             }
             mir::ExprKind::ClosureAlloc { class, captures } => {
@@ -56,9 +65,15 @@ impl<'a> FunctionLowerer<'a> {
                 let td = lir::Value::TypeDescriptor(self.type_descriptors.for_closure(*class));
                 let object = self.emit_plain_call(
                     LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
-                    vec![lir::METADATA_PTR, lir::LirType::I64],
+                    vec![
+                        lir::METADATA_PTR,
+                        lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
+                    ],
                     lir::MANAGED_PTR,
-                    vec![td, lir::Value::IntConst(size as i64)],
+                    vec![
+                        td,
+                        lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
+                    ],
                 );
                 let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
                 let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
@@ -67,18 +82,22 @@ impl<'a> FunctionLowerer<'a> {
                     out: invoke,
                     symbol: invoke_symbol,
                 });
-                self.push(lir::Instruction::HeapStore {
-                    object,
-                    offset: 16,
-                    value: lir::Value::Temp(invoke),
-                });
-                for (capture, offset) in captures.iter().zip(capture_offsets) {
+                self.store_at_offset(object, 16, lir::Value::Temp(invoke), lir::CODE_PTR);
+                let capture_types = def
+                    .captures
+                    .iter()
+                    .map(|capture| capture.ty.clone())
+                    .collect::<Vec<_>>();
+                for ((capture, capture_ty), offset) in
+                    captures.iter().zip(&capture_types).zip(capture_offsets)
+                {
+                    assert_eq!(
+                        &capture.ty, capture_ty,
+                        "ClosureAlloc capture type matches its storage field"
+                    );
+                    let capture_lir_ty = self.value_type(capture_ty);
                     let value = self.lower_expr(capture);
-                    self.push(lir::Instruction::HeapStore {
-                        object,
-                        offset,
-                        value,
-                    });
+                    self.store_at_offset(object, offset, value, capture_lir_ty);
                 }
                 object
             }
@@ -88,6 +107,11 @@ impl<'a> FunctionLowerer<'a> {
                 index,
             } => {
                 let def = &self.module.closure_classes[*class];
+                let capture_ty = &def.captures[*index as usize].ty;
+                assert_eq!(
+                    ty, capture_ty,
+                    "a closure capture read has its declared storage type"
+                );
                 let (capture_offsets, _, _, _) = closure_shape(self.module, self.enums, def);
                 let closure = self.lower_expr(closure);
                 let out_ty = self.value_type(ty);
@@ -227,12 +251,39 @@ impl<'a> FunctionLowerer<'a> {
                 self.push(lir::Instruction::PtrToInt { out, value });
                 lir::Value::Temp(out)
             }
-            mir::ExprKind::PtrCast { operand, .. } => self.lower_expr(operand),
+            mir::ExprKind::PtrCast { operand, pointee } => {
+                let mir::Type::Ptr(result_pointee) = ty else {
+                    panic!("PtrCast result must remain a raw pointer")
+                };
+                assert_eq!(
+                    result_pointee.as_ref(),
+                    pointee.as_ref(),
+                    "PtrCast result carries its declared pointee"
+                );
+                assert!(
+                    matches!(&operand.ty, mir::Type::Ptr(_)),
+                    "PtrCast operand must be a raw pointer"
+                );
+                self.lower_expr(operand)
+            }
             mir::ExprKind::PtrLoad {
                 pointer,
                 pointee,
                 offset,
             } => {
+                assert_eq!(
+                    ty,
+                    pointee.as_ref(),
+                    "PtrLoad result must match its pointee"
+                );
+                let mir::Type::Ptr(pointer_pointee) = &pointer.ty else {
+                    panic!("PtrLoad operand must be a raw pointer")
+                };
+                assert_eq!(
+                    pointer_pointee.as_ref(),
+                    pointee.as_ref(),
+                    "PtrLoad operand pointer must have the declared pointee"
+                );
                 let pointer = self.lower_expr(pointer);
                 let pointer = if let Some(offset) = offset {
                     let offset = self.lower_expr(offset);
@@ -257,6 +308,19 @@ impl<'a> FunctionLowerer<'a> {
                 offset,
                 value,
             } => {
+                let mir::Type::Ptr(pointer_pointee) = &pointer.ty else {
+                    panic!("PtrStore operand must be a raw pointer")
+                };
+                assert_eq!(
+                    pointer_pointee.as_ref(),
+                    pointee.as_ref(),
+                    "PtrStore operand pointer must have the declared pointee"
+                );
+                assert_eq!(
+                    &value.ty,
+                    pointee.as_ref(),
+                    "PtrStore value must match its pointee"
+                );
                 let pointer = self.lower_expr(pointer);
                 let pointer = if let Some(offset) = offset {
                     let offset = self.lower_expr(offset);
@@ -349,41 +413,81 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let callback = self.lower_expr(callback);
                 match operation {
-                    mir::ForeignCallbackOperation::Release => {
+                    mir::ForeignCallbackOperation::Release(family) => {
                         self.push(lir::Instruction::ForeignCallbackOperation(
-                            lir::ForeignCallbackOperation::Release { callback },
+                            lir::ForeignCallbackOperation::Release {
+                                family: lir::ForeignCallbackFamilyId::from_raw(family.into_raw()),
+                                callback,
+                            },
                         ));
                         self.unit_value()
                     }
-                    mir::ForeignCallbackOperation::Retain => {
+                    mir::ForeignCallbackOperation::Retain(family) => {
                         let out_ty = self.value_type(ty);
                         let out = self.new_temp(out_ty);
                         self.push(lir::Instruction::ForeignCallbackOperation(
-                            lir::ForeignCallbackOperation::Retain { out, callback },
+                            lir::ForeignCallbackOperation::Retain {
+                                family: lir::ForeignCallbackFamilyId::from_raw(family.into_raw()),
+                                out,
+                                callback,
+                            },
                         ));
                         lir::Value::Temp(out)
                     }
-                    mir::ForeignCallbackOperation::State => {
+                    mir::ForeignCallbackOperation::State(family) => {
                         let out_ty = self.value_type(ty);
                         let out = self.new_temp(out_ty);
                         self.push(lir::Instruction::ForeignCallbackOperation(
-                            lir::ForeignCallbackOperation::State { out, callback },
+                            lir::ForeignCallbackOperation::State {
+                                family: lir::ForeignCallbackFamilyId::from_raw(family.into_raw()),
+                                out,
+                                callback,
+                            },
                         ));
                         lir::Value::Temp(out)
                     }
-                    mir::ForeignCallbackOperation::Failure => {
+                    mir::ForeignCallbackOperation::Failure(family) => {
                         let out_ty = self.value_type(ty);
                         let out = self.new_temp(out_ty);
                         self.push(lir::Instruction::ForeignCallbackOperation(
-                            lir::ForeignCallbackOperation::Failure { out, callback },
+                            lir::ForeignCallbackOperation::Failure {
+                                family: lir::ForeignCallbackFamilyId::from_raw(family.into_raw()),
+                                out,
+                                callback,
+                            },
                         ));
                         lir::Value::Temp(out)
                     }
                 }
             }
-            mir::ExprKind::Retype { operand, .. } => self.lower_expr(operand),
+            mir::ExprKind::Retype {
+                operand,
+                ty: retyped_ty,
+            } => {
+                assert_eq!(
+                    ty,
+                    retyped_ty.as_ref(),
+                    "Retype expression carries one result type"
+                );
+                assert_eq!(
+                    lir_type(&operand.ty),
+                    lir::MANAGED_PTR,
+                    "Retype operand must be a managed reference"
+                );
+                assert_eq!(
+                    lir_type(ty),
+                    lir::MANAGED_PTR,
+                    "Retype result must be a managed reference"
+                );
+                self.lower_expr(operand)
+            }
             mir::ExprKind::FieldAccess { receiver, index } => {
                 let receiver_ty = receiver.ty.clone();
+                if let mir::Type::Class(class_id) = &receiver_ty {
+                    let field_ty =
+                        &self.module.classes[*class_id].declared_fields()[*index as usize].ty;
+                    assert_eq!(ty, field_ty, "a field access has its declared field type");
+                }
                 let receiver = self.lower_expr(receiver);
                 let out_ty = self.value_type(ty);
                 let out = if let mir::Type::Class(class_id) = receiver_ty {
@@ -401,28 +505,36 @@ impl<'a> FunctionLowerer<'a> {
                 };
                 lir::Value::Temp(out)
             }
-            mir::ExprKind::AtomicFieldLoad { object, index } => {
+            mir::ExprKind::AtomicFieldLoad {
+                kind,
+                object,
+                index,
+            } => {
                 let object_ty = object.ty.clone();
                 let mir::Type::Class(class_id) = &object_ty else {
                     unreachable!("an atomic field load targets a class object")
                 };
+                assert!(kind.is_atomic_state(), "only coroutine state is atomic");
                 assert_eq!(
                     self.module.classes[*class_id].declared_fields()[*index as usize].ty,
-                    mir::Type::Int,
-                    "an atomic state field is a 64-bit Int"
+                    mir::Type::MachineScalar(*kind),
+                    "an atomic state operation must match its field domain"
                 );
                 let (offsets, _, _) =
                     class_shape(self.module, self.enums, &self.module.classes[*class_id]);
                 let object = self.lower_expr(object);
-                let out = self.new_temp(lir::LirType::I64);
+                let kind = machine_scalar_kind(*kind);
+                let out = self.new_temp(lir::LirType::MachineScalar(kind));
                 self.push(lir::Instruction::AtomicLoad {
                     out,
+                    kind,
                     object,
                     offset: offsets[*index as usize],
                 });
                 lir::Value::Temp(out)
             }
             mir::ExprKind::AtomicFieldCompareExchange {
+                kind,
                 object,
                 index,
                 expected,
@@ -432,19 +544,32 @@ impl<'a> FunctionLowerer<'a> {
                 let mir::Type::Class(class_id) = &object_ty else {
                     unreachable!("an atomic compare-exchange targets a class object")
                 };
+                assert!(kind.is_atomic_state(), "only coroutine state is atomic");
                 assert_eq!(
                     self.module.classes[*class_id].declared_fields()[*index as usize].ty,
-                    mir::Type::Int,
-                    "an atomic state field is a 64-bit Int"
+                    mir::Type::MachineScalar(*kind),
+                    "an atomic state operation must match its field domain"
+                );
+                assert_eq!(
+                    expected.ty,
+                    mir::Type::MachineScalar(*kind),
+                    "atomic expected value must match its field domain"
+                );
+                assert_eq!(
+                    replacement.ty,
+                    mir::Type::MachineScalar(*kind),
+                    "atomic replacement value must match its field domain"
                 );
                 let (offsets, _, _) =
                     class_shape(self.module, self.enums, &self.module.classes[*class_id]);
                 let object = self.lower_expr(object);
                 let expected = self.lower_expr(expected);
                 let replacement = self.lower_expr(replacement);
-                let out = self.new_temp(lir::LirType::I64);
+                let kind = machine_scalar_kind(*kind);
+                let out = self.new_temp(lir::LirType::MachineScalar(kind));
                 self.push(lir::Instruction::AtomicCompareExchange {
                     out,
+                    kind,
                     object,
                     offset: offsets[*index as usize],
                     expected,
@@ -484,14 +609,14 @@ impl<'a> FunctionLowerer<'a> {
                     vec![
                         lir::METADATA_PTR,
                         lir::RAW_PTR,
-                        lir::LirType::I64,
+                        lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
                         lir::METADATA_PTR,
                     ],
                     lir::MANAGED_PTR,
                     vec![
                         td,
                         lir::Value::Temp(payload_address),
-                        lir::Value::IntConst(size as i64),
+                        lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
                         lir::Value::RootScan(payload_scan),
                     ],
                 )
@@ -548,7 +673,13 @@ impl<'a> FunctionLowerer<'a> {
                     unreachable!("a tag read's operand is an enum value")
                 };
                 let operand = self.lower_expr(operand);
-                let out = self.new_temp(lir::LirType::I64);
+                assert_eq!(
+                    *ty,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag),
+                    "an enum tag read has the internal enum-tag domain"
+                );
+                let out =
+                    self.new_temp(lir::LirType::MachineScalar(lir::MachineScalarKind::EnumTag));
                 self.push(lir::Instruction::EnumTag {
                     out,
                     enum_id: enum_def_id(*enum_id),
@@ -619,34 +750,13 @@ impl<'a> FunctionLowerer<'a> {
     ) -> lir::Value {
         let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
         let (size, _) = size_align(self.module, &enum_shape, pointee);
-        let bytes = if size == 1 {
-            offset
-        } else {
-            let out = self.new_temp(lir::LirType::I64);
-            self.push(lir::Instruction::BinOp {
-                out,
-                op: lir::BinOp::Mul,
-                lhs: offset,
-                rhs: lir::Value::IntConst(size as i64),
-            });
-            lir::Value::Temp(out)
-        };
-        let bytes = if subtract {
-            let out = self.new_temp(lir::LirType::I64);
-            self.push(lir::Instruction::UnaryOp {
-                out,
-                op: lir::UnOp::Neg,
-                operand: bytes,
-            });
-            lir::Value::Temp(out)
-        } else {
-            bytes
-        };
         let out = self.new_temp(lir::RAW_PTR);
         self.push(lir::Instruction::PtrOffset {
             out,
             pointer,
-            bytes,
+            element_offset: offset,
+            element_size: size,
+            subtract,
         });
         lir::Value::Temp(out)
     }

@@ -24,10 +24,16 @@ fn barrier_module() -> Module {
             safepoint: 1,
             destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
         },
-        vec![METADATA_PTR, LirType::I64],
+        vec![
+            METADATA_PTR,
+            LirType::MachineScalar(MachineScalarKind::ByteSize),
+        ],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
-        vec![Value::Param(0), Value::IntConst(24)],
+        vec![
+            Value::Param(0),
+            Value::MachineScalar(MachineScalarValue::ByteSize(24)),
+        ],
     );
     let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature {
         params: Vec::new(),
@@ -117,6 +123,7 @@ fn barrier_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,

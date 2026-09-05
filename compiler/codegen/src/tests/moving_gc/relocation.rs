@@ -48,6 +48,7 @@ fn managed_live_plan_produces_as1_relocation() {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
@@ -191,6 +192,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![callee, caller],
         entry_symbol: "scoop.invoke_caller".to_string(),

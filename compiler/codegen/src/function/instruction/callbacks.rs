@@ -10,6 +10,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         match instruction {
             Instruction::FunctionAddress { out, symbol } => {
+                if function.temps[*out].ty != scoop_lir::CODE_PTR {
+                    return Err(CodegenError(format!(
+                        "function_address @{} must produce ptr<code>",
+                        function.symbol
+                    )));
+                }
                 let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
                         "function_address @{}: unknown function @{}",
@@ -27,6 +33,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 closure,
             } => {
                 let bridge = &self.foreign_callback_bridges[*bridge];
+                let family = &self.foreign_callback_families[bridge.family];
+                let closure_ty = function.value_ty(self.globals_arena, *closure);
+                let out_ty = &function.temps[*out].ty;
+                if closure_ty != scoop_lir::MANAGED_PTR
+                    || out_ty != &LirType::Struct(family.callback)
+                {
+                    return Err(CodegenError(format!(
+                        "foreign callback registration @{} requires a managed closure and its exact nominal callback result, got closure {} and result {}",
+                        function.symbol,
+                        closure_ty.dump(),
+                        out_ty.dump()
+                    )));
+                }
                 let closure = self.value(*closure)?.into_pointer_value();
                 let adapter = self
                     .llvm
@@ -108,6 +127,42 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, value.into_struct_value().into());
             }
             Instruction::ForeignCallbackOperation(operation) => {
+                let family = &self.foreign_callback_families[operation.family()];
+                let callback_ty = function.value_ty(self.globals_arena, operation.callback());
+                if callback_ty != LirType::Struct(family.callback) {
+                    return Err(CodegenError(format!(
+                        "foreign callback operation @{} requires its exact nominal callback struct, got {}",
+                        function.symbol,
+                        callback_ty.dump()
+                    )));
+                }
+                match *operation {
+                    scoop_lir::ForeignCallbackOperation::Retain { out, .. }
+                        if function.temps[out].ty != LirType::Struct(family.callback) =>
+                    {
+                        return Err(CodegenError(format!(
+                            "foreign callback retain @{} must preserve the exact callback struct type",
+                            function.symbol
+                        )));
+                    }
+                    scoop_lir::ForeignCallbackOperation::Failure { out, .. }
+                        if function.temps[out].ty != LirType::Enum(family.failure) =>
+                    {
+                        return Err(CodegenError(format!(
+                            "foreign callback failure query @{} must produce its exact nominal failure enum",
+                            function.symbol
+                        )));
+                    }
+                    scoop_lir::ForeignCallbackOperation::State { out, .. }
+                        if function.temps[out].ty != LirType::Enum(family.state) =>
+                    {
+                        return Err(CodegenError(format!(
+                            "foreign callback state query @{} must produce its exact nominal state enum",
+                            function.symbol
+                        )));
+                    }
+                    _ => {}
+                }
                 let callback = self.value(operation.callback())?.into_struct_value();
                 let function_pointer = builder
                     .build_extract_value(callback, 0, "callback_function")

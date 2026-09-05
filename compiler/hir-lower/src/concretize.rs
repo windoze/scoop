@@ -384,6 +384,10 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_functions();
         let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
+        let callback_failure_payload = self.class_type
+            [&self.class_by_key[&(self.source.exception_core.throwable.class(), Vec::new())]];
+        let callback_failure =
+            self.ensure_enum(self.source.option_enum, vec![callback_failure_payload]);
 
         for (source_id, source) in self.source.initialization_failure_roots.iter() {
             let id = self
@@ -538,6 +542,7 @@ impl<'a> Concretizer<'a> {
             foreign_callback_core: concrete::ForeignCallbackCore {
                 mode: callback_mode,
                 state: callback_state,
+                failure: callback_failure,
             },
             intrinsic_type_core,
             entry,

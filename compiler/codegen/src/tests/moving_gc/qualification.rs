@@ -60,6 +60,7 @@ fn stackmap_qualification_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![
             poll_function(

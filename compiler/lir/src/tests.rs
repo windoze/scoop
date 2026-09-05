@@ -1,7 +1,9 @@
 use super::{
     CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
-    CallingConvention, DirectCallSignature, ExternFunctionDeclaration, ExternFunctions, GcEffect,
-    LirType, LocalFunctionIdentities, ManagedCallDestination, ManagedRuntimeFunction,
+    CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
+    DirectCallSignature, ExternFunctionDeclaration, ExternFunctions, ForeignCallbackStatus,
+    GcEffect, InitializationOutcome, LirType, LocalFunctionIdentities, MachineScalarKind,
+    MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
     NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
     NativeSafeCallDestination, NonEmptyRefScan, RefScan, ResultStorage, ScoopExternFunction,
     ScoopExternFunctionRef, TypedCall, TypedCallView, Value, VoidCallSignature,
@@ -250,5 +252,85 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     assert_eq!(
         NativeBorrowedCallDestination::extern_function(scoop_ref).view(),
         CallDestination::Extern(scoop)
+    );
+}
+
+#[test]
+fn machine_scalars_keep_closed_domains_and_frozen_i64_encodings() {
+    assert!(CoroutineSuspendStateId::new(0).is_none());
+    let state = CoroutineSuspendStateId::new(3).expect("three is nonzero");
+    let first = CoroutineSuspendStateId::new(1).expect("one is nonzero");
+    let last = CoroutineSuspendStateId::new(u32::MAX).expect("u32::MAX is nonzero");
+
+    let frame_encodings = [
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Initial).raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Running).raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Completed).raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Suspended(first)).raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Suspended(last)).raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::ResumeFailure(first))
+            .raw_bits(),
+        MachineScalarValue::CoroutineFrameState(CoroutineFrameState::ResumeFailure(last))
+            .raw_bits(),
+    ];
+    for (index, encoding) in frame_encodings.iter().enumerate() {
+        assert!(
+            frame_encodings[index + 1..]
+                .iter()
+                .all(|other| other != encoding),
+            "coroutine frame state encodings must be pairwise distinct"
+        );
+    }
+
+    let cases = [
+        (
+            MachineScalarValue::ByteSize(24),
+            MachineScalarKind::ByteSize,
+            24,
+        ),
+        (
+            MachineScalarValue::EnumTag(2),
+            MachineScalarKind::EnumTag,
+            2,
+        ),
+        (
+            MachineScalarValue::InitializationOutcome(InitializationOutcome::Cycle),
+            MachineScalarKind::InitializationOutcome,
+            3,
+        ),
+        (
+            MachineScalarValue::CoroutineFrameState(CoroutineFrameState::Suspended(state)),
+            MachineScalarKind::CoroutineFrameState,
+            3,
+        ),
+        (
+            MachineScalarValue::CoroutineFrameState(CoroutineFrameState::ResumeFailure(state)),
+            MachineScalarKind::CoroutineFrameState,
+            u64::MAX - 4,
+        ),
+        (
+            MachineScalarValue::CoroutineAdapterState(CoroutineAdapterState::Consumed),
+            MachineScalarKind::CoroutineAdapterState,
+            6,
+        ),
+        (
+            MachineScalarValue::ForeignCallbackStatus(ForeignCallbackStatus::Threw),
+            MachineScalarKind::ForeignCallbackStatus,
+            1,
+        ),
+        (
+            MachineScalarValue::PointerElementOffset(7),
+            MachineScalarKind::PointerElementOffset,
+            7,
+        ),
+    ];
+
+    for (value, kind, bits) in cases {
+        assert_eq!(value.kind(), kind);
+        assert_eq!(value.raw_bits(), bits);
+    }
+    assert_ne!(
+        LirType::MachineScalar(MachineScalarKind::EnumTag).dump(),
+        LirType::I64.dump()
     );
 }

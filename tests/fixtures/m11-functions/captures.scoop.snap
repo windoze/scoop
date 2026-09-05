@@ -1582,7 +1582,7 @@ Module
   fun @scoop.Snapshot.getter(struct5) -> ptr<managed>
   block entry
     poll managed-void-target0 sp68 live=[]
-    call managed-direct-target0 sp10 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 32)
+    call managed-direct-target0 sp10 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.5 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1620,7 +1620,7 @@ Module
   fun @scoop.Counter.incrementer(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp72 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp13 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 32)
+    call managed-direct-target0 sp13 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.6 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1628,7 +1628,7 @@ Module
   fun @scoop.makeAdder(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp73 live=[]
-    call managed-direct-target0 sp14 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 32)
+    call managed-direct-target0 sp14 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1636,7 +1636,7 @@ Module
   fun @scoop.makeNested(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp74 live=[]
-    call managed-direct-target0 sp15 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td18, 32)
+    call managed-direct-target0 sp15 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.1 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1644,7 +1644,7 @@ Module
   fun @scoop.labelReader(struct4) -> ptr<managed>
   block entry
     poll managed-void-target0 sp75 live=[param0:struct4@0]
-    call managed-direct-target0 sp16 live=[param0:struct4@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
+    call managed-direct-target0 sp16 live=[param0:struct4@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.3 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1657,7 +1657,7 @@ Module
     poll managed-void-target0 sp76 live=[]
     store 41 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp17 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td20, 32)
+    call managed-direct-target0 sp17 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.4 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local1
@@ -1744,7 +1744,7 @@ Module
     store local40 -> local14
     store 40 -> local19
     store local19 -> local20
-    call managed-direct-target5 sp26 live=[local2:ptr<managed>@0, local6:ptr<managed>@0, local11:ptr<managed>@0, local16:ptr<managed>@0] t5 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target5 sp26 live=[local2:ptr<managed>@0, local6:ptr<managed>@0, local11:ptr<managed>@0, local16:ptr<managed>@0] t5 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t5 -> local41
     call managed-void-target0 sp27 live=[local2:ptr<managed>@0, local6:ptr<managed>@0, local11:ptr<managed>@0, local16:ptr<managed>@0, local41:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn36(local41, local20)
     t6 = aggregate () : {}
@@ -1817,7 +1817,7 @@ Module
   fun @scoop.$lambda.1(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp80 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp45 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td21, 32)
+    call managed-direct-target0 sp45 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td21, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.2 : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : i64

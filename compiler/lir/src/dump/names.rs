@@ -10,6 +10,9 @@ pub(super) fn value_name(value: Value) -> String {
         Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntConst(value) => format!("{value}"),
+        Value::MachineScalar(value) => {
+            format!("machine<{}>({value:?})", value.kind().name())
+        }
         Value::BoolConst(value) => format!("{value}"),
         Value::NullPointer(kind) => format!("null<{}>", kind.dump()),
         Value::TypeDescriptor(reference) => type_descriptor_ref_name(reference),

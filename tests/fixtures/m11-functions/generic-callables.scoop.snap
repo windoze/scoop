@@ -2227,7 +2227,7 @@ Module
   fun @scoop.makeLambda$I(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp107 live=[]
-    call managed-direct-target0 sp57 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 32)
+    call managed-direct-target0 sp57 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.0$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2235,7 +2235,7 @@ Module
   fun @scoop.makeLambda$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp108 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp58 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 32)
+    call managed-direct-target0 sp58 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.0$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2243,7 +2243,7 @@ Module
   fun @scoop.makeAnonymous$I(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp109 live=[]
-    call managed-direct-target0 sp59 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td22, 32)
+    call managed-direct-target0 sp59 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td22, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$anonymous.0$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2251,7 +2251,7 @@ Module
   fun @scoop.makeAnonymous$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp110 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp60 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td23, 32)
+    call managed-direct-target0 sp60 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td23, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$anonymous.0$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2259,7 +2259,7 @@ Module
   fun @scoop.makeLocalReference$I(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp111 live=[]
-    call managed-direct-target0 sp61 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td26, 32)
+    call managed-direct-target0 sp61 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td26, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$reference.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2267,7 +2267,7 @@ Module
   fun @scoop.makeLocalReference$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp112 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp62 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td27, 32)
+    call managed-direct-target0 sp62 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td27, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$reference.1 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2276,7 +2276,7 @@ Module
     local %0 reference: ptr<managed>
   block entry
     poll managed-void-target0 sp113 live=[]
-    call managed-direct-target0 sp63 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td28, 24)
+    call managed-direct-target0 sp63 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td28, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop.$reference.2 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
@@ -2285,7 +2285,7 @@ Module
     local %0 reference: ptr<managed>
   block entry
     poll managed-void-target0 sp114 live=[]
-    call managed-direct-target0 sp64 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td29, 24)
+    call managed-direct-target0 sp64 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td29, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop.$reference.3 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
@@ -2293,7 +2293,7 @@ Module
   fun @scoop.makeExtensionReference$I(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp115 live=[]
-    call managed-direct-target0 sp65 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td30, 32)
+    call managed-direct-target0 sp65 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td30, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$reference.4 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2301,7 +2301,7 @@ Module
   fun @scoop.makeExtensionReference$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp116 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp66 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td31, 32)
+    call managed-direct-target0 sp66 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td31, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$reference.5 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2309,7 +2309,7 @@ Module
   fun @scoop.makeNested$I(i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp117 live=[]
-    call managed-direct-target0 sp67 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 32)
+    call managed-direct-target0 sp67 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$anonymous.1$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2317,7 +2317,7 @@ Module
   fun @scoop.makeNested$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp118 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp68 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td25, 32)
+    call managed-direct-target0 sp68 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td25, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$anonymous.1$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -2333,7 +2333,7 @@ Module
     store local0 -> local1
     call managed-indirect-target0 sp69 live=[] local3 = sig=indirect0 (sret struct4, i64) local-fn60(local1)
     store local3 -> local2
-    call managed-direct-target0 sp70 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td18, 32)
+    call managed-direct-target0 sp70 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.2$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local2
@@ -2349,7 +2349,7 @@ Module
     store local0 -> local1
     call managed-indirect-target0 sp71 live=[local1:ptr<managed>@0] local3 = sig=indirect0 (sret struct5, ptr<managed>) local-fn61(local1)
     store local3 -> local2
-    call managed-direct-target0 sp72 live=[local2:struct5@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
+    call managed-direct-target0 sp72 live=[local2:struct5@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.2$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local2
@@ -2439,7 +2439,7 @@ Module
   fun @scoop.$anonymous.1$I(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp133 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp79 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td20, 32)
+    call managed-direct-target0 sp79 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.1$I : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : i64
@@ -2448,7 +2448,7 @@ Module
   fun @scoop.$anonymous.1$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp134 live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp80 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td21, 32)
+    call managed-direct-target0 sp80 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td21, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.1$S : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : ptr<managed>

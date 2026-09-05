@@ -9,6 +9,91 @@ pub(crate) fn struct_def_id(id: mir::StructId) -> lir::StructDefId {
     lir::StructDefId::from_raw(id.into_raw())
 }
 
+/// MIR and LIR intentionally define their own IR-local scalar domains.  This
+/// exhaustive projection is the only place where their identities cross the
+/// stage boundary.
+pub(crate) const fn machine_scalar_kind(kind: mir::MachineScalarKind) -> lir::MachineScalarKind {
+    match kind {
+        mir::MachineScalarKind::EnumTag => lir::MachineScalarKind::EnumTag,
+        mir::MachineScalarKind::InitializationOutcome => {
+            lir::MachineScalarKind::InitializationOutcome
+        }
+        mir::MachineScalarKind::CoroutineFrameState => lir::MachineScalarKind::CoroutineFrameState,
+        mir::MachineScalarKind::CoroutineAdapterState => {
+            lir::MachineScalarKind::CoroutineAdapterState
+        }
+        mir::MachineScalarKind::ForeignCallbackStatus => {
+            lir::MachineScalarKind::ForeignCallbackStatus
+        }
+        mir::MachineScalarKind::PointerElementOffset => {
+            lir::MachineScalarKind::PointerElementOffset
+        }
+    }
+}
+
+pub(crate) const fn machine_scalar_value(
+    value: mir::MachineScalarValue,
+) -> lir::MachineScalarValue {
+    match value {
+        mir::MachineScalarValue::EnumTag(tag) => lir::MachineScalarValue::EnumTag(tag),
+        mir::MachineScalarValue::InitializationOutcome(outcome) => {
+            lir::MachineScalarValue::InitializationOutcome(match outcome {
+                mir::InitializationOutcome::RunInitializer => {
+                    lir::InitializationOutcome::RunInitializer
+                }
+                mir::InitializationOutcome::Ready => lir::InitializationOutcome::Ready,
+                mir::InitializationOutcome::Failed => lir::InitializationOutcome::Failed,
+                mir::InitializationOutcome::Cycle => lir::InitializationOutcome::Cycle,
+            })
+        }
+        mir::MachineScalarValue::CoroutineFrameState(state) => {
+            lir::MachineScalarValue::CoroutineFrameState(match state {
+                mir::CoroutineFrameState::Initial => lir::CoroutineFrameState::Initial,
+                mir::CoroutineFrameState::Running => lir::CoroutineFrameState::Running,
+                mir::CoroutineFrameState::Completed => lir::CoroutineFrameState::Completed,
+                mir::CoroutineFrameState::Suspended(site) => lir::CoroutineFrameState::Suspended(
+                    lir::CoroutineSuspendStateId::new(site.get())
+                        .expect("a MIR coroutine suspension state is nonzero"),
+                ),
+                mir::CoroutineFrameState::ResumeFailure(site) => {
+                    lir::CoroutineFrameState::ResumeFailure(
+                        lir::CoroutineSuspendStateId::new(site.get())
+                            .expect("a MIR coroutine suspension state is nonzero"),
+                    )
+                }
+            })
+        }
+        mir::MachineScalarValue::CoroutineAdapterState(state) => {
+            lir::MachineScalarValue::CoroutineAdapterState(match state {
+                mir::CoroutineAdapterState::Registering => lir::CoroutineAdapterState::Registering,
+                mir::CoroutineAdapterState::Waiting => lir::CoroutineAdapterState::Waiting,
+                mir::CoroutineAdapterState::CompletingSuccess => {
+                    lir::CoroutineAdapterState::CompletingSuccess
+                }
+                mir::CoroutineAdapterState::CompletingFailure => {
+                    lir::CoroutineAdapterState::CompletingFailure
+                }
+                mir::CoroutineAdapterState::LatchedSuccess => {
+                    lir::CoroutineAdapterState::LatchedSuccess
+                }
+                mir::CoroutineAdapterState::LatchedFailure => {
+                    lir::CoroutineAdapterState::LatchedFailure
+                }
+                mir::CoroutineAdapterState::Consumed => lir::CoroutineAdapterState::Consumed,
+            })
+        }
+        mir::MachineScalarValue::ForeignCallbackStatus(status) => {
+            lir::MachineScalarValue::ForeignCallbackStatus(match status {
+                mir::ForeignCallbackStatus::Returned => lir::ForeignCallbackStatus::Returned,
+                mir::ForeignCallbackStatus::Threw => lir::ForeignCallbackStatus::Threw,
+            })
+        }
+        mir::MachineScalarValue::PointerElementOffset(offset) => {
+            lir::MachineScalarValue::PointerElementOffset(offset)
+        }
+    }
+}
+
 pub(crate) fn lower_structs(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -64,6 +149,7 @@ pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
         // UInt shares Int's machine word (M9, spec 11.2): the same
         // `i64` at LIR, so codegen needs no UInt-specific handling.
         mir::Type::Int | mir::Type::UInt => lir::LirType::I64,
+        mir::Type::MachineScalar(kind) => lir::LirType::MachineScalar(machine_scalar_kind(*kind)),
         mir::Type::Boolean => lir::LirType::I1,
         mir::Type::String
         | mir::Type::Class(_)
@@ -86,6 +172,10 @@ pub(crate) fn uses_indirect_result(enums: &Arena<lir::EnumDef>, ty: &lir::LirTyp
             true
         }
         lir::LirType::Enum(id) => matches!(enums[*id].repr, lir::EnumRepr::Tagged { .. }),
-        lir::LirType::Void | lir::LirType::I1 | lir::LirType::I64 | lir::LirType::Ptr(_) => false,
+        lir::LirType::Void
+        | lir::LirType::I1
+        | lir::LirType::I64
+        | lir::LirType::MachineScalar(_)
+        | lir::LirType::Ptr(_) => false,
     }
 }

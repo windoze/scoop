@@ -127,7 +127,7 @@ Module
     local %0 p: ptr<managed>
   block entry
     poll managed-void-target1 sp4 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 32)
+    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
     store t0 -> local0
     call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i64, ptr<managed>) local-fn0(local0, 1, global0)
     t1 = aggregate () : {}
@@ -177,6 +177,107 @@ fn field_set_lowers_to_a_heap_store() {
     };
     assert!(matches!(object, lir::Value::Local(_)));
     assert!(matches!(value, lir::Value::IntConst(3)));
+}
+
+#[test]
+fn machine_state_fields_use_the_closed_heap_instruction_family() {
+    let mut b = Builder::new();
+    let kind = mir::MachineScalarKind::CoroutineFrameState;
+    let state_ty = mir::Type::MachineScalar(kind);
+    let frame = b.class(
+        "Frame",
+        None,
+        &[("state", state_ty.clone())],
+        empty_vtable(),
+        vec![],
+    );
+    let mut locals = Arena::new();
+    let object = locals.alloc(local("frame", mir::Type::Class(frame)));
+    let observed = locals.alloc(local("observed", state_ty.clone()));
+    let main = b.main(
+        locals,
+        vec![
+            stmt(mir::StatementKind::FieldSet {
+                object: local_expr(object, mir::Type::Class(frame)),
+                index: 0,
+                value: mir::Expr::machine_scalar(mir::MachineScalarValue::CoroutineFrameState(
+                    mir::CoroutineFrameState::Initial,
+                )),
+            }),
+            val_decl(
+                observed,
+                expr(
+                    state_ty,
+                    mir::ExprKind::FieldAccess {
+                        receiver: Box::new(local_expr(object, mir::Type::Class(frame))),
+                        index: 0,
+                    },
+                ),
+            ),
+        ],
+    );
+    let module = lower(&b.finish(main));
+
+    let function = &module.functions[0];
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::MachineHeapStore {
+        kind: stored_kind,
+        object: stored_object,
+        offset: 16,
+        value,
+    } = instructions[0]
+    else {
+        panic!("a machine state field write must not use generic HeapStore")
+    };
+    assert_eq!(*stored_kind, lir::MachineScalarKind::CoroutineFrameState);
+    assert!(matches!(stored_object, lir::Value::Local(_)));
+    assert!(matches!(
+        value,
+        lir::Value::MachineScalar(lir::MachineScalarValue::CoroutineFrameState(
+            lir::CoroutineFrameState::Initial
+        ))
+    ));
+
+    let lir::Instruction::MachineHeapLoad {
+        out,
+        kind: loaded_kind,
+        object: loaded_object,
+        offset: 16,
+    } = instructions[1]
+    else {
+        panic!("a machine state field read must not use generic HeapLoad")
+    };
+    assert_eq!(*loaded_kind, lir::MachineScalarKind::CoroutineFrameState);
+    assert!(matches!(loaded_object, lir::Value::Local(_)));
+    assert_eq!(
+        function.temps[*out].ty,
+        lir::LirType::MachineScalar(lir::MachineScalarKind::CoroutineFrameState)
+    );
+}
+
+#[test]
+#[should_panic(expected = "Retype operand must be a managed reference")]
+fn retype_rejects_machine_scalar_to_source_integer() {
+    let mut b = Builder::new();
+    let machine_ty = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
+    let mut locals = Arena::new();
+    let machine = locals.alloc(local("machine", machine_ty.clone()));
+    let integer = locals.alloc(local("integer", mir::Type::Int));
+    let main = b.main(
+        locals,
+        vec![val_decl(
+            integer,
+            expr(
+                mir::Type::Int,
+                mir::ExprKind::Retype {
+                    operand: Box::new(local_expr(machine, machine_ty)),
+                    ty: Box::new(mir::Type::Int),
+                },
+            ),
+        )],
+    );
+
+    let _ = lower(&b.finish(main));
 }
 
 #[test]

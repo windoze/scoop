@@ -1746,13 +1746,13 @@ Module
         Local completion
       branch bb1 bb0
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type CoroutineStep$D14_SourceLocationX
             Local $step
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep$D14_SourceLocationX result=SourceLocation
   coroutine_fn cf0 @scoop.LocationTask.run$suspend source_return=SourceLocation step=cs0 immediate
   coroutine_fn cf1 @scoop.SuspendTask.run$D14_SourceLocationX$suspend source_return=SourceLocation step=cs0 immediate
@@ -2250,7 +2250,7 @@ Module
     store local33 -> local36
     call managed-void-target4 sp31 live=[local0:struct0@0+24+32, local34:ptr<managed>@0, local35:struct0@0+24+32, local36:ptr<managed>@0] sig=void4 (ptr<managed>, struct0, ptr<managed>) local-fn17(local34, local35, local36)
     t12 = aggregate () : {}
-    call managed-direct-target0 sp32 live=[local0:struct0@0+24+32] t13 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 16)
+    call managed-direct-target0 sp32 live=[local0:struct0@0+24+32] t13 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(16)))
     store t13 -> local59
     call managed-void-target5 sp33 live=[local0:struct0@0+24+32, local59:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn34(local59)
     t14 = aggregate () : {}
@@ -2279,7 +2279,7 @@ Module
     store local49 -> local52
     call managed-void-target7 sp37 live=[local0:struct0@0+24+32, local50:ptr<managed>@0, local51:struct0@0+24+32, local52:ptr<managed>@0] sig=void7 (ptr<managed>, struct0, ptr<managed>) local-fn17(local50, local51, local52)
     t19 = aggregate () : {}
-    call managed-direct-target1 sp38 live=[local0:struct0@0+24+32] t20 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 16)
+    call managed-direct-target1 sp38 live=[local0:struct0@0+24+32] t20 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(16)))
     store t20 -> local60
     call managed-void-target8 sp39 live=[local0:struct0@0+24+32, local60:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn35(local60)
     t21 = aggregate () : {}
@@ -2287,7 +2287,7 @@ Module
     t22 = extract local0, 0 : ptr<managed>
     store t22 -> local53
     store local53 -> local54
-    call managed-direct-target2 sp40 live=[local54:ptr<managed>@0, local55:ptr<managed>@0] t23 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    call managed-direct-target2 sp40 live=[local54:ptr<managed>@0, local55:ptr<managed>@0] t23 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
     store t23 -> local61
     call managed-void-target9 sp41 live=[local54:ptr<managed>@0, local55:ptr<managed>@0, local61:ptr<managed>@0] sig=void9 (ptr<managed>, ptr<managed>) local-fn36(local61, local54)
     t24 = aggregate () : {}
@@ -2511,8 +2511,8 @@ Module
     br @invoke.normal.1
   block invoke.normal.1
     store local5 -> local0
-    t13 = enum_tag e1 local0 : i64
-    t14 = Eq t13, 0 : i1
+    t13 = enum_tag e1 local0 : machine<enum-tag>
+    t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]

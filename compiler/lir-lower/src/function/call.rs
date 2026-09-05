@@ -6,8 +6,12 @@ pub(super) use protocol::LoweredCallDestination;
 use protocol::{NativeCallDestination, runtime_call_destination};
 
 impl<'a> FunctionLowerer<'a> {
-    pub(super) fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
-        match call.target.callee {
+    pub(super) fn lower_call(
+        &mut self,
+        call: &mir::Call,
+        result_ty: &mir::Type,
+    ) -> Option<lir::Value> {
+        let value = match call.target.callee {
             mir::Callee::Extern(id) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
                 let extern_ = &self.module.extern_functions[id];
@@ -229,8 +233,7 @@ impl<'a> FunctionLowerer<'a> {
                 let trap = self.trap_block(&message);
                 self.seal(lir::Terminator::Br(trap));
                 self.current_sealed = true;
-                // Dead value: the block is sealed, nothing consumes it.
-                lir::Value::IntConst(0)
+                return None;
             }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
@@ -293,9 +296,10 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::MaterializeException => {
                         (vec![lir::MANAGED_PTR], lir::MANAGED_PTR)
                     }
-                    mir::RuntimeFn::InitializationEnter => {
-                        (vec![lir::METADATA_PTR], lir::LirType::I64)
-                    }
+                    mir::RuntimeFn::InitializationEnter => (
+                        vec![lir::METADATA_PTR],
+                        lir::LirType::MachineScalar(lir::MachineScalarKind::InitializationOutcome),
+                    ),
                     mir::RuntimeFn::InitializationSucceed => {
                         (vec![lir::METADATA_PTR], lir::LirType::Void)
                     }
@@ -325,7 +329,8 @@ impl<'a> FunctionLowerer<'a> {
                     args,
                 )
             }
-        }
+        };
+        Some(value)
     }
 
     /// Load a value of `ty` at a fixed byte offset from a raw pointer.
@@ -335,13 +340,58 @@ impl<'a> FunctionLowerer<'a> {
         offset: u64,
         ty: lir::LirType,
     ) -> lir::TempId {
-        let out = self.new_temp(ty);
-        self.push(lir::Instruction::HeapLoad {
-            out,
-            object,
-            offset,
-        });
+        let out = self.new_temp(ty.clone());
+        match ty {
+            lir::LirType::MachineScalar(kind) => {
+                assert!(
+                    kind.is_atomic_state(),
+                    "only compiler-owned coroutine state has heap storage"
+                );
+                self.push(lir::Instruction::MachineHeapLoad {
+                    out,
+                    kind,
+                    object,
+                    offset,
+                });
+            }
+            _ => self.push(lir::Instruction::HeapLoad {
+                out,
+                object,
+                offset,
+            }),
+        }
         out
+    }
+
+    /// Store a value of `ty` at a fixed byte offset. Compiler-owned state uses
+    /// a closed instruction family so it cannot pass through a source `i64`
+    /// heap operation before final LLVM lowering.
+    pub(super) fn store_at_offset(
+        &mut self,
+        object: lir::Value,
+        offset: u64,
+        value: lir::Value,
+        ty: lir::LirType,
+    ) {
+        match ty {
+            lir::LirType::MachineScalar(kind) => {
+                assert!(
+                    kind.is_atomic_state(),
+                    "only compiler-owned coroutine state has heap storage"
+                );
+                self.push(lir::Instruction::MachineHeapStore {
+                    kind,
+                    object,
+                    offset,
+                    value,
+                });
+            }
+            _ => self.push(lir::Instruction::HeapStore {
+                object,
+                offset,
+                value,
+            }),
+        }
     }
 
     /// A direct call: Unit-returning callees are void at the LLVM

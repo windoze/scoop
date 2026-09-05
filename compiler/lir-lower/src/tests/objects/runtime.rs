@@ -84,7 +84,7 @@ Module
     t0 = aggregate (1) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, 8, root-scan0)
+    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(8)), root-scan0)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1

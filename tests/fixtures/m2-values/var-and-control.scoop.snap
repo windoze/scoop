@@ -1320,7 +1320,7 @@ Module
     t4 = aggregate () : {}
     ret
   block if.then.4
-    call managed-direct-target0 sp13 live=[] t5 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
+    call managed-direct-target0 sp13 live=[] t5 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
     store t5 -> local25
     call managed-void-target1 sp14 live=[local25:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn18(local25)
     t6 = aggregate () : {}

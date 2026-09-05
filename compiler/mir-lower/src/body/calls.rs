@@ -54,19 +54,9 @@ impl BodyLowerer<'_> {
             init: value,
         });
         self.prelude.push(smir::StatementKind::If {
-            cond: smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::EnumTag(Box::new(smir::Expr::local(
-                            slot,
-                            option_ty.clone(),
-                        ))),
-                    )),
-                    rhs: Box::new(smir::Expr::int(i64::from(some))),
-                },
+            cond: smir::Expr::machine_eq(
+                smir::Expr::enum_tag(smir::Expr::local(slot, option_ty.clone())),
+                mir::MachineScalarValue::EnumTag(some),
             ),
             then_body: vec![smir::Statement {
                 kind: smir::StatementKind::ValDecl {

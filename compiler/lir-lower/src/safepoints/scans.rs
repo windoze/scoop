@@ -20,7 +20,7 @@ pub(super) fn lir_size_align(
     match ty {
         lir::LirType::Void => (0, 1),
         lir::LirType::I1 => (1, 1),
-        lir::LirType::I64 | lir::LirType::Ptr(_) => (8, 8),
+        lir::LirType::I64 | lir::LirType::MachineScalar(_) | lir::LirType::Ptr(_) => (8, 8),
         lir::LirType::ExceptionRecord => (16, 8),
         lir::LirType::Aggregate(fields) => {
             let (_, size, align) = lir_aggregate_shape(fields, structs, enums);
@@ -76,6 +76,7 @@ pub(crate) fn root_scan(
         lir::LirType::Void
         | lir::LirType::I1
         | lir::LirType::I64
+        | lir::LirType::MachineScalar(_)
         | lir::LirType::Ptr(_)
         | lir::LirType::ExceptionRecord => lir::RefScan::None,
     }

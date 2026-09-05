@@ -100,6 +100,7 @@ pub(crate) fn ref_scan(
         mir::Type::Unit
         | mir::Type::Int
         | mir::Type::UInt
+        | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::Ptr(_)
         | mir::Type::FunPtr(_) => lir::RefScan::None,

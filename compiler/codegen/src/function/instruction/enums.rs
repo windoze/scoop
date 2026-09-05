@@ -16,6 +16,73 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 fields,
             } => {
                 let def = &self.enums[*enum_id];
+                if function.temps[*out].ty != LirType::Enum(*enum_id) {
+                    return Err(CodegenError(format!(
+                        "enum_wrap @{} must produce its declared enum e{}",
+                        function.symbol,
+                        enum_id.into_raw()
+                    )));
+                }
+                match &def.repr {
+                    EnumRepr::Niche { payload_variant } => {
+                        let expected_count = usize::from(*variant == *payload_variant);
+                        if *variant > 1 || fields.len() != expected_count {
+                            return Err(CodegenError(format!(
+                                "enum_wrap @{} has an invalid niche variant or payload arity",
+                                function.symbol
+                            )));
+                        }
+                        if let Some(field) = fields.first() {
+                            let field_ty = function.value_ty(self.globals_arena, *field);
+                            let valid = if def.scan.contains_reference() {
+                                field_ty == scoop_lir::MANAGED_PTR
+                            } else {
+                                matches!(
+                                    field_ty,
+                                    LirType::Ptr(PointerKind::Raw | PointerKind::Code)
+                                )
+                            };
+                            if !valid {
+                                return Err(CodegenError(format!(
+                                    "enum_wrap @{} niche payload has invalid type {}",
+                                    function.symbol,
+                                    field_ty.dump()
+                                )));
+                            }
+                        }
+                    }
+                    EnumRepr::Tagged { variants, .. } => {
+                        let Some(variant_repr) = variants.get(*variant as usize) else {
+                            return Err(CodegenError(format!(
+                                "enum_wrap @{} has invalid variant {}",
+                                function.symbol, variant
+                            )));
+                        };
+                        if fields.len() != variant_repr.fields.len() {
+                            return Err(CodegenError(format!(
+                                "enum_wrap @{} variant {} has {} fields, expected {}",
+                                function.symbol,
+                                variant,
+                                fields.len(),
+                                variant_repr.fields.len()
+                            )));
+                        }
+                        for (index, (value, expected)) in
+                            fields.iter().zip(&variant_repr.fields).enumerate()
+                        {
+                            let actual = function.value_ty(self.globals_arena, *value);
+                            if actual != expected.ty {
+                                return Err(CodegenError(format!(
+                                    "enum_wrap @{} field {} has type {}, expected {}",
+                                    function.symbol,
+                                    index,
+                                    actual.dump(),
+                                    expected.ty.dump()
+                                )));
+                            }
+                        }
+                    }
+                }
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
                     EnumRepr::Niche { payload_variant } => {
@@ -97,6 +164,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 enum_id,
                 operand,
             } => {
+                if function.temps[*out].ty != LirType::MachineScalar(MachineScalarKind::EnumTag) {
+                    return Err(CodegenError(format!(
+                        "enum_tag @{} must produce machine<enum-tag>",
+                        function.symbol
+                    )));
+                }
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                if operand_ty != LirType::Enum(*enum_id) {
+                    return Err(CodegenError(format!(
+                        "enum_tag @{} expects e{}, got {}",
+                        function.symbol,
+                        enum_id.into_raw(),
+                        operand_ty.dump()
+                    )));
+                }
                 let def = &self.enums[*enum_id];
                 let operand = self.value(*operand)?;
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -153,6 +235,63 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 operand,
             } => {
                 let def = &self.enums[*enum_id];
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                if operand_ty != LirType::Enum(*enum_id) {
+                    return Err(CodegenError(format!(
+                        "enum_field @{} expects e{}, got {}",
+                        function.symbol,
+                        enum_id.into_raw(),
+                        operand_ty.dump()
+                    )));
+                }
+                let expected_ty = match &def.repr {
+                    EnumRepr::Niche { payload_variant }
+                        if variant == payload_variant && *index == 0 =>
+                    {
+                        let out_ty = &function.temps[*out].ty;
+                        let valid = if def.scan.contains_reference() {
+                            *out_ty == scoop_lir::MANAGED_PTR
+                        } else {
+                            matches!(out_ty, LirType::Ptr(PointerKind::Raw | PointerKind::Code))
+                        };
+                        if !valid {
+                            return Err(CodegenError(format!(
+                                "enum_field @{} niche payload cannot produce {}",
+                                function.symbol,
+                                out_ty.dump()
+                            )));
+                        }
+                        None
+                    }
+                    EnumRepr::Niche { .. } => {
+                        return Err(CodegenError(format!(
+                            "enum_field @{} has an invalid niche variant or field index",
+                            function.symbol
+                        )));
+                    }
+                    EnumRepr::Tagged { variants, .. } => {
+                        let expected = variants
+                            .get(*variant as usize)
+                            .and_then(|variant| variant.fields.get(*index as usize))
+                            .ok_or_else(|| {
+                                CodegenError(format!(
+                                    "enum_field @{} has an invalid variant or field index",
+                                    function.symbol
+                                ))
+                            })?;
+                        Some(&expected.ty)
+                    }
+                };
+                if let Some(expected_ty) = expected_ty
+                    && &function.temps[*out].ty != expected_ty
+                {
+                    return Err(CodegenError(format!(
+                        "enum_field @{} produces {}, expected {}",
+                        function.symbol,
+                        function.temps[*out].ty.dump(),
+                        expected_ty.dump()
+                    )));
+                }
                 let operand = self.value(*operand)?;
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {

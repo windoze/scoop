@@ -1127,7 +1127,7 @@ Module
   block logic.merge.3
     cbr local9 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target0 sp13 live=[] t5 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp13 live=[] t5 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t5 -> local10
     call managed-void-target0 sp14 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn19(local10)
     t6 = aggregate () : {}

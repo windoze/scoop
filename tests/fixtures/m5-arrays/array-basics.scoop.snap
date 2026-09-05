@@ -1596,7 +1596,7 @@ Module
   block logic.merge.3
     cbr local48 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target0 sp13 live=[] t4 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp13 live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t4 -> local49
     call managed-void-target0 sp14 live=[local49:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn19(local49)
     t5 = aggregate () : {}
@@ -1636,7 +1636,7 @@ Module
   block logic.merge.8
     cbr local50 then @if.then.9 else @if.merge.10
   block if.then.9
-    call managed-direct-target1 sp17 live=[] t14 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target1 sp17 live=[] t14 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t14 -> local51
     call managed-void-target2 sp18 live=[local51:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn19(local51)
     t15 = aggregate () : {}
@@ -1662,7 +1662,7 @@ Module
   block logic.merge.13
     cbr local52 then @if.then.14 else @if.merge.15
   block if.then.14
-    call managed-direct-target2 sp19 live=[] t19 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target2 sp19 live=[] t19 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t19 -> local53
     call managed-void-target3 sp20 live=[local53:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn19(local53)
     t20 = aggregate () : {}
@@ -1699,7 +1699,7 @@ Module
   block logic.merge.18
     cbr local54 then @if.then.19 else @if.merge.20
   block if.then.19
-    call managed-direct-target3 sp23 live=[] t27 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target3 sp23 live=[] t27 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t27 -> local55
     call managed-void-target5 sp24 live=[local55:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn19(local55)
     t28 = aggregate () : {}
@@ -1725,7 +1725,7 @@ Module
   block logic.merge.23
     cbr local56 then @if.then.24 else @if.merge.25
   block if.then.24
-    call managed-direct-target4 sp25 live=[] t32 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target4 sp25 live=[] t32 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     store t32 -> local57
     call managed-void-target6 sp26 live=[local57:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn19(local57)
     t33 = aggregate () : {}

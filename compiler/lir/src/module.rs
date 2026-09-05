@@ -24,6 +24,7 @@ pub struct Module {
     pub callback_bridges: Arena<CallbackBridge>,
     /// GC-aware managed callback trampolines. These are disjoint from M12's
     /// NoGC static callback bridges at the type level.
+    pub foreign_callback_families: Arena<ForeignCallbackFamily>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
@@ -71,8 +72,18 @@ pub struct CallbackBridge {
     pub return_type: CType,
 }
 
+/// One concrete managed-callback protocol family. All three ids are nominal:
+/// representation-equivalent structs/enums are not interchangeable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFamily {
+    pub callback: StructDefId,
+    pub state: EnumDefId,
+    pub failure: EnumDefId,
+}
+
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
+    pub family: ForeignCallbackFamilyId,
     pub adapter_symbol: String,
     pub trampoline_symbol: String,
     pub signature_symbol: String,
@@ -90,19 +101,43 @@ pub enum ForeignCallbackMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForeignCallbackOperation {
-    Retain { out: TempId, callback: Value },
-    Release { callback: Value },
-    State { out: TempId, callback: Value },
-    Failure { out: TempId, callback: Value },
+    Retain {
+        family: ForeignCallbackFamilyId,
+        out: TempId,
+        callback: Value,
+    },
+    Release {
+        family: ForeignCallbackFamilyId,
+        callback: Value,
+    },
+    State {
+        family: ForeignCallbackFamilyId,
+        out: TempId,
+        callback: Value,
+    },
+    Failure {
+        family: ForeignCallbackFamilyId,
+        out: TempId,
+        callback: Value,
+    },
 }
 
 impl ForeignCallbackOperation {
     pub fn callback(self) -> Value {
         match self {
             Self::Retain { callback, .. }
-            | Self::Release { callback }
+            | Self::Release { callback, .. }
             | Self::State { callback, .. }
             | Self::Failure { callback, .. } => callback,
+        }
+    }
+
+    pub fn family(self) -> ForeignCallbackFamilyId {
+        match self {
+            Self::Retain { family, .. }
+            | Self::Release { family, .. }
+            | Self::State { family, .. }
+            | Self::Failure { family, .. } => family,
         }
     }
 

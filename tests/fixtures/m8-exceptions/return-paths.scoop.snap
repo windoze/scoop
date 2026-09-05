@@ -867,13 +867,13 @@ Module
         Local choice
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Choice
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       return
         Type Int
@@ -1542,8 +1542,8 @@ Module
   block entry
     poll managed-void-target0 sp60 live=[]
     store param0 -> local0
-    t0 = enum_tag e1 local0 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e1 local0 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     ret 20
@@ -1582,7 +1582,7 @@ Module
     store t2 -> local4
     br @scope.7
   block try.body.6
-    call managed-direct-target0 sp12 live=[] t5 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target0 sp12 live=[] t5 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t5 -> local0
     invoke managed-void-target0 sp13 roots=[local0:normal] sig=void0 (ptr<managed>) local-fn23(local0) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1

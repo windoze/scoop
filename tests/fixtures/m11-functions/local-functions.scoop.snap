@@ -1986,7 +1986,7 @@ Module
     store local2 -> local3
     call managed-void-target0 sp15 live=[] sig=void0 (i64) local-fn31(local3)
     t1 = aggregate () : {}
-    call managed-direct-target1 sp16 live=[] t2 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 32)
+    call managed-direct-target1 sp16 live=[] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(32)))
     t3 = function_address @scoop.$reference.0 : ptr
     heap_store t2 +16 t3
     heap_store t2 +24 param0
@@ -2016,7 +2016,7 @@ Module
   fun @scoop.genericReference() -> ptr<managed>
   block entry
     poll managed-void-target0 sp88 live=[]
-    call managed-direct-target0 sp19 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
+    call managed-direct-target0 sp19 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop.$reference.1 : ptr
     heap_store t0 +16 t1
     ret t0
@@ -2034,7 +2034,7 @@ Module
   fun @scoop.makeLabelReader(struct4) -> ptr<managed>
   block entry
     poll managed-void-target0 sp90 live=[param0:struct4@0]
-    call managed-direct-target0 sp21 live=[param0:struct4@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 32)
+    call managed-direct-target0 sp21 live=[param0:struct4@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$reference.2 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0

@@ -458,19 +458,35 @@ impl BodyLowerer<'_> {
             hir::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-            } => smir::ExprKind::ForeignCallbackOperation {
-                operation: match operation {
-                    hir::ForeignCallbackOperation::Retain => mir::ForeignCallbackOperation::Retain,
+            } => {
+                let mir::Type::Struct(callback_type) = self.lower_type(callback.ty) else {
+                    unreachable!("validated foreign callback operation has a callback struct")
+                };
+                let family = self.ensure_foreign_callback_family(callback_type);
+                let contract = self.foreign_callback_families[family];
+                let operation = match operation {
+                    hir::ForeignCallbackOperation::Retain => {
+                        assert_eq!(ty, mir::Type::Struct(contract.callback));
+                        mir::ForeignCallbackOperation::Retain(family)
+                    }
                     hir::ForeignCallbackOperation::Release => {
-                        mir::ForeignCallbackOperation::Release
+                        assert_eq!(ty, mir::Type::Unit);
+                        mir::ForeignCallbackOperation::Release(family)
                     }
-                    hir::ForeignCallbackOperation::State => mir::ForeignCallbackOperation::State,
+                    hir::ForeignCallbackOperation::State => {
+                        assert!(matches!(ty, mir::Type::Enum(id, _) if id == contract.state));
+                        mir::ForeignCallbackOperation::State(family)
+                    }
                     hir::ForeignCallbackOperation::Failure => {
-                        mir::ForeignCallbackOperation::Failure
+                        assert!(matches!(ty, mir::Type::Enum(id, _) if id == contract.failure));
+                        mir::ForeignCallbackOperation::Failure(family)
                     }
-                },
-                callback: Box::new(self.lower_expr(callback)),
-            },
+                };
+                smir::ExprKind::ForeignCallbackOperation {
+                    operation,
+                    callback: Box::new(self.lower_expr(callback)),
+                }
+            }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
                 // properties are all 0-based here (the class index
@@ -598,14 +614,10 @@ impl BodyLowerer<'_> {
             hir::ExprKind::IsSome(operand) => {
                 let (some, _) = self.option_variants;
                 let operand = self.lower_expr(operand);
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::EnumTag(Box::new(operand)),
-                    )),
-                    rhs: Box::new(smir::Expr::int(i64::from(some))),
-                }
+                return smir::Expr::machine_eq(
+                    smir::Expr::enum_tag(operand),
+                    mir::MachineScalarValue::EnumTag(some),
+                );
             }
             hir::ExprKind::Unwrap {
                 operand,

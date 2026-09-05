@@ -112,14 +112,14 @@ pub(super) fn rewrite_site(
     block.statements.push(atomic_field_store(
         mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
         0,
-        mir::Expr::int(i64::from(site.state)),
+        frame_state(suspended_state(site.state)),
     ));
     block.statements.extend(initialized_generated_class(
         adapter_local,
         adapter.class,
         vec![
             mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-            mir::Expr::int(ADAPTER_WAITING),
+            adapter_state(ADAPTER_WAITING),
         ],
     ));
     call.args.push(mir::Expr::local(
@@ -158,11 +158,11 @@ pub(super) fn rewrite_site(
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, unwind);
     let adapter_claim = body.locals.alloc(local(
         &format!("$completed_adapter_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
     ));
     let frame_claim = body.locals.alloc(local(
         &format!("$completed_frame_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
     ));
     let claim_frame = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.completed_claim_frame.{}", site.state),
@@ -171,14 +171,17 @@ pub(super) fn rewrite_site(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
                 0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: completed,
             else_block: invalid,
@@ -192,14 +195,17 @@ pub(super) fn rewrite_site(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                 1,
-                ADAPTER_WAITING,
-                ADAPTER_CONSUMED,
+                adapter_state_value(ADAPTER_WAITING),
+                adapter_state_value(ADAPTER_CONSUMED),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(adapter_claim, mir::Type::Int),
-                ADAPTER_WAITING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    adapter_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_WAITING),
             ),
             then_block: claim_frame,
             else_block: invalid,
@@ -247,7 +253,7 @@ pub(super) fn rewrite_site(
         unwind,
     });
     GeneratedSite {
-        state: i64::from(site.state),
+        state: suspended_state(site.state),
         resume_block,
         failure_state: failure_state(site.state),
         failure_block: failure_resume_block(

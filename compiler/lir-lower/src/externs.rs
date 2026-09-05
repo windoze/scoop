@@ -58,6 +58,9 @@ pub(super) fn c_ffi_type(module: &mir::Module, ty: &mir::Type) -> lir::CType {
         mir::Type::Unit => lir::CType::Unit,
         mir::Type::Int => lir::CType::Int,
         mir::Type::UInt => lir::CType::UInt,
+        mir::Type::MachineScalar(kind) => {
+            unreachable!("internal machine scalar {kind:?} cannot cross source C FFI")
+        }
         mir::Type::Boolean => lir::CType::Boolean,
         mir::Type::Ptr(_) => lir::CType::Pointer,
         mir::Type::FunPtr(signature) => {

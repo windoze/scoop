@@ -132,6 +132,10 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let frame = &module.meta.coroutine_frames[*frame];
     let fields = module.classes[frame.class].declared_fields();
     assert_eq!(fields[0].name, "state");
+    assert_eq!(
+        fields[0].ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState)
+    );
     assert_eq!(fields[1].name, "completion");
     assert_eq!(
         fields
@@ -175,8 +179,145 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     assert!(!throwable_slot.variants[1].gc_free);
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
     assert_eq!(point.result, mir::Type::Int);
-    assert_eq!(point.state, 1);
+    assert_eq!(point.state.get(), 1);
     assert_eq!(module.classes[point.adapter].interfaces.len(), 1);
+    assert_eq!(
+        module.classes[point.adapter].declared_fields()[1].ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
+    );
+
+    let driver = &module.functions[*driver];
+    assert_eq!(
+        driver.params[1].ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState)
+    );
+    for (_, local) in driver.body.locals.iter() {
+        let expected = if local.name == "$dispatch_state" || local.name.contains("frame_claim") {
+            Some(mir::MachineScalarKind::CoroutineFrameState)
+        } else if local.name.contains("adapter_claim") || local.name.contains("registration_claim")
+        {
+            Some(mir::MachineScalarKind::CoroutineAdapterState)
+        } else {
+            None
+        };
+        if let Some(expected) = expected {
+            assert_eq!(
+                local.ty,
+                mir::Type::MachineScalar(expected),
+                "compiler-owned state local {} must not be source Int",
+                local.name
+            );
+        }
+    }
+
+    let dump = mir::dump(&module);
+    assert!(dump.contains("atomic_store_release kind=coroutine-frame-state"));
+    assert!(dump.contains("atomic_store_release kind=coroutine-adapter-state"));
+    assert!(dump.contains("AtomicCompareExchange kind=coroutine-frame-state"));
+    assert!(dump.contains("AtomicCompareExchange kind=coroutine-adapter-state"));
+    assert!(dump.contains("MachineScalarLiteral CoroutineFrameState("));
+    assert!(dump.contains("MachineScalarLiteral CoroutineAdapterState("));
+}
+
+#[test]
+fn suspend_intrinsic_keeps_frame_and_adapter_protocols_in_distinct_machine_kinds() {
+    let mut h = Harness::new();
+    let main = empty_main(&mut h);
+    let mut source = h.finish_coroutines(main);
+    let result = source.int;
+    let suspend_registration = source.coroutine_core.suspend_registration;
+    let registration_ty =
+        module_interface_application(&mut source, suspend_registration, vec![result]);
+    let Some(suspend_generic) =
+        source.functions[source.coroutine_core.suspend_coroutine].generic_definition()
+    else {
+        panic!("suspendCoroutine is generic")
+    };
+    let suspend = source.instantiations.alloc(hir::ResolvedGenericFunction {
+        generic: suspend_generic,
+        type_args: vec![result],
+    });
+    let mut locals = Arena::new();
+    let registration = locals.alloc(local("registration", registration_ty));
+    let value = locals.alloc(local("value", result));
+    let caller = source.functions.alloc(hir::Function {
+        name: "suspendIntrinsicCaller".to_string(),
+        access: hir::DeclarationAccess::public(),
+        override_access: Vec::new(),
+        genericity: hir::FunctionGenericity::Plain,
+        is_suspend: true,
+        modifiers: hir::CallableModifiers::default(),
+        params: vec![param("registration", registration_ty, registration)],
+        return_ty: result,
+        attributes: hir::FunctionAttributes::default(),
+        kind: hir::FunctionKind::User(hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    value,
+                    generic_call(
+                        suspend,
+                        vec![local_ref(registration, registration_ty)],
+                        result,
+                    ),
+                ),
+                stmt(hir::StatementKind::Return {
+                    value: Some(local_ref(value, result)),
+                }),
+            ],
+        }),
+        method: None,
+        span: SPAN,
+    });
+    source.top_level.push(caller);
+
+    let module = lower(&source);
+    let (_, coroutine) = module
+        .meta
+        .coroutine_functions
+        .iter()
+        .find(|(_, coroutine)| {
+            module.functions[coroutine.function].name == "suspendIntrinsicCaller"
+        })
+        .expect("intrinsic caller coroutine metadata");
+    let mir::CoroutineLowering::StateMachine {
+        driver,
+        resume_points,
+        ..
+    } = &coroutine.lowering
+    else {
+        panic!("suspendCoroutine requires a state machine")
+    };
+    assert_eq!(resume_points.len(), 1);
+    let point = &module.meta.coroutine_resume_points[resume_points[0]];
+    assert_eq!(point.state.get(), 1);
+    assert_eq!(
+        module.classes[point.adapter].declared_fields()[1].ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
+    );
+
+    let driver = &module.functions[*driver];
+    for (_, local) in driver.body.locals.iter() {
+        if local.name.contains("registration_claim") {
+            assert_eq!(
+                local.ty,
+                mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
+            );
+        }
+        if local.name.contains("frame_claim") {
+            assert_eq!(
+                local.ty,
+                mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState)
+            );
+        }
+    }
+
+    let dump = mir::dump(&module);
+    assert!(dump.contains("AtomicLoadAcquire kind=coroutine-adapter-state"));
+    assert!(dump.contains("AtomicCompareExchange kind=coroutine-frame-state"));
+    assert!(dump.contains("AtomicCompareExchange kind=coroutine-adapter-state"));
+    assert!(!dump.contains("$registration_claim.1: Int"));
+    assert!(!dump.contains("$registration_frame_claim.1: Int"));
 }
 
 #[test]

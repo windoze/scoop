@@ -56,7 +56,7 @@ Module
   fun @scoop.makeError() -> ptr<managed>
   block entry
     poll managed-void-target0 sp3 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 16)
+    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>

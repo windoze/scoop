@@ -1327,7 +1327,7 @@ Module
     store local25 -> local21
     store local21 -> local26
     t6 = local_address local26 : ptr
-    call managed-direct-target2 sp20 live=[] t7 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t6, 8, root-scan0)
+    call managed-direct-target2 sp20 live=[] t7 = sig=direct2 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t6, machine<byte-size>(ByteSize(8)), root-scan0)
     store t7 -> local17
     store local17 -> local18
     t8 = heap_load local18 +0 : ptr<metadata>

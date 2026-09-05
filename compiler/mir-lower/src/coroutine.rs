@@ -30,7 +30,17 @@ struct SuspendSite {
     result: mir::Type,
     kind: SuspendKind,
     live_after: Vec<mir::LocalId>,
-    state: u32,
+    state: mir::CoroutineSuspendStateId,
+}
+
+#[derive(Clone)]
+struct DiscoveredSuspendSite {
+    block: mir::BlockId,
+    statement: usize,
+    destination: Option<mir::LocalId>,
+    result: mir::Type,
+    kind: SuspendKind,
+    live_after: Vec<mir::LocalId>,
 }
 
 #[derive(Clone, Copy)]
@@ -50,17 +60,14 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         .collect();
     for coroutine in coroutine_ids {
         let function = lowerer.coroutines.functions[coroutine].function;
-        let mut sites = analyze_sites(lowerer, &lowerer.functions[function].body);
+        let sites = analyze_sites(lowerer, &lowerer.functions[function].body);
         if sites.is_empty() {
             continue;
         }
         let throwable =
             mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
         eh::materialize_exceptions(&mut lowerer.functions[function].body, throwable);
-        sites = analyze_sites(lowerer, &lowerer.functions[function].body);
-        for (index, site) in sites.iter_mut().enumerate() {
-            site.state = index as u32 + 1;
-        }
+        let sites = analyze_sites(lowerer, &lowerer.functions[function].body);
         transform_function(lowerer, module, coroutine, sites);
     }
 }
@@ -112,7 +119,7 @@ fn transform_function(
     let mut frame_fields = vec![
         mir::Field {
             name: "state".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         },
         mir::Field {
             name: "completion".to_string(),
@@ -180,7 +187,7 @@ fn transform_function(
     });
     let dispatch_state = body.locals.alloc(mir::Local {
         name: "$dispatch_state".to_string(),
-        ty: mir::Type::Int,
+        ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         mutable: false,
     });
 
@@ -222,7 +229,10 @@ fn transform_function(
         resume_targets.push((generated.failure_state, generated.failure_block));
         resume_points.push(generated.point);
     }
-    resume_targets.sort_by_key(|(state, _)| *state);
+    // Keep dispatch construction deterministic in the signed order of the
+    // frozen state-word encoding: exceptional states precede positive
+    // suspension-site ids, just as they did before the values became typed.
+    resume_targets.sort_by_key(|(state, _)| frame_state_value(*state).raw_bits() as i64);
     resume_points.sort_by_key(|point| lowerer.coroutines.resume_points[*point].state);
 
     let original_entry = body.entry;
@@ -240,7 +250,7 @@ fn transform_function(
             .chain(std::iter::once(atomic_field_store(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
                 0,
-                mir::Expr::int(STATE_RUNNING),
+                frame_state(STATE_RUNNING),
             )))
             .collect(),
         terminator: mir::Terminator::Goto(original_entry),
@@ -268,7 +278,7 @@ fn transform_function(
         },
         mir::Param {
             name: "$dispatch_state".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
             local: dispatch_state,
         },
     ];
@@ -295,19 +305,27 @@ fn transform_function(
     };
 }
 
-const STATE_INITIAL: i64 = 0;
-const STATE_RUNNING: i64 = -1;
-const STATE_COMPLETED: i64 = -2;
-const ADAPTER_REGISTERING: i64 = 0;
-const ADAPTER_WAITING: i64 = 1;
-const ADAPTER_COMPLETING_SUCCESS: i64 = 2;
-const ADAPTER_COMPLETING_FAILURE: i64 = 3;
-const ADAPTER_LATCHED_SUCCESS: i64 = 4;
-const ADAPTER_LATCHED_FAILURE: i64 = 5;
-const ADAPTER_CONSUMED: i64 = 6;
+const STATE_INITIAL: mir::CoroutineFrameState = mir::CoroutineFrameState::Initial;
+const STATE_RUNNING: mir::CoroutineFrameState = mir::CoroutineFrameState::Running;
+const STATE_COMPLETED: mir::CoroutineFrameState = mir::CoroutineFrameState::Completed;
+const ADAPTER_REGISTERING: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Registering;
+const ADAPTER_WAITING: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Waiting;
+const ADAPTER_COMPLETING_SUCCESS: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::CompletingSuccess;
+const ADAPTER_COMPLETING_FAILURE: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::CompletingFailure;
+const ADAPTER_LATCHED_SUCCESS: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::LatchedSuccess;
+const ADAPTER_LATCHED_FAILURE: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::LatchedFailure;
+const ADAPTER_CONSUMED: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Consumed;
 
-fn failure_state(state: u32) -> i64 {
-    -i64::from(state) - 2
+fn suspended_state(state: mir::CoroutineSuspendStateId) -> mir::CoroutineFrameState {
+    mir::CoroutineFrameState::Suspended(state)
+}
+
+fn failure_state(state: mir::CoroutineSuspendStateId) -> mir::CoroutineFrameState {
+    mir::CoroutineFrameState::ResumeFailure(state)
 }
 
 #[derive(Clone)]
@@ -318,9 +336,9 @@ struct FrameSlot {
 }
 
 struct GeneratedSite {
-    state: i64,
+    state: mir::CoroutineFrameState,
     resume_block: mir::BlockId,
-    failure_state: i64,
+    failure_state: mir::CoroutineFrameState,
     failure_block: mir::BlockId,
     point: mir::CoroutineResumePointId,
 }

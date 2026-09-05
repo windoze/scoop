@@ -683,13 +683,13 @@ Module
         Local x
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val $uw.2: Int
         Type Int
@@ -1226,15 +1226,15 @@ Module
     t0 = enum_wrap e1 v1 () : enum1
     store t0 -> local0
     store local0 -> local1
-    t1 = enum_tag e1 local1 : i64
-    t2 = Eq t1, 0 : i1
+    t1 = enum_tag e1 local1 : machine<enum-tag>
+    t2 = MachineEq(EnumTag) t1, machine<enum-tag>(EnumTag(0)) : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
     t3 = enum_field e1 v0 f0 local1 : i64
     store t3 -> local2
     br @if.merge.3
   block if.else.2
-    call managed-direct-target0 sp12 live=[] t4 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td5, 24)
+    call managed-direct-target0 sp12 live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t4 -> local3
     call managed-void-target0 sp13 live=[local3:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn17(local3)
     t5 = aggregate () : {}

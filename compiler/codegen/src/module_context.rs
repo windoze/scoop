@@ -10,6 +10,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) extern_functions: &'a ExternFunctions,
     pub(crate) native_globals: &'a Arena<NativeGlobal>,
     pub(crate) native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    pub(crate) foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,
     pub(crate) globals: &'a [Option<GlobalValue<'ctx>>],
@@ -85,6 +86,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::MakeAggregate { out, .. }
         | Instruction::ExtractValue { out, .. }
         | Instruction::HeapLoad { out, .. }
+        | Instruction::MachineHeapLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
         | Instruction::AtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
@@ -117,6 +119,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::GlobalStore { .. }
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
+        | Instruction::MachineHeapStore { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::RawStore { .. }
         | Instruction::ManagedPoll { .. }

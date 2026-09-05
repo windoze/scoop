@@ -253,6 +253,18 @@ pub(in crate::tests) fn dispatch_destination(
     scoop_lir::ManagedCallDestination::dispatch(table, slot)
 }
 
+pub(in crate::tests) fn closure_dispatch_destination(
+    targets: &mut CallTargets,
+    closure: Value,
+    index: u32,
+) -> scoop_lir::ManagedCallDestination {
+    let slot = targets.dispatch_slots.alloc_managed(DispatchSlot {
+        kind: DispatchKind::Closure,
+        index,
+    });
+    scoop_lir::ManagedCallDestination::dispatch(closure, slot)
+}
+
 pub(in crate::tests) fn managed_runtime(
     function: scoop_lir::ManagedRuntimeFunction,
 ) -> scoop_lir::ManagedCallDestination {

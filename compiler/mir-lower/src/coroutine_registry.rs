@@ -349,13 +349,9 @@ impl CoroutineRegistry {
                 },
             ))],
             terminator: mir::Terminator::Branch {
-                cond: mir::Expr::new(
-                    mir::Type::Boolean,
-                    mir::ExprKind::Binary {
-                        op: mir::BinOp::IntEq,
-                        lhs: Box::new(mir::Expr::enum_tag(mir::Expr::local(step, step_ty.clone()))),
-                        rhs: Box::new(mir::Expr::int(0)),
-                    },
+                cond: mir::Expr::machine_eq(
+                    mir::Expr::enum_tag(mir::Expr::local(step, step_ty.clone())),
+                    mir::MachineScalarValue::EnumTag(0),
                 ),
                 then_block: completed,
                 else_block: suspended,

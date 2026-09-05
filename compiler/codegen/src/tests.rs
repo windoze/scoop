@@ -2,12 +2,12 @@ use inkwell::OptimizationLevel;
 use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
-    BasicBlock, CallSite, CallTargets, DirectCallSignature, DispatchKind, DispatchSlot, EnumDef,
-    EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
-    IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR,
-    METADATA_PTR, NativeBorrowedResultRoot, PointerKind, RAW_PTR, ResultStorage, Temp,
-    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState, DirectCallSignature,
+    DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect,
+    Global, GlobalInit, IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta,
+    Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot, PointerKind,
+    RAW_PTR, ResultStorage, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall,
+    VoidCallSignature, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;

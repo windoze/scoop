@@ -18,6 +18,9 @@ pub(crate) fn basic_ty<'ctx>(
         }
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
+        // Machine scalar domains remain distinct in LIR and converge only at
+        // this final physical lowering boundary.
+        LirType::MachineScalar(_) => context.i64_type().into(),
         LirType::Ptr(kind) => pointer_ty(context, managed_address_space, *kind).into(),
         LirType::ExceptionRecord => context
             .struct_type(
@@ -224,7 +227,7 @@ pub(crate) fn c_field_size(
 ) -> Result<u64, CodegenError> {
     Ok(match ty {
         LirType::I1 => 1,
-        LirType::I64 | LirType::Ptr(_) => 8,
+        LirType::I64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
         LirType::Struct(id) => structs[*id].size,
         LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
         other => {
@@ -333,7 +336,11 @@ pub(crate) fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
     match ty {
         LirType::Aggregate(_) | LirType::Struct(_) | LirType::ExceptionRecord => true,
         LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
-        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr(_) => false,
+        LirType::Void
+        | LirType::I1
+        | LirType::I64
+        | LirType::MachineScalar(_)
+        | LirType::Ptr(_) => false,
     }
 }
 

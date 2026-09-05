@@ -58,6 +58,7 @@ impl Builder {
             mir::Type::Unit
             | mir::Type::Int
             | mir::Type::UInt
+            | mir::Type::MachineScalar(_)
             | mir::Type::Boolean
             | mir::Type::Ptr(_)
             | mir::Type::FunPtr(_) => true,
@@ -360,6 +361,7 @@ impl Builder {
             singleton_published_roots: Arena::new(),
             callback_bridges: Arena::new(),
             foreign_callback_adapters: Arena::new(),
+            foreign_callback_families: Arena::new(),
             foreign_callback_bridges: Arena::new(),
             function_types: Arena::new(),
             closure_classes: Arena::new(),

@@ -501,6 +501,8 @@ Module
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   extern ef12 callContextFirst @m13_call_context_first(FunPtr<(Ptr<Unit>, Int) -> Unit>, Ptr<Unit>, Int) -> Unit <abi=c no-gc lib=fixture_native>
+  foreign_callback_family fcf0 callback=ForeignCallback$FPUX_IRUX state=ForeignCallbackState failure=Option$C9_ThrowableX
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type1 context=0 mode=Reusable adapter=@scoop_foreign_callback_adapter_0
   struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct ForeignCallback$FPUX_IRUX (function: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>)
   enum Option$S
@@ -514,6 +516,9 @@ Module
     Active()
     Completed()
     Failed()
+  enum Option$C9_ThrowableX
+    Some(_1: Throwable)
+    None()
   class Throwable vtable=0 itables=0
   class Exception vtable=0 itables=0
   class UnwrapException vtable=0 itables=0
@@ -742,7 +747,7 @@ Module
         Local $argument.2
       val callback: ForeignCallback$FPUX_IRUX
         Type ForeignCallback$FPUX_IRUX
-        ForeignCallbackRegister fcb0 native=function_type0 managed=function_type1 context=0 mode=Reusable adapter=@scoop_foreign_callback_adapter_0
+        ForeignCallbackRegister fcb0 family=fcf0
           Type (Int) -> Unit
           Local $parameter.callback
       val $argument.0: FunPtr<(Ptr<Unit>, Int) -> Unit>
@@ -782,7 +787,7 @@ Module
         Local $argument.0
       call $argument.0: Boolean = @scoop.ForeignCallbackState.equals direct
         Type ForeignCallbackState
-        ForeignCallbackState
+        ForeignCallbackState family0
           Type ForeignCallback$FPUX_IRUX
           Local $parameter.callback
         Type ForeignCallbackState
@@ -800,7 +805,7 @@ Module
         Type ForeignCallback$FPUX_IRUX
         Local $argument.0
       Type Unit
-      ForeignCallbackRelease
+      ForeignCallbackRelease family0
         Type ForeignCallback$FPUX_IRUX
         Local $parameter.callback
       return
@@ -906,36 +911,36 @@ Module
         Local this
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val $when.2: ForeignCallbackState
         Type ForeignCallbackState
         Local other
       branch bb4 bb5
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.2
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb2 if.else.2
       branch bb7 bb8
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.1
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb3 if.merge.3
       unreachable
     bb4 if.then.4
@@ -954,23 +959,23 @@ Module
         Local other
       branch bb10 bb11
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.3
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb8 if.else.8
       branch bb13 bb14
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.1
-          Type Int
-          IntLiteral 2
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(2)
     bb9 if.merge.9
       goto bb3
     bb10 if.then.10
@@ -989,26 +994,26 @@ Module
         Local other
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.4
-          Type Int
-          IntLiteral 2
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(2)
     bb14 if.else.14
       val $when.5: ForeignCallbackState
         Type ForeignCallbackState
         Local other
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type ForeignCallbackState
             Local $when.5
-          Type Int
-          IntLiteral 3
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(3)
     bb15 if.merge.15
       goto bb9
     bb16 if.then.16
@@ -1202,7 +1207,7 @@ Module
           Local function
           Type Ptr<Unit>
           Local context
-  fun foreign callback adapter 0 @scoop_foreign_callback_adapter_0($closure: (Int) -> Unit, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> UInt
+  fun foreign callback adapter 0 @scoop_foreign_callback_adapter_0($closure: (Int) -> Unit, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 callback.failure
       landing_pad cleanup=false
       begin_catch
@@ -1217,8 +1222,8 @@ Module
         Type Throwable
         Local $caught
       return
-        Type UInt
-        IntLiteral 1
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
     bb1 entry unwind bb0
       call <closure:function_type1> closure[function_type1]
         Type (Int) -> Unit
@@ -1231,11 +1236,11 @@ Module
             PtrLoad Ptr<Unit>
               Type Ptr<Ptr<Unit>>
               Local $arguments
-              Type Int
-              IntLiteral 0
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
       return
-        Type UInt
-        IntLiteral 0
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
   instance @scoop.println$S <- println
   instance @scoop.println$I <- println
   instance @scoop.println$B <- println
@@ -1264,6 +1269,7 @@ Module
   enum Option$S niche(payload_variant=0)
   enum ForeignCallbackMode tagged size=8 align=8 variants=()@8+0 ()@8+0
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
+  enum Option$C9_ThrowableX niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -1277,6 +1283,8 @@ Module
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
   extern ef12 callContextFirst @m13_call_context_first(ptr<code>, ptr<raw>, i64) -> {} <c bridge=@scoop_c_bridge_12 gc-leaf nounwind lib=fixture_native>
+  foreign_callback_family fcf0 callback=struct4 state=enum2 failure=enum3
+  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=0 mode=Reusable
   fun @scoop.Int.equals(i64, i64) -> i1
     local %0 $argument.0: i64
     local %1 $argument.1: i64
@@ -1448,7 +1456,7 @@ Module
   block entry
     poll managed-void-target1 sp48 live=[]
     store global0 -> local0
-    call managed-direct-target0 sp12 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 32)
+    call managed-direct-target0 sp12 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
@@ -1479,7 +1487,7 @@ Module
     t9 = aggregate () : {}
     store local7 -> local14
     store local14 -> local15
-    t10 = foreign_callback_State local15 : enum2
+    t10 = foreign_callback_State family0 local15 : enum2
     t11 = enum_wrap e2 v0 () : enum2
     call managed-direct-target1 sp14 live=[] t12 = sig=direct1 (enum2, enum2) -> i1 local-fn17(t10, t11)
     store t12 -> local16
@@ -1488,7 +1496,7 @@ Module
     t13 = aggregate () : {}
     store local7 -> local18
     store local18 -> local19
-    foreign_callback_Release local19
+    foreign_callback_Release family0 local19
     t14 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>, i64) -> void
@@ -1574,17 +1582,17 @@ Module
   block entry
     poll managed-void-target0 sp53 live=[]
     store param0 -> local0
-    t0 = enum_tag e2 local0 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e2 local0 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     store param1 -> local1
-    t2 = enum_tag e2 local1 : i64
-    t3 = Eq t2, 0 : i1
+    t2 = enum_tag e2 local1 : machine<enum-tag>
+    t3 = MachineEq(EnumTag) t2, machine<enum-tag>(EnumTag(0)) : i1
     cbr t3 then @if.then.4 else @if.else.5
   block if.else.2
-    t4 = enum_tag e2 local0 : i64
-    t5 = Eq t4, 1 : i1
+    t4 = enum_tag e2 local0 : machine<enum-tag>
+    t5 = MachineEq(EnumTag) t4, machine<enum-tag>(EnumTag(1)) : i1
     cbr t5 then @if.then.7 else @if.else.8
   block if.then.4
     ret true
@@ -1592,12 +1600,12 @@ Module
     ret false
   block if.then.7
     store param1 -> local2
-    t6 = enum_tag e2 local2 : i64
-    t7 = Eq t6, 1 : i1
+    t6 = enum_tag e2 local2 : machine<enum-tag>
+    t7 = MachineEq(EnumTag) t6, machine<enum-tag>(EnumTag(1)) : i1
     cbr t7 then @if.then.10 else @if.else.11
   block if.else.8
-    t8 = enum_tag e2 local0 : i64
-    t9 = Eq t8, 2 : i1
+    t8 = enum_tag e2 local0 : machine<enum-tag>
+    t9 = MachineEq(EnumTag) t8, machine<enum-tag>(EnumTag(2)) : i1
     cbr t9 then @if.then.13 else @if.else.14
   block if.then.10
     ret true
@@ -1605,13 +1613,13 @@ Module
     ret false
   block if.then.13
     store param1 -> local3
-    t10 = enum_tag e2 local3 : i64
-    t11 = Eq t10, 2 : i1
+    t10 = enum_tag e2 local3 : machine<enum-tag>
+    t11 = MachineEq(EnumTag) t10, machine<enum-tag>(EnumTag(2)) : i1
     cbr t11 then @if.then.16 else @if.else.17
   block if.else.14
     store param1 -> local4
-    t12 = enum_tag e2 local4 : i64
-    t13 = Eq t12, 3 : i1
+    t12 = enum_tag e2 local4 : machine<enum-tag>
+    t13 = MachineEq(EnumTag) t12, machine<enum-tag>(EnumTag(3)) : i1
     cbr t13 then @if.then.19 else @if.else.20
   block if.then.16
     ret true
@@ -1725,7 +1733,7 @@ Module
     poll managed-void-target0 sp63 live=[]
     t0 = aggregate (param0, param1) : struct4
     ret t0
-  fun @scoop_foreign_callback_adapter_0(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> i64
+  fun @scoop_foreign_callback_adapter_0(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>
     local %0 $caught: ptr<managed>
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr<raw>
@@ -1741,18 +1749,17 @@ Module
     end_catch
     raw_store param3 local0 align 8
     t4 = aggregate () : {}
-    ret 1
+    ret machine<foreign-callback-status>(ForeignCallbackStatus(Threw))
   block entry
     poll managed-void-target1 sp64 live=[param0:ptr<managed>@0]
-    t5 = Mul 0, 8 : i64
-    t6 = ptr_offset param2 t5 : ptr
-    t7 = raw_load t6 align 8 : ptr<raw>
-    t8 = raw_load t7 align 8 : i64
-    invoke managed-void-target0 sp35 roots=[param0:argument] sig=void0 (ptr<managed>, i64) dispatch[Closure:2] param0(param0, t8) normal @invoke.normal.1 unwind @callback.failure
+    t5 = ptr_offset param2 element-offset=machine<pointer-element-offset>(PointerElementOffset(0)) element-size=8 subtract=false : ptr
+    t6 = raw_load t5 align 8 : ptr<raw>
+    t7 = raw_load t6 align 8 : i64
+    invoke managed-void-target0 sp35 roots=[param0:argument] sig=void0 (ptr<managed>, i64) dispatch[Closure:2] param0(param0, t7) normal @invoke.normal.1 unwind @callback.failure
     br @invoke.normal.1
   block invoke.normal.1
-    t9 = aggregate () : {}
-    ret 0
+    t8 = aggregate () : {}
+    ret machine<foreign-callback-status>(ForeignCallbackStatus(Returned))
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
   td td2 function$FPUX_IRUX @scoop_td_function$FPUX_IRUX type-id=4 size=0 parent=none vtable=[] itables=[]
@@ -1773,6 +1780,7 @@ Module
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout ForeignCallbackMode size=8 align=8 enum-scan=none
   layout ForeignCallbackState size=8 align=8 enum-scan=none
+  layout Option$C9_ThrowableX size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

@@ -33,7 +33,7 @@ pub(super) fn drive_exit_blocks(
             atomic_field_store(
                 adapter_frame(this, adapter, frame_class),
                 0,
-                mir::Expr::int(STATE_COMPLETED),
+                frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
                 target: mir::CallTarget {
@@ -75,7 +75,7 @@ pub(super) fn drive_exit_blocks(
             atomic_field_store(
                 adapter_frame(this, adapter, frame_class),
                 0,
-                mir::Expr::int(STATE_COMPLETED),
+                frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
                 target: mir::CallTarget {

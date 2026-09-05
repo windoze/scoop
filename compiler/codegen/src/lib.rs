@@ -41,8 +41,8 @@ use la_arena::{Arena, Idx};
 use scoop_lir::{
     ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
     ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction, LirType,
-    Module, NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor,
-    TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
+    MachineScalarKind, Module, NativeGlobal, PointerKind, RefScan, StructDef, TempId, Terminator,
+    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -82,6 +82,7 @@ mod module_context;
 mod statepoint;
 mod target;
 mod type_descriptors;
+mod validation;
 
 pub use c_bridge::{c_bridge_source, c_layout_assertions};
 pub(crate) use declarations::*;

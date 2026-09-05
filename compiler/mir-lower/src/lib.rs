@@ -150,6 +150,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_family_by_callback: HashMap::new(),
         foreign_callback_bridges: Arena::new(),
         foreign_callback_by_registration: HashMap::new(),
         top_level: Vec::new(),
@@ -204,6 +206,8 @@ struct Lowerer {
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_families: Arena<mir::ForeignCallbackFamily>,
+    foreign_callback_family_by_callback: HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
     foreign_callback_by_registration:
         HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,

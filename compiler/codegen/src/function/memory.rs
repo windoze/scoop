@@ -76,7 +76,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.builder.build_gep(
                 self.context.i8_type(),
                 ptr,
-                &[self.context.i32_type().const_int(offset, false)],
+                &[self.context.i64_type().const_int(offset, false)],
                 name,
             )
         }

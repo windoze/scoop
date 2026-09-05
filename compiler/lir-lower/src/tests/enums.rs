@@ -12,9 +12,10 @@ fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
     let mut b = Builder::new();
     let option = b.option_enum(name, payload.clone());
     let option_ty = mir::Type::Enum(option, vec![payload.clone()]);
+    let enum_tag_ty = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
     let mut locals = Arena::new();
     let o = locals.alloc(local("o", option_ty.clone()));
-    let t = locals.alloc(local("t", mir::Type::Int));
+    let t = locals.alloc(local("t", enum_tag_ty.clone()));
     let p = locals.alloc(local("p", payload.clone()));
     let o2 = locals.alloc(local("o2", option_ty.clone()));
     let main = b.main(
@@ -34,7 +35,7 @@ fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
             val_decl(
                 t,
                 expr(
-                    mir::Type::Int,
+                    enum_tag_ty,
                     mir::ExprKind::EnumTag(Box::new(local_expr(o, option_ty.clone()))),
                 ),
             ),

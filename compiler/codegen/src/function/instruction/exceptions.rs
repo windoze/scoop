@@ -10,6 +10,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         match instruction {
             Instruction::LandingPad { record, raw } => {
+                if function.temps[*record].ty != LirType::ExceptionRecord
+                    || function.temps[*raw].ty != scoop_lir::RAW_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "landingpad @{} must produce (exception_record, ptr<raw>)",
+                        function.symbol
+                    )));
+                }
                 // Catch-all landing pad (M8, runtime spec 5). Keep the
                 // `{ ptr, i32 }` record and its raw exception pointer
                 // separate from BeginCatch: cleanup chains can forward
@@ -53,6 +61,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.finish_unwind_compiler_roots()?;
             }
             Instruction::CleanupPad { record, raw } => {
+                if function.temps[*record].ty != LirType::ExceptionRecord
+                    || function.temps[*raw].ty != scoop_lir::RAW_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "cleanup pad @{} must produce (exception_record, ptr<raw>)",
+                        function.symbol
+                    )));
+                }
                 // Cleanup-only landing pad for leaving an active catch
                 // because of a new exception or a rethrow. It does not
                 // call begin_catch; lir-lower either forwards the
@@ -102,6 +118,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.finish_unwind_compiler_roots()?;
             }
             Instruction::BeginCatch { out, raw } => {
+                let raw_ty = function.value_ty(self.globals_arena, *raw);
+                if function.temps[*out].ty != scoop_lir::MANAGED_PTR || raw_ty != scoop_lir::RAW_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "begin_catch @{} requires ptr<raw> -> ptr<managed>, got {} -> {}",
+                        function.symbol,
+                        raw_ty.dump(),
+                        function.temps[*out].ty.dump()
+                    )));
+                }
                 let begin_catch = self.gc_leaf_fn(
                     "scoop_rt_begin_catch",
                     managed_ptr_ty(context, self.managed_address_space)
@@ -133,6 +159,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol)))?;
             }
             Instruction::Throw { exception } => {
+                let exception_ty = function.value_ty(self.globals_arena, *exception);
+                if exception_ty != scoop_lir::MANAGED_PTR {
+                    return Err(CodegenError(format!(
+                        "throw @{} requires ptr<managed>, got {}",
+                        function.symbol,
+                        exception_ty.dump()
+                    )));
+                }
                 // `void scoop_rt_throw(ptr)` (noreturn; runtime spec 5).
                 // The block's Unreachable terminator emits the LLVM
                 // `unreachable` after the call, like the trap path.

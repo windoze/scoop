@@ -182,7 +182,8 @@ impl BodyLowerer<'_> {
             | mir::BinOp::IntEq
             | mir::BinOp::IntNe
             | mir::BinOp::BoolEq
-            | mir::BinOp::BoolNe => mir::Type::Boolean,
+            | mir::BinOp::BoolNe
+            | mir::BinOp::MachineEq(_) => mir::Type::Boolean,
             mir::BinOp::IntAdd
             | mir::BinOp::IntSub
             | mir::BinOp::IntMul

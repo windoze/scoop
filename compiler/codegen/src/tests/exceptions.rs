@@ -202,6 +202,7 @@ pub(super) fn exceptions_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![thrower, may_throw, eh_test],
         entry_symbol: "scoop.eh_test".to_string(),

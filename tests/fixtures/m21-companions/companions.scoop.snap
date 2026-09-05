@@ -1278,26 +1278,26 @@ Module
       return
   fun $init$ensure$0 @scoop.$init$ensure$0() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -1358,11 +1358,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -1816,26 +1816,26 @@ Module
       return
   fun $init$ensure$1 @scoop.$init$ensure$1() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -1896,11 +1896,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -1943,26 +1943,26 @@ Module
       return
   fun $init$ensure$2 @scoop.$init$ensure$2() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:EnumHost.Values
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2023,11 +2023,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2070,26 +2070,26 @@ Module
       return
   fun $init$ensure$3 @scoop.$init$ensure$3() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Box.Factory
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2150,11 +2150,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2197,26 +2197,26 @@ Module
       return
   fun $init$ensure$4 @scoop.$init$ensure$4() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:DefaultHost.Companion
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2277,11 +2277,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2324,26 +2324,26 @@ Module
       return
   fun $init$ensure$5 @scoop.$init$ensure$5() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Independent.Companion
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2404,11 +2404,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2451,26 +2451,26 @@ Module
       return
   fun $init$ensure$6 @scoop.$init$ensure$6() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:InheritedHost.Companion
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2531,11 +2531,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2578,26 +2578,26 @@ Module
       return
   fun $init$ensure$7 @scoop.$init$ensure$7() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init7 companion:InterfaceHost.Provider
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2658,11 +2658,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -2705,26 +2705,26 @@ Module
       return
   fun $init$ensure$8 @scoop.$init$ensure$8() -> Unit
     bb0 entry
-      call $init.state: Int = @scoop_rt_init_enter direct
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 0
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 1
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
     bb4 try.unwind.4
@@ -2785,11 +2785,11 @@ Module
     bb17 if.else.17
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
           Local $init.state
-          Type Int
-          IntLiteral 2
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
     bb18 if.merge.18
       goto bb3
     bb19 if.then.19
@@ -3408,7 +3408,7 @@ Module
     poll managed-void-target1 sp222 live=[]
     store 2 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 24)
+    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
     store t0 -> local2
     call managed-void-target0 sp13 live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn67(local2, local1)
     t1 = aggregate () : {}
@@ -3457,14 +3457,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp228 live=[]
-    call managed-direct-target0 sp16 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td6, 16)
+    call managed-direct-target0 sp16 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp17 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn55(local0)
     t1 = aggregate () : {}
     global_store global12, local0
     ret
   fun @scoop.$init$ensure$0() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -3475,14 +3475,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp229 live=[]
-    call managed-direct-target0 sp18 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init0)
+    call managed-direct-target0 sp18 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init0)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -3535,7 +3535,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -3547,7 +3547,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp24 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
     store t17 -> local4
-    call managed-direct-target4 sp25 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp25 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp26 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -3868,7 +3868,7 @@ Module
     store local70 -> local71
     call managed-void-target46 sp88 live=[] sig=void46 (i64) local-fn43(local71)
     t91 = aggregate () : {}
-    call managed-direct-target15 sp89 live=[] t92 = sig=direct15 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 16)
+    call managed-direct-target15 sp89 live=[] t92 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(16)))
     store t92 -> local83
     call managed-void-target47 sp90 live=[local83:ptr<managed>@0] sig=void47 (ptr<managed>) local-fn56(local83)
     t93 = aggregate () : {}
@@ -3907,14 +3907,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp232 live=[]
-    call managed-direct-target0 sp99 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 16)
+    call managed-direct-target0 sp99 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp100 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn59(local0)
     t1 = aggregate () : {}
     global_store global13, local0
     ret
   fun @scoop.$init$ensure$1() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -3925,14 +3925,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp233 live=[]
-    call managed-direct-target0 sp101 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init1)
+    call managed-direct-target0 sp101 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init1)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -3985,7 +3985,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -3997,7 +3997,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp107 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
     store t17 -> local4
-    call managed-direct-target4 sp108 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp108 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp109 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4017,14 +4017,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp234 live=[]
-    call managed-direct-target0 sp110 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 16)
+    call managed-direct-target0 sp110 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp111 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn60(local0)
     t1 = aggregate () : {}
     global_store global14, local0
     ret
   fun @scoop.$init$ensure$2() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4035,14 +4035,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp235 live=[]
-    call managed-direct-target0 sp112 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init2)
+    call managed-direct-target0 sp112 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init2)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4095,7 +4095,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4107,7 +4107,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp118 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init2)
     store t17 -> local4
-    call managed-direct-target4 sp119 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp119 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp120 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4127,14 +4127,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp236 live=[]
-    call managed-direct-target0 sp121 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 32)
+    call managed-direct-target0 sp121 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(32)))
     store t0 -> local0
     call managed-void-target0 sp122 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn61(local0)
     t1 = aggregate () : {}
     global_store global15, local0
     ret
   fun @scoop.$init$ensure$3() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4145,14 +4145,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp237 live=[]
-    call managed-direct-target0 sp123 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init3)
+    call managed-direct-target0 sp123 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init3)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4205,7 +4205,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4217,7 +4217,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp129 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init3)
     store t17 -> local4
-    call managed-direct-target4 sp130 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp130 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp131 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4237,14 +4237,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp238 live=[]
-    call managed-direct-target0 sp132 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 16)
+    call managed-direct-target0 sp132 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp133 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn62(local0)
     t1 = aggregate () : {}
     global_store global16, local0
     ret
   fun @scoop.$init$ensure$4() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4255,14 +4255,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp239 live=[]
-    call managed-direct-target0 sp134 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init4)
+    call managed-direct-target0 sp134 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init4)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4315,7 +4315,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4327,7 +4327,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp140 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init4)
     store t17 -> local4
-    call managed-direct-target4 sp141 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp141 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp142 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4347,14 +4347,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp240 live=[]
-    call managed-direct-target0 sp143 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td14, 24)
+    call managed-direct-target0 sp143 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp144 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn63(local0)
     t1 = aggregate () : {}
     global_store global17, local0
     ret
   fun @scoop.$init$ensure$5() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4365,14 +4365,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp241 live=[]
-    call managed-direct-target0 sp145 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init5)
+    call managed-direct-target0 sp145 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init5)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4425,7 +4425,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4437,7 +4437,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp151 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init5)
     store t17 -> local4
-    call managed-direct-target4 sp152 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp152 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp153 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4457,14 +4457,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp242 live=[]
-    call managed-direct-target0 sp154 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 24)
+    call managed-direct-target0 sp154 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp155 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn64(local0)
     t1 = aggregate () : {}
     global_store global18, local0
     ret
   fun @scoop.$init$ensure$6() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4475,14 +4475,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp243 live=[]
-    call managed-direct-target0 sp156 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init6)
+    call managed-direct-target0 sp156 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init6)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4535,7 +4535,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4547,7 +4547,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp162 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init6)
     store t17 -> local4
-    call managed-direct-target4 sp163 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp163 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp164 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4567,14 +4567,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp244 live=[]
-    call managed-direct-target0 sp165 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 16)
+    call managed-direct-target0 sp165 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp166 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn65(local0)
     t1 = aggregate () : {}
     global_store global19, local0
     ret
   fun @scoop.$init$ensure$7() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4585,14 +4585,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp245 live=[]
-    call managed-direct-target0 sp167 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init7)
+    call managed-direct-target0 sp167 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init7)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4645,7 +4645,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4657,7 +4657,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp173 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init7)
     store t17 -> local4
-    call managed-direct-target4 sp174 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp174 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp175 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)
@@ -4677,14 +4677,14 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp246 live=[]
-    call managed-direct-target0 sp176 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 16)
+    call managed-direct-target0 sp176 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
     call managed-void-target0 sp177 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn66(local0)
     t1 = aggregate () : {}
     global_store global20, local0
     ret
   fun @scoop.$init$ensure$8() -> void
-    local %0 $init.state: i64
+    local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
     local %3 $init.failure: ptr<managed>
@@ -4695,14 +4695,14 @@ Module
     local %8 $sc.3: ptr<managed>
   block entry
     poll managed-void-target4 sp247 live=[]
-    call managed-direct-target0 sp178 live=[] t0 = sig=direct0 (ptr<metadata>) -> i64 runtime @scoop_rt_init_enter(init8)
+    call managed-direct-target0 sp178 live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init8)
     store t0 -> local0
-    t1 = Eq local0, 0 : i1
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     br @try.body.11
   block if.else.2
-    t2 = Eq local0, 1 : i1
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
     cbr t2 then @if.then.16 else @if.else.17
   block if.merge.3
     ret
@@ -4755,7 +4755,7 @@ Module
   block if.then.16
     br @if.merge.18
   block if.else.17
-    t15 = Eq local0, 2 : i1
+    t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
     cbr t15 then @if.then.19 else @if.else.20
   block if.merge.18
     br @if.merge.3
@@ -4767,7 +4767,7 @@ Module
   block if.else.20
     call managed-direct-target3 sp184 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init8)
     store t17 -> local4
-    call managed-direct-target4 sp185 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td24, 24)
+    call managed-direct-target4 sp185 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
     store t18 -> local5
     t19 = enum_wrap e0 v0 (local4) : enum0
     call managed-void-target3 sp186 live=[local5:ptr<managed>@0, t19:enum0@0] sig=void5 (ptr<managed>, enum0) local-fn52(local5, t19)

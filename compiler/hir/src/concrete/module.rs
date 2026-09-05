@@ -131,6 +131,7 @@ pub struct InitializationFailureRoot {
 pub struct ForeignCallbackCore {
     pub mode: EnumId,
     pub state: EnumId,
+    pub failure: EnumId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

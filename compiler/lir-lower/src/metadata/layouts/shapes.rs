@@ -86,7 +86,7 @@ pub(crate) fn size_align(
     match ty {
         mir::Type::Unit => (0, 1),
         // UInt shares Int's machine word (M9, spec 11.2).
-        mir::Type::Int | mir::Type::UInt => (8, 8),
+        mir::Type::Int | mir::Type::UInt | mir::Type::MachineScalar(_) => (8, 8),
         mir::Type::Boolean => (1, 1),
         mir::Type::String
         | mir::Type::Class(_)

@@ -27,6 +27,7 @@ struct FnEmitter<'a, 'ctx> {
     extern_functions: &'a ExternFunctions,
     native_globals: &'a Arena<NativeGlobal>,
     native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
@@ -246,6 +247,7 @@ pub(super) fn emit_function<'ctx>(
         extern_functions: module_ctx.extern_functions,
         native_globals: module_ctx.native_globals,
         native_global_bridges: module_ctx.native_global_bridges,
+        foreign_callback_families: module_ctx.foreign_callback_families,
         foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
@@ -354,6 +356,16 @@ pub(super) fn emit_function<'ctx>(
                 then_block,
                 else_block,
             } => {
+                // LLVM integer values share one wrapper, so preserve the
+                // logical LIR condition type before materializing it.
+                let cond_ty = function.value_ty(module_ctx.globals_arena, *cond);
+                if cond_ty != LirType::I1 {
+                    return Err(CodegenError(format!(
+                        "cbr @{} has condition type {}, expected i1",
+                        block.name,
+                        cond_ty.dump()
+                    )));
+                }
                 let cond = emitter.value(*cond)?.into_int_value();
                 builder
                     .build_conditional_branch(
@@ -364,6 +376,33 @@ pub(super) fn emit_function<'ctx>(
                     .map_err(|e| CodegenError(format!("cbr @{}: {e}", block.name)))?;
             }
             Terminator::Return { value } => {
+                match value {
+                    Some(value)
+                        if function.value_ty(module_ctx.globals_arena, *value)
+                            != function.return_ty =>
+                    {
+                        return Err(CodegenError(format!(
+                            "ret @{} has value type {}, but function returns {}",
+                            function.symbol,
+                            function.value_ty(module_ctx.globals_arena, *value).dump(),
+                            function.return_ty.dump()
+                        )));
+                    }
+                    None if function.return_ty != LirType::Void => {
+                        return Err(CodegenError(format!(
+                            "ret @{} has no value, but function returns {}",
+                            function.symbol,
+                            function.return_ty.dump()
+                        )));
+                    }
+                    Some(_) if function.return_ty == LirType::Void => {
+                        return Err(CodegenError(format!(
+                            "ret @{} has a value, but function returns void",
+                            function.symbol
+                        )));
+                    }
+                    Some(_) | None => {}
+                }
                 let value = value
                     .map(|value| emitter.value(value))
                     .transpose()
@@ -394,6 +433,14 @@ pub(super) fn emit_function<'ctx>(
                 }
             }
             Terminator::Resume { exception } => {
+                let exception_ty = function.value_ty(module_ctx.globals_arena, *exception);
+                if exception_ty != LirType::ExceptionRecord {
+                    return Err(CodegenError(format!(
+                        "resume @{} requires exception_record, got {}",
+                        function.symbol,
+                        exception_ty.dump()
+                    )));
+                }
                 let exception = emitter.value(*exception)?;
                 builder
                     .build_resume(exception)

@@ -17,7 +17,7 @@ fn closure_abi_module() -> Module {
         ty: suspend_result_ty.clone(),
     });
     let mut call_targets = CallTargets::default();
-    let ordinary_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
+    let ordinary_dispatch = closure_dispatch_destination(&mut call_targets, Value::Param(0), 2);
     let ordinary_site = indirect_result_site(
         &mut call_targets,
         TestCallProtocol::Managed {
@@ -29,7 +29,7 @@ fn closure_abi_module() -> Module {
         ordinary_result,
         vec![Value::Param(0), Value::Param(1)],
     );
-    let suspend_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
+    let suspend_dispatch = closure_dispatch_destination(&mut call_targets, Value::Param(0), 2);
     let suspend_site = indirect_result_site(
         &mut call_targets,
         TestCallProtocol::Managed {
@@ -62,6 +62,7 @@ fn closure_abi_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,

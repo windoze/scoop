@@ -1340,7 +1340,7 @@ Module
     poll managed-void-target7 sp57 live=[]
     store 5 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 32)
+    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(32)))
     store t0 -> local21
     call managed-void-target0 sp13 live=[local21:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn29(local21, local1)
     t1 = aggregate () : {}
@@ -1373,7 +1373,7 @@ Module
     t11 = aggregate () : {}
     store 7 -> local15
     store local15 -> local16
-    call managed-direct-target4 sp21 live=[] t12 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target4 sp21 live=[] t12 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t12 -> local22
     call managed-void-target5 sp22 live=[local22:ptr<managed>@0] sig=void5 (ptr<managed>, i64) local-fn31(local22, local16)
     t13 = aggregate () : {}

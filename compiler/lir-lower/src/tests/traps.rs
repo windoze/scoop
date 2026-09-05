@@ -15,12 +15,12 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     let uw2 = locals.alloc(local("$uw.2", mir::Type::Int));
     let cond = || {
         binary(
-            mir::BinOp::IntEq,
+            mir::BinOp::MachineEq(mir::MachineScalarKind::EnumTag),
             expr(
-                mir::Type::Int,
+                mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag),
                 mir::ExprKind::EnumTag(Box::new(local_expr(o, option_ty.clone()))),
             ),
-            mir::Expr::int(0),
+            mir::Expr::machine_scalar(mir::MachineScalarValue::EnumTag(0)),
             mir::Type::Boolean,
         )
     };
@@ -135,8 +135,8 @@ Module
     local %1 $uw.2: i64
   block entry
     poll managed-void-target0 sp1 live=[]
-    t0 = enum_tag e0 param0 : i64
-    t1 = Eq t0, 0 : i1
+    t0 = enum_tag e0 param0 : machine<enum-tag>
+    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     t2 = enum_field e0 v0 f0 param0 : i64
@@ -145,8 +145,8 @@ Module
   block if.else.2
     br @unwrap.trap.1
   block if.merge.3
-    t3 = enum_tag e0 param0 : i64
-    t4 = Eq t3, 0 : i1
+    t3 = enum_tag e0 param0 : machine<enum-tag>
+    t4 = MachineEq(EnumTag) t3, machine<enum-tag>(EnumTag(0)) : i1
     cbr t4 then @if.then.5 else @if.else.6
   block if.then.5
     t5 = enum_field e0 v0 f0 param0 : i64

@@ -18,6 +18,9 @@ pub(super) fn dump_expr(
             ));
         }
         ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        ExprKind::MachineScalarLiteral(value) => {
+            out.push_str(&format!("{pad}MachineScalarLiteral {value:?}\n"));
+        }
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
         ExprKind::InitializationUnitAddress(unit) => out.push_str(&format!(
@@ -149,15 +152,10 @@ pub(super) fn dump_expr(
         ExprKind::ForeignCallbackRegister { bridge, closure } => {
             let bridge_id = *bridge;
             let bridge = &module.foreign_callback_bridges[bridge_id];
-            let adapter = &module.foreign_callback_adapters[bridge.adapter];
             out.push_str(&format!(
-                "{pad}ForeignCallbackRegister fcb{} native=function_type{} managed=function_type{} context={} mode={:?} adapter=@{}\n",
+                "{pad}ForeignCallbackRegister fcb{} family=fcf{}\n",
                 bridge_id.into_raw().into_u32(),
-                bridge.native_signature.into_raw().into_u32(),
-                adapter.managed_signature.into_raw().into_u32(),
-                bridge.context_index,
-                bridge.mode,
-                module.functions[adapter.function].symbol,
+                bridge.family.into_raw().into_u32(),
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
@@ -166,7 +164,11 @@ pub(super) fn dump_expr(
             callback,
             ..
         } => {
-            out.push_str(&format!("{pad}ForeignCallback{operation:?}\n"));
+            out.push_str(&format!(
+                "{pad}ForeignCallback{} family{}\n",
+                operation.name(),
+                operation.family().into_raw().into_u32()
+            ));
             dump_expr(module, locals, callback, indent + 1, out);
         }
         ExprKind::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
@@ -178,18 +180,27 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        ExprKind::AtomicFieldLoad { object, index } => {
-            out.push_str(&format!("{pad}AtomicLoadAcquire field={index}\n"));
+        ExprKind::AtomicFieldLoad {
+            kind,
+            object,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}AtomicLoadAcquire kind={} field={index}\n",
+                kind.name()
+            ));
             dump_expr(module, locals, object, indent + 1, out);
         }
         ExprKind::AtomicFieldCompareExchange {
+            kind,
             object,
             index,
             expected,
             replacement,
         } => {
             out.push_str(&format!(
-                "{pad}AtomicCompareExchange field={index} success=acq_rel failure=acquire\n"
+                "{pad}AtomicCompareExchange kind={} field={index} success=acq_rel failure=acquire\n",
+                kind.name()
             ));
             dump_expr(module, locals, object, indent + 1, out);
             dump_expr(module, locals, expected, indent + 1, out);

@@ -1274,13 +1274,13 @@ Module
         Local inferred
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb16 if.then.16
       val $uw.2: Int
         Type Int
@@ -1409,13 +1409,13 @@ Module
         Local input
       branch bb25 bb26
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Input
             Local $when.3
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb25 if.then.25
       val value: Int
         Type Int
@@ -1465,13 +1465,13 @@ Module
         Local input
       branch bb31 bb32
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Input
             Local $when.4
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb28 if.then.28
       assign $result.9
         Type String
@@ -1519,13 +1519,13 @@ Module
         Local maybeWhen
       branch bb34 bb35
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.5
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb34 if.then.34
       val $uw.6: Int
         Type Int
@@ -1728,13 +1728,13 @@ Module
         Local maybeTry
       branch bb70 bb71
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type Option$I<Int>
             Local $opt.7
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb64 try.body.64 unwind bb57
       val $argument.0: Int
         Type Int
@@ -2458,7 +2458,7 @@ Module
   block if.then.10
     store 5 -> local97
     t3 = local_address local97 : ptr
-    call managed-direct-target0 sp14 live=[] t4 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t3, 8, root-scan0)
+    call managed-direct-target0 sp14 live=[] t4 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t3, machine<byte-size>(ByteSize(8)), root-scan0)
     store t4 -> local13
     br @if.merge.12
   block if.merge.12
@@ -2478,15 +2478,15 @@ Module
   block if.merge.15
     store local19 -> local20
     store local20 -> local83
-    t9 = enum_tag e1 local83 : i64
-    t10 = Eq t9, 0 : i1
+    t9 = enum_tag e1 local83 : machine<enum-tag>
+    t10 = MachineEq(EnumTag) t9, machine<enum-tag>(EnumTag(0)) : i1
     cbr t10 then @if.then.16 else @if.else.17
   block if.then.16
     t11 = enum_field e1 v0 f0 local83 : i64
     store t11 -> local84
     br @if.merge.18
   block if.else.17
-    call managed-direct-target1 sp16 live=[] t12 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target1 sp16 live=[] t12 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t12 -> local91
     call managed-void-target3 sp17 live=[local91:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn20(local91)
     t13 = aggregate () : {}
@@ -2499,7 +2499,7 @@ Module
     t14 = aggregate () : {}
     br @if.then.19
   block if.then.19
-    call managed-direct-target2 sp19 live=[] t15 = sig=direct3 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
+    call managed-direct-target2 sp19 live=[] t15 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
     store t15 -> local92
     call managed-void-target5 sp20 live=[local92:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn27(local92)
     t16 = aggregate () : {}
@@ -2533,8 +2533,8 @@ Module
     t24 = enum_wrap e2 v0 (local35) : enum2
     store t24 -> local36
     store local36 -> local85
-    t25 = enum_tag e2 local85 : i64
-    t26 = Eq t25, 0 : i1
+    t25 = enum_tag e2 local85 : machine<enum-tag>
+    t26 = MachineEq(EnumTag) t25, machine<enum-tag>(EnumTag(0)) : i1
     cbr t26 then @if.then.25 else @if.else.26
   block if.then.25
     t27 = enum_field e2 v0 f0 local85 : i64
@@ -2555,8 +2555,8 @@ Module
     call managed-void-target9 sp25 live=[local45:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn17(local45)
     t30 = aggregate () : {}
     store local36 -> local86
-    t31 = enum_tag e2 local86 : i64
-    t32 = Eq t31, 1 : i1
+    t31 = enum_tag e2 local86 : machine<enum-tag>
+    t32 = MachineEq(EnumTag) t31, machine<enum-tag>(EnumTag(1)) : i1
     cbr t32 then @if.then.31 else @if.else.32
   block if.then.28
     store global3 -> local41
@@ -2582,15 +2582,15 @@ Module
   block if.merge.33
     store local49 -> local50
     store local50 -> local87
-    t36 = enum_tag e1 local87 : i64
-    t37 = Eq t36, 0 : i1
+    t36 = enum_tag e1 local87 : machine<enum-tag>
+    t37 = MachineEq(EnumTag) t36, machine<enum-tag>(EnumTag(0)) : i1
     cbr t37 then @if.then.34 else @if.else.35
   block if.then.34
     t38 = enum_field e1 v0 f0 local87 : i64
     store t38 -> local88
     br @if.merge.36
   block if.else.35
-    call managed-direct-target4 sp26 live=[] t39 = sig=direct6 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target4 sp26 live=[] t39 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t39 -> local94
     call managed-void-target10 sp27 live=[local94:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn20(local94)
     t40 = aggregate () : {}
@@ -2644,7 +2644,7 @@ Module
     t59 = aggregate () : {}
     br @try.body.64
   block try.body.52
-    call managed-direct-target5 sp34 live=[] t60 = sig=direct8 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target5 sp34 live=[] t60 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t60 -> local95
     invoke managed-void-target17 sp35 roots=[local95:normal] sig=void18 (ptr<managed>) local-fn20(local95) normal @invoke.normal.3 unwind @try.unwind.45
     br @invoke.normal.3
@@ -2669,8 +2669,8 @@ Module
   block try.end.63
     store local69 -> local70
     store local70 -> local89
-    t72 = enum_tag e1 local89 : i64
-    t73 = Eq t72, 0 : i1
+    t72 = enum_tag e1 local89 : machine<enum-tag>
+    t73 = MachineEq(EnumTag) t72, machine<enum-tag>(EnumTag(0)) : i1
     cbr t73 then @if.then.70 else @if.else.71
   block try.body.64
     store 9 -> local67
@@ -2685,7 +2685,7 @@ Module
     store t76 -> local90
     br @if.merge.72
   block if.else.71
-    call managed-direct-target6 sp38 live=[] t77 = sig=direct10 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target6 sp38 live=[] t77 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t77 -> local96
     call managed-void-target20 sp39 live=[local96:ptr<managed>@0] sig=void24 (ptr<managed>) local-fn20(local96)
     t78 = aggregate () : {}

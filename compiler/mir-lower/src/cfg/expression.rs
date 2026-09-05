@@ -7,6 +7,9 @@ impl<'a> CfgLowerer<'a> {
         let kind = match &expr.kind {
             smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
             smir::ExprKind::IntLiteral(value) => mir::ExprKind::IntLiteral(*value),
+            smir::ExprKind::MachineScalarLiteral(value) => {
+                mir::ExprKind::MachineScalarLiteral(*value)
+            }
             smir::ExprKind::BoolLiteral(value) => mir::ExprKind::BoolLiteral(*value),
             smir::ExprKind::UnitLiteral => mir::ExprKind::UnitLiteral,
             smir::ExprKind::TupleLiteral(elements) => mir::ExprKind::TupleLiteral(

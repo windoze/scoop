@@ -13,6 +13,9 @@ pub(super) fn instruction_uses(
         | lir::Instruction::HeapLoad {
             object: operand, ..
         }
+        | lir::Instruction::MachineHeapLoad {
+            object: operand, ..
+        }
         | lir::Instruction::AtomicLoad {
             object: operand, ..
         }
@@ -50,6 +53,7 @@ pub(super) fn instruction_uses(
             call_uses(site.args(), site.destination(&function.call_targets))
         }
         lir::Instruction::HeapStore { object, value, .. }
+        | lir::Instruction::MachineHeapStore { object, value, .. }
         | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
         lir::Instruction::AtomicCompareExchange {
             object,
@@ -58,7 +62,11 @@ pub(super) fn instruction_uses(
             ..
         } => vec![*object, *expected, *replacement],
         lir::Instruction::RawStore { pointer, value, .. } => vec![*pointer, *value],
-        lir::Instruction::PtrOffset { pointer, bytes, .. } => vec![*pointer, *bytes],
+        lir::Instruction::PtrOffset {
+            pointer,
+            element_offset,
+            ..
+        } => vec![*pointer, *element_offset],
         lir::Instruction::LocalAddress { local, .. } => vec![lir::Value::Local(*local)],
         lir::Instruction::ArrayGet { array, index, .. } => vec![*array, *index],
         lir::Instruction::ArraySet {
@@ -95,6 +103,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::MakeAggregate { out, .. }
         | lir::Instruction::ExtractValue { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
+        | lir::Instruction::MachineHeapLoad { out, .. }
         | lir::Instruction::AtomicLoad { out, .. }
         | lir::Instruction::AtomicCompareExchange { out, .. }
         | lir::Instruction::GlobalLoad { out, .. }
@@ -128,6 +137,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         lir::Instruction::GlobalStore { .. }
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }
+        | lir::Instruction::MachineHeapStore { .. }
         | lir::Instruction::AtomicStore { .. }
         | lir::Instruction::RawStore { .. }
         | lir::Instruction::ArraySet { .. }

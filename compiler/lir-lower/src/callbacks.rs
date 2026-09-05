@@ -42,6 +42,7 @@ pub(super) fn lower_foreign_callback_bridges(
                 symbols
             };
         bridges.alloc(lir::ForeignCallbackBridge {
+            family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
             adapter_symbol: module.functions[adapter.function].symbol.clone(),
             trampoline_symbol,
             signature_symbol,
@@ -59,4 +60,23 @@ pub(super) fn lower_foreign_callback_bridges(
         });
     }
     bridges
+}
+
+pub(super) fn lower_foreign_callback_families(
+    module: &mir::Module,
+) -> Arena<lir::ForeignCallbackFamily> {
+    let mut families = Arena::new();
+    for (id, family) in module.foreign_callback_families.iter() {
+        let lowered = families.alloc(lir::ForeignCallbackFamily {
+            callback: struct_def_id(family.callback),
+            state: enum_def_id(family.state),
+            failure: enum_def_id(family.failure),
+        });
+        assert_eq!(
+            lowered.into_raw(),
+            id.into_raw(),
+            "foreign callback family ids transpose one-to-one"
+        );
+    }
+    families
 }

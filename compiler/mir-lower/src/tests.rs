@@ -3,6 +3,7 @@ use scoop_ast::Span;
 use scoop_hir as hir;
 
 mod basic_lowering;
+mod callbacks;
 mod control_flow;
 mod coroutines;
 mod generics;

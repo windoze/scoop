@@ -148,6 +148,7 @@ fn classes_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
         entry_symbol: "scoop_main".to_string(),
@@ -244,6 +245,7 @@ pub(super) fn heap_module() -> Module {
         name: "box_payload".to_string(),
         ty: LirType::Aggregate(vec![LirType::I64]),
     });
+    let byte_size_ty = LirType::MachineScalar(MachineScalarKind::ByteSize);
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
         &mut call_targets,
@@ -251,10 +253,13 @@ pub(super) fn heap_module() -> Module {
             safepoint: 1,
             destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
         },
-        vec![METADATA_PTR, LirType::I64],
+        vec![METADATA_PTR, byte_size_ty.clone()],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
-        vec![Value::TypeDescriptor(point_descriptor), Value::IntConst(32)],
+        vec![
+            Value::TypeDescriptor(point_descriptor),
+            Value::MachineScalar(MachineScalarValue::ByteSize(32)),
+        ],
     );
     let payload_scan = call_targets.root_scans.alloc(RefScan::None);
     let mut box_site = direct_site(
@@ -263,13 +268,13 @@ pub(super) fn heap_module() -> Module {
             safepoint: 2,
             destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
         },
-        vec![METADATA_PTR, RAW_PTR, LirType::I64, METADATA_PTR],
+        vec![METADATA_PTR, RAW_PTR, byte_size_ty, METADATA_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
         vec![
             Value::TypeDescriptor(point_descriptor),
             Value::Temp(t8),
-            Value::IntConst(8),
+            Value::MachineScalar(MachineScalarValue::ByteSize(8)),
             Value::RootScan(payload_scan),
         ],
     );
@@ -387,6 +392,7 @@ pub(super) fn heap_module() -> Module {
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe, main],
         entry_symbol: "scoop_main".to_string(),
@@ -427,4 +433,119 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         .len();
     assert!(len > 0, "object file is empty");
     std::fs::remove_file(&output).ok();
+}
+
+#[test]
+fn emits_typed_machine_heap_state_access() {
+    let mut module = heap_module();
+    let function = &mut module.functions[1];
+    let object = function.temps.iter().next().expect("allocated object").0;
+    let state = function.temps.alloc(Temp {
+        ty: LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
+    });
+    function.blocks[function.entry].instructions.extend([
+        Instruction::MachineHeapStore {
+            kind: MachineScalarKind::CoroutineFrameState,
+            object: Value::Temp(object),
+            offset: 16,
+            value: Value::MachineScalar(MachineScalarValue::CoroutineFrameState(
+                scoop_lir::CoroutineFrameState::Initial,
+            )),
+        },
+        Instruction::MachineHeapLoad {
+            out: state,
+            kind: MachineScalarKind::CoroutineFrameState,
+            object: Value::Temp(object),
+            offset: 16,
+        },
+    ]);
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains("machine_field_ptr")
+            && ir
+                .lines()
+                .any(|line| line.contains("store i64 0") && line.contains("ptr addrspace(1)"))
+            && ir
+                .lines()
+                .any(|line| line.contains("load i64") && line.contains("machine_field_ptr")),
+        "typed machine heap access must lower only at the LLVM boundary:\n{ir}"
+    );
+}
+
+#[test]
+fn machine_heap_store_rejects_cross_domain_state() {
+    let mut module = heap_module();
+    let function = &mut module.functions[1];
+    let object = function.temps.iter().next().expect("allocated object").0;
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::MachineHeapStore {
+            kind: MachineScalarKind::CoroutineFrameState,
+            object: Value::Temp(object),
+            offset: 16,
+            value: Value::MachineScalar(MachineScalarValue::CoroutineAdapterState(
+                CoroutineAdapterState::Waiting,
+            )),
+        });
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("frame and adapter state domains must not be interchangeable");
+    assert!(
+        error.0.contains("machine_heap_store") && error.0.contains("CoroutineFrameState"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn generic_heap_store_rejects_machine_scalar() {
+    let mut module = heap_module();
+    let function = &mut module.functions[1];
+    let object = function.temps.iter().next().expect("allocated object").0;
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::HeapStore {
+            object: Value::Temp(object),
+            offset: 16,
+            value: Value::MachineScalar(MachineScalarValue::CoroutineFrameState(
+                scoop_lir::CoroutineFrameState::Initial,
+            )),
+        });
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("generic heap storage must not erase a machine domain");
+    assert!(
+        error.0.contains("heap_store") && error.0.contains("machine<coroutine-frame-state>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn generic_heap_load_rejects_machine_scalar_result() {
+    let mut module = heap_module();
+    let function = &mut module.functions[1];
+    let object = function.temps.iter().next().expect("allocated object").0;
+    let out = function.temps.alloc(Temp {
+        ty: LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
+    });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::HeapLoad {
+            out,
+            object: Value::Temp(object),
+            offset: 16,
+        });
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("generic heap loads must not manufacture a machine domain");
+    assert!(
+        error.0.contains("heap_load") && error.0.contains("machine scalar"),
+        "unexpected error: {error}"
+    );
 }

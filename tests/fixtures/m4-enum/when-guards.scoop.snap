@@ -818,13 +818,13 @@ Module
         Local v
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb1 if.then.1
       val n: Int
         Type Int
@@ -854,13 +854,13 @@ Module
     bb2 if.else.2
       branch bb13 bb14
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb3 if.merge.3
       val $argument.0: Int
         Type Int
@@ -886,13 +886,13 @@ Module
         Local w
       branch bb19 bb20
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.2
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb4 if.then.4
       val $argument.0: String
         Type String
@@ -907,13 +907,13 @@ Module
     bb5 if.else.5
       branch bb7 bb8
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.1
-          Type Int
-          IntLiteral 0
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
     bb6 if.merge.6
       goto bb3
     bb7 if.then.7
@@ -935,13 +935,13 @@ Module
     bb8 if.else.8
       branch bb10 bb11
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.1
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb9 if.merge.9
       goto bb6
     bb10 if.then.10
@@ -1010,13 +1010,13 @@ Module
     bb14 if.else.14
       branch bb16 bb17
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.1
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb15 if.merge.15
       goto bb3
     bb16 if.then.16
@@ -1085,13 +1085,13 @@ Module
     bb20 if.else.20
       branch bb22 bb23
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.2
-          Type Int
-          IntLiteral 1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(1)
     bb21 if.merge.21
       val e: E
         Type E
@@ -1101,13 +1101,13 @@ Module
         Local e
       branch bb28 bb29
         Type Boolean
-        Binary IntEq
-          Type Int
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
           EnumTag
             Type E
             Local $when.3
-          Type Int
-          IntLiteral 2
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(2)
     bb22 if.then.22
       val a: Int
         Type Int
@@ -1652,8 +1652,8 @@ Module
     t0 = enum_wrap e1 v0 (local1) : enum1
     store t0 -> local2
     store local2 -> local42
-    t1 = enum_tag e1 local42 : i64
-    t2 = Eq t1, 0 : i1
+    t1 = enum_tag e1 local42 : machine<enum-tag>
+    t2 = MachineEq(EnumTag) t1, machine<enum-tag>(EnumTag(0)) : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
     t3 = enum_field e1 v0 f0 local42 : i64
@@ -1665,8 +1665,8 @@ Module
     t5 = Gt t4, 0 : i1
     cbr t5 then @if.then.4 else @if.else.5
   block if.else.2
-    t6 = enum_tag e1 local42 : i64
-    t7 = Eq t6, 0 : i1
+    t6 = enum_tag e1 local42 : machine<enum-tag>
+    t7 = MachineEq(EnumTag) t6, machine<enum-tag>(EnumTag(0)) : i1
     cbr t7 then @if.then.13 else @if.else.14
   block if.merge.3
     store 3 -> local21
@@ -1676,8 +1676,8 @@ Module
     t8 = enum_wrap e1 v1 (local23, local24) : enum1
     store t8 -> local25
     store local25 -> local43
-    t9 = enum_tag e1 local43 : i64
-    t10 = Eq t9, 0 : i1
+    t9 = enum_tag e1 local43 : machine<enum-tag>
+    t10 = MachineEq(EnumTag) t9, machine<enum-tag>(EnumTag(0)) : i1
     cbr t10 then @if.then.19 else @if.else.20
   block if.then.4
     store global0 -> local7
@@ -1686,8 +1686,8 @@ Module
     t11 = aggregate () : {}
     br @if.merge.6
   block if.else.5
-    t12 = enum_tag e1 local42 : i64
-    t13 = Eq t12, 0 : i1
+    t12 = enum_tag e1 local42 : machine<enum-tag>
+    t13 = MachineEq(EnumTag) t12, machine<enum-tag>(EnumTag(0)) : i1
     cbr t13 then @if.then.7 else @if.else.8
   block if.merge.6
     br @if.merge.3
@@ -1700,8 +1700,8 @@ Module
     t15 = aggregate () : {}
     br @if.merge.9
   block if.else.8
-    t16 = enum_tag e1 local42 : i64
-    t17 = Eq t16, 1 : i1
+    t16 = enum_tag e1 local42 : machine<enum-tag>
+    t17 = MachineEq(EnumTag) t16, machine<enum-tag>(EnumTag(1)) : i1
     cbr t17 then @if.then.10 else @if.else.11
   block if.merge.9
     br @if.merge.6
@@ -1736,8 +1736,8 @@ Module
     t24 = aggregate () : {}
     br @if.merge.15
   block if.else.14
-    t25 = enum_tag e1 local42 : i64
-    t26 = Eq t25, 1 : i1
+    t25 = enum_tag e1 local42 : machine<enum-tag>
+    t26 = MachineEq(EnumTag) t25, machine<enum-tag>(EnumTag(1)) : i1
     cbr t26 then @if.then.16 else @if.else.17
   block if.merge.15
     br @if.merge.3
@@ -1772,15 +1772,15 @@ Module
     t33 = aggregate () : {}
     br @if.merge.21
   block if.else.20
-    t34 = enum_tag e1 local43 : i64
-    t35 = Eq t34, 1 : i1
+    t34 = enum_tag e1 local43 : machine<enum-tag>
+    t35 = MachineEq(EnumTag) t34, machine<enum-tag>(EnumTag(1)) : i1
     cbr t35 then @if.then.22 else @if.else.23
   block if.merge.21
     t36 = enum_wrap e1 v2 () : enum1
     store t36 -> local37
     store local37 -> local44
-    t37 = enum_tag e1 local44 : i64
-    t38 = Eq t37, 2 : i1
+    t37 = enum_tag e1 local44 : machine<enum-tag>
+    t38 = MachineEq(EnumTag) t37, machine<enum-tag>(EnumTag(2)) : i1
     cbr t38 then @if.then.28 else @if.else.29
   block if.then.22
     t39 = enum_field e1 v1 f0 local43 : i64

@@ -55,6 +55,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     machine: &TargetMachine,
     profile: TargetProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
+    validation::validate_module(module)?;
     let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
@@ -243,6 +244,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         extern_functions: &module.extern_functions,
         native_globals: &module.native_globals,
         native_global_bridges: &module.native_global_bridges,
+        foreign_callback_families: &module.foreign_callback_families,
         foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,
         globals: &globals,
