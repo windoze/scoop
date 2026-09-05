@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m4-enum/errors/non-exhaustive.scoop:5:5: error: non-exhaustive when: missing variant(s) `Blue`
+m4-enum/errors/non-exhaustive.scoop:5:5: error: non-exhaustive when: missing pattern Blue

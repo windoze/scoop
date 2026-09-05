@@ -517,6 +517,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Color>
     val local7
       IntLiteral 5 : Int
     val local8
@@ -562,6 +563,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Shape>
     val local26
       IntLiteral 3 : Int
     val local27
@@ -612,6 +614,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Shape>
     val local47
       IntLiteral 7 : Int
     val local48

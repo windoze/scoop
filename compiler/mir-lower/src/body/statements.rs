@@ -380,6 +380,27 @@ impl BodyLowerer<'_> {
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
+        if let hir::WhenFallback::Impossible(proof) = &when.fallback {
+            let proof_subject = match proof {
+                hir::ExhaustivenessProof::IrrefutableArm { subject_ty } => *subject_ty,
+                hir::ExhaustivenessProof::PatternMatrix { subject_ty } => *subject_ty,
+                hir::ExhaustivenessProof::EnumPatternMatrix {
+                    subject_ty,
+                    enum_id,
+                } => {
+                    assert_eq!(
+                        self.module.types[*subject_ty].kind,
+                        hir::TypeKind::Enum(*enum_id),
+                        "an enum exhaustiveness proof must name its subject enum",
+                    );
+                    *subject_ty
+                }
+            };
+            assert_eq!(
+                proof_subject, when.subject.ty,
+                "an exhaustiveness proof must match its when subject",
+            );
+        }
         let subject_ty = self.lower_type(when.subject.ty);
         let subject_init = self.lower_expr(&when.subject);
         self.drain_prelude(span, out);
@@ -391,8 +412,7 @@ impl BodyLowerer<'_> {
             },
             span,
         });
-        let mut chain =
-            self.lower_arms(&when.arms, subject, &subject_ty, when.else_body.as_deref());
+        let mut chain = self.lower_arms(&when.arms, subject, &subject_ty, &when.fallback, span);
         out.append(&mut chain);
     }
 
@@ -403,18 +423,24 @@ impl BodyLowerer<'_> {
     /// directly; an unconditionally matching arm (binding / wildcard,
     /// no guard) is inlined and makes the remaining arms unreachable
     /// (hir-lower rejects those). Exhaustiveness was checked at HIR,
-    /// so the innermost else can only be reached via `else_body`.
+    /// so the innermost false edge is either an explicit `else` body or an
+    /// `Impossible` edge carrying a typed exhaustiveness proof.
     pub(super) fn lower_arms(
         &mut self,
         arms: &[hir::WhenArm],
         subject: mir::LocalId,
         subject_ty: &mir::Type,
-        else_body: Option<&[hir::Statement]>,
+        fallback: &hir::WhenFallback,
+        fallback_span: Span,
     ) -> Vec<smir::Statement> {
         let Some((arm, rest)) = arms.split_first() else {
-            return else_body
-                .map(|body| self.lower_statements(body))
-                .unwrap_or_default();
+            return match fallback {
+                hir::WhenFallback::Else(body) => self.lower_statements(body),
+                hir::WhenFallback::Impossible(_) => vec![smir::Statement {
+                    kind: smir::StatementKind::Unreachable,
+                    span: fallback_span,
+                }],
+            };
         };
         let mut path = Vec::new();
         let mut bindings = Vec::new();
@@ -435,7 +461,7 @@ impl BodyLowerer<'_> {
                 span: arm.span,
             }));
             let body = self.lower_statements(&arm.body);
-            let next = self.lower_arms(rest, subject, subject_ty, else_body);
+            let next = self.lower_arms(rest, subject, subject_ty, fallback, fallback_span);
             then.push(smir::Statement {
                 kind: smir::StatementKind::If {
                     cond: guard_cond,
@@ -447,8 +473,12 @@ impl BodyLowerer<'_> {
         } else {
             then.extend(self.lower_statements(&arm.body));
         }
-        if rest.is_empty() && else_body.is_none() && arm.guard.is_none() {
-            // HIR has already proved the complete arm sequence exhaustive.
+        if rest.is_empty()
+            && matches!(fallback, hir::WhenFallback::Impossible(_))
+            && arm.guard.is_none()
+        {
+            // HIR carries the proof that the complete arm sequence is
+            // exhaustive.
             // Reaching its final unguarded arm therefore proves this pattern,
             // even when the pattern itself is refutable in isolation. Keeping
             // an impossible false edge would make values defined by every arm
@@ -459,7 +489,7 @@ impl BodyLowerer<'_> {
             // Matches unconditionally; `rest` is unreachable.
             return then;
         };
-        let next = self.lower_arms(rest, subject, subject_ty, else_body);
+        let next = self.lower_arms(rest, subject, subject_ty, fallback, fallback_span);
         vec![smir::Statement {
             kind: smir::StatementKind::If {
                 cond,

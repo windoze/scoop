@@ -168,8 +168,8 @@ impl Lowerer {
                         }
                         self.collect_generic_calls_in_statements(caller, &arm.body, out);
                     }
-                    if let Some(else_body) = &when.else_body {
-                        self.collect_generic_calls_in_statements(caller, else_body, out);
+                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                        self.collect_generic_calls_in_statements(caller, body, out);
                     }
                 }
                 hir::StatementKind::Try(try_) => {

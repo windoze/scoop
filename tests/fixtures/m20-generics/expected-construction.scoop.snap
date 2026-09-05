@@ -584,6 +584,7 @@ Module
       arm variant1()
         assign $result.1
           VariantConstruct Choice.Empty<Animal> : Choice<Animal>
+      impossible <enum pattern matrix for Switch>
     return
       Local $result.1 : Choice<Animal>
   fun recovered(): Option<Animal>
@@ -742,6 +743,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Choice<Animal>>
     val local44
       FieldAccess class field name : String
         Unwrap trap=true : Animal
@@ -785,6 +787,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Choice<Animal>>
     val local57
       FieldAccess class field name : String
         Unwrap trap=true : Animal

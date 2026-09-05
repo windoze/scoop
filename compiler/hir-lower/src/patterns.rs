@@ -1,5 +1,5 @@
 //! Pattern lowering for `when` arms and destructuring declarations
-//! (spec 4.6 / 5, milestone4 DESIGN.md 3.2).
+//! (spec 4.6 / 5, milestone22 DESIGN.md 4.4).
 //!
 //! Surface patterns (`ast::Pattern`) leave the variant/struct split
 //! unresolved; here every pattern is resolved against the type of the
@@ -12,7 +12,7 @@
 //!
 //! - `when` arms (`in_when: true`): refutable patterns (enum variants,
 //!   literals) are allowed, bindings are immutable, and exhaustiveness
-//!   is checked over the whole arm list (`check_exhaustiveness`);
+//!   is proved over the whole arm list (`prove_exhaustiveness`);
 //! - `val` / `var` declarations (`in_when: false`): only irrefutable
 //!   patterns (bindings, wildcards, tuple and struct patterns) are
 //!   allowed — an enum variant or literal pattern is diagnosed with
@@ -23,8 +23,6 @@
 //! elements is recovered by comparing element spans against it (the
 //! parser assigns spans in source order).
 
-use std::collections::HashSet;
-
 use scoop_ast as ast;
 use scoop_hir as hir;
 
@@ -33,6 +31,7 @@ use hir::{Type, TypeId};
 
 use crate::{Lowerer, VariantStyle};
 
+mod exhaustiveness;
 mod structure;
 
 /// Where a pattern appears (spec 4.6 / 5).
@@ -94,6 +93,15 @@ impl Lowerer {
                         format!("literal pattern of type {found} cannot match {expected}"),
                     );
                     return None;
+                }
+                // `Unit` has exactly one constructor. Normalize its literal
+                // pattern to the same unconditional HIR form as `_`; this
+                // avoids inventing an equality call for a one-value type and
+                // lets the matrix checker treat `()` as exhaustive.
+                if matches!(self.types[matched_ty], Type::Unit)
+                    && matches!(literal.kind, hir::ExprKind::UnitLiteral)
+                {
+                    return Some(hir::Pattern::Wildcard);
                 }
                 let (literal, equals) =
                     self.resolve_literal_pattern_equality(matched_ty, literal, *span)?;
@@ -345,68 +353,6 @@ impl Lowerer {
         self.scopes.declare(name.text.clone(), local);
         Some(local)
     }
-
-    /// Exhaustiveness (spec 5, milestone4 DESIGN.md 3.2):
-    ///
-    /// - an enum subject must cover every variant — only *unguarded*
-    ///   variant patterns count (the compiler treats a guarded arm as
-    ///   possibly not matching), and an unguarded binding or wildcard
-    ///   arm covers everything — or provide an `else` branch;
-    /// - a tuple or struct subject is exhaustive when an unguarded,
-    ///   fully irrefutable arm exists (spec 5.2 / 5.3), or with `else`.
-    pub(crate) fn check_exhaustiveness(
-        &mut self,
-        span: Span,
-        subject_ty: TypeId,
-        arms: &[hir::WhenArm],
-        has_else: bool,
-    ) {
-        if has_else {
-            return;
-        }
-        let Type::Enum(application) = self.types[subject_ty] else {
-            let exhaustive = arms
-                .iter()
-                .any(|arm| arm.guard.is_none() && is_irrefutable(&arm.pattern));
-            if !exhaustive {
-                self.error(
-                    span,
-                    "non-exhaustive when: add a catch-all pattern or an `else` branch".to_string(),
-                );
-            }
-            return;
-        };
-        let enum_id = self.enum_applications[application].template;
-        let mut covered = HashSet::new();
-        for arm in arms {
-            if arm.guard.is_some() {
-                continue;
-            }
-            match &arm.pattern {
-                hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => return,
-                hir::Pattern::Variant { variant, .. } => {
-                    covered.insert(*variant);
-                }
-                _ => {}
-            }
-        }
-        let missing: Vec<String> = self.enums[enum_id]
-            .variants
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| !covered.contains(&(*index as u32)))
-            .map(|(_, variant)| format!("`{}`", variant.name))
-            .collect();
-        if !missing.is_empty() {
-            self.error(
-                span,
-                format!(
-                    "non-exhaustive when: missing variant(s) {}",
-                    missing.join(", ")
-                ),
-            );
-        }
-    }
 }
 
 /// What a pattern path resolved to: an enum variant (with the matched
@@ -424,7 +370,7 @@ fn variant_owner(enum_name: &str, variant_name: &str) -> String {
 /// Whether a pattern is irrefutable: binds or skips everything it
 /// matches, so a single unguarded arm with it covers the whole type
 /// (spec 5.2 / 5.3). Variant and literal patterns are refutable.
-fn is_irrefutable(pattern: &hir::Pattern) -> bool {
+pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
     match pattern {
         hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => true,
         hir::Pattern::Tuple(elements) => elements.iter().all(is_irrefutable),

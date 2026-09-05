@@ -68,6 +68,7 @@ mod display;
 mod interning;
 mod invariance;
 mod kinds;
+mod layout_cycles;
 mod relations;
 mod resolution;
 mod substitution;

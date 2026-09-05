@@ -592,6 +592,7 @@ Module
       arm variant1()
         assign $result.0
           BoolLiteral true : Boolean
+      impossible <enum pattern matrix for Option<T0>>
     return
       Local $result.0 : Boolean
   fun returnNested(op: (Int) -> Any): (Any) -> Int

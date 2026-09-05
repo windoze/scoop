@@ -1117,6 +1117,7 @@ Module
           Local $argument.0 : Array<Int>
         Call printInts : Unit
           Local $parameter.values : Array<Int>
+      impossible <enum pattern matrix for Event>
     val local111
       CallableReference reference0 target=collect captures=0 : (Array<Int>) -> Array<Int>
     val local112

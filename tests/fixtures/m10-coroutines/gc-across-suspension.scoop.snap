@@ -556,6 +556,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Payload>
     val local18
       Local value : Int
     val local19

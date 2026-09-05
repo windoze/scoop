@@ -446,6 +446,7 @@ Module
       arm variant0(0: _)
         assign $result.2
           BoolLiteral true : Boolean
+      impossible <enum pattern matrix for Option<T0>>
     return
       Local $result.2 : Boolean
   fun main(): Unit

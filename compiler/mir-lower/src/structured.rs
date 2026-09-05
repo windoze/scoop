@@ -33,6 +33,10 @@ pub(crate) struct CatchClause {
 
 #[derive(Debug)]
 pub(crate) enum StatementKind {
+    /// A typed upstream proof established that this control-flow edge has no
+    /// runtime predecessor. Keeping it explicit prevents Unit fallthrough
+    /// completion from turning an impossible edge into a normal return.
+    Unreachable,
     Expr(Expr),
     Return {
         value: Option<Expr>,

@@ -537,6 +537,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Duo<Int>>
     val local21
       VariantConstruct Option.None<Int> : Option<Int>
     val local22

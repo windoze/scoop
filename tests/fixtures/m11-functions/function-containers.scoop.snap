@@ -515,6 +515,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Option<(Int) -> Int>>
     val local15
       Local operations : Array<(Int) -> Int>
     val local16

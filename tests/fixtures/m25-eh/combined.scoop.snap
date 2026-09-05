@@ -708,6 +708,7 @@ Module
             Local $argument.0 : String
           Call println<String> : Unit
             Local $parameter.value : String
+        impossible <enum pattern matrix for TaggedPayload>
       val local17
         FieldAccess class field values : Array<String>
           Local error : CombinedMovingError

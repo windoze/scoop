@@ -5,7 +5,7 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding(name) => name.text.clone(),
         Pattern::Wildcard { .. } => "_".to_string(),
-        Pattern::Literal { expr, .. } => format!("{:?}", expr).chars().take(40).collect(),
+        Pattern::Literal { expr, .. } => dump_literal(expr),
         Pattern::Positional {
             path,
             elements,
@@ -48,7 +48,32 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
             if let Some(rest) = rest {
                 parts.push(format!("..@{}", rest.start));
             }
-            format!("({})", parts.join(", "))
+            let trailing_comma = if elements.len() == 1 && rest.is_none() {
+                ","
+            } else {
+                ""
+            };
+            format!("({}{trailing_comma})", parts.join(", "))
         }
+    }
+}
+
+fn dump_literal(expr: &Expr) -> String {
+    match expr {
+        Expr::StringLiteral { value, .. } => format!("{value:?}"),
+        Expr::IntLiteral { value, .. } => value.to_string(),
+        Expr::BoolLiteral { value, .. } => value.to_string(),
+        Expr::UnitLiteral { .. } => "()".to_string(),
+        Expr::Unary {
+            op: UnOp::Plus,
+            operand,
+            ..
+        } => format!("+{}", dump_literal(operand)),
+        Expr::Unary {
+            op: UnOp::Neg,
+            operand,
+            ..
+        } => format!("-{}", dump_literal(operand)),
+        _ => panic!("a parsed literal pattern contains only literal syntax"),
     }
 }

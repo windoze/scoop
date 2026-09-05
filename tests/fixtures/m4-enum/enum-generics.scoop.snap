@@ -464,6 +464,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Box<Int>>
     when
       Local b : Box<String>
       arm variant0(0: local11)
@@ -480,6 +481,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Box<String>>
     val local16
       VariantConstruct Box.Empty<Int> : Box<Int>
     when
@@ -498,6 +500,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Box<Int>>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>

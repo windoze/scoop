@@ -568,6 +568,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for E>
     val local34
       IntLiteral 1 : Int
     val local35

@@ -22,16 +22,13 @@ fn statement_can_fall_through(statement: &hir::Statement) -> bool {
                 || else_body.as_deref().is_none_or(statements_can_fall_through)
         }
         hir::StatementKind::When(when) => {
-            if when.arms.is_empty() && when.else_body.is_none() {
-                return true;
-            }
             when.arms
                 .iter()
                 .any(|arm| statements_can_fall_through(&arm.body))
-                || when
-                    .else_body
-                    .as_deref()
-                    .is_some_and(statements_can_fall_through)
+                || match &when.fallback {
+                    hir::WhenFallback::Else(body) => statements_can_fall_through(body),
+                    hir::WhenFallback::Impossible(_) => false,
+                }
         }
         hir::StatementKind::Try(try_) => {
             if try_

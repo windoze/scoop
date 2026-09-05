@@ -106,7 +106,33 @@ pub enum AssignTarget {
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
-    pub else_body: Option<Vec<Statement>>,
+    pub fallback: WhenFallback,
+}
+
+/// The total fallback edge of a checked `when`.
+///
+/// An absent source `else` is not enough to make the edge unreachable:
+/// HIR carries the exhaustiveness proof that established this fact.
+#[derive(Debug, Clone)]
+pub enum WhenFallback {
+    Else(Vec<Statement>),
+    Impossible(ExhaustivenessProof),
+}
+
+/// A typed witness produced by the HIR exhaustiveness checker.
+#[derive(Debug, Clone)]
+pub enum ExhaustivenessProof {
+    /// An unguarded recursively-irrefutable arm covers the subject type.
+    IrrefutableArm { subject_ty: TypeId },
+    /// A recursive pattern matrix covers a tuple or struct even though no
+    /// individual arm is irrefutable.
+    PatternMatrix { subject_ty: TypeId },
+    /// Every constructor of this exact enum application, including each
+    /// constructor's recursive payload matrix, is covered.
+    EnumPatternMatrix {
+        subject_ty: TypeId,
+        application: EnumApplicationId,
+    },
 }
 
 #[derive(Debug, Clone)]

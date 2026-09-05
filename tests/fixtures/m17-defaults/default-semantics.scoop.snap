@@ -728,6 +728,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Choice>
     val local40
       IntLiteral 31 : Int
     val local41
@@ -744,6 +745,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Choice>
     val local46
       ArrayLiteral : Array<Int>
     val local47

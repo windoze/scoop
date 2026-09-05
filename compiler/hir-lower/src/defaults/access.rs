@@ -186,8 +186,8 @@ impl ReferenceCollector<'_> {
                     }
                     self.statements(&arm.body);
                 }
-                if let Some(else_body) = &value.else_body {
-                    self.statements(else_body);
+                if let hir::WhenFallback::Else(body) = &value.fallback {
+                    self.statements(body);
                 }
             }
             hir::StatementKind::Try(value) => {

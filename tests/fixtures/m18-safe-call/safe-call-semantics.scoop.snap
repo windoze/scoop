@@ -604,6 +604,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<String>>
   fun main(): Unit
     val local0
       StringLiteral "some-" : String
@@ -844,6 +845,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Option<String>>>
     val local69
       Local some : Option<Probe>
     if
@@ -877,6 +879,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Unit>>
     val local78
       StringLiteral "field-" : String
     val local79
@@ -958,6 +961,7 @@ Module
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <enum pattern matrix for Option<Int>>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>

@@ -437,6 +437,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Int>>
     val local8
       VariantConstruct Option.None<Int> : Option<Int>
     when
@@ -455,6 +456,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Int>>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>

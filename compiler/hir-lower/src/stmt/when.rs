@@ -47,16 +47,22 @@ impl Lowerer {
             }
         }
         let else_body = when.else_body.as_ref().map(|b| self.lower_block(b));
-        // With a failed arm the coverage information is unreliable;
-        // the module is rejected anyway, so skip the exhaustiveness
-        // check to avoid noise.
-        if arms_ok {
-            self.check_exhaustiveness(when.span, subject.ty, &arms, else_body.is_some());
+        // A rejected arm leaves coverage information incomplete. Do not emit
+        // a malformed `when` that a downstream stage could mistake for a
+        // checked decision plan.
+        if !arms_ok {
+            return None;
         }
+        let fallback = match else_body {
+            Some(body) => hir::WhenFallback::Else(body),
+            None => hir::WhenFallback::Impossible(
+                self.prove_exhaustiveness(when.span, subject.ty, &arms)?,
+            ),
+        };
         Some(hir::StatementKind::When(hir::When {
             subject,
             arms,
-            else_body,
+            fallback,
         }))
     }
 
@@ -149,14 +155,19 @@ impl Lowerer {
                 span: arm.span,
             })
             .collect();
-        self.check_exhaustiveness(when.span, subject.ty, &arms, else_value.is_some());
+        let fallback = match else_value {
+            Some(body) => hir::WhenFallback::Else(body.statements),
+            None => hir::WhenFallback::Impossible(
+                self.prove_exhaustiveness(when.span, subject.ty, &arms)?,
+            ),
+        };
         sink.extend(subject_sink);
         sink.push(hir::Statement {
             span: when.span,
             kind: hir::StatementKind::When(hir::When {
                 subject,
                 arms,
-                else_body: else_value.map(|body| body.statements),
+                fallback,
             }),
         });
         Some(result)

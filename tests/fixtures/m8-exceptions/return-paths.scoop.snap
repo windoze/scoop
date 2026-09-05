@@ -498,6 +498,7 @@ Module
       arm variant1()
         return
           IntLiteral 21 : Int
+      impossible <enum pattern matrix for Choice>
   fun fromFinally(): Int
     try
       return

@@ -132,6 +132,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Color>
   entry main
   instance println<String>
 "#;
@@ -281,6 +282,7 @@ fn when_over_option_with_guard() {
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Int>>
   entry main
   instance println<Int>
   instance println<String>
@@ -434,6 +436,7 @@ fn when_over_tuple_and_struct() {
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <irrefutable (Int, String)>
     val local6
       IntLiteral 1 : Int
     val local7
@@ -466,6 +469,7 @@ fn when_over_tuple_and_struct() {
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <irrefutable Point>
   entry main
   instance println<String>
   instance println<Int>

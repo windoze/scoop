@@ -600,6 +600,7 @@ Module
             Local $argument.0 : String
           Call println<String> : Unit
             Local $parameter.value : String
+        impossible <enum pattern matrix for MovingChoice>
       val local24
         FieldAccess field 3 : Array<String>
           Local bundle : MovingBundle

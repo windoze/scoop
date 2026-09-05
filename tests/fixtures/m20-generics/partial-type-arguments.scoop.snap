@@ -841,6 +841,7 @@ Module
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Choice<Int, String>>
     val local82
       FieldAccess field 1 : String
         Local method : Pair<Int, String>

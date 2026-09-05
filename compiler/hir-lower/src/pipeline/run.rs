@@ -268,6 +268,17 @@ impl Lowerer {
         }
         self.current_owner = None;
 
+        // Inline value layout must be finite before signatures or bodies can
+        // request concrete applications. The declaration graph deliberately
+        // stops at every reference/pointer boundary and recognizes generic
+        // growth by template identity rather than materializing applications.
+        if !self.validate_value_layout_cycles() {
+            // No later pass may try to materialize an application whose
+            // inline layout grows forever. The validator has collected one
+            // stable definition-site diagnostic for every cyclic SCC.
+            return Err(self.diagnostics);
+        }
+
         // Every nominal constraint and inheritance edge is now complete, so
         // fixed alias applications can prove both kind and nominal bounds.
         // Intrinsic owner lookup is also total, which lets exposure witnesses

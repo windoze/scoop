@@ -215,13 +215,56 @@ impl Concretizer<'_> {
                 span: arm.span,
             })
             .collect();
+        let fallback = match &source.fallback {
+            export::WhenFallback::Else(body) => {
+                concrete::WhenFallback::Else(self.lower_statements(body, substitution, locals))
+            }
+            export::WhenFallback::Impossible(proof) => {
+                let proof = match proof {
+                    export::ExhaustivenessProof::IrrefutableArm { subject_ty } => {
+                        let subject_ty = self.lower_type(*subject_ty, substitution);
+                        assert_eq!(
+                            subject_ty, subject.ty,
+                            "the checked irrefutable proof must match its concrete subject",
+                        );
+                        concrete::ExhaustivenessProof::IrrefutableArm { subject_ty }
+                    }
+                    export::ExhaustivenessProof::PatternMatrix { subject_ty } => {
+                        let subject_ty = self.lower_type(*subject_ty, substitution);
+                        assert_eq!(
+                            subject_ty, subject.ty,
+                            "the checked pattern-matrix proof must match its concrete subject",
+                        );
+                        concrete::ExhaustivenessProof::PatternMatrix { subject_ty }
+                    }
+                    export::ExhaustivenessProof::EnumPatternMatrix {
+                        subject_ty,
+                        application,
+                    } => {
+                        let subject_ty = self.lower_type(*subject_ty, substitution);
+                        let enum_id = self.lower_enum_application(*application, substitution);
+                        assert_eq!(
+                            subject_ty, subject.ty,
+                            "the checked enum proof must match its concrete subject",
+                        );
+                        assert_eq!(
+                            self.types[subject_ty].kind,
+                            concrete::TypeKind::Enum(enum_id),
+                            "the checked enum proof must match its concrete subject",
+                        );
+                        concrete::ExhaustivenessProof::EnumPatternMatrix {
+                            subject_ty,
+                            enum_id,
+                        }
+                    }
+                };
+                concrete::WhenFallback::Impossible(proof)
+            }
+        };
         concrete::When {
             subject,
             arms,
-            else_body: source
-                .else_body
-                .as_ref()
-                .map(|body| self.lower_statements(body, substitution, locals)),
+            fallback,
         }
     }
 }

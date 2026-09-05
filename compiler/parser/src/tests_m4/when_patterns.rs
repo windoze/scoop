@@ -65,6 +65,28 @@ fn when_guard_dump() {
 }
 
 #[test]
+fn literal_pattern_dump_is_source_shaped() {
+    assert_eq!(
+        stmt_dump("when (value) {\n        Value((false,), 1, \"x\", ()) if (flag) -> { }\n    }"),
+        "when\n  Var value\n  arm Value((false,), 1, \"x\", ()) if <guard>\n"
+    );
+}
+
+#[test]
+fn when_expression_dump_marks_guarded_arms() {
+    let file = ok(
+        "fun choose(value: Boolean, flag: Boolean): Int = when (value) {\n\
+             true if (flag) -> 1\n\
+             false -> 0\n\
+         }\n",
+    );
+    assert_eq!(
+        scoop_ast::dump(&file),
+        "SourceFile\n  fun choose(value: Boolean, flag: Boolean): Int\n    =\n      WhenExpression\n        Var value\n        arm true if <guard>\n          IntLiteral 1\n        arm false\n          IntLiteral 0\n"
+    );
+}
+
+#[test]
 fn when_positional_pattern_with_literal_and_wildcard() {
     let when = when_with_arms("        Rect(0, _) -> { }\n");
     let Pattern::Positional { elements, rest, .. } = &when.arms[0].pattern else {

@@ -80,6 +80,14 @@ pub(crate) enum Owner {
     Object(ObjectId),
 }
 
+/// A declaration whose instances have inline value layout. Struct and enum
+/// ids remain distinct even when their arena indices happen to agree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ValueLayoutTemplate {
+    Struct(StructId),
+    Enum(EnumId),
+}
+
 impl Owner {
     pub(crate) const fn as_nominal_owner(self) -> hir::NominalOwner {
         match self {

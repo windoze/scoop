@@ -74,8 +74,8 @@ pub(super) fn patch_local_function_calls(
                     }
                     patch_local_function_calls(&mut arm.body, target, captures);
                 }
-                if let Some(else_body) = &mut when.else_body {
-                    patch_local_function_calls(else_body, target, captures);
+                if let hir::WhenFallback::Else(body) = &mut when.fallback {
+                    patch_local_function_calls(body, target, captures);
                 }
             }
             hir::StatementKind::Try(try_) => {

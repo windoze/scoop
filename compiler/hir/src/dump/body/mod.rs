@@ -137,9 +137,30 @@ pub(super) fn dump_statements(
                     }
                     dump_statements(module, locals, &arm.body, indent + 2, out);
                 }
-                if let Some(else_body) = &when.else_body {
-                    out.push_str(&format!("{pad}  else\n"));
-                    dump_statements(module, locals, else_body, indent + 2, out);
+                match &when.fallback {
+                    WhenFallback::Else(body) => {
+                        out.push_str(&format!("{pad}  else\n"));
+                        dump_statements(module, locals, body, indent + 2, out);
+                    }
+                    WhenFallback::Impossible(ExhaustivenessProof::IrrefutableArm {
+                        subject_ty,
+                    }) => out.push_str(&format!(
+                        "{pad}  impossible <irrefutable {}>\n",
+                        type_name(module, *subject_ty),
+                    )),
+                    WhenFallback::Impossible(ExhaustivenessProof::PatternMatrix { subject_ty }) => {
+                        out.push_str(&format!(
+                            "{pad}  impossible <pattern matrix for {}>\n",
+                            type_name(module, *subject_ty),
+                        ))
+                    }
+                    WhenFallback::Impossible(ExhaustivenessProof::EnumPatternMatrix {
+                        subject_ty,
+                        ..
+                    }) => out.push_str(&format!(
+                        "{pad}  impossible <enum pattern matrix for {}>\n",
+                        type_name(module, *subject_ty),
+                    )),
                 }
             }
         }

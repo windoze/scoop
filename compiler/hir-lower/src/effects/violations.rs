@@ -86,8 +86,8 @@ impl Lowerer {
                         }
                         self.collect_no_gc_statement_violations(&arm.body, out, requirements);
                     }
-                    if let Some(else_body) = &when.else_body {
-                        self.collect_no_gc_statement_violations(else_body, out, requirements);
+                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                        self.collect_no_gc_statement_violations(body, out, requirements);
                     }
                 }
                 hir::StatementKind::Try(_) => out.push((

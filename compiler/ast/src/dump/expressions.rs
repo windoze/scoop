@@ -260,7 +260,15 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}WhenExpression\n"));
             dump_expr(&when.subject, indent + 1, out);
             for arm in &when.arms {
-                out.push_str(&format!("{pad}  arm {}\n", dump_pattern(&arm.pattern)));
+                out.push_str(&format!(
+                    "{pad}  arm {}{}\n",
+                    dump_pattern(&arm.pattern),
+                    if arm.guard.is_some() {
+                        " if <guard>"
+                    } else {
+                        ""
+                    }
+                ));
                 dump_block(&arm.body, indent + 2, out);
             }
             if let Some(else_body) = &when.else_body {

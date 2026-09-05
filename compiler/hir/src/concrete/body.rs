@@ -75,7 +75,22 @@ pub enum AssignTarget {
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
-    pub else_body: Option<Vec<Statement>>,
+    pub fallback: WhenFallback,
+}
+
+/// Local-concrete counterpart of the checked Export HIR fallback edge.
+#[derive(Debug, Clone)]
+pub enum WhenFallback {
+    Else(Vec<Statement>),
+    Impossible(ExhaustivenessProof),
+}
+
+/// A fully instantiated exhaustiveness witness.
+#[derive(Debug, Clone)]
+pub enum ExhaustivenessProof {
+    IrrefutableArm { subject_ty: TypeId },
+    PatternMatrix { subject_ty: TypeId },
+    EnumPatternMatrix { subject_ty: TypeId, enum_id: EnumId },
 }
 
 #[derive(Debug, Clone)]

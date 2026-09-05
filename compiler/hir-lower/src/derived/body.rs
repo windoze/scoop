@@ -116,7 +116,7 @@ impl Lowerer {
                                 body: vec![return_statement(equal, span)],
                                 span,
                             }],
-                            else_body: Some(vec![return_statement(
+                            fallback: hir::WhenFallback::Else(vec![return_statement(
                                 self.bool_expr(false, self.boolean, span),
                                 span,
                             )]),
@@ -138,7 +138,12 @@ impl Lowerer {
                     kind: hir::StatementKind::When(hir::When {
                         subject: this_expr,
                         arms,
-                        else_body: None,
+                        fallback: hir::WhenFallback::Impossible(
+                            hir::ExhaustivenessProof::EnumPatternMatrix {
+                                subject_ty: ty,
+                                application,
+                            },
+                        ),
                     }),
                     span,
                 }]

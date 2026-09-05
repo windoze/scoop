@@ -78,6 +78,7 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_statement(&mut self, statement: &'a smir::Statement) {
         let span = statement.span;
         match &statement.kind {
+            smir::StatementKind::Unreachable => self.seal(mir::Terminator::Unreachable),
             smir::StatementKind::Expr(expr) => {
                 if let Some(message) = trap_message(expr) {
                     self.seal(mir::Terminator::Trap { message });

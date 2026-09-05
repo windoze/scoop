@@ -4,12 +4,12 @@ use super::super::*;
 fn when_stmt(
     subject: hir::Expr,
     arms: Vec<hir::WhenArm>,
-    else_body: Option<Vec<hir::Statement>>,
+    fallback: hir::WhenFallback,
 ) -> hir::Statement {
     stmt(hir::StatementKind::When(hir::When {
         subject,
         arms,
-        else_body,
+        fallback,
     }))
 }
 
@@ -75,7 +75,10 @@ fn when_lowers_to_a_decision_sequence() {
                             ))],
                         ),
                     ],
-                    None,
+                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
+                        subject_ty: option_int,
+                        application: option_application,
+                    }),
                 ),
             ],
         },
@@ -156,6 +159,103 @@ Module
 }
 
 #[test]
+fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
+    fn branch_count(explicit_else: bool) -> usize {
+        let mut h = Harness::new();
+        let int = h.int;
+        let option_int = h.option(int);
+        let application = h.enum_application_of(option_int);
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", option_int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, option_int),
+                    vec![
+                        arm(
+                            hir::Pattern::Variant {
+                                application,
+                                variant: 0,
+                                fields: vec![(0, hir::Pattern::Wildcard)],
+                            },
+                            None,
+                            Vec::new(),
+                        ),
+                        arm(
+                            hir::Pattern::Variant {
+                                application,
+                                variant: 1,
+                                fields: Vec::new(),
+                            },
+                            None,
+                            Vec::new(),
+                        ),
+                    ],
+                    if explicit_else {
+                        hir::WhenFallback::Else(Vec::new())
+                    } else {
+                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
+                            subject_ty: option_int,
+                            application,
+                        })
+                    },
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+        module.functions[module.entry]
+            .body
+            .blocks
+            .iter()
+            .filter(|(_, block)| matches!(&block.terminator, mir::Terminator::Branch { .. }))
+            .count()
+    }
+
+    assert_eq!(branch_count(false), 1, "proof removes the final false edge");
+    assert_eq!(
+        branch_count(true),
+        2,
+        "an explicit else keeps the final pattern test even when its body is empty",
+    );
+}
+
+#[test]
+fn zero_arm_impossible_when_terminates_with_unreachable() {
+    let mut h = Harness::new();
+    let never = h.declare_enum("Never", Vec::new(), Vec::new(), Vec::new());
+    let never_ty = h.enum_ty(never);
+    let application = h.enum_application_of(never_ty);
+    let mut locals = Arena::new();
+    let subject = locals.alloc(local("subject", never_ty));
+    let main = h.user_fn_full(
+        "main",
+        Vec::new(),
+        vec![param("subject", never_ty, subject)],
+        h.unit,
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                local_ref(subject, never_ty),
+                Vec::new(),
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
+                    subject_ty: never_ty,
+                    application,
+                }),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+
+    assert!(matches!(
+        body.blocks[body.entry].terminator,
+        mir::Terminator::Unreachable
+    ));
+}
+
+#[test]
 fn a_failed_guard_falls_through_to_the_next_arm() {
     // when (o) { Some(x) if (x > 0) -> print(x); else -> println("neg") }
     let mut h = Harness::new();
@@ -202,7 +302,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
             statements: vec![when_stmt(
                 local_ref(o, option_int),
                 vec![guarded_arm],
-                Some(else_body()),
+                hir::WhenFallback::Else(else_body()),
             )],
         },
     );
@@ -335,7 +435,7 @@ fn literal_patterns_match_by_equality() {
                     None,
                     vec![expr_stmt(call(&h, println, vec![str_lit(&h, "one")]))],
                 )],
-                Some(vec![expr_stmt(call(
+                hir::WhenFallback::Else(vec![expr_stmt(call(
                     &h,
                     println,
                     vec![str_lit(&h, "other")],

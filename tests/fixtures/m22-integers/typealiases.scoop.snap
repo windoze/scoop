@@ -537,6 +537,7 @@ Module
       arm variant1()
         assign $result.0
           StringLiteral "empty" : String
+      impossible <enum pattern matrix for Choice<Int>>
     return
       Local $result.0 : String
   fun main(): Unit

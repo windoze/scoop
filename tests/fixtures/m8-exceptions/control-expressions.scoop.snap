@@ -727,6 +727,7 @@ Module
       arm variant1()
         assign $result.10
           StringLiteral "empty" : String
+      impossible <enum pattern matrix for Input>
     val local43
       Local $result.10 : String
     val local44
@@ -748,6 +749,7 @@ Module
         assign $result.11
           VariantConstruct Option.Some<Int> : Option<Int>
             Local $parameter._1 : Int
+      impossible <enum pattern matrix for Input>
     val local50
       Local $result.11 : Option<Int>
     val local51
