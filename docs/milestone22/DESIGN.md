@@ -20,7 +20,7 @@
 - 副本更新只支持struct与enum命名字段variant。enum目标由所写字段名集合唯一确定，先检查active variant，再求值更新表达式；variant不匹配抛`IllegalStateException`；
 - 表达式位裸variant只由普通可见候选或唯一expected exact enum application引入，不扫描全程序全部enum；`Option`不再拥有另一套硬编码表达式解析；
 - `IntRange`/`UIntRange`/`LongRange`/`ULongRange`及iterator由普通public core源码实现，四者都是不同的真实nominal type，不新增range runtime ABI。`CharRange`等到`Char`进入已实现子集后再加入；
-- 为保持既有64位source/core API的值域，原来使用`Int`的通用契约整体迁为`Long`，包括Array size/index、String length/index/slice、`Hash.hash()`结果、integer `compareTo`结果、shift count、`SourceLocation`、`@CLayout`与callback index等；原来使用`UInt`并依赖64位值域的契约（包括pointer raw与size surface）相应迁为`ULong`。Array公开上限继续是数学上的`INT64_MAX`，不因新`Int`缩窄，也不要求core新增整数边界companion常量。编译器/runtime内部的enum tag、statepoint id、allocation size、count与offset继续使用各自独立的typed machine metadata，不能为了迁移源码surface而改成`Long`/`ULong`；
+- 为保持既有64位source/core API的值域，原来使用`Int`的通用契约整体迁为`Long`，包括Array size/index、`Hash.hash()`结果、integer及String的`compareTo`结果、shift count、`SourceLocation`、`@CLayout`与callback index等；原来使用`UInt`并依赖64位值域的契约（包括pointer raw与size surface）相应迁为`ULong`。ROADMAP已把尚未进入实现子集的String length/index/slice排在M24；这些API首次实现时直接使用`Long`，M22不为尚不存在的surface制造占位intrinsic。Array公开上限继续是数学上的`INT64_MAX`，不因新`Int`缩窄，也不要求core新增整数边界companion常量。编译器/runtime内部的enum tag、statepoint id、allocation size、count与offset继续使用各自独立的typed machine metadata，不能为了迁移源码surface而改成`Long`/`ULong`；
 - alias、literal variable、字段名、source `for`、copy-update plan、未解析控制目标和pattern coverage plan都必须在`LocalConcreteHir`前消失或正规化为结构完备的typed节点。MIR不得重做名称解析、类型推断、variant选择或穷尽性判断。
 
 ## 1. 定宽整数与透明别名
@@ -137,7 +137,7 @@ M22必须对compiler-recognized core/annotation surface做一次完整typed inve
 | 契约类别 | M22后的source type |
 | --- | --- |
 | `Array`/`MutableArray`的`size`、`get`/`set` index与iterator index | `Long`；上限仍为`INT64_MAX` |
-| `String`的length/size、index与slice boundary | `Long`；物理UTF-8 byte count仍是独立machine scalar |
+| `String.compareTo`；M24新增的length/size、index与slice boundary | `Long`；后者在M22尚未进入实现子集，物理UTF-8 byte count仍是独立machine scalar |
 | `Hash.hash()`、所有integer `compareTo`结果、所有integer shift count | `Long` |
 | `SourceLocation`的line/column | `Long` |
 | `@CLayout`的`aligned`/`packed`参数及其他既有FFI annotation/index参数（例如callback `contextIndex`） | `Long` |
@@ -519,7 +519,7 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 - assignment/return/generic/array/operator receiver/argument中的expected fit；`smallInt8..1`与`1..smallInt8`双向literal receiver/argument fit；无上下文`Int → Long`/`UInt → ULong`边界、`L`/`UL`精确类型、默认候选优先和非默认多候选歧义；
 - 每种width的add/sub/mul/neg/inc/dec wrapping、bit/shift count、signed/unsigned compare、除零、`MIN/-1`与`MIN%-1`；所有unsigned kind的unary minus均有回归；const与runtime逐项相同；
 - `Int8`/`UInt8`等任意宽度operand的`compareTo`在HIR/MIR/LIR golden与最终ABI中都返回canonical `Long`/I64，shift count也始终为`Long`/I64；
-- 既有64位source contract的typed inventory逐项锁定：Array size/index与`INT64_MAX`、String length/index/slice、`Hash.hash()`、`SourceLocation`、`@CLayout(aligned/packed)`及callback `contextIndex`都使用`Long`，对应旧`UInt` carrier使用`ULong`；传入新32位`Int`/`UInt`不能静默适配；
+- 既有64位source contract的typed inventory逐项锁定：Array size/index与`INT64_MAX`、String `compareTo`、`Hash.hash()`、`SourceLocation`、`@CLayout(aligned/packed)`及callback `contextIndex`都使用`Long`，对应旧`UInt` carrier使用`ULong`；传入新32位`Int`/`UInt`不能静默适配。String length/index/slice由M24首次实现并直接采用`Long`，不属于M22验收面；
 - 所有转换、equals、ToString、Hash、boxing、interface/generic单态化；
 - struct/tuple/enum/array/CLayout的size/align/scan及C extern/global/callback bridge从`int8_t`到`uint64_t`往返；
 - LLVM IR检查wrapping路径不含`nsw`/`nuw`，每个`sdiv`/`srem`只在除零与`MIN/-1`守卫后的safe block出现；target-profile artifact同时检查data/code pointer均为64位、两类null carrier全零，并分别验证合法非null AS0 data/code地址经内部carrier逐bit往返；

@@ -1084,7 +1084,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 ### 11.4 `String`
 
 - 引用类型，immutable，UTF-8 语义（编码细节由实现定义）。
-- 支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作；索引、长度与切片边界使用`Long`，保留既有64位范围。
+- 语言层支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作；索引、长度与切片边界固定使用`Long`，保留64位范围。当前实现子集已有拼接与比较；ROADMAP排在M24的索引、切片和length/size首次实现时直接采用上述`Long`签名。
 - 实现内容相等的成员`operator fun equals(other: String): Boolean`与内容相关`Hash`；`toString()`返回自身（`ToString`的恒等实现）。这些能力均是String的具体core contract，不来自`Any`或TypeDescriptor缺省槽。
 
 ### 11.5 `Option<T>`
