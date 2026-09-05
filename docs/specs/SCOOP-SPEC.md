@@ -1385,7 +1385,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 
 泛型采用单态化（见3.2），上游generic定义必须能在实际使用它的下游Cone完成实例化。因此每个Cone产生target-specific、版本化且确定性的`.slib`，而不是只有`.o`/`.a`；library root以该artifact为最终产物，executable root再用它和完整依赖闭包执行最终静态链接。v1 artifact至少包含：
 
-- canonical manifest、Cone identity、exact direct dependency identity/fingerprint、language/runtime/target/identity/mangling与三层wire-schema compatibility信息；
+- canonical manifest、Cone identity、exact direct dependency identity/fingerprint、language/runtime/target/identity schema、封闭`ManglingSchemaIdentity`与三层wire-schema compatibility信息；
 - 非空、有序、无重复的`object_members`清单及其native object bytes：`code.o`必需，需要C ABI bridge时再含`bridge.o`；不能假设一个artifact只有一个object；
 - 供下游HIR使用的Export HIR metadata；
 - 供下游MIR使用的符号、exact ancestry/conformance、dispatch与external-target metadata；
@@ -1394,9 +1394,11 @@ ImportSelector = QualifiedName | QualifiedName . *
 
 v1使用标准deterministic `ar`容器；规范成员顺序为`manifest.cbor`、`hir.meta.cbor`、`mir.meta.cbor`、`lir.meta.cbor`、`code.o`、可选`bridge.o`、可选`sources.cbor`，实际object提取严格服从已验证的`object_members`。metadata使用RFC 8949 deterministic/canonical CBOR：只用integer field tag、definite length、canonical map key order与最短整数编码，拒绝重复key、indefinite item和浮点semantic field。archive header的timestamp/uid/gid/mode采用规范固定值，member/map顺序及其他非语义字段不得依赖producer host、build目录或临时文件名。
 
+manifest中的mangler兼容字段不是裸整数版本，而是封闭schema identity：`ManglingSchemaIdentity::{CompactV2, PersistentV1}`，canonical manifest spelling分别为`compact-v2`与`persistent-v1`。前者标识M22过渡compact mangler，后者标识`docs/milestone23/DESIGN.md`第3.3节定义的persistent-identity mangler；它们属于不同schema family，即使末尾数字相同或存在大小关系也不兼容。object member、cache key与artifact必须携带并比较完整identity；unknown identity或不相等的identity一律拒绝或触发重建，不能由linker在两套symbol中任选。未来mangler必须新增schema variant与canonical spelling，不能复用其中任一名称后仅修改内部规则。
+
 `ArtifactFingerprint`精确定义为SHA-256长度前缀hash：依次输入domain tag `scoop-artifact-v1`、删除`artifact_fingerprint`字段后的canonical manifest bytes，以及按manifest顺序排列的每个非manifest member之`{name, length, sha256}`；writer最后回填fingerprint并重新canonical encode，reader按同一排除规则重算。manifest不记录自身member hash，archive header也不进入该fingerprint，从而不存在自引用。fingerprint只用于一致性与cache验证，不是发行者签名。
 
-required schema、language/runtime ABI、identity/mangling version与target profile必须exact compatible；reader必须先限制archive/member资源、验证manifest、section完整性与hash，再依次执行wire decode、structural validation、typed remap和semantic-world commit，并验证typed kind/index/arity、identity record、external origin、access witness与跨层bridge。任何失败丢弃整个artifact；损坏或不兼容artifact是构建错误，不能以名称、默认值或部分可读section继续编译。
+required schema、language/runtime ABI、identity schema、完整`ManglingSchemaIdentity`与target profile必须exact compatible；reader必须先限制archive/member资源、验证manifest、section完整性与hash，再依次执行wire decode、structural validation、typed remap和semantic-world commit，并验证typed kind/index/arity、identity record、external origin、access witness与跨层bridge。任何失败丢弃整个artifact；损坏或不兼容artifact是构建错误，不能以名称、默认值或部分可读section继续编译。
 
 Export HIR metadata逻辑上区分：
 
@@ -1578,6 +1580,7 @@ annotation class CLayout(val aligned: Long = 0L, val packed: Long = 0L)
 ```
 
 - 用于 struct，指定该结构体内部成员的 align/pack 规范。
+- `aligned` / `packed` 的缺省值 `0L` 分别表示不增加struct最小对齐以及不限制field自然对齐；非零值只能是 `1L` / `2L` / `4L` / `8L` / `16L`，其他值是编译错误。当前64位target profile不接受更大的显式对齐；未来profile如需扩展必须先修订本节的source契约，不能截断或静默归一化。
 - 带有此注解的 struct，其每个字段都必须递归具有稳定C表示、且字段的concrete type不能是ZST；因此它不能直接或间接包含任何ref type，也不能以空字段或零尺寸字段依赖C实现扩展。字段类型不依赖type parameter时在声明处检查；generic `@CLayout`字段依赖type parameter时，声明保存逐字段的`C-FFI-safe && NonZst`条件，每个fully concrete application在替换后检查。失败诊断位于该application/concretization点并同时指出原始字段路径；跨Cone导入不得提前接受、删除或重新解释该条件。无字段的`@CLayout`在声明处直接报错。
 
 ### 13.6 `@Global` / `@ThreadLocal`
