@@ -6860,26 +6860,26 @@ Module
   global @scoop.str.8 = "array index out of bounds"
   global @scoop.str.9 = "illegal state"
   enum Choice tagged size=24 align=8 variants=(i64)@8+8 (ptr<managed>)@16+8:refs
-  enum Option$J14_Continuation$IX niche(payload_variant=0)
-  enum Option$J21_Continuation$D4_PairXX niche(payload_variant=0)
-  enum Option$J14_Continuation$BX niche(payload_variant=0)
-  enum Option$J23_Continuation$E6_ChoiceXX niche(payload_variant=0)
-  enum Option$S niche(payload_variant=0)
+  enum Option$J14_Continuation$IX niche(kind=managed,payload_variant=0)
+  enum Option$J21_Continuation$D4_PairXX niche(kind=managed,payload_variant=0)
+  enum Option$J14_Continuation$BX niche(kind=managed,payload_variant=0)
+  enum Option$J23_Continuation$E6_ChoiceXX niche(kind=managed,payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep$D4_PairX tagged size=24 align=8 variants=(struct4)@8+16:refs ()@8+0
   enum CoroutineStep$B tagged size=16 align=8 variants=(i1)@8+1 ()@8+0
   enum CoroutineStep$E6_ChoiceX tagged size=32 align=8 variants=(enum0)@8+24:refs ()@8+0
-  enum CoroutineSlot$C11_GenericTaskX niche(payload_variant=1)
+  enum CoroutineSlot$C11_GenericTaskX niche(kind=managed,payload_variant=1)
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum CoroutineSlot$D4_PairX tagged size=24 align=8 variants=()@8+0 (struct4)@8+16:refs
-  enum CoroutineSlot$C7_AwaiterX niche(payload_variant=1)
+  enum CoroutineSlot$C7_AwaiterX niche(kind=managed,payload_variant=1)
   enum CoroutineSlot$B tagged size=16 align=8 variants=()@8+0 (i1)@8+1
   enum CoroutineSlot$E6_ChoiceX tagged size=32 align=8 variants=()@8+0 (enum0)@8+24:refs
-  enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
-  enum CoroutineSlot$J21_SuspendRegistration$IX niche(payload_variant=1)
-  enum CoroutineSlot$J28_SuspendRegistration$D4_PairXX niche(payload_variant=1)
-  enum CoroutineSlot$J21_SuspendRegistration$BX niche(payload_variant=1)
-  enum CoroutineSlot$J30_SuspendRegistration$E6_ChoiceXX niche(payload_variant=1)
+  enum CoroutineSlot$C9_ThrowableX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$J21_SuspendRegistration$IX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$J28_SuspendRegistration$D4_PairXX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$J21_SuspendRegistration$BX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$J30_SuspendRegistration$E6_ChoiceXX niche(kind=managed,payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

@@ -31,6 +31,7 @@ fn binary_op(op: mir::BinOp) -> lir::BinOp {
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
+    context: &'a LoweringContext,
     module: &'a mir::Module,
     function: &'a mir::Function,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
@@ -99,6 +100,7 @@ pub(super) fn lower_function<'a>(
     }
     let entry = block_map[&function.body.entry];
     let mut lowerer = FunctionLowerer {
+        context,
         module,
         mir_locals: &function.body.locals,
         global_map,
@@ -183,6 +185,7 @@ enum LocalSlot {
 /// block was already sealed (by a `return`, or by a trap call), so
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
+    context: &'a LoweringContext,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,
@@ -233,6 +236,16 @@ struct FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     fn array_type_id(&self, class: mir::ClassId) -> lir::ArrayTypeId {
         self.array_types[&class]
+    }
+
+    fn value_layout(&self, ty: &mir::Type) -> (u64, u64) {
+        let enum_shape =
+            |id: mir::EnumId| repr_shape(self.context, &self.enums[enum_def_id(id)].repr);
+        size_align(self.context, self.module, &enum_shape, ty)
+    }
+
+    fn value_ref_scan(&self, ty: &mir::Type) -> lir::RefScan {
+        ref_scan(self.context, self.module, self.enums, ty, 0)
     }
 
     fn new_block(&mut self, base: &str) -> lir::BlockId {

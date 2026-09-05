@@ -61,7 +61,10 @@ pub(super) fn enum_module() -> Module {
     // enum Option<String> { None, Some(String) } — niche pointer.
     let option = enums.alloc(EnumDef {
         name: "Option<String>".to_string(),
-        repr: EnumRepr::Niche { payload_variant: 1 },
+        repr: EnumRepr::Niche {
+            kind: scoop_lir::NichePointerKind::Managed,
+            payload_variant: 1,
+        },
         scan: RefScan::References(vec![0]),
     });
     let shape_ty = LirType::Enum(shape);
@@ -549,4 +552,178 @@ fn niche_enum_wrap_rejects_machine_scalar_payload() {
             && error.0.contains("machine<enum-tag>"),
         "unexpected error: {error}"
     );
+}
+
+#[test]
+fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
+    for kind in [
+        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NichePointerKind::Code,
+    ] {
+        let mut module = enum_module();
+        let option = module.enums.iter().nth(1).expect("niche enum").0;
+        module.enums[option].repr = EnumRepr::Niche {
+            kind,
+            payload_variant: 1,
+        };
+        module.enums[option].scan = RefScan::None;
+
+        let function = &mut module.functions[1];
+        let field = match &function.blocks[function.entry].instructions[1] {
+            Instruction::EnumField { out, .. } => *out,
+            _ => panic!("niche fixture must project its payload"),
+        };
+        function.temps[field].ty = LirType::Ptr(kind.pointer_kind());
+        module.globals.alloc(Global {
+            symbol: format!("qualified_{}_niche", kind.pointer_kind().dump()),
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::Storage {
+                ty: LirType::Enum(option),
+                initializer: ConstantValue::EnumUnit {
+                    enum_id: option,
+                    variant: 0,
+                },
+                thread_local: false,
+            },
+        });
+
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains(&format!("@qualified_{}_niche", kind.pointer_kind().dump())),
+            "{ir}"
+        );
+    }
+}
+
+#[test]
+fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
+    for (expected, actual) in [
+        (scoop_lir::NichePointerKind::Raw, PointerKind::Code),
+        (scoop_lir::NichePointerKind::Code, PointerKind::Raw),
+    ] {
+        let mut module = enum_module();
+        let option = module.enums.iter().nth(1).expect("niche enum").0;
+        module.enums[option].repr = EnumRepr::Niche {
+            kind: expected,
+            payload_variant: 1,
+        };
+        module.enums[option].scan = RefScan::None;
+
+        let function = &mut module.functions[1];
+        let out = match &function.blocks[function.entry].instructions[2] {
+            Instruction::EnumWrap { out, .. } => *out,
+            _ => panic!("niche fixture must wrap its payload variant"),
+        };
+        function.blocks[function.entry].instructions = vec![Instruction::EnumWrap {
+            out,
+            enum_id: option,
+            variant: 1,
+            fields: vec![Value::NullPointer(actual)],
+        }];
+        function.blocks[function.entry].terminator = Terminator::Unreachable;
+
+        let error = enum_codegen_error(&module);
+        assert!(
+            error.0.contains("enum_wrap")
+                && error.0.contains(&format!("ptr<{}>", actual.dump()))
+                && error
+                    .0
+                    .contains(&format!("expected ptr<{}>", expected.pointer_kind().dump())),
+            "unexpected error: {error}"
+        );
+    }
+}
+
+#[test]
+fn niche_enum_field_rejects_raw_code_provenance_crossing() {
+    let mut module = enum_module();
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+    module.enums[option].repr = EnumRepr::Niche {
+        kind: scoop_lir::NichePointerKind::Code,
+        payload_variant: 1,
+    };
+    module.enums[option].scan = RefScan::None;
+
+    let function = &mut module.functions[1];
+    let out = match &function.blocks[function.entry].instructions[1] {
+        Instruction::EnumField { out, .. } => *out,
+        _ => panic!("niche fixture must project its payload"),
+    };
+    function.temps[out].ty = RAW_PTR;
+    function.blocks[function.entry].instructions = vec![Instruction::EnumField {
+        out,
+        enum_id: option,
+        variant: 1,
+        index: 0,
+        operand: Value::Param(0),
+    }];
+    function.blocks[function.entry].terminator = Terminator::Unreachable;
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_field")
+            && error.0.contains("produces ptr<raw>")
+            && error.0.contains("expected ptr<code>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
+    let mut module = enum_module();
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+    module.enums[option].repr = EnumRepr::Niche {
+        kind: scoop_lir::NichePointerKind::Raw,
+        payload_variant: 1,
+    };
+    module.enums[option].scan = RefScan::None;
+    module.globals.alloc(Global {
+        symbol: "crossed_niche_null".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            ty: LirType::Enum(option),
+            initializer: ConstantValue::NullPointer(PointerKind::Code),
+            thread_local: false,
+        },
+    });
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("code null constant")
+            && error
+                .0
+                .contains(&format!("storage type enum{}", option.into_raw())),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn niche_enum_scan_must_match_its_pointer_provenance() {
+    for (kind, scan) in [
+        (scoop_lir::NichePointerKind::Managed, RefScan::None),
+        (
+            scoop_lir::NichePointerKind::Raw,
+            RefScan::References(vec![0]),
+        ),
+        (
+            scoop_lir::NichePointerKind::Code,
+            RefScan::References(vec![0]),
+        ),
+    ] {
+        let mut module = enum_module();
+        let option = module.enums.iter().nth(1).expect("niche enum").0;
+        module.enums[option].repr = EnumRepr::Niche {
+            kind,
+            payload_variant: 1,
+        };
+        module.enums[option].scan = scan;
+
+        let error = enum_codegen_error(&module);
+        assert!(
+            error.0.contains("incompatible scan") && error.0.contains(kind.pointer_kind().dump()),
+            "unexpected error: {error}"
+        );
+    }
 }

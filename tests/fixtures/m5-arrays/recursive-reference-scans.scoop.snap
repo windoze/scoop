@@ -1430,7 +1430,7 @@ Module
   global @scoop.str.12 = "array index out of bounds"
   global @scoop.str.13 = "illegal state"
   enum Payload tagged size=24 align=8 variants=(ptr<managed>)@16+8:refs (i64)@8+8 ()@8+0
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

@@ -75,9 +75,38 @@ fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
 fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
         name: name.to_string(),
-        repr: EnumRepr::Niche { payload_variant: 0 },
+        repr: EnumRepr::Niche {
+            kind: scoop_lir::NichePointerKind::Managed,
+            payload_variant: 0,
+        },
         scan: RefScan::References(vec![0]),
     })
+}
+
+fn pointer_niche(
+    module: &mut Module,
+    name: &str,
+    kind: scoop_lir::NichePointerKind,
+) -> scoop_lir::EnumDefId {
+    module.enums.alloc(EnumDef {
+        name: name.to_string(),
+        repr: EnumRepr::Niche {
+            kind,
+            payload_variant: 0,
+        },
+        scan: if kind == scoop_lir::NichePointerKind::Managed {
+            RefScan::References(vec![0])
+        } else {
+            RefScan::None
+        },
+    })
+}
+
+fn c_function_pointer() -> scoop_lir::CType {
+    scoop_lir::CType::FunctionPointer {
+        params: Vec::new(),
+        return_type: Box::new(scoop_lir::CType::Unit),
+    }
 }
 
 pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::ForeignCallbackFamilyId {
@@ -340,6 +369,12 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     );
     assert!(assertions.contains("offsetof(scoop_c_layout_1, _field_1) == 2"));
     assert!(assertions.contains("_Alignof(scoop_c_layout_1) == 16"));
+    assert!(assertions.contains("_Static_assert(CHAR_BIT == 8"));
+    assert!(assertions.contains("_Static_assert(UINTPTR_MAX == UINT64_MAX"));
+    assert!(assertions.contains("_Static_assert(sizeof(void *) == 8"));
+    assert!(assertions.contains("_Static_assert(_Alignof(void *) == 8"));
+    assert!(assertions.contains("sizeof(scoop_target_function_pointer) == 8"));
+    assert!(assertions.contains("_Alignof(scoop_target_function_pointer) == 8"));
     let source = std::env::temp_dir().join(format!(
         "scoop_c_layout_assertions_{}.c",
         std::process::id()
@@ -509,6 +544,166 @@ fn native_global_rejects_machine_scalar_lir_type() {
         c_bridge_source(&module).expect_err("native C globals must reject machine scalar storage");
     assert!(
         error.0.contains("native global `machineGlobal`") && error.0.contains("machine<byte-size>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn c_abi_rejects_raw_code_niche_provenance_crossing() {
+    for (name, kind, c_type) in [
+        (
+            "rawAsCode",
+            scoop_lir::NichePointerKind::Raw,
+            c_function_pointer(),
+        ),
+        (
+            "codeAsRaw",
+            scoop_lir::NichePointerKind::Code,
+            scoop_lir::CType::Pointer,
+        ),
+    ] {
+        let mut module = values_module();
+        let pointer = pointer_niche(&mut module, name, kind);
+        module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+            declaration: scoop_lir::ExternFunctionDeclaration {
+                source_name: name.to_string(),
+                native_symbol: name.to_string(),
+                library: "fixture".to_string(),
+                calling_convention: scoop_lir::CallingConvention::Cdecl,
+                params: vec![LirType::Enum(pointer)],
+                return_type: LirType::Void,
+            },
+            bridge_symbol: format!("scoop_c_bridge_{name}"),
+            params: vec![c_type],
+            return_type: scoop_lir::CType::Unit,
+        });
+
+        let error = c_bridge_source(&module)
+            .expect_err("raw and code pointer niches are distinct C ABI types");
+        assert!(
+            error.0.contains(&format!("C extern `{name}` parameter 0"))
+                && error.0.contains("does not exactly match C type"),
+            "unexpected error: {error}"
+        );
+    }
+}
+
+#[test]
+fn c_layout_pointer_spelling_follows_niche_provenance() {
+    let mut module = values_module();
+    let raw = pointer_niche(
+        &mut module,
+        "Option<Ptr<Unit>>",
+        scoop_lir::NichePointerKind::Raw,
+    );
+    let code = pointer_niche(
+        &mut module,
+        "Option<FunPtr<() -> Unit>>",
+        scoop_lir::NichePointerKind::Code,
+    );
+    module.structs.alloc(StructDef {
+        name: "PointerFields".to_string(),
+        fields: vec![
+            scoop_lir::StructField {
+                ty: LirType::Enum(raw),
+                layout: scoop_lir::FieldLayout {
+                    offset: 0,
+                    access_align: 8,
+                },
+            },
+            scoop_lir::StructField {
+                ty: LirType::Enum(code),
+                layout: scoop_lir::FieldLayout {
+                    offset: 8,
+                    access_align: 8,
+                },
+            },
+        ],
+        size: 16,
+        align: 8,
+        c_layout: Some(scoop_lir::CLayout {
+            aligned: 8,
+            packed: 0,
+        }),
+        interior_mutable: false,
+    });
+
+    let assertions = c_layout_assertions(&module).expect("raw/code niches are valid C fields");
+    assert!(assertions.contains("void * _field_0;"), "{assertions}");
+    assert!(
+        assertions.contains("scoop_target_function_pointer _field_1;"),
+        "{assertions}"
+    );
+    let source = std::env::temp_dir().join(format!(
+        "scoop_niche_pointer_layout_{}.c",
+        std::process::id()
+    ));
+    std::fs::write(&source, &assertions).expect("write generated pointer-niche C");
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg(&source)
+        .status()
+        .expect("compile generated pointer-niche C");
+    std::fs::remove_file(&source).ok();
+    assert!(status.success(), "generated pointer-niche C must compile");
+}
+
+#[test]
+fn c_layout_rejects_managed_or_metadata_pointer_fields() {
+    for invalid in [MANAGED_PTR, METADATA_PTR] {
+        let mut module = values_module();
+        module.structs.alloc(StructDef {
+            name: "InvalidPointerField".to_string(),
+            fields: vec![scoop_lir::StructField {
+                ty: invalid.clone(),
+                layout: scoop_lir::FieldLayout {
+                    offset: 0,
+                    access_align: 8,
+                },
+            }],
+            size: 8,
+            align: 8,
+            c_layout: Some(scoop_lir::CLayout {
+                aligned: 8,
+                packed: 0,
+            }),
+            interior_mutable: false,
+        });
+
+        let error = c_layout_assertions(&module)
+            .expect_err("managed/metadata pointers cannot be C-layout fields");
+        assert!(
+            error.0.contains("non-C type") && error.0.contains(&invalid.dump()),
+            "unexpected error: {error}"
+        );
+    }
+
+    let mut module = values_module();
+    let managed = pointer_niche(
+        &mut module,
+        "Option<String>",
+        scoop_lir::NichePointerKind::Managed,
+    );
+    module.structs.alloc(StructDef {
+        name: "InvalidManagedNicheField".to_string(),
+        fields: vec![scoop_lir::StructField {
+            ty: LirType::Enum(managed),
+            layout: scoop_lir::FieldLayout {
+                offset: 0,
+                access_align: 8,
+            },
+        }],
+        size: 8,
+        align: 8,
+        c_layout: Some(scoop_lir::CLayout {
+            aligned: 8,
+            packed: 0,
+        }),
+        interior_mutable: false,
+    });
+    let error = c_layout_assertions(&module).expect_err("managed niches cannot be C-layout fields");
+    assert!(
+        error.0.contains("non-C type") && error.0.contains(&format!("enum{}", managed.into_raw())),
         "unexpected error: {error}"
     );
 }

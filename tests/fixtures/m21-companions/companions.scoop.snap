@@ -3227,7 +3227,7 @@ Module
   init6 companion:InheritedHost.Companion lazy storage=@scoop.singleton.companion:InheritedHost.Companion failure=@scoop.init.failure.6 initializer=@scoop.$init$body$6 ensure=@scoop.$init$ensure$6 deps=[]
   init7 companion:InterfaceHost.Provider lazy storage=@scoop.singleton.companion:InterfaceHost.Provider failure=@scoop.init.failure.7 initializer=@scoop.$init$body$7 ensure=@scoop.$init$ensure$7 deps=[]
   init8 companion:ObjectHost.NestedCompanion lazy storage=@scoop.singleton.companion:ObjectHost.NestedCompanion failure=@scoop.init.failure.8 initializer=@scoop.$init$body$8 ensure=@scoop.$init$ensure$8 deps=[]
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

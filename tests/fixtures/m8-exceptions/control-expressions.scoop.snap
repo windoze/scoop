@@ -2137,7 +2137,7 @@ Module
   global @scoop.str.16 = "array index out of bounds"
   global @scoop.str.17 = "illegal state"
   global @scoop.str.18 = "dog"
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Input tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>

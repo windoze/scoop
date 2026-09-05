@@ -2137,10 +2137,10 @@ Module
   global @scoop.str.8 = "illegal state"
   global @scoop.str.9 = "cat"
   global @scoop.str.10 = "dog"
-  enum Option$S niche(payload_variant=0)
-  enum Option$C6_AnimalX niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
+  enum Option$C6_AnimalX niche(kind=managed,payload_variant=0)
   enum Switch tagged size=8 align=8 variants=()@8+0 ()@8+0
-  enum Choice$C6_AnimalX niche(payload_variant=0)
+  enum Choice$C6_AnimalX niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

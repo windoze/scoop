@@ -2435,12 +2435,12 @@ Module
   global @scoop.str.17 = "arithmetic error"
   global @scoop.str.18 = "array index out of bounds"
   global @scoop.str.19 = "illegal state"
-  enum Option$S niche(payload_variant=0)
-  enum Option$C5_ProbeX niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
+  enum Option$C5_ProbeX niche(kind=managed,payload_variant=0)
   enum Option$E8_Option$SX tagged size=16 align=8 variants=(enum0)@8+8:refs ()@8+0
   enum Option$U tagged size=8 align=8 variants=({})@8+0 ()@8+0
-  enum Option$C7_ServiceX niche(payload_variant=0)
-  enum Option$FIRIX niche(payload_variant=0)
+  enum Option$C7_ServiceX niche(kind=managed,payload_variant=0)
+  enum Option$FIRIX niche(kind=managed,payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>

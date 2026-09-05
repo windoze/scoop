@@ -2122,7 +2122,7 @@ Module
   global @scoop.str.3 = "arithmetic error"
   global @scoop.str.4 = "array index out of bounds"
   global @scoop.str.5 = "illegal state"
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum Never tagged size=8 align=8 variants=
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Nested tagged size=24 align=8 variants=({i64, i1})@8+16 ()@8+0

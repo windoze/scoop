@@ -1959,7 +1959,7 @@ Module
   init0 extension:Int:offset storage=@scoop.global.$delegate$extension:Int:offset failure=@scoop.init.failure.0 initializer=@scoop.$init$body$0 ensure=@scoop.$init$ensure$0 deps=[]
   init1 top-level:message storage=@scoop.global.$delegate$top-level:message failure=@scoop.init.failure.1 initializer=@scoop.$init$body$1 ensure=@scoop.$init$ensure$1 deps=[]
   init2 top-level:provided storage=@scoop.global.$delegate$top-level:provided failure=@scoop.init.failure.2 initializer=@scoop.$init$body$2 ensure=@scoop.$init$ensure$2 deps=[]
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

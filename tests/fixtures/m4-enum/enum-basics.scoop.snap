@@ -1563,7 +1563,7 @@ Module
   global @scoop.str.9 = "arithmetic error"
   global @scoop.str.10 = "array index out of bounds"
   global @scoop.str.11 = "illegal state"
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum Color tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0
   enum Shape tagged size=24 align=8 variants=(i64)@8+8 (i64, i64)@8+16 (i64, i64)@8+16 (i64)@8+8
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>

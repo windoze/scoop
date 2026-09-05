@@ -32,6 +32,9 @@ pub struct CLayout {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
+    /// Complete target capabilities used to compute every physical layout in
+    /// this metadata. Codegen must consume the matching full target profile.
+    pub target_profile: LirTargetProfile,
     /// Non-optional identities selected from typed intrinsic declarations.
     pub well_known_layouts: WellKnownLayouts,
     pub well_known_type_descriptors: WellKnownTypeDescriptors,
@@ -252,8 +255,11 @@ pub enum EnumRepr {
     /// Niche optimization (spec 7.4): only an enum structurally isomorphic to
     /// `Option<ref/Ptr/FunPtr>` may use it — exactly one empty variant and one
     /// single pointer-represented payload variant. Names and order do not
-    /// matter. Whether the word is managed remains a payload property.
+    /// matter. The exact pointer provenance is carried atomically with the
+    /// representation and cannot be reconstructed from a scan program.
     Niche {
+        /// Exact pointer provenance of both the payload and its typed null.
+        kind: NichePointerKind,
         /// Index of the payload-carrying variant.
         payload_variant: u32,
     },

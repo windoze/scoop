@@ -10,6 +10,7 @@ enum RootPlan {
 }
 
 pub(super) fn annotate_root_plans(
+    context: &LoweringContext,
     function: &mut lir::Function,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
@@ -85,9 +86,9 @@ pub(super) fn annotate_root_plans(
                 live.remove(&definition);
             }
             plans[block_index][instruction_index] = match instruction {
-                lir::Instruction::ManagedPoll { .. } => {
-                    RootPlan::Statepoint(statepoint_live_set(&live, function, structs, enums))
-                }
+                lir::Instruction::ManagedPoll { .. } => RootPlan::Statepoint(statepoint_live_set(
+                    context, &live, function, structs, enums,
+                )),
                 lir::Instruction::ArrayAlloc { elements, .. } => {
                     // Array allocation is expanded in codegen: element values
                     // remain live after the collecting slow-path call until
@@ -95,13 +96,14 @@ pub(super) fn annotate_root_plans(
                     let mut allocation_live = live.clone();
                     for element in elements {
                         if let Some(value) = LiveValue::from_value(*element)
-                            && root_scan(live_value_ty(value, function), structs, enums, 0)
+                            && root_scan(context, live_value_ty(value, function), structs, enums, 0)
                                 .contains_reference()
                         {
                             allocation_live.insert(value);
                         }
                     }
                     RootPlan::Statepoint(statepoint_live_set(
+                        context,
                         &allocation_live,
                         function,
                         structs,
@@ -111,6 +113,7 @@ pub(super) fn annotate_root_plans(
                 lir::Instruction::ArrayAssembly { parts, .. } => {
                     let mut allocation_live = live.clone();
                     include_managed_operands(
+                        context,
                         &mut allocation_live,
                         parts.iter().map(|part| match part {
                             lir::ArrayAssemblyPart::Element(value)
@@ -121,6 +124,7 @@ pub(super) fn annotate_root_plans(
                         enums,
                     );
                     RootPlan::Statepoint(statepoint_live_set(
+                        context,
                         &allocation_live,
                         function,
                         structs,
@@ -129,36 +133,57 @@ pub(super) fn annotate_root_plans(
                 }
                 lir::Instruction::ArrayClone { operand, .. } => {
                     let mut roots = live.clone();
-                    include_managed_operands(&mut roots, [*operand], function, structs, enums);
-                    RootPlan::Statepoint(statepoint_live_set(&roots, function, structs, enums))
+                    include_managed_operands(
+                        context,
+                        &mut roots,
+                        [*operand],
+                        function,
+                        structs,
+                        enums,
+                    );
+                    RootPlan::Statepoint(statepoint_live_set(
+                        context, &roots, function, structs, enums,
+                    ))
                 }
                 lir::Instruction::Call { site } => match site {
                     lir::CallSite::Managed(_) => {
                         let mut roots = live.clone();
                         include_managed_operands(
+                            context,
                             &mut roots,
                             site.args().iter().copied(),
                             function,
                             structs,
                             enums,
                         );
-                        RootPlan::Statepoint(statepoint_live_set(&roots, function, structs, enums))
+                        RootPlan::Statepoint(statepoint_live_set(
+                            context, &roots, function, structs, enums,
+                        ))
                     }
                     lir::CallSite::NoGc(_) => RootPlan::None,
-                    lir::CallSite::NativeSafe(_) => RootPlan::NativeSafe(
-                        lir::NativeSafeRootSet::new(caller_roots(&live, function, structs, enums)),
-                    ),
+                    lir::CallSite::NativeSafe(_) => {
+                        RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
+                            context, &live, function, structs, enums,
+                        )))
+                    }
                     lir::CallSite::NativeBorrowed(site) => {
                         let mut borrowed_live = live.clone();
                         for argument in site.call.args() {
                             if let Some(value) = LiveValue::from_value(*argument)
-                                && root_scan(live_value_ty(value, function), structs, enums, 0)
-                                    .contains_reference()
+                                && root_scan(
+                                    context,
+                                    live_value_ty(value, function),
+                                    structs,
+                                    enums,
+                                    0,
+                                )
+                                .contains_reference()
                             {
                                 borrowed_live.insert(value);
                             }
                         }
                         RootPlan::NativeBorrowed(caller_roots(
+                            context,
                             &borrowed_live,
                             function,
                             structs,
@@ -168,6 +193,7 @@ pub(super) fn annotate_root_plans(
                 },
                 lir::Instruction::Invoke { site } => match site {
                     lir::InvokeSite::Managed(site) => RootPlan::Exceptional(exceptional_root_set(
+                        context,
                         instruction,
                         site,
                         &live_in,
@@ -179,9 +205,11 @@ pub(super) fn annotate_root_plans(
                 },
                 lir::Instruction::NativeGlobalLoad { .. }
                 | lir::Instruction::NativeGlobalStore { .. }
-                | lir::Instruction::NativeGlobalAddress { .. } => RootPlan::NativeSafe(
-                    lir::NativeSafeRootSet::new(caller_roots(&live, function, structs, enums)),
-                ),
+                | lir::Instruction::NativeGlobalAddress { .. } => {
+                    RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
+                        context, &live, function, structs, enums,
+                    )))
+                }
                 _ => RootPlan::None,
             };
             for value in instruction_uses(instruction, function) {

@@ -4,6 +4,116 @@ mod support;
 
 use support::*;
 
+fn lower(module: &mir::Module) -> lir::Module {
+    super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
+}
+
+#[test]
+fn selected_target_profile_is_embedded_in_lir_meta() {
+    let mut builder = Builder::new();
+    let main = builder.main(Arena::new(), Vec::new());
+    let module = lower(&builder.finish(main));
+
+    assert_eq!(
+        module.meta.target_profile,
+        lir::LirTargetProfile::DARWIN_AARCH64
+    );
+}
+
+#[test]
+fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
+    let profile = lir::LirTargetProfile::DARWIN_AARCH64;
+    let context = LoweringContext::new(profile);
+    let physical = |layout: lir::ScalarLayout| PhysicalLayout {
+        size: layout.size_bytes(),
+        align: layout.alignment_bytes(),
+    };
+
+    assert_eq!(
+        context.scalar_layout(lir::BackendScalarKind::I1),
+        physical(profile.scalar_layout(lir::BackendScalarKind::I1))
+    );
+    assert_eq!(
+        context.legacy_integer_layout(),
+        physical(profile.scalar_layout(lir::BackendScalarKind::I64))
+    );
+    assert_eq!(
+        context.machine_scalar_layout(),
+        physical(profile.scalar_layout(lir::BackendScalarKind::I64))
+    );
+    for kind in [
+        lir::PointerKind::Managed,
+        lir::PointerKind::Raw,
+        lir::PointerKind::Code,
+        lir::PointerKind::Metadata,
+    ] {
+        assert_eq!(
+            context.pointer_layout(kind),
+            physical(profile.pointer_layout(kind))
+        );
+    }
+
+    let i64_layout = context.scalar_layout(lir::BackendScalarKind::I64);
+    let metadata_pointer = context.pointer_layout(lir::PointerKind::Metadata);
+    let (header_offsets, expected_header) =
+        context.aggregate_layout([metadata_pointer, i64_layout]);
+    assert_eq!(context.object_header_layout(), expected_header);
+    assert_eq!(context.object_type_descriptor_offset(), header_offsets[0]);
+
+    let (_, expected_string) = context.aggregate_layout([expected_header, i64_layout]);
+    assert_eq!(context.string_layout(), expected_string);
+
+    let code_pointer = context.pointer_layout(lir::PointerKind::Code);
+    let (closure_offsets, expected_closure) =
+        context.aggregate_layout([expected_header, code_pointer]);
+    assert_eq!(
+        context.closure_prefix(),
+        (closure_offsets[1], expected_closure)
+    );
+
+    let raw_pointer = context.pointer_layout(lir::PointerKind::Raw);
+    assert_eq!(
+        context.closure_invoke_dispatch_slot(),
+        u32::try_from(closure_offsets[1] / raw_pointer.size).expect("test slot fits u32")
+    );
+    let i32_layout = context.scalar_layout(lir::BackendScalarKind::I32);
+    let (_, expected_exception) = context.aggregate_layout([raw_pointer, i32_layout]);
+    assert_eq!(context.exception_record_layout(), expected_exception);
+
+    let (descriptor_offsets, _) = context.aggregate_layout([
+        i64_layout,
+        i64_layout,
+        i64_layout,
+        metadata_pointer,
+        metadata_pointer,
+        metadata_pointer,
+    ]);
+    assert_eq!(
+        context.type_descriptor_vtable_offset(),
+        descriptor_offsets[5]
+    );
+}
+
+#[test]
+fn profile_layout_drives_aggregate_root_scan_offsets() {
+    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let structs = Arena::new();
+    let enums = Arena::new();
+    let ty = lir::LirType::Aggregate(vec![lir::LirType::I1, lir::MANAGED_PTR]);
+    let bool_layout = context.scalar_layout(lir::BackendScalarKind::I1);
+    let pointer_layout = context.pointer_layout(lir::PointerKind::Managed);
+    let (offsets, expected) = context.aggregate_layout([bool_layout, pointer_layout]);
+
+    assert_eq!(
+        safepoints::lir_size_align(&context, &ty, &structs, &enums),
+        (expected.size, expected.align)
+    );
+    assert_eq!(
+        safepoints::root_scan(&context, &ty, &structs, &enums, 0),
+        lir::RefScan::References(vec![offsets[1]])
+    );
+}
+
 #[test]
 fn no_gc_effect_is_preserved_in_lir() {
     let mut builder = Builder::new();

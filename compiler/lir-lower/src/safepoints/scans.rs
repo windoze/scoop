@@ -12,26 +12,45 @@ pub(super) fn shift_scan(scan: &lir::RefScan, base: u64) -> lir::RefScan {
     }
 }
 
-pub(super) fn lir_size_align(
+pub(crate) fn lir_size_align(
+    context: &LoweringContext,
     ty: &lir::LirType,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
 ) -> (u64, u64) {
     match ty {
         lir::LirType::Void => (0, 1),
-        lir::LirType::I1 => (1, 1),
-        lir::LirType::I64 | lir::LirType::MachineScalar(_) | lir::LirType::Ptr(_) => (8, 8),
-        lir::LirType::ExceptionRecord => (16, 8),
+        lir::LirType::I1 => {
+            let layout = context.scalar_layout(lir::BackendScalarKind::I1);
+            (layout.size, layout.align)
+        }
+        lir::LirType::I64 => {
+            let layout = context.legacy_integer_layout();
+            (layout.size, layout.align)
+        }
+        lir::LirType::MachineScalar(_) => {
+            let layout = context.machine_scalar_layout();
+            (layout.size, layout.align)
+        }
+        lir::LirType::Ptr(kind) => {
+            let layout = context.pointer_layout(*kind);
+            (layout.size, layout.align)
+        }
+        lir::LirType::ExceptionRecord => {
+            let layout = context.exception_record_layout();
+            (layout.size, layout.align)
+        }
         lir::LirType::Aggregate(fields) => {
-            let (_, size, align) = lir_aggregate_shape(fields, structs, enums);
+            let (_, size, align) = lir_aggregate_shape(context, fields, structs, enums);
             (size, align)
         }
         lir::LirType::Struct(id) => (structs[*id].size, structs[*id].align),
-        lir::LirType::Enum(id) => repr_shape(&enums[*id].repr),
+        lir::LirType::Enum(id) => repr_shape(context, &enums[*id].repr),
     }
 }
 
 pub(super) fn lir_aggregate_shape(
+    context: &LoweringContext,
     fields: &[lir::LirType],
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
@@ -40,7 +59,7 @@ pub(super) fn lir_aggregate_shape(
     let mut size = 0u64;
     let mut align = 1u64;
     for field in fields {
-        let (field_size, field_align) = lir_size_align(field, structs, enums);
+        let (field_size, field_align) = lir_size_align(context, field, structs, enums);
         size = size.next_multiple_of(field_align);
         offsets.push(size);
         size += field_size;
@@ -50,6 +69,7 @@ pub(super) fn lir_aggregate_shape(
 }
 
 pub(crate) fn root_scan(
+    context: &LoweringContext,
     ty: &lir::LirType,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
@@ -58,20 +78,22 @@ pub(crate) fn root_scan(
     match ty {
         lir::LirType::Ptr(lir::PointerKind::Managed) => lir::RefScan::References(vec![base]),
         lir::LirType::Aggregate(fields) => {
-            let (offsets, _, _) = lir_aggregate_shape(fields, structs, enums);
+            let (offsets, _, _) = lir_aggregate_shape(context, fields, structs, enums);
             sequence(
-                fields
-                    .iter()
-                    .zip(offsets)
-                    .map(|(field, offset)| root_scan(field, structs, enums, base + offset)),
+                fields.iter().zip(offsets).map(|(field, offset)| {
+                    root_scan(context, field, structs, enums, base + offset)
+                }),
             )
         }
-        lir::LirType::Struct(id) => sequence(
-            structs[*id]
-                .fields
-                .iter()
-                .map(|field| root_scan(&field.ty, structs, enums, base + field.layout.offset)),
-        ),
+        lir::LirType::Struct(id) => sequence(structs[*id].fields.iter().map(|field| {
+            root_scan(
+                context,
+                &field.ty,
+                structs,
+                enums,
+                base + field.layout.offset,
+            )
+        })),
         lir::LirType::Enum(id) => shift_scan(&enums[*id].scan, base),
         lir::LirType::Void
         | lir::LirType::I1
@@ -97,6 +119,7 @@ pub(super) fn sorted_live(live: &HashSet<LiveValue>) -> Vec<LiveValue> {
 }
 
 pub(super) fn caller_roots(
+    context: &LoweringContext,
     live: &HashSet<LiveValue>,
     function: &lir::Function,
     structs: &Arena<lir::StructDef>,
@@ -104,17 +127,18 @@ pub(super) fn caller_roots(
 ) -> Vec<lir::CallerRoot> {
     sorted_live(live)
         .into_iter()
-        .filter_map(|value| caller_root(value, function, structs, enums))
+        .filter_map(|value| caller_root(context, value, function, structs, enums))
         .collect()
 }
 
 pub(super) fn caller_root(
+    context: &LoweringContext,
     value: LiveValue,
     function: &lir::Function,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
 ) -> Option<lir::CallerRoot> {
-    let scan = root_scan(live_value_ty(value, function), structs, enums, 0);
+    let scan = root_scan(context, live_value_ty(value, function), structs, enums, 0);
     lir::NonEmptyRefScan::new(scan).map(|scan| lir::CallerRoot {
         source: value.source(),
         scan,
@@ -122,6 +146,7 @@ pub(super) fn caller_root(
 }
 
 pub(super) fn statepoint_live_set(
+    context: &LoweringContext,
     live: &HashSet<LiveValue>,
     function: &lir::Function,
     structs: &Arena<lir::StructDef>,
@@ -131,7 +156,7 @@ pub(super) fn statepoint_live_set(
         .into_iter()
         .filter_map(|value| {
             let ty = live_value_ty(value, function).clone();
-            let scan = root_scan(&ty, structs, enums, 0);
+            let scan = root_scan(context, &ty, structs, enums, 0);
             let mut offsets = Vec::new();
             flatten_scan(&scan, &mut offsets);
             offsets.sort_unstable();
@@ -154,6 +179,7 @@ pub(super) fn statepoint_live_set(
 }
 
 pub(super) fn include_managed_operands(
+    context: &LoweringContext,
     roots: &mut HashSet<LiveValue>,
     operands: impl IntoIterator<Item = lir::Value>,
     function: &lir::Function,
@@ -162,7 +188,8 @@ pub(super) fn include_managed_operands(
 ) {
     for operand in operands {
         if let Some(value) = LiveValue::from_value(operand)
-            && root_scan(live_value_ty(value, function), structs, enums, 0).contains_reference()
+            && root_scan(context, live_value_ty(value, function), structs, enums, 0)
+                .contains_reference()
         {
             roots.insert(value);
         }
@@ -170,6 +197,7 @@ pub(super) fn include_managed_operands(
 }
 
 pub(super) fn exceptional_root_set(
+    context: &LoweringContext,
     instruction: &lir::Instruction,
     site: &lir::ManagedInvokeSite,
     live_in: &[HashSet<LiveValue>],
@@ -184,6 +212,7 @@ pub(super) fn exceptional_root_set(
     let unwind = &live_in[arena_index(site.unwind)];
     let mut roots = normal.union(unwind).copied().collect::<HashSet<_>>();
     include_managed_operands(
+        context,
         &mut roots,
         site.call.args().iter().copied(),
         function,
@@ -194,10 +223,12 @@ pub(super) fn exceptional_root_set(
         sorted_live(&roots)
             .into_iter()
             .filter_map(|value| {
-                caller_root(value, function, structs, enums).map(|root| lir::ExceptionalRoot {
-                    root,
-                    normal_live: normal.contains(&value),
-                    unwind_live: unwind.contains(&value),
+                caller_root(context, value, function, structs, enums).map(|root| {
+                    lir::ExceptionalRoot {
+                        root,
+                        normal_live: normal.contains(&value),
+                        unwind_live: unwind.contains(&value),
+                    }
                 })
             })
             .collect(),

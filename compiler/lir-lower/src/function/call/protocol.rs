@@ -139,7 +139,8 @@ impl<'a> FunctionLowerer<'a> {
             return (PendingTypedCall::Void { signature, args }, None);
         }
 
-        let result_scan = safepoints::root_scan(&result_type, self.structs, self.enums, 0);
+        let result_scan =
+            safepoints::root_scan(self.context, &result_type, self.structs, self.enums, 0);
         if uses_indirect_result(self.enums, &result_type) {
             let signature = self.call_targets.indirect_result_signatures.alloc(
                 lir::IndirectResultCallSignature {

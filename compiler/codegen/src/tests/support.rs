@@ -36,6 +36,7 @@ pub(super) fn string_metadata() -> LirMeta {
         itables: Vec::new(),
     });
     LirMeta {
+        target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         well_known_layouts: WellKnownLayouts {
             string: string_layout,
         },

@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use la_arena::{Arena, Idx};
 use scoop_lir as lir;
 
+use super::LoweringContext;
 use super::metadata::{repr_shape, sequence};
 
 mod cfg;
@@ -20,6 +21,8 @@ mod scans;
 use cfg::*;
 use dataflow::*;
 use plans::*;
+#[cfg(test)]
+pub(crate) use scans::lir_size_align;
 pub(super) use scans::root_scan;
 use scans::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
@@ -89,6 +92,7 @@ impl LiveValue {
 }
 
 pub(super) fn complete_function(
+    context: &LoweringContext,
     function: &mut lir::Function,
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
@@ -97,7 +101,7 @@ pub(super) fn complete_function(
     fold_constant_branches(function);
     prune_unreachable_blocks(function);
     insert_polls(function, ids);
-    annotate_root_plans(function, structs, enums);
+    annotate_root_plans(context, function, structs, enums);
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {

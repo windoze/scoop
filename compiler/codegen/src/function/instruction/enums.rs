@@ -24,7 +24,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )));
                 }
                 match &def.repr {
-                    EnumRepr::Niche { payload_variant } => {
+                    EnumRepr::Niche {
+                        kind,
+                        payload_variant,
+                    } => {
                         let expected_count = usize::from(*variant == *payload_variant);
                         if *variant > 1 || fields.len() != expected_count {
                             return Err(CodegenError(format!(
@@ -34,19 +37,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                         if let Some(field) = fields.first() {
                             let field_ty = function.value_ty(self.globals_arena, *field);
-                            let valid = if def.scan.contains_reference() {
-                                field_ty == scoop_lir::MANAGED_PTR
-                            } else {
-                                matches!(
-                                    field_ty,
-                                    LirType::Ptr(PointerKind::Raw | PointerKind::Code)
-                                )
-                            };
-                            if !valid {
+                            let expected = LirType::Ptr(kind.pointer_kind());
+                            if field_ty != expected {
                                 return Err(CodegenError(format!(
-                                    "enum_wrap @{} niche payload has invalid type {}",
+                                    "enum_wrap @{} niche payload has type {}, expected {}",
                                     function.symbol,
-                                    field_ty.dump()
+                                    field_ty.dump(),
+                                    expected.dump(),
                                 )));
                             }
                         }
@@ -85,7 +82,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
-                    EnumRepr::Niche { payload_variant } => {
+                    EnumRepr::Niche {
+                        payload_variant, ..
+                    } => {
                         if *variant == *payload_variant {
                             // The payload is the bare pointer itself.
                             self.value(fields[0])?
@@ -186,7 +185,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     // Niche: the tag value is the variant index — null ↔
                     // the payload-less variant, non-null ↔ the payload
                     // variant.
-                    EnumRepr::Niche { payload_variant } => {
+                    EnumRepr::Niche {
+                        payload_variant, ..
+                    } => {
                         let operand = operand.into_pointer_value();
                         let non_null = builder
                             .build_int_compare(
@@ -245,20 +246,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )));
                 }
                 let expected_ty = match &def.repr {
-                    EnumRepr::Niche { payload_variant }
-                        if variant == payload_variant && *index == 0 =>
-                    {
+                    EnumRepr::Niche {
+                        kind,
+                        payload_variant,
+                    } if variant == payload_variant && *index == 0 => {
                         let out_ty = &function.temps[*out].ty;
-                        let valid = if def.scan.contains_reference() {
-                            *out_ty == scoop_lir::MANAGED_PTR
-                        } else {
-                            matches!(out_ty, LirType::Ptr(PointerKind::Raw | PointerKind::Code))
-                        };
-                        if !valid {
+                        let expected = LirType::Ptr(kind.pointer_kind());
+                        if out_ty != &expected {
                             return Err(CodegenError(format!(
-                                "enum_field @{} niche payload cannot produce {}",
+                                "enum_field @{} niche payload produces {}, expected {}",
                                 function.symbol,
-                                out_ty.dump()
+                                out_ty.dump(),
+                                expected.dump(),
                             )));
                         }
                         None

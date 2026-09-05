@@ -7,6 +7,7 @@ pub fn emit_object(
     output: &Path,
     profile: TargetProfile,
 ) -> Result<(), CodegenError> {
+    profile.validate_lir_target_profile(module.meta.target_profile)?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
@@ -55,6 +56,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     machine: &TargetMachine,
     profile: TargetProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
+    profile.validate_lir_target_profile(module.meta.target_profile)?;
     validation::validate_module(module)?;
     let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
@@ -185,7 +187,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                 globals.push(Some(llvm_global));
             }
             GlobalInit::Storage {
-                ty,
+                ty: lir_ty,
                 initializer,
                 thread_local,
             } => {
@@ -194,7 +196,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     &module.structs,
                     &module.enums,
                     managed_address_space,
-                    ty,
+                    lir_ty,
                 )?;
                 let value = llvm_constant(
                     context,
@@ -202,7 +204,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     &module.enums,
                     &globals,
                     managed_address_space,
-                    ty,
+                    lir_ty,
                     initializer,
                 )?;
                 let llvm_global = llvm.add_global(ty, None, &global.symbol);

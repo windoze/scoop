@@ -42,13 +42,31 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
         Ok(match ty {
             LirType::I1 => "_Bool".to_string(),
             LirType::I64 => "uint64_t".to_string(),
-            LirType::Ptr(_) => "void *".to_string(),
+            LirType::Ptr(PointerKind::Raw) => "void *".to_string(),
+            LirType::Ptr(PointerKind::Code) => "scoop_target_function_pointer".to_string(),
             LirType::Struct(id) if module.structs[*id].c_layout.is_some() => {
                 format!("scoop_c_layout_{}", arena_index(*id))
             }
-            LirType::Enum(id) if matches!(module.enums[*id].repr, EnumRepr::Niche { .. }) => {
-                "void *".to_string()
-            }
+            LirType::Enum(id) => match &module.enums[*id].repr {
+                EnumRepr::Niche {
+                    kind: scoop_lir::NichePointerKind::Raw,
+                    ..
+                } => "void *".to_string(),
+                EnumRepr::Niche {
+                    kind: scoop_lir::NichePointerKind::Code,
+                    ..
+                } => "scoop_target_function_pointer".to_string(),
+                EnumRepr::Niche {
+                    kind: scoop_lir::NichePointerKind::Managed,
+                    ..
+                }
+                | EnumRepr::Tagged { .. } => {
+                    return Err(CodegenError(format!(
+                        "non-C type {} reached C bridge layout generation",
+                        ty.dump()
+                    )));
+                }
+            },
             other => {
                 return Err(CodegenError(format!(
                     "non-C type {} reached C bridge layout generation",
@@ -67,7 +85,7 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
         }
     }
 
-    let mut out = String::from("#include <stddef.h>\n#include <stdint.h>\n\n");
+    let mut out = target_profile_assertions(module.meta.target_profile)?;
     for id in order {
         let definition = &module.structs[id];
         let name = format!("scoop_c_layout_{}", arena_index(id));
@@ -126,4 +144,38 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
         out.push('\n');
     }
     Ok(out)
+}
+
+fn target_profile_assertions(profile: scoop_lir::LirTargetProfile) -> Result<String, CodegenError> {
+    let data_pointer = profile.data_pointer();
+    let code_pointer = profile.code_pointer();
+    if data_pointer.null_encoding() != scoop_lir::PointerNullEncoding::AllZeroBits
+        || code_pointer.null_encoding() != scoop_lir::PointerNullEncoding::AllZeroBits
+        || data_pointer.carrier() != scoop_lir::InternalPointerCarrier::BitPreservingU64
+        || code_pointer.carrier() != scoop_lir::InternalPointerCarrier::BitPreservingU64
+    {
+        return Err(CodegenError(format!(
+            "target profile `{}` has no qualified C pointer representation",
+            profile.id().canonical_name(),
+        )));
+    }
+
+    let data_layout = data_pointer.layout();
+    let code_layout = code_pointer.layout();
+    Ok(format!(
+        "#include <limits.h>\n#include <stddef.h>\n#include <stdint.h>\n\n\
+typedef void (*scoop_target_function_pointer)(void);\n\
+_Static_assert(CHAR_BIT == 8, \"Scoop requires 8-bit bytes\");\n\
+_Static_assert(UINTPTR_MAX == UINT64_MAX, \"Scoop uintptr_t value width\");\n\
+_Static_assert(sizeof(uintptr_t) == {data_size}, \"Scoop uintptr_t size\");\n\
+_Static_assert(_Alignof(uintptr_t) == {data_align}, \"Scoop uintptr_t alignment\");\n\
+_Static_assert(sizeof(void *) == {data_size}, \"Scoop data pointer size\");\n\
+_Static_assert(_Alignof(void *) == {data_align}, \"Scoop data pointer alignment\");\n\
+_Static_assert(sizeof(scoop_target_function_pointer) == {code_size}, \"Scoop function pointer size\");\n\
+_Static_assert(_Alignof(scoop_target_function_pointer) == {code_align}, \"Scoop function pointer alignment\");\n\n",
+        data_size = data_layout.size_bytes(),
+        data_align = data_layout.alignment_bytes(),
+        code_size = code_layout.size_bytes(),
+        code_align = code_layout.alignment_bytes(),
+    ))
 }

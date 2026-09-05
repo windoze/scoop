@@ -1652,7 +1652,7 @@ Module
   global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
   init0 companion:Container.Factory lazy storage=@scoop.singleton.companion:Container.Factory failure=@scoop.init.failure.0 initializer=@scoop.$init$body$0 ensure=@scoop.$init$ensure$0 deps=[]
   enum Choice$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

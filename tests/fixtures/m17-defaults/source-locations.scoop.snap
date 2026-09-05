@@ -1844,7 +1844,7 @@ Module
   global @scoop.str.35 = "arithmetic error"
   global @scoop.str.36 = "array index out of bounds"
   global @scoop.str.37 = "illegal state"
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum CoroutineStep$D14_SourceLocationX tagged size=48 align=8 variants=(struct0)@8+40:refs ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>

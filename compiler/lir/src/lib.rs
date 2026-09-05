@@ -11,6 +11,9 @@ use la_arena::{Arena, Idx};
 mod types;
 pub use types::*;
 
+mod target;
+pub use target::*;
+
 mod externs;
 pub use externs::*;
 

@@ -10,7 +10,7 @@ fn option_of_string_uses_the_niche_representation() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   fun @scoop_main() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
@@ -44,7 +44,10 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
 
     assert!(matches!(
         edef(&module, option).repr,
-        lir::EnumRepr::Niche { payload_variant: 0 }
+        lir::EnumRepr::Niche {
+            kind: lir::NichePointerKind::Raw,
+            payload_variant: 0,
+        }
     ));
     let layout = layout_values(&module)
         .find(|layout| layout.name == "Option$P")
@@ -53,6 +56,47 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
         panic!("Option<Ptr<Int>> must retain its enum layout identity")
     };
     assert_eq!(*scan, lir::RefScan::None);
+}
+
+#[test]
+fn option_of_code_pointer_records_code_niche_provenance() {
+    let mut builder = Builder::new();
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut mir_module = builder.finish(main);
+    let signature = mir_module.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: mir::Type::Unit,
+    });
+    let option = mir_module.enums.alloc(mir::EnumDef {
+        name: "Option$F".to_string(),
+        gc_free: true,
+        variants: vec![
+            mir::VariantDef {
+                name: "Some".to_string(),
+                gc_free: true,
+                fields: vec![mir::Field {
+                    name: "_1".to_string(),
+                    ty: mir::Type::FunPtr(signature),
+                }],
+            },
+            mir::VariantDef {
+                name: "None".to_string(),
+                gc_free: true,
+                fields: Vec::new(),
+            },
+        ],
+    });
+
+    let module = lower(&mir_module);
+
+    assert!(matches!(
+        edef(&module, option).repr,
+        lir::EnumRepr::Niche {
+            kind: lir::NichePointerKind::Code,
+            payload_variant: 0,
+        }
+    ));
 }
 
 #[test]
@@ -146,15 +190,24 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
 
     assert!(matches!(
         edef(&module, option_s).repr,
-        lir::EnumRepr::Niche { payload_variant: 0 }
+        lir::EnumRepr::Niche {
+            kind: lir::NichePointerKind::Managed,
+            payload_variant: 0,
+        }
     ));
     assert!(matches!(
         edef(&module, option_array).repr,
-        lir::EnumRepr::Niche { payload_variant: 0 }
+        lir::EnumRepr::Niche {
+            kind: lir::NichePointerKind::Managed,
+            payload_variant: 0,
+        }
     ));
     assert!(matches!(
         edef(&module, flip).repr,
-        lir::EnumRepr::Niche { payload_variant: 1 }
+        lir::EnumRepr::Niche {
+            kind: lir::NichePointerKind::Managed,
+            payload_variant: 1,
+        }
     ));
     let lir::EnumRepr::Tagged {
         variants,

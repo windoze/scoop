@@ -1,11 +1,11 @@
 use super::*;
 
 /// Fix the representation of every MIR enum definition (spec 7.4).
-pub(crate) fn lower_enums(module: &mir::Module) -> Arena<lir::EnumDef> {
+pub(crate) fn lower_enums(context: &LoweringContext, module: &mir::Module) -> Arena<lir::EnumDef> {
     let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
     reprs.resize_with(module.enums.len(), || None);
     for (id, _) in module.enums.iter() {
-        compute_repr(module, &mut reprs, id);
+        compute_repr(context, module, &mut reprs, id);
     }
     let mut enums = Arena::new();
     for ((_, def), repr) in module.enums.iter().zip(reprs) {
@@ -16,7 +16,7 @@ pub(crate) fn lower_enums(module: &mir::Module) -> Arena<lir::EnumDef> {
         });
     }
     for (id, _) in module.enums.iter() {
-        let scan = ref_scan(module, &enums, &mir::Type::Enum(id, Vec::new()), 0);
+        let scan = ref_scan(context, module, &enums, &mir::Type::Enum(id, Vec::new()), 0);
         enums[enum_def_id(id)].scan = scan;
     }
     enums
@@ -69,12 +69,26 @@ pub(crate) fn is_niche_payload(ty: &mir::Type) -> bool {
     )
 }
 
+fn niche_pointer_kind(ty: &mir::Type) -> lir::NichePointerKind {
+    match ty {
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => lir::NichePointerKind::Managed,
+        mir::Type::Ptr(_) => lir::NichePointerKind::Raw,
+        mir::Type::FunPtr(_) => lir::NichePointerKind::Code,
+        _ => unreachable!("only pointer-like fields qualify for a niche enum"),
+    }
+}
+
 /// Compute (memoized) the representation of one enum. Niche layout is
 /// restricted to the exact Option-isomorphic cases from spec 7.4.
 /// Tagged layout gives all GC-free variants one shared payload region
 /// and every non-GC-free variant its own disjoint slot. Nested enums are
 /// computed first because variant sizing needs their shapes.
 pub(crate) fn compute_repr(
+    context: &LoweringContext,
     module: &mir::Module,
     reprs: &mut Vec<Option<lir::EnumRepr>>,
     id: mir::EnumId,
@@ -94,7 +108,7 @@ pub(crate) fn compute_repr(
         // A by-value recursive enum is infinitely sized; hir-lower
         // rejects it before this stage.
         assert!(nested_id != id, "a by-value recursive enum is unsized");
-        compute_repr(module, reprs, nested_id);
+        compute_repr(context, module, reprs, nested_id);
     }
 
     // This is a semantic whitelist, not merely an LLVM pointer-shape
@@ -110,6 +124,7 @@ pub(crate) fn compute_repr(
             if payload_variant.fields.len() == 1 && is_niche_payload(&payload_variant.fields[0].ty)
             {
                 reprs[index] = Some(lir::EnumRepr::Niche {
+                    kind: niche_pointer_kind(&payload_variant.fields[0].ty),
                     payload_variant: payload_index as u32,
                 });
                 return;
@@ -121,6 +136,7 @@ pub(crate) fn compute_repr(
     // its eventual slot assignment.
     let enum_shape = |id: mir::EnumId| {
         repr_shape(
+            context,
             reprs[id.into_raw().into_u32() as usize]
                 .as_ref()
                 .expect("nested enum representations are computed first"),
@@ -150,7 +166,8 @@ pub(crate) fn compute_repr(
             .iter()
             .map(|field| field.ty.clone())
             .collect();
-        let (field_offsets, size, align) = aggregate_shape(module, &enum_shape, &field_types);
+        let (field_offsets, size, align) =
+            aggregate_shape(context, module, &enum_shape, &field_types);
         assert_eq!(
             fields.len(),
             field_offsets.len(),
@@ -185,9 +202,10 @@ pub(crate) fn compute_repr(
         .map(|variant| variant.align)
         .max()
         .unwrap_or(1);
-    let pure_offset = 8u64.next_multiple_of(pure_align);
+    let tag_layout = context.machine_scalar_layout();
+    let pure_offset = tag_layout.size.next_multiple_of(pure_align);
     let mut cursor = pure_offset + pure_size;
-    let mut align = 8u64.max(pure_align);
+    let mut align = tag_layout.align.max(pure_align);
     let mut variants = Vec::with_capacity(pending.len());
     for variant in pending {
         let slot_offset = if !variant.gc_free {
@@ -225,9 +243,12 @@ pub(crate) fn compute_repr(
 /// Size and alignment of an enum value from its representation: the
 /// niche form is a bare pointer; tagged size/alignment are fixed by its
 /// shared pure-value region and disjoint ref-bearing slots.
-pub(crate) fn repr_shape(repr: &lir::EnumRepr) -> (u64, u64) {
+pub(crate) fn repr_shape(context: &LoweringContext, repr: &lir::EnumRepr) -> (u64, u64) {
     match repr {
-        lir::EnumRepr::Niche { .. } => (8, 8),
+        lir::EnumRepr::Niche { kind, .. } => {
+            let layout = context.pointer_layout(kind.pointer_kind());
+            (layout.size, layout.align)
+        }
         lir::EnumRepr::Tagged { size, align, .. } => (*size, *align),
     }
 }

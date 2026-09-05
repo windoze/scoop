@@ -1659,7 +1659,7 @@ Module
   global @scoop.str.7 = "illegal state"
   enum E tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

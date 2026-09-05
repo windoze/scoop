@@ -91,7 +91,11 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
-                let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
+                let td = self.load_at_offset(
+                    args[0],
+                    self.context.object_type_descriptor_offset(),
+                    lir::METADATA_PTR,
+                );
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
                 let table = self.emit_plain_call(
                     LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
@@ -164,9 +168,16 @@ impl<'a> FunctionLowerer<'a> {
                     // object header holds the TypeDescriptor, whose
                     // vtable pointer is `ScoopTypeDescriptor` field 5.
                     mir::CallKind::Virtual { slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
-                        let vtable =
-                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::METADATA_PTR);
+                        let td = self.load_at_offset(
+                            args[0],
+                            self.context.object_type_descriptor_offset(),
+                            lir::METADATA_PTR,
+                        );
+                        let vtable = self.load_at_offset(
+                            lir::Value::Temp(td),
+                            self.context.type_descriptor_vtable_offset(),
+                            lir::METADATA_PTR,
+                        );
                         let destination = self.dispatch_destination(
                             lir::Value::Temp(vtable),
                             lir::DispatchKind::Virtual,
@@ -185,7 +196,11 @@ impl<'a> FunctionLowerer<'a> {
                     // iface_td)` finds the interface's table by its
                     // TypeDescriptor key.
                     mir::CallKind::Interface { interface, slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
+                        let td = self.load_at_offset(
+                            args[0],
+                            self.context.object_type_descriptor_offset(),
+                            lir::METADATA_PTR,
+                        );
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
                         let table = self.emit_plain_call(
                             LoweredCallDestination::no_gc_runtime(
@@ -445,7 +460,11 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        let destination = self.managed_dispatch_destination(closure, lir::DispatchKind::Closure, 2);
+        let destination = self.managed_dispatch_destination(
+            closure,
+            lir::DispatchKind::Closure,
+            self.context.closure_invoke_dispatch_slot(),
+        );
         self.finish_indirect(destination, args, parameter_types, returns_unit, result_ty)
     }
 }

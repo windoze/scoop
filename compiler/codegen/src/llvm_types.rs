@@ -43,12 +43,8 @@ pub(crate) fn basic_ty<'ctx>(
         }
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
-            EnumRepr::Niche { .. } => {
-                if enums[*id].scan.contains_reference() {
-                    managed_ptr_ty(context, managed_address_space).into()
-                } else {
-                    ptr_ty(context).into()
-                }
+            EnumRepr::Niche { kind, .. } => {
+                pointer_ty(context, managed_address_space, kind.pointer_kind()).into()
             }
             EnumRepr::Tagged { size, align, .. } => tagged_ty(
                 context,
@@ -68,9 +64,16 @@ pub(crate) fn llvm_constant<'ctx>(
     enums: &Arena<EnumDef>,
     globals: &[Option<GlobalValue<'ctx>>],
     managed_address_space: ManagedAddressSpace,
-    ty: BasicTypeEnum<'ctx>,
+    expected_lir_ty: &LirType,
     value: &ConstantValue,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+    let ty = basic_ty(
+        context,
+        structs,
+        enums,
+        managed_address_space,
+        expected_lir_ty,
+    )?;
     Ok(match value {
         ConstantValue::Zero => ty.const_zero(),
         ConstantValue::Int(value) => context.i64_type().const_int(*value as u64, true).into(),
@@ -78,8 +81,24 @@ pub(crate) fn llvm_constant<'ctx>(
             .bool_type()
             .const_int(u64::from(*value), false)
             .into(),
-        ConstantValue::NullPointer(_) => ty.into_pointer_type().const_null().into(),
+        ConstantValue::NullPointer(kind) => {
+            if expected_lir_ty != &LirType::Ptr(*kind) {
+                return Err(CodegenError(format!(
+                    "{} null constant does not match storage type {}",
+                    kind.dump(),
+                    expected_lir_ty.dump(),
+                )));
+            }
+            ty.into_pointer_type().const_null().into()
+        }
         ConstantValue::GlobalPointer { global, kind } => {
+            if expected_lir_ty != &LirType::Ptr(*kind) {
+                return Err(CodegenError(format!(
+                    "{} global pointer constant does not match storage type {}",
+                    kind.dump(),
+                    expected_lir_ty.dump(),
+                )));
+            }
             let expected = pointer_ty(context, managed_address_space, *kind);
             if ty.into_pointer_type() != expected {
                 return Err(CodegenError(
@@ -104,7 +123,16 @@ pub(crate) fn llvm_constant<'ctx>(
             pointer.into()
         }
         ConstantValue::EnumUnit { enum_id, variant } => match &enums[*enum_id].repr {
-            EnumRepr::Niche { payload_variant } => {
+            EnumRepr::Niche {
+                payload_variant, ..
+            } => {
+                if expected_lir_ty != &LirType::Enum(*enum_id) {
+                    return Err(CodegenError(format!(
+                        "enum unit constant for e{} does not match storage type {}",
+                        enum_id.into_raw(),
+                        expected_lir_ty.dump(),
+                    )));
+                }
                 if *variant > 1 || variant == payload_variant {
                     return Err(CodegenError(
                         "a payload enum variant cannot be encoded as a unit constant".to_string(),
@@ -113,6 +141,13 @@ pub(crate) fn llvm_constant<'ctx>(
                 ty.into_pointer_type().const_null().into()
             }
             EnumRepr::Tagged { variants, .. } => {
+                if expected_lir_ty != &LirType::Enum(*enum_id) {
+                    return Err(CodegenError(format!(
+                        "enum unit constant for e{} does not match storage type {}",
+                        enum_id.into_raw(),
+                        expected_lir_ty.dump(),
+                    )));
+                }
                 let Some(representation) = variants.get(*variant as usize) else {
                     return Err(CodegenError(format!(
                         "enum unit constant has invalid variant {variant}"
@@ -134,6 +169,13 @@ pub(crate) fn llvm_constant<'ctx>(
             }
         },
         ConstantValue::Struct { struct_id, fields } => {
+            if expected_lir_ty != &LirType::Struct(*struct_id) {
+                return Err(CodegenError(format!(
+                    "struct constant for s{} does not match storage type {}",
+                    struct_id.into_raw(),
+                    expected_lir_ty.dump(),
+                )));
+            }
             let definition = &structs[*struct_id];
             if fields.len() != definition.fields.len() {
                 return Err(CodegenError(format!(
@@ -147,15 +189,13 @@ pub(crate) fn llvm_constant<'ctx>(
                     .iter()
                     .zip(&definition.fields)
                     .map(|(value, field)| {
-                        let ty =
-                            basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
                         llvm_constant(
                             context,
                             structs,
                             enums,
                             globals,
                             managed_address_space,
-                            ty,
+                            &field.ty,
                             value,
                         )
                     })
@@ -171,15 +211,13 @@ pub(crate) fn llvm_constant<'ctx>(
                         let ty = payload_types[payload_values.len()];
                         payload_values.push(ty.const_zero());
                     }
-                    let field_ty =
-                        basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
                     payload_values.push(llvm_constant(
                         context,
                         structs,
                         enums,
                         globals,
                         managed_address_space,
-                        field_ty,
+                        &field.ty,
                         value,
                     )?);
                     cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;

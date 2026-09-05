@@ -7,6 +7,7 @@ pub(super) enum StorageGlobal {
 }
 
 pub(super) fn lower_globals(
+    context: &LoweringContext,
     module: &mir::Module,
     globals: &mut Arena<lir::Global>,
     structs: &Arena<lir::StructDef>,
@@ -26,7 +27,7 @@ pub(super) fn lower_globals(
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
-                    scan: safepoints::root_scan(&lir_type(&global.ty), structs, enums, 0),
+                    scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
                         initializer: lower_constant(initializer, string_globals),
@@ -42,7 +43,7 @@ pub(super) fn lower_globals(
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
-                    scan: safepoints::root_scan(&lir_type(&global.ty), structs, enums, 0),
+                    scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
                         initializer: lower_constant(initializer, string_globals),

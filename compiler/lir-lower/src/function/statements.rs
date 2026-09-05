@@ -105,8 +105,12 @@ impl<'a> FunctionLowerer<'a> {
                     &value.ty, field_ty,
                     "a field store value must match its declared field type"
                 );
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let offset = offsets[*index as usize];
                 let field_lir_ty = self.value_type(field_ty);
                 let object = self.lower_expr(object);
@@ -134,8 +138,12 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Type::MachineScalar(*kind),
                     "an atomic store value must match its field domain"
                 );
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let object = self.lower_expr(object);
                 let value = self.lower_expr(value);
                 let kind = machine_scalar_kind(*kind);

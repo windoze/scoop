@@ -1829,7 +1829,7 @@ Module
   init2 top-level:text storage=@scoop.global.text failure=@scoop.init.failure.2 initializer=@scoop.$init$body$2 ensure=@scoop.$init$ensure$2 deps=[]
   init3 top-level:zed storage=@scoop.global.zed failure=@scoop.init.failure.3 initializer=@scoop.$init$body$3 ensure=@scoop.$init$ensure$3 deps=[]
   init4 top-level:betaOrder storage=@scoop.global.betaOrder failure=@scoop.init.failure.4 initializer=@scoop.$init$body$4 ensure=@scoop.$init$ensure$4 deps=[]
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

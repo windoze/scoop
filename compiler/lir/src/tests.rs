@@ -1,13 +1,93 @@
 use super::{
     CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
     CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, ExternFunctionDeclaration, ExternFunctions, ForeignCallbackStatus,
-    GcEffect, InitializationOutcome, LirType, LocalFunctionIdentities, MachineScalarKind,
-    MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
-    NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
-    NativeSafeCallDestination, NonEmptyRefScan, RefScan, ResultStorage, ScoopExternFunction,
-    ScoopExternFunctionRef, TypedCall, TypedCallView, Value, VoidCallSignature,
+    DirectCallSignature, EnumRepr, ExternFunctionDeclaration, ExternFunctions,
+    ForeignCallbackStatus, GcEffect, InitializationOutcome, InternalPointerCarrier,
+    LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind, MachineScalarValue,
+    ManagedCallDestination, ManagedRuntimeFunction, NativeBorrowedCallDestination,
+    NativeBorrowedResultPublication, NativeBorrowedResultRoot, NativeSafeCallDestination,
+    NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding, RefScan, ResultStorage,
+    ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallView, Value,
+    VoidCallSignature,
 };
+
+#[test]
+fn darwin_aarch64_profile_fixes_every_backend_scalar_layout() {
+    let profile = LirTargetProfile::DARWIN_AARCH64;
+
+    assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
+    assert_eq!(profile.id().canonical_name(), "darwin-aarch64");
+    assert_eq!(
+        profile.canonical_llvm_data_layout(),
+        "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+    );
+
+    for (kind, size, alignment) in [
+        (super::BackendScalarKind::I1, 1, 1),
+        (super::BackendScalarKind::I8, 1, 1),
+        (super::BackendScalarKind::I16, 2, 2),
+        (super::BackendScalarKind::I32, 4, 4),
+        (super::BackendScalarKind::I64, 8, 8),
+    ] {
+        let layout = profile.scalar_layout(kind);
+        assert_eq!(layout.size_bytes(), size);
+        assert_eq!(layout.alignment_bytes(), alignment);
+    }
+}
+
+#[test]
+fn darwin_aarch64_profile_keeps_pointer_provenance_and_qualification_typed() {
+    let profile = LirTargetProfile::DARWIN_AARCH64;
+    let word = profile.scalar_layout(super::BackendScalarKind::I64);
+
+    assert_eq!(profile.managed_pointer_layout(), word);
+    assert_eq!(profile.metadata_pointer_layout(), word);
+    for kind in [
+        PointerKind::Managed,
+        PointerKind::Raw,
+        PointerKind::Code,
+        PointerKind::Metadata,
+    ] {
+        assert_eq!(profile.pointer_layout(kind), word);
+    }
+
+    for representation in [profile.data_pointer(), profile.code_pointer()] {
+        assert_eq!(representation.layout(), word);
+        assert_eq!(
+            representation.null_encoding(),
+            PointerNullEncoding::AllZeroBits
+        );
+        assert_eq!(
+            representation.carrier(),
+            InternalPointerCarrier::BitPreservingU64
+        );
+    }
+}
+
+#[test]
+fn niche_representation_atomically_preserves_source_pointer_provenance() {
+    for (kind, expected) in [
+        (NichePointerKind::Managed, PointerKind::Managed),
+        (NichePointerKind::Raw, PointerKind::Raw),
+        (NichePointerKind::Code, PointerKind::Code),
+    ] {
+        let repr = EnumRepr::Niche {
+            kind,
+            payload_variant: 1,
+        };
+        let EnumRepr::Niche {
+            kind,
+            payload_variant,
+        } = repr
+        else {
+            panic!("the test constructs a niche representation");
+        };
+
+        assert_eq!(kind.pointer_kind(), expected);
+        assert_eq!(PointerKind::from(kind), expected);
+        assert_eq!(payload_variant, 1);
+    }
+}
 
 #[test]
 fn non_empty_ref_scan_rejects_programs_without_references() {

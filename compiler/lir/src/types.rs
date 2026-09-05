@@ -245,6 +245,34 @@ pub enum PointerKind {
     Metadata,
 }
 
+/// Pointer provenance admitted by a null-niche enum representation.
+///
+/// Metadata pointers are deliberately excluded: they are immortal compiler
+/// infrastructure addresses, not source values that may inhabit `Option`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NichePointerKind {
+    Managed,
+    Raw,
+    Code,
+}
+
+impl NichePointerKind {
+    /// Total projection to the corresponding general LIR pointer kind.
+    pub const fn pointer_kind(self) -> PointerKind {
+        match self {
+            Self::Managed => PointerKind::Managed,
+            Self::Raw => PointerKind::Raw,
+            Self::Code => PointerKind::Code,
+        }
+    }
+}
+
+impl From<NichePointerKind> for PointerKind {
+    fn from(kind: NichePointerKind) -> Self {
+        kind.pointer_kind()
+    }
+}
+
 pub const MANAGED_PTR: LirType = LirType::Ptr(PointerKind::Managed);
 pub const RAW_PTR: LirType = LirType::Ptr(PointerKind::Raw);
 pub const CODE_PTR: LirType = LirType::Ptr(PointerKind::Code);

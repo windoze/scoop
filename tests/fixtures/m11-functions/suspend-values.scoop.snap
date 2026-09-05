@@ -20555,22 +20555,22 @@ Module
   global @scoop.str.15 = "arithmetic error"
   global @scoop.str.16 = "array index out of bounds"
   global @scoop.str.17 = "illegal state"
-  enum Option$J14_Continuation$IX niche(payload_variant=0)
-  enum Option$S niche(payload_variant=0)
+  enum Option$J14_Continuation$IX niche(kind=managed,payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep$U tagged size=8 align=8 variants=({})@8+0 ()@8+0
-  enum CoroutineStep$Any niche(payload_variant=0)
-  enum CoroutineSlot$SRIX niche(payload_variant=1)
+  enum CoroutineStep$Any niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot$SRIX niche(kind=managed,payload_variant=1)
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
-  enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
-  enum CoroutineSlot$SAnyRIX niche(payload_variant=1)
-  enum CoroutineSlot$Any niche(payload_variant=1)
-  enum CoroutineSlot$C6_WorkerX niche(payload_variant=1)
-  enum CoroutineSlot$C11_AsyncWorkerX niche(payload_variant=1)
-  enum CoroutineSlot$SIRAnyX niche(payload_variant=1)
-  enum CoroutineSlot$S niche(payload_variant=1)
-  enum CoroutineSlot$C4_GateX niche(payload_variant=1)
-  enum CoroutineSlot$FJ14_Continuation$IXRUX niche(payload_variant=1)
+  enum CoroutineSlot$C9_ThrowableX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$SAnyRIX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$Any niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C6_WorkerX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C11_AsyncWorkerX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$SIRAnyX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$S niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C4_GateX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$FJ14_Continuation$IXRUX niche(kind=managed,payload_variant=1)
   enum CoroutineSlot$D21_FunctionSuspendTask$IX tagged size=16 align=8 variants=()@8+0 (struct5)@8+8:refs
   enum CoroutineSlot$D21_FunctionSuspendTask$UX tagged size=16 align=8 variants=()@8+0 (struct6)@8+8:refs
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>

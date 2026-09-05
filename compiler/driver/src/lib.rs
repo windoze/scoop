@@ -123,7 +123,7 @@ pub fn compile_file_with_options(
     let mir = scoop_mir_lower::lower(&hir.local);
     let mir_dump = scoop_mir::dump(&mir);
 
-    let lir = scoop_lir_lower::lower(&mir);
+    let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target_profile());
     let lir_dump = scoop_lir::dump(&lir);
 
     std::fs::create_dir_all(out_dir).map_err(|e| {

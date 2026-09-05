@@ -7278,19 +7278,19 @@ Module
   global @scoop.str.8 = "array index out of bounds"
   global @scoop.str.9 = "illegal state"
   global @scoop.cstr.0 = c"call to abstract method `VirtualWorker.work`"
-  enum Option$J14_Continuation$IX niche(payload_variant=0)
+  enum Option$J14_Continuation$IX niche(kind=managed,payload_variant=0)
   enum EnumWorker tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineSlot$D12_StructWorkerX tagged size=16 align=8 variants=()@8+0 (struct4)@8+8:refs
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
-  enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
+  enum CoroutineSlot$C9_ThrowableX niche(kind=managed,payload_variant=1)
   enum CoroutineSlot$E10_EnumWorkerX tagged size=24 align=8 variants=()@8+0 (enum1)@8+16:refs
-  enum CoroutineSlot$C12_DirectWorkerX niche(payload_variant=1)
-  enum CoroutineSlot$C17_VirtualWorkerImplX niche(payload_variant=1)
-  enum CoroutineSlot$C15_AsyncWorkerImplX niche(payload_variant=1)
-  enum CoroutineSlot$C12_DispatchTaskX niche(payload_variant=1)
-  enum CoroutineSlot$C4_GateX niche(payload_variant=1)
+  enum CoroutineSlot$C12_DirectWorkerX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C17_VirtualWorkerImplX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C15_AsyncWorkerImplX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C12_DispatchTaskX niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot$C4_GateX niche(kind=managed,payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

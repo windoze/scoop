@@ -4,11 +4,45 @@ use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
+    validate_niche_representations(module)?;
     validate_machine_containers(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;
     validate_c_abi(module)?;
     validate_foreign_callbacks(module)
+}
+
+fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
+    for (_, definition) in module.enums.iter() {
+        let EnumRepr::Niche {
+            kind,
+            payload_variant,
+        } = &definition.repr
+        else {
+            continue;
+        };
+        if *payload_variant > 1 {
+            return Err(CodegenError(format!(
+                "niche enum `{}` has invalid payload variant {payload_variant}",
+                definition.name
+            )));
+        }
+        let valid_scan = match kind {
+            scoop_lir::NichePointerKind::Managed => definition.scan == RefScan::References(vec![0]),
+            scoop_lir::NichePointerKind::Raw | scoop_lir::NichePointerKind::Code => {
+                definition.scan == RefScan::None
+            }
+        };
+        if !valid_scan {
+            return Err(CodegenError(format!(
+                "niche enum `{}` has {} pointer provenance but incompatible scan {}",
+                definition.name,
+                kind.pointer_kind().dump(),
+                definition.scan.dump(),
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError> {
@@ -362,9 +396,9 @@ fn validate_c_pair(
         }
         scoop_lir::CType::Int | scoop_lir::CType::UInt => matches!(lir, LirType::I64),
         scoop_lir::CType::Boolean => matches!(lir, LirType::I1),
-        scoop_lir::CType::Pointer => is_c_pointer(module, lir),
+        scoop_lir::CType::Pointer => is_c_data_pointer(module, lir),
         scoop_lir::CType::FunctionPointer { .. } => {
-            matches!(lir, LirType::Ptr(PointerKind::Code)) || is_c_pointer_enum(module, lir)
+            matches!(lir, LirType::Ptr(PointerKind::Code)) || is_c_code_pointer_enum(module, lir)
         }
         scoop_lir::CType::Struct(c_id) => match lir {
             LirType::Struct(lir_id) if lir_id == c_id => {
@@ -384,16 +418,29 @@ fn validate_c_pair(
     }
 }
 
-fn is_c_pointer(module: &Module, lir: &LirType) -> bool {
-    matches!(lir, LirType::Ptr(PointerKind::Raw)) || is_c_pointer_enum(module, lir)
+fn is_c_data_pointer(module: &Module, lir: &LirType) -> bool {
+    matches!(lir, LirType::Ptr(PointerKind::Raw))
+        || matches!(
+            niche_pointer_kind(module, lir),
+            Some(scoop_lir::NichePointerKind::Raw)
+        )
 }
 
-fn is_c_pointer_enum(module: &Module, lir: &LirType) -> bool {
+fn is_c_code_pointer_enum(module: &Module, lir: &LirType) -> bool {
+    matches!(
+        niche_pointer_kind(module, lir),
+        Some(scoop_lir::NichePointerKind::Code)
+    )
+}
+
+fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NichePointerKind> {
     let LirType::Enum(id) = lir else {
-        return false;
+        return None;
     };
-    matches!(module.enums[*id].repr, EnumRepr::Niche { .. })
-        && !module.enums[*id].scan.contains_reference()
+    match &module.enums[*id].repr {
+        EnumRepr::Niche { kind, .. } => Some(*kind),
+        EnumRepr::Tagged { .. } => None,
+    }
 }
 
 fn validate_c_struct(
@@ -422,7 +469,13 @@ fn validate_c_struct(
                 validate_c_struct(module, *nested, visiting)?;
                 true
             }
-            ty if is_c_pointer_enum(module, ty) => true,
+            ty if matches!(
+                niche_pointer_kind(module, ty),
+                Some(scoop_lir::NichePointerKind::Raw | scoop_lir::NichePointerKind::Code)
+            ) =>
+            {
+                true
+            }
             _ => false,
         };
         if !valid {
@@ -515,7 +568,13 @@ fn validate_foreign_callback_family(
     }
 
     let failure = &module.enums[family.failure];
-    if !matches!(failure.repr, EnumRepr::Niche { .. }) || !failure.scan.contains_reference() {
+    if !matches!(
+        failure.repr,
+        EnumRepr::Niche {
+            kind: scoop_lir::NichePointerKind::Managed,
+            ..
+        }
+    ) {
         return Err(CodegenError(format!(
             "{owner} failure enum `{}` is not a managed-reference niche enum",
             failure.name

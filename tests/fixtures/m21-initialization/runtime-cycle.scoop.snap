@@ -1155,7 +1155,7 @@ Module
   global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
   init0 top-level:left storage=@scoop.global.left failure=@scoop.init.failure.0 initializer=@scoop.$init$body$0 ensure=@scoop.$init$ensure$0 deps=[]
   init1 top-level:right storage=@scoop.global.right failure=@scoop.init.failure.1 initializer=@scoop.$init$body$1 ensure=@scoop.$init$ensure$1 deps=[]
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

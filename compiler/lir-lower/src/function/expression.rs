@@ -39,7 +39,7 @@ impl<'a> FunctionLowerer<'a> {
             // scanning; typed initializer calls perform all field stores.
             mir::ExprKind::ClassAlloc { class_id } => {
                 let def = &self.module.classes[*class_id];
-                let (_, size, _) = class_shape(self.module, self.enums, def);
+                let (_, size, _) = class_shape(self.context, self.module, self.enums, def);
                 let td = self.td_ref(&mir::Type::Class(*class_id));
                 self.emit_plain_call(
                     LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
@@ -56,7 +56,8 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::ExprKind::ClosureAlloc { class, captures } => {
                 let def = &self.module.closure_classes[*class];
-                let (capture_offsets, size, _, _) = closure_shape(self.module, self.enums, def);
+                let (capture_offsets, size, _, _) =
+                    closure_shape(self.context, self.module, self.enums, def);
                 assert_eq!(
                     captures.len(),
                     def.captures.len(),
@@ -82,7 +83,13 @@ impl<'a> FunctionLowerer<'a> {
                     out: invoke,
                     symbol: invoke_symbol,
                 });
-                self.store_at_offset(object, 16, lir::Value::Temp(invoke), lir::CODE_PTR);
+                let (invoke_offset, _) = self.context.closure_prefix();
+                self.store_at_offset(
+                    object,
+                    invoke_offset,
+                    lir::Value::Temp(invoke),
+                    lir::CODE_PTR,
+                );
                 let capture_types = def
                     .captures
                     .iter()
@@ -112,7 +119,8 @@ impl<'a> FunctionLowerer<'a> {
                     ty, capture_ty,
                     "a closure capture read has its declared storage type"
                 );
-                let (capture_offsets, _, _, _) = closure_shape(self.module, self.enums, def);
+                let (capture_offsets, _, _, _) =
+                    closure_shape(self.context, self.module, self.enums, def);
                 let closure = self.lower_expr(closure);
                 let out_ty = self.value_type(ty);
                 let out = self.load_at_offset(closure, capture_offsets[*index as usize], out_ty);
@@ -291,8 +299,7 @@ impl<'a> FunctionLowerer<'a> {
                 } else {
                     pointer
                 };
-                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-                let (_, align) = size_align(self.module, &enum_shape, pointee);
+                let (_, align) = self.value_layout(pointee);
                 let out_ty = self.value_type(pointee);
                 let out = self.new_temp(out_ty);
                 self.push(lir::Instruction::RawLoad {
@@ -329,8 +336,7 @@ impl<'a> FunctionLowerer<'a> {
                     pointer
                 };
                 let value = self.lower_expr(value);
-                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-                let (_, align) = size_align(self.module, &enum_shape, pointee);
+                let (_, align) = self.value_layout(pointee);
                 self.push(lir::Instruction::RawStore {
                     pointer,
                     value,
@@ -377,13 +383,11 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::ExprKind::SizeOf(value_ty) => {
-                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-                let (size, _) = size_align(self.module, &enum_shape, value_ty);
+                let (size, _) = self.value_layout(value_ty);
                 lir::Value::IntConst(size as i64)
             }
             mir::ExprKind::AlignOf(value_ty) => {
-                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-                let (_, align) = size_align(self.module, &enum_shape, value_ty);
+                let (_, align) = self.value_layout(value_ty);
                 lir::Value::IntConst(align as i64)
             }
             mir::ExprKind::FunPtrNull(_) => lir::Value::NullPointer(lir::PointerKind::Code),
@@ -491,8 +495,12 @@ impl<'a> FunctionLowerer<'a> {
                 let receiver = self.lower_expr(receiver);
                 let out_ty = self.value_type(ty);
                 let out = if let mir::Type::Class(class_id) = receiver_ty {
-                    let (offsets, _, _) =
-                        class_shape(self.module, self.enums, &self.module.classes[class_id]);
+                    let (offsets, _, _) = class_shape(
+                        self.context,
+                        self.module,
+                        self.enums,
+                        &self.module.classes[class_id],
+                    );
                     self.load_at_offset(receiver, offsets[*index as usize], out_ty)
                 } else {
                     let out = self.new_temp(out_ty);
@@ -520,8 +528,12 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Type::MachineScalar(*kind),
                     "an atomic state operation must match its field domain"
                 );
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let object = self.lower_expr(object);
                 let kind = machine_scalar_kind(*kind);
                 let out = self.new_temp(lir::LirType::MachineScalar(kind));
@@ -560,8 +572,12 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Type::MachineScalar(*kind),
                     "atomic replacement value must match its field domain"
                 );
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let object = self.lower_expr(object);
                 let expected = self.lower_expr(expected);
                 let replacement = self.lower_expr(replacement);
@@ -596,14 +612,11 @@ impl<'a> FunctionLowerer<'a> {
                     local: payload_storage,
                 });
                 let td = self.td_ref(&payload_ty);
-                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-                let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
-                let payload_scan = self.call_targets.root_scans.alloc(ref_scan(
-                    self.module,
-                    self.enums,
-                    &payload_ty,
-                    0,
-                ));
+                let (size, _) = self.value_layout(&payload_ty);
+                let payload_scan = self
+                    .call_targets
+                    .root_scans
+                    .alloc(self.value_ref_scan(&payload_ty));
                 self.emit_plain_call(
                     LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Box),
                     vec![
@@ -621,12 +634,14 @@ impl<'a> FunctionLowerer<'a> {
                     ],
                 )
             }
-            // The payload sits right behind the 16-byte object header:
-            // byte offset 16 of the boxed object (see the module docs).
+            // The payload follows the target-derived object header at its
+            // own natural alignment.
             mir::ExprKind::Unbox(operand) => {
                 let object = self.lower_expr(operand);
+                let (_, payload_align) = self.value_layout(ty);
+                let payload_offset = self.context.object_payload_offset(payload_align);
                 let ty = self.value_type(ty);
-                let out = self.load_at_offset(object, 16, ty);
+                let out = self.load_at_offset(object, payload_offset, ty);
                 lir::Value::Temp(out)
             }
             // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
@@ -748,8 +763,7 @@ impl<'a> FunctionLowerer<'a> {
         offset: lir::Value,
         subtract: bool,
     ) -> lir::Value {
-        let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
-        let (size, _) = size_align(self.module, &enum_shape, pointee);
+        let (size, _) = self.value_layout(pointee);
         let out = self.new_temp(lir::RAW_PTR);
         self.push(lir::Instruction::PtrOffset {
             out,

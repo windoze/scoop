@@ -95,13 +95,14 @@ pub(crate) const fn machine_scalar_value(
 }
 
 pub(crate) fn lower_structs(
+    context: &LoweringContext,
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
 ) -> Arena<lir::StructDef> {
-    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
     let mut structs = Arena::new();
     for (_, definition) in module.structs.iter() {
-        let (field_layouts, size, align) = struct_shape(module, &enum_shape, definition);
+        let (field_layouts, size, align) = struct_shape(context, module, &enum_shape, definition);
         let (fields, c_layout, interior_mutable) = match &definition.representation {
             mir::StructRepresentation::Declared {
                 c_layout,

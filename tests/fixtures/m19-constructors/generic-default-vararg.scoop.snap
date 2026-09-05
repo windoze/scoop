@@ -1161,7 +1161,7 @@ Module
   global @scoop.str.10 = "array index out of bounds"
   global @scoop.str.11 = "illegal state"
   global @scoop.str.12 = "generic-secondary"
-  enum Option$S niche(payload_variant=0)
+  enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>

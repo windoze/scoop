@@ -85,9 +85,14 @@ pub fn dump(module: &Module) -> String {
     }
     for (_, def) in module.enums.iter() {
         match &def.repr {
-            EnumRepr::Niche { payload_variant } => out.push_str(&format!(
-                "  enum {} niche(payload_variant={})\n",
-                def.name, payload_variant
+            EnumRepr::Niche {
+                kind,
+                payload_variant,
+            } => out.push_str(&format!(
+                "  enum {} niche(kind={},payload_variant={})\n",
+                def.name,
+                kind.pointer_kind().dump(),
+                payload_variant
             )),
             EnumRepr::Tagged {
                 variants,
