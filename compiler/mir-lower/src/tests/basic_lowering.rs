@@ -40,7 +40,7 @@ fn lowers_hello_world() {
 
     // Golden dump locks the output structure.
     let expected = "\
-Module
+Module mangling=compact-v2
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   fun print @scoop.print(message: String) -> Unit
     bb0 entry
@@ -124,14 +124,18 @@ fn repeated_literals_get_separate_constants_deterministically() {
 #[test]
 fn formatting_helpers_are_ordinary_extern_calls() {
     let mut h = Harness::new();
-    let int_to_string = h.int_to_string();
+    let long_to_string = h.long_to_string();
     let bool_to_string = h.bool_to_string();
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
             statements: vec![
-                expr_stmt(call_typed(int_to_string, vec![int_lit(&h, 1)], h.string)),
+                expr_stmt(call_typed(
+                    long_to_string,
+                    vec![integer_lit(&h, hir::IntegerKind::SIGNED_64, 1)],
+                    h.string,
+                )),
                 expr_stmt(call_typed(
                     bool_to_string,
                     vec![bool_lit(&h, true)],
@@ -155,7 +159,7 @@ fn formatting_helpers_are_ordinary_extern_calls() {
         .collect();
     assert_eq!(
         symbols,
-        ["scoop_rt_int_to_string", "scoop_rt_bool_to_string"]
+        ["scoop_rt_long_to_string", "scoop_rt_bool_to_string"]
     );
 }
 
@@ -167,7 +171,7 @@ fn formatting_helpers_are_ordinary_extern_calls() {
 fn gc_shapes() -> (Harness, hir::FunctionId) {
     let mut h = Harness::new();
     let gc = h.gc_core();
-    let (string, uint) = (h.string, h.uint());
+    let (string, ulong) = (h.string, h.ulong());
     let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
     let gc_handle_s = h.struct_app(gc.gc_handle, vec![string]);
     let pinned_ptr_s_application = h.struct_application_of(pinned_ptr_s);
@@ -178,13 +182,13 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
     let release_handle_raw = h.instantiate(gc.release_handle_raw, vec![string]);
     let mut locals = Arena::new();
     let s = locals.alloc(local("s", string));
-    let pin_word = locals.alloc(local("pinWord", uint));
+    let pin_word = locals.alloc(local("pinWord", ulong));
     let ph = locals.alloc(local("ph", pinned_ptr_s));
     let r = locals.alloc(local("r", string));
-    let handle_word = locals.alloc(local("handleWord", uint));
+    let handle_word = locals.alloc(local("handleWord", ulong));
     let gh = locals.alloc(local("gh", gc_handle_s));
     let r2 = locals.alloc(local("r2", string));
-    let n = locals.alloc(local("n", uint));
+    let n = locals.alloc(local("n", ulong));
     let main = h.user_fn(
         "main",
         hir::Body {
@@ -192,11 +196,11 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
             statements: vec![
                 val_decl(
                     pin_word,
-                    generic_call(pin_raw, vec![local_ref(s, string)], uint),
+                    generic_call(pin_raw, vec![local_ref(s, string)], ulong),
                 ),
                 val_decl(
                     ph,
-                    struct_init(&h, pinned_ptr_s, vec![local_ref(pin_word, uint)]),
+                    struct_init(&h, pinned_ptr_s, vec![local_ref(pin_word, ulong)]),
                 ),
                 val_decl(
                     r,
@@ -210,18 +214,18 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
                                     index: 0,
                                 },
                             },
-                            uint,
+                            ulong,
                         )],
                         string,
                     ),
                 ),
                 val_decl(
                     handle_word,
-                    generic_call(get_handle_raw, vec![local_ref(s, string)], uint),
+                    generic_call(get_handle_raw, vec![local_ref(s, string)], ulong),
                 ),
                 val_decl(
                     gh,
-                    struct_init(&h, gc_handle_s, vec![local_ref(handle_word, uint)]),
+                    struct_init(&h, gc_handle_s, vec![local_ref(handle_word, ulong)]),
                 ),
                 val_decl(
                     r2,
@@ -235,13 +239,13 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
                                     index: 0,
                                 },
                             },
-                            uint,
+                            ulong,
                         )],
                         string,
                     ),
                 ),
                 expr_stmt(call(&h, gc.gc_collect, vec![])),
-                val_decl(n, call_typed(gc.gc_stats, vec![], uint)),
+                val_decl(n, call_typed(gc.gc_stats, vec![], ulong)),
             ],
         },
     );

@@ -292,10 +292,12 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::Cast { operand, .. }
         | mir::ExprKind::ArrayLen { operand, .. }
         | mir::ExprKind::ArrayClone { operand, .. }
-        | mir::ExprKind::PtrFromUInt { operand, .. }
-        | mir::ExprKind::PtrToUInt(operand)
+        | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
+        | mir::ExprKind::PtrToULong(operand)
         | mir::ExprKind::PtrCast { operand, .. }
         | mir::ExprKind::Unary { operand, .. }
+        | mir::ExprKind::IntegerUnary { operand, .. }
+        | mir::ExprKind::IntegerConversion { operand, .. }
         | mir::ExprKind::EnumTag(operand)
         | mir::ExprKind::EnumField { operand, .. } => expr_uses(operand, uses),
         mir::ExprKind::AtomicFieldCompareExchange {
@@ -312,6 +314,31 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::Binary {
             lhs: array,
             rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerBinary {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::SafeIntegerDivRem {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerCompare {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerCompareTo {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerShift {
+            value: array,
+            count: index,
             ..
         } => {
             expr_uses(array, uses);
@@ -348,7 +375,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         }
         mir::ExprKind::ClassAlloc { .. }
         | mir::ExprKind::StringConst(_)
-        | mir::ExprKind::IntLiteral(_)
+        | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
@@ -358,7 +385,6 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::CaughtException
         | mir::ExprKind::SizeOf(_)
         | mir::ExprKind::AlignOf(_)
-        | mir::ExprKind::FunPtrNull(_)
         | mir::ExprKind::FunctionAddress { .. } => {}
     }
 }

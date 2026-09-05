@@ -135,7 +135,7 @@ fn literal_payload_does_not_cover_the_whole_variant() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "non-exhaustive when: missing pattern Some(-9223372036854775808)"
+        "non-exhaustive when: missing pattern Some(-2147483648)"
     );
 }
 
@@ -165,7 +165,7 @@ fn value_when_requires_irrefutable_variant_payload_coverage() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "non-exhaustive when: missing pattern Some(-9223372036854775808)"
+        "non-exhaustive when: missing pattern Some(-2147483648)"
     );
 }
 
@@ -283,7 +283,7 @@ fn nested_literal_and_guarded_payloads_do_not_contribute_coverage() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "non-exhaustive when: missing pattern Some((-9223372036854775808, false)); guarded arms do not contribute to exhaustiveness"
+        "non-exhaustive when: missing pattern Some((-2147483648, false)); guarded arms do not contribute to exhaustiveness"
     );
 }
 
@@ -366,7 +366,7 @@ fn non_exhaustive_tuple_when_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "non-exhaustive when: missing pattern (-9223372036854775808, -9223372036854775808)"
+        "non-exhaustive when: missing pattern (-2147483648, -2147483648)"
     );
 }
 

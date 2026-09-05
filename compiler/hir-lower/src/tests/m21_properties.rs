@@ -248,7 +248,7 @@ fn extension_property_owns_a_distinct_receiver_template_and_accessor() {
     };
     let template = &module.extension_properties[extension];
     assert_eq!(template.property, property);
-    assert_eq!(template.receiver_ty, module.int);
+    assert_eq!(template.receiver_ty, int_type(&module));
     assert!(template.type_params.is_empty());
     let getter = match module.property_getters[declaration.capability.getter()].implementation {
         hir::PropertyAccessorImplementation::Body(function) => function,
@@ -256,5 +256,5 @@ fn extension_property_owns_a_distinct_receiver_template_and_accessor() {
     };
     assert!(module.functions[getter].method.is_none());
     assert_eq!(module.functions[getter].params[0].name, "this");
-    assert_eq!(module.functions[getter].params[0].ty, module.int);
+    assert_eq!(module.functions[getter].params[0].ty, int_type(&module));
 }

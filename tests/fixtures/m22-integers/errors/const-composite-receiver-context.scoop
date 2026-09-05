@@ -1,0 +1,8 @@
+// EXPECT-DIAGNOSTICS
+
+const val NARROW: Int8 = 3
+const val INVALID_EQUALITY: Boolean = (1 + 2) == NARROW
+const val INVALID_OPERATOR: Int8 = (1 + 2) + 3
+const val INVALID_METHOD: Int8 = (1 + 2).inc()
+
+fun main() {}

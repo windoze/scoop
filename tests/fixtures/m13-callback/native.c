@@ -6,19 +6,19 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef int64_t (*M13Callback)(int64_t value, void *context);
-typedef void (*M13ContextFirstCallback)(void *context, int64_t value);
+typedef int32_t (*M13Callback)(int32_t value, void *context);
+typedef void (*M13ContextFirstCallback)(void *context, int32_t value);
 typedef void (*M13PointerCallback)(void *context);
 
 typedef struct M13Gate {
-    int64_t expected;
-    int64_t arrived;
+    int32_t expected;
+    int32_t arrived;
     uint64_t generation;
     pthread_mutex_t mutex;
     pthread_cond_t condition;
 } M13Gate;
 
-static void m13_gate_init(M13Gate *gate, int64_t expected) {
+static void m13_gate_init(M13Gate *gate, int32_t expected) {
     if (expected <= 0 || pthread_mutex_init(&gate->mutex, NULL) != 0 ||
         pthread_cond_init(&gate->condition, NULL) != 0) {
         abort();
@@ -64,8 +64,8 @@ static _Atomic(M13Gate *) m13_active_callback_gate;
 typedef struct M13Job {
     M13Callback callback;
     void *context;
-    int64_t value;
-    int64_t result;
+    int32_t value;
+    int32_t result;
     int go;
     pthread_t thread;
     pthread_mutex_t mutex;
@@ -74,7 +74,7 @@ typedef struct M13Job {
 } M13Job;
 
 typedef struct M13Group {
-    int64_t count;
+    int32_t count;
     M13Job **jobs;
     M13Gate entry_gate;
 } M13Group;
@@ -96,7 +96,7 @@ static void *m13_worker(void *raw_job) {
 static M13Job *m13_create_job(
     M13Callback callback,
     void *context,
-    int64_t value,
+    int32_t value,
     M13Gate *entry_gate
 ) {
     M13Job *job = (M13Job *)calloc(1, sizeof(M13Job));
@@ -115,29 +115,29 @@ static M13Job *m13_create_job(
     return job;
 }
 
-void *m13_start_one(M13Callback callback, void *context, int64_t value) {
+void *m13_start_one(M13Callback callback, void *context, int32_t value) {
     return m13_create_job(callback, context, value, NULL);
 }
 
-int64_t m13_join_one(void *raw_job) {
+int32_t m13_join_one(void *raw_job) {
     M13Job *job = (M13Job *)raw_job;
     pthread_mutex_lock(&job->mutex);
     job->go = 1;
     pthread_cond_signal(&job->condition);
     pthread_mutex_unlock(&job->mutex);
     pthread_join(job->thread, NULL);
-    int64_t result = job->result;
+    int32_t result = job->result;
     pthread_cond_destroy(&job->condition);
     pthread_mutex_destroy(&job->mutex);
     free(job);
     return result;
 }
 
-int64_t m13_run_many(
+int32_t m13_run_many(
     M13Callback callback,
     void *context,
-    int64_t base,
-    int64_t count
+    int32_t base,
+    int32_t count
 ) {
     if (count <= 0) {
         abort();
@@ -152,18 +152,18 @@ int64_t m13_run_many(
     m13_gate_init(&callback_gate, count);
     atomic_store_explicit(&m13_active_callback_gate, &callback_gate,
                           memory_order_release);
-    for (int64_t index = 0; index < count; index += 1) {
+    for (int32_t index = 0; index < count; index += 1) {
         jobs[index] =
             m13_create_job(callback, context, base + index, &entry_gate);
     }
-    for (int64_t index = 0; index < count; index += 1) {
+    for (int32_t index = 0; index < count; index += 1) {
         pthread_mutex_lock(&jobs[index]->mutex);
         jobs[index]->go = 1;
         pthread_cond_signal(&jobs[index]->condition);
         pthread_mutex_unlock(&jobs[index]->mutex);
     }
-    int64_t result = 0;
-    for (int64_t index = 0; index < count; index += 1) {
+    int32_t result = 0;
+    for (int32_t index = 0; index < count; index += 1) {
         pthread_join(jobs[index]->thread, NULL);
         result += jobs[index]->result;
         pthread_cond_destroy(&jobs[index]->condition);
@@ -187,11 +187,11 @@ void m13_callback_barrier(void) {
     m13_gate_wait(gate);
 }
 
-int64_t m13_attached_thread_count(void) {
-    return (int64_t)scoop_rt_thread_debug_count();
+int32_t m13_attached_thread_count(void) {
+    return (int32_t)scoop_rt_thread_debug_count();
 }
 
-int64_t m13_fail_start(M13Callback callback, void *context) {
+int32_t m13_fail_start(M13Callback callback, void *context) {
     (void)callback;
     (void)context;
     return -1;
@@ -200,8 +200,8 @@ int64_t m13_fail_start(M13Callback callback, void *context) {
 void *m13_start_many(
     M13Callback callback,
     void *context,
-    int64_t base,
-    int64_t count
+    int32_t base,
+    int32_t count
 ) {
     if (count <= 0) {
         abort();
@@ -216,7 +216,7 @@ void *m13_start_many(
         abort();
     }
     m13_gate_init(&group->entry_gate, count);
-    for (int64_t index = 0; index < count; index += 1) {
+    for (int32_t index = 0; index < count; index += 1) {
         group->jobs[index] =
             m13_create_job(callback, context, base + index,
                            &group->entry_gate);
@@ -224,16 +224,16 @@ void *m13_start_many(
     return group;
 }
 
-int64_t m13_join_many(void *raw_group) {
+int32_t m13_join_many(void *raw_group) {
     M13Group *group = (M13Group *)raw_group;
-    for (int64_t index = 0; index < group->count; index += 1) {
+    for (int32_t index = 0; index < group->count; index += 1) {
         pthread_mutex_lock(&group->jobs[index]->mutex);
         group->jobs[index]->go = 1;
         pthread_cond_signal(&group->jobs[index]->condition);
         pthread_mutex_unlock(&group->jobs[index]->mutex);
     }
-    int64_t result = 0;
-    for (int64_t index = 0; index < group->count; index += 1) {
+    int32_t result = 0;
+    for (int32_t index = 0; index < group->count; index += 1) {
         M13Job *job = group->jobs[index];
         pthread_join(job->thread, NULL);
         result += job->result;
@@ -250,7 +250,7 @@ int64_t m13_join_many(void *raw_group) {
 void m13_call_context_first(
     M13ContextFirstCallback callback,
     void *context,
-    int64_t value
+    int32_t value
 ) {
     callback(context, value);
 }

@@ -2,17 +2,30 @@ use super::super::*;
 use super::{block_number, dump_statements, dump_terminator, type_name};
 
 pub fn dump(module: &Module) -> String {
-    let mut out = String::from("Module\n");
+    let mut out = format!(
+        "Module mangling={}\n",
+        module.meta.mangling_schema.canonical_name()
+    );
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
-            GlobalStorage::Managed { .. } => "managed".to_string(),
+            GlobalStorage::Managed { initial_state } => format!(
+                "managed initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Local {
                 thread_local: false,
-                ..
-            } => "global".to_string(),
+                initial_state,
+            } => format!(
+                "global initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Local {
-                thread_local: true, ..
-            } => "thread_local".to_string(),
+                thread_local: true,
+                initial_state,
+            } => format!(
+                "thread_local initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Extern {
                 native_symbol,
                 thread_local,
@@ -140,7 +153,8 @@ pub fn dump(module: &Module) -> String {
                 if let Some(layout) = c_layout {
                     attributes.push(format!(
                         "c-layout aligned={} packed={}",
-                        layout.aligned, layout.packed
+                        layout.aligned.name(),
+                        layout.packed.name()
                     ));
                 }
                 if *interior_mutable {
@@ -344,4 +358,37 @@ pub fn dump(module: &Module) -> String {
     }
     out.push_str(&format!("  entry @{ENTRY_SYMBOL}\n"));
     out
+}
+
+fn static_initial_state_name(module: &Module, state: &MirStaticInitialState) -> String {
+    match state {
+        MirStaticInitialState::ZeroedForRuntimeUnit => "zeroed-for-runtime-unit".to_string(),
+        MirStaticInitialState::EncodedStaticValue { payload } => {
+            format!("encoded({})", constant_image_name(module, payload))
+        }
+    }
+}
+
+fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
+    match image {
+        MirConstantImage::Integer(value) => {
+            format!("{}:0x{:x}", value.kind().canonical_name(), value.raw_bits())
+        }
+        MirConstantImage::Boolean(value) => value.to_string(),
+        MirConstantImage::String(id) => format!("@{}", module.strings[*id].symbol),
+        MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
+        MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),
+        MirConstantImage::EnumUnit { enum_id, variant } => {
+            format!("{}::v{variant}", module.enums[*enum_id].name)
+        }
+        MirConstantImage::Struct { struct_id, fields } => format!(
+            "{}{{{}}}",
+            module.structs[*struct_id].name,
+            fields
+                .iter()
+                .map(|field| constant_image_name(module, field))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
 }

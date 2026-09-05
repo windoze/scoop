@@ -1,6 +1,26 @@
 //! Lexical token model and diagnostic rendering.
 
-use scoop_ast::Span;
+use scoop_ast::{IntegerLiteralSyntax, IntegerRadix, IntegerSuffix, Span};
+
+/// Integer token payload. The token itself remains the sole owner of the
+/// source span; parsing combines both into `IntegerLiteralSyntax`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct IntegerLiteralLexeme {
+    pub magnitude: u64,
+    pub radix: IntegerRadix,
+    pub suffix: IntegerSuffix,
+}
+
+impl IntegerLiteralLexeme {
+    pub(crate) fn with_span(self, span: Span) -> IntegerLiteralSyntax {
+        IntegerLiteralSyntax {
+            magnitude: self.magnitude,
+            radix: self.radix,
+            suffix: self.suffix,
+            span,
+        }
+    }
+}
 
 /// Token kinds for the implemented language surface. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
@@ -34,7 +54,7 @@ pub(crate) enum TokenKind {
     As,
     Ident(String),
     Str(String),
-    Int(i64),
+    Int(IntegerLiteralLexeme),
     LParen,
     RParen,
     LBrace,

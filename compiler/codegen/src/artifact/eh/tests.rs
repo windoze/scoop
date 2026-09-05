@@ -25,6 +25,18 @@ const EH_FRAME: &[u8] = &[
     0x10, 0x9e, 0x01, 0x9d, 0x02, 0x00, 0x00, 0x00,
 ];
 
+// LLVM 22.1 Darwin/AArch64 output for two callback bridges whose frames
+// cannot be encoded in __compact_unwind. This is ordinary DWARF CFI: the CIE
+// has no personality or LSDA augmentation, and each FDE augmentation is empty.
+const UNWIND_ONLY_EH_FRAME: &[u8] = &[
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, b'z', b'R', 0x00, 0x01, 0x78, 0x1e, 0x01,
+    0x10, 0x0c, 0x1f, 0x00, 0x20, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0xe4, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x0e, 0x20,
+    0x9e, 0x01, 0x9d, 0x02, 0x00, 0x00, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x3c, 0x00, 0x00, 0x00,
+    0xc0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xb0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x48, 0x0e, 0x50, 0x9e, 0x01, 0x9d, 0x02,
+];
+
 fn relocation(
     offset: u64,
     r_type: u8,
@@ -42,13 +54,21 @@ fn relocation(
         symbol_address,
         symbol_section: match symbol {
             "_scoop_eh_personality" => None,
-            "ltmp.eh_frame" => Some("__eh_frame".to_string()),
-            "_scoop.eh_test" => Some("__text".to_string()),
+            "ltmp.eh_frame" | "ltmp.unwind_frame" => Some("__eh_frame".to_string()),
+            "_scoop.eh_test" | "_scoop_callback_bridge_0" | "_scoop_callback_bridge_1" => {
+                Some("__text".to_string())
+            }
             _ => Some("__gcc_except_tab".to_string()),
         },
         symbol_is_undefined: symbol == "_scoop_eh_personality",
-        symbol_is_local: matches!(symbol, "ltmp.eh_frame" | "GCC_except_table"),
-        symbol_is_text: symbol == "_scoop.eh_test",
+        symbol_is_local: matches!(
+            symbol,
+            "ltmp.eh_frame" | "ltmp.unwind_frame" | "GCC_except_table"
+        ),
+        symbol_is_text: matches!(
+            symbol,
+            "_scoop.eh_test" | "_scoop_callback_bridge_0" | "_scoop_callback_bridge_1"
+        ),
     }
 }
 
@@ -64,6 +84,42 @@ fn eh_frame() -> EhSection {
             relocation(0x35, 0, false, 3, "GCC_except_table", 0x134),
         ],
     }
+}
+
+fn unwind_only_eh_frame() -> EhSection {
+    EhSection {
+        address: 0x7540,
+        bytes: UNWIND_ONLY_EH_FRAME.to_vec(),
+        relocations: vec![
+            relocation(0x1c, 1, false, 3, "ltmp.unwind_frame", 0x7540),
+            relocation(0x1c, 0, false, 3, "_scoop_callback_bridge_0", 0x3414),
+            relocation(0x40, 1, false, 3, "ltmp.unwind_frame", 0x7540),
+            relocation(0x40, 0, false, 3, "_scoop_callback_bridge_1", 0x343c),
+        ],
+    }
+}
+
+fn mixed_eh_frame() -> EhSection {
+    let mut frame = eh_frame();
+    let shift = frame.bytes.len();
+    let mut unwind_only = UNWIND_ONLY_EH_FRAME.to_vec();
+    for field in [0x1c, 0x40] {
+        let shifted_field = shift + field;
+        let raw = i64::try_from(shifted_field)
+            .expect("test frame offset fits i64")
+            .checked_neg()
+            .expect("test frame offset is positive");
+        unwind_only[field..field + 8].copy_from_slice(&raw.to_le_bytes());
+    }
+    frame.bytes.extend(unwind_only);
+    let shift = u64::try_from(shift).expect("test frame length fits u64");
+    frame.relocations.extend([
+        relocation(shift + 0x1c, 1, false, 3, "ltmp.eh_frame", 0x380),
+        relocation(shift + 0x1c, 0, false, 3, "_scoop_callback_bridge_0", 0x140),
+        relocation(shift + 0x40, 1, false, 3, "ltmp.eh_frame", 0x380),
+        relocation(shift + 0x40, 0, false, 3, "_scoop_callback_bridge_1", 0x168),
+    ]);
+    frame
 }
 
 fn expected_eh() -> ExpectedEh {
@@ -374,4 +430,96 @@ fn no_eh_functions_allow_absent_eh_sections() {
         PROFILE,
     )
     .expect("no EH sections are required without invoke unwind edges");
+}
+
+#[test]
+fn no_eh_functions_allow_qualified_unwind_only_fdes() {
+    let frame = unwind_only_eh_frame();
+    let parsed = parse_eh_frame(&frame).expect("qualified unwind-only CFI");
+    assert!(parsed.scoop_fdes.is_empty());
+    assert_eq!(parsed.unwind_only_fdes.len(), 2);
+    assert_eq!(
+        parsed.unwind_only_fdes[0].function_symbol,
+        "_scoop_callback_bridge_0"
+    );
+    verify_sections(
+        Some(&frame),
+        None,
+        Some(&TextSection {
+            address: 0,
+            bytes: vec![0; 0x34ec],
+        }),
+        &ExpectedEh::default(),
+        &ObservedSafepoints::default(),
+        PROFILE,
+    )
+    .expect("ordinary unwind CFI is not a Scoop exception edge");
+}
+
+#[test]
+fn scoop_eh_and_unwind_only_fdes_are_qualified_independently() {
+    let frame = mixed_eh_frame();
+    let parsed = parse_eh_frame(&frame).expect("qualified mixed CFI");
+    assert_eq!(parsed.scoop_fdes.len(), 1);
+    assert_eq!(parsed.unwind_only_fdes.len(), 2);
+
+    let gcc = EhSection {
+        address: 0x134,
+        bytes: CATCH_AND_CLEANUP.to_vec(),
+        relocations: Vec::new(),
+    };
+    let mut text = text_with_protected_calls();
+    text.bytes.resize(0x218, 0);
+    verify_sections(
+        Some(&frame),
+        Some(&gcc),
+        Some(&text),
+        &expected_eh(),
+        &ObservedSafepoints::default(),
+        PROFILE,
+    )
+    .expect("ordinary CFI does not change the complete-LIR Scoop EH manifest");
+}
+
+#[test]
+fn unwind_only_cfi_still_rejects_unqualified_metadata() {
+    let mut unsupported_cie = unwind_only_eh_frame();
+    unsupported_cie.bytes[10] = b'P';
+    assert!(parse_eh_frame(&unsupported_cie).is_err());
+
+    let mut augmented_fde = unwind_only_eh_frame();
+    augmented_fde.bytes[44] = 1;
+    assert!(parse_eh_frame(&augmented_fde).is_err());
+
+    let gcc = EhSection {
+        address: 0x100,
+        bytes: vec![0],
+        relocations: Vec::new(),
+    };
+    assert!(
+        verify_sections(
+            Some(&unwind_only_eh_frame()),
+            Some(&gcc),
+            Some(&TextSection {
+                address: 0,
+                bytes: vec![0; 0x34ec],
+            }),
+            &ExpectedEh::default(),
+            &ObservedSafepoints::default(),
+            PROFILE,
+        )
+        .is_err()
+    );
+
+    assert!(
+        verify_sections(
+            Some(&eh_frame()),
+            None,
+            Some(&text_with_protected_calls()),
+            &ExpectedEh::default(),
+            &ObservedSafepoints::default(),
+            PROFILE,
+        )
+        .is_err()
+    );
 }

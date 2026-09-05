@@ -70,7 +70,7 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
     assert!(instances.iter().any(|instance| {
         matches!(
             output.local.types[instance.type_arguments[0]].kind,
-            hir::concrete::TypeKind::Int
+            hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
         )
     }));
     assert!(instances.iter().any(|instance| {
@@ -382,6 +382,6 @@ fn generic_base_substitution_preserves_nested_application_identity() {
     assert!(output.local.structs[wrapper].name.starts_with("Wrapper$"));
     assert!(matches!(
         output.local.types[output.local.structs[wrapper].type_arguments[0]].kind,
-        hir::concrete::TypeKind::Int
+        hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
     ));
 }

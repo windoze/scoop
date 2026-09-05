@@ -39,9 +39,12 @@ use inkwell::values::{
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
-    ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction, LirType,
-    MachineScalarKind, Module, NativeGlobal, PointerKind, RefScan, StructDef, TempId, Terminator,
+    ArrayType, ArrayTypeId, BinOp, CallableRef, DispatchEntry, EnumDefs, EnumRepr,
+    ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction,
+    IntegerBinaryOperation, IntegerComparison, IntegerDivRemOperation, IntegerKind,
+    IntegerShiftOperation, IntegerSignedness, IntegerUnaryOperation, IntegerWidth,
+    LirConstantImage, LirStaticInitialState, LirType, MachineScalarKind, Module, NativeGlobal,
+    PointerKind, RefScan, StructDef, StructDefs, StructRepresentation, TempId, Terminator,
     TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
 };
 
@@ -88,9 +91,9 @@ pub use c_bridge::{c_bridge_source, c_layout_assertions};
 pub(crate) use declarations::*;
 #[cfg(test)]
 pub(crate) use emission::emit_llvm_module;
-pub use emission::emit_object;
 #[cfg(test)]
 pub(crate) use emission::host_target_machine;
+pub use emission::{emit_object, render_llvm_ir};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;

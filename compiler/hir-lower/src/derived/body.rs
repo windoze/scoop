@@ -285,13 +285,23 @@ impl Lowerer {
             return Err(reason);
         };
         let (candidate, arguments, parameter) = applicable.swap_remove(*winner);
+        let args = vec![self.adapt_to(rhs, parameter)];
+        if let Some(normalized) = self.normalize_primitive_method_call(
+            candidate.function,
+            lhs.clone(),
+            &args,
+            self.boolean,
+            span,
+        ) {
+            return Ok(normalized);
+        }
         let callable = self.materialize_candidate_callable(&candidate, &arguments);
         let callee = self.materialize_method_callee(candidate.source, callable, &arguments);
         Ok(hir::Expr {
             kind: hir::ExprKind::MethodCall {
                 receiver: Box::new(lhs),
                 callee,
-                args: vec![self.adapt_to(rhs, parameter)],
+                args,
             },
             ty: self.boolean,
             span,

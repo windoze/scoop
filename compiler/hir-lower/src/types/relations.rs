@@ -72,12 +72,8 @@ impl Lowerer {
                         .all(|(target, source)| self.is_subtype(target, source))
                     && self.is_subtype(source.return_type, target.return_type)
             }
-            (Type::Int, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int)
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::UInt, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt)
+            (Type::Integer(kind), Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
             (Type::Boolean, Type::Interface(..)) => self
@@ -213,8 +209,7 @@ impl Lowerer {
     pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
         match self.types[ty] {
             Type::Unit
-            | Type::Int
-            | Type::UInt
+            | Type::Integer(_)
             | Type::Boolean
             | Type::Struct(..)
             | Type::Enum(..)

@@ -1,0 +1,5 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val longAsNarrow: Int8 = 1L
+}

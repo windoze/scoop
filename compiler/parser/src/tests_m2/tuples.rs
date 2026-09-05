@@ -27,7 +27,7 @@ fn parens_around_one_expr_produce_no_node() {
     // Nested parens dissolve the same way.
     assert!(matches!(
         init_expr("((1))"),
-        Expr::IntLiteral { value: 1, .. }
+        Expr::IntLiteral(literal) if literal.magnitude == 1
     ));
 }
 

@@ -205,7 +205,7 @@ fn generic_suspend_call_keeps_typed_callee_identity() {
         .filter(|(_, request)| request.generic == identity_generic)
         .collect();
     assert_eq!(identity_requests.len(), 1);
-    assert_eq!(identity_requests[0].1.type_args, [module.int]);
+    assert_eq!(identity_requests[0].1.type_args, [int_type(&module)]);
 }
 
 #[test]

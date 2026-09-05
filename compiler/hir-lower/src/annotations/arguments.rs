@@ -63,7 +63,7 @@ impl Lowerer {
     pub(super) fn annotation_c_layout(
         &mut self,
         annotation: &ast::Annotation,
-    ) -> Option<hir::CLayout> {
+    ) -> Option<hir::HirCLayoutContract> {
         let mut aligned = None;
         let mut packed = None;
         let mut positional = 0;
@@ -98,25 +98,35 @@ impl Lowerer {
                 self.error(arg.span, "duplicate `@CLayout` argument".to_string());
                 continue;
             }
-            let ast::AnnotationLiteral::Int(value) = arg.value else {
+            let ast::AnnotationLiteral::Int(value) = &arg.value else {
                 self.error(
                     arg.span,
                     "`@CLayout` arguments must be integers".to_string(),
                 );
                 continue;
             };
-            if !matches!(value, 0 | 1 | 2 | 4 | 8 | 16) {
+            if !matches!(
+                value.suffix,
+                ast::IntegerSuffix::None | ast::IntegerSuffix::Long
+            ) {
+                self.error(
+                    arg.span,
+                    "`@CLayout` arguments must be signed Long integer literals".to_string(),
+                );
+                continue;
+            }
+            let Some(value) = hir::HirCLayoutValue::from_bytes(value.magnitude) else {
                 self.error(
                     arg.span,
                     "`@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16".to_string(),
                 );
                 continue;
-            }
-            *slot = Some(value as u8);
+            };
+            *slot = Some(value);
         }
-        Some(hir::CLayout {
-            aligned: aligned.unwrap_or(0),
-            packed: packed.unwrap_or(0),
+        Some(hir::HirCLayoutContract {
+            aligned: aligned.unwrap_or(hir::HirCLayoutValue::Natural),
+            packed: packed.unwrap_or(hir::HirCLayoutValue::Natural),
         })
     }
 

@@ -101,7 +101,11 @@ fn expression_body_without_return_type() {
     let FunctionBody::Expr(body) = &function.body else {
         panic!("expected an expression body");
     };
-    assert!(matches!(**body, Expr::IntLiteral { value: 42, span } if span == Span::new(10, 12)));
+    assert!(matches!(
+        **body,
+        Expr::IntLiteral(literal)
+            if literal.magnitude == 42 && literal.span == Span::new(10, 12)
+    ));
 }
 
 #[test]

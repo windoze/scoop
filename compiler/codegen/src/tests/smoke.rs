@@ -1,4 +1,8 @@
 use super::*;
+use scoop_lir::LirIntegerConstant;
+
+#[path = "integers.rs"]
+mod integers;
 
 #[test]
 fn emits_non_empty_object_file() {
@@ -18,22 +22,38 @@ fn emits_unsigned_division_remainder_and_three_way_comparisons() {
     let function = &mut module.functions[0];
     let entry = function.entry;
     let input = function.locals.iter().next().expect("integer local").0;
-    for op in [
-        BinOp::UDiv,
-        BinOp::URem,
-        BinOp::SCompareTo,
-        BinOp::UCompareTo,
-    ] {
-        let out = function.temps.alloc(Temp { ty: LirType::I64 });
-        function.blocks[entry]
-            .instructions
-            .push(Instruction::BinOp {
-                out,
-                op,
-                lhs: Value::Local(input),
-                rhs: Value::IntConst(2),
-            });
-    }
+    let quotient = function.temps.alloc(Temp { ty: LirType::I64 });
+    let remainder = function.temps.alloc(Temp { ty: LirType::I64 });
+    let signed_compare = function.temps.alloc(Temp { ty: LirType::I64 });
+    let unsigned_compare = function.temps.alloc(Temp { ty: LirType::I64 });
+    function.blocks[entry].instructions.extend([
+        Instruction::SafeIntegerDivRem {
+            out: quotient,
+            kind: IntegerKind::UNSIGNED_64,
+            operation: IntegerDivRemOperation::Divide,
+            lhs: Value::Local(input),
+            rhs: Value::IntegerConst(LirIntegerConstant::Unsigned64(2)),
+        },
+        Instruction::SafeIntegerDivRem {
+            out: remainder,
+            kind: IntegerKind::UNSIGNED_64,
+            operation: IntegerDivRemOperation::Remainder,
+            lhs: Value::Local(input),
+            rhs: Value::IntegerConst(LirIntegerConstant::Unsigned64(2)),
+        },
+        Instruction::IntegerCompareTo {
+            out: signed_compare,
+            operand_kind: IntegerKind::SIGNED_64,
+            lhs: Value::Local(input),
+            rhs: signed64(2),
+        },
+        Instruction::IntegerCompareTo {
+            out: unsigned_compare,
+            operand_kind: IntegerKind::UNSIGNED_64,
+            lhs: Value::Local(input),
+            rhs: Value::IntegerConst(LirIntegerConstant::Unsigned64(2)),
+        },
+    ]);
     let ir = ir_of(&module);
     for instruction in ["udiv i64", "urem i64", "icmp slt i64", "icmp ult i64"] {
         assert!(
@@ -63,7 +83,7 @@ fn source_operators_reject_machine_scalar_operands() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("source equality must not consume internal machine scalars");
     assert!(
-        error.0.contains("source operator Eq") && error.0.contains("machine scalar"),
+        error.0.contains("generic equality Eq") && error.0.contains("machine<enum-tag>"),
         "unexpected error: {error}"
     );
 }
@@ -89,7 +109,10 @@ fn machine_equality_rejects_cross_domain_operands() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("machine equality must keep both operands in one domain");
     assert!(
-        error.0.contains("machine equality EnumTag")
+        error
+            .0
+            .contains("non-source-integer binary MachineEq(EnumTag)")
+            && error.0.contains("machine<enum-tag>")
             && error.0.contains("machine<initialization-outcome>"),
         "unexpected error: {error}"
     );
@@ -147,7 +170,7 @@ fn integer_to_pointer_rejects_machine_scalar_input() {
     let out = function.temps.alloc(Temp { ty: RAW_PTR });
     function.blocks[function.entry]
         .instructions
-        .push(Instruction::IntToPtr {
+        .push(Instruction::ULongToPtr {
             out,
             value: Value::MachineScalar(MachineScalarValue::PointerElementOffset(1)),
         });
@@ -157,7 +180,7 @@ fn integer_to_pointer_rejects_machine_scalar_input() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("a machine scalar must not acquire source pointer-conversion semantics");
     assert!(
-        error.0.contains("requires i64 -> ptr<raw>")
+        error.0.contains("requires ULong/i64 -> ptr<raw>")
             && error.0.contains("machine<pointer-element-offset>"),
         "unexpected error: {error}"
     );
@@ -172,7 +195,7 @@ fn pointer_to_integer_rejects_machine_scalar_output() {
     });
     function.blocks[function.entry]
         .instructions
-        .push(Instruction::PtrToInt {
+        .push(Instruction::PtrToULong {
             out,
             value: Value::NullPointer(PointerKind::Raw),
         });
@@ -182,7 +205,7 @@ fn pointer_to_integer_rejects_machine_scalar_output() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("a pointer conversion must not produce a machine scalar");
     assert!(
-        error.0.contains("requires ptr<raw> -> i64") && error.0.contains("machine<enum-tag>"),
+        error.0.contains("requires ptr<raw> -> ULong/i64") && error.0.contains("machine<enum-tag>"),
         "unexpected error: {error}"
     );
 }
@@ -455,15 +478,17 @@ fn scoop_extern_rejects_machine_scalar_artifact_abi() {
     module
         .extern_functions
         .alloc_scoop(scoop_lir::ScoopExternFunction {
-            declaration: scoop_lir::ExternFunctionDeclaration {
+            identity: scoop_lir::ExternFunctionIdentity {
                 source_name: "foreignMachine".to_string(),
                 native_symbol: "foreign_machine".to_string(),
                 library: "fixture".to_string(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
-                params: vec![LirType::MachineScalar(MachineScalarKind::EnumTag)],
-                return_type: LirType::I64,
             },
             gc_effect: GcEffect::NoGc,
+            signature: scoop_lir::LirFunctionType {
+                params: vec![LirType::MachineScalar(MachineScalarKind::EnumTag)],
+                return_type: scoop_lir::LirReturnType::Value(Box::new(LirType::I64)),
+            },
         });
 
     let machine = host_target_machine().expect("target machine");
@@ -507,6 +532,34 @@ fn runtime_call_signature_cannot_relabel_a_machine_result() {
     assert!(
         error.0.contains("closed runtime ABI") && error.0.contains("scoop_rt_gc_stats"),
         "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn string_compare_runtime_contract_returns_canonical_long_i64() {
+    let mut module = values_module();
+    let left = module.globals.iter().next().expect("left string").0;
+    let right = module.globals.iter().nth(1).expect("right string").0;
+    let function = &mut module.functions[0];
+    let out = function.temps.alloc(Temp { ty: LirType::I64 });
+    let call = direct_site(
+        &mut function.call_targets,
+        TestCallProtocol::NoGc {
+            destination: no_gc_runtime(scoop_lir::NoGcRuntimeFunction::StringCompare),
+        },
+        vec![MANAGED_PTR, MANAGED_PTR],
+        (LirType::I64, RefScan::None),
+        out,
+        vec![Value::Global(left), Value::Global(right)],
+    );
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::Call { site: call });
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains("declare i64 @scoop_rt_string_compare(ptr addrspace(1), ptr addrspace(1))"),
+        "String.compareTo runtime boundary must preserve canonical Long width:\n{ir}"
     );
 }
 

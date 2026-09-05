@@ -660,7 +660,7 @@ fun references() {
 - 下列**声明自身拥有的运行期初始化上下文**都是非挂起上下文，不得包含挂起调用：顶层 `val` / `var` 的 initializer 与 delegate 表达式；`object` / `companion object` 的属性 initializer、delegate 表达式、`init` 块及基类/接口委托初始化；class 的属性 initializer、delegate 表达式、`init` 块、主/次构造函数体及构造委托；struct secondary constructor body / delegation；struct/enum 变体及构造函数的缺省表达式。全局初始化入口必须在进入 `main` 前同步完成；单例或实例初始化必须在对象可用前同步完成；它们都不能返回 `Suspended`或保存“尚未完成的初始化”。class/struct初始化中的`this`按9.1.1作为受限initializing receiver，只能直接访问已经初始化的字段，不能作为普通值发布、捕获或用于任何方法分派；该限制从结构上排除半初始化对象逃逸，而不是依赖whole-program escape analysis。
 - **求值归属按词法位置确定，而不是按最外层构造语法确定**：在 suspend 函数中显式写出的调用实参仍处于调用者的挂起上下文，因此 `C(awaitValue())` 合法——`awaitValue()` 先完成，随后普通构造过程同步执行；构造函数定义处的缺省表达式和构造体内部则仍为非挂起上下文。把 suspend lambda / `SuspendTask` 对象保存进字段也不等于执行它，其函数体在以后实际调用时按自身的挂起性检查。
 - 属性没有隐式挂起能力：普通 getter / setter、计算属性，以及委托属性的 `getValue` / `setValue` 协议必须是非挂起 callable；即使属性读取发生在 suspend 函数中，也不能通过普通属性访问暗中挂起。未来若引入 suspend property，必须另行定义语法、类型与调用规则。
-- `const val` 的约束更强：它没有运行期初始化过程，只允许 9.1.2 定义的编译期常量表达式，因此不允许任何普通或挂起函数调用。
+- `const val` 的约束更强：它没有运行期初始化过程，只允许 9.1.2 定义的编译期常量表达式，因此不允许普通或挂起函数调用。9.1.2 封闭列出的整数表示 intrinsic call 是编译器常量运算，不属于这里的普通函数/方法调用。
 - 挂起性是 callable 签名的一部分：override / interface 实现的挂起性必须与被覆写声明完全一致；`suspend (A) -> R` 与普通函数类型 `(A) -> R` 不兼容。挂起性不作为同名声明的重载区分项，参数列表相同而只相差 `suspend` 的两个函数是重复声明。
 - 调用挂起函数可能在当前调用栈内立即产生 `R`，也可能保存当前计算并返回到协程启动者，随后经 `Continuation` 恢复。无论采用哪条路径，源码都只观察到一次普通的 `R` 结果或一次在该调用点抛出的异常；挂起本身不是返回、异常或 `finally` 的退出原因。
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
@@ -817,8 +817,8 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 #### 9.1.2 `const val`
 
 - `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
-- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用，以及由它们组成且可在编译期确定结果的内建一元/二元运算。const 依赖图存在循环是编译错误。
-- 函数/方法调用、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed integer intrinsic registry 精确解析到整数表示运算或整数转换的封闭 call。后一类包括源码显式的 `inc`/`dec`、`compareTo`/`equals`、`div`/`rem` 与 `toX` 等方法形式；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；常量 `div`/`rem` 的除数为零是 const 定义错误。const 依赖图存在循环是编译错误。
+- 除上述封闭整数表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
 - 导出的`const val`的type和值属于`.slib` HIR metadata，下游Cone在编译期直接消费；值变化会使下游编译缓存失效。const没有getter或可寻址storage，`addressOf(const)`非法；String常量使用已登记immortal表示。visibility在folding前检查。
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化

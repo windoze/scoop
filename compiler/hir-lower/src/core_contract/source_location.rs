@@ -25,15 +25,17 @@ impl Lowerer {
                 fields,
                 [file, line, column, function_name, type_name]
                     if file.name == "file" && file.ty == self.string
-                        && line.name == "line" && line.ty == self.int
-                        && column.name == "column" && column.ty == self.int
+                        && line.name == "line"
+                        && line.ty == self.integer_type(hir::IntegerKind::SIGNED_64)
+                        && column.name == "column"
+                        && column.ty == self.integer_type(hir::IntegerKind::SIGNED_64)
                         && function_name.name == "functionName" && function_name.ty == self.string
                         && type_name.name == "typeName" && type_name.ty == self.string
             );
         if !valid_location {
             self.error(
                 location_span,
-                "core `SourceLocation` must declare `(file: String, line: Int, column: Int, functionName: String, typeName: String)`"
+                "core `SourceLocation` must declare `(file: String, line: Long, column: Long, functionName: String, typeName: String)`"
                     .to_string(),
             );
         }

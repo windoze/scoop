@@ -168,10 +168,9 @@ impl MachineScalarValue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Unit,
-    Int,
-    /// Unsigned 64-bit integer (`UInt`, spec 11.2; same machine word
-    /// as `Int`, mapped to `i64` at LIR).
-    UInt,
+    /// One exact Scoop source integer. Its nominal owner is already canonical
+    /// (transparent aliases have disappeared before MIR).
+    Integer(IntegerKind),
     /// An internal typed scalar, disjoint from every source integer type.
     MachineScalar(MachineScalarKind),
     Boolean,
@@ -255,7 +254,7 @@ pub struct StructDef {
 #[derive(Debug)]
 pub enum StructRepresentation {
     Declared {
-        c_layout: Option<CLayout>,
+        c_layout: Option<MirCLayoutContract>,
         interior_mutable: bool,
         fields: Vec<Field>,
     },
@@ -282,10 +281,44 @@ impl StructDef {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CLayout {
-    pub aligned: u8,
-    pub packed: u8,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MirCLayoutValue {
+    Natural,
+    A1,
+    A2,
+    A4,
+    A8,
+    A16,
+}
+
+impl MirCLayoutValue {
+    pub const fn bytes(self) -> Option<u8> {
+        match self {
+            Self::Natural => None,
+            Self::A1 => Some(1),
+            Self::A2 => Some(2),
+            Self::A4 => Some(4),
+            Self::A8 => Some(8),
+            Self::A16 => Some(16),
+        }
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Natural => "natural",
+            Self::A1 => "1",
+            Self::A2 => "2",
+            Self::A4 => "4",
+            Self::A8 => "8",
+            Self::A16 => "16",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MirCLayoutContract {
+    pub aligned: MirCLayoutValue,
+    pub packed: MirCLayoutValue,
 }
 
 #[derive(Debug)]
@@ -378,12 +411,25 @@ impl ClassDef {
 /// specialized nominal type. Family variants carry their MIR element type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntrinsicTypeRepresentation {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
-    Array { element: Type },
-    MutableArray { element: Type },
+    Array {
+        element: Type,
+    },
+    MutableArray {
+        element: Type,
+    },
+    /// Intrinsic `Ptr<T>` declaration provenance. Canonical values still use
+    /// [`Type::Ptr`], never this declaration as an ordinary struct payload.
+    Ptr {
+        pointee: Type,
+    },
+    /// Intrinsic `FunPtr<F>` declaration provenance. Canonical values still
+    /// use [`Type::FunPtr`].
+    FunPtr {
+        signature: FunctionTypeId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -440,6 +486,186 @@ pub struct Local {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn all_source_integer_kinds_have_exact_names_widths_and_compact_v2_codes() {
+        let expected = [
+            (
+                IntegerKind::SIGNED_8,
+                IntegerSignedness::Signed,
+                IntegerWidth::W8,
+                "Int8",
+                "I8",
+            ),
+            (
+                IntegerKind::SIGNED_16,
+                IntegerSignedness::Signed,
+                IntegerWidth::W16,
+                "Int16",
+                "I16",
+            ),
+            (
+                IntegerKind::SIGNED_32,
+                IntegerSignedness::Signed,
+                IntegerWidth::W32,
+                "Int",
+                "I32",
+            ),
+            (
+                IntegerKind::SIGNED_64,
+                IntegerSignedness::Signed,
+                IntegerWidth::W64,
+                "Long",
+                "I64",
+            ),
+            (
+                IntegerKind::UNSIGNED_8,
+                IntegerSignedness::Unsigned,
+                IntegerWidth::W8,
+                "UInt8",
+                "V8",
+            ),
+            (
+                IntegerKind::UNSIGNED_16,
+                IntegerSignedness::Unsigned,
+                IntegerWidth::W16,
+                "UInt16",
+                "V16",
+            ),
+            (
+                IntegerKind::UNSIGNED_32,
+                IntegerSignedness::Unsigned,
+                IntegerWidth::W32,
+                "UInt",
+                "V32",
+            ),
+            (
+                IntegerKind::UNSIGNED_64,
+                IntegerSignedness::Unsigned,
+                IntegerWidth::W64,
+                "ULong",
+                "V64",
+            ),
+        ];
+
+        assert_eq!(IntegerKind::ALL.len(), expected.len());
+        for (index, (kind, signedness, width, name, code)) in expected.into_iter().enumerate() {
+            assert_eq!(IntegerKind::ALL[index], kind);
+            assert_eq!(kind.signedness(), signedness);
+            assert_eq!(kind.width(), width);
+            assert_eq!(kind.canonical_name(), name);
+            assert_eq!(kind.compact_v2_code(), code);
+            assert_eq!(width.bytes() * 8, width.bits());
+        }
+    }
+
+    #[test]
+    fn integer_constants_derive_every_property_from_the_exact_variant() {
+        let constants = [
+            (
+                MirIntegerConstant::Signed8(0x80),
+                IntegerKind::SIGNED_8,
+                -128,
+            ),
+            (
+                MirIntegerConstant::Signed16(0x8000),
+                IntegerKind::SIGNED_16,
+                -32_768,
+            ),
+            (
+                MirIntegerConstant::Signed32(0x8000_0000),
+                IntegerKind::SIGNED_32,
+                -2_147_483_648,
+            ),
+            (
+                MirIntegerConstant::Signed64(0x8000_0000_0000_0000),
+                IntegerKind::SIGNED_64,
+                -9_223_372_036_854_775_808,
+            ),
+            (
+                MirIntegerConstant::Unsigned8(u8::MAX),
+                IntegerKind::UNSIGNED_8,
+                u8::MAX as i128,
+            ),
+            (
+                MirIntegerConstant::Unsigned16(u16::MAX),
+                IntegerKind::UNSIGNED_16,
+                u16::MAX as i128,
+            ),
+            (
+                MirIntegerConstant::Unsigned32(u32::MAX),
+                IntegerKind::UNSIGNED_32,
+                u32::MAX as i128,
+            ),
+            (
+                MirIntegerConstant::Unsigned64(u64::MAX),
+                IntegerKind::UNSIGNED_64,
+                u64::MAX as i128,
+            ),
+        ];
+
+        for (constant, kind, mathematical_value) in constants {
+            assert_eq!(constant.kind(), kind);
+            assert_eq!(constant.signedness(), kind.signedness());
+            assert_eq!(constant.width(), kind.width());
+            assert_eq!(constant.mathematical_value(), mathematical_value);
+            assert_eq!(
+                MirIntegerConstant::from_raw_bits(kind, constant.raw_bits()),
+                Some(constant)
+            );
+            assert_eq!(Expr::integer(constant).ty, Type::Integer(kind));
+        }
+
+        assert_eq!(
+            MirIntegerConstant::from_raw_bits(IntegerKind::SIGNED_8, 0x100),
+            None
+        );
+        assert_eq!(
+            MirIntegerConstant::from_raw_bits(IntegerKind::UNSIGNED_32, 1_u64 << 32),
+            None
+        );
+    }
+
+    #[test]
+    fn static_and_annotation_integer_zero_remain_exactly_typed() {
+        let zero = MirIntegerConstant::Unsigned16(0);
+        let encoded = MirStaticInitialState::EncodedStaticValue {
+            payload: MirConstantImage::Integer(zero),
+        };
+        assert_ne!(encoded, MirStaticInitialState::ZeroedForRuntimeUnit);
+        assert_eq!(
+            MirAnnotationValue::Integer(zero),
+            MirAnnotationValue::Integer(MirIntegerConstant::Unsigned16(0))
+        );
+        assert_ne!(
+            MirAnnotationValue::Integer(zero),
+            MirAnnotationValue::Integer(MirIntegerConstant::Signed16(0))
+        );
+        assert_eq!(
+            MirMeta::default().mangling_schema,
+            ManglingSchemaIdentity::CompactV2
+        );
+        assert_eq!(
+            ManglingSchemaIdentity::CompactV2.canonical_name(),
+            "compact-v2"
+        );
+    }
+
+    #[test]
+    fn c_layout_annotation_contract_has_only_qualified_alignments() {
+        let values = [
+            MirCLayoutValue::Natural,
+            MirCLayoutValue::A1,
+            MirCLayoutValue::A2,
+            MirCLayoutValue::A4,
+            MirCLayoutValue::A8,
+            MirCLayoutValue::A16,
+        ];
+        assert_eq!(
+            values.map(MirCLayoutValue::bytes),
+            [None, Some(1), Some(2), Some(4), Some(8), Some(16)]
+        );
+    }
 
     #[test]
     fn suspend_state_ids_are_nonzero_by_construction() {

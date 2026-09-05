@@ -43,11 +43,11 @@ fn lowers_hello_world() {
             .count(),
         1
     );
-    for representation in [
-        lir::IntrinsicTypeRepresentation::Int,
-        lir::IntrinsicTypeRepresentation::UInt,
-        lir::IntrinsicTypeRepresentation::Boolean,
-    ] {
+    for representation in lir::IntegerKind::ALL
+        .map(lir::IntrinsicTypeRepresentation::Integer)
+        .into_iter()
+        .chain([lir::IntrinsicTypeRepresentation::Boolean])
+    {
         assert!(
             layout_values(&module).any(|layout| {
                 layout.kind == lir::LayoutKind::Intrinsic(representation.clone())
@@ -60,7 +60,7 @@ fn lowers_hello_world() {
 Module
   global @scoop.str.0 = "hello, world"
   global @scoop.str.1 = "!"
-  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
     poll managed-void-target0 sp4 live=[]
@@ -76,7 +76,14 @@ Module
     t1 = aggregate () : {}
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
@@ -85,6 +92,7 @@ Module
 #[test]
 fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let mut module = hello_world();
+    let (initial_string, _) = module.strings.iter().next().expect("hello-world string");
     module.globals.alloc(mir::Global {
         name: "managedRoot".to_string(),
         symbol: "scoop.global.managedRoot".to_string(),
@@ -92,7 +100,9 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         mutable: true,
         storage: mir::GlobalStorage::Local {
             thread_local: false,
-            initializer: mir::ConstantValue::NullPtr,
+            initial_state: mir::MirStaticInitialState::EncodedStaticValue {
+                payload: mir::MirConstantImage::String(initial_string),
+            },
         },
     });
 

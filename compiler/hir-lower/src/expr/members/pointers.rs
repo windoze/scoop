@@ -26,7 +26,7 @@ impl Lowerer {
         let mut args = args.into_iter();
         let pointer = Box::new(receiver);
         let expr = match kind {
-            hir::PointerIntrinsic::ToUInt => ExprKind::PtrToUInt(pointer),
+            hir::PointerIntrinsic::ToULong => ExprKind::PtrToULong(pointer),
             hir::PointerIntrinsic::Cast => ExprKind::PtrCast(pointer),
             hir::PointerIntrinsic::Load => ExprKind::PtrLoad {
                 pointer,

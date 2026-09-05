@@ -66,6 +66,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
         }
 
+        let carries_c_argument_storage = call
+            .args()
+            .iter()
+            .any(|argument| matches!(argument, scoop_lir::Value::CArgumentStorage(_)));
+        let is_c_extern = match destination {
+            scoop_lir::CallDestination::Extern(id) => matches!(
+                &self.extern_functions[id].kind,
+                ExternFunctionKind::C { .. }
+            ),
+            scoop_lir::CallDestination::Local(_)
+            | scoop_lir::CallDestination::Runtime(_)
+            | scoop_lir::CallDestination::Dispatch { .. } => false,
+        };
+        if carries_c_argument_storage && !is_c_extern {
+            return Err(CodegenError(format!(
+                "typed call @{} uses a C argument-storage address outside a C extern call",
+                self.function.symbol
+            )));
+        }
+
         match destination {
             scoop_lir::CallDestination::Local(id) => {
                 let declaration = self.functions.get(id.into_u32() as usize).ok_or_else(|| {
@@ -122,41 +142,75 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             scoop_lir::CallDestination::Extern(id) => {
                 let declaration = &self.extern_functions[id];
-                let declaration_is_unit = declaration.return_type == LirType::Void
-                    || matches!(
-                        &declaration.return_type,
-                        LirType::Aggregate(elements) if elements.is_empty()
-                    );
                 let (params_match, result_matches, protocol_matches) = match &declaration.kind {
-                    ExternFunctionKind::C { .. } => (
-                        params.len() == declaration.params.len()
-                            && params.iter().all(|ty| *ty == scoop_lir::RAW_PTR),
-                        match &result {
-                            TypedCallResult::Void => declaration_is_unit,
-                            TypedCallResult::Indirect { ty, .. } => {
-                                !declaration_is_unit && **ty == declaration.return_type
+                    ExternFunctionKind::C { signature, .. } => {
+                        let return_type = signature.storage_return_type();
+                        let is_void = signature.return_type.is_void();
+                        if call.args().len() == signature.params.len() {
+                            for (index, (argument, parameter)) in
+                                call.args().iter().zip(&signature.params).enumerate()
+                            {
+                                let scoop_lir::Value::CArgumentStorage(storage) = argument else {
+                                    return Err(CodegenError(format!(
+                                        "typed C extern call @{}: argument {} is not an exact C argument-storage address",
+                                        self.function.symbol, index
+                                    )));
+                                };
+                                let local_index = storage.local().into_raw().into_u32() as usize;
+                                if local_index >= self.function.locals.len() {
+                                    return Err(CodegenError(format!(
+                                        "typed C extern call @{}: argument {} refers to invalid storage local{}",
+                                        self.function.symbol, index, local_index
+                                    )));
+                                }
+                                let actual = &self.function.locals[storage.local()].ty;
+                                let expected = parameter.storage_type();
+                                if actual != &expected {
+                                    return Err(CodegenError(format!(
+                                        "typed C extern call @{}: argument {} storage local{} has type {}, expected exact C storage {}",
+                                        self.function.symbol,
+                                        index,
+                                        local_index,
+                                        actual.dump(),
+                                        expected.dump()
+                                    )));
+                                }
                             }
-                            TypedCallResult::Direct { .. } => false,
-                        },
-                        matches!(protocol, CallProtocol::NativeSafe { .. }),
-                    ),
-                    ExternFunctionKind::Scoop { .. } => (
-                        params == declaration.params.as_slice(),
-                        match &result {
-                            TypedCallResult::Void => declaration_is_unit,
-                            TypedCallResult::Direct { ty, .. } => {
-                                !declaration_is_unit
-                                    && !uses_return_slot(self.enums, &declaration.return_type)
-                                    && **ty == declaration.return_type
-                            }
-                            TypedCallResult::Indirect { ty, .. } => {
-                                !declaration_is_unit
-                                    && uses_return_slot(self.enums, &declaration.return_type)
-                                    && **ty == declaration.return_type
-                            }
-                        },
-                        matches!(protocol, CallProtocol::NativeBorrowed { .. }),
-                    ),
+                        }
+                        (
+                            params.len() == signature.params.len()
+                                && params.iter().all(|ty| *ty == scoop_lir::RAW_PTR),
+                            match &result {
+                                TypedCallResult::Void => is_void,
+                                TypedCallResult::Indirect { ty, .. } => {
+                                    !is_void && **ty == return_type
+                                }
+                                TypedCallResult::Direct { .. } => false,
+                            },
+                            matches!(protocol, CallProtocol::NativeSafe { .. }),
+                        )
+                    }
+                    ExternFunctionKind::Scoop { signature, .. } => {
+                        let return_type = signature.storage_return_type();
+                        let is_void = signature.return_type.is_void();
+                        (
+                            params == signature.params.as_slice(),
+                            match &result {
+                                TypedCallResult::Void => is_void,
+                                TypedCallResult::Direct { ty, .. } => {
+                                    !is_void
+                                        && !uses_return_slot(self.enums, &return_type)
+                                        && **ty == return_type
+                                }
+                                TypedCallResult::Indirect { ty, .. } => {
+                                    !is_void
+                                        && uses_return_slot(self.enums, &return_type)
+                                        && **ty == return_type
+                                }
+                            },
+                            matches!(protocol, CallProtocol::NativeBorrowed { .. }),
+                        )
+                    }
                 };
                 if !params_match || !result_matches || !protocol_matches {
                     return Err(CodegenError(format!(
@@ -371,10 +425,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let mut call_args = call
             .args()
             .iter()
-            .map(|argument| match managed_live.as_ref() {
-                Some(live) => self.statepoint_value(*argument, live),
-                None => self.value(*argument),
-            })
+            .map(|argument| self.typed_call_argument_value(*argument, managed_live.as_ref()))
             .collect::<Result<Vec<BasicValueEnum<'ctx>>, _>>()?;
         if let TypedCallResult::Indirect { storage, .. } = &result {
             call_args.insert(0, self.allocas[arena_index(*storage)].into());
@@ -459,7 +510,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             call_args = call
                 .args()
                 .iter()
-                .map(|argument| self.value(*argument))
+                .map(|argument| self.typed_call_argument_value(*argument, None))
                 .collect::<Result<Vec<_>, _>>()?;
             if let TypedCallResult::Indirect { storage, .. } = &result {
                 call_args.insert(0, self.allocas[arena_index(*storage)].into());

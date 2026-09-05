@@ -12,8 +12,8 @@ enum RootPlan {
 pub(super) fn annotate_root_plans(
     context: &LoweringContext,
     function: &mut lir::Function,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
 ) {
     let block_count = function.blocks.len();
     let mut uses = vec![HashSet::new(); block_count];

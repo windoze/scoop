@@ -29,6 +29,9 @@ pub use metadata::*;
 mod function;
 pub use function::*;
 
+mod integer;
+pub use integer::*;
+
 mod instruction;
 pub use instruction::*;
 

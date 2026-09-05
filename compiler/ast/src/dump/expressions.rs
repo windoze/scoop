@@ -7,7 +7,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));
         }
-        Expr::IntLiteral { value, .. } => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         Expr::UnitLiteral { .. } => out.push_str(&format!("{pad}UnitLiteral\n")),
         Expr::TupleLiteral { elements, .. } => {

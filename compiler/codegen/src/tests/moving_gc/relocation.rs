@@ -42,8 +42,8 @@ fn managed_live_plan_produces_as1_relocation() {
     let module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
@@ -186,8 +186,8 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),

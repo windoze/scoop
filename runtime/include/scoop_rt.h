@@ -111,24 +111,21 @@ void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
 
-/* M7 additions (milestone7 DESIGN section 3): primitive conversions
- * backing core's intToString / boolToString. */
-const ScoopString *scoop_rt_int_to_string(int64_t v);
-const ScoopString *scoop_rt_uint_to_string(uint64_t v);
+/* Fixed-width primitive conversions used by ordinary core methods. */
+const ScoopString *scoop_rt_long_to_string(int64_t v);
+const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
-bool scoop_rt_int_equals(int64_t left, int64_t right);
-bool scoop_rt_uint_equals(uint64_t left, uint64_t right);
 bool scoop_rt_bool_equals(bool left, bool right);
-int64_t scoop_rt_int_hash(int64_t v);
-int64_t scoop_rt_uint_hash(uint64_t v);
+int64_t scoop_rt_long_hash(int64_t v);
+int64_t scoop_rt_ulong_hash(uint64_t v);
 int64_t scoop_rt_bool_hash(bool v);
 int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
 bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
 int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b);
-void scoop_rt_print_int(int64_t value);
-void scoop_rt_println_int(int64_t value);
+void scoop_rt_print_long(int64_t value);
+void scoop_rt_println_long(int64_t value);
 void scoop_rt_print_boolean(bool value);
 void scoop_rt_println_boolean(bool value);
 

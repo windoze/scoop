@@ -9,6 +9,64 @@ pub(crate) fn struct_def_id(id: mir::StructId) -> lir::StructDefId {
     lir::StructDefId::from_raw(id.into_raw())
 }
 
+/// MIR and LIR own distinct source-integer domains. These exhaustive
+/// projections are the only way exact integer semantics cross this stage.
+pub(crate) const fn integer_signedness(
+    signedness: mir::IntegerSignedness,
+) -> lir::IntegerSignedness {
+    match signedness {
+        mir::IntegerSignedness::Signed => lir::IntegerSignedness::Signed,
+        mir::IntegerSignedness::Unsigned => lir::IntegerSignedness::Unsigned,
+    }
+}
+
+pub(crate) const fn integer_width(width: mir::IntegerWidth) -> lir::IntegerWidth {
+    match width {
+        mir::IntegerWidth::W8 => lir::IntegerWidth::W8,
+        mir::IntegerWidth::W16 => lir::IntegerWidth::W16,
+        mir::IntegerWidth::W32 => lir::IntegerWidth::W32,
+        mir::IntegerWidth::W64 => lir::IntegerWidth::W64,
+    }
+}
+
+pub(crate) const fn integer_kind(kind: mir::IntegerKind) -> lir::IntegerKind {
+    lir::IntegerKind::new(
+        integer_signedness(kind.signedness()),
+        integer_width(kind.width()),
+    )
+}
+
+pub(crate) const fn integer_constant(value: mir::MirIntegerConstant) -> lir::LirIntegerConstant {
+    match value {
+        mir::MirIntegerConstant::Signed8(bits) => lir::LirIntegerConstant::Signed8(bits),
+        mir::MirIntegerConstant::Signed16(bits) => lir::LirIntegerConstant::Signed16(bits),
+        mir::MirIntegerConstant::Signed32(bits) => lir::LirIntegerConstant::Signed32(bits),
+        mir::MirIntegerConstant::Signed64(bits) => lir::LirIntegerConstant::Signed64(bits),
+        mir::MirIntegerConstant::Unsigned8(bits) => lir::LirIntegerConstant::Unsigned8(bits),
+        mir::MirIntegerConstant::Unsigned16(bits) => lir::LirIntegerConstant::Unsigned16(bits),
+        mir::MirIntegerConstant::Unsigned32(bits) => lir::LirIntegerConstant::Unsigned32(bits),
+        mir::MirIntegerConstant::Unsigned64(bits) => lir::LirIntegerConstant::Unsigned64(bits),
+    }
+}
+
+pub(crate) const fn c_layout_value(value: mir::MirCLayoutValue) -> lir::LirCLayoutValue {
+    match value {
+        mir::MirCLayoutValue::Natural => lir::LirCLayoutValue::Natural,
+        mir::MirCLayoutValue::A1 => lir::LirCLayoutValue::A1,
+        mir::MirCLayoutValue::A2 => lir::LirCLayoutValue::A2,
+        mir::MirCLayoutValue::A4 => lir::LirCLayoutValue::A4,
+        mir::MirCLayoutValue::A8 => lir::LirCLayoutValue::A8,
+        mir::MirCLayoutValue::A16 => lir::LirCLayoutValue::A16,
+    }
+}
+
+pub(crate) const fn lower_c_layout(contract: mir::MirCLayoutContract) -> lir::LirCLayoutContract {
+    lir::LirCLayoutContract {
+        aligned: c_layout_value(contract.aligned),
+        packed: c_layout_value(contract.packed),
+    }
+}
+
 /// MIR and LIR intentionally define their own IR-local scalar domains.  This
 /// exhaustive projection is the only place where their identities cross the
 /// stage boundary.
@@ -97,18 +155,77 @@ pub(crate) const fn machine_scalar_value(
 pub(crate) fn lower_structs(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
-) -> Arena<lir::StructDef> {
+    enums: &lir::EnumDefs,
+) -> lir::StructDefs {
     let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let mut structs = Arena::new();
+    let mut structs = lir::StructDefs::default();
     for (_, definition) in module.structs.iter() {
-        let (field_layouts, size, align) = struct_shape(context, module, &enum_shape, definition);
-        let (fields, c_layout, interior_mutable) = match &definition.representation {
+        let (_, size, align) = struct_shape(context, module, &enum_shape, definition);
+        match &definition.representation {
             mir::StructRepresentation::Declared {
                 c_layout,
                 interior_mutable,
-                fields,
-            } => (
+                ..
+            } => {
+                if let Some(contract) = c_layout {
+                    let _ = structs.alloc_c(
+                        definition.name.clone(),
+                        size,
+                        align,
+                        *interior_mutable,
+                        lower_c_layout(*contract),
+                        Vec::new(),
+                    );
+                } else {
+                    structs.alloc_scoop(
+                        definition.name.clone(),
+                        size,
+                        align,
+                        *interior_mutable,
+                        Vec::new(),
+                    );
+                }
+            }
+            mir::StructRepresentation::Intrinsic(representation) => {
+                structs.alloc_intrinsic(
+                    definition.name.clone(),
+                    size,
+                    align,
+                    lower_intrinsic_type_representation(module, representation),
+                );
+            }
+        }
+    }
+
+    // Fill declared fields only after every nominal shell is present. Exact C
+    // pointer pointees may refer to the containing or a later C struct, and a
+    // checked `CStructRef` must be minted against the actual completed arena.
+    for (mir_id, definition) in module.structs.iter() {
+        let mir::StructRepresentation::Declared {
+            c_layout, fields, ..
+        } = &definition.representation
+        else {
+            continue;
+        };
+        let (field_layouts, _, _) = struct_shape(context, module, &enum_shape, definition);
+        if c_layout.is_some() {
+            let reference = structs
+                .c_ref(struct_def_id(mir_id))
+                .expect("the first pass allocated a C struct shell");
+            structs.set_c_fields(
+                reference,
+                fields
+                    .iter()
+                    .zip(field_layouts)
+                    .map(|(field, layout)| lir::CStructField {
+                        ty: c_ffi_type(module, &structs, enums, &field.ty),
+                        layout,
+                    })
+                    .collect(),
+            );
+        } else {
+            structs.set_scoop_fields(
+                struct_def_id(mir_id),
                 fields
                     .iter()
                     .zip(field_layouts)
@@ -117,24 +234,64 @@ pub(crate) fn lower_structs(
                         layout,
                     })
                     .collect(),
-                c_layout.map(|layout| lir::CLayout {
-                    aligned: layout.aligned,
-                    packed: layout.packed,
-                }),
-                *interior_mutable,
-            ),
-            mir::StructRepresentation::Intrinsic(_) => (Vec::new(), None, false),
-        };
-        structs.alloc(lir::StructDef {
-            name: definition.name.clone(),
-            fields,
-            size,
-            align,
-            c_layout,
-            interior_mutable,
-        });
+            );
+        }
     }
     structs
+}
+
+pub(crate) fn compiler_data_pointee(pointee: &mir::Type) -> lir::LirDataPointee {
+    if pointee == &mir::Type::Unit {
+        lir::LirDataPointee::OpaqueVoid
+    } else {
+        lir::LirDataPointee::Value(Box::new(lir_type(pointee)))
+    }
+}
+
+pub(crate) fn compiler_function_type(
+    module: &mir::Module,
+    signature: mir::FunctionTypeId,
+) -> lir::LirFunctionType {
+    let signature = &module.function_types[signature];
+    lir::LirFunctionType {
+        params: signature.parameter_types.iter().map(lir_type).collect(),
+        return_type: lir_return_type(&signature.return_type),
+    }
+}
+
+pub(crate) fn lir_return_type(ty: &mir::Type) -> lir::LirReturnType {
+    if ty == &mir::Type::Unit {
+        lir::LirReturnType::Void
+    } else {
+        lir::LirReturnType::Value(Box::new(lir_type(ty)))
+    }
+}
+
+pub(crate) fn lower_intrinsic_type_representation(
+    module: &mir::Module,
+    representation: &mir::IntrinsicTypeRepresentation,
+) -> lir::IntrinsicTypeRepresentation {
+    match representation {
+        mir::IntrinsicTypeRepresentation::Integer(kind) => {
+            lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
+        }
+        mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
+        mir::IntrinsicTypeRepresentation::String => lir::IntrinsicTypeRepresentation::String,
+        mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+            lir::IntrinsicTypeRepresentation::Ptr {
+                pointee: compiler_data_pointee(pointee),
+            }
+        }
+        mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+            lir::IntrinsicTypeRepresentation::FunPtr {
+                signature: compiler_function_type(module, *signature),
+            }
+        }
+        mir::IntrinsicTypeRepresentation::Array { .. }
+        | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+            unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
+        }
+    }
 }
 
 /// Map a MIR type onto its LIR value type (DESIGN 2.4 / 3.4): Unit is
@@ -147,9 +304,7 @@ pub(crate) fn lower_structs(
 pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
-        // UInt shares Int's machine word (M9, spec 11.2): the same
-        // `i64` at LIR, so codegen needs no UInt-specific handling.
-        mir::Type::Int | mir::Type::UInt => lir::LirType::I64,
+        mir::Type::Integer(kind) => integer_kind(*kind).scalar_type(),
         mir::Type::MachineScalar(kind) => lir::LirType::MachineScalar(machine_scalar_kind(*kind)),
         mir::Type::Boolean => lir::LirType::I1,
         mir::Type::String
@@ -167,7 +322,7 @@ pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
     }
 }
 
-pub(crate) fn uses_indirect_result(enums: &Arena<lir::EnumDef>, ty: &lir::LirType) -> bool {
+pub(crate) fn uses_indirect_result(enums: &lir::EnumDefs, ty: &lir::LirType) -> bool {
     match ty {
         lir::LirType::Aggregate(_) | lir::LirType::Struct(_) | lir::LirType::ExceptionRecord => {
             true
@@ -175,6 +330,9 @@ pub(crate) fn uses_indirect_result(enums: &Arena<lir::EnumDef>, ty: &lir::LirTyp
         lir::LirType::Enum(id) => matches!(enums[*id].repr, lir::EnumRepr::Tagged { .. }),
         lir::LirType::Void
         | lir::LirType::I1
+        | lir::LirType::I8
+        | lir::LirType::I16
+        | lir::LirType::I32
         | lir::LirType::I64
         | lir::LirType::MachineScalar(_)
         | lir::LirType::Ptr(_) => false,

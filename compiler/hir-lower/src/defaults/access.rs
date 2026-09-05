@@ -233,12 +233,18 @@ impl ReferenceCollector<'_> {
             hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => {}
             hir::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => {
                 self.expression(value);
+                let equals = match equality {
+                    hir::LiteralPatternEquality::Integer { target, .. } => {
+                        hir::Callable::Function(target.function())
+                    }
+                    hir::LiteralPatternEquality::Ordinary { equals } => *equals,
+                };
                 self.callable(
-                    hir::ExportDefaultCallableTarget::Callable(*equals),
+                    hir::ExportDefaultCallableTarget::Callable(equals),
                     value.origin.definition(),
                 );
                 self.type_reference(*subject_ty, value.origin.definition());
@@ -280,13 +286,12 @@ impl ReferenceCollector<'_> {
         self.type_reference(expression.ty, origin);
         match &expression.kind {
             hir::ExprKind::StringLiteral(_)
-            | hir::ExprKind::IntLiteral(_)
+            | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::ConstructorParam(_)
             | hir::ExprKind::Local(_)
             | hir::ExprKind::Capture(_)
-            | hir::ExprKind::FunPtrNull
             | hir::ExprKind::NoneLiteral => {}
             hir::ExprKind::InitializingClassFieldAccess { .. }
             | hir::ExprKind::InitializingStructFieldAccess { .. } => {}
@@ -335,8 +340,8 @@ impl ReferenceCollector<'_> {
                 origin,
             ),
             hir::ExprKind::FunctionCoercion { source, .. }
-            | hir::ExprKind::PtrFromUInt(source)
-            | hir::ExprKind::PtrToUInt(source)
+            | hir::ExprKind::PtrFromNonZeroULong(source)
+            | hir::ExprKind::PtrToULong(source)
             | hir::ExprKind::PtrCast(source)
             | hir::ExprKind::Box(source)
             | hir::ExprKind::Unbox(source)
@@ -462,6 +467,38 @@ impl ReferenceCollector<'_> {
             hir::ExprKind::CallableCall { callee, args, .. } => {
                 self.expression(callee);
                 self.expressions(args);
+            }
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                let function = match operation {
+                    hir::IntegerOperation::NoGc { target, .. } => target.function(),
+                    hir::IntegerOperation::Managed { target, .. } => target.function(),
+                };
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Function(function)),
+                    origin,
+                );
+                match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => self.expression(operand),
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        self.expression(lhs);
+                        self.expression(rhs);
+                    }
+                }
+            }
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => {
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Function(
+                        conversion.target.function(),
+                    )),
+                    origin,
+                );
+                self.expression(operand);
             }
         }
     }

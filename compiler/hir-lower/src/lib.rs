@@ -363,10 +363,10 @@ pub(crate) struct Lowerer {
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
-    pub(crate) int: TypeId,
-    /// The `UInt` well-known type (M9, spec 11.2); lowerer-internal
-    /// like `any` — `hir::Module`'s well-known list is unchanged.
-    pub(crate) uint: TypeId,
+    /// Total lowering-time map for the eight canonical integer identities.
+    /// Source spelling, width and signedness never need to be reconstructed
+    /// from arena order or nominal names.
+    pub(crate) integer_types: hir::IntegerTypeCore<TypeId>,
     pub(crate) boolean: TypeId,
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).

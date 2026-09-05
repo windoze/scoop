@@ -34,6 +34,7 @@ fn add_interface(
         access: hir::NominalAccess::public(),
         self_application: application,
         type_params: Vec::new(),
+        gc_free_pointee_requirements: Vec::new(),
         parents,
         methods: Vec::new(),
         private_methods: Vec::new(),
@@ -73,6 +74,7 @@ fn add_generic_struct(
         access: hir::NominalAccess::public(),
         self_application,
         type_params: vec![parameter],
+        gc_free_pointee_requirements: Vec::new(),
         attributes: hir::StructAttributes::default(),
         representation: hir::StructRepresentation::Declared(Vec::new()),
         constructors: Vec::new(),
@@ -133,20 +135,29 @@ fn exact_variable_relations_reach_a_fixed_point() {
         ConstraintOrigin::Declaration,
     );
     session.push(
-        Constraint::Equal(owner_variable.into(), lowerer.int.into()),
+        Constraint::Equal(
+            owner_variable.into(),
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+        ),
         ConstraintOrigin::ExplicitTypeArgument(0),
     );
 
     let solution = lowerer
         .solve_constraints(&session)
         .expect("variable equality propagates");
-    assert_eq!(solution.type_for(owner_variable), lowerer.int);
-    assert_eq!(solution.type_for(callable_variable), lowerer.int);
+    assert_eq!(
+        solution.type_for(owner_variable),
+        lowerer.integer_type(hir::IntegerKind::SIGNED_32)
+    );
+    assert_eq!(
+        solution.type_for(callable_variable),
+        lowerer.integer_type(hir::IntegerKind::SIGNED_32)
+    );
     assert_eq!(
         solution.arguments_for(&session, environment),
         super::solver::ConcreteInferenceArguments {
-            owner: vec![lowerer.int],
-            callable: vec![lowerer.int],
+            owner: vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+            callable: vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
         }
     );
 }
@@ -158,7 +169,10 @@ fn subtype_bounds_choose_the_unique_expressible_minimum() {
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
-    for ty in [lowerer.int, lowerer.uint] {
+    for ty in [
+        lowerer.integer_type(hir::IntegerKind::SIGNED_32),
+        lowerer.integer_type(hir::IntegerKind::UNSIGNED_32),
+    ] {
         session.push(
             Constraint::Subtype(ty.into(), variable.into()),
             ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
@@ -213,7 +227,8 @@ fn function_variance_generates_bidirectional_bounds() {
     let mut lowerer = Lowerer::new();
     let callable = parameter(50, 0);
     let parameter_ty = lowerer.intern_type(Type::Param(callable.id));
-    let actual = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
+    let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
+    let actual = lowerer.intern_function_type(false, vec![int], int);
     let expected = lowerer.intern_function_type(false, vec![parameter_ty], parameter_ty);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -226,7 +241,10 @@ fn function_variance_generates_bidirectional_bounds() {
     let solution = lowerer
         .solve_constraints(&session)
         .expect("function parameter and return variance agree on Int");
-    assert_eq!(solution.type_for(variable), lowerer.int);
+    assert_eq!(
+        solution.type_for(variable),
+        lowerer.integer_type(hir::IntegerKind::SIGNED_32)
+    );
 }
 
 #[test]
@@ -257,14 +275,20 @@ fn an_upper_only_constraint_chooses_its_unique_greatest_solution() {
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
     session.push(
-        Constraint::Subtype(variable.into(), lowerer.int.into()),
+        Constraint::Subtype(
+            variable.into(),
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+        ),
         ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
     );
 
     let solution = lowerer
         .solve_constraints(&session)
         .expect("a contravariant occurrence can determine its upper bound");
-    assert_eq!(solution.type_for(variable), lowerer.int);
+    assert_eq!(
+        solution.type_for(variable),
+        lowerer.integer_type(hir::IntegerKind::SIGNED_32)
+    );
 }
 
 #[test]
@@ -300,7 +324,10 @@ fn lower_bound_solution_is_not_widened_to_satisfy_a_kind() {
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
     session.push(
-        Constraint::Subtype(lowerer.int.into(), variable.into()),
+        Constraint::Subtype(
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+            variable.into(),
+        ),
         ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
     );
     session.push(
@@ -313,7 +340,8 @@ fn lower_bound_solution_is_not_widened_to_satisfy_a_kind() {
         .expect_err("a value argument cannot infer boxed Any for a ref parameter");
     assert!(matches!(
         failure.kind,
-        ConstraintFailureKind::Kind { solution, .. } if solution == lowerer.int
+        ConstraintFailureKind::Kind { solution, .. }
+            if solution == lowerer.integer_type(hir::IntegerKind::SIGNED_32)
     ));
 }
 
@@ -374,7 +402,10 @@ fn concrete_application_materializes_every_argument() {
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
     session.push(
-        Constraint::Equal(variable.into(), lowerer.int.into()),
+        Constraint::Equal(
+            variable.into(),
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+        ),
         ConstraintOrigin::Receiver,
     );
     session.push(
@@ -388,11 +419,10 @@ fn concrete_application_materializes_every_argument() {
     lowerer
         .solve_constraints(&session)
         .expect("the complete Box<Int> application materializes");
-    assert!(
-        lowerer
-            .struct_application_by_key
-            .contains_key(&(structure, vec![lowerer.int]))
-    );
+    assert!(lowerer.struct_application_by_key.contains_key(&(
+        structure,
+        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+    )));
 }
 
 #[test]
@@ -405,7 +435,10 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
     session.push(
-        Constraint::Equal(variable.into(), lowerer.int.into()),
+        Constraint::Equal(
+            variable.into(),
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+        ),
         ConstraintOrigin::Receiver,
     );
     session.push(
@@ -423,13 +456,13 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
         lowerer
             .types
             .iter()
-            .any(|(_, ty)| matches!(ty, Type::Ptr(pointee) if *pointee == lowerer.int))
+            .any(|(_, ty)| matches!(ty, Type::Ptr(pointee)
+                if *pointee == lowerer.integer_type(hir::IntegerKind::SIGNED_32)))
     );
-    assert!(
-        !lowerer
-            .struct_application_by_key
-            .contains_key(&(pointer, vec![lowerer.int]))
-    );
+    assert!(!lowerer.struct_application_by_key.contains_key(&(
+        pointer,
+        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+    )));
 }
 
 #[test]
@@ -438,7 +471,8 @@ fn function_pointer_concrete_application_requires_a_function_type() {
     let callable = parameter(64, 0);
     let pointer = add_generic_struct(&mut lowerer, "FunPtr", callable.clone());
     lowerer.ffi_fun_ptr = Some(pointer);
-    let function = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
+    let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
+    let function = lowerer.intern_function_type(false, vec![int], int);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -471,7 +505,8 @@ fn function_pointer_concrete_application_requires_a_function_type() {
 #[test]
 fn callable_shape_keeps_managed_and_native_categories_separate() {
     let mut lowerer = Lowerer::new();
-    let signature = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
+    let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
+    let signature = lowerer.intern_function_type(false, vec![int], int);
     let Type::Function(signature) = lowerer.types[signature] else {
         panic!("interned signature is a managed function")
     };
@@ -502,7 +537,8 @@ fn callable_shape_keeps_managed_and_native_categories_separate() {
 #[test]
 fn native_callable_shape_checks_explicit_parameter_and_return_types() {
     let mut lowerer = Lowerer::new();
-    let signature = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.int);
+    let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
+    let signature = lowerer.intern_function_type(false, vec![int], int);
     let Type::Function(signature) = lowerer.types[signature] else {
         panic!("interned signature is a managed function")
     };
@@ -513,8 +549,12 @@ fn native_callable_shape_checks_explicit_parameter_and_return_types() {
             CallableShape {
                 category: CallableCategory::Native,
                 is_suspend: false,
-                parameters: vec![CallableParameter::Explicit(lowerer.int.into())],
-                return_type: CallableReturn::Explicit(lowerer.int.into()),
+                parameters: vec![CallableParameter::Explicit(
+                    lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+                )],
+                return_type: CallableReturn::Explicit(
+                    lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+                ),
             },
             TypeTerm::Type(native),
         ),
@@ -536,7 +576,10 @@ fn a_variable_from_another_session_is_rejected() {
     let environment = second.add_environment(&[], std::slice::from_ref(&callable));
     let foreign = second.callable_variables(environment)[0];
     first.push(
-        Constraint::Equal(foreign.into(), lowerer.int.into()),
+        Constraint::Equal(
+            foreign.into(),
+            lowerer.integer_type(hir::IntegerKind::SIGNED_32).into(),
+        ),
         ConstraintOrigin::Declaration,
     );
 

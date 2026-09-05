@@ -44,8 +44,7 @@ impl TypeDescriptorRefs {
             mir::Type::Struct(_)
             | mir::Type::Enum(..)
             | mir::Type::Tuple(_)
-            | mir::Type::Int
-            | mir::Type::UInt
+            | mir::Type::Integer(_)
             | mir::Type::MachineScalar(_)
             | mir::Type::Boolean
             | mir::Type::Unit
@@ -84,7 +83,7 @@ const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
 pub(crate) fn type_descriptors(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> (
     Arena<lir::TypeDescriptor>,
@@ -114,6 +113,7 @@ pub(crate) fn type_descriptors(
         let name = format!(
             "function${}",
             mir::encode_type(module, &mir::Type::Function(id))
+                .expect("MIR function types have a compact-v2 source encoding")
         );
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             symbol: td_symbol(&name),
@@ -203,7 +203,7 @@ pub(crate) fn type_descriptors(
 pub(crate) fn class_type_descriptor(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     id: mir::ClassId,
     runtime_type_id: u64,
     refs: &TypeDescriptorRefs,
@@ -259,7 +259,7 @@ pub(crate) fn class_type_descriptor(
 pub(crate) fn array_types(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     descriptors: &TypeDescriptorRefs,
 ) -> (
     Arena<lir::ArrayType>,

@@ -10,136 +10,121 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let constructor = self
-            .struct_primary_constructor(struct_id)
-            .expect("validated FFI intrinsic structs have a typed primary constructor");
-        let mut view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Struct(constructor),
-        );
-        if Some(struct_id) == self.ffi_ptr {
-            let argument_map =
-                match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
-                    &view, call.args,
-                ) {
-                    Ok(argument_map) => argument_map,
-                    Err(failure) => {
-                        self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
-                        return None;
-                    }
-                };
-            let explicit = self.resolve_call_type_args(call.type_args)?;
-            if !explicit.is_empty() && explicit.len() != view.owner_parameters.len() {
-                self.diagnose_nominal_shape_failure(
-                    &view,
-                    call.span,
-                    format!(
-                        "expects {} explicit type argument(s), but {} were supplied",
-                        view.owner_parameters.len(),
-                        explicit.len()
-                    ),
-                );
-                return None;
-            }
-            let expected_arguments = expected.and_then(|ty| match self.types[ty] {
-                Type::Ptr(pointee) => Some(vec![pointee]),
-                _ => None,
-            });
-            let inferred = self.lower_nominal_arguments(NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: call.args,
-                explicit_type_args: &explicit,
-                expected_type_args: expected_arguments.as_deref(),
-                span: call.span,
-            })?;
-            let [pointee] = inferred.type_args.as_slice() else {
-                unreachable!("validated Ptr has one concrete pointee type")
-            };
-            let pointee = *pointee;
-            if !self.is_value_ty(pointee)
-                || self.type_contains_param(pointee)
-                || !self.is_gc_free(pointee)
-            {
-                let found = self.type_name(pointee);
-                self.diagnose_nominal_shape_failure(
-                    &view,
-                    call.span,
-                    format!("`Ptr` pointee must be a concrete GC-free value type, found {found}"),
-                );
-                return None;
-            }
-            self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
-            let arguments = self.materialize_nominal_arguments(
-                crate::argument_materialization::NominalArgumentMaterialization {
-                    view: &view,
-                    argument_map: &argument_map,
-                    type_args: &inferred.type_args,
-                    source_args: inferred.args,
-                    argument_sinks: inferred.argument_sinks,
-                    call_span: call.span,
-                },
-                sink,
+        if Some(struct_id) == self.ffi_fun_ptr {
+            self.error(
+                call.span,
+                "intrinsic struct `FunPtr` has no source constructor".to_string(),
             );
-            let [raw]: [hir::Expr; 1] = arguments
-                .try_into()
-                .expect("validated Ptr constructor has one argument");
-            debug_assert!(self.is_subtype(raw.ty, self.uint));
-            let raw = self.adapt_to(raw, self.uint);
-            let ty = self.intern_type(Type::Ptr(pointee));
-            return Some(hir::Expr {
-                kind: ExprKind::PtrFromUInt(Box::new(raw)),
-                ty,
-                span: call.span,
-                origin: self.expression_origin(call.span),
-            });
+            return None;
         }
+        debug_assert_eq!(Some(struct_id), self.ffi_ptr);
 
-        debug_assert_eq!(Some(struct_id), self.ffi_fun_ptr);
-        view.value_parameters.clear();
-        let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
-                &view, call.args,
-            ) {
-                Ok(argument_map) => argument_map,
-                Err(failure) => {
-                    self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
-                    return None;
-                }
-            };
         let explicit = self.resolve_call_type_args(call.type_args)?;
-        if !explicit.is_empty() && explicit.len() != view.owner_parameters.len() {
-            self.diagnose_nominal_shape_failure(
-                &view,
+        if explicit.len() > 1 {
+            self.error(
                 call.span,
                 format!(
-                    "expects {} explicit type argument(s), but {} were supplied",
-                    view.owner_parameters.len(),
+                    "`Ptr` expects one explicit type argument, but {} were supplied",
                     explicit.len()
                 ),
             );
             return None;
         }
-        let expected_arguments = expected.and_then(|ty| match self.types[ty] {
-            Type::FunPtr(signature) => Some(vec![self.function_types[signature].canonical_type]),
+        let contextual_pointee = expected.and_then(|ty| match self.types[ty] {
+            Type::Ptr(pointee) => Some(pointee),
             _ => None,
         });
-        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
-            view: &view,
-            argument_map: &argument_map,
-            expressions: call.args,
-            explicit_type_args: &explicit,
-            expected_type_args: expected_arguments.as_deref(),
-            span: call.span,
-        })?;
-        let [function] = inferred.type_args.as_slice() else {
-            unreachable!("validated FunPtr has one concrete function type")
+        let pointee = match explicit.as_slice() {
+            [ResolvedCallTypeArgument::Explicit { ty, .. }] => *ty,
+            [ResolvedCallTypeArgument::Infer { .. }] | [] => {
+                let Some(pointee) = contextual_pointee else {
+                    self.error(
+                        call.span,
+                        "cannot infer `Ptr` pointee type; supply one explicit type argument"
+                            .to_string(),
+                    );
+                    return None;
+                };
+                pointee
+            }
+            _ => unreachable!("the explicit Ptr arity was checked"),
         };
-        let Type::Function(signature) = self.types[*function] else {
-            unreachable!("FunPtr concrete application accepts only function types")
+        let parameter = self.structs[struct_id].type_params.clone();
+        if !self.check_type_argument_kinds(&parameter, &[pointee], call.span, "struct `Ptr`") {
+            return None;
+        }
+        if !self.type_contains_param(pointee) && !self.is_gc_free(pointee) {
+            let found = self.type_name(pointee);
+            self.error(
+                call.span,
+                format!("`Ptr` pointee must be GC-free, found {found}"),
+            );
+            return None;
+        }
+
+        let mut raw_argument = None;
+        for argument in call.args {
+            match &argument.name {
+                ast::CallArgumentName::Positional => {}
+                ast::CallArgumentName::Named(name) if name.text == "raw" => {}
+                ast::CallArgumentName::Named(name) => {
+                    self.error(
+                        name.span,
+                        format!("`Ptr` has no value parameter named `{}`", name.text),
+                    );
+                    return None;
+                }
+            }
+            if raw_argument.is_some() {
+                self.error(
+                    argument.span,
+                    "`Ptr` value parameter `raw` is supplied more than once".to_string(),
+                );
+                return None;
+            }
+            if !matches!(argument.spread, ast::SpreadSyntax::Plain) {
+                self.error(
+                    argument.span,
+                    "spread is not allowed for `Ptr` value parameter `raw`".to_string(),
+                );
+                return None;
+            }
+            raw_argument = Some(argument);
+        }
+        let Some(argument) = raw_argument else {
+            self.error(
+                call.span,
+                "required `Ptr` value parameter `raw` has no argument".to_string(),
+            );
+            return None;
         };
-        let ty = self.intern_type(Type::FunPtr(signature));
+
+        self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
+        let ulong = self.integer_type(hir::IntegerKind::UNSIGNED_64);
+        let raw = self.lower_expr(&argument.expression, sink, Some(ulong))?;
+        if !self.is_subtype(raw.ty, ulong) {
+            let found = self.type_name(raw.ty);
+            self.error(
+                argument.span,
+                format!("`Ptr` raw address must be ULong, found {found}"),
+            );
+            return None;
+        }
+        let raw = self.adapt_to(raw, ulong);
+        if crate::globals::evaluate_hir_integer_constant(&raw, sink)
+            .is_some_and(|value| value.raw_bits() == 0)
+        {
+            self.error(
+                argument.span,
+                "`Ptr` raw address must be nonzero".to_string(),
+            );
+            return None;
+        }
+        let ty = self.intern_type(Type::Ptr(pointee));
+        self.pointer_type_uses
+            .push((ty, self.current_file, call.span));
         Some(hir::Expr {
-            kind: ExprKind::FunPtrNull,
+            kind: ExprKind::PtrFromNonZeroULong(Box::new(raw)),
             ty,
             span: call.span,
             origin: self.expression_origin(call.span),

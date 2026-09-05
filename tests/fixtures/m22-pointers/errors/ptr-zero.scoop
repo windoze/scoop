@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    @Unsafe {
+        Ptr<Int>(0uL)
+    }
+}

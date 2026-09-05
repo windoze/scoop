@@ -1,6 +1,10 @@
 use super::*;
 
-pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::CallbackBridge> {
+pub(super) fn lower_callback_bridges(
+    module: &mir::Module,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+) -> Arena<lir::CallbackBridge> {
     let mut callbacks = Arena::new();
     for (id, callback) in module.callback_bridges.iter() {
         let signature = &module.function_types[callback.signature];
@@ -11,9 +15,9 @@ pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::Callbac
             params: signature
                 .parameter_types
                 .iter()
-                .map(|ty| c_ffi_type(module, ty))
+                .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
-            return_type: c_ffi_type(module, &signature.return_type),
+            return_type: c_return_type(module, structs, enums, &signature.return_type),
         });
     }
     callbacks
@@ -21,6 +25,8 @@ pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::Callbac
 
 pub(super) fn lower_foreign_callback_bridges(
     module: &mir::Module,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
     let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
@@ -49,9 +55,9 @@ pub(super) fn lower_foreign_callback_bridges(
             params: signature
                 .parameter_types
                 .iter()
-                .map(|ty| c_ffi_type(module, ty))
+                .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
-            return_type: c_ffi_type(module, &signature.return_type),
+            return_type: c_return_type(module, structs, enums, &signature.return_type),
             context_index: bridge.context_index,
             mode: match bridge.mode {
                 mir::ForeignCallbackMode::Reusable => lir::ForeignCallbackMode::Reusable,

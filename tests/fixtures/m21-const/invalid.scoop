@@ -9,6 +9,12 @@ const val called: Int = helper()
 const val first: Boolean = true || second
 const val second: Boolean = false && first
 
+const val shortCircuitWrongType: Boolean = true || 1
+const val shortCircuitCall: Boolean = false && booleanHelper()
+const val shortCircuitBinaryZero: Boolean = false && (1 / 0 == 0)
+const val shortCircuitMethodZero: Boolean = true || (1.rem(0) == 0)
+
 fun helper(): Int = 1
+fun booleanHelper(): Boolean = true
 
 fun main() {}

@@ -70,17 +70,41 @@ pub fn dump(module: &Module) -> String {
             ),
         };
         out.push_str(&format!(
-            "  native_global{} {} @{} : {} {}{}\n",
+            "  native_global{} {} @{} : {} c={} {}{}\n",
             id.into_raw(),
             global.source_name,
             global.native_symbol,
-            global.ty.dump(),
+            global.storage_type().dump(),
+            global.c_type.dump(),
             access,
             if global.thread_local {
                 " thread_local"
             } else {
                 ""
             }
+        ));
+    }
+    for (id, definition) in module.structs.iter() {
+        let Some(fields) = definition.c_fields() else {
+            continue;
+        };
+        let fields = fields
+            .iter()
+            .map(|field| {
+                format!(
+                    "{}@{}/{}",
+                    field.ty.dump(),
+                    field.layout.offset,
+                    field.layout.access_align
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        out.push_str(&format!(
+            "  c-struct struct{} {} fields=[{}]\n",
+            id.into_raw(),
+            definition.name,
+            fields
         ));
     }
     for (_, def) in module.enums.iter() {
@@ -124,25 +148,39 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, extern_) in module.extern_functions.iter() {
-        let params = extern_
-            .params
+        let (parameter_types, return_type, kind) = match &extern_.kind {
+            ExternFunctionKind::C {
+                bridge_symbol,
+                signature,
+            } => (
+                signature.storage_params(),
+                signature.storage_return_type(),
+                format!(
+                    "c exact={} bridge=@{bridge_symbol} gc-leaf nounwind",
+                    signature.dump()
+                ),
+            ),
+            ExternFunctionKind::Scoop {
+                gc_effect,
+                signature,
+            } => (
+                signature.params.clone(),
+                signature.storage_return_type(),
+                format!(
+                    "scoop {} nounwind",
+                    if *gc_effect == GcEffect::NoGc {
+                        "gc-leaf"
+                    } else {
+                        "managed"
+                    }
+                ),
+            ),
+        };
+        let params = parameter_types
             .iter()
             .map(LirType::dump)
             .collect::<Vec<_>>()
             .join(", ");
-        let kind = match &extern_.kind {
-            ExternFunctionKind::C { bridge_symbol, .. } => {
-                format!("c bridge=@{bridge_symbol} gc-leaf nounwind")
-            }
-            ExternFunctionKind::Scoop { gc_effect } => format!(
-                "scoop {} nounwind",
-                if *gc_effect == GcEffect::NoGc {
-                    "gc-leaf"
-                } else {
-                    "managed"
-                }
-            ),
-        };
         let library = if extern_.library.is_empty() {
             String::new()
         } else {
@@ -154,18 +192,26 @@ pub fn dump(module: &Module) -> String {
             extern_.source_name,
             extern_.native_symbol,
             params,
-            extern_.return_type.dump(),
+            return_type.dump(),
             kind,
             library
         ));
     }
     for (id, callback) in module.callback_bridges.iter() {
+        let params = callback
+            .params
+            .iter()
+            .map(CType::dump)
+            .collect::<Vec<_>>()
+            .join(",");
         out.push_str(&format!(
-            "  callback cb{} {} @{} -> @{}\n",
+            "  callback cb{} {} @{} -> @{} c=({})->{}\n",
             id.into_raw(),
             callback.source_name,
             callback.bridge_symbol,
-            callback.trampoline_symbol
+            callback.trampoline_symbol,
+            params,
+            callback.return_type.dump(),
         ));
     }
     for (id, family) in module.foreign_callback_families.iter() {
@@ -178,8 +224,14 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (id, bridge) in module.foreign_callback_bridges.iter() {
+        let params = bridge
+            .params
+            .iter()
+            .map(CType::dump)
+            .collect::<Vec<_>>()
+            .join(",");
         out.push_str(&format!(
-            "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={:?}\n",
+            "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={:?} c=({})->{}\n",
             id.into_raw(),
             bridge.family.into_raw(),
             bridge.adapter_symbol,
@@ -187,6 +239,8 @@ pub fn dump(module: &Module) -> String {
             bridge.signature_symbol,
             bridge.context_index,
             bridge.mode,
+            params,
+            bridge.return_type.dump(),
         ));
     }
     for function in &module.functions {
@@ -311,17 +365,15 @@ pub fn dump(module: &Module) -> String {
             type_descriptor_ref_name(array.type_descriptor),
         ));
     }
-    // Keep the textual dump stable while the typed intrinsic metadata remains
-    // available directly on `LirMeta`: String historically appeared first,
-    // and the unused UInt scalar was omitted. Tests that validate the intrinsic
-    // contract inspect the typed fields instead of reconstructing it from text.
+    // String remains first, followed by every exact source integer layout in
+    // arena order, Boolean, and ordinary layouts.
     let string_layout = module.meta.well_known_layouts.string;
     for (_layout_id, layout) in
         std::iter::once((string_layout, &module.meta.layouts[string_layout]))
             .chain(module.meta.layouts.iter().filter(|(_, layout)| {
                 matches!(
                     layout.kind,
-                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Int)
+                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Integer(_))
                 )
             }))
             .chain(module.meta.layouts.iter().filter(|(_, layout)| {
@@ -334,8 +386,7 @@ pub fn dump(module: &Module) -> String {
                 !matches!(
                     layout.kind,
                     LayoutKind::Intrinsic(
-                        IntrinsicTypeRepresentation::Int
-                            | IntrinsicTypeRepresentation::UInt
+                        IntrinsicTypeRepresentation::Integer(_)
                             | IntrinsicTypeRepresentation::Boolean
                             | IntrinsicTypeRepresentation::String
                     )
@@ -368,14 +419,39 @@ pub fn dump(module: &Module) -> String {
                 scan.dump()
             )),
             LayoutKind::Intrinsic(
-                IntrinsicTypeRepresentation::Int
-                | IntrinsicTypeRepresentation::UInt
+                IntrinsicTypeRepresentation::Integer(_)
                 | IntrinsicTypeRepresentation::Boolean
                 | IntrinsicTypeRepresentation::String,
             ) => out.push_str(&format!(
                 "  layout {} size={} align={} refs=[]\n",
                 layout.name, layout.size, layout.align
             )),
+            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Ptr { pointee }) => {
+                let pointee = match pointee {
+                    LirDataPointee::OpaqueVoid => "void".to_string(),
+                    LirDataPointee::Value(ty) => ty.dump(),
+                };
+                out.push_str(&format!(
+                    "  layout {} size={} align={} intrinsic=ptr<{}> refs=[]\n",
+                    layout.name, layout.size, layout.align, pointee
+                ));
+            }
+            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::FunPtr { signature }) => {
+                let params = signature
+                    .params
+                    .iter()
+                    .map(LirType::dump)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let result = match &signature.return_type {
+                    LirReturnType::Void => "void".to_string(),
+                    LirReturnType::Value(ty) => ty.dump(),
+                };
+                out.push_str(&format!(
+                    "  layout {} size={} align={} intrinsic=funptr<({})->{}> refs=[]\n",
+                    layout.name, layout.size, layout.align, params, result
+                ));
+            }
         }
         if let Some(c_layout) = layout.c_layout {
             let fields = layout
@@ -386,7 +462,11 @@ pub fn dump(module: &Module) -> String {
                 .join(",");
             out.push_str(&format!(
                 "  layout-meta {} c-layout(aligned={},packed={}) fields=[{}] interior-mutable={}\n",
-                layout.name, c_layout.aligned, c_layout.packed, fields, layout.interior_mutable
+                layout.name,
+                c_layout.aligned.bytes().unwrap_or(0),
+                c_layout.packed.bytes().unwrap_or(0),
+                fields,
+                layout.interior_mutable
             ));
         } else if layout.interior_mutable {
             out.push_str(&format!(

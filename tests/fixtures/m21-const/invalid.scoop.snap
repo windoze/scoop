@@ -7,4 +7,8 @@ m21-const/invalid.scoop:1:11: error: const property must be a `val`
 m21-const/invalid.scoop:2:24: error: const property `unsupported` has unsupported type Unit
 m21-const/invalid.scoop:10:38: error: const dependency cycle: first -> second -> first
 m21-const/invalid.scoop:6:31: error: const initializer may only reference const properties; `ordinary` is not const
-m21-const/invalid.scoop:7:25: error: const initializer must contain only literals, const references, and built-in primitive operators
+m21-const/invalid.scoop:7:25: error: const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls
+m21-const/invalid.scoop:12:44: error: const operator operands must have the same type, found Boolean and Int
+m21-const/invalid.scoop:13:48: error: const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls
+m21-const/invalid.scoop:14:55: error: division by zero in const initializer
+m21-const/invalid.scoop:15:54: error: division by zero in const initializer

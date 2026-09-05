@@ -1,0 +1,10 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val signed: Int = 1
+    val unsigned: UInt = 1u
+    @Unsafe {
+        Ptr<Int>(signed)
+        Ptr<Int>(unsigned)
+    }
+}

@@ -22,6 +22,7 @@ impl Harness {
         let generic = self.generic_functions.alloc(hir::GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
         });
         self.functions[function].genericity = hir::FunctionGenericity::Generic {
             definition: generic,
@@ -265,6 +266,7 @@ impl Harness {
                 hir::FunctionGenericity::OwnerParameterizedMethod {
                     owner_parameters: vec![type_param()],
                     no_gc_type_params: Vec::new(),
+                    gc_free_pointee_requirements: Vec::new(),
                 };
         }
         let start_coroutine = self.functions.alloc(hir::Function {
@@ -322,6 +324,11 @@ impl Harness {
         self.finish_with_coroutine_core(entry, false)
     }
 
+    pub(super) fn finish_with_initialization_core(mut self, entry: hir::FunctionId) -> hir::Module {
+        self.needs_initialization_core = true;
+        self.finish(entry)
+    }
+
     pub(super) fn finish_coroutines(self, entry: hir::FunctionId) -> hir::Module {
         self.finish_with_coroutine_core(entry, true)
     }
@@ -345,7 +352,7 @@ impl Harness {
             fun_ptr,
             pinned_ptr,
             gc_handle,
-            ptr_to_uint: entry,
+            ptr_to_ulong: entry,
             ptr_cast: entry,
             ptr_load: entry,
             ptr_load_offset: entry,
@@ -382,11 +389,16 @@ impl Harness {
             Vec::new(),
             unit_variants(&["Registered", "Active", "Completed", "Failed"]),
         );
-        let uint = self.uint();
-        let intrinsic_int =
-            self.declare_fixed_intrinsic_struct("Int", hir::IntrinsicTypeKind::Int, self.int);
-        let intrinsic_uint =
-            self.declare_fixed_intrinsic_struct("UInt", hir::IntrinsicTypeKind::UInt, uint);
+        let integer_types = self.integers;
+        let integer_owners = hir::IntegerKind::ALL.map(|kind| {
+            self.declare_fixed_intrinsic_struct(
+                kind.canonical_name(),
+                hir::IntrinsicTypeKind::Integer(kind),
+                integer_types.owner(kind),
+            )
+        });
+        let intrinsic_integers = hir::IntegerTypeCore::new(integer_owners)
+            .expect("the eight integer kinds receive distinct nominal owners");
         let intrinsic_boolean = self.declare_fixed_intrinsic_struct(
             "Boolean",
             hir::IntrinsicTypeKind::Boolean,
@@ -465,7 +477,6 @@ impl Harness {
             interface_methods: self.interface_methods,
             top_level: self.top_level,
             unit: self.unit,
-            int: self.int,
             boolean: self.boolean,
             string: self.string,
             option_enum: self.option_enum,
@@ -483,12 +494,13 @@ impl Harness {
                 failure: entry,
             },
             intrinsic_type_core: hir::IntrinsicTypeCore {
-                int: intrinsic_int,
-                uint: intrinsic_uint,
+                integers: intrinsic_integers,
                 boolean: intrinsic_boolean,
                 string: intrinsic_string,
                 array: intrinsic_array,
                 mutable_array: intrinsic_mutable_array,
+                ptr,
+                fun_ptr,
             },
             source_location_core: hir::SourceLocationCore {
                 location: ptr,

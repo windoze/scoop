@@ -10,7 +10,7 @@ fun startMany(
 fun joinMany(group: Ptr<Unit>): Int
 
 class RaceGate(
-    var group: Ptr<Unit>,
+    var group: Ptr<Unit>?,
     var callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>?
 )
 
@@ -26,7 +26,7 @@ class RaceRegistration(val gate: RaceGate) : SuspendRegistration<Int> {
                 ForeignCallbackMode.Reusable
             )
             gate.callback = Some(callback)
-            gate.group = startMany(callback.function, callback.context, 70, 2)
+            gate.group = Some(startMany(callback.function, callback.context, 70, 2))
         }
     }
 }
@@ -50,12 +50,12 @@ class RaceCompletion() : Continuation<Int> {
 fun main() {
     @Unsafe {
         val gate = RaceGate(
-            Ptr<Unit>(sizeOf<Int>() - sizeOf<Int>()),
+            None,
             None
         )
         startCoroutine(RaceTask(gate), RaceCompletion())
         println("suspended")
-        println(joinMany(gate.group))
+        println(joinMany(gate.group!!))
         val callback = gate.callback!!
         println(foreignCallbackState(callback) == ForeignCallbackState.Failed)
         println(foreignCallbackFailure(callback)!! is IllegalStateException)

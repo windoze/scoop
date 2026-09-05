@@ -10,6 +10,7 @@ impl Lowerer {
         // any of them regardless of declaration order), then the
         // mangling shell (their names for `encode_type`), then the
         // field types themselves — which can instantiate enums.
+        self.reserve_nominal_ids(module);
         self.lower_structs(module);
         self.declare_classes(module);
         // Concrete interface type arguments may name classes, so every class
@@ -26,7 +27,6 @@ impl Lowerer {
         self.fill_struct_fields(module);
         self.lower_globals(module);
         self.lower_singletons(module);
-        self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);
@@ -209,6 +209,7 @@ impl Lowerer {
             .into_iter()
             .map(|(payload, class)| mir::BoxedType { payload, class })
             .collect();
+        let option_core = self.enums.all_option_core(module);
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
@@ -232,6 +233,7 @@ impl Lowerer {
             enums: self.enums.defs,
             classes: self.classes,
             interfaces: self.interfaces.defs,
+            option_core,
             entry,
             meta: mir::MirMeta {
                 generic_function_sources: self.instances.generic_function_sources,

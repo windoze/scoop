@@ -6,7 +6,7 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> mir::Expr {
         let kind = match &expr.kind {
             smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
-            smir::ExprKind::IntLiteral(value) => mir::ExprKind::IntLiteral(*value),
+            smir::ExprKind::IntegerLiteral(value) => mir::ExprKind::IntegerLiteral(*value),
             smir::ExprKind::MachineScalarLiteral(value) => {
                 mir::ExprKind::MachineScalarLiteral(*value)
             }
@@ -82,12 +82,14 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::InitializationUnitAddress(unit) => {
                 mir::ExprKind::InitializationUnitAddress(*unit)
             }
-            smir::ExprKind::PtrFromUInt { operand, pointee } => mir::ExprKind::PtrFromUInt {
-                operand: Box::new(self.lower_expr(operand, span)),
-                pointee: pointee.clone(),
-            },
-            smir::ExprKind::PtrToUInt(operand) => {
-                mir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::PtrFromNonZeroULong { operand, pointee } => {
+                return mir::Expr::ptr_from_non_zero_ulong(
+                    self.lower_expr(operand, span),
+                    (**pointee).clone(),
+                );
+            }
+            smir::ExprKind::PtrToULong(operand) => {
+                mir::ExprKind::PtrToULong(Box::new(self.lower_expr(operand, span)))
             }
             smir::ExprKind::PtrCast { operand, pointee } => mir::ExprKind::PtrCast {
                 operand: Box::new(self.lower_expr(operand, span)),
@@ -138,7 +140,6 @@ impl<'a> CfgLowerer<'a> {
             },
             smir::ExprKind::SizeOf(ty) => mir::ExprKind::SizeOf(ty.clone()),
             smir::ExprKind::AlignOf(ty) => mir::ExprKind::AlignOf(ty.clone()),
-            smir::ExprKind::FunPtrNull(signature) => mir::ExprKind::FunPtrNull(*signature),
             smir::ExprKind::FunctionAddress { callback } => mir::ExprKind::FunctionAddress {
                 callback: *callback,
             },
@@ -256,6 +257,62 @@ impl<'a> CfgLowerer<'a> {
             }
             smir::ExprKind::Unary { op, operand } => mir::ExprKind::Unary {
                 op: *op,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
+            smir::ExprKind::IntegerUnary { operation, operand } => mir::ExprKind::IntegerUnary {
+                operation: *operation,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
+            smir::ExprKind::IntegerBinary {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerBinary {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::SafeIntegerDivRem {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::SafeIntegerDivRem {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerCompare {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerCompare {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerCompareTo {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerCompareTo {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerShift {
+                operation,
+                value,
+                count,
+            } => mir::ExprKind::IntegerShift {
+                operation: *operation,
+                value: Box::new(self.lower_expr(value, span)),
+                count: Box::new(self.lower_expr(count, span)),
+            },
+            smir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => mir::ExprKind::IntegerConversion {
+                conversion: *conversion,
                 operand: Box::new(self.lower_expr(operand, span)),
             },
             smir::ExprKind::VariantConstruct { variant, fields } => {

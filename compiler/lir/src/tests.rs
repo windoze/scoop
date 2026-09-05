@@ -1,8 +1,8 @@
 use super::{
     CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
     CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, EnumRepr, ExternFunctionDeclaration, ExternFunctions,
-    ForeignCallbackStatus, GcEffect, InitializationOutcome, InternalPointerCarrier,
+    DirectCallSignature, EnumRepr, ExternFunctionIdentity, ExternFunctions, ForeignCallbackStatus,
+    GcEffect, InitializationOutcome, InternalPointerCarrier, LirFunctionType, LirReturnType,
     LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind, MachineScalarValue,
     ManagedCallDestination, ManagedRuntimeFunction, NativeBorrowedCallDestination,
     NativeBorrowedResultPublication, NativeBorrowedResultRoot, NativeSafeCallDestination,
@@ -171,7 +171,7 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
     let direct_call = TypedCall::Direct {
         target: direct_target,
         out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
-        args: vec![Value::IntConst(1)],
+        args: vec![Value::IntegerConst(super::LirIntegerConstant::Signed64(1))],
     };
 
     let void_view = targets.typed_call_view(
@@ -207,15 +207,17 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
 fn native_borrowed_result_publication_is_sealed_with_return_convention() {
     let mut functions = ExternFunctions::default();
     let function = functions.alloc_scoop(ScoopExternFunction {
-        declaration: ExternFunctionDeclaration {
+        identity: ExternFunctionIdentity {
             source_name: "borrowed".to_string(),
             native_symbol: "native_borrowed".to_string(),
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
-            params: Vec::new(),
-            return_type: super::MANAGED_PTR,
         },
         gc_effect: GcEffect::Managed,
+        signature: LirFunctionType {
+            params: Vec::new(),
+            return_type: LirReturnType::Value(Box::new(super::MANAGED_PTR)),
+        },
     });
     let destination = NativeBorrowedCallDestination::extern_function(function);
     let mut targets = CallTargets::default();
@@ -291,28 +293,30 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
 fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     let mut functions = ExternFunctions::default();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {
-        declaration: ExternFunctionDeclaration {
+        identity: ExternFunctionIdentity {
             source_name: "c".to_string(),
             native_symbol: "c".to_string(),
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
-            params: Vec::new(),
-            return_type: LirType::Void,
         },
         bridge_symbol: "c_bridge".to_string(),
-        params: Vec::new(),
-        return_type: super::CType::Unit,
+        signature: super::CFunctionType {
+            params: Vec::new(),
+            return_type: super::CReturnType::Void,
+        },
     });
     let scoop_ref: ScoopExternFunctionRef = functions.alloc_scoop(ScoopExternFunction {
-        declaration: ExternFunctionDeclaration {
+        identity: ExternFunctionIdentity {
             source_name: "scoop".to_string(),
             native_symbol: "scoop".to_string(),
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
-            params: Vec::new(),
-            return_type: LirType::Void,
         },
         gc_effect: GcEffect::Managed,
+        signature: LirFunctionType {
+            params: Vec::new(),
+            return_type: LirReturnType::Void,
+        },
     });
 
     let c = c_ref.declaration();
@@ -413,4 +417,295 @@ fn machine_scalars_keep_closed_domains_and_frozen_i64_encodings() {
         LirType::MachineScalar(MachineScalarKind::EnumTag).dump(),
         LirType::I64.dump()
     );
+}
+
+#[test]
+fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
+    use super::{IntegerKind, IntegerSignedness, IntegerWidth};
+
+    let expected = [
+        (
+            IntegerKind::SIGNED_8,
+            IntegerSignedness::Signed,
+            IntegerWidth::W8,
+            "Int8",
+            "I8",
+            LirType::I8,
+        ),
+        (
+            IntegerKind::SIGNED_16,
+            IntegerSignedness::Signed,
+            IntegerWidth::W16,
+            "Int16",
+            "I16",
+            LirType::I16,
+        ),
+        (
+            IntegerKind::SIGNED_32,
+            IntegerSignedness::Signed,
+            IntegerWidth::W32,
+            "Int",
+            "I32",
+            LirType::I32,
+        ),
+        (
+            IntegerKind::SIGNED_64,
+            IntegerSignedness::Signed,
+            IntegerWidth::W64,
+            "Long",
+            "I64",
+            LirType::I64,
+        ),
+        (
+            IntegerKind::UNSIGNED_8,
+            IntegerSignedness::Unsigned,
+            IntegerWidth::W8,
+            "UInt8",
+            "V8",
+            LirType::I8,
+        ),
+        (
+            IntegerKind::UNSIGNED_16,
+            IntegerSignedness::Unsigned,
+            IntegerWidth::W16,
+            "UInt16",
+            "V16",
+            LirType::I16,
+        ),
+        (
+            IntegerKind::UNSIGNED_32,
+            IntegerSignedness::Unsigned,
+            IntegerWidth::W32,
+            "UInt",
+            "V32",
+            LirType::I32,
+        ),
+        (
+            IntegerKind::UNSIGNED_64,
+            IntegerSignedness::Unsigned,
+            IntegerWidth::W64,
+            "ULong",
+            "V64",
+            LirType::I64,
+        ),
+    ];
+
+    assert_eq!(IntegerKind::ALL.len(), expected.len());
+    for (kind, signedness, width, name, code, scalar) in expected {
+        assert_eq!(kind.signedness(), signedness);
+        assert_eq!(kind.width(), width);
+        assert_eq!(kind.canonical_name(), name);
+        assert_eq!(kind.compact_v2_code(), code);
+        assert_eq!(kind.scalar_type(), scalar);
+        assert_eq!(width.bytes(), u64::from(width.bits() / 8));
+        assert_eq!(width.shift_mask(), u64::from(width.bits() - 1));
+    }
+}
+
+#[test]
+fn source_integer_constant_variants_are_their_own_width_witnesses() {
+    use super::{IntegerKind, LirIntegerConstant};
+
+    let constants = [
+        (
+            LirIntegerConstant::Signed8(u8::MAX),
+            IntegerKind::SIGNED_8,
+            LirType::I8,
+            0xff,
+        ),
+        (
+            LirIntegerConstant::Signed16(u16::MAX),
+            IntegerKind::SIGNED_16,
+            LirType::I16,
+            0xffff,
+        ),
+        (
+            LirIntegerConstant::Signed32(u32::MAX),
+            IntegerKind::SIGNED_32,
+            LirType::I32,
+            0xffff_ffff,
+        ),
+        (
+            LirIntegerConstant::Signed64(u64::MAX),
+            IntegerKind::SIGNED_64,
+            LirType::I64,
+            u64::MAX,
+        ),
+        (
+            LirIntegerConstant::Unsigned8(u8::MAX),
+            IntegerKind::UNSIGNED_8,
+            LirType::I8,
+            0xff,
+        ),
+        (
+            LirIntegerConstant::Unsigned16(u16::MAX),
+            IntegerKind::UNSIGNED_16,
+            LirType::I16,
+            0xffff,
+        ),
+        (
+            LirIntegerConstant::Unsigned32(u32::MAX),
+            IntegerKind::UNSIGNED_32,
+            LirType::I32,
+            0xffff_ffff,
+        ),
+        (
+            LirIntegerConstant::Unsigned64(u64::MAX),
+            IntegerKind::UNSIGNED_64,
+            LirType::I64,
+            u64::MAX,
+        ),
+    ];
+
+    for (constant, kind, scalar, bits) in constants {
+        assert_eq!(constant.kind(), kind);
+        assert_eq!(constant.scalar_type(), scalar);
+        assert_eq!(constant.raw_bits(), bits);
+        assert!(constant.dump().contains(kind.canonical_name()));
+    }
+}
+
+#[test]
+fn c_integer_classifier_and_c_layout_contract_are_closed() {
+    use super::{CType, IntegerKind, LirCLayoutContract, LirCLayoutValue};
+
+    assert_ne!(
+        CType::Integer(IntegerKind::SIGNED_32),
+        CType::Integer(IntegerKind::UNSIGNED_32)
+    );
+    let contract = LirCLayoutContract {
+        aligned: LirCLayoutValue::A16,
+        packed: LirCLayoutValue::A2,
+    };
+    assert_eq!(contract.aligned.bytes(), Some(16));
+    assert_eq!(contract.packed.bytes(), Some(2));
+    assert_eq!(LirCLayoutValue::Natural.bytes(), None);
+}
+
+#[test]
+fn exact_c_types_totally_determine_their_lir_storage() {
+    use super::{
+        CCodePointerStorage, CDataPointee, CDataPointerStorage, CFunctionType, CReturnType, CType,
+        EnumDef, EnumDefs, IntegerKind, LirCLayoutContract, LirCLayoutValue, StructDefs,
+    };
+
+    let mut enums = EnumDefs::default();
+    let raw_nullable = enums.alloc_c_nullable_data_pointer_option(EnumDef {
+        name: "Option<Ptr<Unit>>".to_string(),
+        repr: EnumRepr::Niche {
+            kind: NichePointerKind::Raw,
+            payload_variant: 0,
+        },
+        scan: RefScan::None,
+    });
+    let raw_nullable_id = raw_nullable;
+    let code_nullable = enums.alloc_c_nullable_code_pointer_option(EnumDef {
+        name: "Option<FunPtr<() -> Unit>>".to_string(),
+        repr: EnumRepr::Niche {
+            kind: NichePointerKind::Code,
+            payload_variant: 0,
+        },
+        scan: RefScan::None,
+    });
+    let code_nullable_id = code_nullable;
+    let mut structs = StructDefs::default();
+    let c_struct = structs.alloc_c(
+        "CValue".to_string(),
+        4,
+        4,
+        false,
+        LirCLayoutContract {
+            aligned: LirCLayoutValue::Natural,
+            packed: LirCLayoutValue::Natural,
+        },
+        Vec::new(),
+    );
+    let c_struct_id = c_struct.definition();
+    let signature = CFunctionType {
+        params: vec![CType::Integer(IntegerKind::SIGNED_8)],
+        return_type: CReturnType::Void,
+    };
+    let raw_nullable_ref = enums
+        .nullable_data_pointer_ref(raw_nullable_id, CDataPointee::OpaqueVoid)
+        .expect("raw niche ref");
+    let code_nullable_ref = enums
+        .nullable_code_pointer_ref(code_nullable_id, signature.clone())
+        .expect("code niche ref");
+    assert_eq!(raw_nullable_ref.pointee(), &CDataPointee::OpaqueVoid);
+    assert_eq!(code_nullable_ref.signature(), &signature);
+    assert!(
+        enums
+            .nullable_data_pointer_ref(
+                raw_nullable_id,
+                CDataPointee::Object(Box::new(CType::Integer(IntegerKind::SIGNED_32))),
+            )
+            .is_none(),
+        "an exact Option<Ptr<Unit>> binding cannot be rebound as Option<Ptr<Int>>"
+    );
+    assert!(
+        enums
+            .nullable_code_pointer_ref(
+                code_nullable_id,
+                CFunctionType {
+                    params: Vec::new(),
+                    return_type: CReturnType::Value(Box::new(CType::Integer(
+                        IntegerKind::SIGNED_32,
+                    ))),
+                },
+            )
+            .is_none(),
+        "an exact nullable code-pointer binding cannot be rebound to another signature"
+    );
+    assert_eq!(
+        CType::DataPointer {
+            pointee: CDataPointee::OpaqueVoid,
+            storage: CDataPointerStorage::Nullable(raw_nullable_ref.clone()),
+        }
+        .dump(),
+        "data-ptr<opaque-void,nullable=enum0<opaque-void>>"
+    );
+    assert_eq!(
+        CType::CodePointer {
+            signature: Box::new(signature.clone()),
+            storage: CCodePointerStorage::Nullable(code_nullable_ref.clone()),
+        }
+        .dump(),
+        "code-ptr<(Int8)->void,nullable=enum1<(Int8)->void>>"
+    );
+    for (c_type, storage) in [
+        (CType::Integer(IntegerKind::UNSIGNED_16), LirType::I16),
+        (CType::Boolean, LirType::I1),
+        (
+            CType::DataPointer {
+                pointee: CDataPointee::OpaqueVoid,
+                storage: CDataPointerStorage::Direct,
+            },
+            LirType::Ptr(PointerKind::Raw),
+        ),
+        (
+            CType::DataPointer {
+                pointee: CDataPointee::OpaqueVoid,
+                storage: CDataPointerStorage::Nullable(raw_nullable_ref),
+            },
+            LirType::Enum(raw_nullable_id),
+        ),
+        (
+            CType::CodePointer {
+                signature: Box::new(signature.clone()),
+                storage: CCodePointerStorage::Direct,
+            },
+            LirType::Ptr(PointerKind::Code),
+        ),
+        (
+            CType::CodePointer {
+                signature: Box::new(signature),
+                storage: CCodePointerStorage::Nullable(code_nullable_ref),
+            },
+            LirType::Enum(code_nullable_id),
+        ),
+        (CType::Struct(c_struct), LirType::Struct(c_struct_id)),
+    ] {
+        assert_eq!(c_type.storage_type(), storage);
+    }
+    assert_eq!(CReturnType::Void.storage_type(), LirType::Void);
 }

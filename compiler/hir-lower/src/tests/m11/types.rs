@@ -69,7 +69,8 @@ fn function_types_substitute_type_parameters_recursively() {
 #[test]
 fn function_types_are_reference_types_for_gc_constraints() {
     let mut lowerer = Lowerer::new();
-    let ty = lowerer.intern_function_type(false, vec![lowerer.int], lowerer.string);
+    let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
+    let ty = lowerer.intern_function_type(false, vec![int], lowerer.string);
     assert!(lowerer.is_ref_ty(ty));
     assert!(!lowerer.is_value_ty(ty));
 }

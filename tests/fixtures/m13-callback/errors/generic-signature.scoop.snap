@@ -4,4 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m13-callback/errors/generic-signature.scoop:3:9: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
-  - fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback signature must be ordinary and fully concrete
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback signature must be ordinary and fully concrete

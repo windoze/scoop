@@ -22,12 +22,9 @@ impl Parser {
                     span: token.span,
                 })
             }
-            TokenKind::Int(value) => {
+            TokenKind::Int(lexeme) => {
                 self.pos += 1;
-                Ok(Expr::IntLiteral {
-                    value,
-                    span: token.span,
-                })
+                Ok(Expr::IntLiteral(lexeme.with_span(token.span)))
             }
             TokenKind::True => {
                 self.pos += 1;

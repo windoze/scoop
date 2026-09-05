@@ -9,7 +9,8 @@ struct ValueArm {
 
 impl Lowerer {
     /// Statement-position pattern `when` (spec 5). The subject must be an
-    /// enum, tuple or struct — the current pattern-matching subset has no
+    /// enum, tuple, struct or fixed-width integer — the current
+    /// pattern-matching subset has no
     /// Kotlin-style condition `when`. Pattern bindings
     /// scope over the arm's guard and body; exhaustiveness is checked
     /// over the whole statement.
@@ -22,12 +23,14 @@ impl Lowerer {
         let subject = self.lower_expr(&when.subject, &mut sink, None)?;
         if !matches!(
             self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..)
+            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
         ) {
             let found = self.type_name(subject.ty);
             self.error(
                 when.subject.span(),
-                format!("`when` subject must be an enum, tuple or struct, found {found}"),
+                format!(
+                    "`when` subject must be an enum, tuple, struct or fixed-width integer, found {found}"
+                ),
             );
             return None;
         }
@@ -79,12 +82,14 @@ impl Lowerer {
         let subject = self.lower_expr(&when.subject, &mut subject_sink, None)?;
         if !matches!(
             self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..)
+            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
         ) {
             let found = self.type_name(subject.ty);
             self.error(
                 when.subject.span(),
-                format!("`when` subject must be an enum, tuple or struct, found {found}"),
+                format!(
+                    "`when` subject must be an enum, tuple, struct or fixed-width integer, found {found}"
+                ),
             );
             return None;
         }
@@ -108,6 +113,42 @@ impl Lowerer {
             Some(body) if !defer_else => Some(self.lower_value_block(body, expected)?),
             _ => None,
         };
+        let has_hint = arms.iter().any(|arm| {
+            arm.as_ref()
+                .is_some_and(|arm| arm.body.value.as_ref().is_some())
+        }) || else_value
+            .as_ref()
+            .is_some_and(|body| body.value.as_ref().is_some());
+        if !has_hint {
+            let arm_seed = when
+                .arms
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| arms[*index].is_none() && deferred[*index])
+                .filter_map(|(index, arm)| {
+                    self.value_block_default_seed_rank(&arm.body)
+                        .map(|rank| (rank, index, arm))
+                })
+                .max_by_key(|(rank, _, _)| *rank);
+            let else_rank = else_value
+                .is_none()
+                .then(|| {
+                    when.else_body
+                        .as_ref()
+                        .and_then(|body| self.value_block_default_seed_rank(body))
+                })
+                .flatten();
+            if let Some((rank, index, arm)) = arm_seed
+                && Some(rank) >= else_rank
+            {
+                arms[index] = Some(self.lower_value_arm(arm, subject.ty, None)?);
+            } else if else_rank.is_some() && defer_else {
+                else_value = Some(self.lower_value_block(
+                    when.else_body.as_ref().expect("deferred else exists"),
+                    None,
+                )?);
+            }
+        }
         let mut hint_types: Vec<_> = arms
             .iter()
             .filter_map(|arm| {

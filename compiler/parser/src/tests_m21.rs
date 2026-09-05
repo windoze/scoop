@@ -41,7 +41,10 @@ fn complete_property_and_accessor_syntax_has_one_closed_body_form() {
     else {
         panic!("expected initialized stored property")
     };
-    assert!(matches!(&**expression, Expr::IntLiteral { value: 1, .. }));
+    assert!(matches!(
+        &**expression,
+        Expr::IntLiteral(literal) if literal.magnitude == 1
+    ));
     let getter = accessors.getter.as_ref().expect("getter");
     assert_eq!(getter.annotations[0].name.text, "Getter");
     assert!(matches!(getter.body, AccessorBodySyntax::Expr(_)));

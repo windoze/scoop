@@ -220,7 +220,10 @@ fn generic_interface_default_keeps_the_exact_owner_application() {
     else {
         panic!("the default retains its interface application")
     };
-    assert_eq!(module.interface_applications[owner].arguments, [module.int]);
+    assert_eq!(
+        module.interface_applications[owner].arguments,
+        [int_type(&module)]
+    );
 }
 
 #[test]

@@ -153,6 +153,7 @@ impl Lowerer {
             access,
             self_application,
             type_params: type_params.clone(),
+            gc_free_pointee_requirements: Vec::new(),
             attributes: checked.attributes,
             representation,
             constructors: Vec::new(),
@@ -255,6 +256,7 @@ impl Lowerer {
             access,
             self_application,
             type_params,
+            gc_free_pointee_requirements: Vec::new(),
             no_gc,
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
@@ -399,6 +401,7 @@ impl Lowerer {
             access,
             self_application,
             type_params: type_params.clone(),
+            gc_free_pointee_requirements: Vec::new(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
             representation,
@@ -517,6 +520,7 @@ impl Lowerer {
             access,
             self_application,
             type_params: type_params.clone(),
+            gc_free_pointee_requirements: Vec::new(),
             parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),

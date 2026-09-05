@@ -4,9 +4,11 @@ use super::*;
 
 #[test]
 fn int_and_bool_literals() {
-    assert!(
-        matches!(init_expr("42"), Expr::IntLiteral { value: 42, span } if span == Span::new(25, 27))
-    );
+    assert!(matches!(
+        init_expr("42"),
+        Expr::IntLiteral(literal)
+            if literal.magnitude == 42 && literal.span == Span::new(25, 27)
+    ));
     assert!(matches!(
         init_expr("true"),
         Expr::BoolLiteral { value: true, .. }

@@ -76,7 +76,7 @@ impl Lowerer {
                 "register" => {
                     matches!(signature.params.as_slice(), [closure, index, mode_param]
                         if closure.ty == self.any
-                            && index.ty == self.int
+                            && index.ty == self.integer_type(hir::IntegerKind::SIGNED_64)
                             && mode_param.ty == self.interned_enum_type(mode))
                         && callback_param(signature.return_ty)
                 }

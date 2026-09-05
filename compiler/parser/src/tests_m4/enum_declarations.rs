@@ -130,9 +130,9 @@ fn enum_constructor_variant_with_constant_defaults() {
     assert!(matches!(
         fields[0].syntax,
         ParameterSyntax::Default {
-            expression: Expr::IntLiteral { value: 0, .. },
+            expression: Expr::IntLiteral(literal),
             ..
-        }
+        } if literal.magnitude == 0
     ));
     assert!(
         matches!(&fields[1].syntax, ParameterSyntax::Default { expression: Expr::StringLiteral { value, .. }, .. } if value == "x")

@@ -113,7 +113,7 @@ static const ScoopTypeDescriptor array_i64_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "Array<Int>",
+    .name = "Array<ULong>",
 };
 
 static const TestLeaf immortal_leaf = {

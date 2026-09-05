@@ -112,7 +112,8 @@ impl Lowerer {
             }]
         };
         let source_name = &self.closure_classes[class].name;
-        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
+        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
+            .expect("function bridge targets are source-level MIR types");
         let name = format!("function_bridge.{source_name}.{target_name}");
         let body = cfg::lower(
             smir::Body { locals, statements },

@@ -30,7 +30,7 @@ pub(crate) fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::Re
 pub(crate) fn scan_fields(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     fields: &[mir::Type],
     offsets: &[u64],
     base: u64,
@@ -47,7 +47,7 @@ pub(crate) fn scan_fields(
 pub(crate) fn ref_scan(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     ty: &mir::Type,
     base: u64,
 ) -> lir::RefScan {
@@ -102,8 +102,7 @@ pub(crate) fn ref_scan(
             ),
         },
         mir::Type::Unit
-        | mir::Type::Int
-        | mir::Type::UInt
+        | mir::Type::Integer(_)
         | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::Ptr(_)

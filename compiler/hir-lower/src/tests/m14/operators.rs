@@ -178,6 +178,99 @@ fn generic_equality_resolves_the_exact_operator_bound_member() {
 }
 
 #[test]
+fn derived_equality_normalizes_integer_field_winners_before_concretization() {
+    let output = lower_user_output(file(vec![
+        generic_struct_decl(
+            "Pair",
+            vec!["T"],
+            vec![("first", ty_named("T")), ("second", ty_named("T"))],
+        ),
+        fun(
+            "main",
+            vec![val(
+                "same",
+                binary(
+                    BinOp::Eq,
+                    struct_init("Pair", vec![int_lit(1), int_lit(2)]),
+                    struct_init("Pair", vec![int_lit(1), int_lit(2)]),
+                ),
+            )],
+        ),
+    ]))
+    .expect("derived equality over integer fields must remain closed HIR");
+
+    let application = output
+        .export
+        .derived_equality_applications
+        .iter()
+        .find_map(|(_, application)| {
+            (hir::type_name(&output.export, application.owner_ty) == "Pair<Int>")
+                .then_some(application)
+        })
+        .expect("Pair<Int> derived equality application");
+    let hir::ExprKind::Binary {
+        op: hir::BinOp::And,
+        lhs,
+        rhs,
+    } = &return_value(&application.body.statements).kind
+    else {
+        panic!("Pair<Int> equality compares both fields")
+    };
+    for comparison in [lhs.as_ref(), rhs.as_ref()] {
+        assert!(matches!(
+            comparison.kind,
+            hir::ExprKind::IntegerOperation {
+                operation: hir::IntegerOperation::NoGc {
+                    kind: hir::IntegerKind::SIGNED_32,
+                    operation: hir::NoGcIntegerOperation::Equals,
+                    ..
+                },
+                ..
+            }
+        ));
+    }
+
+    let concrete = output
+        .local
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == "Pair.equals").then_some(function))
+        .expect("concrete Pair<Int> derived equality function");
+    let hir::concrete::FunctionKind::User(body) = &concrete.kind else {
+        panic!("derived equality has a concrete user body")
+    };
+    let value = body
+        .statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            _ => None,
+        })
+        .expect("derived equality returns its comparison");
+    let hir::concrete::ExprKind::Binary {
+        op: hir::BinOp::And,
+        lhs,
+        rhs,
+    } = &value.kind
+    else {
+        panic!("concrete Pair<Int> equality compares both fields")
+    };
+    for comparison in [lhs.as_ref(), rhs.as_ref()] {
+        assert!(matches!(
+            comparison.kind,
+            hir::concrete::ExprKind::IntegerOperation {
+                operation: hir::IntegerOperation::NoGc {
+                    kind: hir::IntegerKind::SIGNED_32,
+                    operation: hir::NoGcIntegerOperation::Equals,
+                    ..
+                },
+                ..
+            }
+        ));
+    }
+}
+
+#[test]
 fn operator_equals_legality_is_checked_at_its_declaration() {
     let mut wrong_name = operator_equals(false, false, ty_named("Bad"));
     wrong_name.name = ident("compare");

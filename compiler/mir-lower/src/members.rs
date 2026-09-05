@@ -208,8 +208,15 @@ impl Lowerer {
         let constructor = &module.struct_constructors[constructor_id];
         let decl = &module.structs[constructor.structure];
         let name = format!("ctor.{}.$c{}", decl.name, constructor.source_discriminator);
+        let gc_effect = match &constructor.kind {
+            // Primary struct construction only assembles an already-evaluated
+            // value. Defaults and source arguments are evaluated by the
+            // caller, so the generated constructor has no managed entry.
+            hir::StructConstructorKind::Primary => mir::GcEffect::NoGc,
+            hir::StructConstructorKind::Secondary { .. } => mir::GcEffect::Managed,
+        };
         let id = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
+            gc_effect,
             symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
@@ -267,7 +274,6 @@ impl Lowerer {
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
@@ -364,7 +370,6 @@ impl Lowerer {
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,

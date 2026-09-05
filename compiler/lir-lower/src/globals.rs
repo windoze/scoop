@@ -10,8 +10,8 @@ pub(super) fn lower_globals(
     context: &LoweringContext,
     module: &mir::Module,
     globals: &mut Arena<lir::Global>,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> (
     HashMap<mir::GlobalId, StorageGlobal>,
@@ -23,14 +23,14 @@ pub(super) fn lower_globals(
     let mut bridges = lir::NativeGlobalBridges::default();
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
-            mir::GlobalStorage::Managed { initializer } => {
+            mir::GlobalStorage::Managed { initial_state } => {
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
-                        initializer: lower_constant(initializer, string_globals),
+                        initial_state: lower_static_initial_state(initial_state, string_globals),
                         thread_local: false,
                     },
                 });
@@ -38,7 +38,7 @@ pub(super) fn lower_globals(
             }
             mir::GlobalStorage::Local {
                 thread_local,
-                initializer,
+                initial_state,
             } => {
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
@@ -46,7 +46,7 @@ pub(super) fn lower_globals(
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
-                        initializer: lower_constant(initializer, string_globals),
+                        initial_state: lower_static_initial_state(initial_state, string_globals),
                         thread_local: *thread_local,
                     },
                 });
@@ -57,6 +57,7 @@ pub(super) fn lower_globals(
                 native_symbol,
                 thread_local,
             } => {
+                let c_type = c_ffi_type(module, structs, enums, &global.ty);
                 let raw = native.len() as u32;
                 let get = bridges.gets.alloc(lir::NativeGlobalGetBridge {
                     symbol: format!("scoop_c_global_get_{raw}"),
@@ -76,8 +77,7 @@ pub(super) fn lower_globals(
                     source_name: global.name.clone(),
                     native_symbol: native_symbol.clone(),
                     library: library.clone(),
-                    ty: lir_type(&global.ty),
-                    c_type: c_ffi_type(module, &global.ty),
+                    c_type,
                     thread_local: *thread_local,
                     access,
                 });
@@ -89,29 +89,50 @@ pub(super) fn lower_globals(
     (map, native, bridges)
 }
 
-pub(super) fn lower_constant(
-    value: &mir::ConstantValue,
+pub(super) fn lower_static_initial_state(
+    state: &mir::MirStaticInitialState,
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
-) -> lir::ConstantValue {
+) -> lir::LirStaticInitialState {
+    match state {
+        mir::MirStaticInitialState::ZeroedForRuntimeUnit => {
+            lir::LirStaticInitialState::ZeroedForRuntimeUnit
+        }
+        mir::MirStaticInitialState::EncodedStaticValue { payload } => {
+            lir::LirStaticInitialState::EncodedStaticValue {
+                payload: lower_constant_image(payload, string_globals),
+            }
+        }
+    }
+}
+
+pub(super) fn lower_constant_image(
+    value: &mir::MirConstantImage,
+    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+) -> lir::LirConstantImage {
     match value {
-        mir::ConstantValue::Zero => lir::ConstantValue::Zero,
-        mir::ConstantValue::Int(value) => lir::ConstantValue::Int(*value),
-        mir::ConstantValue::Bool(value) => lir::ConstantValue::Bool(*value),
-        mir::ConstantValue::String(string) => lir::ConstantValue::GlobalPointer {
+        mir::MirConstantImage::Integer(value) => {
+            lir::LirConstantImage::Integer(integer_constant(*value))
+        }
+        mir::MirConstantImage::Boolean(value) => lir::LirConstantImage::Bool(*value),
+        mir::MirConstantImage::String(string) => lir::LirConstantImage::GlobalPointer {
             global: string_globals[string],
             kind: lir::PointerKind::Managed,
         },
-        mir::ConstantValue::NullPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Raw),
-        mir::ConstantValue::NullFunPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Code),
-        mir::ConstantValue::EnumUnit { enum_id, variant } => lir::ConstantValue::EnumUnit {
+        mir::MirConstantImage::PointerNull(kind) => {
+            lir::LirConstantImage::NullPointer(match kind {
+                mir::MirPointerNull::Data => lir::PointerKind::Raw,
+                mir::MirPointerNull::Code => lir::PointerKind::Code,
+            })
+        }
+        mir::MirConstantImage::EnumUnit { enum_id, variant } => lir::LirConstantImage::EnumUnit {
             enum_id: enum_def_id(*enum_id),
             variant: *variant,
         },
-        mir::ConstantValue::Struct { struct_id, fields } => lir::ConstantValue::Struct {
+        mir::MirConstantImage::Struct { struct_id, fields } => lir::LirConstantImage::Struct {
             struct_id: struct_def_id(*struct_id),
             fields: fields
                 .iter()
-                .map(|field| lower_constant(field, string_globals))
+                .map(|field| lower_constant_image(field, string_globals))
                 .collect(),
         },
     }

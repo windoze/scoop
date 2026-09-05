@@ -10,22 +10,56 @@ use call::LoweredCallDestination;
 /// types come exclusively from the typed MIR expressions.
 fn binary_op(op: mir::BinOp) -> lir::BinOp {
     match op {
-        mir::BinOp::IntAdd => lir::BinOp::Add,
-        mir::BinOp::IntSub => lir::BinOp::Sub,
-        mir::BinOp::IntMul => lir::BinOp::Mul,
-        mir::BinOp::IntDiv => lir::BinOp::SDiv,
-        mir::BinOp::IntRem => lir::BinOp::SRem,
-        mir::BinOp::UIntDiv => lir::BinOp::UDiv,
-        mir::BinOp::UIntRem => lir::BinOp::URem,
-        mir::BinOp::IntCompareTo => lir::BinOp::SCompareTo,
-        mir::BinOp::UIntCompareTo => lir::BinOp::UCompareTo,
-        mir::BinOp::IntLt => lir::BinOp::Lt,
-        mir::BinOp::IntLe => lir::BinOp::Le,
-        mir::BinOp::IntGt => lir::BinOp::Gt,
-        mir::BinOp::IntGe => lir::BinOp::Ge,
-        mir::BinOp::IntEq | mir::BinOp::BoolEq => lir::BinOp::Eq,
-        mir::BinOp::IntNe | mir::BinOp::BoolNe => lir::BinOp::Ne,
+        mir::BinOp::BoolEq | mir::BinOp::RefEq => lir::BinOp::Eq,
+        mir::BinOp::BoolNe | mir::BinOp::RefNe => lir::BinOp::Ne,
         mir::BinOp::MachineEq(kind) => lir::BinOp::MachineEq(machine_scalar_kind(kind)),
+    }
+}
+
+fn integer_binary_op(op: mir::IntegerBinaryOperator) -> lir::IntegerBinaryOperation {
+    match op {
+        mir::IntegerBinaryOperator::Add => lir::IntegerBinaryOperation::Add,
+        mir::IntegerBinaryOperator::Subtract => lir::IntegerBinaryOperation::Subtract,
+        mir::IntegerBinaryOperator::Multiply => lir::IntegerBinaryOperation::Multiply,
+        mir::IntegerBinaryOperator::BitAnd => lir::IntegerBinaryOperation::BitwiseAnd,
+        mir::IntegerBinaryOperator::BitOr => lir::IntegerBinaryOperation::BitwiseOr,
+        mir::IntegerBinaryOperator::BitXor => lir::IntegerBinaryOperation::BitwiseXor,
+    }
+}
+
+fn integer_div_rem_op(op: mir::SafeIntegerDivRemOperator) -> lir::IntegerDivRemOperation {
+    match op {
+        mir::SafeIntegerDivRemOperator::Divide => lir::IntegerDivRemOperation::Divide,
+        mir::SafeIntegerDivRemOperator::Remainder => lir::IntegerDivRemOperation::Remainder,
+    }
+}
+
+fn integer_comparison(op: mir::IntegerComparisonOperator) -> lir::IntegerComparison {
+    match op {
+        mir::IntegerComparisonOperator::LessThan => lir::IntegerComparison::Less,
+        mir::IntegerComparisonOperator::LessThanOrEqual => lir::IntegerComparison::LessOrEqual,
+        mir::IntegerComparisonOperator::GreaterThan => lir::IntegerComparison::Greater,
+        mir::IntegerComparisonOperator::GreaterThanOrEqual => {
+            lir::IntegerComparison::GreaterOrEqual
+        }
+        mir::IntegerComparisonOperator::Equal => lir::IntegerComparison::Equal,
+        mir::IntegerComparisonOperator::NotEqual => lir::IntegerComparison::NotEqual,
+    }
+}
+
+fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftOperation {
+    match (operation.value_kind().signedness(), operation.operator()) {
+        (_, mir::IntegerShiftOperator::Left) => lir::IntegerShiftOperation::Left,
+        (mir::IntegerSignedness::Signed, mir::IntegerShiftOperator::Right) => {
+            lir::IntegerShiftOperation::ArithmeticRight
+        }
+        (mir::IntegerSignedness::Unsigned, mir::IntegerShiftOperator::Right)
+        | (mir::IntegerSignedness::Signed, mir::IntegerShiftOperator::UnsignedRight) => {
+            lir::IntegerShiftOperation::LogicalRight
+        }
+        (mir::IntegerSignedness::Unsigned, mir::IntegerShiftOperator::UnsignedRight) => {
+            unreachable!("MIR rejects unsigned ushr when constructing its typed operation")
+        }
     }
 }
 
@@ -39,8 +73,8 @@ pub(super) fn lower_function<'a>(
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
     layout_types: &mut Vec<mir::Type>,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
@@ -197,10 +231,10 @@ struct FunctionLowerer<'a> {
     /// Sink for tuple types encountered in value types (meta layouts).
     layout_types: &'a mut Vec<mir::Type>,
     /// Complete value layouts used to classify return conventions and scans.
-    structs: &'a Arena<lir::StructDef>,
+    structs: &'a lir::StructDefs,
     /// Enum definitions with fixed representations (enum value
     /// sizing, e.g. for `scoop_rt_box` payload sizes).
-    enums: &'a Arena<lir::EnumDef>,
+    enums: &'a lir::EnumDefs,
     /// Complete class-application to array-metadata mapping produced before
     /// any function is lowered.
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,

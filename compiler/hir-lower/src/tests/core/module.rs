@@ -19,8 +19,8 @@ pub(crate) fn core_file() -> SourceFile {
             "SourceLocation",
             vec![
                 ("file", ty_named("String")),
-                ("line", ty_named("Int")),
-                ("column", ty_named("Int")),
+                ("line", ty_named("Long")),
+                ("column", ty_named("Long")),
                 ("functionName", ty_named("String")),
                 ("typeName", ty_named("String")),
             ],

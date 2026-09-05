@@ -27,9 +27,12 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
 }
 
 fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
-    module.structs.alloc(StructDef {
-        name: name.to_string(),
-        fields: vec![
+    module.structs.alloc_scoop(
+        name.to_string(),
+        16,
+        8,
+        false,
+        vec![
             scoop_lir::StructField {
                 ty: CODE_PTR,
                 layout: scoop_lir::FieldLayout {
@@ -45,11 +48,7 @@ fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
                 },
             },
         ],
-        size: 16,
-        align: 8,
-        c_layout: None,
-        interior_mutable: false,
-    })
+    )
 }
 
 fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
@@ -88,7 +87,7 @@ fn pointer_niche(
     name: &str,
     kind: scoop_lir::NichePointerKind,
 ) -> scoop_lir::EnumDefId {
-    module.enums.alloc(EnumDef {
+    let definition = EnumDef {
         name: name.to_string(),
         repr: EnumRepr::Niche {
             kind,
@@ -99,14 +98,64 @@ fn pointer_niche(
         } else {
             RefScan::None
         },
-    })
+    };
+    match kind {
+        scoop_lir::NichePointerKind::Raw => module
+            .enums
+            .alloc_c_nullable_data_pointer_option(definition),
+        scoop_lir::NichePointerKind::Code => module
+            .enums
+            .alloc_c_nullable_code_pointer_option(definition),
+        scoop_lir::NichePointerKind::Managed => module.enums.alloc(definition),
+    }
 }
 
-fn c_function_pointer() -> scoop_lir::CType {
-    scoop_lir::CType::FunctionPointer {
+fn c_nullable_function_pointer(
+    enums: &scoop_lir::EnumDefs,
+    enum_id: scoop_lir::EnumDefId,
+) -> scoop_lir::CType {
+    let signature = scoop_lir::CFunctionType {
         params: Vec::new(),
-        return_type: Box::new(scoop_lir::CType::Unit),
+        return_type: scoop_lir::CReturnType::Void,
+    };
+    scoop_lir::CType::CodePointer {
+        signature: Box::new(signature.clone()),
+        storage: scoop_lir::CCodePointerStorage::Nullable(
+            enums
+                .nullable_code_pointer_ref(enum_id, signature)
+                .expect("test code-pointer niche"),
+        ),
     }
+}
+
+fn c_opaque_pointer() -> scoop_lir::CType {
+    scoop_lir::CType::DataPointer {
+        pointee: scoop_lir::CDataPointee::OpaqueVoid,
+        storage: scoop_lir::CDataPointerStorage::Direct,
+    }
+}
+
+fn c_nullable_opaque_pointer(
+    enums: &scoop_lir::EnumDefs,
+    enum_id: scoop_lir::EnumDefId,
+) -> scoop_lir::CType {
+    let pointee = scoop_lir::CDataPointee::OpaqueVoid;
+    scoop_lir::CType::DataPointer {
+        pointee: pointee.clone(),
+        storage: scoop_lir::CDataPointerStorage::Nullable(
+            enums
+                .nullable_data_pointer_ref(enum_id, pointee)
+                .expect("test raw-pointer niche"),
+        ),
+    }
+}
+
+fn c_struct(structs: &scoop_lir::StructDefs, id: scoop_lir::StructDefId) -> scoop_lir::CType {
+    scoop_lir::CType::Struct(structs.c_ref(id).expect("test C struct"))
+}
+
+fn c_value(ty: scoop_lir::CType) -> scoop_lir::CReturnType {
+    scoop_lir::CReturnType::Value(Box::new(ty))
 }
 
 pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::ForeignCallbackFamilyId {
@@ -127,7 +176,7 @@ struct ForeignCallbackBridgeFixture<'a> {
     trampoline: &'a str,
     signature: &'a str,
     params: Vec<scoop_lir::CType>,
-    return_type: scoop_lir::CType,
+    return_type: scoop_lir::CReturnType,
     context_index: u32,
 }
 
@@ -155,74 +204,76 @@ fn add_foreign_callback_bridge(
 
 #[test]
 fn c_layout_matches_llvm_and_generated_c_assertions() {
-    let mut structs = Arena::default();
-    let inner = structs.alloc(StructDef {
-        name: "Inner".to_string(),
-        fields: vec![
-            scoop_lir::StructField {
-                ty: LirType::I1,
+    let mut structs = scoop_lir::StructDefs::default();
+    let inner = structs.alloc_c(
+        "Inner".to_string(),
+        16,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::A8,
+            packed: scoop_lir::LirCLayoutValue::A1,
+        },
+        vec![
+            scoop_lir::CStructField {
+                ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
                     access_align: 1,
                 },
             },
-            scoop_lir::StructField {
-                ty: LirType::I64,
+            scoop_lir::CStructField {
+                ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 1,
                     access_align: 1,
                 },
             },
         ],
-        size: 16,
-        align: 8,
-        c_layout: Some(scoop_lir::CLayout {
-            aligned: 8,
-            packed: 1,
-        }),
-        interior_mutable: false,
-    });
-    let outer = structs.alloc(StructDef {
-        name: "Outer".to_string(),
-        fields: vec![
-            scoop_lir::StructField {
-                ty: LirType::I1,
+    );
+    let inner_id = inner.definition();
+    let outer = structs.alloc_c(
+        "Outer".to_string(),
+        32,
+        16,
+        true,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::A16,
+            packed: scoop_lir::LirCLayoutValue::A2,
+        },
+        vec![
+            scoop_lir::CStructField {
+                ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
                     access_align: 1,
                 },
             },
-            scoop_lir::StructField {
-                ty: LirType::Struct(inner),
+            scoop_lir::CStructField {
+                ty: scoop_lir::CType::Struct(inner),
                 layout: scoop_lir::FieldLayout {
                     offset: 2,
                     access_align: 2,
                 },
             },
-            scoop_lir::StructField {
-                ty: LirType::I64,
+            scoop_lir::CStructField {
+                ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 18,
                     access_align: 2,
                 },
             },
         ],
-        size: 32,
-        align: 16,
-        c_layout: Some(scoop_lir::CLayout {
-            aligned: 16,
-            packed: 2,
-        }),
-        interior_mutable: true,
-    });
-    let mut enums = Arena::default();
+    );
+    let outer_id = outer.definition();
+    let mut enums = scoop_lir::EnumDefs::default();
     let wrapped = enums.alloc(EnumDef {
         name: "Wrapped".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
                 EnumVariantRepr {
                     fields: vec![EnumFieldRepr {
-                        ty: LirType::Struct(outer),
+                        ty: LirType::Struct(outer_id),
                         offset: 16,
                     }],
                     slot_offset: 16,
@@ -249,7 +300,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &mut meta,
         "ArrayOuter",
         scoop_lir::ArrayKind::Immutable,
-        LirType::Struct(outer),
+        LirType::Struct(outer_id),
         32,
         16,
         RefScan::None,
@@ -257,18 +308,18 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 
     let mut temps = Arena::default();
     let inner_value = temps.alloc(Temp {
-        ty: LirType::Struct(inner),
+        ty: LirType::Struct(inner_id),
     });
     let inner_field = temps.alloc(Temp { ty: LirType::I64 });
     let outer_value = temps.alloc(Temp {
-        ty: LirType::Struct(outer),
+        ty: LirType::Struct(outer_id),
     });
     let outer_field = temps.alloc(Temp {
-        ty: LirType::Struct(inner),
+        ty: LirType::Struct(inner_id),
     });
     let array = temps.alloc(Temp { ty: MANAGED_PTR });
     let loaded = temps.alloc(Temp {
-        ty: LirType::Struct(outer),
+        ty: LirType::Struct(outer_id),
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -276,7 +327,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         instructions: vec![
             Instruction::MakeAggregate {
                 out: inner_value,
-                elements: vec![Value::BoolConst(true), Value::IntConst(7)],
+                elements: vec![Value::BoolConst(true), signed64(7)],
             },
             Instruction::ExtractValue {
                 out: inner_field,
@@ -288,7 +339,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 elements: vec![
                     Value::BoolConst(false),
                     Value::Temp(inner_value),
-                    Value::IntConst(9),
+                    signed64(9),
                 ],
             },
             Instruction::ExtractValue {
@@ -306,7 +357,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             Instruction::ArrayGet {
                 out: loaded,
                 array: Value::Temp(array),
-                index: Value::IntConst(0),
+                index: signed64(0),
                 array_type: outer_array,
             },
         ],
@@ -346,7 +397,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &module.structs,
         &module.enums,
         host_managed_address_space(),
-        &LirType::Struct(outer),
+        &LirType::Struct(outer_id),
     )
     .expect("outer LLVM type");
     assert_eq!(target_data.get_abi_size(&outer_ty), 32);
@@ -389,24 +440,24 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     assert!(status.success(), "generated C assertions must compile");
 
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
-        declaration: scoop_lir::ExternFunctionDeclaration {
+        identity: scoop_lir::ExternFunctionIdentity {
             source_name: "swap".to_string(),
             native_symbol: "native_swap".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
-            params: vec![LirType::Struct(outer)],
-            return_type: LirType::Struct(outer),
         },
         bridge_symbol: "scoop_c_bridge_0".to_string(),
-        params: vec![scoop_lir::CType::Struct(outer)],
-        return_type: scoop_lir::CType::Struct(outer),
+        signature: scoop_lir::CFunctionType {
+            params: vec![scoop_lir::CType::Struct(outer)],
+            return_type: c_value(scoop_lir::CType::Struct(outer)),
+        },
     });
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
         bridge_symbol: "scoop_callback_bridge_0".to_string(),
         trampoline_symbol: "scoop_c_callback_0".to_string(),
         params: vec![scoop_lir::CType::Struct(outer)],
-        return_type: scoop_lir::CType::Struct(outer),
+        return_type: c_value(scoop_lir::CType::Struct(outer)),
     });
     let foreign_callback_family = foreign_callback_family(&mut module);
     for (adapter, mode) in [
@@ -426,8 +477,11 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 adapter_symbol: adapter.to_string(),
                 trampoline_symbol: "scoop_foreign_callback_0".to_string(),
                 signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
-                params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
-                return_type: scoop_lir::CType::Int,
+                params: vec![
+                    scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+                    c_opaque_pointer(),
+                ],
+                return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
                 context_index: 1,
                 mode,
             });
@@ -453,7 +507,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     );
     assert_eq!(
         bridge
-            .matches("int64_t scoop_foreign_callback_0(int64_t arg0, void * arg1)")
+            .matches("int64_t scoop_foreign_callback_0(int64_t arg0, void *arg1)")
             .count(),
         1,
         "registrations sharing a signature/context shape must share one trampoline:\n{bridge}"
@@ -490,32 +544,171 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 }
 
 #[test]
-fn c_extern_rejects_machine_scalar_lir_type() {
+fn c_extern_derives_physical_signature_from_exact_c_types() {
     let mut module = values_module();
-    module.extern_functions.alloc_c(scoop_lir::CExternFunction {
-        declaration: scoop_lir::ExternFunctionDeclaration {
+    let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        identity: scoop_lir::ExternFunctionIdentity {
             source_name: "machineSize".to_string(),
             native_symbol: "machine_size".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
-            params: vec![LirType::MachineScalar(MachineScalarKind::ByteSize)],
-            return_type: LirType::Void,
         },
         bridge_symbol: "scoop_c_bridge_machine_size".to_string(),
-        params: vec![scoop_lir::CType::UInt],
-        return_type: scoop_lir::CType::Unit,
+        signature: scoop_lir::CFunctionType {
+            params: vec![scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64)],
+            return_type: scoop_lir::CReturnType::Void,
+        },
     });
 
-    let error = c_bridge_source(&module).expect_err("C ABI must reject internal machine scalars");
+    let scoop_lir::ExternFunctionKind::C { signature, .. } =
+        &module.extern_functions[function.declaration()].kind
+    else {
+        panic!("test allocated a C extern")
+    };
+    assert_eq!(signature.storage_params(), vec![LirType::I64]);
+    assert_eq!(signature.storage_return_type(), LirType::Void);
+    let bridge = c_bridge_source(&module)
+        .expect("exact signature validates")
+        .expect("C extern emits a bridge");
+    assert!(bridge.contains("extern void machine_size(uint64_t);"));
+}
+
+fn append_c_void_call(
+    module: &mut Module,
+    parameter: scoop_lir::CType,
+    storage_type: LirType,
+    argument: impl FnOnce(scoop_lir::LocalId) -> Value,
+) {
+    let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        identity: scoop_lir::ExternFunctionIdentity {
+            source_name: "consume".to_string(),
+            native_symbol: "native_consume".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+        },
+        bridge_symbol: "scoop_c_bridge_consume".to_string(),
+        signature: scoop_lir::CFunctionType {
+            params: vec![parameter],
+            return_type: scoop_lir::CReturnType::Void,
+        },
+    });
+    let caller = &mut module.functions[0];
+    let storage = caller.locals.alloc(Local {
+        name: "c_argument".to_string(),
+        ty: storage_type,
+    });
+    let site = void_site(
+        &mut caller.call_targets,
+        TestCallProtocol::NativeSafe {
+            safepoint: 99,
+            destination: scoop_lir::NativeSafeCallDestination::extern_function(function),
+        },
+        vec![RAW_PTR],
+        vec![argument(storage)],
+    );
+    caller.blocks[caller.entry]
+        .instructions
+        .push(Instruction::Call { site });
+}
+
+#[test]
+fn c_extern_call_requires_dedicated_argument_storage_addresses() {
+    let mut module = values_module();
+    append_c_void_call(
+        &mut module,
+        scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
+        LirType::I8,
+        |_| Value::NullPointer(PointerKind::Raw),
+    );
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("a raw pointer is not an exact C argument-storage witness");
     assert!(
-        error.0.contains("C extern `machineSize` parameter 0")
-            && error.0.contains("machine<byte-size>"),
+        error
+            .0
+            .contains("argument 0 is not an exact C argument-storage address"),
         "unexpected error: {error}"
     );
 }
 
 #[test]
-fn native_global_rejects_machine_scalar_lir_type() {
+fn c_extern_call_binds_each_argument_to_its_exact_c_storage_type() {
+    let mut module = values_module();
+    append_c_void_call(
+        &mut module,
+        scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
+        LirType::I64,
+        |storage| Value::CArgumentStorage(scoop_lir::CArgumentStorage::address_of(storage)),
+    );
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("the C argument local has the wrong exact storage type");
+    assert!(
+        error
+            .0
+            .contains("argument 0 storage local3 has type i64, expected exact C storage i8"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn c_argument_storage_address_cannot_escape_to_another_call_protocol() {
+    let mut module = values_module();
+    let caller = &mut module.functions[0];
+    let storage = caller.locals.alloc(Local {
+        name: "escaped_c_argument".to_string(),
+        ty: LirType::I8,
+    });
+    let site = void_site(
+        &mut caller.call_targets,
+        TestCallProtocol::NoGc {
+            destination: no_gc_runtime(scoop_lir::NoGcRuntimeFunction::Trap),
+        },
+        vec![RAW_PTR],
+        vec![Value::CArgumentStorage(
+            scoop_lir::CArgumentStorage::address_of(storage),
+        )],
+    );
+    caller.blocks[caller.entry]
+        .instructions
+        .push(Instruction::Call { site });
+
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("C argument storage is not a general raw-pointer operand");
+    assert!(
+        error
+            .0
+            .contains("uses a C argument-storage address outside a C extern call"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
+    let mut module = values_module();
+    append_c_void_call(
+        &mut module,
+        scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
+        LirType::I8,
+        |storage| Value::CArgumentStorage(scoop_lir::CArgumentStorage::address_of(storage)),
+    );
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.lines()
+            .any(|line| { line.contains("call void @scoop_c_bridge_consume(ptr %c_argument)") }),
+        "C bridge did not receive the exact backing alloca:\n{ir}"
+    );
+}
+
+#[test]
+fn native_global_derives_physical_storage_from_exact_c_type() {
     let mut module = values_module();
     let get = module
         .native_global_bridges
@@ -534,58 +727,157 @@ fn native_global_rejects_machine_scalar_lir_type() {
         source_name: "machineGlobal".to_string(),
         native_symbol: "machine_global".to_string(),
         library: "fixture".to_string(),
-        ty: LirType::MachineScalar(MachineScalarKind::ByteSize),
-        c_type: scoop_lir::CType::UInt,
+        c_type: scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64),
         thread_local: false,
         access: scoop_lir::NativeGlobalAccess::ReadOnly { get, address },
     });
 
-    let error =
-        c_bridge_source(&module).expect_err("native C globals must reject machine scalar storage");
+    let (_, global) = module
+        .native_globals
+        .iter()
+        .next()
+        .expect("one native global");
+    assert_eq!(global.storage_type(), LirType::I64);
+    let bridge = c_bridge_source(&module)
+        .expect("exact global validates")
+        .expect("native global emits a bridge");
+    assert!(bridge.contains("extern uint64_t machine_global;"));
+}
+
+#[test]
+fn refined_nullable_references_cannot_cross_raw_and_code_provenance() {
+    let mut module = values_module();
+    let raw = pointer_niche(
+        &mut module,
+        "Option<Ptr<Unit>>",
+        scoop_lir::NichePointerKind::Raw,
+    );
+    let code = pointer_niche(
+        &mut module,
+        "Option<FunPtr<() -> Unit>>",
+        scoop_lir::NichePointerKind::Code,
+    );
+    let pointee = scoop_lir::CDataPointee::OpaqueVoid;
+    let signature = scoop_lir::CFunctionType {
+        params: Vec::new(),
+        return_type: scoop_lir::CReturnType::Void,
+    };
+
     assert!(
-        error.0.contains("native global `machineGlobal`") && error.0.contains("machine<byte-size>"),
-        "unexpected error: {error}"
+        module
+            .enums
+            .nullable_data_pointer_ref(raw, pointee.clone())
+            .is_some()
+    );
+    assert!(
+        module
+            .enums
+            .nullable_code_pointer_ref(raw, signature.clone())
+            .is_none()
+    );
+    assert!(
+        module
+            .enums
+            .nullable_code_pointer_ref(code, signature)
+            .is_some()
+    );
+    assert!(
+        module
+            .enums
+            .nullable_data_pointer_ref(code, pointee)
+            .is_none()
     );
 }
 
 #[test]
-fn c_abi_rejects_raw_code_niche_provenance_crossing() {
-    for (name, kind, c_type) in [
-        (
-            "rawAsCode",
-            scoop_lir::NichePointerKind::Raw,
-            c_function_pointer(),
-        ),
-        (
-            "codeAsRaw",
-            scoop_lir::NichePointerKind::Code,
-            scoop_lir::CType::Pointer,
-        ),
-    ] {
-        let mut module = values_module();
-        let pointer = pointer_niche(&mut module, name, kind);
-        module.extern_functions.alloc_c(scoop_lir::CExternFunction {
-            declaration: scoop_lir::ExternFunctionDeclaration {
-                source_name: name.to_string(),
-                native_symbol: name.to_string(),
-                library: "fixture".to_string(),
-                calling_convention: scoop_lir::CallingConvention::Cdecl,
-                params: vec![LirType::Enum(pointer)],
-                return_type: LirType::Void,
+fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
+    let mut module = values_module();
+    let option = pointer_niche(
+        &mut module,
+        "Option<Ptr<Unit>>",
+        scoop_lir::NichePointerKind::Raw,
+    );
+    let reference = module
+        .enums
+        .nullable_data_pointer_ref(option, scoop_lir::CDataPointee::OpaqueVoid)
+        .expect("test raw-pointer niche");
+    module.structs.alloc_c(
+        "MalformedNullableData".to_string(),
+        8,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::Natural,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        vec![scoop_lir::CStructField {
+            ty: scoop_lir::CType::DataPointer {
+                pointee: scoop_lir::CDataPointee::Object(Box::new(scoop_lir::CType::Integer(
+                    IntegerKind::SIGNED_32,
+                ))),
+                storage: scoop_lir::CDataPointerStorage::Nullable(reference),
             },
-            bridge_symbol: format!("scoop_c_bridge_{name}"),
-            params: vec![c_type],
-            return_type: scoop_lir::CType::Unit,
-        });
+            layout: scoop_lir::FieldLayout {
+                offset: 0,
+                access_align: 8,
+            },
+        }],
+    );
 
-        let error = c_bridge_source(&module)
-            .expect_err("raw and code pointer niches are distinct C ABI types");
-        assert!(
-            error.0.contains(&format!("C extern `{name}` parameter 0"))
-                && error.0.contains("does not exactly match C type"),
-            "unexpected error: {error}"
-        );
-    }
+    let error = c_layout_assertions(&module).expect_err("mismatched exact pointee must fail");
+    assert!(
+        error.0.contains("binds a different exact pointee"),
+        "{}",
+        error.0
+    );
+}
+
+#[test]
+fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
+    let mut module = values_module();
+    let option = pointer_niche(
+        &mut module,
+        "Option<FunPtr<() -> Unit>>",
+        scoop_lir::NichePointerKind::Code,
+    );
+    let bound_signature = scoop_lir::CFunctionType {
+        params: Vec::new(),
+        return_type: scoop_lir::CReturnType::Void,
+    };
+    let reference = module
+        .enums
+        .nullable_code_pointer_ref(option, bound_signature)
+        .expect("test code-pointer niche");
+    module.structs.alloc_c(
+        "MalformedNullableCode".to_string(),
+        8,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::Natural,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        vec![scoop_lir::CStructField {
+            ty: scoop_lir::CType::CodePointer {
+                signature: Box::new(scoop_lir::CFunctionType {
+                    params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
+                    return_type: scoop_lir::CReturnType::Void,
+                }),
+                storage: scoop_lir::CCodePointerStorage::Nullable(reference),
+            },
+            layout: scoop_lir::FieldLayout {
+                offset: 0,
+                access_align: 8,
+            },
+        }],
+    );
+
+    let error = c_layout_assertions(&module).expect_err("mismatched exact signature must fail");
+    assert!(
+        error.0.contains("binds a different exact signature"),
+        "{}",
+        error.0
+    );
 }
 
 #[test]
@@ -601,37 +893,39 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
         "Option<FunPtr<() -> Unit>>",
         scoop_lir::NichePointerKind::Code,
     );
-    module.structs.alloc(StructDef {
-        name: "PointerFields".to_string(),
-        fields: vec![
-            scoop_lir::StructField {
-                ty: LirType::Enum(raw),
+    let raw_type = c_nullable_opaque_pointer(&module.enums, raw);
+    let code_type = c_nullable_function_pointer(&module.enums, code);
+    module.structs.alloc_c(
+        "PointerFields".to_string(),
+        16,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::A8,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        vec![
+            scoop_lir::CStructField {
+                ty: raw_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
                     access_align: 8,
                 },
             },
-            scoop_lir::StructField {
-                ty: LirType::Enum(code),
+            scoop_lir::CStructField {
+                ty: code_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 8,
                     access_align: 8,
                 },
             },
         ],
-        size: 16,
-        align: 8,
-        c_layout: Some(scoop_lir::CLayout {
-            aligned: 8,
-            packed: 0,
-        }),
-        interior_mutable: false,
-    });
+    );
 
     let assertions = c_layout_assertions(&module).expect("raw/code niches are valid C fields");
-    assert!(assertions.contains("void * _field_0;"), "{assertions}");
+    assert!(assertions.contains("void *_field_0;"), "{assertions}");
     assert!(
-        assertions.contains("scoop_target_function_pointer _field_1;"),
+        assertions.contains("scoop_c_funptr_0 _field_1;"),
         "{assertions}"
     );
     let source = std::env::temp_dir().join(format!(
@@ -649,62 +943,409 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
 }
 
 #[test]
-fn c_layout_rejects_managed_or_metadata_pointer_fields() {
-    for invalid in [MANAGED_PTR, METADATA_PTR] {
-        let mut module = values_module();
-        module.structs.alloc(StructDef {
-            name: "InvalidPointerField".to_string(),
-            fields: vec![scoop_lir::StructField {
-                ty: invalid.clone(),
+fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
+    let mut module = values_module();
+    let raw = pointer_niche(
+        &mut module,
+        "Option<Ptr<Unit>>",
+        scoop_lir::NichePointerKind::Raw,
+    );
+    let code = pointer_niche(
+        &mut module,
+        "Option<FunPtr<(Int) -> Unit>>",
+        scoop_lir::NichePointerKind::Code,
+    );
+    let callback_signature = scoop_lir::CFunctionType {
+        params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
+        return_type: scoop_lir::CReturnType::Void,
+    };
+    let direct_data = c_opaque_pointer();
+    let nullable_data = c_nullable_opaque_pointer(&module.enums, raw);
+    let direct_code = scoop_lir::CType::CodePointer {
+        signature: Box::new(callback_signature.clone()),
+        storage: scoop_lir::CCodePointerStorage::Direct,
+    };
+    let nullable_code = scoop_lir::CType::CodePointer {
+        signature: Box::new(callback_signature.clone()),
+        storage: scoop_lir::CCodePointerStorage::Nullable(
+            module
+                .enums
+                .nullable_code_pointer_ref(code, callback_signature)
+                .expect("test code-pointer niche"),
+        ),
+    };
+    assert!(matches!(
+        &direct_data,
+        scoop_lir::CType::DataPointer {
+            storage: scoop_lir::CDataPointerStorage::Direct,
+            ..
+        }
+    ));
+    assert!(matches!(
+        &nullable_data,
+        scoop_lir::CType::DataPointer {
+            storage: scoop_lir::CDataPointerStorage::Nullable(reference),
+            ..
+        } if reference.definition() == raw
+    ));
+    assert!(matches!(
+        &direct_code,
+        scoop_lir::CType::CodePointer {
+            storage: scoop_lir::CCodePointerStorage::Direct,
+            ..
+        }
+    ));
+    assert!(matches!(
+        &nullable_code,
+        scoop_lir::CType::CodePointer {
+            storage: scoop_lir::CCodePointerStorage::Nullable(reference),
+            ..
+        } if reference.definition() == code
+    ));
+
+    let pointer_types = [
+        ("direct_data", direct_data),
+        ("nullable_data", nullable_data),
+        ("direct_code", direct_code),
+        ("nullable_code", nullable_code),
+    ];
+    module.structs.alloc_c(
+        "PointerTree".to_string(),
+        32,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::A8,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        pointer_types
+            .iter()
+            .enumerate()
+            .map(|(index, (_, ty))| scoop_lir::CStructField {
+                ty: ty.clone(),
+                layout: scoop_lir::FieldLayout {
+                    offset: u64::try_from(index).expect("four test fields") * 8,
+                    access_align: 8,
+                },
+            })
+            .collect(),
+    );
+    for (name, ty) in &pointer_types {
+        module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+            identity: scoop_lir::ExternFunctionIdentity {
+                source_name: format!("roundtrip{name}"),
+                native_symbol: format!("roundtrip_{name}"),
+                library: "fixture".to_string(),
+                calling_convention: scoop_lir::CallingConvention::Cdecl,
+            },
+            bridge_symbol: format!("bridge_{name}"),
+            signature: scoop_lir::CFunctionType {
+                params: vec![ty.clone()],
+                return_type: c_value(ty.clone()),
+            },
+        });
+        let get = module
+            .native_global_bridges
+            .gets
+            .alloc(scoop_lir::NativeGlobalGetBridge {
+                symbol: format!("get_{name}"),
+            });
+        let address =
+            module
+                .native_global_bridges
+                .addresses
+                .alloc(scoop_lir::NativeGlobalAddressBridge {
+                    symbol: format!("address_{name}"),
+                });
+        module.native_globals.alloc(scoop_lir::NativeGlobal {
+            source_name: format!("global{name}"),
+            native_symbol: format!("global_{name}"),
+            library: "fixture".to_string(),
+            c_type: ty.clone(),
+            thread_local: false,
+            access: scoop_lir::NativeGlobalAccess::ReadOnly { get, address },
+        });
+    }
+
+    let source = c_bridge_source(&module)
+        .expect("exact C pointer tree validates")
+        .expect("pointer externs and globals emit a bridge");
+    assert!(source.contains("void *_field_0;"), "{source}");
+    assert!(source.contains("void *_field_1;"), "{source}");
+    assert!(source.contains("scoop_c_funptr_0 _field_2;"), "{source}");
+    assert!(source.contains("scoop_c_funptr_0 _field_3;"), "{source}");
+    for name in ["direct_data", "nullable_data"] {
+        assert!(
+            source.contains(&format!("extern void *roundtrip_{name}(void *);")),
+            "{source}"
+        );
+        assert!(
+            source.contains(&format!("extern void *global_{name};")),
+            "{source}"
+        );
+    }
+    for name in ["direct_code", "nullable_code"] {
+        assert!(
+            source.contains(&format!(
+                "extern scoop_c_funptr_0 roundtrip_{name}(scoop_c_funptr_0);"
+            )),
+            "{source}"
+        );
+        assert!(
+            source.contains(&format!("extern scoop_c_funptr_0 global_{name};")),
+            "{source}"
+        );
+    }
+
+    let bridge_source = std::env::temp_dir().join(format!(
+        "scoop_exact_c_pointer_tree_{}.c",
+        std::process::id()
+    ));
+    std::fs::write(&bridge_source, &source).expect("write exact C pointer bridge");
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg(&bridge_source)
+        .status()
+        .expect("compile exact C pointer bridge");
+    std::fs::remove_file(&bridge_source).ok();
+    assert!(status.success(), "exact C pointer bridge must compile");
+}
+
+#[test]
+fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
+    let mut module = values_module();
+    let node = module.structs.alloc_c(
+        "Node".to_string(),
+        16,
+        8,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::Natural,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        Vec::new(),
+    );
+    let node_id = node.definition();
+    let node_pointer = scoop_lir::CType::DataPointer {
+        pointee: scoop_lir::CDataPointee::Object(Box::new(c_struct(&module.structs, node_id))),
+        storage: scoop_lir::CDataPointerStorage::Direct,
+    };
+    let visitor = scoop_lir::CType::CodePointer {
+        signature: Box::new(scoop_lir::CFunctionType {
+            params: vec![c_struct(&module.structs, node_id)],
+            return_type: scoop_lir::CReturnType::Void,
+        }),
+        storage: scoop_lir::CCodePointerStorage::Direct,
+    };
+    module.structs.set_c_fields(
+        node,
+        vec![
+            scoop_lir::CStructField {
+                ty: node_pointer,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
                     access_align: 8,
                 },
-            }],
-            size: 8,
-            align: 8,
-            c_layout: Some(scoop_lir::CLayout {
-                aligned: 8,
-                packed: 0,
-            }),
-            interior_mutable: false,
-        });
+            },
+            scoop_lir::CStructField {
+                ty: visitor,
+                layout: scoop_lir::FieldLayout {
+                    offset: 8,
+                    access_align: 8,
+                },
+            },
+        ],
+    );
 
-        let error = c_layout_assertions(&module)
-            .expect_err("managed/metadata pointers cannot be C-layout fields");
-        assert!(
-            error.0.contains("non-C type") && error.0.contains(&invalid.dump()),
-            "unexpected error: {error}"
-        );
-    }
+    let assertions = c_layout_assertions(&module).expect("recursive pointer layout is valid");
+    let forward = assertions
+        .find("typedef struct scoop_c_layout_0 scoop_c_layout_0;")
+        .expect("C struct forward declaration");
+    let function_pointer = assertions
+        .find("typedef void (*scoop_c_funptr_0)(scoop_c_layout_0 arg0);")
+        .expect("exact recursive by-value function-pointer typedef");
+    let definition = assertions
+        .find("struct __attribute__((packed, aligned(8))) scoop_c_layout_0 {")
+        .expect("C struct definition");
+    assert!(forward < function_pointer && function_pointer < definition);
+    assert!(
+        assertions.contains("scoop_c_layout_0 *_field_0;"),
+        "{assertions}"
+    );
+    assert!(
+        assertions.contains("scoop_c_funptr_0 _field_1;"),
+        "{assertions}"
+    );
 
+    let source =
+        std::env::temp_dir().join(format!("scoop_recursive_c_layout_{}.c", std::process::id()));
+    std::fs::write(&source, &assertions).expect("write recursive C layout");
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg(&source)
+        .status()
+        .expect("compile recursive C layout");
+    std::fs::remove_file(&source).ok();
+    assert!(
+        status.success(),
+        "generated recursive C layout must compile"
+    );
+}
+
+#[test]
+fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
+    let mut module = values_module();
+    let a = module.structs.alloc_c(
+        "A".to_string(),
+        1,
+        1,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::Natural,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        Vec::new(),
+    );
+    let b = module.structs.alloc_c(
+        "B".to_string(),
+        1,
+        1,
+        false,
+        scoop_lir::LirCLayoutContract {
+            aligned: scoop_lir::LirCLayoutValue::Natural,
+            packed: scoop_lir::LirCLayoutValue::Natural,
+        },
+        Vec::new(),
+    );
+    module.structs.set_c_fields(
+        a,
+        vec![scoop_lir::CStructField {
+            ty: scoop_lir::CType::Struct(b),
+            layout: scoop_lir::FieldLayout {
+                offset: 0,
+                access_align: 1,
+            },
+        }],
+    );
+    module.structs.set_c_fields(
+        b,
+        vec![scoop_lir::CStructField {
+            ty: scoop_lir::CType::Struct(a),
+            layout: scoop_lir::FieldLayout {
+                offset: 0,
+                access_align: 1,
+            },
+        }],
+    );
+
+    let error = c_layout_assertions(&module).expect_err("by-value C cycles are invalid");
+    assert!(
+        error.0.contains("recursively embedded by value")
+            && error.0.contains("struct `A`")
+            && error.0.contains("struct `B`"),
+        "unexpected diagnostic: {error}"
+    );
+}
+
+#[test]
+fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
+    let mut module = values_module();
+    module.callback_bridges.alloc(scoop_lir::CallbackBridge {
+        source_name: "signedNarrow".to_string(),
+        bridge_symbol: "signed_narrow_bridge".to_string(),
+        trampoline_symbol: "signed_narrow".to_string(),
+        params: vec![
+            scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
+            scoop_lir::CType::Integer(IntegerKind::UNSIGNED_8),
+            scoop_lir::CType::Integer(IntegerKind::SIGNED_16),
+            scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16),
+            scoop_lir::CType::Boolean,
+            scoop_lir::CType::Integer(IntegerKind::SIGNED_32),
+            scoop_lir::CType::Integer(IntegerKind::UNSIGNED_32),
+            scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+            scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64),
+        ],
+        return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_8)),
+    });
+    module.callback_bridges.alloc(scoop_lir::CallbackBridge {
+        source_name: "unsignedNarrow".to_string(),
+        bridge_symbol: "unsigned_narrow_bridge".to_string(),
+        trampoline_symbol: "unsigned_narrow".to_string(),
+        params: Vec::new(),
+        return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
+    });
+    module.callback_bridges.alloc(scoop_lir::CallbackBridge {
+        source_name: "boolNarrow".to_string(),
+        bridge_symbol: "bool_narrow_bridge".to_string(),
+        trampoline_symbol: "bool_narrow".to_string(),
+        params: Vec::new(),
+        return_type: c_value(scoop_lir::CType::Boolean),
+    });
+
+    let family = foreign_callback_family(&mut module);
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_narrow_adapter",
+            trampoline: "foreign_narrow",
+            signature: "foreign_narrow_signature",
+            params: vec![
+                c_opaque_pointer(),
+                scoop_lir::CType::Integer(IntegerKind::SIGNED_16),
+                scoop_lir::CType::Boolean,
+            ],
+            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_8)),
+            context_index: 0,
+        },
+    );
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains(
+            "declare signext i8 @signed_narrow(i8 signext, i8 zeroext, i16 signext, i16 zeroext, i1 zeroext, i32, i32, i64, i64)"
+        ),
+        "static callback parameters lost signedness/width ABI attributes:\n{ir}"
+    );
+    assert!(
+        ir.contains("declare zeroext i16 @unsigned_narrow()"),
+        "unsigned narrow callback result lost zeroext:\n{ir}"
+    );
+    assert!(
+        ir.contains("declare zeroext i1 @bool_narrow()"),
+        "C _Bool callback result lost zeroext:\n{ir}"
+    );
+    assert!(
+        ir.contains("declare zeroext i8 @foreign_narrow(ptr, i16 signext, i1 zeroext)"),
+        "foreign callback boundary lost narrow integer ABI attributes:\n{ir}"
+    );
+}
+
+#[test]
+fn refined_c_pointer_references_reject_managed_niches() {
     let mut module = values_module();
     let managed = pointer_niche(
         &mut module,
         "Option<String>",
         scoop_lir::NichePointerKind::Managed,
     );
-    module.structs.alloc(StructDef {
-        name: "InvalidManagedNicheField".to_string(),
-        fields: vec![scoop_lir::StructField {
-            ty: LirType::Enum(managed),
-            layout: scoop_lir::FieldLayout {
-                offset: 0,
-                access_align: 8,
-            },
-        }],
-        size: 8,
-        align: 8,
-        c_layout: Some(scoop_lir::CLayout {
-            aligned: 8,
-            packed: 0,
-        }),
-        interior_mutable: false,
-    });
-    let error = c_layout_assertions(&module).expect_err("managed niches cannot be C-layout fields");
     assert!(
-        error.0.contains("non-C type") && error.0.contains(&format!("enum{}", managed.into_raw())),
-        "unexpected error: {error}"
+        module
+            .enums
+            .nullable_data_pointer_ref(managed, scoop_lir::CDataPointee::OpaqueVoid)
+            .is_none()
+    );
+    assert!(
+        module
+            .enums
+            .nullable_code_pointer_ref(
+                managed,
+                scoop_lir::CFunctionType {
+                    params: Vec::new(),
+                    return_type: scoop_lir::CReturnType::Void,
+                },
+            )
+            .is_none()
     );
 }
 
@@ -719,8 +1360,8 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
             adapter_symbol: "scoop_main".to_string(),
             trampoline_symbol: "foreign_callback".to_string(),
             signature_symbol: "foreign_callback_signature".to_string(),
-            params: vec![scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Unit,
+            params: vec![c_opaque_pointer()],
+            return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
             mode: scoop_lir::ForeignCallbackMode::Reusable,
         });
@@ -836,8 +1477,8 @@ fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
             adapter: "foreign_callback_adapter",
             trampoline: "foreign_callback",
             signature: "foreign_callback_signature",
-            params: vec![scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Unit,
+            params: vec![c_opaque_pointer()],
+            return_type: scoop_lir::CReturnType::Void,
             context_index: 1,
         },
     );
@@ -862,8 +1503,8 @@ fn foreign_callback_bridge_rejects_non_pointer_context() {
             adapter: "foreign_callback_adapter",
             trampoline: "foreign_callback",
             signature: "foreign_callback_signature",
-            params: vec![scoop_lir::CType::Int],
-            return_type: scoop_lir::CType::Unit,
+            params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
+            return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
         },
     );
@@ -872,7 +1513,7 @@ fn foreign_callback_bridge_rejects_non_pointer_context() {
     assert!(
         error
             .0
-            .contains("context parameter 0 must be CType::Pointer, found Int"),
+            .contains("context parameter 0 must be a direct opaque C data pointer"),
         "unexpected error: {error}"
     );
 }
@@ -888,8 +1529,8 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
             adapter: "foreign_callback_adapter_0",
             trampoline: "shared_foreign_callback",
             signature: "foreign_callback_signature_0",
-            params: vec![scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Unit,
+            params: vec![c_opaque_pointer()],
+            return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
         },
     );
@@ -900,8 +1541,11 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
             adapter: "foreign_callback_adapter_1",
             trampoline: "shared_foreign_callback",
             signature: "foreign_callback_signature_1",
-            params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Int,
+            params: vec![
+                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+                c_opaque_pointer(),
+            ],
+            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
             context_index: 1,
         },
     );
@@ -927,8 +1571,8 @@ fn foreign_callback_bridge_rejects_conflicting_signature_abi_metadata() {
             adapter: "foreign_callback_adapter_0",
             trampoline: "foreign_callback_0",
             signature: "shared_foreign_callback_signature",
-            params: vec![scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Unit,
+            params: vec![c_opaque_pointer()],
+            return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
         },
     );
@@ -939,8 +1583,11 @@ fn foreign_callback_bridge_rejects_conflicting_signature_abi_metadata() {
             adapter: "foreign_callback_adapter_1",
             trampoline: "foreign_callback_1",
             signature: "shared_foreign_callback_signature",
-            params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
-            return_type: scoop_lir::CType::Int,
+            params: vec![
+                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+                c_opaque_pointer(),
+            ],
+            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
             context_index: 1,
         },
     );

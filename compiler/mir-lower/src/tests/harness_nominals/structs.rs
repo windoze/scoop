@@ -61,6 +61,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params,
+            gc_free_pointee_requirements: Vec::new(),
             attributes: hir::StructAttributes::default(),
             representation: hir::StructRepresentation::Declared(
                 fields
@@ -102,6 +103,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
             attributes: hir::StructAttributes::default(),
             representation: hir::StructRepresentation::Intrinsic(declaration),
             constructors: Vec::new(),
@@ -146,6 +148,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params,
+            gc_free_pointee_requirements: Vec::new(),
             representation: hir::ClassRepresentation::Intrinsic(declaration),
             fields: Vec::new(),
             properties: Vec::new(),

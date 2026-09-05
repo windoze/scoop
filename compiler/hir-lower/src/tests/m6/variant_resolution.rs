@@ -31,7 +31,7 @@ fn qualified_variant_construction_in_method_call_shape() {
         hir::ExprKind::VariantConstruct { variant, args, .. } => {
             assert_eq!(*variant, 0);
             assert_eq!(args.len(), 1);
-            assert_eq!(args[0].ty, module.int);
+            assert_eq!(args[0].ty, int_type(&module));
             assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
         }
         other => panic!("expected a variant construction, found {other:?}"),
@@ -77,7 +77,10 @@ fn qualified_generic_variant_infers_type_arguments() {
         hir::ExprKind::VariantConstruct { application, .. } => {
             let arguments = &module.enum_applications[*application].arguments;
             assert_eq!(arguments.len(), 1);
-            assert_eq!(module.types[arguments[0]], hir::Type::Int);
+            assert_eq!(
+                module.types[arguments[0]],
+                hir::Type::Integer(hir::IntegerKind::SIGNED_32)
+            );
         }
         other => panic!("expected a variant construction, found {other:?}"),
     }

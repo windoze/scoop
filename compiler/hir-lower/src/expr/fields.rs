@@ -88,7 +88,7 @@ impl Lowerer {
             if field.text == "size" && self.array_element_ty(receiver.ty).is_some() {
                 return Some(hir::Expr {
                     kind: ExprKind::ArrayLen(Box::new(receiver)),
-                    ty: self.int,
+                    ty: self.integer_type(hir::IntegerKind::SIGNED_64),
                     span: access.span,
                     origin: self.expression_origin(access.span),
                 });

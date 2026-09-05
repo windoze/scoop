@@ -197,8 +197,8 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Unwrap {
             operand: receiver, ..
         }
-        | hir::ExprKind::PtrFromUInt(receiver)
-        | hir::ExprKind::PtrToUInt(receiver)
+        | hir::ExprKind::PtrFromNonZeroULong(receiver)
+        | hir::ExprKind::PtrToULong(receiver)
         | hir::ExprKind::PtrCast(receiver) => {
             patch_local_function_call_expr(receiver, target, target_captures)
         }
@@ -224,6 +224,18 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Binary { lhs, rhs, .. } => {
             patch_local_function_call_expr(lhs, target, target_captures);
             patch_local_function_call_expr(rhs, target, target_captures);
+        }
+        hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
+            hir::HirIntegerOperationArguments::Unary(operand) => {
+                patch_local_function_call_expr(operand, target, target_captures);
+            }
+            hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                patch_local_function_call_expr(lhs, target, target_captures);
+                patch_local_function_call_expr(rhs, target, target_captures);
+            }
+        },
+        hir::ExprKind::IntegerConversion { operand, .. } => {
+            patch_local_function_call_expr(operand, target, target_captures);
         }
         hir::ExprKind::ArraySet {
             receiver,
@@ -259,7 +271,7 @@ fn patch_local_function_call_expr(
             patch_local_function_call_expr(value, target, target_captures);
         }
         hir::ExprKind::StringLiteral(_)
-        | hir::ExprKind::IntLiteral(_)
+        | hir::ExprKind::IntegerLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
@@ -276,7 +288,6 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::AddressOf(_)
         | hir::ExprKind::SizeOf(_)
         | hir::ExprKind::AlignOf(_)
-        | hir::ExprKind::FunPtrNull
         | hir::ExprKind::FunctionAddress(_) => {}
     }
 }

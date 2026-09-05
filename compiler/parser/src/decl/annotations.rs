@@ -50,7 +50,7 @@ impl Parser {
                 let token = self.bump();
                 let value = match token.kind {
                     TokenKind::Str(value) => AnnotationLiteral::String(value),
-                    TokenKind::Int(value) => AnnotationLiteral::Int(value),
+                    TokenKind::Int(lexeme) => AnnotationLiteral::Int(lexeme.with_span(token.span)),
                     TokenKind::True => AnnotationLiteral::Boolean(true),
                     TokenKind::False => AnnotationLiteral::Boolean(false),
                     _ => {

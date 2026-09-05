@@ -75,6 +75,10 @@ mod members;
 mod names;
 mod operators;
 mod support;
+pub(crate) use support::{
+    common_integer_literal_kind, integer_literal_accepts_kind, integer_literal_candidate_kinds,
+    integer_literal_default_kind,
+};
 mod type_checks;
 
 use analysis::*;
@@ -210,12 +214,9 @@ impl Lowerer {
                 span: *span,
                 origin: self.expression_origin(*span),
             }),
-            ast::Expr::IntLiteral { value, span } => Some(hir::Expr {
-                kind: ExprKind::IntLiteral(*value),
-                ty: self.int,
-                span: *span,
-                origin: self.expression_origin(*span),
-            }),
+            ast::Expr::IntLiteral(literal) => {
+                self.lower_integer_literal(*literal, expected, false, literal.span)
+            }
             ast::Expr::BoolLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::BoolLiteral(*value),
                 ty: self.boolean,
@@ -371,9 +372,11 @@ impl Lowerer {
                 span,
             } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
             ast::Expr::Binary { op, lhs, rhs, span } => {
-                self.lower_binary(*op, lhs, rhs, *span, sink)
+                self.lower_binary(*op, lhs, rhs, *span, sink, expected)
             }
-            ast::Expr::Unary { op, operand, span } => self.lower_unary(*op, operand, *span, sink),
+            ast::Expr::Unary { op, operand, span } => {
+                self.lower_unary(*op, operand, *span, sink, expected)
+            }
             ast::Expr::Update {
                 place,
                 op,

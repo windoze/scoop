@@ -476,12 +476,9 @@ impl RelationReducer<'_> {
     ) -> Option<Vec<hir::TypeId>> {
         let direct = match self.lowerer.types[ty].clone() {
             Type::Interface(_) => vec![ty],
-            Type::Int => self
+            Type::Integer(kind) => self
                 .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int),
-            Type::UInt => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt),
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)),
             Type::Boolean => self
                 .lowerer
                 .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
@@ -692,9 +689,7 @@ pub(super) fn type_contains_session_parameter(
             children
         }
         Type::Ptr(pointee) => vec![*pointee],
-        Type::Unit | Type::Int | Type::UInt | Type::Boolean | Type::String | Type::Any => {
-            Vec::new()
-        }
+        Type::Unit | Type::Integer(_) | Type::Boolean | Type::String | Type::Any => Vec::new(),
     };
     children
         .into_iter()

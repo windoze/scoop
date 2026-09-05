@@ -307,11 +307,20 @@ impl Lowerer {
             hir::Pattern::Wildcard => hir::Pattern::Wildcard,
             hir::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => hir::Pattern::Literal {
                 value: self.instantiate_default_expr(value, context),
-                equals: self.instantiate_default_callable(*equals, context),
+                equality: match *equality {
+                    hir::LiteralPatternEquality::Integer { kind, target } => {
+                        hir::LiteralPatternEquality::Integer { kind, target }
+                    }
+                    hir::LiteralPatternEquality::Ordinary { equals } => {
+                        hir::LiteralPatternEquality::Ordinary {
+                            equals: self.instantiate_default_callable(equals, context),
+                        }
+                    }
+                },
                 subject_ty: self.instantiate_method_ty(*subject_ty, &context.bindings),
             },
             hir::Pattern::Variant {
@@ -370,7 +379,7 @@ impl Lowerer {
         }
         let kind = match &source.kind {
             hir::ExprKind::StringLiteral(value) => hir::ExprKind::StringLiteral(value.clone()),
-            hir::ExprKind::IntLiteral(value) => hir::ExprKind::IntLiteral(*value),
+            hir::ExprKind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral(*value),
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
@@ -421,11 +430,11 @@ impl Lowerer {
                 coercion: self.instantiate_default_coercion(*coercion, context),
                 target_type: self.instantiate_default_function_type(*target_type, context),
             },
-            hir::ExprKind::PtrFromUInt(value) => {
-                hir::ExprKind::PtrFromUInt(Box::new(self.instantiate_default_expr(value, context)))
-            }
-            hir::ExprKind::PtrToUInt(value) => {
-                hir::ExprKind::PtrToUInt(Box::new(self.instantiate_default_expr(value, context)))
+            hir::ExprKind::PtrFromNonZeroULong(value) => hir::ExprKind::PtrFromNonZeroULong(
+                Box::new(self.instantiate_default_expr(value, context)),
+            ),
+            hir::ExprKind::PtrToULong(value) => {
+                hir::ExprKind::PtrToULong(Box::new(self.instantiate_default_expr(value, context)))
             }
             hir::ExprKind::PtrCast(value) => {
                 hir::ExprKind::PtrCast(Box::new(self.instantiate_default_expr(value, context)))
@@ -466,7 +475,6 @@ impl Lowerer {
             hir::ExprKind::AlignOf(ty) => {
                 hir::ExprKind::AlignOf(self.instantiate_method_ty(*ty, &context.bindings))
             }
-            hir::ExprKind::FunPtrNull => hir::ExprKind::FunPtrNull,
             hir::ExprKind::FunctionAddress(function) => hir::ExprKind::FunctionAddress(*function),
             hir::ExprKind::ForeignCallbackRegister {
                 registration,
@@ -614,6 +622,32 @@ impl Lowerer {
             },
             hir::ExprKind::PrimitiveUnary { kind, operand } => hir::ExprKind::PrimitiveUnary {
                 kind: *kind,
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+            },
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => hir::ExprKind::IntegerOperation {
+                operation: *operation,
+                arguments: match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                        hir::HirIntegerOperationArguments::Unary(Box::new(
+                            self.instantiate_default_expr(operand, context),
+                        ))
+                    }
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        hir::HirIntegerOperationArguments::Binary {
+                            lhs: Box::new(self.instantiate_default_expr(lhs, context)),
+                            rhs: Box::new(self.instantiate_default_expr(rhs, context)),
+                        }
+                    }
+                },
+            },
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => hir::ExprKind::IntegerConversion {
+                conversion: *conversion,
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
             },
             hir::ExprKind::Binary { op, lhs, rhs } => hir::ExprKind::Binary {

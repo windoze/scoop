@@ -1,16 +1,15 @@
 use super::*;
 
 impl Lowerer {
-    /// MSC selection (step 2) over two or more applicable candidates.
-    /// Returns the winning prepared-candidate index, or records the ambiguity
-    /// diagnostic and returns `None`.
-    pub(super) fn most_specific(
-        &mut self,
-        name: &str,
+    /// Apply ordinary MSC plus its non-generic/default-argument/vararg
+    /// preferences and return the surviving prepared-candidate indices.
+    /// Literal default-kind preference is deliberately applied by the caller
+    /// only after this ordinary pool has been computed.
+    pub(super) fn most_specific_candidates(
+        &self,
         prepared: &[Candidate],
         applicable: &[usize],
-        span: Span,
-    ) -> Option<usize> {
+    ) -> Vec<usize> {
         let mut forwards = vec![vec![false; applicable.len()]; applicable.len()];
         for a in 0..applicable.len() {
             forwards[a][a] = true;
@@ -110,15 +109,8 @@ impl Lowerer {
         } else {
             pool
         };
-        if pool.len() == 1 {
-            Some(applicable[pool[0]])
-        } else {
-            let tied = pool
-                .iter()
-                .map(|&candidate| applicable[candidate])
-                .collect::<Vec<_>>();
-            self.ambiguity_diagnostic(name, prepared, &tied, span);
-            None
-        }
+        pool.into_iter()
+            .map(|candidate| applicable[candidate])
+            .collect()
     }
 }

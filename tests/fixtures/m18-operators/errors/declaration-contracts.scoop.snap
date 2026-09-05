@@ -8,5 +8,5 @@ m18-operators/errors/declaration-contracts.scoop:2:5: error: unknown operator ro
 m18-operators/errors/declaration-contracts.scoop:6:18: error: operator `get` must have at least one parameter
 m18-operators/errors/declaration-contracts.scoop:10:18: error: operator `set` must have at least two parameters, found 1
 m18-operators/errors/declaration-contracts.scoop:14:18: error: operator `contains` must return Boolean, found Int
-m18-operators/errors/declaration-contracts.scoop:18:18: error: operator `compareTo` must return Int, found Boolean
+m18-operators/errors/declaration-contracts.scoop:18:18: error: operator `compareTo` must return Long, found Boolean
 m18-operators/errors/declaration-contracts.scoop:22:20: error: infix function `join` requires one required, non-vararg parameter

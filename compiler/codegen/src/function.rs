@@ -22,8 +22,8 @@ struct FnEmitter<'a, 'ctx> {
     /// (invoke targets).
     llvm_blocks: &'a [inkwell::basic_block::BasicBlock<'ctx>],
     functions: &'a [Function],
-    structs: &'a Arena<StructDef>,
-    enums: &'a Arena<EnumDef>,
+    structs: &'a StructDefs,
+    enums: &'a EnumDefs,
     extern_functions: &'a ExternFunctions,
     native_globals: &'a Arena<NativeGlobal>,
     native_global_bridges: &'a scoop_lir::NativeGlobalBridges,

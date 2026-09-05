@@ -1,0 +1,283 @@
+@CLayout
+struct NativeCell(val value: Int)
+
+@CLayout
+struct PointerBundle(
+    val opaque: Ptr<Unit>,
+    val cell: Ptr<NativeCell>,
+    val optionalOpaque: Ptr<Unit>?,
+    val optionalCell: Ptr<NativeCell>?,
+    val callback: FunPtr<(Int) -> Int>,
+    val optionalCallback: FunPtr<(Int) -> Int>?
+)
+
+@Extern(name = "malloc")
+fun malloc(size: ULong): Ptr<Unit>
+
+@Extern(name = "free")
+fun free(pointer: Ptr<Unit>)
+
+@Extern(lib = "fixture_native", name = "m22_round_opaque")
+fun roundOpaque(pointer: Ptr<Unit>): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m22_round_cell")
+fun roundCell(pointer: Ptr<NativeCell>): Ptr<NativeCell>
+
+@Extern(lib = "fixture_native", name = "m22_round_optional_opaque")
+fun roundOptionalOpaque(pointer: Ptr<Unit>?): Ptr<Unit>?
+
+@Extern(lib = "fixture_native", name = "m22_round_optional_cell")
+fun roundOptionalCell(pointer: Ptr<NativeCell>?): Ptr<NativeCell>?
+
+@Extern(lib = "fixture_native", name = "m22_round_callback")
+fun roundCallback(callback: FunPtr<(Int) -> Int>): FunPtr<(Int) -> Int>
+
+@Extern(lib = "fixture_native", name = "m22_round_optional_callback")
+fun roundOptionalCallback(
+    callback: FunPtr<(Int) -> Int>?
+): FunPtr<(Int) -> Int>?
+
+@Extern(lib = "fixture_native", name = "m22_null_opaque")
+fun nullOpaque(): Ptr<Unit>?
+
+@Extern(lib = "fixture_native", name = "m22_null_cell")
+fun nullCell(): Ptr<NativeCell>?
+
+@Extern(lib = "fixture_native", name = "m22_native_callback")
+fun nativeCallback(): FunPtr<(Int) -> Int>
+
+@Extern(lib = "fixture_native", name = "m22_native_optional_callback")
+fun nativeOptionalCallback(): FunPtr<(Int) -> Int>?
+
+@Extern(lib = "fixture_native", name = "m22_null_callback")
+fun nullCallback(): FunPtr<(Int) -> Int>?
+
+@Extern(lib = "fixture_native", name = "m22_apply_callback")
+fun applyCallback(value: Int, callback: FunPtr<(Int) -> Int>): Int
+
+@Extern(lib = "fixture_native", name = "m22_round_bundle")
+fun roundBundle(bundle: PointerBundle): PointerBundle
+
+@Extern(lib = "fixture_native", name = "m22_make_some_bundle")
+fun makeSomeBundle(
+    opaque: Ptr<Unit>,
+    cell: Ptr<NativeCell>
+): PointerBundle
+
+@Extern(lib = "fixture_native", name = "m22_make_none_bundle")
+fun makeNoneBundle(
+    opaque: Ptr<Unit>,
+    cell: Ptr<NativeCell>
+): PointerBundle
+
+@Extern(lib = "fixture_native", name = "m22_read_opaque")
+fun readOpaque(pointer: Ptr<Unit>): Int
+
+@Extern(lib = "fixture_native", name = "m22_prepare_globals")
+fun prepareGlobals()
+
+@Extern(lib = "fixture_native", name = "m22_cleanup_globals")
+fun cleanupGlobals()
+
+@Extern(lib = "fixture_native", name = "m22_globals_match")
+fun globalsMatch(
+    opaque: Ptr<Unit>,
+    cell: Ptr<NativeCell>,
+    optionalOpaque: Ptr<Unit>?,
+    optionalCell: Ptr<NativeCell>?,
+    callback: FunPtr<(Int) -> Int>,
+    optionalCallback: FunPtr<(Int) -> Int>?
+): Boolean
+
+@Extern(lib = "fixture_native", name = "m22_global_opaque")
+@Global
+var globalOpaque: Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m22_global_cell")
+@Global
+var globalCell: Ptr<NativeCell>
+
+@Extern(lib = "fixture_native", name = "m22_global_optional_opaque")
+@Global
+var globalOptionalOpaque: Ptr<Unit>?
+
+@Extern(lib = "fixture_native", name = "m22_global_optional_cell")
+@Global
+var globalOptionalCell: Ptr<NativeCell>?
+
+@Extern(lib = "fixture_native", name = "m22_global_callback")
+@Global
+var globalCallback: FunPtr<(Int) -> Int>
+
+@Extern(lib = "fixture_native", name = "m22_global_optional_callback")
+@Global
+var globalOptionalCallback: FunPtr<(Int) -> Int>?
+
+@NoGC
+fun scoopIncrement(value: Int): Int = value + 1
+
+@Unsafe
+fun optionalOpaqueMatches(
+    actual: Ptr<Unit>?,
+    expected: Ptr<Unit>
+): Boolean = when (actual) {
+    Some(pointer) -> pointer.toULong() == expected.toULong()
+    None -> false
+}
+
+@Unsafe
+fun optionalCellMatches(
+    actual: Ptr<NativeCell>?,
+    expected: Ptr<NativeCell>
+): Boolean = when (actual) {
+    Some(pointer) -> pointer.toULong() == expected.toULong()
+    None -> false
+}
+
+fun optionalOpaqueIsNone(actual: Ptr<Unit>?): Boolean = when (actual) {
+    Some(pointer) -> false
+    None -> true
+}
+
+fun optionalCellIsNone(actual: Ptr<NativeCell>?): Boolean = when (actual) {
+    Some(pointer) -> false
+    None -> true
+}
+
+@Unsafe
+fun applyOptionalCallback(
+    callback: FunPtr<(Int) -> Int>?,
+    value: Int
+): Int = when (callback) {
+    Some(pointer) -> applyCallback(value, pointer)
+    None -> -1
+}
+
+fun optionalCallbackIsNone(
+    callback: FunPtr<(Int) -> Int>?
+): Boolean = when (callback) {
+    Some(pointer) -> false
+    None -> true
+}
+
+fun main() {
+    @Unsafe {
+        val opaque = malloc(sizeOf<Int>())
+        opaque.cast<Int>().store(101)
+        val cell = malloc(sizeOf<NativeCell>()).cast<NativeCell>()
+        cell.store(NativeCell(202))
+        val scoopCallback: FunPtr<(Int) -> Int> = ::scoopIncrement
+
+        println(opaque.toULong() != 0uL)
+        println(cell.toULong() != 0uL)
+
+        println(roundOpaque(opaque).toULong() == opaque.toULong())
+        println(roundCell(cell).toULong() == cell.toULong())
+        println(roundCell(cell).load().value)
+
+        println(optionalOpaqueMatches(roundOptionalOpaque(Some(opaque)), opaque))
+        println(optionalCellMatches(roundOptionalCell(Some(cell)), cell))
+        println(optionalOpaqueIsNone(roundOptionalOpaque(None)))
+        println(optionalCellIsNone(roundOptionalCell(None)))
+        println(optionalOpaqueIsNone(nullOpaque()))
+        println(optionalCellIsNone(nullCell()))
+
+        val cCallback = nativeCallback()
+        println(applyCallback(1, cCallback))
+        println(applyCallback(2, roundCallback(cCallback)))
+        println(applyCallback(40, roundCallback(scoopCallback)))
+        println(applyOptionalCallback(nativeOptionalCallback(), 3))
+        println(
+            applyOptionalCallback(
+                roundOptionalCallback(Some(scoopCallback)),
+                41
+            )
+        )
+        println(optionalCallbackIsNone(roundOptionalCallback(None)))
+        println(optionalCallbackIsNone(nullCallback()))
+
+        val someBundle = makeSomeBundle(opaque, cell)
+        println(someBundle.opaque.toULong() == opaque.toULong())
+        println(someBundle.cell.load().value)
+        println(optionalOpaqueMatches(someBundle.optionalOpaque, opaque))
+        println(optionalCellMatches(someBundle.optionalCell, cell))
+        println(applyCallback(4, someBundle.callback))
+        println(applyOptionalCallback(someBundle.optionalCallback, 5))
+
+        val noneBundle = makeNoneBundle(opaque, cell)
+        println(optionalOpaqueIsNone(noneBundle.optionalOpaque))
+        println(optionalCellIsNone(noneBundle.optionalCell))
+        println(optionalCallbackIsNone(noneBundle.optionalCallback))
+
+        val returnedBundle = roundBundle(PointerBundle(
+            opaque,
+            cell,
+            Some(opaque),
+            Some(cell),
+            scoopCallback,
+            Some(scoopCallback)
+        ))
+        println(returnedBundle.opaque.toULong() == opaque.toULong())
+        println(returnedBundle.cell.toULong() == cell.toULong())
+        println(optionalOpaqueMatches(returnedBundle.optionalOpaque, opaque))
+        println(optionalCellMatches(returnedBundle.optionalCell, cell))
+        println(applyCallback(42, returnedBundle.callback))
+        println(applyOptionalCallback(returnedBundle.optionalCallback, 43))
+
+        println(optionalOpaqueIsNone(globalOptionalOpaque))
+        println(optionalCellIsNone(globalOptionalCell))
+        println(optionalCallbackIsNone(globalOptionalCallback))
+
+        prepareGlobals()
+        println(globalOpaque.toULong() != 0uL)
+        println(readOpaque(globalOpaque))
+        println(globalCell.toULong() != 0uL)
+        println(globalCell.load().value)
+        println(optionalOpaqueMatches(globalOptionalOpaque, globalOptionalOpaque!!))
+        println(readOpaque(globalOptionalOpaque!!))
+        println(optionalCellMatches(globalOptionalCell, globalOptionalCell!!))
+        println(globalOptionalCell!!.load().value)
+        println(applyCallback(6, globalCallback))
+        println(applyOptionalCallback(globalOptionalCallback, 7))
+
+        globalOpaque = opaque
+        globalCell = cell
+        globalOptionalOpaque = Some(opaque)
+        globalOptionalCell = Some(cell)
+        globalCallback = scoopCallback
+        globalOptionalCallback = Some(scoopCallback)
+        println(globalsMatch(
+            opaque,
+            cell,
+            Some(opaque),
+            Some(cell),
+            scoopCallback,
+            Some(scoopCallback)
+        ))
+        println(globalOpaque.toULong() == opaque.toULong())
+        println(globalCell.toULong() == cell.toULong())
+        println(optionalOpaqueMatches(globalOptionalOpaque, opaque))
+        println(optionalCellMatches(globalOptionalCell, cell))
+        println(applyCallback(44, globalCallback))
+        println(applyOptionalCallback(globalOptionalCallback, 45))
+
+        globalOptionalOpaque = None
+        globalOptionalCell = None
+        globalOptionalCallback = None
+        println(globalsMatch(
+            opaque,
+            cell,
+            None,
+            None,
+            scoopCallback,
+            None
+        ))
+        println(optionalOpaqueIsNone(globalOptionalOpaque))
+        println(optionalCellIsNone(globalOptionalCell))
+        println(optionalCallbackIsNone(globalOptionalCallback))
+
+        cleanupGlobals()
+        free(cell.cast<Unit>())
+        free(opaque)
+    }
+}

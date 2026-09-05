@@ -61,7 +61,7 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
 fn dump_literal(expr: &Expr) -> String {
     match expr {
         Expr::StringLiteral { value, .. } => format!("{value:?}"),
-        Expr::IntLiteral { value, .. } => value.to_string(),
+        Expr::IntLiteral(literal) => literal.to_string(),
         Expr::BoolLiteral { value, .. } => value.to_string(),
         Expr::UnitLiteral { .. } => "()".to_string(),
         Expr::Unary {

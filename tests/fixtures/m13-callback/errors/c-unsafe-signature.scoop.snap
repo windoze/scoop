@@ -4,4 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m13-callback/errors/c-unsafe-signature.scoop:3:9: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
-  - fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback signature is not C-FFI-safe: parameter1: ref type `String` is managed
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback signature is not C-FFI-safe: parameter1: ref type `String` is managed

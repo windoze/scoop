@@ -131,6 +131,9 @@ use scoop_mir as mir;
 
 /// Lower MIR to LIR.
 pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir::Module {
+    match module.meta.mangling_schema {
+        mir::ManglingSchemaIdentity::CompactV2 => {}
+    }
     let context = LoweringContext::new(target_profile);
     // Every MIR string constant becomes a global with the same symbol.
     let mut globals = Arena::new();
@@ -151,7 +154,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums);
-    let (extern_functions, extern_function_refs) = lower_extern_functions(module);
+    let (extern_functions, extern_function_refs) = lower_extern_functions(module, &structs, &enums);
     let (storage_globals, native_globals, native_global_bridges) = lower_globals(
         &context,
         module,
@@ -160,9 +163,9 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         &enums,
         &string_global_map,
     );
-    let callback_bridges = lower_callback_bridges(module);
+    let callback_bridges = lower_callback_bridges(module, &structs, &enums);
     let foreign_callback_families = lower_foreign_callback_families(module);
-    let foreign_callback_bridges = lower_foreign_callback_bridges(module);
+    let foreign_callback_bridges = lower_foreign_callback_bridges(module, &structs, &enums);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
         .top_level

@@ -7,6 +7,7 @@
  * stack-map image metadata):
  *   cc -std=c11 -Wall -Wextra -pthread -fno-omit-frame-pointer \
  *     -fno-optimize-sibling-calls -I runtime/include runtime/src/rt.c \
+ *     runtime/src/eh.c runtime/src/initialization.c \
  *     runtime/src/gc.c runtime/src/gc/allocation.c \
  *     runtime/src/gc/collector.c runtime/src/gc/evacuation.c \
  *     runtime/src/gc/reclamation.c runtime/src/gc/heap.c \

@@ -33,10 +33,12 @@ fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
         context.scalar_layout(lir::BackendScalarKind::I1),
         physical(profile.scalar_layout(lir::BackendScalarKind::I1))
     );
-    assert_eq!(
-        context.legacy_integer_layout(),
-        physical(profile.scalar_layout(lir::BackendScalarKind::I64))
-    );
+    for kind in lir::IntegerKind::ALL {
+        assert_eq!(
+            context.integer_layout(kind),
+            physical(profile.scalar_layout(kind.width().backend_scalar_kind()))
+        );
+    }
     assert_eq!(
         context.machine_scalar_layout(),
         physical(profile.scalar_layout(lir::BackendScalarKind::I64))
@@ -97,8 +99,8 @@ fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
 #[test]
 fn profile_layout_drives_aggregate_root_scan_offsets() {
     let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
-    let structs = Arena::new();
-    let enums = Arena::new();
+    let structs = lir::StructDefs::default();
+    let enums = lir::EnumDefs::default();
     let ty = lir::LirType::Aggregate(vec![lir::LirType::I1, lir::MANAGED_PTR]);
     let bool_layout = context.scalar_layout(lir::BackendScalarKind::I1);
     let pointer_layout = context.pointer_layout(lir::PointerKind::Managed);
@@ -122,6 +124,178 @@ fn no_gc_effect_is_preserved_in_lir() {
     let module = lower(&builder.finish(main));
     assert_eq!(module.functions[0].gc_effect, lir::GcEffect::NoGc);
     assert!(lir::dump(&module).contains("-> void <no-gc>"));
+}
+
+#[test]
+fn c_abi_preserves_all_eight_exact_integer_kinds() {
+    let mut builder = Builder::new();
+    let params = mir::IntegerKind::ALL
+        .map(mir::Type::Integer)
+        .into_iter()
+        .collect::<Vec<_>>();
+    builder.extern_functions.alloc(mir::ExternFunction {
+        source_name: "integers".to_string(),
+        native_symbol: "integers".to_string(),
+        library: String::new(),
+        abi: mir::ExternAbi::C,
+        calling_convention: mir::CallingConvention::Cdecl,
+        gc_effect: mir::GcEffect::NoGc,
+        params,
+        return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+    });
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut mir_module = builder.finish(main);
+    mir_module.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: mir::IntegerKind::ALL
+            .map(mir::Type::Integer)
+            .into_iter()
+            .collect(),
+        return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+    });
+    let module = lower(&mir_module);
+    let (_, function) = module.extern_functions.iter().next().expect("one C extern");
+    let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
+        panic!("C declaration remains a C bridge")
+    };
+    assert_eq!(
+        &signature.params,
+        &lir::IntegerKind::ALL
+            .map(lir::CType::Integer)
+            .into_iter()
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        signature.return_type,
+        lir::CReturnType::Value(Box::new(
+            lir::CType::Integer(lir::IntegerKind::UNSIGNED_64,)
+        ))
+    );
+    assert_eq!(
+        signature.storage_params(),
+        [
+            lir::LirType::I8,
+            lir::LirType::I16,
+            lir::LirType::I32,
+            lir::LirType::I64,
+            lir::LirType::I8,
+            lir::LirType::I16,
+            lir::LirType::I32,
+            lir::LirType::I64,
+        ]
+    );
+    assert!(
+        descriptor_values(&module).any(|descriptor| {
+            descriptor.name == "function$FI8_I16_I32_I64_V8_V16_V32_V64RV64X"
+        })
+    );
+}
+
+#[test]
+fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
+    let mut builder = Builder::new();
+    let raw_payload = mir::Type::Ptr(Box::new(INT));
+    let raw_option = builder.option_enum("Option$Ptr$Int", raw_payload.clone());
+    let native_signature = builder.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: vec![mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)],
+        return_type: mir::Type::Integer(mir::IntegerKind::SIGNED_8),
+    });
+    let code_payload = mir::Type::FunPtr(native_signature);
+    let code_option = builder.option_enum("Option$FunPtr", code_payload.clone());
+    builder.extern_functions.alloc(mir::ExternFunction {
+        source_name: "nullablePointers".to_string(),
+        native_symbol: "nullable_pointers".to_string(),
+        library: String::new(),
+        abi: mir::ExternAbi::C,
+        calling_convention: mir::CallingConvention::Cdecl,
+        gc_effect: mir::GcEffect::NoGc,
+        params: vec![
+            mir::Type::Enum(raw_option, vec![raw_payload]),
+            mir::Type::Enum(code_option, vec![code_payload]),
+        ],
+        return_type: mir::Type::Unit,
+    });
+    let main = builder.main(Arena::new(), Vec::new());
+
+    let module = lower(&builder.finish(main));
+    let (_, function) = module.extern_functions.iter().next().expect("one C extern");
+    let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
+        panic!("C declaration remains a C bridge")
+    };
+    let lir::CType::DataPointer {
+        pointee,
+        storage: lir::CDataPointerStorage::Nullable(raw_reference),
+    } = &signature.params[0]
+    else {
+        panic!("first parameter is an exact nullable data pointer")
+    };
+    assert_eq!(pointee, raw_reference.pointee());
+    assert_eq!(
+        module
+            .enums
+            .nullable_data_pointer_binding(raw_reference.definition()),
+        Some(raw_reference.pointee())
+    );
+    let lir::CType::CodePointer {
+        signature: code_signature,
+        storage: lir::CCodePointerStorage::Nullable(code_reference),
+    } = &signature.params[1]
+    else {
+        panic!("second parameter is an exact nullable code pointer")
+    };
+    assert_eq!(code_signature.as_ref(), code_reference.signature());
+    assert_eq!(
+        module
+            .enums
+            .nullable_code_pointer_binding(code_reference.definition()),
+        Some(code_reference.signature())
+    );
+    let dump = lir::dump(&module);
+    assert!(dump.contains("data-ptr<Int,nullable=enum0<Int>>"), "{dump}");
+    assert!(
+        dump.contains("code-ptr<(UInt16)->Int8,nullable=enum1<(UInt16)->Int8>>"),
+        "{dump}"
+    );
+}
+
+#[test]
+#[should_panic(expected = "HIR C-FFI classification rejects")]
+fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
+    let mut builder = Builder::new();
+    let payload = mir::Type::Ptr(Box::new(INT));
+    let lookalike = builder.enums.alloc(mir::EnumDef {
+        name: "LooksLikeOption".to_string(),
+        gc_free: true,
+        variants: vec![
+            mir::VariantDef {
+                name: "Some".to_string(),
+                gc_free: true,
+                fields: vec![mir::Field {
+                    name: "_1".to_string(),
+                    ty: payload.clone(),
+                }],
+            },
+            mir::VariantDef {
+                name: "None".to_string(),
+                gc_free: true,
+                fields: Vec::new(),
+            },
+        ],
+    });
+    builder.extern_functions.alloc(mir::ExternFunction {
+        source_name: "lookalike".to_string(),
+        native_symbol: "lookalike".to_string(),
+        library: String::new(),
+        abi: mir::ExternAbi::C,
+        calling_convention: mir::CallingConvention::Cdecl,
+        gc_effect: mir::GcEffect::NoGc,
+        params: vec![mir::Type::Enum(lookalike, vec![payload])],
+        return_type: mir::Type::Unit,
+    });
+    let main = builder.main(Arena::new(), Vec::new());
+
+    let _ = lower(&builder.finish(main));
 }
 
 #[test]

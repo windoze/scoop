@@ -21,6 +21,9 @@ pub struct StructDecl {
     /// application for a parameter-free declaration).
     pub self_application: StructApplicationId,
     pub type_params: Vec<TypeParamDecl>,
+    /// Owner parameters that must be recursively GC-free because this
+    /// template contains a `Ptr` pointee dependency.
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub attributes: StructAttributes,
     pub representation: StructRepresentation,
     pub constructors: Vec<StructConstructorId>,
@@ -82,14 +85,56 @@ pub enum StructApplicationRepresentation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StructAttributes {
     pub no_gc: bool,
-    pub c_layout: Option<CLayout>,
+    pub c_layout: Option<HirCLayoutContract>,
     pub interior_mutable: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CLayout {
-    pub aligned: u8,
-    pub packed: u8,
+pub enum HirCLayoutValue {
+    Natural,
+    A1,
+    A2,
+    A4,
+    A8,
+    A16,
+}
+
+impl HirCLayoutValue {
+    pub const fn from_bytes(value: u64) -> Option<Self> {
+        match value {
+            0 => Some(Self::Natural),
+            1 => Some(Self::A1),
+            2 => Some(Self::A2),
+            4 => Some(Self::A4),
+            8 => Some(Self::A8),
+            16 => Some(Self::A16),
+            _ => None,
+        }
+    }
+
+    pub const fn bytes(self) -> Option<u8> {
+        match self {
+            Self::Natural => None,
+            Self::A1 => Some(1),
+            Self::A2 => Some(2),
+            Self::A4 => Some(4),
+            Self::A8 => Some(8),
+            Self::A16 => Some(16),
+        }
+    }
+
+    pub const fn from_integer(value: HirIntegerConstant) -> Option<Self> {
+        match value {
+            HirIntegerConstant::Signed64(raw) => Self::from_bytes(raw),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HirCLayoutContract {
+    pub aligned: HirCLayoutValue,
+    pub packed: HirCLayoutValue,
 }
 
 #[derive(Debug, Clone)]
@@ -99,6 +144,7 @@ pub struct EnumDecl {
     pub access: NominalAccess,
     pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
@@ -193,6 +239,7 @@ pub struct ClassDecl {
     pub access: NominalAccess,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub representation: ClassRepresentation,
     pub fields: Vec<ClassFieldId>,
     pub properties: Vec<PropertyId>,
@@ -384,61 +431,71 @@ pub struct IntrinsicTypeDeclaration {
 /// Closed semantic identity of every compiler-represented nominal type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IntrinsicTypeKind {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Array,
     MutableArray,
+    Ptr,
+    FunPtr,
 }
 
 impl IntrinsicTypeKind {
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Int => "core_int",
-            Self::UInt => "core_uint",
+            Self::Integer(kind) => kind.intrinsic_name(),
             Self::Boolean => "core_boolean",
             Self::String => "core_string",
             Self::Array => "core_array",
             Self::MutableArray => "core_mutable_array",
+            Self::Ptr => "core_ptr",
+            Self::FunPtr => "core_fun_ptr",
         }
     }
 
     pub const fn source_name(self) -> &'static str {
         match self {
-            Self::Int => "Int",
-            Self::UInt => "UInt",
+            Self::Integer(kind) => kind.canonical_name(),
             Self::Boolean => "Boolean",
             Self::String => "String",
             Self::Array => "Array",
             Self::MutableArray => "MutableArray",
+            Self::Ptr => "Ptr",
+            Self::FunPtr => "FunPtr",
         }
     }
 
     pub const fn target(self) -> IntrinsicTypeTarget {
         match self {
-            Self::Int | Self::UInt | Self::Boolean => IntrinsicTypeTarget::Struct,
+            Self::Integer(_) | Self::Boolean | Self::Ptr | Self::FunPtr => {
+                IntrinsicTypeTarget::Struct
+            }
             Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
         }
     }
 
     pub const fn parameters(self) -> IntrinsicTypeParameters {
         match self {
-            Self::Int | Self::UInt | Self::Boolean | Self::String => IntrinsicTypeParameters::None,
+            Self::Integer(_) | Self::Boolean | Self::String => IntrinsicTypeParameters::None,
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
+            Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
+            Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
         }
     }
 
     pub fn application(self, arguments: &[TypeId]) -> IntrinsicTypeRepresentation {
         match (self, arguments) {
-            (Self::Int, []) => IntrinsicTypeRepresentation::Int,
-            (Self::UInt, []) => IntrinsicTypeRepresentation::UInt,
+            (Self::Integer(kind), []) => IntrinsicTypeRepresentation::Integer(kind),
             (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
             (Self::String, []) => IntrinsicTypeRepresentation::String,
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
             (Self::MutableArray, [element]) => {
                 IntrinsicTypeRepresentation::MutableArray { element: *element }
             }
+            (Self::Ptr, [pointee]) => IntrinsicTypeRepresentation::Ptr { pointee: *pointee },
+            (Self::FunPtr, [function]) => IntrinsicTypeRepresentation::FunPtr {
+                function: *function,
+            },
             _ => unreachable!("HIR validates the intrinsic declaration contract before use"),
         }
     }
@@ -448,12 +505,13 @@ impl IntrinsicTypeKind {
 /// family variants contain their concrete element type directly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
+    Ptr { pointee: TypeId },
+    FunPtr { function: TypeId },
 }
 
 #[derive(Debug, Clone)]
@@ -469,4 +527,33 @@ pub struct Variant {
 pub struct Field {
     pub name: String,
     pub ty: TypeId,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn c_layout_accepts_only_canonical_long_values() {
+        assert_eq!(
+            HirCLayoutValue::from_integer(HirIntegerConstant::Signed64(8)),
+            Some(HirCLayoutValue::A8)
+        );
+        assert_eq!(
+            HirCLayoutValue::from_integer(HirIntegerConstant::Signed64(0)),
+            Some(HirCLayoutValue::Natural)
+        );
+        assert_eq!(
+            HirCLayoutValue::from_integer(HirIntegerConstant::Signed64(3)),
+            None
+        );
+        assert_eq!(
+            HirCLayoutValue::from_integer(HirIntegerConstant::Signed32(8)),
+            None
+        );
+        assert_eq!(
+            HirCLayoutValue::from_integer(HirIntegerConstant::Signed64(u64::MAX)),
+            None
+        );
+    }
 }

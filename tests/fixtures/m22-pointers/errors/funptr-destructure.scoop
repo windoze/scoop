@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun inspect(callback: FunPtr<(Int) -> Int>) {
+    val FunPtr(raw) = callback
+}
+
+fun main() {
+    println(0)
+}

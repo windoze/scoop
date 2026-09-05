@@ -94,7 +94,7 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
     assert!(
         applications
             .iter()
-            .any(|application| application.method_arguments.to_vec() == [output.export.int])
+            .any(|application| application.method_arguments.to_vec() == [int_type(&output.export)])
     );
     assert!(
         applications
@@ -138,7 +138,7 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
     assert!(
         concrete_methods
             .iter()
-            .any(|(_, arguments)| arguments == &[output.local.int])
+            .any(|(_, arguments)| arguments == &[concrete_int_type(&output.local)])
     );
     assert!(
         concrete_methods

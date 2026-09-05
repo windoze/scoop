@@ -98,12 +98,25 @@ impl Lowerer {
                     if matches!(failure.kind, ConstraintFailureKind::NoUniqueSolution { .. })
                         && lowered.iter().any(Option::is_none) =>
                 {
-                    // No other relation can type the first postponed input.
-                    // Lower it without a hint to preserve its focused source
-                    // diagnostic (`None`, `[]`, or an untyped callable).
+                    // Prefer a postponed input that can synthesize a complete
+                    // type through the integer-literal default ladder. This
+                    // is only a fixed-point escape hatch: ordinary candidate
+                    // probing still postpones the expression so each
+                    // candidate can supply its own expected type.
                     let source_index = lowered
                         .iter()
-                        .position(Option::is_none)
+                        .enumerate()
+                        .filter_map(|(index, argument)| argument.is_none().then_some(index))
+                        .filter_map(|index| {
+                            self.expr_default_seed_rank(&arg_exprs[index].expression)
+                                .map(|rank| (rank, index))
+                        })
+                        .max_by_key(|(rank, _)| *rank)
+                        .map(|(_, index)| index)
+                        // No input can seed inference. Lower the first one
+                        // without a hint to preserve its focused source
+                        // diagnostic (`None`, `[]`, or an untyped callable).
+                        .or_else(|| lowered.iter().position(Option::is_none))
                         .expect("a postponed nominal argument remains");
                     lowered[source_index] = Some(self.lower_expr(
                         &arg_exprs[source_index].expression,
@@ -306,6 +319,13 @@ impl Lowerer {
     /// this lets nested calls perform their own fixed-point inference.
     pub(crate) fn expr_requires_expected_type(&self, expr: &ast::Expr) -> bool {
         match expr {
+            ast::Expr::IntLiteral(_) => true,
+            ast::Expr::Unary { op, operand, .. }
+                if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+                    && matches!(&**operand, ast::Expr::IntLiteral(_)) =>
+            {
+                true
+            }
             ast::Expr::Var(name) => {
                 name.text == "None"
                     && self.scopes.lookup(&name.text).is_none()
@@ -353,6 +373,92 @@ impl Lowerer {
             ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
             _ => false,
         }
+    }
+
+    /// Whether a contextual expression can nevertheless synthesize a
+    /// complete type when a surrounding inference fixed point has no other
+    /// evidence. Integer literals use their suffix/default-width ladder;
+    /// aggregate constructors may use such literals transitively.
+    ///
+    /// This is deliberately separate from `expr_requires_expected_type`:
+    /// overload candidates must still probe `Some(1)` against their own
+    /// `Option<Int8>` / `Option<Int16>` parameter types before any default is
+    /// committed.
+    pub(crate) fn expr_can_provide_default_seed(&self, expr: &ast::Expr) -> bool {
+        match expr {
+            ast::Expr::IntLiteral(_) => true,
+            ast::Expr::Unary { op, operand, .. }
+                if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+                    && matches!(&**operand, ast::Expr::IntLiteral(_)) =>
+            {
+                true
+            }
+            ast::Expr::TupleLiteral { elements, .. } => {
+                !elements.is_empty()
+                    && elements.iter().all(|element| {
+                        !self.expr_requires_expected_type(element)
+                            || self.expr_can_provide_default_seed(element)
+                    })
+            }
+            ast::Expr::ArrayLiteral { elements, .. } => {
+                !elements.is_empty()
+                    && elements.iter().all(|element| {
+                        !self.expr_requires_expected_type(element)
+                            || self.expr_can_provide_default_seed(element)
+                    })
+            }
+            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
+            ast::Expr::Call(call) => {
+                self.constructor_can_provide_default_seed(&call.callee, &call.args)
+            }
+            ast::Expr::StructInit { name, args, .. } => {
+                self.constructor_can_provide_default_seed(name, args)
+            }
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                type_args,
+                args,
+                ..
+            } if type_args.is_empty() => {
+                let ast::Expr::Var(enum_name) = &**receiver else {
+                    return false;
+                };
+                if self.scopes.lookup(&enum_name.text).is_some()
+                    || self.host_has_property(&enum_name.text)
+                {
+                    return false;
+                }
+                let qualified = ast::Ident {
+                    text: format!("{}.{}", enum_name.text, name.text),
+                    span: Span::new(enum_name.span.start, name.span.end),
+                };
+                self.constructor_can_provide_default_seed(&qualified, args)
+            }
+            _ => false,
+        }
+    }
+
+    fn constructor_can_provide_default_seed(
+        &self,
+        name: &ast::Ident,
+        args: &[ast::CallArgument],
+    ) -> bool {
+        let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
+            return false;
+        };
+        if type_param_count == 0 {
+            return false;
+        }
+        let mut bound = vec![false; type_param_count];
+        for (arg, field) in args.iter().zip(fields) {
+            if !self.expr_requires_expected_type(&arg.expression)
+                || self.expr_can_provide_default_seed(&arg.expression)
+            {
+                self.mark_type_params(field, &mut bound);
+            }
+        }
+        bound.into_iter().all(|bound| bound)
     }
 
     pub(super) fn constructor_requires_expected(

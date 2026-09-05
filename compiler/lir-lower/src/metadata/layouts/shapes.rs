@@ -39,24 +39,45 @@ pub(crate) fn struct_shape(
     } = &definition.representation
     else {
         return match definition.representation {
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Int)
-            | mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::UInt) => {
-                let layout = context.legacy_integer_layout();
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Integer(
+                kind,
+            )) => {
+                let layout = context.integer_layout(integer_kind(kind));
                 (Vec::new(), layout.size, layout.align)
             }
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Boolean) => {
                 let layout = context.scalar_layout(lir::BackendScalarKind::I1);
                 (Vec::new(), layout.size, layout.align)
             }
-            mir::StructRepresentation::Intrinsic(_) => {
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Ptr {
+                ..
+            }) => {
+                let layout = context.pointer_layout(lir::PointerKind::Raw);
+                (Vec::new(), layout.size, layout.align)
+            }
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
+                ..
+            }) => {
+                let layout = context.pointer_layout(lir::PointerKind::Code);
+                (Vec::new(), layout.size, layout.align)
+            }
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::String
+                | mir::IntrinsicTypeRepresentation::Array { .. }
+                | mir::IntrinsicTypeRepresentation::MutableArray { .. },
+            ) => {
                 unreachable!("the registry fixes intrinsic declaration targets")
             }
             mir::StructRepresentation::Declared { .. } => unreachable!(),
         };
     };
-    let packed = c_layout.map(|layout| u64::from(layout.packed)).unwrap_or(0);
+    let packed = c_layout
+        .and_then(|layout| layout.packed.bytes())
+        .map(u64::from)
+        .unwrap_or(0);
     let explicit_align = c_layout
-        .map(|layout| u64::from(layout.aligned))
+        .and_then(|layout| layout.aligned.bytes())
+        .map(u64::from)
         .unwrap_or(0);
     let mut layouts = Vec::with_capacity(fields.len());
     let mut size = 0u64;
@@ -90,10 +111,8 @@ pub(crate) fn size_align(
 ) -> (u64, u64) {
     match ty {
         mir::Type::Unit => (0, 1),
-        // The old source integers and all current machine scalar domains
-        // remain explicit I64 values until the typed-integer cutover.
-        mir::Type::Int | mir::Type::UInt => {
-            let layout = context.legacy_integer_layout();
+        mir::Type::Integer(kind) => {
+            let layout = context.integer_layout(integer_kind(*kind));
             (layout.size, layout.align)
         }
         mir::Type::MachineScalar(_) => {

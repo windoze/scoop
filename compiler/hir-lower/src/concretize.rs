@@ -255,7 +255,13 @@ impl<'a> Concretizer<'a> {
 
     fn run(mut self) -> concrete::Module {
         let unit = self.lower_type(self.source.unit, &[]);
-        let int = self.lower_type(self.source.int, &[]);
+        for kind in export::IntegerKind::ALL {
+            let owner = self.source.intrinsic_type_core.integers.owner(kind);
+            let source_type = self.source.struct_applications
+                [self.source.structs[owner].self_application]
+                .canonical_type;
+            self.lower_type(source_type, &[]);
+        }
         let boolean = self.lower_type(self.source.boolean, &[]);
         let string = self.lower_type(self.source.string, &[]);
 
@@ -452,8 +458,13 @@ impl<'a> Concretizer<'a> {
         }
 
         let intrinsic_type_core = concrete::IntrinsicTypeCore {
-            int: self.struct_by_key[&(self.source.intrinsic_type_core.int, Vec::new())],
-            uint: self.struct_by_key[&(self.source.intrinsic_type_core.uint, Vec::new())],
+            integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
+                self.struct_by_key[&(
+                    self.source.intrinsic_type_core.integers.owner(kind),
+                    Vec::new(),
+                )]
+            }))
+            .expect("validated integer owners remain distinct after concretization"),
             boolean: self.struct_by_key[&(self.source.intrinsic_type_core.boolean, Vec::new())],
             string: self.class_by_key[&(self.source.intrinsic_type_core.string, Vec::new())],
         };
@@ -517,7 +528,6 @@ impl<'a> Concretizer<'a> {
             interfaces: self.interfaces,
             top_level: self.emitted_functions,
             unit,
-            int,
             boolean,
             string,
             option_variants: (option_variant("Some"), option_variant("None")),

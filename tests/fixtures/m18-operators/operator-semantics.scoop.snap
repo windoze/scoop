@@ -32,10 +32,10 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  public struct Ptr<T : value>
-    field _rawPointer: UInt
+    @Intrinsic("core_ptr")
+  public struct Ptr<T : value> <representation omitted>
     public operator fun equals
-    public fun toUInt
+    public fun toULong
     public fun cast
     public fun load
     public fun load
@@ -43,17 +43,17 @@ SourceFile
     public fun store
     public operator fun plus
     public operator fun minus
-  public struct FunPtr<F>
-    field _rawPointer: UInt
+    @Intrinsic("core_fun_ptr")
+  public struct FunPtr<F> <representation omitted>
     @Unsafe
     @Intrinsic("address_of")
   public fun addressOf<T : value>(value: T): Ptr<T>
     @NoGC
     @Intrinsic("size_of")
-  public fun sizeOf<T : value>(): UInt
+  public fun sizeOf<T : value>(): ULong
     @NoGC
     @Intrinsic("align_of")
-  public fun alignOf<T : value>(): UInt
+  public fun alignOf<T : value>(): ULong
 SourceFile
   public enum ForeignCallbackMode
     Reusable
@@ -68,7 +68,7 @@ SourceFile
     field context: Ptr<Unit>
     @Unsafe
     @Intrinsic("foreign_callback_register")
-  public fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+  public fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F>
     @Unsafe
     @Intrinsic("foreign_callback_retain")
   public fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
@@ -83,21 +83,21 @@ SourceFile
   public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
 SourceFile
   public struct PinnedPtr<T : ref>
-    field raw: UInt
+    field raw: ULong
   public struct GcHandle<T : ref>
-    field raw: UInt
+    field raw: ULong
     @Unsafe
     @Intrinsic("gc_pin_raw")
-  internal fun _pin<T : ref>(v: T): UInt
+  internal fun _pin<T : ref>(v: T): ULong
     @Unsafe
     @Intrinsic("gc_unpin_raw")
-  internal fun _unpin<T : ref>(raw: UInt): T
+  internal fun _unpin<T : ref>(raw: ULong): T
     @Unsafe
     @Intrinsic("gc_get_handle_raw")
-  internal fun _getGcHandle<T : ref>(v: T): UInt
+  internal fun _getGcHandle<T : ref>(v: T): ULong
     @Unsafe
     @Intrinsic("gc_release_handle_raw")
-  internal fun _releaseGcHandle<T : ref>(raw: UInt): T
+  internal fun _releaseGcHandle<T : ref>(raw: ULong): T
     @Unsafe
   public fun pin<T : ref>(v: T): PinnedPtr<T>
     =
@@ -125,7 +125,7 @@ SourceFile
     @Intrinsic("rt_gc_collect")
   public fun gcCollect()
     @Intrinsic("rt_gc_stats")
-  public fun gcStats(): UInt
+  public fun gcStats(): ULong
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   public fun write(message: String)
@@ -147,8 +147,8 @@ SourceFile
 SourceFile
   public struct SourceLocation
     field file: String
-    field line: Int
-    field column: Int
+    field line: Long
+    field column: Long
     field functionName: String
     field typeName: String
     @Intrinsic("current_source_location")
@@ -166,6 +166,66 @@ SourceFile
     fun toString
   public interface Hash
     fun hash
+    @Intrinsic("core_int8")
+  public struct Int8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_int16")
+  public struct Int16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
     @Intrinsic("core_int")
   public struct Int <representation omitted> : ToString, Hash
     public operator fun equals
@@ -179,12 +239,28 @@ SourceFile
     public operator fun div
     public operator fun rem
     public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
     public fun toString
     public fun hash
-    @Intrinsic("core_uint")
-  public struct UInt <representation omitted> : ToString, Hash
+    @Intrinsic("core_long")
+  public struct Long <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
+    public operator fun unaryMinus
     public operator fun inc
     public operator fun dec
     public operator fun plus
@@ -193,8 +269,147 @@ SourceFile
     public operator fun div
     public operator fun rem
     public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
     public fun toString
     public fun hash
+    @Intrinsic("core_uint8")
+  public struct UInt8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint16")
+  public struct UInt16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint")
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_ulong")
+  public struct ULong <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+  public typealias Byte = Int8
+  public typealias Short = Int16
+  public typealias Int32 = Int
+  public typealias Int64 = Long
+  public typealias UByte = UInt8
+  public typealias UShort = UInt16
+  public typealias UInt32 = UInt
+  public typealias UInt64 = ULong
     @Intrinsic("core_boolean")
   public struct Boolean <representation omitted> : ToString, Hash
     public operator fun equals
@@ -217,28 +432,24 @@ SourceFile
     public operator fun get
     public operator fun set
     public fun toArray
-    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
-  internal fun coreIntEquals(left: Int, right: Int): Boolean
-    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
-  internal fun coreUIntEquals(left: UInt, right: UInt): Boolean
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
   internal fun coreStringEquals(left: String, right: String): Boolean
-    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
-  internal fun coreIntToString(value: Int): String
-    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
-  internal fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
+  internal fun coreLongToString(value: Long): String
+    @Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
+  internal fun coreULongToString(value: ULong): String
     @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
   internal fun coreBooleanToString(value: Boolean): String
-    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
-  internal fun coreIntHash(value: Int): Int
-    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
-  internal fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_long_hash", abi = "scoop")
+  internal fun coreLongHash(value: Long): Long
+    @Extern(name = "scoop_rt_ulong_hash", abi = "scoop")
+  internal fun coreULongHash(value: ULong): Long
     @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
-  internal fun coreBooleanHash(value: Boolean): Int
+  internal fun coreBooleanHash(value: Boolean): Long
     @Extern(name = "scoop_rt_string_hash", abi = "scoop")
-  internal fun coreStringHash(value: String): Int
+  internal fun coreStringHash(value: String): Long
 SourceFile
   struct Score
     field value: Int
@@ -480,6 +691,14 @@ SourceFile
 
 == hir ==
 Module
+  typealias Byte = Int8
+  typealias Short = Int16
+  typealias Int32 = Int
+  typealias Int64 = Long
+  typealias UByte = UInt8
+  typealias UShort = UInt16
+  typealias UInt32 = UInt
+  typealias UInt64 = ULong
   struct FunctionSuspendTask<T> : SuspendTask<T0>
     field0 task: suspend () -> T0
     property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
@@ -488,30 +707,30 @@ Module
     property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
   struct Score
     field0 value: Int
-    property13 val value: Int getter13=storage <stored struct11-field0>
+    property11 val value: Int getter11=storage <stored struct17-field0>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property14: Option<String>
-    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
+    field0 property12: Option<String>
+    property12 val message: Option<String> getter12=storage <stored field0 init=parameter12>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException(message: Option<String>)
   class Bag(expected: Int)
-    field1 property15: Int
-    property15 val expected: Int getter15=storage <stored field1 init=parameter16>
+    field1 property13: Int
+    property13 val expected: Int getter13=storage <stored field1 init=parameter14>
   class Cell(value: Int)
-    field2 property16: Int
-    property16 var value: Int getter16=storage setter0=storage <stored field2 init=parameter17>
+    field2 property14: Int
+    property14 var value: Int getter14=storage setter0=storage <stored field2 init=parameter15>
   class Coordinates(x: Int, y: Int)
-    field3 property17: Int
-    field4 property18: Int
-    property17 val x: Int getter17=storage <stored field3 init=parameter18>
-    property18 val y: Int getter18=storage <stored field4 init=parameter19>
+    field3 property15: Int
+    field4 property16: Int
+    property15 val x: Int getter15=storage <stored field3 init=parameter16>
+    property16 val y: Int getter16=storage <stored field4 init=parameter17>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -522,7 +741,7 @@ Module
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -563,46 +782,46 @@ Module
     val local2
       Local $argument.0 : T0
     val local3
-      Call _pin<T0> : UInt
+      Call _pin<T0> : ULong
         Local $parameter.v : T0
     val local4
-      Local $argument.0 : UInt
+      Local $argument.0 : ULong
     return
       StructInit PinnedPtr : PinnedPtr<T0>
-        Local $parameter.raw : UInt
+        Local $parameter.raw : ULong
   fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
     val local1
-      FieldAccess field 0 : UInt
+      FieldAccess field 0 : ULong
         Local p : PinnedPtr<T0>
     val local2
-      Local $argument.0 : UInt
+      Local $argument.0 : ULong
     return
       Call _unpin<T0> : T0
-        Local $parameter.raw : UInt
+        Local $parameter.raw : ULong
   fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
     val local1
       Local v : T0
     val local2
       Local $argument.0 : T0
     val local3
-      Call _getGcHandle<T0> : UInt
+      Call _getGcHandle<T0> : ULong
         Local $parameter.v : T0
     val local4
-      Local $argument.0 : UInt
+      Local $argument.0 : ULong
     return
       StructInit GcHandle : GcHandle<T0>
-        Local $parameter.raw : UInt
+        Local $parameter.raw : ULong
   fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
     val local1
-      FieldAccess field 0 : UInt
+      FieldAccess field 0 : ULong
         Local h : GcHandle<T0>
     val local2
-      Local $argument.0 : UInt
+      Local $argument.0 : ULong
     return
       Call _releaseGcHandle<T0> : T0
-        Local $parameter.raw : UInt
+        Local $parameter.raw : ULong
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
-  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun gcStats(): ULong <intrinsic rt_gc_stats>
   fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
@@ -631,17 +850,15 @@ Module
       Local $argument.0 : String
     Call write : Unit
       Local $parameter.message : String
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern1 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern2 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern3 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern4 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern5 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern6 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern7 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern8 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern9 abi=scoop symbol=scoop_rt_string_hash>
   operator fun times(this: Score, scale: Int): Score
     val local2
       FieldAccess field 0 : Int
@@ -651,7 +868,7 @@ Module
     val local4
       Local $argument.0 : Int
     val local5
-      PrimitiveBinary IntMul : Int
+      IntegerOperation int.mul target=function106 <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local6
@@ -706,7 +923,7 @@ Module
     Call println<String> : Unit
       Local $parameter.value : String
     val local2
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Int
     val local3
       Local $argument.0 : Int
     return
@@ -723,7 +940,7 @@ Module
       Local value : Int
   fun main(): Unit
     val local0
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local1
       Local $argument.0 : Int
     val local2
@@ -752,7 +969,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local10
-      IntLiteral 5 : Int
+      IntegerLiteral 5 : Int
     val local11
       Local $argument.0 : Int
     val local12
@@ -821,14 +1038,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local32
-      IntLiteral 9 : Int
+      IntegerLiteral 9 : Int
     val local33
       Local $argument.0 : Int
     val local36
       StructInit Score : Score
         Local $parameter.value : Int
     val local34
-      IntLiteral 4 : Int
+      IntegerLiteral 4 : Int
     val local35
       Local $argument.0 : Int
     val local37
@@ -846,14 +1063,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local41
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local42
       Local $argument.0 : Int
     val local45
       StructInit Score : Score
         Local $parameter.value : Int
     val local43
-      IntLiteral 4 : Int
+      IntegerLiteral 4 : Int
     val local44
       Local $argument.0 : Int
     val local46
@@ -871,14 +1088,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local50
-      IntLiteral 12 : Int
+      IntegerLiteral 12 : Int
     val local51
       Local $argument.0 : Int
     val local54
       StructInit Score : Score
         Local $parameter.value : Int
     val local52
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local53
       Local $argument.0 : Int
     val local55
@@ -896,14 +1113,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local59
-      IntLiteral 14 : Int
+      IntegerLiteral 14 : Int
     val local60
       Local $argument.0 : Int
     val local63
       StructInit Score : Score
         Local $parameter.value : Int
     val local61
-      IntLiteral 4 : Int
+      IntegerLiteral 4 : Int
     val local62
       Local $argument.0 : Int
     val local64
@@ -921,14 +1138,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local68
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local69
       Local $argument.0 : Int
     val local70
       StructInit Score : Score
         Local $parameter.value : Int
     val local71
-      IntLiteral 5 : Int
+      IntegerLiteral 5 : Int
     val local72
       Local $argument.0 : Int
     val local73
@@ -941,14 +1158,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local75
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local76
       Local $argument.0 : Int
     val local79
       StructInit Score : Score
         Local $parameter.value : Int
     val local77
-      IntLiteral 8 : Int
+      IntegerLiteral 8 : Int
     val local78
       Local $argument.0 : Int
     val local80
@@ -966,14 +1183,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local84
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local85
       Local $argument.0 : Int
     val local88
       StructInit Score : Score
         Local $parameter.value : Int
     val local86
-      IntLiteral 8 : Int
+      IntegerLiteral 8 : Int
     val local87
       Local $argument.0 : Int
     val local89
@@ -991,14 +1208,14 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local93
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local94
       Local $argument.0 : Int
     val local97
       StructInit Score : Score
         Local $parameter.value : Int
     val local95
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local96
       Local $argument.0 : Int
     val local98
@@ -1008,23 +1225,23 @@ Module
       Local $argument.0 : Score
     val local100
       Binary Lt : Boolean
-        MethodCall Score.compareTo : Int
+        MethodCall Score.compareTo : Long
           Local $receiver : Score
           Local $parameter.other : Score
-        IntLiteral 0 : Int
+        IntegerLiteral 0 : Long
     val local101
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local102
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local103
       Local $argument.0 : Int
     val local106
       StructInit Score : Score
         Local $parameter.value : Int
     val local104
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local105
       Local $argument.0 : Int
     val local107
@@ -1034,23 +1251,23 @@ Module
       Local $argument.0 : Score
     val local109
       Binary Ge : Boolean
-        MethodCall Score.compareTo : Int
+        MethodCall Score.compareTo : Long
           Local $receiver : Score
           Local $parameter.other : Score
-        IntLiteral 0 : Int
+        IntegerLiteral 0 : Long
     val local110
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local111
-      IntLiteral 7 : Int
+      IntegerLiteral 7 : Int
     val local112
       Local $argument.0 : Int
     val local115
       ClassInit Bag : Bag
         Local $parameter.expected : Int
     val local113
-      IntLiteral 7 : Int
+      IntegerLiteral 7 : Int
     val local114
       Local $argument.0 : Int
     val local116
@@ -1067,14 +1284,14 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local120
-      IntLiteral 7 : Int
+      IntegerLiteral 7 : Int
     val local121
       Local $argument.0 : Int
     val local124
       ClassInit Bag : Bag
         Local $parameter.expected : Int
     val local122
-      IntLiteral 8 : Int
+      IntegerLiteral 8 : Int
     val local123
       Local $argument.0 : Int
     val local125
@@ -1092,14 +1309,14 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local129
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local130
       Local $argument.0 : Int
     val local133
       StructInit Score : Score
         Local $parameter.value : Int
     val local131
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local132
       Local $argument.0 : Int
     val local134
@@ -1112,7 +1329,7 @@ Module
         Local $receiver : Score
         Local $parameter.other : Score
     val local136
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local137
       Local $argument.0 : Int
     val local139
@@ -1132,7 +1349,7 @@ Module
     val local143
       StringLiteral "left" : String
     val local144
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local145
       Local $argument.0 : String
     val local146
@@ -1144,7 +1361,7 @@ Module
     val local147
       StringLiteral "right" : String
     val local148
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local149
       Local $argument.0 : String
     val local150
@@ -1167,7 +1384,7 @@ Module
     val local156
       StringLiteral "container" : String
     val local157
-      IntLiteral 7 : Int
+      IntegerLiteral 7 : Int
     val local158
       Local $argument.0 : String
     val local159
@@ -1179,7 +1396,7 @@ Module
     val local160
       StringLiteral "item" : String
     val local161
-      IntLiteral 7 : Int
+      IntegerLiteral 7 : Int
     val local162
       Local $argument.0 : String
     val local163
@@ -1203,7 +1420,7 @@ Module
     val local172
       Local $old.6 : Score
     val local170
-      IntLiteral 10 : Int
+      IntegerLiteral 10 : Int
     val local171
       Local $argument.0 : Int
     val local173
@@ -1223,7 +1440,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local177
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local178
       Local $argument.0 : Int
     val local179
@@ -1234,7 +1451,7 @@ Module
     val local181
       Local $old.7 : Cell
     val local182
-      IntLiteral 4 : Int
+      IntegerLiteral 4 : Int
     val local183
       Local $argument.0 : Int
     MethodCall Cell.plusAssign : Unit
@@ -1243,11 +1460,11 @@ Module
     val local184
       Local cell : Cell
     val local185
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local186
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local187
-      IntLiteral 10 : Int
+      IntegerLiteral 10 : Int
     val local188
       Local $argument.0 : Int
     val local189
@@ -1262,11 +1479,11 @@ Module
     val local191
       Local cell : Cell
     val local192
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local193
       Local $argument.0 : Int
     val local194
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Int
     val local195
       MethodCall Cell.get : Int
         Local $receiver : Cell
@@ -1281,7 +1498,7 @@ Module
     val local197
       StringLiteral "row" : String
     val local198
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local199
       Local $argument.0 : String
     val local200
@@ -1293,7 +1510,7 @@ Module
     val local201
       StringLiteral "column" : String
     val local202
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local203
       Local $argument.0 : String
     val local204
@@ -1305,7 +1522,7 @@ Module
     val local205
       StringLiteral "set-value" : String
     val local206
-      IntLiteral 10 : Int
+      IntegerLiteral 10 : Int
     val local207
       Local $argument.0 : String
     val local208
@@ -1326,9 +1543,9 @@ Module
       Local $parameter.column : Int
       Local $parameter.newValue : Int
     val local216
-      IntLiteral 20 : Int
+      IntegerLiteral 20 : Int
     val local217
-      IntLiteral 22 : Int
+      IntegerLiteral 22 : Int
     val local218
       Local $argument.0 : Int
     val local219
@@ -1354,7 +1571,7 @@ Module
     val local227
       Local $argument.0 : Int
     val local228
-      PrimitiveBinary IntAdd : Int
+      IntegerOperation int.add target=function104 <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local229
@@ -1369,10 +1586,10 @@ Module
       Local $argument.0 : String
     val local233
       Binary Lt : Boolean
-        PrimitiveBinary StringCompareTo : Int
+        PrimitiveBinary StringCompareTo : Long
           Local $receiver : String
           Local $parameter.other : String
-        IntLiteral 0 : Int
+        IntegerLiteral 0 : Long
     val local234
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
@@ -1394,20 +1611,18 @@ Module
   instance println<Boolean>
 
 == mir ==
-Module
+Module mangling=compact-v2
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
-  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
-  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
-  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
-  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
-  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
-  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
-  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
-  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
-  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
-  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
-  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(ULong) -> String <abi=scoop managed>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef6 coreLongHash @scoop_rt_long_hash(Long) -> Long <abi=scoop managed>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(ULong) -> Long <abi=scoop managed>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
+  extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
+  struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct Score (value: Int)
   enum Option$S
     Some(_1: String)
@@ -1424,105 +1639,289 @@ Module
   class Coordinates vtable=0 itables=0
   interface ToString
   interface Hash
-  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
+  fun Int8.toString @scoop.Int8.toString(this: Int8) -> String
     bb0 entry
-      val $argument.0: Int
-        Type Int
+      val $receiver: Int8
+        Type Int8
         Local this
-      val $argument.1: Int
-        Type Int
-        Local other
-      val $parameter.left: Int
-        Type Int
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
         Local $argument.0
-      val $parameter.right: Int
-        Type Int
-        Local $argument.1
-      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
-        Type Int
-        Local $parameter.left
-        Type Int
-        Local $parameter.right
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
       return
-        Type Boolean
+        Type String
+        Local $call.1
+  fun Int8.hash @scoop.Int8.hash(this: Int8) -> Long
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Int16.toString @scoop.Int16.toString(this: Int16) -> String
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int16.hash @scoop.Int16.hash(this: Int16) -> Long
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
-      val $argument.0: Int
+      val $receiver: Int
         Type Int
         Local this
-      val $parameter.value: Int
-        Type Int
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
         Local $argument.0
-      call $call.1: String = extern5 @scoop_rt_int_to_string direct
-        Type Int
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
         Local $parameter.value
       return
         Type String
         Local $call.1
-  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+  fun Int.hash @scoop.Int.hash(this: Int) -> Long
     bb0 entry
-      val $argument.0: Int
+      val $receiver: Int
         Type Int
         Local this
-      val $parameter.value: Int
-        Type Int
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
         Local $argument.0
-      call $call.1: Int = extern8 @scoop_rt_int_hash direct
-        Type Int
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
         Local $parameter.value
       return
-        Type Int
+        Type Long
         Local $call.1
-  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+  fun Long.toString @scoop.Long.toString(this: Long) -> String
     bb0 entry
-      val $argument.0: UInt
-        Type UInt
+      val $argument.0: Long
+        Type Long
         Local this
-      val $argument.1: UInt
-        Type UInt
-        Local other
-      val $parameter.left: UInt
-        Type UInt
+      val $parameter.value: Long
+        Type Long
         Local $argument.0
-      val $parameter.right: UInt
-        Type UInt
-        Local $argument.1
-      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
-        Type UInt
-        Local $parameter.left
-        Type UInt
-        Local $parameter.right
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
       return
-        Type Boolean
+        Type String
+        Local $call.1
+  fun Long.hash @scoop.Long.hash(this: Long) -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local this
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt8.toString @scoop.UInt8.toString(this: UInt8) -> String
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt8.hash @scoop.UInt8.hash(this: UInt8) -> Long
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt16.toString @scoop.UInt16.toString(this: UInt16) -> String
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt16.hash @scoop.UInt16.hash(this: UInt16) -> Long
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
-      val $argument.0: UInt
+      val $receiver: UInt
         Type UInt
         Local this
-      val $parameter.value: UInt
-        Type UInt
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
         Local $argument.0
-      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
-        Type UInt
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
         Local $parameter.value
       return
         Type String
         Local $call.1
-  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Long
     bb0 entry
-      val $argument.0: UInt
+      val $receiver: UInt
         Type UInt
         Local this
-      val $parameter.value: UInt
-        Type UInt
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
         Local $argument.0
-      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
-        Type UInt
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
         Local $parameter.value
       return
-        Type Int
+        Type Long
+        Local $call.1
+  fun ULong.toString @scoop.ULong.toString(this: ULong) -> String
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun ULong.hash @scoop.ULong.hash(this: ULong) -> Long
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
@@ -1538,7 +1937,7 @@ Module
       val $parameter.right: Boolean
         Type Boolean
         Local $argument.1
-      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+      call $call.1: Boolean = extern1 @scoop_rt_bool_equals direct
         Type Boolean
         Local $parameter.left
         Type Boolean
@@ -1554,13 +1953,13 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+      call $call.1: String = extern5 @scoop_rt_bool_to_string direct
         Type Boolean
         Local $parameter.value
       return
         Type String
         Local $call.1
-  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Long
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -1568,11 +1967,11 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+      call $call.1: Long = extern8 @scoop_rt_bool_hash direct
         Type Boolean
         Local $parameter.value
       return
-        Type Int
+        Type Long
         Local $call.1
   fun Score.unaryPlus @scoop.Score.unaryPlus(this: Score) -> Score
     bb0 entry
@@ -1588,13 +1987,13 @@ Module
           Local this
       val $argument.0: Int
         Type Int
-        Unary IntNeg
+        IntegerUnary negate kind=Int
           Type Int
           Local $receiver
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1609,13 +2008,13 @@ Module
           Local this
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.other: Int
         Type Int
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1623,7 +2022,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1638,13 +2037,13 @@ Module
           Local this
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.other: Int
         Type Int
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntSub
+        IntegerBinary subtract kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1652,7 +2051,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1675,7 +2074,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1683,7 +2082,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1706,7 +2105,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntSub
+        IntegerBinary subtract kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1714,7 +2113,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1737,7 +2136,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntMul
+        IntegerBinary multiply kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1745,7 +2144,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1774,11 +2173,11 @@ Module
         Local $parameter.other
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
+        IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $div.2
           Type Int
-          IntLiteral 0
+          IntegerLiteral Int value=0 bits=0x00000000
     bb1 if.then.1
       assign $new.1
         Type ArithmeticException
@@ -1790,22 +2189,58 @@ Module
         Type ArithmeticException
         Local $new.1
     bb2 if.merge.2
-      val $argument.0: Int
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.1
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
         Type Int
-        Binary IntDiv
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int
+        SafeIntegerDivRem divide kind=Int
           Type Int
           Local $div.1
           Type Int
           Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        Local $div.result.3
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.2: Score = @scoop.ctor.Score.$c8 direct
+      call $call.3: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
         Type Score
-        Local $call.2
+        Local $call.3
   fun Score.rem @scoop.Score.rem(this: Score, other: Score) -> Score
     bb0 entry
       val $receiver: Int
@@ -1829,11 +2264,11 @@ Module
         Local $parameter.other
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
+        IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $div.2
           Type Int
-          IntLiteral 0
+          IntegerLiteral Int value=0 bits=0x00000000
     bb1 if.then.1
       assign $new.1
         Type ArithmeticException
@@ -1845,22 +2280,58 @@ Module
         Type ArithmeticException
         Local $new.1
     bb2 if.merge.2
-      val $argument.0: Int
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.1
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
         Type Int
-        Binary IntRem
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int
+        SafeIntegerDivRem remainder kind=Int
           Type Int
           Local $div.1
           Type Int
           Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        Local $div.result.3
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.2: Score = @scoop.ctor.Score.$c8 direct
+      call $call.3: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
         Type Score
-        Local $call.2
+        Local $call.3
   fun Score.rangeTo @scoop.Score.rangeTo(this: Score, other: Score) -> Score
     bb0 entry
       val $receiver: Int
@@ -1878,7 +2349,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntSub
+        IntegerBinary subtract kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1886,7 +2357,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -1909,20 +2380,20 @@ Module
         Local $argument.0
       val $receiver: Int
         Type Int
-        Binary IntSub
+        IntegerBinary subtract kind=Int
           Type Int
           Local $receiver
           Type Int
           Local $parameter.other
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.other: Int
         Type Int
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntSub
+        IntegerBinary subtract kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -1930,33 +2401,43 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
         Type Score
         Local $call.1
-  fun Score.compareTo @scoop.Score.compareTo(this: Score, other: Score) -> Int
+  fun Score.compareTo @scoop.Score.compareTo(this: Score, other: Score) -> Long
     bb0 entry
       val $receiver: Int
         Type Int
         FieldAccess 0
           Type Score
           Local this
-      val $argument.0: Int
+      val $receiver: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $receiver: Int
         Type Int
         FieldAccess 0
           Type Score
           Local other
-      val $parameter.other: Int
-        Type Int
-        Local $argument.0
-      return
-        Type Int
-        Binary IntSub
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
           Type Int
           Local $receiver
-          Type Int
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      return
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $receiver
+          Type Long
           Local $parameter.other
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
@@ -1972,7 +2453,7 @@ Module
       val $parameter.right: String
         Type String
         Local $argument.1
-      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+      call $call.1: Boolean = extern2 @scoop_rt_string_eq direct
         Type String
         Local $parameter.left
         Type String
@@ -1985,7 +2466,7 @@ Module
       return
         Type String
         Local this
-  fun String.hash @scoop.String.hash(this: String) -> Int
+  fun String.hash @scoop.String.hash(this: String) -> Long
     bb0 entry
       val $argument.0: String
         Type String
@@ -1993,26 +2474,25 @@ Module
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+      call $call.1: Long = extern9 @scoop_rt_string_hash direct
         Type String
         Local $parameter.value
       return
-        Type Int
+        Type Long
         Local $call.1
   fun Bag.contains @scoop.Bag.contains(this: Bag, item: Score) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @scoop.Int.equals direct
-        Type Int
-        FieldAccess 0
-          Type Score
-          Local item
-        Type Int
-        FieldAccess 0
-          Type Bag
-          Local this
       return
         Type Boolean
-        Local $call.1
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Score
+            Local item
+          Type Int
+          FieldAccess 0
+            Type Bag
+            Local this
   fun Cell.get @scoop.Cell.get(this: Cell, row: Int, column: Int) -> Int
     bb0 entry
       val $receiver: Int
@@ -2028,7 +2508,7 @@ Module
         Local $argument.0
       val $receiver: Int
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2041,7 +2521,7 @@ Module
         Local $argument.0
       return
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2059,7 +2539,7 @@ Module
         Local $argument.0
       val $receiver: Int
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2074,7 +2554,7 @@ Module
         Type Cell
         Local this
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2097,7 +2577,7 @@ Module
         Type Cell
         Local this
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2132,7 +2612,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntMul
+        IntegerBinary multiply kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -2140,7 +2620,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -2182,7 +2662,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @scoop.ctor.Score.$c8 direct
+      call $call.1: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       return
@@ -2229,7 +2709,7 @@ Module
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 0
+        IntegerLiteral Int value=0 bits=0x00000000
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -2262,11 +2742,11 @@ Module
     bb0 entry
       val $argument.0: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       call positive: Score = @scoop.Score.unaryPlus direct
@@ -2286,7 +2766,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -2297,16 +2777,16 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 5
+        IntegerLiteral Int value=5 bits=0x00000005
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call updated: Score = @scoop.ctor.Score.$c8 direct
+      call updated: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $old.0: Score
@@ -2329,7 +2809,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -2340,7 +2820,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $old.2: Score
@@ -2363,7 +2843,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $old.4: Score
@@ -2386,7 +2866,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -2397,25 +2877,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 9
+        IntegerLiteral Int value=9 bits=0x00000009
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 4
+        IntegerLiteral Int value=4 bits=0x00000004
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2434,25 +2914,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 4
+        IntegerLiteral Int value=4 bits=0x00000004
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2471,25 +2951,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 12
+        IntegerLiteral Int value=12 bits=0x0000000c
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2508,25 +2988,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 14
+        IntegerLiteral Int value=14 bits=0x0000000e
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 4
+        IntegerLiteral Int value=4 bits=0x00000004
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2545,21 +3025,21 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 5
+        IntegerLiteral Int value=5 bits=0x00000005
       val $parameter.scale: Int
         Type Int
         Local $argument.0
@@ -2576,25 +3056,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 8
+        IntegerLiteral Int value=8 bits=0x00000008
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2613,25 +3093,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 8
+        IntegerLiteral Int value=8 bits=0x00000008
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2650,42 +3130,42 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
         Type Score
         Local $argument.0
-      call $call.8: Int = @scoop.Score.compareTo direct
+      call $call.8: Long = @scoop.Score.compareTo direct
         Type Score
         Local $receiver
         Type Score
         Local $parameter.other
       val $argument.0: Boolean
         Type Boolean
-        Binary IntLt
-          Type Int
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
           Local $call.8
-          Type Int
-          IntLiteral 0
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -2694,37 +3174,37 @@ Module
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
         Type Score
         Local $argument.0
-      call $call.9: Int = @scoop.Score.compareTo direct
+      call $call.9: Long = @scoop.Score.compareTo direct
         Type Score
         Local $receiver
         Type Score
         Local $parameter.other
       val $argument.0: Boolean
         Type Boolean
-        Binary IntGe
-          Type Int
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
           Local $call.9
-          Type Int
-          IntLiteral 0
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -2733,7 +3213,7 @@ Module
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 7
+        IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.expected: Int
         Type Int
         Local $argument.0
@@ -2750,11 +3230,11 @@ Module
         Local $new.10
       val $argument.0: Int
         Type Int
-        IntLiteral 7
+        IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.item: Score
@@ -2773,7 +3253,7 @@ Module
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 7
+        IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.expected: Int
         Type Int
         Local $argument.0
@@ -2790,11 +3270,11 @@ Module
         Local $new.11
       val $argument.0: Int
         Type Int
-        IntLiteral 8
+        IntegerLiteral Int value=8 bits=0x00000008
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.item: Score
@@ -2818,20 +3298,20 @@ Module
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @scoop.ctor.Score.$c8 direct
+      call $receiver: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2844,11 +3324,11 @@ Module
         Local $parameter.other
       val $argument.0: Int
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -2867,7 +3347,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -2875,7 +3355,7 @@ Module
         StringConst @scoop.str.1
       val $argument.1: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -2892,7 +3372,7 @@ Module
         StringConst @scoop.str.2
       val $argument.1: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -2920,7 +3400,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -2928,7 +3408,7 @@ Module
         StringConst @scoop.str.3
       val $argument.1: Int
         Type Int
-        IntLiteral 7
+        IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -2945,7 +3425,7 @@ Module
         StringConst @scoop.str.4
       val $argument.1: Int
         Type Int
-        IntLiteral 7
+        IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -2979,11 +3459,11 @@ Module
         Local $old.6
       val $argument.0: Int
         Type Int
-        IntLiteral 10
+        IntegerLiteral Int value=10 bits=0x0000000a
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @scoop.ctor.Score.$c8 direct
+      call $argument.0: Score = @scoop.ctor.Score.$c6 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -3005,12 +3485,12 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -3033,7 +3513,7 @@ Module
         Local $old.7
       val $argument.0: Int
         Type Int
-        IntLiteral 4
+        IntegerLiteral Int value=4 bits=0x00000004
       val $parameter.delta: Int
         Type Int
         Local $argument.0
@@ -3047,13 +3527,13 @@ Module
         Local cell
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $argument.1: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $argument.2: Int
         Type Int
-        IntLiteral 10
+        IntegerLiteral Int value=10 bits=0x0000000a
       val $parameter.row: Int
         Type Int
         Local $argument.0
@@ -3077,13 +3557,13 @@ Module
         Local cell
       val $argument.0: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.row: Int
         Type Int
         Local $argument.0
       val $parameter.column: Int
         Type Int
-        IntLiteral 0
+        IntegerLiteral Int value=0 bits=0x00000000
       call $argument.0: Int = @scoop.Cell.get direct
         Type Cell
         Local $receiver
@@ -3094,7 +3574,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       call $receiver: Cell = @scoop.makeCell direct
@@ -3103,7 +3583,7 @@ Module
         StringConst @scoop.str.5
       val $argument.1: Int
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -3120,7 +3600,7 @@ Module
         StringConst @scoop.str.6
       val $argument.1: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -3137,7 +3617,7 @@ Module
         StringConst @scoop.str.7
       val $argument.1: Int
         Type Int
-        IntLiteral 10
+        IntegerLiteral Int value=10 bits=0x0000000a
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -3169,10 +3649,10 @@ Module
         Local $parameter.newValue
       val $argument.0: Int
         Type Int
-        IntLiteral 20
+        IntegerLiteral Int value=20 bits=0x00000014
       val $argument.1: Int
         Type Int
-        IntLiteral 22
+        IntegerLiteral Int value=22 bits=0x00000016
       val $parameter.x: Int
         Type Int
         Local $argument.0
@@ -3215,7 +3695,7 @@ Module
         Local $argument.0
       val $argument.0: Int
         Type Int
-        Binary IntAdd
+        IntegerBinary add kind=Int
           Type Int
           Local $receiver
           Type Int
@@ -3223,7 +3703,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I direct
+      call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
       val $receiver: String
@@ -3235,18 +3715,18 @@ Module
       val $parameter.other: String
         Type String
         Local $argument.0
-      call $call.18: Int = @scoop_rt_string_compare direct
+      call $call.18: Long = @scoop_rt_string_compare direct
         Type String
         Local $receiver
         Type String
         Local $parameter.other
       val $argument.0: Boolean
         Type Boolean
-        Binary IntLt
-          Type Int
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
           Local $call.18
-          Type Int
-          IntLiteral 0
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -3292,7 +3772,7 @@ Module
         Type String
         Local $parameter.message
       return
-  fun println @scoop.println$I(value: Int) -> Unit
+  fun println @scoop.println$I32(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -3516,22 +3996,22 @@ Module
         Type Int
         Local y
       return
-  fun ctor.SourceLocation.$c7 @scoop.ctor.SourceLocation.$c7(file: String, line: Int, column: Int, functionName: String, typeName: String) -> SourceLocation
+  fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
       return
         Type SourceLocation
         StructInit SourceLocation
           Type String
           Local file
-          Type Int
+          Type Long
           Local line
-          Type Int
+          Type Long
           Local column
           Type String
           Local functionName
           Type String
           Local typeName
-  fun ctor.Score.$c8 @scoop.ctor.Score.$c8(value: Int) -> Score
+  fun ctor.Score.$c6 @scoop.ctor.Score.$c6(value: Int) -> Score <no-gc>
     bb0 entry
       return
         Type Score
@@ -3539,7 +4019,7 @@ Module
           Type Int
           Local value
   instance @scoop.println$S <- println
-  instance @scoop.println$I <- println
+  instance @scoop.println$I32 <- println
   instance @scoop.println$B <- println
   str @scoop.str.0 "cell-receiver"
   str @scoop.str.1 "left"
@@ -3582,92 +4062,234 @@ Module
   global @scoop.str.16 = "array index out of bounds"
   global @scoop.str.17 = "illegal state"
   enum Option$S niche(kind=managed,payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
-  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
-  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
-  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
-  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
-  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
-  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
-  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
-  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
-  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
-  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  fun @scoop.Int.equals(i64, i64) -> i1
-    local %0 $argument.0: i64
-    local %1 $argument.1: i64
-    local %2 $parameter.left: i64
-    local %3 $parameter.right: i64
-    local %4 $call.1: i1
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreLongHash @scoop_rt_long_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp148 live=[]
+    poll managed-void-target0 sp120 live=[]
     store param0 -> local0
-    store param1 -> local1
-    store local0 -> local2
-    store local1 -> local3
-    call native-borrowed-direct-target0 sp1 roots=[] t0 = sig=direct0 (i64, i64) -> i1 extern1(local2, local3)
-    store t0 -> local4
-    ret local4
-  fun @scoop.Int.toString(i64) -> ptr<managed>
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp1 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp121 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp2 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp122 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp3 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp123 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp4 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp124 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp5 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp125 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp6 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Long.toString(i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp149 live=[]
+    poll managed-void-target0 sp126 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp2 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern5(local1)
+    call native-borrowed-direct-target0 sp7 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern3(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Int.hash(i64) -> i64
+  fun @scoop.Long.hash(i64) -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp150 live=[]
+    poll managed-void-target0 sp127 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp3 roots=[] t0 = sig=direct0 (i64) -> i64 extern8(local1)
+    call native-borrowed-direct-target0 sp8 roots=[] t0 = sig=direct0 (i64) -> i64 extern6(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.UInt.equals(i64, i64) -> i1
-    local %0 $argument.0: i64
-    local %1 $argument.1: i64
-    local %2 $parameter.left: i64
-    local %3 $parameter.right: i64
-    local %4 $call.1: i1
+  fun @scoop.UInt8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp151 live=[]
+    poll managed-void-target0 sp128 live=[]
     store param0 -> local0
-    store param1 -> local1
-    store local0 -> local2
-    store local1 -> local3
-    call native-borrowed-direct-target0 sp4 roots=[] t0 = sig=direct0 (i64, i64) -> i1 extern2(local2, local3)
-    store t0 -> local4
-    ret local4
-  fun @scoop.UInt.toString(i64) -> ptr<managed>
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp9 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp129 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp10 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp130 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp11 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp131 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp12 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp132 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp13 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp133 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp14 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.ULong.toString(i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp152 live=[]
+    poll managed-void-target0 sp134 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp5 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern6(local1)
+    call native-borrowed-direct-target0 sp15 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern4(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.UInt.hash(i64) -> i64
+  fun @scoop.ULong.hash(i64) -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp153 live=[]
+    poll managed-void-target0 sp135 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp6 roots=[] t0 = sig=direct0 (i64) -> i64 extern9(local1)
+    call native-borrowed-direct-target0 sp16 roots=[] t0 = sig=direct0 (i64) -> i64 extern7(local1)
     store t0 -> local2
     ret local2
   fun @scoop.Boolean.equals(i1, i1) -> i1
@@ -3677,12 +4299,12 @@ Module
     local %3 $parameter.right: i1
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp154 live=[]
+    poll managed-void-target0 sp136 live=[]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
     store local1 -> local3
-    call native-borrowed-direct-target0 sp7 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern3(local2, local3)
+    call native-borrowed-direct-target0 sp17 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern1(local2, local3)
     store t0 -> local4
     ret local4
   fun @scoop.Boolean.toString(i1) -> ptr<managed>
@@ -3691,10 +4313,10 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp155 live=[]
+    poll managed-void-target0 sp137 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp8 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern7(local1)
+    call native-borrowed-direct-target0 sp18 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern5(local1)
     store t0 -> local2
     ret local2
   fun @scoop.Boolean.hash(i1) -> i64
@@ -3702,269 +4324,315 @@ Module
     local %1 $parameter.value: i1
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp156 live=[]
+    poll managed-void-target0 sp138 live=[]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(local1)
+    call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Score.unaryPlus(struct4) -> struct4
+  fun @scoop.Score.unaryPlus(struct10) -> struct10
   block entry
-    poll managed-void-target0 sp157 live=[]
+    poll managed-void-target0 sp139 live=[]
     ret param0
-  fun @scoop.Score.unaryMinus(struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.value: i64
-    local %3 $call.1: struct4
-    local %4 $sc.1: struct4
+  fun @scoop.Score.unaryMinus(struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.value: i32
+    local %3 $call.1: struct10
+    local %4 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp158 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp140 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = Neg local0 : i64
+    t1 = integer_Negate<Int> local0 : i32
     store t1 -> local1
     store local1 -> local2
-    call managed-indirect-target0 sp10 live=[] local4 = sig=indirect0 (sret struct4, i64) local-fn52(local2)
+    call no-gc-indirect-target0 local4 = sig=indirect0 (sret struct10, i32) local-fn62(local2)
     store local4 -> local3
     ret local3
-  fun @scoop.Score.inc(struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.Score.inc(struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp159 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp141 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    store 1 -> local1
+    store integer<Int>(0x00000001) -> local1
     store local1 -> local2
-    t1 = Add local0, local2 : i64
+    t1 = integer_Add<Int> local0, local2 : i32
     store t1 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp11 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.dec(struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.Score.dec(struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp160 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp142 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    store 1 -> local1
+    store integer<Int>(0x00000001) -> local1
     store local1 -> local2
-    t1 = Sub local0, local2 : i64
+    t1 = integer_Subtract<Int> local0, local2 : i32
     store t1 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp12 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.plus(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.Score.plus(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp161 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp143 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
+    t1 = extract param1, 0 : i32
     store t1 -> local1
     store local1 -> local2
-    t2 = Add local0, local2 : i64
+    t2 = integer_Add<Int> local0, local2 : i32
     store t2 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp13 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.minus(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.Score.minus(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp162 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp144 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
+    t1 = extract param1, 0 : i32
     store t1 -> local1
     store local1 -> local2
-    t2 = Sub local0, local2 : i64
+    t2 = integer_Subtract<Int> local0, local2 : i32
     store t2 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp14 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.times(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.Score.times(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp163 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp145 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
+    t1 = extract param1, 0 : i32
     store t1 -> local1
     store local1 -> local2
-    t2 = Mul local0, local2 : i64
+    t2 = integer_Multiply<Int> local0, local2 : i32
     store t2 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp15 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.div(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $div.1: i64
-    local %6 $div.2: i64
-    local %7 $new.1: ptr<managed>
-    local %8 $call.2: struct4
-    local %9 $sc.1: struct4
+  fun @scoop.Score.div(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $div.1: i32
+    local %6 $div.2: i32
+    local %7 $div.result.3: i32
+    local %8 $new.1: ptr<managed>
+    local %9 $logic.2: i1
+    local %10 $call.3: struct10
+    local %11 $sc.1: struct10
   block entry
-    poll managed-void-target1 sp164 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target1 sp146 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
+    t1 = extract param1, 0 : i32
     store t1 -> local1
     store local1 -> local2
     store local0 -> local5
     store local2 -> local6
-    t2 = Eq local6, 0 : i1
+    t2 = integer_compare_Equal<Int> local6, integer<Int>(0x00000000) : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1
-    call managed-direct-target0 sp16 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
-    store t3 -> local7
-    call managed-void-target0 sp17 live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn44(local7)
+    call managed-direct-target0 sp20 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    store t3 -> local8
+    call managed-void-target0 sp21 live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn54(local8)
     t4 = aggregate () : {}
-    throw local7
+    throw local8
     unreachable
   block if.merge.2
-    t5 = SDiv local5, local6 : i64
-    store t5 -> local3
+    t5 = integer_compare_Equal<Int> local5, integer<Int>(0x80000000) : i1
+    cbr t5 then @logic.rhs.3 else @logic.short.4
+  block logic.rhs.3
+    t6 = integer_compare_Equal<Int> local6, integer<Int>(0xffffffff) : i1
+    store t6 -> local9
+    br @logic.merge.5
+  block logic.short.4
+    store false -> local9
+    br @logic.merge.5
+  block logic.merge.5
+    cbr local9 then @if.then.6 else @if.else.7
+  block if.then.6
+    store integer<Int>(0x80000000) -> local7
+    br @if.merge.8
+  block if.else.7
+    t7 = safe_integer_Divide<Int> local5, local6 : i32
+    store t7 -> local7
+    br @if.merge.8
+  block if.merge.8
+    store local7 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp18 live=[] local9 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
-    store local9 -> local8
-    ret local8
-  fun @scoop.Score.rem(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $div.1: i64
-    local %6 $div.2: i64
-    local %7 $new.1: ptr<managed>
-    local %8 $call.2: struct4
-    local %9 $sc.1: struct4
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
+    store local11 -> local10
+    ret local10
+  fun @scoop.Score.rem(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $div.1: i32
+    local %6 $div.2: i32
+    local %7 $div.result.3: i32
+    local %8 $new.1: ptr<managed>
+    local %9 $logic.2: i1
+    local %10 $call.3: struct10
+    local %11 $sc.1: struct10
   block entry
-    poll managed-void-target1 sp165 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target1 sp147 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
+    t1 = extract param1, 0 : i32
     store t1 -> local1
     store local1 -> local2
     store local0 -> local5
     store local2 -> local6
-    t2 = Eq local6, 0 : i1
+    t2 = integer_compare_Equal<Int> local6, integer<Int>(0x00000000) : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1
-    call managed-direct-target0 sp19 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
-    store t3 -> local7
-    call managed-void-target0 sp20 live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn44(local7)
+    call managed-direct-target0 sp22 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    store t3 -> local8
+    call managed-void-target0 sp23 live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn54(local8)
     t4 = aggregate () : {}
-    throw local7
+    throw local8
     unreachable
   block if.merge.2
-    t5 = SRem local5, local6 : i64
-    store t5 -> local3
+    t5 = integer_compare_Equal<Int> local5, integer<Int>(0x80000000) : i1
+    cbr t5 then @logic.rhs.3 else @logic.short.4
+  block logic.rhs.3
+    t6 = integer_compare_Equal<Int> local6, integer<Int>(0xffffffff) : i1
+    store t6 -> local9
+    br @logic.merge.5
+  block logic.short.4
+    store false -> local9
+    br @logic.merge.5
+  block logic.merge.5
+    cbr local9 then @if.then.6 else @if.else.7
+  block if.then.6
+    store integer<Int>(0x00000000) -> local7
+    br @if.merge.8
+  block if.else.7
+    t7 = safe_integer_Remainder<Int> local5, local6 : i32
+    store t7 -> local7
+    br @if.merge.8
+  block if.merge.8
+    store local7 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp21 live=[] local9 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
-    store local9 -> local8
-    ret local8
-  fun @scoop.Score.rangeTo(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
+    store local11 -> local10
+    ret local10
+  fun @scoop.Score.rangeTo(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp166 live=[]
-    t0 = extract param1, 0 : i64
+    poll managed-void-target0 sp148 live=[]
+    t0 = extract param1, 0 : i32
     store t0 -> local0
-    t1 = extract param0, 0 : i64
+    t1 = extract param0, 0 : i32
     store t1 -> local1
     store local1 -> local2
-    t2 = Sub local0, local2 : i64
+    t2 = integer_Subtract<Int> local0, local2 : i32
     store t2 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp22 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.Score.rangeUntil(struct4, struct4) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $receiver: i64
-    local %4 $argument.0: i64
-    local %5 $parameter.other: i64
-    local %6 $argument.0: i64
-    local %7 $parameter.value: i64
-    local %8 $call.1: struct4
-    local %9 $sc.1: struct4
+  fun @scoop.Score.rangeUntil(struct10, struct10) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $receiver: i32
+    local %4 $argument.0: i32
+    local %5 $parameter.other: i32
+    local %6 $argument.0: i32
+    local %7 $parameter.value: i32
+    local %8 $call.1: struct10
+    local %9 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp167 live=[]
-    t0 = extract param1, 0 : i64
+    poll managed-void-target0 sp149 live=[]
+    t0 = extract param1, 0 : i32
     store t0 -> local0
-    t1 = extract param0, 0 : i64
+    t1 = extract param0, 0 : i32
     store t1 -> local1
     store local1 -> local2
-    t2 = Sub local0, local2 : i64
+    t2 = integer_Subtract<Int> local0, local2 : i32
     store t2 -> local3
-    store 1 -> local4
+    store integer<Int>(0x00000001) -> local4
     store local4 -> local5
-    t3 = Sub local3, local5 : i64
+    t3 = integer_Subtract<Int> local3, local5 : i32
     store t3 -> local6
     store local6 -> local7
-    call managed-indirect-target0 sp23 live=[] local9 = sig=indirect0 (sret struct4, i64) local-fn52(local7)
+    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct10, i32) local-fn62(local7)
     store local9 -> local8
     ret local8
-  fun @scoop.Score.compareTo(struct4, struct4) -> i64
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
+  fun @scoop.Score.compareTo(struct10, struct10) -> i64
+    local %0 $receiver: i32
+    local %1 $receiver: i32
+    local %2 $receiver: i64
+    local %3 $argument.0: i64
+    local %4 $parameter.other: i64
   block entry
-    poll managed-void-target0 sp168 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp150 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
-    t1 = extract param1, 0 : i64
-    store t1 -> local1
-    store local1 -> local2
-    t2 = Sub local0, local2 : i64
-    ret t2
+    t1 = integer_convert<Int->Long> local0 : i64
+    store t1 -> local2
+    t2 = extract param1, 0 : i32
+    store t2 -> local1
+    t3 = integer_convert<Int->Long> local1 : i64
+    store t3 -> local3
+    store local3 -> local4
+    t4 = integer_Subtract<Long> local2, local4 : i64
+    ret t4
   fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: ptr<managed>
@@ -3972,430 +4640,428 @@ Module
     local %3 $parameter.right: ptr<managed>
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp169 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target0 sp151 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
     store local1 -> local3
-    call native-borrowed-direct-target0 sp24 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern4(local2, local3)
+    call native-borrowed-direct-target0 sp24 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern2(local2, local3)
     store t0 -> local4
     ret local4
   fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp170 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp152 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.String.hash(ptr<managed>) -> i64
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp171 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp153 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
-    call native-borrowed-direct-target0 sp25 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern11(local1)
+    call native-borrowed-direct-target0 sp25 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Bag.contains(ptr<managed>, struct4) -> i1
-    local %0 $call.1: i1
+  fun @scoop.Bag.contains(ptr<managed>, struct10) -> i1
   block entry
-    poll managed-void-target0 sp172 live=[param0:ptr<managed>@0]
-    t0 = extract param1, 0 : i64
-    t1 = heap_load param0 +16 : i64
-    call managed-direct-target0 sp26 live=[] t2 = sig=direct0 (i64, i64) -> i1 local-fn0(t0, t1)
-    store t2 -> local0
-    ret local0
-  fun @scoop.Cell.get(ptr<managed>, i64, i64) -> i64
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $receiver: i64
-    local %4 $argument.0: i64
-    local %5 $parameter.other: i64
+    poll managed-void-target0 sp154 live=[param0:ptr<managed>@0]
+    t0 = extract param1, 0 : i32
+    t1 = heap_load param0 +16 : i32
+    t2 = integer_compare_Equal<Int> t0, t1 : i1
+    ret t2
+  fun @scoop.Cell.get(ptr<managed>, i32, i32) -> i32
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $receiver: i32
+    local %4 $argument.0: i32
+    local %5 $parameter.other: i32
   block entry
-    poll managed-void-target0 sp173 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : i64
+    poll managed-void-target0 sp155 live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store param1 -> local1
     store local1 -> local2
-    t1 = Add local0, local2 : i64
+    t1 = integer_Add<Int> local0, local2 : i32
     store t1 -> local3
     store param2 -> local4
     store local4 -> local5
-    t2 = Add local3, local5 : i64
+    t2 = integer_Add<Int> local3, local5 : i32
     ret t2
-  fun @scoop.Cell.set(ptr<managed>, i64, i64, i64) -> void
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $receiver: i64
-    local %4 $argument.0: i64
-    local %5 $parameter.other: i64
+  fun @scoop.Cell.set(ptr<managed>, i32, i32, i32) -> void
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $receiver: i32
+    local %4 $argument.0: i32
+    local %5 $parameter.other: i32
   block entry
-    poll managed-void-target0 sp174 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp156 live=[param0:ptr<managed>@0]
     store param3 -> local0
     store param1 -> local1
     store local1 -> local2
-    t0 = Add local0, local2 : i64
+    t0 = integer_Add<Int> local0, local2 : i32
     store t0 -> local3
     store param2 -> local4
     store local4 -> local5
-    t1 = Add local3, local5 : i64
+    t1 = integer_Add<Int> local3, local5 : i32
     heap_store param0 +16 t1
     ret
-  fun @scoop.Cell.plusAssign(ptr<managed>, i64) -> void
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
+  fun @scoop.Cell.plusAssign(ptr<managed>, i32) -> void
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
   block entry
-    poll managed-void-target0 sp175 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : i64
+    poll managed-void-target0 sp157 live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store param1 -> local1
     store local1 -> local2
-    t1 = Add local0, local2 : i64
+    t1 = integer_Add<Int> local0, local2 : i32
     heap_store param0 +16 t1
     ret
-  fun @scoop.Coordinates.component1(ptr<managed>) -> i64
+  fun @scoop.Coordinates.component1(ptr<managed>) -> i32
   block entry
-    poll managed-void-target0 sp176 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : i64
+    poll managed-void-target0 sp158 live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop.Coordinates.component2(ptr<managed>) -> i64
+  fun @scoop.Coordinates.component2(ptr<managed>) -> i32
   block entry
-    poll managed-void-target0 sp177 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : i64
+    poll managed-void-target0 sp159 live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +20 : i32
     ret t0
-  fun @scoop.$extension.times(struct4, i64) -> struct4
-    local %0 $receiver: i64
-    local %1 $argument.0: i64
-    local %2 $parameter.other: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $call.1: struct4
-    local %6 $sc.1: struct4
+  fun @scoop.$extension.times(struct10, i32) -> struct10
+    local %0 $receiver: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.other: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $call.1: struct10
+    local %6 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp178 live=[]
-    t0 = extract param0, 0 : i64
+    poll managed-void-target0 sp160 live=[]
+    t0 = extract param0, 0 : i32
     store t0 -> local0
     store param1 -> local1
     store local1 -> local2
-    t1 = Mul local0, local2 : i64
+    t1 = integer_Multiply<Int> local0, local2 : i32
     store t1 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp27 live=[] local6 = sig=indirect0 (sret struct4, i64) local-fn52(local4)
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct10, i32) local-fn62(local4)
     store local6 -> local5
     ret local5
-  fun @scoop.$extension.merge(struct4, struct4) -> struct4
-    local %0 $receiver: struct4
-    local %1 $argument.0: struct4
-    local %2 $parameter.other: struct4
-    local %3 $call.1: struct4
-    local %4 $sc.1: struct4
+  fun @scoop.$extension.merge(struct10, struct10) -> struct10
+    local %0 $receiver: struct10
+    local %1 $argument.0: struct10
+    local %2 $parameter.other: struct10
+    local %3 $call.1: struct10
+    local %4 $sc.1: struct10
   block entry
-    poll managed-void-target0 sp179 live=[]
+    poll managed-void-target0 sp161 live=[]
     store param0 -> local0
     store param1 -> local1
     store local1 -> local2
-    call managed-indirect-target0 sp28 live=[] local4 = sig=indirect0 (sret struct4, struct4, struct4) local-fn13(local0, local2)
+    call managed-indirect-target0 sp26 live=[] local4 = sig=indirect0 (sret struct10, struct10, struct10) local-fn23(local0, local2)
     store local4 -> local3
     ret local3
-  fun @scoop.markScore(ptr<managed>, i64) -> struct4
+  fun @scoop.markScore(ptr<managed>, i32) -> struct10
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
-    local %2 $argument.0: i64
-    local %3 $parameter.value: i64
-    local %4 $call.1: struct4
-    local %5 $sc.1: struct4
+    local %2 $argument.0: i32
+    local %3 $parameter.value: i32
+    local %4 $call.1: struct10
+    local %5 $sc.1: struct10
   block entry
-    poll managed-void-target1 sp180 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp162 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp29 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn37(local1)
+    call managed-void-target0 sp27 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn47(local1)
     t0 = aggregate () : {}
     store param1 -> local2
     store local2 -> local3
-    call managed-indirect-target0 sp30 live=[] local5 = sig=indirect0 (sret struct4, i64) local-fn52(local3)
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct10, i32) local-fn62(local3)
     store local5 -> local4
     ret local4
-  fun @scoop.markBag(ptr<managed>, i64) -> ptr<managed>
+  fun @scoop.markBag(ptr<managed>, i32) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
-    local %2 $argument.0: i64
-    local %3 $parameter.expected: i64
+    local %2 $argument.0: i32
+    local %3 $parameter.expected: i32
     local %4 $new.1: ptr<managed>
   block entry
-    poll managed-void-target2 sp181 live=[param0:ptr<managed>@0]
+    poll managed-void-target2 sp163 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp31 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn37(local1)
+    call managed-void-target0 sp28 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn47(local1)
     t0 = aggregate () : {}
     store param1 -> local2
     store local2 -> local3
-    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp29 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t1 -> local4
-    call managed-void-target1 sp33 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i64) local-fn48(local4, local3)
+    call managed-void-target1 sp30 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn58(local4, local3)
     t2 = aggregate () : {}
     ret local4
   fun @scoop.makeCell() -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
-    local %2 $argument.0: i64
-    local %3 $parameter.value: i64
+    local %2 $argument.0: i32
+    local %3 $parameter.value: i32
     local %4 $new.1: ptr<managed>
   block entry
-    poll managed-void-target2 sp182 live=[]
+    poll managed-void-target2 sp164 live=[]
     store global0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp34 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn37(local1)
+    call managed-void-target0 sp31 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn47(local1)
     t0 = aggregate () : {}
-    store 0 -> local2
+    store integer<Int>(0x00000000) -> local2
     store local2 -> local3
-    call managed-direct-target0 sp35 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t1 -> local4
-    call managed-void-target1 sp36 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i64) local-fn49(local4, local3)
+    call managed-void-target1 sp33 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn59(local4, local3)
     t2 = aggregate () : {}
     ret local4
-  fun @scoop.markIndex(ptr<managed>, i64) -> i64
+  fun @scoop.markIndex(ptr<managed>, i32) -> i32
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
-    poll managed-void-target1 sp183 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp165 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp37 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn37(local1)
+    call managed-void-target0 sp34 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn47(local1)
     t0 = aggregate () : {}
     ret param1
   fun @scoop_main() -> void
-    local %0 $argument.0: i64
-    local %1 $parameter.value: i64
-    local %2 $receiver: struct4
-    local %3 positive: struct4
-    local %4 $receiver: struct4
-    local %5 negative: struct4
-    local %6 $argument.0: i64
-    local %7 $parameter.value: i64
-    local %8 $argument.0: i64
-    local %9 $parameter.value: i64
-    local %10 $argument.0: i64
-    local %11 $parameter.value: i64
-    local %12 updated: struct4
-    local %13 $old.0: struct4
-    local %14 $receiver: struct4
-    local %15 $new.1: struct4
-    local %16 $argument.0: i64
-    local %17 $parameter.value: i64
-    local %18 $argument.0: i64
-    local %19 $parameter.value: i64
-    local %20 $old.2: struct4
-    local %21 $receiver: struct4
-    local %22 $new.3: struct4
-    local %23 $argument.0: i64
-    local %24 $parameter.value: i64
-    local %25 $old.4: struct4
-    local %26 $receiver: struct4
-    local %27 $new.5: struct4
-    local %28 $argument.0: i64
-    local %29 $parameter.value: i64
-    local %30 $argument.0: i64
-    local %31 $parameter.value: i64
-    local %32 $argument.0: i64
-    local %33 $parameter.value: i64
-    local %34 $argument.0: i64
-    local %35 $parameter.value: i64
-    local %36 $receiver: struct4
-    local %37 $argument.0: struct4
-    local %38 $parameter.other: struct4
-    local %39 $argument.0: i64
-    local %40 $parameter.value: i64
-    local %41 $argument.0: i64
-    local %42 $parameter.value: i64
-    local %43 $argument.0: i64
-    local %44 $parameter.value: i64
-    local %45 $receiver: struct4
-    local %46 $argument.0: struct4
-    local %47 $parameter.other: struct4
-    local %48 $argument.0: i64
-    local %49 $parameter.value: i64
-    local %50 $argument.0: i64
-    local %51 $parameter.value: i64
-    local %52 $argument.0: i64
-    local %53 $parameter.value: i64
-    local %54 $receiver: struct4
-    local %55 $argument.0: struct4
-    local %56 $parameter.other: struct4
-    local %57 $argument.0: i64
-    local %58 $parameter.value: i64
-    local %59 $argument.0: i64
-    local %60 $parameter.value: i64
-    local %61 $argument.0: i64
-    local %62 $parameter.value: i64
-    local %63 $receiver: struct4
-    local %64 $argument.0: struct4
-    local %65 $parameter.other: struct4
-    local %66 $argument.0: i64
-    local %67 $parameter.value: i64
-    local %68 $argument.0: i64
-    local %69 $parameter.value: i64
-    local %70 $receiver: struct4
-    local %71 $argument.0: i64
-    local %72 $parameter.scale: i64
-    local %73 $argument.0: i64
-    local %74 $parameter.value: i64
-    local %75 $argument.0: i64
-    local %76 $parameter.value: i64
-    local %77 $argument.0: i64
-    local %78 $parameter.value: i64
-    local %79 $receiver: struct4
-    local %80 $argument.0: struct4
-    local %81 $parameter.other: struct4
-    local %82 $argument.0: i64
-    local %83 $parameter.value: i64
-    local %84 $argument.0: i64
-    local %85 $parameter.value: i64
-    local %86 $argument.0: i64
-    local %87 $parameter.value: i64
-    local %88 $receiver: struct4
-    local %89 $argument.0: struct4
-    local %90 $parameter.other: struct4
-    local %91 $argument.0: i64
-    local %92 $parameter.value: i64
-    local %93 $argument.0: i64
-    local %94 $parameter.value: i64
-    local %95 $argument.0: i64
-    local %96 $parameter.value: i64
-    local %97 $receiver: struct4
-    local %98 $argument.0: struct4
-    local %99 $parameter.other: struct4
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $receiver: struct10
+    local %3 positive: struct10
+    local %4 $receiver: struct10
+    local %5 negative: struct10
+    local %6 $argument.0: i32
+    local %7 $parameter.value: i32
+    local %8 $argument.0: i32
+    local %9 $parameter.value: i32
+    local %10 $argument.0: i32
+    local %11 $parameter.value: i32
+    local %12 updated: struct10
+    local %13 $old.0: struct10
+    local %14 $receiver: struct10
+    local %15 $new.1: struct10
+    local %16 $argument.0: i32
+    local %17 $parameter.value: i32
+    local %18 $argument.0: i32
+    local %19 $parameter.value: i32
+    local %20 $old.2: struct10
+    local %21 $receiver: struct10
+    local %22 $new.3: struct10
+    local %23 $argument.0: i32
+    local %24 $parameter.value: i32
+    local %25 $old.4: struct10
+    local %26 $receiver: struct10
+    local %27 $new.5: struct10
+    local %28 $argument.0: i32
+    local %29 $parameter.value: i32
+    local %30 $argument.0: i32
+    local %31 $parameter.value: i32
+    local %32 $argument.0: i32
+    local %33 $parameter.value: i32
+    local %34 $argument.0: i32
+    local %35 $parameter.value: i32
+    local %36 $receiver: struct10
+    local %37 $argument.0: struct10
+    local %38 $parameter.other: struct10
+    local %39 $argument.0: i32
+    local %40 $parameter.value: i32
+    local %41 $argument.0: i32
+    local %42 $parameter.value: i32
+    local %43 $argument.0: i32
+    local %44 $parameter.value: i32
+    local %45 $receiver: struct10
+    local %46 $argument.0: struct10
+    local %47 $parameter.other: struct10
+    local %48 $argument.0: i32
+    local %49 $parameter.value: i32
+    local %50 $argument.0: i32
+    local %51 $parameter.value: i32
+    local %52 $argument.0: i32
+    local %53 $parameter.value: i32
+    local %54 $receiver: struct10
+    local %55 $argument.0: struct10
+    local %56 $parameter.other: struct10
+    local %57 $argument.0: i32
+    local %58 $parameter.value: i32
+    local %59 $argument.0: i32
+    local %60 $parameter.value: i32
+    local %61 $argument.0: i32
+    local %62 $parameter.value: i32
+    local %63 $receiver: struct10
+    local %64 $argument.0: struct10
+    local %65 $parameter.other: struct10
+    local %66 $argument.0: i32
+    local %67 $parameter.value: i32
+    local %68 $argument.0: i32
+    local %69 $parameter.value: i32
+    local %70 $receiver: struct10
+    local %71 $argument.0: i32
+    local %72 $parameter.scale: i32
+    local %73 $argument.0: i32
+    local %74 $parameter.value: i32
+    local %75 $argument.0: i32
+    local %76 $parameter.value: i32
+    local %77 $argument.0: i32
+    local %78 $parameter.value: i32
+    local %79 $receiver: struct10
+    local %80 $argument.0: struct10
+    local %81 $parameter.other: struct10
+    local %82 $argument.0: i32
+    local %83 $parameter.value: i32
+    local %84 $argument.0: i32
+    local %85 $parameter.value: i32
+    local %86 $argument.0: i32
+    local %87 $parameter.value: i32
+    local %88 $receiver: struct10
+    local %89 $argument.0: struct10
+    local %90 $parameter.other: struct10
+    local %91 $argument.0: i32
+    local %92 $parameter.value: i32
+    local %93 $argument.0: i32
+    local %94 $parameter.value: i32
+    local %95 $argument.0: i32
+    local %96 $parameter.value: i32
+    local %97 $receiver: struct10
+    local %98 $argument.0: struct10
+    local %99 $parameter.other: struct10
     local %100 $argument.0: i1
     local %101 $parameter.value: i1
-    local %102 $argument.0: i64
-    local %103 $parameter.value: i64
-    local %104 $argument.0: i64
-    local %105 $parameter.value: i64
-    local %106 $receiver: struct4
-    local %107 $argument.0: struct4
-    local %108 $parameter.other: struct4
+    local %102 $argument.0: i32
+    local %103 $parameter.value: i32
+    local %104 $argument.0: i32
+    local %105 $parameter.value: i32
+    local %106 $receiver: struct10
+    local %107 $argument.0: struct10
+    local %108 $parameter.other: struct10
     local %109 $argument.0: i1
     local %110 $parameter.value: i1
-    local %111 $argument.0: i64
-    local %112 $parameter.expected: i64
-    local %113 $argument.0: i64
-    local %114 $parameter.value: i64
+    local %111 $argument.0: i32
+    local %112 $parameter.expected: i32
+    local %113 $argument.0: i32
+    local %114 $parameter.value: i32
     local %115 $receiver: ptr<managed>
-    local %116 $argument.0: struct4
-    local %117 $parameter.item: struct4
+    local %116 $argument.0: struct10
+    local %117 $parameter.item: struct10
     local %118 $argument.0: i1
     local %119 $parameter.value: i1
-    local %120 $argument.0: i64
-    local %121 $parameter.expected: i64
-    local %122 $argument.0: i64
-    local %123 $parameter.value: i64
+    local %120 $argument.0: i32
+    local %121 $parameter.expected: i32
+    local %122 $argument.0: i32
+    local %123 $parameter.value: i32
     local %124 $receiver: ptr<managed>
-    local %125 $argument.0: struct4
-    local %126 $parameter.item: struct4
+    local %125 $argument.0: struct10
+    local %126 $parameter.item: struct10
     local %127 $argument.0: i1
     local %128 $parameter.value: i1
-    local %129 $argument.0: i64
-    local %130 $parameter.value: i64
-    local %131 $argument.0: i64
-    local %132 $parameter.value: i64
-    local %133 $receiver: struct4
-    local %134 $argument.0: struct4
-    local %135 $parameter.other: struct4
-    local %136 $argument.0: i64
-    local %137 $parameter.value: i64
-    local %138 $receiver: struct4
-    local %139 $argument.0: struct4
-    local %140 $parameter.other: struct4
-    local %141 $argument.0: i64
-    local %142 $parameter.value: i64
+    local %129 $argument.0: i32
+    local %130 $parameter.value: i32
+    local %131 $argument.0: i32
+    local %132 $parameter.value: i32
+    local %133 $receiver: struct10
+    local %134 $argument.0: struct10
+    local %135 $parameter.other: struct10
+    local %136 $argument.0: i32
+    local %137 $parameter.value: i32
+    local %138 $receiver: struct10
+    local %139 $argument.0: struct10
+    local %140 $parameter.other: struct10
+    local %141 $argument.0: i32
+    local %142 $parameter.value: i32
     local %143 $argument.0: ptr<managed>
-    local %144 $argument.1: i64
+    local %144 $argument.1: i32
     local %145 $parameter.label: ptr<managed>
-    local %146 $parameter.value: i64
+    local %146 $parameter.value: i32
     local %147 $argument.0: ptr<managed>
-    local %148 $argument.1: i64
+    local %148 $argument.1: i32
     local %149 $parameter.label: ptr<managed>
-    local %150 $parameter.value: i64
-    local %151 $receiver: struct4
-    local %152 $argument.0: struct4
-    local %153 $parameter.other: struct4
-    local %154 $argument.0: i64
-    local %155 $parameter.value: i64
+    local %150 $parameter.value: i32
+    local %151 $receiver: struct10
+    local %152 $argument.0: struct10
+    local %153 $parameter.other: struct10
+    local %154 $argument.0: i32
+    local %155 $parameter.value: i32
     local %156 $argument.0: ptr<managed>
-    local %157 $argument.1: i64
+    local %157 $argument.1: i32
     local %158 $parameter.label: ptr<managed>
-    local %159 $parameter.expected: i64
+    local %159 $parameter.expected: i32
     local %160 $argument.0: ptr<managed>
-    local %161 $argument.1: i64
+    local %161 $argument.1: i32
     local %162 $parameter.label: ptr<managed>
-    local %163 $parameter.value: i64
+    local %163 $parameter.value: i32
     local %164 $receiver: ptr<managed>
-    local %165 $argument.0: struct4
-    local %166 $parameter.item: struct4
+    local %165 $argument.0: struct10
+    local %166 $parameter.item: struct10
     local %167 $argument.0: i1
     local %168 $parameter.value: i1
-    local %169 $old.6: struct4
-    local %170 $argument.0: i64
-    local %171 $parameter.value: i64
-    local %172 $receiver: struct4
-    local %173 $argument.0: struct4
-    local %174 $parameter.other: struct4
-    local %175 $argument.0: i64
-    local %176 $parameter.value: i64
-    local %177 $argument.0: i64
-    local %178 $parameter.value: i64
+    local %169 $old.6: struct10
+    local %170 $argument.0: i32
+    local %171 $parameter.value: i32
+    local %172 $receiver: struct10
+    local %173 $argument.0: struct10
+    local %174 $parameter.other: struct10
+    local %175 $argument.0: i32
+    local %176 $parameter.value: i32
+    local %177 $argument.0: i32
+    local %178 $parameter.value: i32
     local %179 cell: ptr<managed>
     local %180 $old.7: ptr<managed>
     local %181 $receiver: ptr<managed>
-    local %182 $argument.0: i64
-    local %183 $parameter.delta: i64
+    local %182 $argument.0: i32
+    local %183 $parameter.delta: i32
     local %184 $receiver: ptr<managed>
-    local %185 $argument.0: i64
-    local %186 $argument.1: i64
-    local %187 $argument.2: i64
-    local %188 $parameter.row: i64
-    local %189 $parameter.column: i64
-    local %190 $parameter.newValue: i64
+    local %185 $argument.0: i32
+    local %186 $argument.1: i32
+    local %187 $argument.2: i32
+    local %188 $parameter.row: i32
+    local %189 $parameter.column: i32
+    local %190 $parameter.newValue: i32
     local %191 $receiver: ptr<managed>
-    local %192 $argument.0: i64
-    local %193 $parameter.row: i64
-    local %194 $parameter.column: i64
-    local %195 $argument.0: i64
-    local %196 $parameter.value: i64
+    local %192 $argument.0: i32
+    local %193 $parameter.row: i32
+    local %194 $parameter.column: i32
+    local %195 $argument.0: i32
+    local %196 $parameter.value: i32
     local %197 $argument.0: ptr<managed>
-    local %198 $argument.1: i64
+    local %198 $argument.1: i32
     local %199 $parameter.label: ptr<managed>
-    local %200 $parameter.value: i64
+    local %200 $parameter.value: i32
     local %201 $argument.0: ptr<managed>
-    local %202 $argument.1: i64
+    local %202 $argument.1: i32
     local %203 $parameter.label: ptr<managed>
-    local %204 $parameter.value: i64
+    local %204 $parameter.value: i32
     local %205 $argument.0: ptr<managed>
-    local %206 $argument.1: i64
+    local %206 $argument.1: i32
     local %207 $parameter.label: ptr<managed>
-    local %208 $parameter.value: i64
+    local %208 $parameter.value: i32
     local %209 $receiver: ptr<managed>
-    local %210 $argument.0: i64
-    local %211 $argument.1: i64
-    local %212 $argument.2: i64
-    local %213 $parameter.row: i64
-    local %214 $parameter.column: i64
-    local %215 $parameter.newValue: i64
-    local %216 $argument.0: i64
-    local %217 $argument.1: i64
-    local %218 $parameter.x: i64
-    local %219 $parameter.y: i64
+    local %210 $argument.0: i32
+    local %211 $argument.1: i32
+    local %212 $argument.2: i32
+    local %213 $parameter.row: i32
+    local %214 $parameter.column: i32
+    local %215 $parameter.newValue: i32
+    local %216 $argument.0: i32
+    local %217 $argument.1: i32
+    local %218 $parameter.x: i32
+    local %219 $parameter.y: i32
     local %220 $subject.8: ptr<managed>
     local %221 $receiver: ptr<managed>
-    local %222 x: i64
+    local %222 x: i32
     local %223 $receiver: ptr<managed>
-    local %224 y: i64
-    local %225 $receiver: i64
-    local %226 $argument.0: i64
-    local %227 $parameter.other: i64
-    local %228 $argument.0: i64
-    local %229 $parameter.value: i64
+    local %224 y: i32
+    local %225 $receiver: i32
+    local %226 $argument.0: i32
+    local %227 $parameter.other: i32
+    local %228 $argument.0: i32
+    local %229 $parameter.value: i32
     local %230 $receiver: ptr<managed>
     local %231 $argument.0: ptr<managed>
     local %232 $parameter.other: ptr<managed>
@@ -4404,480 +5070,480 @@ Module
     local %235 $receiver: i1
     local %236 $argument.0: i1
     local %237 $parameter.value: i1
-    local %238 $call.1: struct4
-    local %239 $call.2: struct4
-    local %240 $call.3: struct4
-    local %241 $call.4: struct4
-    local %242 $call.5: struct4
-    local %243 $call.6: struct4
-    local %244 $call.7: struct4
+    local %238 $call.1: struct10
+    local %239 $call.2: struct10
+    local %240 $call.3: struct10
+    local %241 $call.4: struct10
+    local %242 $call.5: struct10
+    local %243 $call.6: struct10
+    local %244 $call.7: struct10
     local %245 $call.8: i64
     local %246 $call.9: i64
     local %247 $new.10: ptr<managed>
     local %248 $new.11: ptr<managed>
     local %249 $call.12: i1
-    local %250 $call.13: struct4
-    local %251 $call.14: struct4
-    local %252 $call.15: struct4
+    local %250 $call.13: struct10
+    local %251 $call.14: struct10
+    local %252 $call.15: struct10
     local %253 $new.16: ptr<managed>
     local %254 $new.17: ptr<managed>
     local %255 $call.18: i64
-    local %256 $sc.1: struct4
-    local %257 $sc.2: struct4
-    local %258 $sc.3: struct4
-    local %259 $sc.4: struct4
-    local %260 $sc.5: struct4
-    local %261 $sc.6: struct4
-    local %262 $sc.7: struct4
-    local %263 $sc.8: struct4
-    local %264 $sc.9: struct4
-    local %265 $sc.10: struct4
-    local %266 $sc.11: struct4
-    local %267 $sc.12: struct4
-    local %268 $sc.13: struct4
-    local %269 $sc.14: struct4
-    local %270 $sc.15: struct4
-    local %271 $sc.16: struct4
-    local %272 $sc.17: struct4
-    local %273 $sc.18: struct4
-    local %274 $sc.19: struct4
-    local %275 $sc.20: struct4
-    local %276 $sc.21: struct4
-    local %277 $sc.22: struct4
-    local %278 $sc.23: struct4
-    local %279 $sc.24: struct4
-    local %280 $sc.25: struct4
-    local %281 $sc.26: struct4
-    local %282 $sc.27: struct4
-    local %283 $sc.28: struct4
-    local %284 $sc.29: struct4
-    local %285 $sc.30: struct4
-    local %286 $sc.31: struct4
-    local %287 $sc.32: struct4
-    local %288 $sc.33: struct4
-    local %289 $sc.34: struct4
-    local %290 $sc.35: struct4
-    local %291 $sc.36: struct4
-    local %292 $sc.37: struct4
-    local %293 $sc.38: struct4
-    local %294 $sc.39: struct4
-    local %295 $sc.40: struct4
-    local %296 $sc.41: struct4
-    local %297 $sc.42: struct4
-    local %298 $sc.43: struct4
-    local %299 $sc.44: struct4
+    local %256 $sc.1: struct10
+    local %257 $sc.2: struct10
+    local %258 $sc.3: struct10
+    local %259 $sc.4: struct10
+    local %260 $sc.5: struct10
+    local %261 $sc.6: struct10
+    local %262 $sc.7: struct10
+    local %263 $sc.8: struct10
+    local %264 $sc.9: struct10
+    local %265 $sc.10: struct10
+    local %266 $sc.11: struct10
+    local %267 $sc.12: struct10
+    local %268 $sc.13: struct10
+    local %269 $sc.14: struct10
+    local %270 $sc.15: struct10
+    local %271 $sc.16: struct10
+    local %272 $sc.17: struct10
+    local %273 $sc.18: struct10
+    local %274 $sc.19: struct10
+    local %275 $sc.20: struct10
+    local %276 $sc.21: struct10
+    local %277 $sc.22: struct10
+    local %278 $sc.23: struct10
+    local %279 $sc.24: struct10
+    local %280 $sc.25: struct10
+    local %281 $sc.26: struct10
+    local %282 $sc.27: struct10
+    local %283 $sc.28: struct10
+    local %284 $sc.29: struct10
+    local %285 $sc.30: struct10
+    local %286 $sc.31: struct10
+    local %287 $sc.32: struct10
+    local %288 $sc.33: struct10
+    local %289 $sc.34: struct10
+    local %290 $sc.35: struct10
+    local %291 $sc.36: struct10
+    local %292 $sc.37: struct10
+    local %293 $sc.38: struct10
+    local %294 $sc.39: struct10
+    local %295 $sc.40: struct10
+    local %296 $sc.41: struct10
+    local %297 $sc.42: struct10
+    local %298 $sc.43: struct10
+    local %299 $sc.44: struct10
   block entry
-    poll managed-void-target33 sp184 live=[]
-    store 2 -> local0
+    poll managed-void-target33 sp166 live=[]
+    store integer<Int>(0x00000002) -> local0
     store local0 -> local1
-    call managed-indirect-target0 sp38 live=[] local256 = sig=indirect0 (sret struct4, i64) local-fn52(local1)
+    call no-gc-indirect-target0 local256 = sig=indirect0 (sret struct10, i32) local-fn62(local1)
     store local256 -> local2
-    call managed-indirect-target1 sp39 live=[] local257 = sig=indirect1 (sret struct4, struct4) local-fn9(local2)
+    call managed-indirect-target0 sp35 live=[] local257 = sig=indirect1 (sret struct10, struct10) local-fn19(local2)
     store local257 -> local3
     store local3 -> local4
-    call managed-indirect-target2 sp40 live=[] local258 = sig=indirect2 (sret struct4, struct4) local-fn10(local4)
+    call managed-indirect-target1 sp36 live=[] local258 = sig=indirect2 (sret struct10, struct10) local-fn20(local4)
     store local258 -> local5
-    t0 = extract local3, 0 : i64
+    t0 = extract local3, 0 : i32
     store t0 -> local6
     store local6 -> local7
-    call managed-void-target0 sp41 live=[] sig=void0 (i64) local-fn38(local7)
+    call managed-void-target0 sp37 live=[] sig=void0 (i32) local-fn48(local7)
     t1 = aggregate () : {}
-    t2 = extract local5, 0 : i64
+    t2 = extract local5, 0 : i32
     store t2 -> local8
     store local8 -> local9
-    call managed-void-target1 sp42 live=[] sig=void1 (i64) local-fn38(local9)
+    call managed-void-target1 sp38 live=[] sig=void1 (i32) local-fn48(local9)
     t3 = aggregate () : {}
-    store 5 -> local10
+    store integer<Int>(0x00000005) -> local10
     store local10 -> local11
-    call managed-indirect-target3 sp43 live=[] local259 = sig=indirect3 (sret struct4, i64) local-fn52(local11)
+    call no-gc-indirect-target1 local259 = sig=indirect3 (sret struct10, i32) local-fn62(local11)
     store local259 -> local12
     store local12 -> local13
     store local13 -> local14
-    call managed-indirect-target4 sp44 live=[] local260 = sig=indirect4 (sret struct4, struct4) local-fn11(local14)
+    call managed-indirect-target2 sp39 live=[] local260 = sig=indirect4 (sret struct10, struct10) local-fn21(local14)
     store local260 -> local15
     store local15 -> local12
-    t4 = extract local13, 0 : i64
+    t4 = extract local13, 0 : i32
     store t4 -> local16
     store local16 -> local17
-    call managed-void-target2 sp45 live=[] sig=void2 (i64) local-fn38(local17)
+    call managed-void-target2 sp40 live=[] sig=void2 (i32) local-fn48(local17)
     t5 = aggregate () : {}
-    t6 = extract local12, 0 : i64
+    t6 = extract local12, 0 : i32
     store t6 -> local18
     store local18 -> local19
-    call managed-void-target3 sp46 live=[] sig=void3 (i64) local-fn38(local19)
+    call managed-void-target3 sp41 live=[] sig=void3 (i32) local-fn48(local19)
     t7 = aggregate () : {}
     store local12 -> local20
     store local20 -> local21
-    call managed-indirect-target5 sp47 live=[] local261 = sig=indirect5 (sret struct4, struct4) local-fn11(local21)
+    call managed-indirect-target3 sp42 live=[] local261 = sig=indirect5 (sret struct10, struct10) local-fn21(local21)
     store local261 -> local22
     store local22 -> local12
-    t8 = extract local22, 0 : i64
+    t8 = extract local22, 0 : i32
     store t8 -> local23
     store local23 -> local24
-    call managed-void-target4 sp48 live=[] sig=void4 (i64) local-fn38(local24)
+    call managed-void-target4 sp43 live=[] sig=void4 (i32) local-fn48(local24)
     t9 = aggregate () : {}
     store local12 -> local25
     store local25 -> local26
-    call managed-indirect-target6 sp49 live=[] local262 = sig=indirect6 (sret struct4, struct4) local-fn12(local26)
+    call managed-indirect-target4 sp44 live=[] local262 = sig=indirect6 (sret struct10, struct10) local-fn22(local26)
     store local262 -> local27
     store local27 -> local12
-    t10 = extract local25, 0 : i64
+    t10 = extract local25, 0 : i32
     store t10 -> local28
     store local28 -> local29
-    call managed-void-target5 sp50 live=[] sig=void5 (i64) local-fn38(local29)
+    call managed-void-target5 sp45 live=[] sig=void5 (i32) local-fn48(local29)
     t11 = aggregate () : {}
-    t12 = extract local12, 0 : i64
+    t12 = extract local12, 0 : i32
     store t12 -> local30
     store local30 -> local31
-    call managed-void-target6 sp51 live=[] sig=void6 (i64) local-fn38(local31)
+    call managed-void-target6 sp46 live=[] sig=void6 (i32) local-fn48(local31)
     t13 = aggregate () : {}
-    store 9 -> local32
+    store integer<Int>(0x00000009) -> local32
     store local32 -> local33
-    call managed-indirect-target7 sp52 live=[] local263 = sig=indirect7 (sret struct4, i64) local-fn52(local33)
+    call no-gc-indirect-target2 local263 = sig=indirect7 (sret struct10, i32) local-fn62(local33)
     store local263 -> local36
-    store 4 -> local34
+    store integer<Int>(0x00000004) -> local34
     store local34 -> local35
-    call managed-indirect-target8 sp53 live=[] local264 = sig=indirect8 (sret struct4, i64) local-fn52(local35)
+    call no-gc-indirect-target3 local264 = sig=indirect8 (sret struct10, i32) local-fn62(local35)
     store local264 -> local37
     store local37 -> local38
-    call managed-indirect-target9 sp54 live=[] local265 = sig=indirect9 (sret struct4, struct4, struct4) local-fn14(local36, local38)
+    call managed-indirect-target5 sp47 live=[] local265 = sig=indirect9 (sret struct10, struct10, struct10) local-fn24(local36, local38)
     store local265 -> local238
-    t14 = extract local238, 0 : i64
+    t14 = extract local238, 0 : i32
     store t14 -> local39
     store local39 -> local40
-    call managed-void-target7 sp55 live=[] sig=void7 (i64) local-fn38(local40)
+    call managed-void-target7 sp48 live=[] sig=void7 (i32) local-fn48(local40)
     t15 = aggregate () : {}
-    store 3 -> local41
+    store integer<Int>(0x00000003) -> local41
     store local41 -> local42
-    call managed-indirect-target10 sp56 live=[] local266 = sig=indirect10 (sret struct4, i64) local-fn52(local42)
+    call no-gc-indirect-target4 local266 = sig=indirect10 (sret struct10, i32) local-fn62(local42)
     store local266 -> local45
-    store 4 -> local43
+    store integer<Int>(0x00000004) -> local43
     store local43 -> local44
-    call managed-indirect-target11 sp57 live=[] local267 = sig=indirect11 (sret struct4, i64) local-fn52(local44)
+    call no-gc-indirect-target5 local267 = sig=indirect11 (sret struct10, i32) local-fn62(local44)
     store local267 -> local46
     store local46 -> local47
-    call managed-indirect-target12 sp58 live=[] local268 = sig=indirect12 (sret struct4, struct4, struct4) local-fn15(local45, local47)
+    call managed-indirect-target6 sp49 live=[] local268 = sig=indirect12 (sret struct10, struct10, struct10) local-fn25(local45, local47)
     store local268 -> local239
-    t16 = extract local239, 0 : i64
+    t16 = extract local239, 0 : i32
     store t16 -> local48
     store local48 -> local49
-    call managed-void-target8 sp59 live=[] sig=void8 (i64) local-fn38(local49)
+    call managed-void-target8 sp50 live=[] sig=void8 (i32) local-fn48(local49)
     t17 = aggregate () : {}
-    store 12 -> local50
+    store integer<Int>(0x0000000c) -> local50
     store local50 -> local51
-    call managed-indirect-target13 sp60 live=[] local269 = sig=indirect13 (sret struct4, i64) local-fn52(local51)
+    call no-gc-indirect-target6 local269 = sig=indirect13 (sret struct10, i32) local-fn62(local51)
     store local269 -> local54
-    store 3 -> local52
+    store integer<Int>(0x00000003) -> local52
     store local52 -> local53
-    call managed-indirect-target14 sp61 live=[] local270 = sig=indirect14 (sret struct4, i64) local-fn52(local53)
+    call no-gc-indirect-target7 local270 = sig=indirect14 (sret struct10, i32) local-fn62(local53)
     store local270 -> local55
     store local55 -> local56
-    call managed-indirect-target15 sp62 live=[] local271 = sig=indirect15 (sret struct4, struct4, struct4) local-fn16(local54, local56)
+    call managed-indirect-target7 sp51 live=[] local271 = sig=indirect15 (sret struct10, struct10, struct10) local-fn26(local54, local56)
     store local271 -> local240
-    t18 = extract local240, 0 : i64
+    t18 = extract local240, 0 : i32
     store t18 -> local57
     store local57 -> local58
-    call managed-void-target9 sp63 live=[] sig=void9 (i64) local-fn38(local58)
+    call managed-void-target9 sp52 live=[] sig=void9 (i32) local-fn48(local58)
     t19 = aggregate () : {}
-    store 14 -> local59
+    store integer<Int>(0x0000000e) -> local59
     store local59 -> local60
-    call managed-indirect-target16 sp64 live=[] local272 = sig=indirect16 (sret struct4, i64) local-fn52(local60)
+    call no-gc-indirect-target8 local272 = sig=indirect16 (sret struct10, i32) local-fn62(local60)
     store local272 -> local63
-    store 4 -> local61
+    store integer<Int>(0x00000004) -> local61
     store local61 -> local62
-    call managed-indirect-target17 sp65 live=[] local273 = sig=indirect17 (sret struct4, i64) local-fn52(local62)
+    call no-gc-indirect-target9 local273 = sig=indirect17 (sret struct10, i32) local-fn62(local62)
     store local273 -> local64
     store local64 -> local65
-    call managed-indirect-target18 sp66 live=[] local274 = sig=indirect18 (sret struct4, struct4, struct4) local-fn17(local63, local65)
+    call managed-indirect-target8 sp53 live=[] local274 = sig=indirect18 (sret struct10, struct10, struct10) local-fn27(local63, local65)
     store local274 -> local241
-    t20 = extract local241, 0 : i64
+    t20 = extract local241, 0 : i32
     store t20 -> local66
     store local66 -> local67
-    call managed-void-target10 sp67 live=[] sig=void10 (i64) local-fn38(local67)
+    call managed-void-target10 sp54 live=[] sig=void10 (i32) local-fn48(local67)
     t21 = aggregate () : {}
-    store 3 -> local68
+    store integer<Int>(0x00000003) -> local68
     store local68 -> local69
-    call managed-indirect-target19 sp68 live=[] local275 = sig=indirect19 (sret struct4, i64) local-fn52(local69)
+    call no-gc-indirect-target10 local275 = sig=indirect19 (sret struct10, i32) local-fn62(local69)
     store local275 -> local70
-    store 5 -> local71
+    store integer<Int>(0x00000005) -> local71
     store local71 -> local72
-    call managed-indirect-target20 sp69 live=[] local276 = sig=indirect20 (sret struct4, struct4, i64) local-fn30(local70, local72)
+    call managed-indirect-target9 sp55 live=[] local276 = sig=indirect20 (sret struct10, struct10, i32) local-fn40(local70, local72)
     store local276 -> local242
-    t22 = extract local242, 0 : i64
+    t22 = extract local242, 0 : i32
     store t22 -> local73
     store local73 -> local74
-    call managed-void-target11 sp70 live=[] sig=void11 (i64) local-fn38(local74)
+    call managed-void-target11 sp56 live=[] sig=void11 (i32) local-fn48(local74)
     t23 = aggregate () : {}
-    store 3 -> local75
+    store integer<Int>(0x00000003) -> local75
     store local75 -> local76
-    call managed-indirect-target21 sp71 live=[] local277 = sig=indirect21 (sret struct4, i64) local-fn52(local76)
+    call no-gc-indirect-target11 local277 = sig=indirect21 (sret struct10, i32) local-fn62(local76)
     store local277 -> local79
-    store 8 -> local77
+    store integer<Int>(0x00000008) -> local77
     store local77 -> local78
-    call managed-indirect-target22 sp72 live=[] local278 = sig=indirect22 (sret struct4, i64) local-fn52(local78)
+    call no-gc-indirect-target12 local278 = sig=indirect22 (sret struct10, i32) local-fn62(local78)
     store local278 -> local80
     store local80 -> local81
-    call managed-indirect-target23 sp73 live=[] local279 = sig=indirect23 (sret struct4, struct4, struct4) local-fn18(local79, local81)
+    call managed-indirect-target10 sp57 live=[] local279 = sig=indirect23 (sret struct10, struct10, struct10) local-fn28(local79, local81)
     store local279 -> local243
-    t24 = extract local243, 0 : i64
+    t24 = extract local243, 0 : i32
     store t24 -> local82
     store local82 -> local83
-    call managed-void-target12 sp74 live=[] sig=void12 (i64) local-fn38(local83)
+    call managed-void-target12 sp58 live=[] sig=void12 (i32) local-fn48(local83)
     t25 = aggregate () : {}
-    store 3 -> local84
+    store integer<Int>(0x00000003) -> local84
     store local84 -> local85
-    call managed-indirect-target24 sp75 live=[] local280 = sig=indirect24 (sret struct4, i64) local-fn52(local85)
+    call no-gc-indirect-target13 local280 = sig=indirect24 (sret struct10, i32) local-fn62(local85)
     store local280 -> local88
-    store 8 -> local86
+    store integer<Int>(0x00000008) -> local86
     store local86 -> local87
-    call managed-indirect-target25 sp76 live=[] local281 = sig=indirect25 (sret struct4, i64) local-fn52(local87)
+    call no-gc-indirect-target14 local281 = sig=indirect25 (sret struct10, i32) local-fn62(local87)
     store local281 -> local89
     store local89 -> local90
-    call managed-indirect-target26 sp77 live=[] local282 = sig=indirect26 (sret struct4, struct4, struct4) local-fn19(local88, local90)
+    call managed-indirect-target11 sp59 live=[] local282 = sig=indirect26 (sret struct10, struct10, struct10) local-fn29(local88, local90)
     store local282 -> local244
-    t26 = extract local244, 0 : i64
+    t26 = extract local244, 0 : i32
     store t26 -> local91
     store local91 -> local92
-    call managed-void-target13 sp78 live=[] sig=void13 (i64) local-fn38(local92)
+    call managed-void-target13 sp60 live=[] sig=void13 (i32) local-fn48(local92)
     t27 = aggregate () : {}
-    store 2 -> local93
+    store integer<Int>(0x00000002) -> local93
     store local93 -> local94
-    call managed-indirect-target27 sp79 live=[] local283 = sig=indirect27 (sret struct4, i64) local-fn52(local94)
+    call no-gc-indirect-target15 local283 = sig=indirect27 (sret struct10, i32) local-fn62(local94)
     store local283 -> local97
-    store 3 -> local95
+    store integer<Int>(0x00000003) -> local95
     store local95 -> local96
-    call managed-indirect-target28 sp80 live=[] local284 = sig=indirect28 (sret struct4, i64) local-fn52(local96)
+    call no-gc-indirect-target16 local284 = sig=indirect28 (sret struct10, i32) local-fn62(local96)
     store local284 -> local98
     store local98 -> local99
-    call managed-direct-target0 sp81 live=[] t28 = sig=direct0 (struct4, struct4) -> i64 local-fn20(local97, local99)
+    call managed-direct-target0 sp61 live=[] t28 = sig=direct0 (struct10, struct10) -> i64 local-fn30(local97, local99)
     store t28 -> local245
-    t29 = Lt local245, 0 : i1
+    t29 = integer_compare_Less<Long> local245, integer<Long>(0x0000000000000000) : i1
     store t29 -> local100
     store local100 -> local101
-    call managed-void-target14 sp82 live=[] sig=void14 (i1) local-fn39(local101)
+    call managed-void-target14 sp62 live=[] sig=void14 (i1) local-fn49(local101)
     t30 = aggregate () : {}
-    store 3 -> local102
+    store integer<Int>(0x00000003) -> local102
     store local102 -> local103
-    call managed-indirect-target29 sp83 live=[] local285 = sig=indirect29 (sret struct4, i64) local-fn52(local103)
+    call no-gc-indirect-target17 local285 = sig=indirect29 (sret struct10, i32) local-fn62(local103)
     store local285 -> local106
-    store 3 -> local104
+    store integer<Int>(0x00000003) -> local104
     store local104 -> local105
-    call managed-indirect-target30 sp84 live=[] local286 = sig=indirect30 (sret struct4, i64) local-fn52(local105)
+    call no-gc-indirect-target18 local286 = sig=indirect30 (sret struct10, i32) local-fn62(local105)
     store local286 -> local107
     store local107 -> local108
-    call managed-direct-target1 sp85 live=[] t31 = sig=direct1 (struct4, struct4) -> i64 local-fn20(local106, local108)
+    call managed-direct-target1 sp63 live=[] t31 = sig=direct1 (struct10, struct10) -> i64 local-fn30(local106, local108)
     store t31 -> local246
-    t32 = Ge local246, 0 : i1
+    t32 = integer_compare_GreaterOrEqual<Long> local246, integer<Long>(0x0000000000000000) : i1
     store t32 -> local109
     store local109 -> local110
-    call managed-void-target15 sp86 live=[] sig=void15 (i1) local-fn39(local110)
+    call managed-void-target15 sp64 live=[] sig=void15 (i1) local-fn49(local110)
     t33 = aggregate () : {}
-    store 7 -> local111
+    store integer<Int>(0x00000007) -> local111
     store local111 -> local112
-    call managed-direct-target2 sp87 live=[] t34 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp65 live=[] t34 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t34 -> local247
-    call managed-void-target16 sp88 live=[local247:ptr<managed>@0] sig=void16 (ptr<managed>, i64) local-fn48(local247, local112)
+    call managed-void-target16 sp66 live=[local247:ptr<managed>@0] sig=void16 (ptr<managed>, i32) local-fn58(local247, local112)
     t35 = aggregate () : {}
     store local247 -> local115
-    store 7 -> local113
+    store integer<Int>(0x00000007) -> local113
     store local113 -> local114
-    call managed-indirect-target31 sp89 live=[local115:ptr<managed>@0] local287 = sig=indirect31 (sret struct4, i64) local-fn52(local114)
+    call no-gc-indirect-target19 local287 = sig=indirect31 (sret struct10, i32) local-fn62(local114)
     store local287 -> local116
     store local116 -> local117
-    call managed-direct-target3 sp90 live=[local115:ptr<managed>@0] t36 = sig=direct3 (ptr<managed>, struct4) -> i1 local-fn24(local115, local117)
+    call managed-direct-target3 sp67 live=[local115:ptr<managed>@0] t36 = sig=direct3 (ptr<managed>, struct10) -> i1 local-fn34(local115, local117)
     store t36 -> local118
     store local118 -> local119
-    call managed-void-target17 sp91 live=[] sig=void17 (i1) local-fn39(local119)
+    call managed-void-target17 sp68 live=[] sig=void17 (i1) local-fn49(local119)
     t37 = aggregate () : {}
-    store 7 -> local120
+    store integer<Int>(0x00000007) -> local120
     store local120 -> local121
-    call managed-direct-target4 sp92 live=[] t38 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp69 live=[] t38 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
     store t38 -> local248
-    call managed-void-target18 sp93 live=[local248:ptr<managed>@0] sig=void18 (ptr<managed>, i64) local-fn48(local248, local121)
+    call managed-void-target18 sp70 live=[local248:ptr<managed>@0] sig=void18 (ptr<managed>, i32) local-fn58(local248, local121)
     t39 = aggregate () : {}
     store local248 -> local124
-    store 8 -> local122
+    store integer<Int>(0x00000008) -> local122
     store local122 -> local123
-    call managed-indirect-target32 sp94 live=[local124:ptr<managed>@0] local288 = sig=indirect32 (sret struct4, i64) local-fn52(local123)
+    call no-gc-indirect-target20 local288 = sig=indirect32 (sret struct10, i32) local-fn62(local123)
     store local288 -> local125
     store local125 -> local126
-    call managed-direct-target5 sp95 live=[local124:ptr<managed>@0] t40 = sig=direct5 (ptr<managed>, struct4) -> i1 local-fn24(local124, local126)
+    call managed-direct-target5 sp71 live=[local124:ptr<managed>@0] t40 = sig=direct5 (ptr<managed>, struct10) -> i1 local-fn34(local124, local126)
     store t40 -> local249
     t41 = Not local249 : i1
     store t41 -> local127
     store local127 -> local128
-    call managed-void-target19 sp96 live=[] sig=void19 (i1) local-fn39(local128)
+    call managed-void-target19 sp72 live=[] sig=void19 (i1) local-fn49(local128)
     t42 = aggregate () : {}
-    store 1 -> local129
+    store integer<Int>(0x00000001) -> local129
     store local129 -> local130
-    call managed-indirect-target33 sp97 live=[] local289 = sig=indirect33 (sret struct4, i64) local-fn52(local130)
+    call no-gc-indirect-target21 local289 = sig=indirect33 (sret struct10, i32) local-fn62(local130)
     store local289 -> local133
-    store 2 -> local131
+    store integer<Int>(0x00000002) -> local131
     store local131 -> local132
-    call managed-indirect-target34 sp98 live=[] local290 = sig=indirect34 (sret struct4, i64) local-fn52(local132)
+    call no-gc-indirect-target22 local290 = sig=indirect34 (sret struct10, i32) local-fn62(local132)
     store local290 -> local134
     store local134 -> local135
-    call managed-indirect-target35 sp99 live=[] local291 = sig=indirect35 (sret struct4, struct4, struct4) local-fn31(local133, local135)
+    call managed-indirect-target12 sp73 live=[] local291 = sig=indirect35 (sret struct10, struct10, struct10) local-fn41(local133, local135)
     store local291 -> local138
-    store 3 -> local136
+    store integer<Int>(0x00000003) -> local136
     store local136 -> local137
-    call managed-indirect-target36 sp100 live=[] local292 = sig=indirect36 (sret struct4, i64) local-fn52(local137)
+    call no-gc-indirect-target23 local292 = sig=indirect36 (sret struct10, i32) local-fn62(local137)
     store local292 -> local139
     store local139 -> local140
-    call managed-indirect-target37 sp101 live=[] local293 = sig=indirect37 (sret struct4, struct4, struct4) local-fn31(local138, local140)
+    call managed-indirect-target13 sp74 live=[] local293 = sig=indirect37 (sret struct10, struct10, struct10) local-fn41(local138, local140)
     store local293 -> local250
-    t43 = extract local250, 0 : i64
+    t43 = extract local250, 0 : i32
     store t43 -> local141
     store local141 -> local142
-    call managed-void-target20 sp102 live=[] sig=void20 (i64) local-fn38(local142)
+    call managed-void-target20 sp75 live=[] sig=void20 (i32) local-fn48(local142)
     t44 = aggregate () : {}
     store global1 -> local143
-    store 1 -> local144
+    store integer<Int>(0x00000001) -> local144
     store local143 -> local145
     store local144 -> local146
-    call managed-indirect-target38 sp103 live=[local145:ptr<managed>@0] local294 = sig=indirect38 (sret struct4, ptr<managed>, i64) local-fn32(local145, local146)
+    call managed-indirect-target14 sp76 live=[local145:ptr<managed>@0] local294 = sig=indirect38 (sret struct10, ptr<managed>, i32) local-fn42(local145, local146)
     store local294 -> local151
     store global2 -> local147
-    store 2 -> local148
+    store integer<Int>(0x00000002) -> local148
     store local147 -> local149
     store local148 -> local150
-    call managed-indirect-target39 sp104 live=[local149:ptr<managed>@0] local295 = sig=indirect39 (sret struct4, ptr<managed>, i64) local-fn32(local149, local150)
+    call managed-indirect-target15 sp77 live=[local149:ptr<managed>@0] local295 = sig=indirect39 (sret struct10, ptr<managed>, i32) local-fn42(local149, local150)
     store local295 -> local152
     store local152 -> local153
-    call managed-indirect-target40 sp105 live=[] local296 = sig=indirect40 (sret struct4, struct4, struct4) local-fn13(local151, local153)
+    call managed-indirect-target16 sp78 live=[] local296 = sig=indirect40 (sret struct10, struct10, struct10) local-fn23(local151, local153)
     store local296 -> local251
-    t45 = extract local251, 0 : i64
+    t45 = extract local251, 0 : i32
     store t45 -> local154
     store local154 -> local155
-    call managed-void-target21 sp106 live=[] sig=void21 (i64) local-fn38(local155)
+    call managed-void-target21 sp79 live=[] sig=void21 (i32) local-fn48(local155)
     t46 = aggregate () : {}
     store global3 -> local156
-    store 7 -> local157
+    store integer<Int>(0x00000007) -> local157
     store local156 -> local158
     store local157 -> local159
-    call managed-direct-target6 sp107 live=[local158:ptr<managed>@0] t47 = sig=direct6 (ptr<managed>, i64) -> ptr<managed> local-fn33(local158, local159)
+    call managed-direct-target6 sp80 live=[local158:ptr<managed>@0] t47 = sig=direct6 (ptr<managed>, i32) -> ptr<managed> local-fn43(local158, local159)
     store t47 -> local164
     store global4 -> local160
-    store 7 -> local161
+    store integer<Int>(0x00000007) -> local161
     store local160 -> local162
     store local161 -> local163
-    call managed-indirect-target41 sp108 live=[local162:ptr<managed>@0, local164:ptr<managed>@0] local297 = sig=indirect41 (sret struct4, ptr<managed>, i64) local-fn32(local162, local163)
+    call managed-indirect-target17 sp81 live=[local162:ptr<managed>@0, local164:ptr<managed>@0] local297 = sig=indirect41 (sret struct10, ptr<managed>, i32) local-fn42(local162, local163)
     store local297 -> local165
     store local165 -> local166
-    call managed-direct-target7 sp109 live=[local164:ptr<managed>@0] t48 = sig=direct7 (ptr<managed>, struct4) -> i1 local-fn24(local164, local166)
+    call managed-direct-target7 sp82 live=[local164:ptr<managed>@0] t48 = sig=direct7 (ptr<managed>, struct10) -> i1 local-fn34(local164, local166)
     store t48 -> local167
     store local167 -> local168
-    call managed-void-target22 sp110 live=[] sig=void22 (i1) local-fn39(local168)
+    call managed-void-target22 sp83 live=[] sig=void22 (i1) local-fn49(local168)
     t49 = aggregate () : {}
     store local12 -> local169
     store local169 -> local172
-    store 10 -> local170
+    store integer<Int>(0x0000000a) -> local170
     store local170 -> local171
-    call managed-indirect-target42 sp111 live=[] local298 = sig=indirect42 (sret struct4, i64) local-fn52(local171)
+    call no-gc-indirect-target24 local298 = sig=indirect42 (sret struct10, i32) local-fn62(local171)
     store local298 -> local173
     store local173 -> local174
-    call managed-indirect-target43 sp112 live=[] local299 = sig=indirect43 (sret struct4, struct4, struct4) local-fn13(local172, local174)
+    call managed-indirect-target18 sp84 live=[] local299 = sig=indirect43 (sret struct10, struct10, struct10) local-fn23(local172, local174)
     store local299 -> local252
     store local252 -> local12
-    t50 = extract local12, 0 : i64
+    t50 = extract local12, 0 : i32
     store t50 -> local175
     store local175 -> local176
-    call managed-void-target23 sp113 live=[] sig=void23 (i64) local-fn38(local176)
+    call managed-void-target23 sp85 live=[] sig=void23 (i32) local-fn48(local176)
     t51 = aggregate () : {}
-    store 1 -> local177
+    store integer<Int>(0x00000001) -> local177
     store local177 -> local178
-    call managed-direct-target8 sp114 live=[] t52 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target8 sp86 live=[] t52 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t52 -> local253
-    call managed-void-target24 sp115 live=[local253:ptr<managed>@0] sig=void24 (ptr<managed>, i64) local-fn49(local253, local178)
+    call managed-void-target24 sp87 live=[local253:ptr<managed>@0] sig=void24 (ptr<managed>, i32) local-fn59(local253, local178)
     t53 = aggregate () : {}
     store local253 -> local179
     store local179 -> local180
     store local180 -> local181
-    store 4 -> local182
+    store integer<Int>(0x00000004) -> local182
     store local182 -> local183
-    call managed-void-target25 sp116 live=[local179:ptr<managed>@0, local181:ptr<managed>@0] sig=void25 (ptr<managed>, i64) local-fn27(local181, local183)
+    call managed-void-target25 sp88 live=[local179:ptr<managed>@0, local181:ptr<managed>@0] sig=void25 (ptr<managed>, i32) local-fn37(local181, local183)
     t54 = aggregate () : {}
     store local179 -> local184
-    store 1 -> local185
-    store 2 -> local186
-    store 10 -> local187
+    store integer<Int>(0x00000001) -> local185
+    store integer<Int>(0x00000002) -> local186
+    store integer<Int>(0x0000000a) -> local187
     store local185 -> local188
     store local186 -> local189
     store local187 -> local190
-    call managed-void-target26 sp117 live=[local179:ptr<managed>@0, local184:ptr<managed>@0] sig=void26 (ptr<managed>, i64, i64, i64) local-fn26(local184, local188, local189, local190)
+    call managed-void-target26 sp89 live=[local179:ptr<managed>@0, local184:ptr<managed>@0] sig=void26 (ptr<managed>, i32, i32, i32) local-fn36(local184, local188, local189, local190)
     t55 = aggregate () : {}
     store local179 -> local191
-    store 1 -> local192
+    store integer<Int>(0x00000001) -> local192
     store local192 -> local193
-    store 0 -> local194
-    call managed-direct-target9 sp118 live=[local191:ptr<managed>@0] t56 = sig=direct9 (ptr<managed>, i64, i64) -> i64 local-fn25(local191, local193, local194)
+    store integer<Int>(0x00000000) -> local194
+    call managed-direct-target9 sp90 live=[local191:ptr<managed>@0] t56 = sig=direct9 (ptr<managed>, i32, i32) -> i32 local-fn35(local191, local193, local194)
     store t56 -> local195
     store local195 -> local196
-    call managed-void-target27 sp119 live=[] sig=void27 (i64) local-fn38(local196)
+    call managed-void-target27 sp91 live=[] sig=void27 (i32) local-fn48(local196)
     t57 = aggregate () : {}
-    call managed-direct-target10 sp120 live=[] t58 = sig=direct10 () -> ptr<managed> local-fn34()
+    call managed-direct-target10 sp92 live=[] t58 = sig=direct10 () -> ptr<managed> local-fn44()
     store t58 -> local209
     store global5 -> local197
-    store 1 -> local198
+    store integer<Int>(0x00000001) -> local198
     store local197 -> local199
     store local198 -> local200
-    call managed-direct-target11 sp121 live=[local199:ptr<managed>@0, local209:ptr<managed>@0] t59 = sig=direct11 (ptr<managed>, i64) -> i64 local-fn35(local199, local200)
+    call managed-direct-target11 sp93 live=[local199:ptr<managed>@0, local209:ptr<managed>@0] t59 = sig=direct11 (ptr<managed>, i32) -> i32 local-fn45(local199, local200)
     store t59 -> local210
     store global6 -> local201
-    store 2 -> local202
+    store integer<Int>(0x00000002) -> local202
     store local201 -> local203
     store local202 -> local204
-    call managed-direct-target12 sp122 live=[local203:ptr<managed>@0, local209:ptr<managed>@0] t60 = sig=direct12 (ptr<managed>, i64) -> i64 local-fn35(local203, local204)
+    call managed-direct-target12 sp94 live=[local203:ptr<managed>@0, local209:ptr<managed>@0] t60 = sig=direct12 (ptr<managed>, i32) -> i32 local-fn45(local203, local204)
     store t60 -> local211
     store global7 -> local205
-    store 10 -> local206
+    store integer<Int>(0x0000000a) -> local206
     store local205 -> local207
     store local206 -> local208
-    call managed-direct-target13 sp123 live=[local207:ptr<managed>@0, local209:ptr<managed>@0] t61 = sig=direct13 (ptr<managed>, i64) -> i64 local-fn35(local207, local208)
+    call managed-direct-target13 sp95 live=[local207:ptr<managed>@0, local209:ptr<managed>@0] t61 = sig=direct13 (ptr<managed>, i32) -> i32 local-fn45(local207, local208)
     store t61 -> local212
     store local210 -> local213
     store local211 -> local214
     store local212 -> local215
-    call managed-void-target28 sp124 live=[local209:ptr<managed>@0] sig=void28 (ptr<managed>, i64, i64, i64) local-fn26(local209, local213, local214, local215)
+    call managed-void-target28 sp96 live=[local209:ptr<managed>@0] sig=void28 (ptr<managed>, i32, i32, i32) local-fn36(local209, local213, local214, local215)
     t62 = aggregate () : {}
-    store 20 -> local216
-    store 22 -> local217
+    store integer<Int>(0x00000014) -> local216
+    store integer<Int>(0x00000016) -> local217
     store local216 -> local218
     store local217 -> local219
-    call managed-direct-target14 sp125 live=[] t63 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    call managed-direct-target14 sp97 live=[] t63 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
     store t63 -> local254
-    call managed-void-target29 sp126 live=[local254:ptr<managed>@0] sig=void29 (ptr<managed>, i64, i64) local-fn50(local254, local218, local219)
+    call managed-void-target29 sp98 live=[local254:ptr<managed>@0] sig=void29 (ptr<managed>, i32, i32) local-fn60(local254, local218, local219)
     t64 = aggregate () : {}
     store local254 -> local220
     store local220 -> local221
-    call managed-direct-target15 sp127 live=[local220:ptr<managed>@0, local221:ptr<managed>@0] t65 = sig=direct15 (ptr<managed>) -> i64 local-fn28(local221)
+    call managed-direct-target15 sp99 live=[local220:ptr<managed>@0, local221:ptr<managed>@0] t65 = sig=direct15 (ptr<managed>) -> i32 local-fn38(local221)
     store t65 -> local222
     store local220 -> local223
-    call managed-direct-target16 sp128 live=[local223:ptr<managed>@0] t66 = sig=direct16 (ptr<managed>) -> i64 local-fn29(local223)
+    call managed-direct-target16 sp100 live=[local223:ptr<managed>@0] t66 = sig=direct16 (ptr<managed>) -> i32 local-fn39(local223)
     store t66 -> local224
     store local222 -> local225
     store local224 -> local226
     store local226 -> local227
-    t67 = Add local225, local227 : i64
+    t67 = integer_Add<Int> local225, local227 : i32
     store t67 -> local228
     store local228 -> local229
-    call managed-void-target30 sp129 live=[] sig=void30 (i64) local-fn38(local229)
+    call managed-void-target30 sp101 live=[] sig=void30 (i32) local-fn48(local229)
     t68 = aggregate () : {}
     store global8 -> local230
     store global9 -> local231
     store local231 -> local232
     call no-gc-direct-target0 t69 = sig=direct17 (ptr<managed>, ptr<managed>) -> i64 runtime @scoop_rt_string_compare(local230, local232)
     store t69 -> local255
-    t70 = Lt local255, 0 : i1
+    t70 = integer_compare_Less<Long> local255, integer<Long>(0x0000000000000000) : i1
     store t70 -> local233
     store local233 -> local234
-    call managed-void-target31 sp130 live=[] sig=void31 (i1) local-fn39(local234)
+    call managed-void-target31 sp102 live=[] sig=void31 (i1) local-fn49(local234)
     t71 = aggregate () : {}
     store false -> local235
     t72 = Not local235 : i1
     store t72 -> local236
     store local236 -> local237
-    call managed-void-target32 sp131 live=[] sig=void32 (i1) local-fn39(local237)
+    call managed-void-target32 sp103 live=[] sig=void32 (i1) local-fn49(local237)
     t73 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void
@@ -4887,35 +5553,35 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp185 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp167 live=[param0:ptr<managed>@0]
     store param0 -> local0
-    call managed-direct-target0 sp132 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn22(local0)
+    call managed-direct-target0 sp104 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn32(local0)
     store t0 -> local1
     store local1 -> local2
-    call native-borrowed-void-target0 sp133 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    call native-borrowed-void-target0 sp105 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
     t1 = aggregate () : {}
     store global10 -> local3
     store local3 -> local4
-    call native-borrowed-void-target1 sp134 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    call native-borrowed-void-target1 sp106 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.println$I(i64) -> void
-    local %0 $receiver: i64
+  fun @scoop.println$I32(i32) -> void
+    local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp186 live=[]
+    poll managed-void-target0 sp168 live=[]
     store param0 -> local0
-    call managed-direct-target0 sp135 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn1(local0)
+    call managed-direct-target0 sp107 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn4(local0)
     store t0 -> local1
     store local1 -> local2
-    call native-borrowed-void-target0 sp136 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    call native-borrowed-void-target0 sp108 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
     t1 = aggregate () : {}
     store global11 -> local3
     store local3 -> local4
-    call native-borrowed-void-target1 sp137 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    call native-borrowed-void-target1 sp109 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
   fun @scoop.println$B(i1) -> void
@@ -4925,26 +5591,26 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp187 live=[]
+    poll managed-void-target0 sp169 live=[]
     store param0 -> local0
-    call managed-direct-target0 sp138 live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn7(local0)
+    call managed-direct-target0 sp110 live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn17(local0)
     store t0 -> local1
     store local1 -> local2
-    call native-borrowed-void-target0 sp139 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    call native-borrowed-void-target0 sp111 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
     t1 = aggregate () : {}
     store global12 -> local3
     store local3 -> local4
-    call native-borrowed-void-target1 sp140 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    call native-borrowed-void-target1 sp112 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp188 live=[]
+    poll managed-void-target0 sp170 live=[]
     ret
   fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
   block entry
-    poll managed-void-target1 sp189 live=[param0:ptr<managed>@0, param1:enum0@0]
-    call managed-void-target0 sp141 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn40(param0)
+    poll managed-void-target1 sp171 live=[param0:ptr<managed>@0, param1:enum0@0]
+    call managed-void-target0 sp113 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn50(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
@@ -4954,13 +5620,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp190 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp172 live=[param0:ptr<managed>@0]
     store global13 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp142 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn41(param0, local3)
+    call managed-void-target0 sp114 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn51(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
@@ -4969,13 +5635,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp191 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp173 live=[param0:ptr<managed>@0]
     store global14 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp143 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn41(param0, local3)
+    call managed-void-target0 sp115 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn51(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
@@ -4984,13 +5650,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp192 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp174 live=[param0:ptr<managed>@0]
     store global15 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp144 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn41(param0, local3)
+    call managed-void-target0 sp116 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn51(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
@@ -4999,23 +5665,23 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp193 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp175 live=[param0:ptr<managed>@0]
     store global16 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp145 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn41(param0, local3)
+    call managed-void-target0 sp117 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn51(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp194 live=[param0:ptr<managed>@0, param1:enum0@0]
+    poll managed-void-target1 sp176 live=[param0:ptr<managed>@0, param1:enum0@0]
     store param1 -> local0
     store local0 -> local1
-    call managed-void-target0 sp146 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn41(param0, local1)
+    call managed-void-target0 sp118 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn51(param0, local1)
     t0 = aggregate () : {}
     ret
   fun @scoop.init.IllegalStateException.$c10(ptr<managed>) -> void
@@ -5023,46 +5689,44 @@ Module
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp195 live=[param0:ptr<managed>@0]
+    poll managed-void-target1 sp177 live=[param0:ptr<managed>@0]
     store global17 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
-    call managed-void-target0 sp147 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn46(param0, local2)
+    call managed-void-target0 sp119 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn56(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.Bag.$c7(ptr<managed>, i64) -> void
+  fun @scoop.init.Bag.$c7(ptr<managed>, i32) -> void
   block entry
-    poll managed-void-target0 sp196 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp178 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.Cell.$c8(ptr<managed>, i64) -> void
+  fun @scoop.init.Cell.$c8(ptr<managed>, i32) -> void
   block entry
-    poll managed-void-target0 sp197 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp179 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.Coordinates.$c9(ptr<managed>, i64, i64) -> void
+  fun @scoop.init.Coordinates.$c9(ptr<managed>, i32, i32) -> void
   block entry
-    poll managed-void-target0 sp198 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp180 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
-    heap_store param0 +24 param2
+    heap_store param0 +20 param2
     ret
-  fun @scoop.ctor.SourceLocation.$c7(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
   block entry
-    poll managed-void-target0 sp199 live=[param0:ptr<managed>@0, param3:ptr<managed>@0, param4:ptr<managed>@0]
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Score.$c8(i64) -> struct4
+  fun @scoop.ctor.Score.$c6(i32) -> struct10 <no-gc>
   block entry
-    poll managed-void-target0 sp200 live=[]
-    t0 = aggregate (param0) : struct4
+    t0 = aggregate (param0) : struct10
     ret t0
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
   td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
   td td4 Bag @scoop_td_Bag type-id=5 size=24 parent=none vtable=[] itables=[]
   td td5 Cell @scoop_td_Cell type-id=6 size=24 parent=none vtable=[] itables=[]
-  td td6 Coordinates @scoop_td_Coordinates type-id=7 size=32 parent=none vtable=[] itables=[]
+  td td6 Coordinates @scoop_td_Coordinates type-id=7 size=24 parent=none vtable=[] itables=[]
   td td7 Exception @scoop_td_Exception type-id=8 size=24 parent=td2 vtable=[] itables=[]
   td td8 UnwrapException @scoop_td_UnwrapException type-id=9 size=24 parent=td7 vtable=[] itables=[]
   td td9 ClassCastException @scoop_td_ClassCastException type-id=10 size=24 parent=td7 vtable=[] itables=[]
@@ -5070,10 +5734,17 @@ Module
   td td11 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=12 size=24 parent=td7 vtable=[] itables=[]
   td td12 IllegalStateException @scoop_td_IllegalStateException type-id=13 size=24 parent=td7 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
-  layout Score size=8 align=8 refs=[]
+  layout Score size=4 align=4 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
@@ -5084,7 +5755,7 @@ Module
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Bag size=24 align=8 refs=[]
   layout Cell size=24 align=8 refs=[]
-  layout Coordinates size=32 align=8 refs=[]
+  layout Coordinates size=24 align=8 refs=[]
   entry @scoop_main
 
 == run ==

@@ -1,15 +1,14 @@
 use super::*;
 
 impl Harness {
-    /// The `UInt` well-known type (M9, spec 11.2), allocated on
-    /// first use.
+    /// Canonical source `UInt`.
     pub(super) fn uint(&mut self) -> hir::TypeId {
-        if let Some(ty) = self.uint {
-            return ty;
-        }
-        let ty = self.types.alloc(hir::Type::UInt);
-        self.uint = Some(ty);
-        ty
+        self.uint
+    }
+
+    /// The pointer/GC raw carrier is source `ULong`, never `UInt`.
+    pub(super) fn ulong(&self) -> hir::TypeId {
+        self.ulong
     }
 
     /// Intern a generic struct application type.
@@ -29,7 +28,7 @@ impl Harness {
         if let Some(core) = self.gc_core {
             return core;
         }
-        let uint = self.uint();
+        let ulong = self.ulong();
         let unit = self.unit;
         let t = self
             .types
@@ -38,14 +37,14 @@ impl Harness {
             "PinnedPtr",
             vec![type_param("T")],
             vec![t],
-            &[("raw", uint)],
+            &[("raw", ulong)],
             &[],
         );
         let gc_handle = self.declare_struct(
             "GcHandle",
             vec![type_param("T")],
             vec![t],
-            &[("raw", uint)],
+            &[("raw", ulong)],
             &[],
         );
         let mut dummy_locals = Arena::new();
@@ -81,7 +80,7 @@ impl Harness {
                 kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
                     kind: hir::intrinsic_spec(intrinsic)
                         .expect("test intrinsic is registered")
-                        .kind,
+                        .kind(),
                     provider: hir::IntrinsicProviderId::from_raw(0),
                 }),
                 method: None,
@@ -99,13 +98,13 @@ impl Harness {
             "gc_pin_raw",
             type_params.clone(),
             vec![("v", t)],
-            uint,
+            ulong,
         );
         let unpin_raw = intrinsic(
             "_unpin",
             "gc_unpin_raw",
             type_params.clone(),
-            vec![("raw", uint)],
+            vec![("raw", ulong)],
             t,
         );
         let get_handle_raw = intrinsic(
@@ -113,17 +112,17 @@ impl Harness {
             "gc_get_handle_raw",
             type_params.clone(),
             vec![("v", t)],
-            uint,
+            ulong,
         );
         let release_handle_raw = intrinsic(
             "_releaseGcHandle",
             "gc_release_handle_raw",
             type_params,
-            vec![("raw", uint)],
+            vec![("raw", ulong)],
             t,
         );
         let gc_collect = intrinsic("gcCollect", "rt_gc_collect", vec![], vec![], unit);
-        let gc_stats = intrinsic("gcStats", "rt_gc_stats", vec![], vec![], uint);
+        let gc_stats = intrinsic("gcStats", "rt_gc_stats", vec![], vec![], ulong);
         let core = GcCore {
             pinned_ptr,
             gc_handle,

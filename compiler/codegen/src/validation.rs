@@ -104,8 +104,11 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
 
 fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
     for (_, definition) in module.structs.iter() {
-        for (index, field) in definition.fields.iter().enumerate() {
-            if contains_machine_scalar(&module.structs, &module.enums, &field.ty) {
+        for index in 0..definition.field_count() {
+            let field_type = definition
+                .field_storage_type(index)
+                .expect("index is below the field count");
+            if contains_machine_scalar(&module.structs, &module.enums, &field_type) {
                 return Err(CodegenError(format!(
                     "struct `{}` field {} embeds an internal machine scalar in a source value container",
                     definition.name, index
@@ -192,13 +195,13 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
 }
 
 pub(crate) fn contains_machine_scalar(
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     ty: &LirType,
 ) -> bool {
     fn visit(
-        structs: &Arena<StructDef>,
-        enums: &Arena<EnumDef>,
+        structs: &StructDefs,
+        enums: &EnumDefs,
         ty: &LirType,
         seen_structs: &mut HashSet<StructDefId>,
         seen_enums: &mut HashSet<EnumDefId>,
@@ -208,10 +211,15 @@ pub(crate) fn contains_machine_scalar(
             LirType::Aggregate(elements) => elements
                 .iter()
                 .any(|element| visit(structs, enums, element, seen_structs, seen_enums)),
-            LirType::Struct(id) if seen_structs.insert(*id) => structs[*id]
-                .fields
-                .iter()
-                .any(|field| visit(structs, enums, &field.ty, seen_structs, seen_enums)),
+            LirType::Struct(id) if seen_structs.insert(*id) => {
+                let definition = &structs[*id];
+                (0..definition.field_count()).any(|index| {
+                    let field_type = definition
+                        .field_storage_type(index)
+                        .expect("index is below the field count");
+                    visit(structs, enums, &field_type, seen_structs, seen_enums)
+                })
+            }
             LirType::Enum(id) if seen_enums.insert(*id) => match &enums[*id].repr {
                 EnumRepr::Niche { .. } => false,
                 EnumRepr::Tagged { variants, .. } => variants.iter().any(|variant| {
@@ -230,56 +238,74 @@ pub(crate) fn contains_machine_scalar(
 
 fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
     for (_, function) in module.extern_functions.iter() {
-        let ExternFunctionKind::C {
-            params,
-            return_type,
-            ..
-        } = &function.kind
-        else {
-            if function
-                .params
-                .iter()
-                .any(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
-                || contains_machine_scalar(&module.structs, &module.enums, &function.return_type)
-            {
-                return Err(CodegenError(format!(
-                    "Scoop extern `{}` exposes an internal machine scalar across an artifact boundary",
-                    function.source_name
-                )));
+        match &function.kind {
+            ExternFunctionKind::C { signature, .. } => {
+                for (index, parameter) in signature.params.iter().enumerate() {
+                    validate_c_type(module, parameter, false, &mut HashSet::new()).map_err(
+                        |error| {
+                            CodegenError(format!(
+                                "C extern `{}` parameter {}: {}",
+                                function.source_name, index, error.0
+                            ))
+                        },
+                    )?;
+                }
+                validate_c_return_type(module, &signature.return_type).map_err(|error| {
+                    CodegenError(format!(
+                        "C extern `{}` result: {}",
+                        function.source_name, error.0
+                    ))
+                })?;
             }
-            continue;
-        };
-        if function.params.len() != params.len() {
-            return Err(CodegenError(format!(
-                "C extern `{}` has {} LIR parameters but {} C parameters",
-                function.source_name,
-                function.params.len(),
-                params.len()
-            )));
+            ExternFunctionKind::Scoop { signature, .. } => {
+                if signature
+                    .params
+                    .iter()
+                    .any(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
+                    || matches!(
+                        &signature.return_type,
+                        scoop_lir::LirReturnType::Value(ty)
+                            if contains_machine_scalar(&module.structs, &module.enums, ty)
+                    )
+                {
+                    return Err(CodegenError(format!(
+                        "Scoop extern `{}` exposes an internal machine scalar across an artifact boundary",
+                        function.source_name
+                    )));
+                }
+            }
         }
-        for (index, (lir, c)) in function.params.iter().zip(params).enumerate() {
-            validate_c_pair(module, lir, c, false).map_err(|error| {
-                CodegenError(format!(
-                    "C extern `{}` parameter {}: {}",
-                    function.source_name, index, error.0
-                ))
-            })?;
-        }
-        validate_c_pair(module, &function.return_type, return_type, true).map_err(|error| {
-            CodegenError(format!(
-                "C extern `{}` result: {}",
-                function.source_name, error.0
-            ))
-        })?;
     }
 
     for (_, global) in module.native_globals.iter() {
-        validate_c_pair(module, &global.ty, &global.c_type, false).map_err(|error| {
+        validate_c_type(module, &global.c_type, false, &mut HashSet::new()).map_err(|error| {
             CodegenError(format!(
                 "native global `{}`: {}",
                 global.source_name, error.0
             ))
         })?;
+    }
+    for (_, callback) in module.callback_bridges.iter() {
+        for parameter in &callback.params {
+            validate_c_type(module, parameter, false, &mut HashSet::new())?;
+        }
+        validate_c_return_type(module, &callback.return_type)?;
+    }
+    for (_, callback) in module.foreign_callback_bridges.iter() {
+        for parameter in &callback.params {
+            validate_c_type(module, parameter, false, &mut HashSet::new())?;
+        }
+        validate_c_return_type(module, &callback.return_type)?;
+    }
+    validate_c_layouts(module)?;
+    Ok(())
+}
+
+pub(crate) fn validate_c_layouts(module: &Module) -> Result<(), CodegenError> {
+    for (id, definition) in module.structs.iter() {
+        if definition.is_c_layout() {
+            validate_c_struct(module, id, &mut HashSet::new())?;
+        }
     }
     Ok(())
 }
@@ -382,55 +408,16 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
     Ok(())
 }
 
-fn validate_c_pair(
+fn validate_c_return_type(
     module: &Module,
-    lir: &LirType,
-    c: &scoop_lir::CType,
-    allow_unit: bool,
+    ty: &scoop_lir::CReturnType,
 ) -> Result<(), CodegenError> {
-    let matches = match c {
-        scoop_lir::CType::Unit => {
-            allow_unit
-                && (matches!(lir, LirType::Void)
-                    || matches!(lir, LirType::Aggregate(elements) if elements.is_empty()))
+    match ty {
+        scoop_lir::CReturnType::Void => Ok(()),
+        scoop_lir::CReturnType::Value(ty) => {
+            validate_c_type(module, ty, false, &mut HashSet::new())
         }
-        scoop_lir::CType::Int | scoop_lir::CType::UInt => matches!(lir, LirType::I64),
-        scoop_lir::CType::Boolean => matches!(lir, LirType::I1),
-        scoop_lir::CType::Pointer => is_c_data_pointer(module, lir),
-        scoop_lir::CType::FunctionPointer { .. } => {
-            matches!(lir, LirType::Ptr(PointerKind::Code)) || is_c_code_pointer_enum(module, lir)
-        }
-        scoop_lir::CType::Struct(c_id) => match lir {
-            LirType::Struct(lir_id) if lir_id == c_id => {
-                validate_c_struct(module, *lir_id, &mut HashSet::new())?;
-                true
-            }
-            _ => false,
-        },
-    };
-    if matches {
-        Ok(())
-    } else {
-        Err(CodegenError(format!(
-            "LIR type {} does not exactly match C type {c:?}",
-            lir.dump()
-        )))
     }
-}
-
-fn is_c_data_pointer(module: &Module, lir: &LirType) -> bool {
-    matches!(lir, LirType::Ptr(PointerKind::Raw))
-        || matches!(
-            niche_pointer_kind(module, lir),
-            Some(scoop_lir::NichePointerKind::Raw)
-        )
-}
-
-fn is_c_code_pointer_enum(module: &Module, lir: &LirType) -> bool {
-    matches!(
-        niche_pointer_kind(module, lir),
-        Some(scoop_lir::NichePointerKind::Code)
-    )
 }
 
 fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NichePointerKind> {
@@ -449,46 +436,125 @@ fn validate_c_struct(
     visiting: &mut HashSet<StructDefId>,
 ) -> Result<(), CodegenError> {
     let definition = &module.structs[id];
-    if definition.c_layout.is_none() {
+    let Some(fields) = definition.c_fields() else {
         return Err(CodegenError(format!(
             "struct `{}` is not a C-layout struct",
             definition.name
         )));
-    }
+    };
     if !visiting.insert(id) {
         return Err(CodegenError(format!(
             "C-layout struct `{}` is recursively embedded by value",
             definition.name
         )));
     }
-    for (index, field) in definition.fields.iter().enumerate() {
-        let valid = match &field.ty {
-            LirType::I1 | LirType::I64 => true,
-            LirType::Ptr(PointerKind::Raw | PointerKind::Code) => true,
-            LirType::Struct(nested) => {
-                validate_c_struct(module, *nested, visiting)?;
-                true
-            }
-            ty if matches!(
-                niche_pointer_kind(module, ty),
-                Some(scoop_lir::NichePointerKind::Raw | scoop_lir::NichePointerKind::Code)
-            ) =>
-            {
-                true
-            }
-            _ => false,
-        };
-        if !valid {
-            return Err(CodegenError(format!(
-                "C-layout struct `{}` field {} has non-C type {}",
-                definition.name,
-                index,
-                field.ty.dump()
-            )));
-        }
+    for (index, field) in fields.iter().enumerate() {
+        validate_c_type(module, &field.ty, true, visiting).map_err(|error| {
+            CodegenError(format!(
+                "C-layout struct `{}` field {}: {}",
+                definition.name, index, error.0
+            ))
+        })?;
     }
     visiting.remove(&id);
     Ok(())
+}
+
+fn validate_c_type(
+    module: &Module,
+    ty: &scoop_lir::CType,
+    struct_by_value: bool,
+    visiting: &mut HashSet<StructDefId>,
+) -> Result<(), CodegenError> {
+    match ty {
+        scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => Ok(()),
+        scoop_lir::CType::DataPointer { pointee, storage } => {
+            if let scoop_lir::CDataPointerStorage::Nullable(reference) = storage {
+                let id = reference.definition();
+                let Some(binding) = module.enums.nullable_data_pointer_binding(id) else {
+                    return Err(CodegenError(format!(
+                        "nullable C data pointer references enum {} without an exact data-pointer binding owned by this module",
+                        id.into_raw()
+                    )));
+                };
+                if binding != reference.pointee() {
+                    return Err(CodegenError(format!(
+                        "nullable C data pointer enum `{}` reference disagrees with its owned exact pointee binding",
+                        module.enums[id].name
+                    )));
+                }
+                if pointee != reference.pointee() {
+                    return Err(CodegenError(format!(
+                        "nullable C data pointer enum `{}` binds a different exact pointee",
+                        module.enums[id].name
+                    )));
+                }
+                if niche_pointer_kind(module, &LirType::Enum(id))
+                    != Some(scoop_lir::NichePointerKind::Raw)
+                {
+                    return Err(CodegenError(format!(
+                        "nullable C data pointer references enum `{}` without raw-pointer provenance",
+                        module.enums[id].name
+                    )));
+                }
+            }
+            if let scoop_lir::CDataPointee::Object(pointee) = pointee {
+                validate_c_type(module, pointee, false, visiting)?;
+            }
+            Ok(())
+        }
+        scoop_lir::CType::CodePointer { signature, storage } => {
+            if let scoop_lir::CCodePointerStorage::Nullable(reference) = storage {
+                let id = reference.definition();
+                let Some(binding) = module.enums.nullable_code_pointer_binding(id) else {
+                    return Err(CodegenError(format!(
+                        "nullable C code pointer references enum {} without an exact code-pointer binding owned by this module",
+                        id.into_raw()
+                    )));
+                };
+                if binding != reference.signature() {
+                    return Err(CodegenError(format!(
+                        "nullable C code pointer enum `{}` reference disagrees with its owned exact signature binding",
+                        module.enums[id].name
+                    )));
+                }
+                if signature.as_ref() != reference.signature() {
+                    return Err(CodegenError(format!(
+                        "nullable C code pointer enum `{}` binds a different exact signature",
+                        module.enums[id].name
+                    )));
+                }
+                if niche_pointer_kind(module, &LirType::Enum(id))
+                    != Some(scoop_lir::NichePointerKind::Code)
+                {
+                    return Err(CodegenError(format!(
+                        "nullable C code pointer references enum `{}` without code-pointer provenance",
+                        module.enums[id].name
+                    )));
+                }
+            }
+            for parameter in &signature.params {
+                validate_c_type(module, parameter, false, visiting)?;
+            }
+            if let scoop_lir::CReturnType::Value(result) = &signature.return_type {
+                validate_c_type(module, result, false, visiting)?;
+            }
+            Ok(())
+        }
+        scoop_lir::CType::Struct(reference) => {
+            let id = reference.definition();
+            if struct_by_value {
+                validate_c_struct(module, id, visiting)
+            } else if module.structs[id].is_c_layout() {
+                Ok(())
+            } else {
+                Err(CodegenError(format!(
+                    "struct `{}` is not a C-layout struct",
+                    module.structs[id].name
+                )))
+            }
+        }
+    }
 }
 
 fn foreign_callback_family<'a>(
@@ -531,17 +597,18 @@ fn validate_foreign_callback_family(
     }
 
     let callback = &module.structs[family.callback];
-    let callback_shape = matches!(
-        callback.fields.as_slice(),
-        [function, context]
-            if function.ty == scoop_lir::CODE_PTR
-                && context.ty == scoop_lir::RAW_PTR
-                && function.layout.offset == 0
-                && context.layout.offset == 8
-                && function.layout.access_align == 8
-                && context.layout.access_align == 8
-    ) && callback.c_layout.is_none()
-        && !callback.interior_mutable
+    let callback_shape = callback.scoop_fields().is_some_and(|fields| {
+        matches!(
+            fields,
+            [function, context]
+                if function.ty == scoop_lir::CODE_PTR
+                    && context.ty == scoop_lir::RAW_PTR
+                    && function.layout.offset == 0
+                    && context.layout.offset == 8
+                    && function.layout.access_align == 8
+                    && context.layout.access_align == 8
+        )
+    }) && !callback.interior_mutable
         && callback.size == 16
         && callback.align == 8;
     if !callback_shape {
@@ -632,9 +699,15 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                 bridge.params.len()
             )));
         };
-        if context_type != &scoop_lir::CType::Pointer {
+        if !matches!(
+            context_type,
+            scoop_lir::CType::DataPointer {
+                pointee: scoop_lir::CDataPointee::OpaqueVoid,
+                storage: scoop_lir::CDataPointerStorage::Direct,
+            }
+        ) {
             return Err(CodegenError(format!(
-                "foreign callback bridge {} context parameter {} must be CType::Pointer, found {context_type:?}",
+                "foreign callback bridge {} context parameter {} must be a direct opaque C data pointer, found {context_type:?}",
                 id.into_raw(),
                 bridge.context_index
             )));

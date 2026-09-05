@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     let mut b = Builder::new();
-    let s = b.strukt("S", &[("x", mir::Type::Int)]);
+    let s = b.strukt("S", &[("x", INT)]);
     // mir-lower registers the boxed class of every checked / boxed
     // value type.
     let boxed = b.class(
@@ -30,7 +30,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
                         mir::Type::Struct(s),
                         mir::ExprKind::StructInit {
                             struct_id: s,
-                            args: vec![mir::Expr::int(1)],
+                            args: vec![int_expr(1)],
                         },
                     ))),
                 ),
@@ -81,10 +81,10 @@ Module
     local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp2 live=[]
-    t0 = aggregate (1) : struct0
+    t0 = aggregate (integer<Int>(0x00000001)) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(8)), root-scan0)
+    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(4)), root-scan0)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1
@@ -93,9 +93,16 @@ Module
     ret
   td td0 box$D1_SX @scoop_td_box$D1_SX type-id=2 size=24 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout S size=8 align=8 refs=[]
+  layout S size=4 align=4 refs=[]
   layout box$D1_SX size=24 align=8 refs=[]
   entry @scoop_main
 "###);
@@ -109,19 +116,19 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
     // `releaseGcHandle` unwrap field 0 for the reverse call, and
     // the hooks are a void call / an i64 result.
     let mut b = Builder::new();
-    let pinned_ptr = b.strukt("PinnedPtr$S", &[("raw", mir::Type::UInt)]);
-    let gc_handle = b.strukt("GcHandle$S", &[("raw", mir::Type::UInt)]);
+    let pinned_ptr = b.strukt("PinnedPtr$S", &[("raw", ULONG)]);
+    let gc_handle = b.strukt("GcHandle$S", &[("raw", ULONG)]);
     let mut locals = Arena::new();
     let v = locals.alloc(local("v", mir::Type::String));
-    let raw_pin = locals.alloc(local("$call.1", mir::Type::UInt));
+    let raw_pin = locals.alloc(local("$call.1", ULONG));
     let h = locals.alloc(local("h", mir::Type::Struct(pinned_ptr)));
     let gc1 = locals.alloc(local("$gc.1", mir::Type::String));
     let p = locals.alloc(local("p", mir::Type::String));
-    let raw_handle = locals.alloc(local("$call.2", mir::Type::UInt));
+    let raw_handle = locals.alloc(local("$call.2", ULONG));
     let gh = locals.alloc(local("gh", mir::Type::Struct(gc_handle)));
     let gc2 = locals.alloc(local("$gc.2", mir::Type::String));
     let p2 = locals.alloc(local("p2", mir::Type::String));
-    let n = locals.alloc(local("n", mir::Type::UInt));
+    let n = locals.alloc(local("n", ULONG));
     let main = b.main(
         locals,
         vec![
@@ -135,7 +142,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
                     mir::Type::Struct(pinned_ptr),
                     mir::ExprKind::StructInit {
                         struct_id: pinned_ptr,
-                        args: vec![local_expr(raw_pin, mir::Type::UInt)],
+                        args: vec![local_expr(raw_pin, ULONG)],
                     },
                 ),
             ),
@@ -144,7 +151,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
                 runtime_call(
                     mir::RuntimeFn::Unpin,
                     vec![expr(
-                        mir::Type::UInt,
+                        ULONG,
                         mir::ExprKind::FieldAccess {
                             receiver: Box::new(local_expr(h, mir::Type::Struct(pinned_ptr))),
                             index: 0,
@@ -166,7 +173,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
                     mir::Type::Struct(gc_handle),
                     mir::ExprKind::StructInit {
                         struct_id: gc_handle,
-                        args: vec![local_expr(raw_handle, mir::Type::UInt)],
+                        args: vec![local_expr(raw_handle, ULONG)],
                     },
                 ),
             ),
@@ -175,7 +182,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
                 runtime_call(
                     mir::RuntimeFn::ReleaseHandle,
                     vec![expr(
-                        mir::Type::UInt,
+                        ULONG,
                         mir::ExprKind::FieldAccess {
                             receiver: Box::new(local_expr(gh, mir::Type::Struct(gc_handle))),
                             index: 0,
@@ -227,7 +234,14 @@ Module
     store t9 -> local9
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout PinnedPtr$S size=8 align=8 refs=[]
   layout GcHandle$S size=8 align=8 refs=[]

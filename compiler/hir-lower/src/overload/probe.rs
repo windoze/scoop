@@ -259,11 +259,14 @@ impl Lowerer {
             };
 
             let mut first_failure = None;
-            for source_index in 0..expressions.len() {
+            let mut seed_order = (0..expressions.len())
+                .filter(|source_index| lowered[receiver_offset + source_index].is_none())
+                .collect::<Vec<_>>();
+            seed_order.sort_by_key(|source_index| {
+                std::cmp::Reverse(state.expr_default_seed_rank(&expressions[*source_index]))
+            });
+            for source_index in seed_order {
                 let parameter_index = receiver_offset + source_index;
-                if lowered[parameter_index].is_some() {
-                    continue;
-                }
                 let mut attempt = state.clone();
                 let diagnostics_before = attempt.diagnostics.len();
                 let mut argument_sink = Vec::new();

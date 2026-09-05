@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/literal-invalid-suffix.scoop:4:18: error: invalid integer literal suffix `lu`

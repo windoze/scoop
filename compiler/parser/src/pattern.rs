@@ -30,13 +30,11 @@ impl Parser {
     pub(crate) fn parse_pattern(&mut self) -> Result<Pattern, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Int(value) => {
+            TokenKind::Minus => self.parse_negated_integer_literal_pattern(token),
+            TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::IntLiteral {
-                        value,
-                        span: token.span,
-                    }),
+                    expr: Box::new(Expr::IntLiteral(lexeme.with_span(token.span))),
                     span: token.span,
                 })
             }
@@ -73,6 +71,47 @@ impl Parser {
             TokenKind::LParen => self.parse_tuple_pattern(),
             TokenKind::Ident(text) => self.parse_ident_pattern(text, token.span),
             _ => self.unexpected("pattern"),
+        }
+    }
+
+    /// Unary minus is part of literal-pattern syntax only when its operand is
+    /// one integer token modulo parenthesized disambiguation. Parentheses do
+    /// not survive in AST, but their closing delimiter belongs to the unary
+    /// expression's source span.
+    fn parse_negated_integer_literal_pattern(
+        &mut self,
+        prefix: crate::lexer::Token,
+    ) -> Result<Pattern, Diagnostic> {
+        debug_assert!(matches!(prefix.kind, TokenKind::Minus));
+        self.pos += 1;
+        let (literal, end) = self.parse_integer_literal_pattern_operand()?;
+        let span = Span::new(prefix.span.start, end);
+        Ok(Pattern::Literal {
+            expr: Box::new(Expr::Unary {
+                op: scoop_ast::UnOp::Neg,
+                operand: Box::new(Expr::IntLiteral(literal)),
+                span,
+            }),
+            span,
+        })
+    }
+
+    fn parse_integer_literal_pattern_operand(
+        &mut self,
+    ) -> Result<(scoop_ast::IntegerLiteralSyntax, u32), Diagnostic> {
+        let token = self.peek().clone();
+        match token.kind {
+            TokenKind::Int(lexeme) => {
+                self.pos += 1;
+                Ok((lexeme.with_span(token.span), token.span.end))
+            }
+            TokenKind::LParen => {
+                self.pos += 1;
+                let (literal, _) = self.parse_integer_literal_pattern_operand()?;
+                let close = self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+                Ok((literal, close.span.end))
+            }
+            _ => self.unexpected("integer literal after unary minus"),
         }
     }
 

@@ -32,7 +32,7 @@ pub(super) fn exceptions_module() -> Module {
         name: "entry".to_string(),
         instructions: Vec::new(),
         terminator: Terminator::Return {
-            value: Some(Value::IntConst(1)),
+            value: Some(signed64(1)),
         },
     });
     let may_throw = Function {
@@ -134,9 +134,10 @@ pub(super) fn exceptions_module() -> Module {
     };
     blocks[done] = BasicBlock {
         name: "done".to_string(),
-        instructions: vec![Instruction::BinOp {
+        instructions: vec![Instruction::IntegerBinary {
             out: t2,
-            op: BinOp::Add,
+            kind: IntegerKind::SIGNED_64,
+            operation: IntegerBinaryOperation::Add,
             lhs: Value::Temp(t0),
             rhs: Value::Temp(t1),
         }],
@@ -165,7 +166,7 @@ pub(super) fn exceptions_module() -> Module {
         name: "handler_done".to_string(),
         instructions: vec![Instruction::EndCatch],
         terminator: Terminator::Return {
-            value: Some(Value::IntConst(0)),
+            value: Some(signed64(0)),
         },
     };
     blocks[cleanup] = BasicBlock {
@@ -196,8 +197,8 @@ pub(super) fn exceptions_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),

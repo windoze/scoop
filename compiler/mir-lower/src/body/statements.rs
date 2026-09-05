@@ -82,7 +82,8 @@ impl BodyLowerer<'_> {
                         };
                         let array_slot =
                             self.new_hidden("arr", mir::Type::Class(array_type), false);
-                        let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                        let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                        let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                         let array_value = self.lower_expr(array);
                         self.prelude.push(smir::StatementKind::ValDecl {
                             local: array_slot,
@@ -98,7 +99,7 @@ impl BodyLowerer<'_> {
                         smir::StatementKind::ArraySet {
                             array_type,
                             array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
-                            index: smir::Expr::local(index_slot, mir::Type::Int),
+                            index: smir::Expr::local(index_slot, index_ty),
                             value,
                         }
                     }
@@ -224,32 +225,31 @@ impl BodyLowerer<'_> {
         index: mir::LocalId,
         span: Span,
     ) {
+        let index_kind = mir::IntegerKind::SIGNED_64;
+        let index_ty = mir::Type::Integer(index_kind);
         let out_of_bounds = logic(
             smir::LogicOp::Or,
-            smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntLt,
-                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
-                    rhs: Box::new(smir::Expr::int(0)),
-                },
+            smir::Expr::integer_compare(
+                mir::IntegerComparisonOperation::new(
+                    index_kind,
+                    mir::IntegerComparisonOperator::LessThan,
+                ),
+                smir::Expr::local(index, index_ty.clone()),
+                smir::Expr::integer(mir::MirIntegerConstant::Signed64(0)),
             ),
-            smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntGe,
-                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
-                    rhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::ArrayLen {
-                            array_type,
-                            operand: Box::new(smir::Expr::local(
-                                array,
-                                mir::Type::Class(array_type),
-                            )),
-                        },
-                    )),
-                },
+            smir::Expr::integer_compare(
+                mir::IntegerComparisonOperation::new(
+                    index_kind,
+                    mir::IntegerComparisonOperator::GreaterThanOrEqual,
+                ),
+                smir::Expr::local(index, index_ty.clone()),
+                smir::Expr::new(
+                    index_ty,
+                    smir::ExprKind::ArrayLen {
+                        array_type,
+                        operand: Box::new(smir::Expr::local(array, mir::Type::Class(array_type))),
+                    },
+                ),
             ),
         );
         let throw = self.throw_builtin(

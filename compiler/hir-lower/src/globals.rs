@@ -13,6 +13,8 @@ mod consts;
 mod delegates;
 mod static_initializers;
 
+pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};
+
 struct PendingConst<'a> {
     declaration: &'a ast::PropertyDecl,
     file: usize,
@@ -119,7 +121,9 @@ impl Lowerer {
                 continue;
             }
             self.type_params_in_scope.clear();
-            let ty = self.resolve_type_ref(&decl.ty).unwrap_or(self.int);
+            let ty = self
+                .resolve_type_ref(&decl.ty)
+                .unwrap_or_else(|| self.integer_type(hir::IntegerKind::SIGNED_32));
             if matches!(decl.body, ast::PropertyBodySyntax::Const(_)) {
                 if decl.mutable {
                     self.error(decl.name.span, "const property must be a `val`".to_string());
@@ -143,7 +147,7 @@ impl Lowerer {
                 self.reject_logical_property_annotations("a const property", &decl.annotations);
                 if !matches!(
                     self.types[ty],
-                    hir::Type::Int | hir::Type::UInt | hir::Type::Boolean | hir::Type::String
+                    hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
                 ) {
                     self.error(
                         decl.ty.span,
@@ -314,9 +318,19 @@ impl Lowerer {
                     thread_local: checked.storage.unwrap_or(false),
                 }
             } else {
+                let Some(initializer) = self.zero_constant_image(ty) else {
+                    self.error(
+                        decl.span,
+                        format!(
+                            "raw storage of type {} has no valid all-zero initial image",
+                            self.type_name(ty)
+                        ),
+                    );
+                    continue;
+                };
                 hir::GlobalStorage::Local {
                     thread_local: checked.storage.unwrap_or(false),
-                    initializer: hir::ConstantValue::Int(0),
+                    initializer,
                 }
             };
             let expected_property = self.next_property_id();
@@ -416,7 +430,9 @@ impl Lowerer {
                     file,
                     crate::visibility::MemberSlotAccess::None,
                 );
-                let ty = self.resolve_type_ref(&property.ty).unwrap_or(self.int);
+                let ty = self
+                    .resolve_type_ref(&property.ty)
+                    .unwrap_or_else(|| self.integer_type(hir::IntegerKind::SIGNED_32));
                 if property.mutable {
                     self.error(
                         property.name.span,
@@ -450,7 +466,7 @@ impl Lowerer {
                 );
                 if !matches!(
                     self.types[ty],
-                    hir::Type::Int | hir::Type::UInt | hir::Type::Boolean | hir::Type::String
+                    hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
                 ) {
                     self.error(
                         property.ty.span,
@@ -522,7 +538,7 @@ impl Lowerer {
     fn allocate_image_top_level_property(
         &mut self,
         declaration: &PendingOrdinary<'_>,
-        initializer: hir::ConstantValue,
+        initializer: hir::HirConstantImage,
     ) {
         let expected_property = self.next_property_id();
         let expected_global = hir::GlobalId::from_raw((self.globals.len() as u32).into());
@@ -546,7 +562,9 @@ impl Lowerer {
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
             storage: hir::GlobalStorage::Managed {
-                initializer: hir::ManagedGlobalInitializer::Image(initializer),
+                state: hir::HirStaticInitialState::EncodedStaticValue {
+                    payload: initializer,
+                },
             },
             span: declaration.declaration.span,
         });
@@ -626,7 +644,7 @@ impl Lowerer {
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
             storage: hir::GlobalStorage::Managed {
-                initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
+                state: hir::HirStaticInitialState::ZeroedForRuntimeUnit { unit },
             },
             span: declaration.declaration.span,
         });
@@ -867,7 +885,45 @@ impl Lowerer {
         states[index] = 2;
     }
 
-    fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::ConstantValue> {
+    fn zero_constant_image(&mut self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
+        match self.types[ty].clone() {
+            hir::Type::Integer(kind) => Some(hir::HirConstantImage::Integer(
+                hir::HirIntegerConstant::from_magnitude(kind, 0, false)
+                    .expect("zero is representable by every integer kind"),
+            )),
+            hir::Type::Boolean => Some(hir::HirConstantImage::Boolean(false)),
+            hir::Type::Enum(_) => self.static_none_constant(ty),
+            hir::Type::Struct(application) => {
+                let application_value = self.struct_applications[application].clone();
+                let fields = self.structs[application_value.template]
+                    .semantic_fields()
+                    .to_vec();
+                let fields = fields
+                    .into_iter()
+                    .map(|field| {
+                        let ty = self.instantiate_ty(field.ty, &application_value.arguments);
+                        self.zero_constant_image(ty)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                Some(hir::HirConstantImage::Struct {
+                    application,
+                    fields,
+                })
+            }
+            hir::Type::Unit
+            | hir::Type::String
+            | hir::Type::Class(_)
+            | hir::Type::Interface(_)
+            | hir::Type::Any
+            | hir::Type::Tuple(_)
+            | hir::Type::Function(_)
+            | hir::Type::Ptr(_)
+            | hir::Type::FunPtr(_)
+            | hir::Type::Param(_) => None,
+        }
+    }
+
+    fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
         let hir::Type::Enum(application) = self.types[ty] else {
             return None;
         };
@@ -876,7 +932,7 @@ impl Lowerer {
             return None;
         }
         let (_, variant) = self.option_variant("None")?;
-        Some(hir::ConstantValue::EnumUnit {
+        Some(hir::HirConstantImage::EnumUnit {
             application,
             variant,
         })
@@ -1093,51 +1149,47 @@ impl Lowerer {
         &mut self,
         expr: &ast::Expr,
         expected: hir::TypeId,
-    ) -> Option<hir::ConstantValue> {
+    ) -> Option<hir::HirConstantImage> {
+        if let ast::Expr::Var(name) = expr
+            && name.text == "None"
+        {
+            return self.static_none_constant(expected);
+        }
         match (self.types[expected].clone(), expr) {
-            (hir::Type::Int | hir::Type::UInt, ast::Expr::IntLiteral { value, .. }) => {
-                Some(hir::ConstantValue::Int(*value))
-            }
+            (hir::Type::Integer(_), ast::Expr::IntLiteral(literal)) => self
+                .lower_integer_literal(*literal, Some(expected), false, literal.span)
+                .and_then(|value| match value.kind {
+                    hir::ExprKind::IntegerLiteral(value) => {
+                        Some(hir::HirConstantImage::Integer(value))
+                    }
+                    _ => None,
+                }),
             (
-                hir::Type::Int,
+                hir::Type::Integer(_),
                 ast::Expr::Unary {
                     op: ast::UnOp::Neg,
                     operand,
-                    ..
+                    span,
                 },
             ) => match &**operand {
-                ast::Expr::IntLiteral { value, .. } => {
-                    value.checked_neg().map(hir::ConstantValue::Int)
+                ast::Expr::IntLiteral(literal)
+                    if matches!(
+                        literal.suffix,
+                        ast::IntegerSuffix::None | ast::IntegerSuffix::Long
+                    ) =>
+                {
+                    self.lower_integer_literal(*literal, Some(expected), true, *span)
+                        .and_then(|value| match value.kind {
+                            hir::ExprKind::IntegerLiteral(value) => {
+                                Some(hir::HirConstantImage::Integer(value))
+                            }
+                            _ => None,
+                        })
                 }
                 _ => None,
             },
             (hir::Type::Boolean, ast::Expr::BoolLiteral { value, .. }) => {
-                Some(hir::ConstantValue::Bool(*value))
-            }
-            (hir::Type::Ptr(pointee), ast::Expr::Call(call)) => {
-                let structure = self.global_struct_callee(call)?;
-                if Some(structure) != self.ffi_ptr {
-                    return None;
-                }
-                let constructor = self.struct_primary_constructor(structure)?;
-                let view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
-                let (values, _) = self.global_nominal_constant(&view, call, &[pointee])?;
-                matches!(values.as_slice(), [hir::ConstantValue::Int(0)])
-                    .then_some(hir::ConstantValue::NullPtr)
-            }
-            (hir::Type::FunPtr(signature), ast::Expr::Call(call)) => {
-                let structure = self.global_struct_callee(call)?;
-                if Some(structure) != self.ffi_fun_ptr {
-                    return None;
-                }
-                let constructor = self.struct_primary_constructor(structure)?;
-                let mut view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
-                view.value_parameters.clear();
-                let function_ty = self.function_types[signature].canonical_type;
-                self.global_nominal_constant(&view, call, &[function_ty])?;
-                Some(hir::ConstantValue::NullFunPtr)
+                Some(hir::HirConstantImage::Boolean(*value))
             }
             (hir::Type::Struct(application), ast::Expr::Call(call)) => {
                 let application_value = self.struct_applications[application].clone();
@@ -1150,7 +1202,7 @@ impl Lowerer {
                     self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
                 let (values, _) =
                     self.global_nominal_constant(&view, call, &application_value.arguments)?;
-                Some(hir::ConstantValue::Struct {
+                Some(hir::HirConstantImage::Struct {
                     application,
                     fields: values,
                 })
@@ -1170,7 +1222,7 @@ impl Lowerer {
         view: &NominalConstructorView,
         call: &ast::CallExpr,
         expected_arguments: &[hir::TypeId],
-    ) -> Option<(Vec<hir::ConstantValue>, Vec<hir::TypeId>)> {
+    ) -> Option<(Vec<hir::HirConstantImage>, Vec<hir::TypeId>)> {
         if expected_arguments.len() != view.owner_parameters.len() {
             return None;
         }

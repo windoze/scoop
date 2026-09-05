@@ -57,7 +57,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?
                 }
             }
-            Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
+            Value::IntegerConst(value) => integer_ty(context, value.kind().width())
+                .const_int(value.raw_bits(), false)
+                .into(),
             Value::MachineScalar(value) => {
                 context.i64_type().const_int(value.raw_bits(), false).into()
             }
@@ -78,7 +80,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::InitializationUnit(id) => self.initialization_units[arena_index(id)]
                 .as_pointer_value()
                 .into(),
+            Value::CArgumentStorage(_) => {
+                return Err(CodegenError(
+                    "C argument storage address escaped its native-safe call operand".to_string(),
+                ));
+            }
         })
+    }
+
+    /// Materialize a typed call operand. Exact C argument storage is an
+    /// address-only operand and therefore bypasses the ordinary implicit
+    /// local load; every other operand follows the regular/statepoint path.
+    pub(in crate::function) fn typed_call_argument_value(
+        &self,
+        value: Value,
+        live: Option<&MaterializedStatepointLive<'ctx>>,
+    ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+        match value {
+            Value::CArgumentStorage(storage) => {
+                Ok(self.allocas[arena_index(storage.local())].into())
+            }
+            _ => match live {
+                Some(live) => self.statepoint_value(value, live),
+                None => self.value(value),
+            },
+        }
     }
 
     pub(in crate::function) fn statepoint_value(
@@ -90,14 +116,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Param(index) => Some(scoop_lir::CallerRootSource::Param(index)),
             Value::Local(id) => Some(scoop_lir::CallerRootSource::Local(id)),
             Value::Temp(id) => Some(scoop_lir::CallerRootSource::Temp(id)),
-            Value::IntConst(_)
+            Value::IntegerConst(_)
             | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
             | Value::RootScan(_)
             | Value::Global(_)
-            | Value::InitializationUnit(_) => None,
+            | Value::InitializationUnit(_)
+            | Value::CArgumentStorage(_) => None,
         };
         source
             .and_then(|source| live.arguments.get(&source).copied())

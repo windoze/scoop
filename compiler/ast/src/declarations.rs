@@ -1,4 +1,4 @@
-use crate::{Block, CallArgument, Expr, Ident, Span, TypeRef};
+use crate::{Block, CallArgument, Expr, Ident, IntegerLiteralSyntax, Span, TypeRef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
@@ -720,7 +720,7 @@ pub struct AnnotationArg {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnnotationLiteral {
     String(String),
-    Int(i64),
+    Int(IntegerLiteralSyntax),
     Boolean(bool),
 }
 

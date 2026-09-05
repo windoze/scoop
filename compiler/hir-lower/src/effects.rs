@@ -7,6 +7,7 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod gc_free_pointees;
 mod generic_recursion;
 mod no_gc_generics;
 mod type_properties;

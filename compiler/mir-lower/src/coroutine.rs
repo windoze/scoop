@@ -232,7 +232,7 @@ fn transform_function(
     // Keep dispatch construction deterministic in the signed order of the
     // frozen state-word encoding: exceptional states precede positive
     // suspension-site ids, just as they did before the values became typed.
-    resume_targets.sort_by_key(|(state, _)| frame_state_value(*state).raw_bits() as i64);
+    resume_targets.sort_by_key(|(state, _)| frame_state_value(*state).raw_bits() ^ (1_u64 << 63));
     resume_points.sort_by_key(|point| lowerer.coroutines.resume_points[*point].state);
 
     let original_entry = body.entry;

@@ -115,10 +115,11 @@ impl Lowerer {
             ExprKind::AlignOf(target)
         };
         self.check_call_effects(hir::Callable::Function(function), call.span);
-        debug_assert!(self.types_equal(resolved.return_ty, self.uint));
+        let ulong = self.integer_type(hir::IntegerKind::UNSIGNED_64);
+        debug_assert!(self.types_equal(resolved.return_ty, ulong));
         Some(hir::Expr {
             kind,
-            ty: self.uint,
+            ty: ulong,
             span: call.span,
             origin: self.expression_origin(call.span),
         })

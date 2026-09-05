@@ -281,8 +281,7 @@ impl Lowerer {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
             Type::Unit
-            | Type::Int
-            | Type::UInt
+            | Type::Integer(_)
             | Type::Boolean
             | Type::String
             | Type::Any
@@ -302,10 +301,9 @@ impl Lowerer {
 
     pub(crate) fn nominal_target_for_type(&self, ty: hir::TypeId) -> Option<NominalTarget> {
         match self.types[ty] {
-            Type::Int | Type::UInt | Type::Boolean | Type::String => {
+            Type::Integer(_) | Type::Boolean | Type::String => {
                 let kind = match self.types[ty] {
-                    Type::Int => hir::IntrinsicTypeKind::Int,
-                    Type::UInt => hir::IntrinsicTypeKind::UInt,
+                    Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
                     Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                     Type::String => hir::IntrinsicTypeKind::String,
                     _ => unreachable!("the outer match selected an intrinsic primitive type"),

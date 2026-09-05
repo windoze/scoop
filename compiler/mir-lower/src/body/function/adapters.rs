@@ -97,8 +97,10 @@ impl BodyLowerer<'_> {
             target_signature.parameter_types.len(),
             "function variance preserves arity"
         );
-        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source));
-        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source))
+            .expect("closure adapter sources are source-level MIR types");
+        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target))
+            .expect("closure adapter targets are source-level MIR types");
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
@@ -256,7 +258,8 @@ impl BodyLowerer<'_> {
             self.function_bridge_targets.push(target);
         }
         let signature = self.shell.function_types[target].clone();
-        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target))
+            .expect("dynamic adapter targets are source-level MIR types");
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$dynamic_adapter.{encoded}"),

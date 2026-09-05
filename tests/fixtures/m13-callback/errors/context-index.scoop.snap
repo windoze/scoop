@@ -4,8 +4,8 @@ expression: snapshot
 ---
 == diagnostics ==
 m13-callback/errors/context-index.scoop:5:13: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
-  - fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback `contextIndex` must be a compile-time integer literal
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback `contextIndex` must be a compile-time integer literal
 m13-callback/errors/context-index.scoop:15:13: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
-  - fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback `contextIndex` is outside the native signature
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback `contextIndex` is outside the native signature
 m13-callback/errors/context-index.scoop:25:13: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
-  - fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback context parameter must be exactly `Ptr<Unit>`
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — foreign callback context parameter must be exactly `Ptr<Unit>`

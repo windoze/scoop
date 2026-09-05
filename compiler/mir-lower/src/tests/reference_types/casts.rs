@@ -65,7 +65,7 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
     // Some / None. The value-type checks registered the boxed
     // payload class. Capabilities are not synthesized from boxing.
     let expected = "\
-Module
+Module mangling=compact-v2
   struct S (x: Int)
   enum Option$D1_SX
     Some(_1: S)
@@ -138,7 +138,7 @@ Module
   fun init.ClassCastException.$c0 @scoop.init.ClassCastException.$c0(this: ClassCastException) -> Unit
     bb0 entry
       return
-  fun ctor.S.$c0 @scoop.ctor.S.$c0(x: Int) -> S
+  fun ctor.S.$c0 @scoop.ctor.S.$c0(x: Int) -> S <no-gc>
     bb0 entry
       return
         Type S

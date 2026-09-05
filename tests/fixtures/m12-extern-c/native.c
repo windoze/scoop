@@ -3,13 +3,13 @@
 #include <stdint.h>
 
 typedef struct {
-    int64_t left;
-    int64_t right;
+    int32_t left;
+    int32_t right;
 } NativePair;
 
 typedef struct __attribute__((packed, aligned(8))) {
     bool flag;
-    int64_t value;
+    int32_t value;
 } NativePacked;
 
 typedef struct __attribute__((aligned(16))) {
@@ -18,15 +18,15 @@ typedef struct __attribute__((aligned(16))) {
     uint64_t tail;
 } NativeEnvelope;
 
-_Static_assert(sizeof(NativePacked) == 16, "NativePacked size");
+_Static_assert(sizeof(NativePacked) == 8, "NativePacked size");
 _Static_assert(_Alignof(NativePacked) == 8, "NativePacked alignment");
 _Static_assert(offsetof(NativePacked, value) == 1, "NativePacked.value offset");
 _Static_assert(sizeof(NativeEnvelope) == 32, "NativeEnvelope size");
 _Static_assert(_Alignof(NativeEnvelope) == 16, "NativeEnvelope alignment");
 _Static_assert(offsetof(NativeEnvelope, packed) == 8, "NativeEnvelope.packed offset");
-_Static_assert(offsetof(NativeEnvelope, tail) == 24, "NativeEnvelope.tail offset");
+_Static_assert(offsetof(NativeEnvelope, tail) == 16, "NativeEnvelope.tail offset");
 
-int64_t native_add(int64_t left, int64_t right) {
+int32_t native_add(int32_t left, int32_t right) {
     return left + right;
 }
 
@@ -47,11 +47,11 @@ NativePair native_swap(NativePair value) {
     return result;
 }
 
-void native_sink(int64_t value) {
+void native_sink(int32_t value) {
     (void)value;
 }
 
-int64_t native_apply(int64_t value, int64_t (*callback)(int64_t)) {
+int32_t native_apply(int32_t value, int32_t (*callback)(int32_t)) {
     return callback(value);
 }
 
@@ -62,7 +62,7 @@ NativePair native_apply_pair(
     return callback(value);
 }
 
-int64_t native_apply_optional(int64_t value, int64_t (*callback)(int64_t)) {
+int32_t native_apply_optional(int32_t value, int32_t (*callback)(int32_t)) {
     return callback == NULL ? value : callback(value);
 }
 

@@ -3,5 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m18-invoke/errors/managed-global.scoop:6:21: error: global storage requires a concrete GC-free value type, found ManagedHandler
-m18-invoke/errors/managed-global.scoop:6:38: error: global initializer must be a GC-free compile-time constant and must not call functions or read another global
+m18-invoke/errors/managed-global.scoop:6:1: error: raw storage of type ManagedHandler has no valid all-zero initial image
+m18-invoke/errors/managed-global.scoop:9:17: error: unknown function `invalidHandler`

@@ -10,7 +10,7 @@ use super::*;
 pub(crate) fn class_layout(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     def: &mir::ClassDef,
 ) -> (u64, u64, lir::RefScan) {
     match &def.representation {
@@ -52,7 +52,7 @@ pub(crate) fn class_layout(
 pub(crate) fn class_shape(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     def: &mir::ClassDef,
 ) -> (Vec<u64>, u64, u64) {
     let fields = def.declared_fields();
@@ -74,7 +74,7 @@ pub(crate) fn class_shape(
 pub(crate) fn class_definition_layout(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     def: &mir::ClassDef,
 ) -> lir::Layout {
     match &def.representation {
@@ -117,10 +117,13 @@ pub(crate) fn class_definition_layout(
                 | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
                     unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
                 }
-                mir::IntrinsicTypeRepresentation::Int
-                | mir::IntrinsicTypeRepresentation::UInt
+                mir::IntrinsicTypeRepresentation::Integer(_)
                 | mir::IntrinsicTypeRepresentation::Boolean => {
                     unreachable!("the registry fixes intrinsic declaration targets")
+                }
+                mir::IntrinsicTypeRepresentation::Ptr { .. }
+                | mir::IntrinsicTypeRepresentation::FunPtr { .. } => {
+                    unreachable!("compiler pointer declarations are value-type shells")
                 }
             };
             lir::Layout {
@@ -141,7 +144,7 @@ pub(crate) fn class_definition_layout(
 pub(crate) fn closure_shape(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     def: &mir::ClosureClass,
 ) -> (Vec<u64>, u64, u64, lir::RefScan) {
     let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);

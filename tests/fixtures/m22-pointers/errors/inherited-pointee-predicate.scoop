@@ -1,0 +1,62 @@
+// EXPECT-DIAGNOSTICS
+
+struct ManagedValue(val text: String)
+
+struct Wrapper<T : value>(val pointer: Ptr<T>)
+
+struct PrimaryWrapper<T : value>(val pointer: Ptr<T>)
+
+struct BaseWrapper<T : value>(val pointer: Ptr<T>)
+
+struct InitializerWrapper<T : value>(val pointer: Ptr<T>)
+
+struct BlockWrapper<T : value>(val pointer: Ptr<T>)
+
+fun <T : value> observe() {}
+
+fun <T : value> observeBoolean(value: Boolean): Boolean = value
+
+interface Carrier<T : value> {
+    fun accept(pointer: Ptr<T>) {}
+}
+
+interface BadParent : Carrier<ManagedValue> {}
+
+struct BadStruct(val token: Boolean) : Carrier<ManagedValue>
+
+enum BadEnum : Carrier<ManagedValue> {
+    Only
+}
+
+class BadClass : Carrier<ManagedValue>
+
+open class Base<T : value> {
+    fun acceptBase(pointer: Ptr<T>) {}
+}
+
+class BadDerived : Base<ManagedValue>()
+
+struct ConstructorHost(val token: Boolean) {
+    constructor(parameter: Wrapper<ManagedValue>) : this(false) {}
+
+    constructor(withDefault: Unit = observe<Wrapper<ManagedValue>>()) : this(false) {}
+
+    constructor(delegated: Int) : this(observeBoolean<Wrapper<ManagedValue>>(false)) {}
+
+    constructor(body: Long) : this(false) {
+        observe<Wrapper<ManagedValue>>()
+    }
+}
+
+open class InitBase(val token: Unit)
+
+class InitHost(parameter: PrimaryWrapper<ManagedValue>) :
+    InitBase(observe<BaseWrapper<ManagedValue>>()) {
+    val initialized: Unit = observe<InitializerWrapper<ManagedValue>>()
+
+    init {
+        observe<BlockWrapper<ManagedValue>>()
+    }
+}
+
+fun main() {}

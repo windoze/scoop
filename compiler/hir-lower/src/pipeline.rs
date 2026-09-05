@@ -56,15 +56,21 @@ impl Lowerer {
         self.local_function_scopes.pop();
     }
 
+    pub(crate) fn integer_type(&self, kind: hir::IntegerKind) -> TypeId {
+        self.integer_types.owner(kind)
+    }
+
     pub(super) fn new() -> Self {
-        // Well-known types are allocated first, in a fixed order
-        // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
-        // `Any` (M6) follows them; it is not part of the `hir::Module`
-        // well-known list, so hir-lower interns it once here.
+        // Well-known types are allocated first, in a fixed order (impl spec
+        // 2.2): Unit, the eight canonical integers in `IntegerKind::ALL`
+        // order, Boolean and String. `Any` follows them and remains an
+        // internal lowering identity.
         let mut types = Arena::new();
         let unit = types.alloc(Type::Unit);
-        let int = types.alloc(Type::Int);
-        let uint = types.alloc(Type::UInt);
+        let integer_types = hir::IntegerTypeCore::new(
+            hir::IntegerKind::ALL.map(|kind| types.alloc(Type::Integer(kind))),
+        )
+        .expect("fresh integer type ids are distinct");
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
@@ -150,8 +156,7 @@ impl Lowerer {
             derived_equality_application_by_type: HashMap::new(),
             top_level: Vec::new(),
             unit,
-            int,
-            uint,
+            integer_types,
             boolean,
             string,
             any,

@@ -91,17 +91,19 @@ fn when_lowers_to_a_decision_sequence() {
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
     let expected = "\
-Module
+Module mangling=compact-v2
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
-  enum Option$I
+  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  enum Option$I32
     Some(_1: Int)
     None()
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
-      call $call.1: String = extern1 @scoop_rt_int_to_string direct
-        Type Int
-        Local message
+      call $call.1: String = extern1 @scoop_rt_long_to_string direct
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local message
       call extern0 @scoop_rt_write direct
         Type String
         Local $call.1
@@ -117,20 +119,20 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val o: Option$I<Int>
-        Type Option$I<Int>
-        VariantConstruct Option$I<Int> v0
+      val o: Option$I32<Int>
+        Type Option$I32<Int>
+        VariantConstruct Option$I32<Int> v0
           Type Int
-          IntLiteral 1
-      val $when.1: Option$I<Int>
-        Type Option$I<Int>
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $when.1: Option$I32<Int>
+        Type Option$I32<Int>
         Local o
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type Option$I<Int>
+            Type Option$I32<Int>
             Local $when.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -138,7 +140,7 @@ Module
       val x: Int
         Type Int
         EnumField v0 f0
-          Type Option$I<Int>
+          Type Option$I32<Int>
           Local $when.1
       call @scoop.print direct
         Type Int
@@ -268,6 +270,13 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     let o = locals.alloc(local("o", option_int));
     let x = locals.alloc(local("x", int));
     let threshold = locals.alloc(local("threshold", int));
+    let compared = integer_binary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::NoGcIntegerOperation::CompareTo,
+        local_ref(x, int),
+        local_ref(threshold, int),
+    );
     let mut guarded_arm = arm(
         hir::Pattern::Variant {
             application: option_application,
@@ -276,8 +285,8 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
         },
         Some(binary(
             hir::BinOp::Gt,
-            local_ref(x, int),
-            local_ref(threshold, int),
+            compared,
+            integer_lit(&h, hir::IntegerKind::SIGNED_64, 0),
             h.boolean,
         )),
         vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
@@ -312,17 +321,19 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
     let expected = "\
-Module
+Module mangling=compact-v2
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
-  enum Option$I
+  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  enum Option$I32
     Some(_1: Int)
     None()
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
-      call $call.1: String = extern1 @scoop_rt_int_to_string direct
-        Type Int
-        Local message
+      call $call.1: String = extern1 @scoop_rt_long_to_string direct
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local message
       call extern0 @scoop_rt_write direct
         Type String
         Local $call.1
@@ -338,15 +349,15 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val $when.1: Option$I<Int>
-        Type Option$I<Int>
+      val $when.1: Option$I32<Int>
+        Type Option$I32<Int>
         Local o
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type Option$I<Int>
+            Type Option$I32<Int>
             Local $when.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -354,18 +365,22 @@ Module
       val x: Int
         Type Int
         EnumField v0 f0
-          Type Option$I<Int>
+          Type Option$I32<Int>
           Local $when.1
       val threshold: Int
         Type Int
-        IntLiteral 0
+        IntegerLiteral Int value=0 bits=0x00000000
       branch bb4 bb5
         Type Boolean
-        Binary IntGt
-          Type Int
-          Local x
-          Type Int
-          Local threshold
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local x
+            Type Int
+            Local threshold
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.else.2
       call @scoop.println direct
         Type String
@@ -394,73 +409,161 @@ Module
 }
 
 #[test]
-fn literal_patterns_match_by_equality() {
-    // when (n) { 1 -> println("one"); else -> println("other") }
-    let mut h = Harness::new();
-    let println = h.println_string();
-    let int = h.int;
-    let boolean = h.boolean;
-    let mut equals_locals = Arena::new();
-    let left = equals_locals.alloc(local("left", int));
-    let right = equals_locals.alloc(local("right", int));
-    let equals = h.user_fn_full(
-        "Int.equals",
-        Vec::new(),
-        vec![param("left", int, left), param("right", int, right)],
-        boolean,
-        hir::Body {
-            locals: equals_locals,
-            statements: vec![hir::Statement {
-                kind: hir::StatementKind::Return {
-                    value: Some(bool_lit(&h, true)),
-                },
-                span: SPAN,
-            }],
-        },
-    );
-    let mut locals = Arena::new();
-    let n = locals.alloc(local("n", int));
-    let main = h.user_fn(
-        "main",
-        hir::Body {
-            locals,
-            statements: vec![when_stmt(
-                local_ref(n, int),
-                vec![arm(
-                    hir::Pattern::Literal {
-                        value: int_lit(&h, 1),
-                        equals: hir::Callable::Function(equals),
-                        subject_ty: int,
+fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
+    fn lower_case(string: bool) -> (mir::Module, &'static str) {
+        let mut h = Harness::new();
+        let ty = if string { h.string } else { h.boolean };
+        let name = if string {
+            "String.equals"
+        } else {
+            "Boolean.equals"
+        };
+        let literal = if string {
+            str_lit(&h, "one")
+        } else {
+            bool_lit(&h, true)
+        };
+        let mut equals_locals = Arena::new();
+        let left = equals_locals.alloc(local("left", ty));
+        let right = equals_locals.alloc(local("right", ty));
+        let equals = h.user_fn_full(
+            name,
+            Vec::new(),
+            vec![param("left", ty, left), param("right", ty, right)],
+            h.boolean,
+            hir::Body {
+                locals: equals_locals,
+                statements: vec![hir::Statement {
+                    kind: hir::StatementKind::Return {
+                        value: Some(bool_lit(&h, true)),
                     },
-                    None,
-                    vec![expr_stmt(call(&h, println, vec![str_lit(&h, "one")]))],
+                    span: SPAN,
+                }],
+            },
+        );
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, ty),
+                    vec![arm(
+                        hir::Pattern::Literal {
+                            value: literal,
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::Callable::Function(equals),
+                            },
+                            subject_ty: ty,
+                        },
+                        None,
+                        Vec::new(),
+                    )],
+                    hir::WhenFallback::Else(Vec::new()),
                 )],
-                hir::WhenFallback::Else(vec![expr_stmt(call(
-                    &h,
-                    println,
-                    vec![str_lit(&h, "other")],
-                ))]),
-            )],
-        },
-    );
-    let module = lower(&h.finish(main));
+            },
+        );
+        (lower(&h.finish(main)), name)
+    }
 
-    let body = &module.functions[module.entry].body;
-    let (call, result) = entry_statements(body)
-        .iter()
-        .find_map(|statement| {
-            matches!(statement.kind, mir::StatementKind::Call(_)).then(|| statement_call(statement))
-        })
-        .expect("literal pattern calls its HIR-selected equality target");
-    assert!(matches!(call.target.kind, mir::CallKind::Direct));
-    assert!(matches!(call.args.as_slice(), [scrutinee, literal]
-            if matches!(scrutinee.kind, mir::ExprKind::Local(_))
-                && matches!(literal.kind, mir::ExprKind::IntLiteral(1))));
-    let result = result.expect("equals returns Boolean");
-    let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
-        panic!("literal equality result controls the pattern branch")
-    };
-    assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == result));
+    for string in [false, true] {
+        let (module, expected_name) = lower_case(string);
+        let body = &module.functions[module.entry].body;
+        let (call, result) = entry_statements(body)
+            .iter()
+            .find_map(|statement| {
+                matches!(statement.kind, mir::StatementKind::Call(_))
+                    .then(|| statement_call(statement))
+            })
+            .expect("ordinary literal pattern calls its HIR-selected equality target");
+        assert!(matches!(call.target.kind, mir::CallKind::Direct));
+        let mir::Callee::User(equals) = call.target.callee else {
+            panic!("the ordinary equality target is a user function");
+        };
+        assert_eq!(module.functions[equals].name, expected_name);
+        assert!(matches!(call.args.as_slice(), [scrutinee, _]
+            if matches!(scrutinee.kind, mir::ExprKind::Local(_))));
+        let result = result.expect("equals returns Boolean");
+        let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
+            panic!("literal equality result controls the pattern branch")
+        };
+        assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == result));
+    }
+}
+
+#[test]
+fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
+    for source_kind in hir::IntegerKind::ALL {
+        let mut h = Harness::new();
+        let ty = h.integer(source_kind);
+        let literal = integer_lit(&h, source_kind, 1);
+        let equality_expr = integer_binary(
+            &mut h,
+            source_kind,
+            hir::NoGcIntegerOperation::Equals,
+            literal.clone(),
+            literal.clone(),
+        );
+        let hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::NoGc { target, .. },
+            ..
+        } = equality_expr.kind
+        else {
+            panic!("test harness constructs typed integer equals");
+        };
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, ty),
+                    vec![arm(
+                        hir::Pattern::Literal {
+                            value: literal,
+                            equality: hir::LiteralPatternEquality::Integer {
+                                kind: source_kind,
+                                target,
+                            },
+                            subject_ty: ty,
+                        },
+                        None,
+                        Vec::new(),
+                    )],
+                    hir::WhenFallback::Else(Vec::new()),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+        let body = &module.functions[module.entry].body;
+        assert!(
+            entry_statements(body)
+                .iter()
+                .all(|statement| !matches!(statement.kind, mir::StatementKind::Call(_))),
+            "integer pattern equality is not lowered as a function call",
+        );
+        let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
+            panic!("a refutable integer literal branches");
+        };
+        let mir::ExprKind::IntegerCompare {
+            operation,
+            lhs,
+            rhs,
+        } = &cond.kind
+        else {
+            panic!("integer literal pattern lowers directly to IntegerCompare");
+        };
+        let expected_kind = lower_integer_kind(source_kind);
+        assert_eq!(operation.operand_kind(), expected_kind);
+        assert_eq!(operation.operator(), mir::IntegerComparisonOperator::Equal);
+        assert!(matches!(lhs.kind, mir::ExprKind::Local(_)));
+        assert!(matches!(
+            rhs.kind,
+            mir::ExprKind::IntegerLiteral(value) if value.kind() == expected_kind
+        ));
+    }
 }
 
 #[test]
@@ -511,7 +614,7 @@ fn destructuring_val_declarations_extract_bindings() {
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
     let expected = "\
-Module
+Module mangling=compact-v2
   struct Point (x: Int, y: Int)
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -519,7 +622,7 @@ Module
         Type (Int, String)
         TupleLiteral
           Type Int
-          IntLiteral 1
+          IntegerLiteral Int value=1 bits=0x00000001
           Type String
           StringConst @scoop.str.0
       val a: Int
@@ -534,9 +637,9 @@ Module
           Local $bind.1
       call p: Point = @scoop.ctor.Point.$c0 direct
         Type Int
-        IntLiteral 3
+        IntegerLiteral Int value=3 bits=0x00000003
         Type Int
-        IntLiteral 4
+        IntegerLiteral Int value=4 bits=0x00000004
       val $bind.2: Point
         Type Point
         Local p
@@ -546,7 +649,7 @@ Module
           Type Point
           Local $bind.2
       return
-  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point
+  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point

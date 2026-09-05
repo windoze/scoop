@@ -108,6 +108,14 @@ impl Lowerer {
                     );
                     None
                 }
+                Type::Ptr(_) | Type::FunPtr(_) => {
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        span,
+                        format!("intrinsic pointer type `{found}` cannot be destructured"),
+                    );
+                    None
+                }
                 _ => {
                     let found = self.type_name(matched_ty);
                     self.error(

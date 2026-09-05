@@ -18,6 +18,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params,
+            gc_free_pointee_requirements: Vec::new(),
             parents: Vec::new(),
             methods: Vec::new(),
             private_methods: Vec::new(),
@@ -73,6 +74,7 @@ impl Harness {
                 hir::FunctionGenericity::OwnerParameterizedMethod {
                     owner_parameters: declaration.type_params,
                     no_gc_type_params: Vec::new(),
+                    gc_free_pointee_requirements: Vec::new(),
                 };
         }
         let member = self.interface_methods.alloc(hir::InterfaceMethod {

@@ -39,10 +39,10 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
     let mir::Type::Interface(continuation) = function.params[0].ty else {
         panic!("hidden completion must be a concrete Continuation<Int>")
     };
-    assert_eq!(module.interfaces[continuation].name, "Continuation$I");
+    assert_eq!(module.interfaces[continuation].name, "Continuation$I32");
 
     let step = &module.meta.coroutine_steps[coroutine.step];
-    assert_eq!(step.result, mir::Type::Int);
+    assert_eq!(step.result, mir::Type::Integer(mir::IntegerKind::SIGNED_32));
     let step_def = &module.enums[step.enum_id];
     assert!(step_def.gc_free);
     assert!(step_def.variants.iter().all(|variant| variant.gc_free));
@@ -62,18 +62,21 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
             variant: 0,
             fields,
             ..
-        } if matches!(fields.as_slice(), [field] if matches!(field.kind, mir::ExprKind::IntLiteral(42)))
+        } if matches!(fields.as_slice(), [field]
+            if matches!(field.kind,
+                mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(42))))
     ));
 }
 
 #[test]
 fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let mut h = Harness::new();
+    let int = h.int;
     let leaf = h.user_fn_full(
         "leaf",
         Vec::new(),
         Vec::new(),
-        h.int,
+        int,
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
@@ -83,24 +86,25 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     );
     h.functions[leaf].is_suspend = true;
     let mut locals = Arena::new();
-    let value = locals.alloc(local("value", h.int));
+    let value = locals.alloc(local("value", int));
+    let increment = int_lit(&h, 1);
+    let sum = integer_binary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::NoGcIntegerOperation::Add,
+        local_ref(value, int),
+        increment,
+    );
     let caller = h.user_fn_full(
         "caller",
         Vec::new(),
         Vec::new(),
-        h.int,
+        int,
         hir::Body {
             locals,
             statements: vec![
-                val_decl(value, call_typed(leaf, Vec::new(), h.int)),
-                stmt(hir::StatementKind::Return {
-                    value: Some(primitive_binary(
-                        hir::PrimitiveBinaryKind::IntAdd,
-                        local_ref(value, h.int),
-                        int_lit(&h, 1),
-                        h.int,
-                    )),
-                }),
+                val_decl(value, call_typed(leaf, Vec::new(), int)),
+                stmt(hir::StatementKind::Return { value: Some(sum) }),
             ],
         },
     );
@@ -154,7 +158,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let int_slot = module
         .enums
         .iter()
-        .find_map(|(_, definition)| (definition.name == "CoroutineSlot$I").then_some(definition))
+        .find_map(|(_, definition)| (definition.name == "CoroutineSlot$I32").then_some(definition))
         .expect("live Int local uses a concrete coroutine slot");
     assert!(int_slot.gc_free);
     assert!(int_slot.variants.iter().all(|variant| variant.gc_free));
@@ -178,7 +182,10 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     assert!(throwable_slot.variants[0].gc_free);
     assert!(!throwable_slot.variants[1].gc_free);
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
-    assert_eq!(point.result, mir::Type::Int);
+    assert_eq!(
+        point.result,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
     assert_eq!(point.state.get(), 1);
     assert_eq!(module.classes[point.adapter].interfaces.len(), 1);
     assert_eq!(
@@ -224,7 +231,7 @@ fn suspend_intrinsic_keeps_frame_and_adapter_protocols_in_distinct_machine_kinds
     let mut h = Harness::new();
     let main = empty_main(&mut h);
     let mut source = h.finish_coroutines(main);
-    let result = source.int;
+    let result = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     let suspend_registration = source.coroutine_core.suspend_registration;
     let registration_ty =
         module_interface_application(&mut source, suspend_registration, vec![result]);
@@ -331,7 +338,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         },
     );
     let mut hir_module = h.finish_coroutines(main);
-    let result = hir_module.int;
+    let result = module_integer_type(&hir_module, hir::IntegerKind::SIGNED_32);
     let suspend_task = hir_module.coroutine_core.suspend_task;
     let continuation = hir_module.coroutine_core.continuation;
     let task_ty = module_interface_application(&mut hir_module, suspend_task, vec![result]);
@@ -403,7 +410,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     else {
         panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
     };
-    assert_eq!(module.interfaces[task_interface].name, "SuspendTask$I");
+    assert_eq!(module.interfaces[task_interface].name, "SuspendTask$I32");
     assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
     let step_local = step_local.expect("run returns a CoroutineStep<T>");
     let mir::Terminator::Branch {
@@ -427,7 +434,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
     assert_eq!(
         module.interfaces[continuation_interface].name,
-        "Continuation$I"
+        "Continuation$I32"
     );
     assert!(matches!(resume.args.as_slice(), [completion, field]
             if matches!(completion.kind, mir::ExprKind::Local(_))

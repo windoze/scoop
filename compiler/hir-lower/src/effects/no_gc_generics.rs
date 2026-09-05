@@ -17,8 +17,20 @@ pub(super) struct GenericCallSite {
     pub(super) span: Span,
 }
 
+/// A fully resolved parameterized callable use before attaching the lexical
+/// region that owns the expression. Keeping this edge caller-independent lets
+/// predicate validation reuse the same typed walk for constructor/default
+/// regions as for ordinary function bodies.
+#[derive(Debug, Clone)]
+pub(super) struct GenericCall {
+    pub(super) callee: hir::FunctionId,
+    /// Complete declaration-parameter to application-argument relation.
+    pub(super) arguments: Vec<(hir::TypeParamId, hir::TypeId)>,
+    pub(super) span: Span,
+}
+
 impl GenericCallSite {
-    fn argument(&self, parameter: hir::TypeParamId) -> hir::TypeId {
+    pub(in crate::effects) fn argument(&self, parameter: hir::TypeParamId) -> hir::TypeId {
         self.arguments
             .iter()
             .find_map(|(candidate, argument)| (*candidate == parameter).then_some(*argument))

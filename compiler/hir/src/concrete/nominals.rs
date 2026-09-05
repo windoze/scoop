@@ -229,12 +229,13 @@ impl ClassDef {
 /// this application's already-lowered arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
+    Ptr { pointee: TypeId },
+    FunPtr { signature: FunctionTypeId },
 }
 
 #[derive(Debug, Clone)]
@@ -314,11 +315,11 @@ pub struct Global {
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
     Managed {
-        initializer: ManagedGlobalInitializer,
+        state: HirStaticInitialState,
     },
     Local {
         thread_local: bool,
-        initializer: ConstantValue,
+        initializer: HirConstantImage,
     },
     Extern {
         library: String,
@@ -327,25 +328,30 @@ pub enum GlobalStorage {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum ManagedGlobalInitializer {
-    Image(ConstantValue),
-    RuntimeZeroed(InitializationUnitId),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirStaticInitialState {
+    ZeroedForRuntimeUnit { unit: InitializationUnitId },
+    EncodedStaticValue { payload: HirConstantImage },
 }
 
-#[derive(Debug, Clone)]
-pub enum ConstantValue {
-    Int(i64),
-    Bool(bool),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirConstantImage {
+    Integer(HirIntegerConstant),
+    Boolean(bool),
     String(String),
-    NullPtr,
-    NullFunPtr,
+    NullPointer(HirPointerNullKind),
     EnumUnit {
         enum_id: EnumId,
         variant: u32,
     },
     Struct {
         struct_id: StructId,
-        fields: Vec<ConstantValue>,
+        fields: Vec<HirConstantImage>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirPointerNullKind {
+    Raw,
+    Code,
 }

@@ -25,8 +25,54 @@ pub struct Module {
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
     pub interfaces: Arena<InterfaceDef>,
+    /// Every concrete specialization of core `Option`, identified by its
+    /// exact enum identity and validated Some/None variant indices. Consumers
+    /// must use this registry instead of recognizing nullable layouts by
+    /// shape.
+    pub option_core: Vec<OptionCore>,
     pub entry: FunctionId,
     pub meta: MirMeta,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct OptionCore {
+    enum_id: EnumId,
+    some_variant: u32,
+    none_variant: u32,
+}
+
+impl OptionCore {
+    pub fn new(enum_id: EnumId, some_variant: u32, none_variant: u32) -> Self {
+        assert_ne!(
+            some_variant, none_variant,
+            "Option Some and None variants are distinct"
+        );
+        Self {
+            enum_id,
+            some_variant,
+            none_variant,
+        }
+    }
+
+    pub const fn enum_id(self) -> EnumId {
+        self.enum_id
+    }
+
+    pub const fn some_variant(self) -> u32 {
+        self.some_variant
+    }
+
+    pub const fn none_variant(self) -> u32 {
+        self.none_variant
+    }
+}
+
+impl Module {
+    pub fn option_core(&self, enum_id: EnumId) -> Option<&OptionCore> {
+        self.option_core
+            .iter()
+            .find(|option| option.enum_id == enum_id)
+    }
 }
 
 #[derive(Debug)]
@@ -183,11 +229,11 @@ pub struct SingletonPublishedRoot {
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
     Managed {
-        initializer: ConstantValue,
+        initial_state: MirStaticInitialState,
     },
     Local {
         thread_local: bool,
-        initializer: ConstantValue,
+        initial_state: MirStaticInitialState,
     },
     Extern {
         library: String,
@@ -196,27 +242,58 @@ pub enum GlobalStorage {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum ConstantValue {
-    Zero,
-    Int(i64),
-    Bool(bool),
+/// Pointer-null provenance in a layout-independent MIR constant image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MirPointerNull {
+    Data,
+    Code,
+}
+
+/// Layout-independent, recursively typed static image.
+///
+/// There is deliberately no generic zero or bare integer branch. Integer
+/// zero, pointer null, and a runtime-owned zeroed storage unit remain three
+/// different semantic states.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MirConstantImage {
+    Integer(MirIntegerConstant),
+    Boolean(bool),
     String(StringConstId),
-    NullPtr,
-    NullFunPtr,
+    PointerNull(MirPointerNull),
     EnumUnit {
         enum_id: EnumId,
         variant: u32,
     },
     Struct {
         struct_id: StructId,
-        fields: Vec<ConstantValue>,
+        fields: Vec<MirConstantImage>,
     },
+}
+
+/// Initial state of one compiler-owned static storage object.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MirStaticInitialState {
+    ZeroedForRuntimeUnit,
+    EncodedStaticValue { payload: MirConstantImage },
+}
+
+/// Constant metadata retained from a validated source annotation.
+///
+/// Compiler-recognized annotations normally normalize into dedicated sums
+/// (for example [`MirCLayoutContract`]); annotations that remain as metadata
+/// cannot lose an integer's exact signedness or width.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MirAnnotationValue {
+    Integer(MirIntegerConstant),
+    Boolean(bool),
+    String(String),
 }
 
 /// Per-Cone MIR metadata (impl spec 2.3).
 #[derive(Debug, Default)]
 pub struct MirMeta {
+    /// Exact schema used by every symbol in this module and exported MIR meta.
+    pub mangling_schema: ManglingSchemaIdentity,
     pub dispatch_tables: Vec<DispatchTable>,
     /// Typed source identities are separate from their display names and from
     /// concrete instances. The three id families cannot be interchanged.

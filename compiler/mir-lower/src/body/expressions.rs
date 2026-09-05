@@ -33,7 +33,9 @@ impl BodyLowerer<'_> {
                 });
                 smir::ExprKind::StringConst(id)
             }
-            hir::ExprKind::IntLiteral(value) => smir::ExprKind::IntLiteral(*value),
+            hir::ExprKind::IntegerLiteral(value) => {
+                smir::ExprKind::IntegerLiteral(lower_integer_constant(*value))
+            }
             hir::ExprKind::BoolLiteral(value) => smir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => smir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => {
@@ -274,7 +276,8 @@ impl BodyLowerer<'_> {
                     unreachable!("an array subscript has an intrinsic class receiver")
                 };
                 let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
-                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                 let array = self.lower_expr(receiver);
                 self.prelude.push(smir::StatementKind::ValDecl {
                     local: array_slot,
@@ -289,7 +292,7 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::ArrayGet {
                     array_type,
                     array: Box::new(smir::Expr::local(array_slot, mir::Type::Class(array_type))),
-                    index: Box::new(smir::Expr::local(index_slot, mir::Type::Int)),
+                    index: Box::new(smir::Expr::local(index_slot, index_ty)),
                 }
             }
             hir::ExprKind::ArraySet {
@@ -304,7 +307,8 @@ impl BodyLowerer<'_> {
                     unreachable!("an array store has an intrinsic class receiver")
                 };
                 let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
-                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                 let value_ty = self.lower_type(value.ty);
                 let value_slot = self.new_hidden("value", value_ty.clone(), false);
                 let array = self.lower_expr(receiver);
@@ -326,7 +330,7 @@ impl BodyLowerer<'_> {
                 self.prelude.push(smir::StatementKind::ArraySet {
                     array_type,
                     array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
-                    index: smir::Expr::local(index_slot, mir::Type::Int),
+                    index: smir::Expr::local(index_slot, index_ty),
                     value: smir::Expr::local(value_slot, value_ty),
                 });
                 smir::ExprKind::UnitLiteral
@@ -353,17 +357,23 @@ impl BodyLowerer<'_> {
                     operand: Box::new(self.lower_expr(operand)),
                 }
             }
-            hir::ExprKind::PtrFromUInt(operand) => {
+            hir::ExprKind::PtrFromNonZeroULong(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
-                    unreachable!("PtrFromUInt has a pointer type")
+                    unreachable!("PtrFromNonZeroULong has a pointer type")
                 };
-                smir::ExprKind::PtrFromUInt {
-                    operand: Box::new(self.lower_expr(operand)),
+                let operand = self.lower_expr(operand);
+                assert_eq!(
+                    operand.ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "PtrFromNonZeroULong consumes the validated ULong carrier"
+                );
+                smir::ExprKind::PtrFromNonZeroULong {
+                    operand: Box::new(operand),
                     pointee,
                 }
             }
-            hir::ExprKind::PtrToUInt(operand) => {
-                smir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand)))
+            hir::ExprKind::PtrToULong(operand) => {
+                smir::ExprKind::PtrToULong(Box::new(self.lower_expr(operand)))
             }
             hir::ExprKind::PtrCast(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
@@ -431,12 +441,6 @@ impl BodyLowerer<'_> {
             },
             hir::ExprKind::SizeOf(ty) => smir::ExprKind::SizeOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::AlignOf(ty) => smir::ExprKind::AlignOf(Box::new(self.lower_type(*ty))),
-            hir::ExprKind::FunPtrNull => {
-                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
-                    unreachable!("FunPtrNull has a FunPtr type")
-                };
-                smir::ExprKind::FunPtrNull(signature)
-            }
             hir::ExprKind::FunctionAddress(function) => {
                 let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
                     unreachable!("FunctionAddress has a FunPtr type")
@@ -579,11 +583,19 @@ impl BodyLowerer<'_> {
                 })
             }
             hir::ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
-                return self.lower_primitive_binary(*kind, lhs, rhs, expr.span);
+                return self.lower_primitive_binary(*kind, lhs, rhs);
             }
             hir::ExprKind::PrimitiveUnary { kind, operand } => {
                 return self.lower_primitive_unary(*kind, operand);
             }
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => return self.lower_integer_operation(operation, arguments, expr.span),
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => return self.lower_integer_conversion(conversion, operand),
             hir::ExprKind::Binary { op, lhs, rhs } => {
                 return self.lower_binary(*op, lhs, rhs);
             }
@@ -598,21 +610,22 @@ impl BodyLowerer<'_> {
             // desugars) become generic enum operations on core's
             // `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
-                let (some, _) = self.option_variants;
+                let some = option_core_for_type(self.module, self.enums, &ty).some_variant();
                 smir::ExprKind::VariantConstruct {
                     variant: some,
                     fields: vec![self.lower_expr(operand)],
                 }
             }
             hir::ExprKind::NoneLiteral => {
-                let (_, none) = self.option_variants;
+                let none = option_core_for_type(self.module, self.enums, &ty).none_variant();
                 smir::ExprKind::VariantConstruct {
                     variant: none,
                     fields: Vec::new(),
                 }
             }
             hir::ExprKind::IsSome(operand) => {
-                let (some, _) = self.option_variants;
+                let option_ty = self.lower_type(operand.ty);
+                let some = option_core_for_type(self.module, self.enums, &option_ty).some_variant();
                 let operand = self.lower_expr(operand);
                 return smir::Expr::machine_eq(
                     smir::Expr::enum_tag(operand),
@@ -623,7 +636,8 @@ impl BodyLowerer<'_> {
                 operand,
                 trap_on_none,
             } => {
-                let (some, _) = self.option_variants;
+                let option_ty = self.lower_type(operand.ty);
+                let some = option_core_for_type(self.module, self.enums, &option_ty).some_variant();
                 if *trap_on_none {
                     return self.trapping_unwrap(operand, expr.ty, expr.span, some);
                 } else {

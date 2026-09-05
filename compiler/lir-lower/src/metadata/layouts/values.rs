@@ -6,7 +6,7 @@ use super::*;
 pub(crate) fn aggregate_layout(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     name: String,
     fields: &[mir::Type],
 ) -> lir::Layout {
@@ -37,25 +37,18 @@ pub(crate) fn aggregate_layout(
 pub(crate) fn struct_layout(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     definition: &mir::StructDef,
 ) -> lir::Layout {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
-            mir::IntrinsicTypeRepresentation::Int => {
-                let layout = context.legacy_integer_layout();
+            mir::IntrinsicTypeRepresentation::Integer(kind) => {
+                let kind = integer_kind(*kind);
+                let layout = context.integer_layout(kind);
                 (
                     layout.size,
                     layout.align,
-                    lir::IntrinsicTypeRepresentation::Int,
-                )
-            }
-            mir::IntrinsicTypeRepresentation::UInt => {
-                let layout = context.legacy_integer_layout();
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::UInt,
+                    lir::IntrinsicTypeRepresentation::Integer(kind),
                 )
             }
             mir::IntrinsicTypeRepresentation::Boolean => {
@@ -64,6 +57,26 @@ pub(crate) fn struct_layout(
                     layout.size,
                     layout.align,
                     lir::IntrinsicTypeRepresentation::Boolean,
+                )
+            }
+            mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                let layout = context.pointer_layout(lir::PointerKind::Raw);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Ptr {
+                        pointee: compiler_data_pointee(pointee),
+                    },
+                )
+            }
+            mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+                let layout = context.pointer_layout(lir::PointerKind::Code);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::FunPtr {
+                        signature: compiler_function_type(module, *signature),
+                    },
                 )
             }
             mir::IntrinsicTypeRepresentation::String
@@ -103,10 +116,7 @@ pub(crate) fn struct_layout(
         size,
         align,
         fields,
-        c_layout: c_layout.map(|layout| lir::CLayout {
-            aligned: layout.aligned,
-            packed: layout.packed,
-        }),
+        c_layout: c_layout.map(lower_c_layout),
         interior_mutable: *interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
     }
@@ -116,7 +126,7 @@ pub(crate) fn struct_layout(
 /// over their disjoint ref-bearing slots; the runtime never reads tag.
 pub(crate) fn enum_layout(
     context: &LoweringContext,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     id: mir::EnumId,
     def: &mir::EnumDef,
 ) -> lir::Layout {

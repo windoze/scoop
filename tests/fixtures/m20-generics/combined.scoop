@@ -30,7 +30,7 @@ fun <T, U> combine(value: T, suffix: U, transform: (T, U) -> String): String
     where T : Record<String>, T : Named =
     value.read() + value.name() + transform(value, suffix)
 
-fun <T> countRecords(values: Array<T>): Int
+fun <T> countRecords(values: Array<T>): Long
     where T : Record<String> =
     values.size
 

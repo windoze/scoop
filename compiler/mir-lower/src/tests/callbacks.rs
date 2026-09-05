@@ -1,6 +1,82 @@
 use super::*;
 
 #[test]
+fn nonzero_ulong_pointer_conversion_keeps_its_proof_in_mir() {
+    let mut h = Harness::new();
+    let pointee = h.int;
+    let pointer = h.types.alloc(hir::Type::Ptr(pointee));
+    let ulong = h.ulong();
+    let mut locals = Arena::new();
+    let pointer_local = locals.alloc(local("pointer", pointer));
+    let word_local = locals.alloc(local("word", ulong));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    pointer_local,
+                    expr(
+                        hir::ExprKind::PtrFromNonZeroULong(Box::new(integer_lit(
+                            &h,
+                            hir::IntegerKind::UNSIGNED_64,
+                            1,
+                        ))),
+                        pointer,
+                    ),
+                ),
+                val_decl(
+                    word_local,
+                    expr(
+                        hir::ExprKind::PtrToULong(Box::new(local_ref(pointer_local, pointer))),
+                        ulong,
+                    ),
+                ),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let statements = entry_statements(&module.functions[module.entry].body);
+    let mir::StatementKind::ValDecl {
+        init:
+            mir::Expr {
+                kind:
+                    mir::ExprKind::PtrFromNonZeroULong {
+                        operand,
+                        pointee: mir_pointee,
+                    },
+                ..
+            },
+        ..
+    } = &statements[0].kind
+    else {
+        panic!("nonzero ULong conversion must retain its dedicated MIR variant")
+    };
+    assert_eq!(
+        **mir_pointee,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
+    assert_eq!(
+        operand.ty,
+        mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
+    );
+    assert!(matches!(
+        operand.kind,
+        mir::ExprKind::IntegerLiteral(value) if value.raw_bits() == 1
+    ));
+    assert!(matches!(
+        statements[1].kind,
+        mir::StatementKind::ValDecl {
+            init: mir::Expr {
+                kind: mir::ExprKind::PtrToULong(_),
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
 fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let mut h = Harness::new();
     let callback = h.strukt("Callback", &[]);
@@ -22,6 +98,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     );
     let main = empty_main(&mut h);
     let mut source = h.finish(main);
+    let int = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     source.foreign_callback_core.callback = callback;
 
     let canonical_type = hir::TypeId::from_raw(
@@ -32,8 +109,8 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let function_type = source.function_types.alloc(hir::FunctionType {
         canonical_type,
         is_suspend: false,
-        parameter_types: vec![source.int, source.int],
-        return_type: source.int,
+        parameter_types: vec![int, int],
+        return_type: int,
     });
     assert_eq!(
         source.types.alloc(hir::Type::Function(function_type)),

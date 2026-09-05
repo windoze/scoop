@@ -5,7 +5,7 @@
 //! `false`/`true` order, and integers in exact mathematical order. Open
 //! domains use one symbolic value not named by a literal in the matrix.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_ast::Span;
 use scoop_hir as hir;
@@ -66,10 +66,12 @@ impl Lowerer {
                 subject_ty,
                 application,
             }),
-            Type::Tuple(_) | Type::Struct(_) => {
+            Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
                 Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
             }
-            _ => unreachable!("a source pattern when has an enum, tuple, or struct subject"),
+            _ => {
+                unreachable!("a source pattern when has an enum, tuple, struct, or integer subject")
+            }
         }
     }
 
@@ -90,6 +92,9 @@ impl Lowerer {
         }
 
         let subject_ty = types[0];
+        if let Some(domain) = integer_domain(&self.types[subject_ty]) {
+            return self.missing_integer_witness(types, matrix, domain);
+        }
         match self.constructor_space(subject_ty, matrix) {
             ConstructorSpace::Closed(constructors) => {
                 for constructor in constructors {
@@ -115,6 +120,63 @@ impl Lowerer {
                 self.missing_for_constructor(types, matrix, remainder)
             }
         }
+    }
+
+    /// Split one fixed-width integer column into the singleton literals that
+    /// actually occur in the matrix and one symbolic `OtherInteger`
+    /// partition. Rows with a wildcard head belong to every partition;
+    /// literal rows belong only to their exact raw-bit singleton.
+    ///
+    /// Grouping the rows once is important for a complete Int16/UInt16
+    /// matrix: specializing the original matrix once per literal would turn
+    /// 65,536 source rows into quadratic work. This path is proportional to
+    /// the rows that actually exist and never enumerates absent domain values.
+    fn missing_integer_witness(
+        &mut self,
+        types: &[hir::TypeId],
+        matrix: &Matrix,
+        domain: IntegerDomain,
+    ) -> Option<Vec<Witness>> {
+        let mut singleton_rows: BTreeMap<u128, Matrix> = BTreeMap::new();
+        let mut other_rows = Matrix::new();
+
+        for row in matrix {
+            let tail = row[1..].to_vec();
+            if super::is_irrefutable(&row[0]) {
+                other_rows.push(tail);
+            } else if let Some(raw) = integer_pattern_raw(&row[0], domain) {
+                singleton_rows
+                    .entry(domain.ordinal(raw))
+                    .or_default()
+                    .push(tail);
+            } else {
+                unreachable!(
+                    "a checked integer matrix contains only integer literals and wildcards"
+                );
+            }
+        }
+
+        // `OtherInteger(kind, excluded)` contains every value without an
+        // explicit singleton. Its rows are exactly the wildcard-head rows.
+        // If they already cover the tail product, they also cover every
+        // singleton and the entire integer column is exhaustive.
+        let other_witness = self.missing_witness(&types[1..], &other_rows)?;
+        let first_other = first_missing_integer_ordinal(domain, singleton_rows.keys().copied());
+
+        // Visit only source-observed singleton partitions before the first
+        // real value in `OtherInteger`, preserving mathematical witness order.
+        for (ordinal, literal_rows) in singleton_rows {
+            if first_other.is_some_and(|first_other| ordinal > first_other) {
+                break;
+            }
+            let mut specialized = other_rows.clone();
+            specialized.extend(literal_rows);
+            if let Some(tail) = self.missing_witness(&types[1..], &specialized) {
+                return Some(integer_witness(domain, ordinal, tail));
+            }
+        }
+
+        first_other.map(|ordinal| integer_witness(domain, ordinal, other_witness))
     }
 
     fn missing_for_constructor(
@@ -192,8 +254,8 @@ impl Lowerer {
             ]),
             Type::Unit => ConstructorSpace::Closed(vec![Constructor::Unit]),
             Type::String => self.string_constructor_space(matrix),
-            scalar if let Some(domain) = integer_domain(&scalar) => {
-                self.integer_constructor_space(domain, matrix)
+            Type::Integer(_) => {
+                unreachable!("integer columns use symbolic singleton/other partitioning")
             }
             Type::Class(_)
             | Type::Interface(_)
@@ -204,53 +266,6 @@ impl Lowerer {
             | Type::Param(_) => ConstructorSpace::Open {
                 prefix: Vec::new(),
                 remainder: Constructor::Opaque,
-            },
-            Type::Int | Type::UInt => {
-                unreachable!("every source integer type has an exact semantic domain")
-            }
-        }
-    }
-
-    fn integer_constructor_space(
-        &self,
-        domain: IntegerDomain,
-        matrix: &Matrix,
-    ) -> ConstructorSpace {
-        let ordinals: BTreeSet<u128> = matrix
-            .iter()
-            .filter_map(|row| integer_pattern_raw(&row[0], domain))
-            .map(|raw| domain.ordinal(raw))
-            .collect();
-        let Some(first_gap) = first_missing_integer_ordinal(domain, &ordinals) else {
-            return ConstructorSpace::Closed(
-                ordinals
-                    .into_iter()
-                    .map(|ordinal| Constructor::Integer {
-                        domain,
-                        raw: domain.raw_from_ordinal(ordinal),
-                        remainder: false,
-                    })
-                    .collect(),
-            );
-        };
-
-        let mut prefix = Vec::new();
-        for ordinal in ordinals {
-            if ordinal > first_gap {
-                break;
-            }
-            prefix.push(Constructor::Integer {
-                domain,
-                raw: domain.raw_from_ordinal(ordinal),
-                remainder: false,
-            });
-        }
-        ConstructorSpace::Open {
-            prefix,
-            remainder: Constructor::Integer {
-                domain,
-                raw: domain.raw_from_ordinal(first_gap),
-                remainder: true,
             },
         }
     }
@@ -345,14 +360,6 @@ impl Lowerer {
                 Some(Vec::new())
             }
             (
-                Constructor::Integer {
-                    domain,
-                    raw,
-                    remainder: false,
-                },
-                hir::Pattern::Literal { .. },
-            ) if integer_pattern_raw(pattern, *domain) == Some(*raw) => Some(Vec::new()),
-            (
                 Constructor::String {
                     value: expected,
                     remainder: false,
@@ -360,10 +367,7 @@ impl Lowerer {
                 hir::Pattern::Literal { .. },
             ) if string_pattern_value(pattern) == Some(expected.as_str()) => Some(Vec::new()),
             (
-                Constructor::Integer {
-                    remainder: true, ..
-                }
-                | Constructor::String {
+                Constructor::String {
                     remainder: true, ..
                 }
                 | Constructor::Opaque,
@@ -379,6 +383,16 @@ impl Lowerer {
             }
         }
     }
+}
+
+fn integer_witness(domain: IntegerDomain, ordinal: u128, tail: Vec<Witness>) -> Vec<Witness> {
+    let mut result = Vec::with_capacity(1 + tail.len());
+    result.push(Witness::Integer {
+        domain,
+        raw: domain.raw_from_ordinal(ordinal),
+    });
+    result.extend(tail);
+    result
 }
 
 fn string_pattern_value(pattern: &hir::Pattern) -> Option<&str> {
@@ -400,8 +414,7 @@ fn literal_matches_type(pattern: &hir::Pattern, ty: &Type) -> bool {
         (hir::ExprKind::BoolLiteral(_), Type::Boolean)
             | (hir::ExprKind::UnitLiteral, Type::Unit)
             | (hir::ExprKind::StringLiteral(_), Type::String)
-            | (hir::ExprKind::IntLiteral(_), Type::Int | Type::UInt)
-            | (hir::ExprKind::PrimitiveUnary { .. }, Type::Int | Type::UInt)
+            | (hir::ExprKind::IntegerLiteral(_), Type::Integer(_))
     )
 }
 

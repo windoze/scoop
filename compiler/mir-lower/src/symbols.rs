@@ -147,6 +147,7 @@ pub(super) fn mangling_shell(
         enums: shell_enums,
         classes: shell_classes,
         interfaces: shell_interfaces,
+        option_core: Vec::new(),
         entry,
         meta: mir::MirMeta::default(),
     }

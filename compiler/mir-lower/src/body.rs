@@ -68,8 +68,6 @@ pub(super) struct BodyLowerer<'a> {
     /// Statement kinds that must precede the statement currently being
     /// lowered (the trap test of `!!`); drained by the caller.
     pub(super) prelude: Vec<smir::StatementKind>,
-    /// Declaration indices of `Option::Some` / `Option::None`.
-    pub(super) option_variants: (u32, u32),
     pub(super) coroutines: &'a mut CoroutineRegistry,
     pub(super) lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
     pub(super) anonymous_closures: &'a HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,

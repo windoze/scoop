@@ -184,7 +184,7 @@ fn generic_call_infers_through_a_concrete_interface_implementation() {
         .iter()
         .find_map(|(_, request)| (request.generic == generic).then_some(request))
         .expect("inferred invocation");
-    assert_eq!(request.type_args, [module.int]);
+    assert_eq!(request.type_args, [int_type(&module)]);
 }
 
 #[test]

@@ -194,8 +194,7 @@ impl Lowerer {
             // not stored inline and therefore do not make parameters layout
             // relevant.
             Type::Unit
-            | Type::Int
-            | Type::UInt
+            | Type::Integer(_)
             | Type::Boolean
             | Type::String
             | Type::Class(_)
@@ -257,8 +256,7 @@ impl Lowerer {
                 }
             }
             Type::Unit
-            | Type::Int
-            | Type::UInt
+            | Type::Integer(_)
             | Type::Boolean
             | Type::String
             | Type::Class(_)

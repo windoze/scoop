@@ -16,7 +16,7 @@ pub(crate) use values::*;
 pub(crate) fn layouts(
     context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     from_code: &[mir::Type],
 ) -> (Arena<lir::Layout>, lir::WellKnownLayouts) {
     // Tuple types reachable from struct / enum / class declarations

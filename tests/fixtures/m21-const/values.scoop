@@ -1,6 +1,6 @@
 public const val ANSWER: Int = BASE * 2 + 2
 const val BASE: Int = 20
-const val UNSIGNED: UInt = 3 * 4
+const val UNSIGNED: UInt = 3u * 4u
 const val LABEL: String = "forty" + "-two"
 const val VALID: Boolean = ANSWER == 42 && LABEL == "forty-two"
 

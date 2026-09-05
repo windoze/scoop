@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/mixed-signedness.scoop:6:22: error: no applicable candidate for `plus` in member candidate layer:
+  - fun Int.plus(other: Int): Int — argument for `other` has type UInt, which is not a subtype of Int; primitive integer operands require one exact type; convert this operand explicitly with `toInt32()`

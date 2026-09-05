@@ -10,7 +10,9 @@ pub(crate) fn str_lit(value: &str) -> Expr {
 }
 
 pub(crate) fn int_lit(value: i64) -> Expr {
-    Expr::IntLiteral { value, span: sp() }
+    Expr::IntLiteral(integer_syntax(
+        u64::try_from(value).expect("test integer literals are non-negative"),
+    ))
 }
 
 pub(crate) fn bool_lit(value: bool) -> Expr {

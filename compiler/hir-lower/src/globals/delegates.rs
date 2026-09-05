@@ -115,7 +115,7 @@ impl Lowerer {
             ty: self.unit,
             mutable: false,
             storage: hir::GlobalStorage::Managed {
-                initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
+                state: hir::HirStaticInitialState::ZeroedForRuntimeUnit { unit },
             },
             span: declaration.span,
         });

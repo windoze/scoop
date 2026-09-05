@@ -1,6 +1,18 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn lower_integer_type(
+        &mut self,
+        kind: export::IntegerKind,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::TypeId {
+        let owner = self.source.intrinsic_type_core.integers.owner(kind);
+        let source_type = self.source.struct_applications
+            [self.source.structs[owner].self_application]
+            .canonical_type;
+        self.lower_type(source_type, substitution)
+    }
+
     pub(super) fn lower_struct_application(
         &mut self,
         source: export::StructApplicationId,
@@ -69,9 +81,8 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::IntrinsicTypeRepresentation {
         match representation {
-            export::IntrinsicTypeRepresentation::Int => concrete::IntrinsicTypeRepresentation::Int,
-            export::IntrinsicTypeRepresentation::UInt => {
-                concrete::IntrinsicTypeRepresentation::UInt
+            export::IntrinsicTypeRepresentation::Integer(kind) => {
+                concrete::IntrinsicTypeRepresentation::Integer(kind)
             }
             export::IntrinsicTypeRepresentation::Boolean => {
                 concrete::IntrinsicTypeRepresentation::Boolean
@@ -88,6 +99,18 @@ impl Concretizer<'_> {
                 concrete::IntrinsicTypeRepresentation::MutableArray {
                     element: self.lower_type(element, substitution),
                 }
+            }
+            export::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                concrete::IntrinsicTypeRepresentation::Ptr {
+                    pointee: self.lower_type(pointee, substitution),
+                }
+            }
+            export::IntrinsicTypeRepresentation::FunPtr { function } => {
+                let function = self.lower_type(function, substitution);
+                let concrete::TypeKind::Function(signature) = self.types[function].kind else {
+                    panic!("validated FunPtr arguments remain function types after substitution")
+                };
+                concrete::IntrinsicTypeRepresentation::FunPtr { signature }
             }
         }
     }
@@ -113,8 +136,9 @@ impl Concretizer<'_> {
     ) -> concrete::TypeId {
         match self.source.types[source].clone() {
             export::Type::Unit => self.intern_type(concrete::TypeKind::Unit, true),
-            export::Type::Int => self.intern_type(concrete::TypeKind::Int, true),
-            export::Type::UInt => self.intern_type(concrete::TypeKind::UInt, true),
+            export::Type::Integer(kind) => {
+                self.intern_type(concrete::TypeKind::Integer(kind), true)
+            }
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::Struct(application) => {

@@ -123,7 +123,7 @@ fn integer_literal_out_of_range() {
     assert_eq!(span, Span::new(25, 45));
     assert_eq!(
         message,
-        "integer literal `99999999999999999999` is out of range (Int is i64)"
+        "integer literal magnitude `99999999999999999999` is out of range for u64"
     );
 }
 

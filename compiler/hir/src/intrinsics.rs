@@ -5,12 +5,36 @@ use super::*;
 /// nominal declaration contract emitted as typed HIR.
 pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
+        name: "core_int8",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::SIGNED_8),
+    },
+    IntrinsicTypeSpec {
+        name: "core_int16",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::SIGNED_16),
+    },
+    IntrinsicTypeSpec {
         name: "core_int",
-        kind: IntrinsicTypeKind::Int,
+        kind: IntrinsicTypeKind::Integer(IntegerKind::SIGNED_32),
+    },
+    IntrinsicTypeSpec {
+        name: "core_long",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::SIGNED_64),
+    },
+    IntrinsicTypeSpec {
+        name: "core_uint8",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::UNSIGNED_8),
+    },
+    IntrinsicTypeSpec {
+        name: "core_uint16",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::UNSIGNED_16),
     },
     IntrinsicTypeSpec {
         name: "core_uint",
-        kind: IntrinsicTypeKind::UInt,
+        kind: IntrinsicTypeKind::Integer(IntegerKind::UNSIGNED_32),
+    },
+    IntrinsicTypeSpec {
+        name: "core_ulong",
+        kind: IntrinsicTypeKind::Integer(IntegerKind::UNSIGNED_64),
     },
     IntrinsicTypeSpec {
         name: "core_boolean",
@@ -27,6 +51,14 @@ pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
         name: "core_mutable_array",
         kind: IntrinsicTypeKind::MutableArray,
+    },
+    IntrinsicTypeSpec {
+        name: "core_ptr",
+        kind: IntrinsicTypeKind::Ptr,
+    },
+    IntrinsicTypeSpec {
+        name: "core_fun_ptr",
+        kind: IntrinsicTypeKind::FunPtr,
     },
 ];
 
@@ -45,6 +77,7 @@ pub enum IntrinsicTypeTarget {
 pub enum IntrinsicTypeParameters {
     None,
     OneInvariantUnconstrained,
+    OneInvariantValue,
 }
 
 pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
@@ -121,84 +154,8 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NONE,
     },
     intrinsic_method(
-        PrimitiveUnaryKind::IntUnaryPlus.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntUnaryPlus),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::IntUnaryMinus.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntUnaryMinus),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::IntInc.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntInc),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::IntDec.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntDec),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::UIntUnaryPlus.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntUnaryPlus),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::UIntInc.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntInc),
-    ),
-    intrinsic_method(
-        PrimitiveUnaryKind::UIntDec.name(),
-        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntDec),
-    ),
-    intrinsic_method(
         PrimitiveUnaryKind::BooleanNot.name(),
         IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::BooleanNot),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntAdd.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntAdd),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntSub.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntSub),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntMul.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntMul),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntDiv.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntDiv),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntRem.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntRem),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::IntCompareTo.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntCompareTo),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntAdd.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntAdd),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntSub.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntSub),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntMul.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntMul),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntDiv.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntDiv),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntRem.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntRem),
-    ),
-    intrinsic_method(
-        PrimitiveBinaryKind::UIntCompareTo.name(),
-        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntCompareTo),
     ),
     intrinsic_method(
         PrimitiveBinaryKind::StringConcat.name(),
@@ -221,9 +178,9 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         IntrinsicFunctionKind::ArrayAccess(ArrayAccessKind::MutableSet),
     ),
     IntrinsicSpec {
-        name: "ptr_to_uint",
+        name: "ptr_to_ulong",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::ToUInt),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::ToULong),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
@@ -349,6 +306,7 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
 ];
 
 /// One entry of the intrinsic registry.
+#[derive(Debug, Clone, Copy)]
 pub struct IntrinsicSpec {
     pub name: &'static str,
     pub stage: IntrinsicStage,
@@ -389,6 +347,7 @@ pub enum IntrinsicFunctionKind {
     ForeignCallbackRelease,
     ForeignCallbackState,
     ForeignCallbackFailure,
+    Integer(IntegerIntrinsicKind),
     PrimitiveUnary(PrimitiveUnaryKind),
     PrimitiveBinary(PrimitiveBinaryKind),
     ArrayAccess(ArrayAccessKind),
@@ -397,64 +356,93 @@ pub enum IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
-    pub const fn name(self) -> &'static str {
+    pub fn name(self) -> String {
         match self {
-            Self::GcPinRaw => "gc_pin_raw",
-            Self::GcUnpinRaw => "gc_unpin_raw",
-            Self::GcGetHandleRaw => "gc_get_handle_raw",
-            Self::GcReleaseHandleRaw => "gc_release_handle_raw",
-            Self::GcCollect => "rt_gc_collect",
-            Self::GcStats => "rt_gc_stats",
-            Self::CoroutineStart => "coroutine_start",
-            Self::CoroutineSuspend => "coroutine_suspend",
-            Self::CurrentSourceLocation => "current_source_location",
-            Self::ForeignCallbackRegister => "foreign_callback_register",
-            Self::ForeignCallbackRetain => "foreign_callback_retain",
-            Self::ForeignCallbackRelease => "foreign_callback_release",
-            Self::ForeignCallbackState => "foreign_callback_state",
-            Self::ForeignCallbackFailure => "foreign_callback_failure",
-            Self::PrimitiveUnary(kind) => kind.name(),
-            Self::PrimitiveBinary(kind) => kind.name(),
-            Self::ArrayAccess(kind) => kind.name(),
-            Self::Array(kind) => kind.name(),
-            Self::Pointer(kind) => kind.name(),
+            Self::GcPinRaw => "gc_pin_raw".to_string(),
+            Self::GcUnpinRaw => "gc_unpin_raw".to_string(),
+            Self::GcGetHandleRaw => "gc_get_handle_raw".to_string(),
+            Self::GcReleaseHandleRaw => "gc_release_handle_raw".to_string(),
+            Self::GcCollect => "rt_gc_collect".to_string(),
+            Self::GcStats => "rt_gc_stats".to_string(),
+            Self::CoroutineStart => "coroutine_start".to_string(),
+            Self::CoroutineSuspend => "coroutine_suspend".to_string(),
+            Self::CurrentSourceLocation => "current_source_location".to_string(),
+            Self::ForeignCallbackRegister => "foreign_callback_register".to_string(),
+            Self::ForeignCallbackRetain => "foreign_callback_retain".to_string(),
+            Self::ForeignCallbackRelease => "foreign_callback_release".to_string(),
+            Self::ForeignCallbackState => "foreign_callback_state".to_string(),
+            Self::ForeignCallbackFailure => "foreign_callback_failure".to_string(),
+            Self::Integer(kind) => kind.name(),
+            Self::PrimitiveUnary(kind) => kind.name().to_string(),
+            Self::PrimitiveBinary(kind) => kind.name().to_string(),
+            Self::ArrayAccess(kind) => kind.name().to_string(),
+            Self::Array(kind) => kind.name().to_string(),
+            Self::Pointer(kind) => kind.name().to_string(),
+        }
+    }
+
+    pub const fn integer_gc_effect(self) -> Option<GcEffect> {
+        match self {
+            Self::Integer(kind) => Some(kind.gc_effect()),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IntegerIntrinsicKind {
+    NoGcOperation {
+        kind: IntegerKind,
+        operation: NoGcIntegerOperation,
+    },
+    ManagedOperation {
+        kind: IntegerKind,
+        operation: IntegerDivRem,
+    },
+    Conversion {
+        source: IntegerKind,
+        target_kind: IntegerKind,
+    },
+}
+
+impl IntegerIntrinsicKind {
+    pub fn name(self) -> String {
+        match self {
+            Self::NoGcOperation { kind, operation } => {
+                format!("{}_{}", kind.registry_key(), operation.registry_key())
+            }
+            Self::ManagedOperation { kind, operation } => {
+                format!("{}_{}", kind.registry_key(), operation.registry_key())
+            }
+            Self::Conversion {
+                source,
+                target_kind,
+            } => format!(
+                "{}_to_{}",
+                source.registry_key(),
+                target_kind.registry_key()
+            ),
+        }
+    }
+
+    pub const fn gc_effect(self) -> GcEffect {
+        match self {
+            Self::NoGcOperation { .. } | Self::Conversion { .. } => GcEffect::NoGc,
+            Self::ManagedOperation { .. } => GcEffect::Managed,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveUnaryKind {
-    IntUnaryPlus,
-    IntUnaryMinus,
-    IntInc,
-    IntDec,
-    UIntUnaryPlus,
-    UIntInc,
-    UIntDec,
     BooleanNot,
 }
 
 impl PrimitiveUnaryKind {
-    pub const ALL: [Self; 8] = [
-        Self::IntUnaryPlus,
-        Self::IntUnaryMinus,
-        Self::IntInc,
-        Self::IntDec,
-        Self::UIntUnaryPlus,
-        Self::UIntInc,
-        Self::UIntDec,
-        Self::BooleanNot,
-    ];
+    pub const ALL: [Self; 1] = [Self::BooleanNot];
 
     pub const fn name(self) -> &'static str {
         match self {
-            Self::IntUnaryPlus => "int_unary_plus",
-            Self::IntUnaryMinus => "int_unary_minus",
-            Self::IntInc => "int_inc",
-            Self::IntDec => "int_dec",
-            Self::UIntUnaryPlus => "uint_unary_plus",
-            Self::UIntInc => "uint_inc",
-            Self::UIntDec => "uint_dec",
             Self::BooleanNot => "boolean_not",
         }
     }
@@ -462,54 +450,15 @@ impl PrimitiveUnaryKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveBinaryKind {
-    IntAdd,
-    IntSub,
-    IntMul,
-    IntDiv,
-    IntRem,
-    IntCompareTo,
-    UIntAdd,
-    UIntSub,
-    UIntMul,
-    UIntDiv,
-    UIntRem,
-    UIntCompareTo,
     StringConcat,
     StringCompareTo,
 }
 
 impl PrimitiveBinaryKind {
-    pub const ALL: [Self; 14] = [
-        Self::IntAdd,
-        Self::IntSub,
-        Self::IntMul,
-        Self::IntDiv,
-        Self::IntRem,
-        Self::IntCompareTo,
-        Self::UIntAdd,
-        Self::UIntSub,
-        Self::UIntMul,
-        Self::UIntDiv,
-        Self::UIntRem,
-        Self::UIntCompareTo,
-        Self::StringConcat,
-        Self::StringCompareTo,
-    ];
+    pub const ALL: [Self; 2] = [Self::StringConcat, Self::StringCompareTo];
 
     pub const fn name(self) -> &'static str {
         match self {
-            Self::IntAdd => "int_add",
-            Self::IntSub => "int_sub",
-            Self::IntMul => "int_mul",
-            Self::IntDiv => "int_div",
-            Self::IntRem => "int_rem",
-            Self::IntCompareTo => "int_compare_to",
-            Self::UIntAdd => "uint_add",
-            Self::UIntSub => "uint_sub",
-            Self::UIntMul => "uint_mul",
-            Self::UIntDiv => "uint_div",
-            Self::UIntRem => "uint_rem",
-            Self::UIntCompareTo => "uint_compare_to",
             Self::StringConcat => "string_concat",
             Self::StringCompareTo => "string_compare_to",
         }
@@ -552,7 +501,7 @@ impl ArrayIntrinsic {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PointerIntrinsic {
-    ToUInt,
+    ToULong,
     Cast,
     Load,
     LoadOffset,
@@ -568,7 +517,7 @@ pub enum PointerIntrinsic {
 impl PointerIntrinsic {
     pub const fn name(self) -> &'static str {
         match self {
-            Self::ToUInt => "ptr_to_uint",
+            Self::ToULong => "ptr_to_ulong",
             Self::Cast => "ptr_cast",
             Self::Load => "ptr_load",
             Self::LoadOffset => "ptr_load_offset",
@@ -614,6 +563,174 @@ impl IntrinsicEffects {
     };
 }
 
-pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
-    INTRINSIC_REGISTRY.iter().find(|spec| spec.name == name)
+#[derive(Debug, Clone, Copy)]
+pub enum IntrinsicRegistryEntry {
+    Standard(&'static IntrinsicSpec),
+    Integer(IntegerIntrinsicKind),
+}
+
+impl IntrinsicRegistryEntry {
+    pub fn name(self) -> String {
+        match self {
+            Self::Standard(spec) => spec.name.to_string(),
+            Self::Integer(kind) => kind.name(),
+        }
+    }
+
+    pub const fn stage(self) -> IntrinsicStage {
+        match self {
+            Self::Standard(spec) => spec.stage,
+            Self::Integer(_) => IntrinsicStage::Hir,
+        }
+    }
+
+    pub const fn kind(self) -> IntrinsicFunctionKind {
+        match self {
+            Self::Standard(spec) => spec.kind,
+            Self::Integer(kind) => IntrinsicFunctionKind::Integer(kind),
+        }
+    }
+
+    pub const fn target(self) -> IntrinsicTarget {
+        match self {
+            Self::Standard(spec) => spec.target,
+            Self::Integer(_) => IntrinsicTarget::Member,
+        }
+    }
+
+    pub const fn effects(self) -> IntrinsicEffects {
+        match self {
+            Self::Standard(spec) => spec.effects,
+            Self::Integer(kind) => match kind.gc_effect() {
+                GcEffect::NoGc => IntrinsicEffects::NO_GC,
+                GcEffect::Managed => IntrinsicEffects::NONE,
+            },
+        }
+    }
+}
+
+pub fn intrinsic_spec(name: &str) -> Option<IntrinsicRegistryEntry> {
+    if let Some(kind) = integer_intrinsic_kind(name) {
+        return Some(IntrinsicRegistryEntry::Integer(kind));
+    }
+    INTRINSIC_REGISTRY
+        .iter()
+        .find(|spec| spec.name == name)
+        .map(IntrinsicRegistryEntry::Standard)
+}
+
+/// Resolve an integer intrinsic annotation name to its closed semantic key.
+/// Raw strings stop at this registry boundary and never enter HIR output.
+pub fn integer_intrinsic_kind(name: &str) -> Option<IntegerIntrinsicKind> {
+    for kind in IntegerKind::ALL {
+        for operation in NoGcIntegerOperation::ALL {
+            if operation.supports(kind)
+                && name == format!("{}_{}", kind.registry_key(), operation.registry_key())
+            {
+                return Some(IntegerIntrinsicKind::NoGcOperation { kind, operation });
+            }
+        }
+        for operation in IntegerDivRem::ALL {
+            if name == format!("{}_{}", kind.registry_key(), operation.registry_key()) {
+                return Some(IntegerIntrinsicKind::ManagedOperation { kind, operation });
+            }
+        }
+        for target_kind in IntegerKind::ALL {
+            if name == format!("{}_to_{}", kind.registry_key(), target_kind.registry_key()) {
+                return Some(IntegerIntrinsicKind::Conversion {
+                    source: kind,
+                    target_kind,
+                });
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn intrinsic_type_registry_contains_each_integer_kind_once() {
+        for kind in IntegerKind::ALL {
+            let matches = INTRINSIC_TYPE_REGISTRY
+                .iter()
+                .filter(|spec| spec.kind == IntrinsicTypeKind::Integer(kind))
+                .collect::<Vec<_>>();
+            assert_eq!(matches.len(), 1);
+            assert_eq!(matches[0].name, kind.intrinsic_name());
+        }
+    }
+
+    #[test]
+    fn pointer_intrinsic_families_are_registered_with_distinct_contracts() {
+        let pointer = intrinsic_type_spec("core_ptr").expect("Ptr family is registered");
+        assert_eq!(pointer.kind, IntrinsicTypeKind::Ptr);
+        assert_eq!(pointer.kind.target(), IntrinsicTypeTarget::Struct);
+        assert_eq!(
+            pointer.kind.parameters(),
+            IntrinsicTypeParameters::OneInvariantValue
+        );
+
+        let function_pointer =
+            intrinsic_type_spec("core_fun_ptr").expect("FunPtr family is registered");
+        assert_eq!(function_pointer.kind, IntrinsicTypeKind::FunPtr);
+        assert_eq!(function_pointer.kind.target(), IntrinsicTypeTarget::Struct);
+        assert_eq!(
+            function_pointer.kind.parameters(),
+            IntrinsicTypeParameters::OneInvariantUnconstrained
+        );
+    }
+
+    #[test]
+    fn integer_intrinsic_registry_is_total_and_effect_typed() {
+        let mut count = 0;
+        for kind in IntegerKind::ALL {
+            for operation in NoGcIntegerOperation::ALL {
+                let name = format!("{}_{}", kind.registry_key(), operation.registry_key());
+                if operation.supports(kind) {
+                    let entry = intrinsic_spec(&name).expect("supported operation is registered");
+                    assert_eq!(
+                        entry.kind(),
+                        IntrinsicFunctionKind::Integer(IntegerIntrinsicKind::NoGcOperation {
+                            kind,
+                            operation,
+                        })
+                    );
+                    assert!(entry.effects().no_gc);
+                    count += 1;
+                } else {
+                    assert!(intrinsic_spec(&name).is_none());
+                }
+            }
+            for operation in IntegerDivRem::ALL {
+                let name = format!("{}_{}", kind.registry_key(), operation.registry_key());
+                let entry = intrinsic_spec(&name).expect("div/rem is registered");
+                assert_eq!(
+                    entry.kind(),
+                    IntrinsicFunctionKind::Integer(IntegerIntrinsicKind::ManagedOperation {
+                        kind,
+                        operation,
+                    })
+                );
+                assert!(!entry.effects().no_gc);
+                count += 1;
+            }
+            for target_kind in IntegerKind::ALL {
+                let name = format!("{}_to_{}", kind.registry_key(), target_kind.registry_key());
+                let entry = intrinsic_spec(&name).expect("conversion is registered");
+                assert_eq!(
+                    entry.kind(),
+                    IntrinsicFunctionKind::Integer(IntegerIntrinsicKind::Conversion {
+                        source: kind,
+                        target_kind,
+                    })
+                );
+                assert!(entry.effects().no_gc);
+                count += 1;
+            }
+        }
+        assert_eq!(count, 204);
+    }
 }

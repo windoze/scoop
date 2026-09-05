@@ -95,8 +95,122 @@ impl Expr {
         Self::new(ty, ExprKind::Local(local))
     }
 
-    pub(crate) fn int(value: i64) -> Self {
-        Self::new(mir::Type::Int, ExprKind::IntLiteral(value))
+    pub(crate) fn integer(value: mir::MirIntegerConstant) -> Self {
+        Self::new(
+            mir::Type::Integer(value.kind()),
+            ExprKind::IntegerLiteral(value),
+        )
+    }
+
+    pub(crate) fn integer_unary(operation: mir::IntegerUnaryOperation, operand: Self) -> Self {
+        assert_eq!(operand.ty, mir::Type::Integer(operation.kind()));
+        Self::new(
+            mir::Type::Integer(operation.kind()),
+            ExprKind::IntegerUnary {
+                operation,
+                operand: Box::new(operand),
+            },
+        )
+    }
+
+    pub(crate) fn integer_binary(
+        operation: mir::IntegerBinaryOperation,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
+        let ty = mir::Type::Integer(operation.kind());
+        assert_eq!(lhs.ty, ty);
+        assert_eq!(rhs.ty, ty);
+        Self::new(
+            ty,
+            ExprKind::IntegerBinary {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub(crate) fn safe_integer_div_rem(
+        operation: mir::SafeIntegerDivRemOperation,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
+        let ty = mir::Type::Integer(operation.kind());
+        assert_eq!(lhs.ty, ty);
+        assert_eq!(rhs.ty, ty);
+        Self::new(
+            ty,
+            ExprKind::SafeIntegerDivRem {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub(crate) fn integer_compare(
+        operation: mir::IntegerComparisonOperation,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
+        let operand_ty = mir::Type::Integer(operation.operand_kind());
+        assert_eq!(lhs.ty, operand_ty);
+        assert_eq!(rhs.ty, operand_ty);
+        Self::new(
+            mir::Type::Boolean,
+            ExprKind::IntegerCompare {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub(crate) fn integer_compare_to(
+        operation: mir::IntegerCompareToOperation,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
+        let operand_ty = mir::Type::Integer(operation.operand_kind());
+        assert_eq!(lhs.ty, operand_ty);
+        assert_eq!(rhs.ty, operand_ty);
+        Self::new(
+            mir::Type::Integer(operation.result_kind()),
+            ExprKind::IntegerCompareTo {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub(crate) fn integer_shift(
+        operation: mir::IntegerShiftOperation,
+        value: Self,
+        count: Self,
+    ) -> Self {
+        assert_eq!(value.ty, mir::Type::Integer(operation.value_kind()));
+        assert_eq!(count.ty, mir::Type::Integer(operation.count_kind()));
+        Self::new(
+            mir::Type::Integer(operation.value_kind()),
+            ExprKind::IntegerShift {
+                operation,
+                value: Box::new(value),
+                count: Box::new(count),
+            },
+        )
+    }
+
+    pub(crate) fn integer_conversion(conversion: mir::IntegerConversion, operand: Self) -> Self {
+        assert_eq!(operand.ty, mir::Type::Integer(conversion.source_kind()));
+        Self::new(
+            mir::Type::Integer(conversion.target_kind()),
+            ExprKind::IntegerConversion {
+                conversion,
+                operand: Box::new(operand),
+            },
+        )
     }
 
     pub(crate) fn machine_scalar(value: mir::MachineScalarValue) -> Self {
@@ -142,7 +256,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub(crate) enum ExprKind {
     StringConst(mir::StringConstId),
-    IntLiteral(i64),
+    IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
     BoolLiteral(bool),
     UnitLiteral,
@@ -168,11 +282,11 @@ pub(crate) enum ExprKind {
     Local(mir::LocalId),
     GlobalRead(mir::GlobalId),
     InitializationUnitAddress(mir::InitializationUnitId),
-    PtrFromUInt {
+    PtrFromNonZeroULong {
         operand: Box<Expr>,
         pointee: Box<mir::Type>,
     },
-    PtrToUInt(Box<Expr>),
+    PtrToULong(Box<Expr>),
     PtrCast {
         operand: Box<Expr>,
         pointee: Box<mir::Type>,
@@ -204,7 +318,6 @@ pub(crate) enum ExprKind {
     },
     SizeOf(Box<mir::Type>),
     AlignOf(Box<mir::Type>),
-    FunPtrNull(mir::FunctionTypeId),
     FunctionAddress {
         callback: mir::CallbackBridgeId,
     },
@@ -265,6 +378,39 @@ pub(crate) enum ExprKind {
     },
     Unary {
         op: mir::UnOp,
+        operand: Box<Expr>,
+    },
+    IntegerUnary {
+        operation: mir::IntegerUnaryOperation,
+        operand: Box<Expr>,
+    },
+    IntegerBinary {
+        operation: mir::IntegerBinaryOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    SafeIntegerDivRem {
+        operation: mir::SafeIntegerDivRemOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerCompare {
+        operation: mir::IntegerComparisonOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerCompareTo {
+        operation: mir::IntegerCompareToOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerShift {
+        operation: mir::IntegerShiftOperation,
+        value: Box<Expr>,
+        count: Box<Expr>,
+    },
+    IntegerConversion {
+        conversion: mir::IntegerConversion,
         operand: Box<Expr>,
     },
     VariantConstruct {

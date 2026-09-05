@@ -69,7 +69,7 @@ fn arrays_module() -> Module {
         instructions: vec![
             Instruction::ArrayAlloc {
                 out: t0,
-                elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
+                elements: vec![signed64(1), signed64(2), signed64(3)],
                 array_type: int_array,
                 safepoint: test_safepoint(1),
                 live: scoop_lir::StatepointLiveSet::default(),
@@ -86,12 +86,12 @@ fn arrays_module() -> Module {
             Instruction::ArrayGet {
                 out: t2,
                 array: Value::Local(numbers),
-                index: Value::IntConst(1),
+                index: signed64(1),
                 array_type: int_array,
             },
             Instruction::ArraySet {
                 array: Value::Local(numbers),
-                index: Value::IntConst(0),
+                index: signed64(0),
                 value: Value::Temp(t2),
                 array_type: int_array,
             },
@@ -124,7 +124,7 @@ fn arrays_module() -> Module {
             Instruction::ArrayGet {
                 out: t6,
                 array: Value::Temp(t5),
-                index: Value::IntConst(0),
+                index: signed64(0),
                 array_type: point_array,
             },
             Instruction::ExtractValue {
@@ -148,28 +148,29 @@ fn arrays_module() -> Module {
                     statepoint_value(scoop_lir::CallerRootSource::Temp(t5), MANAGED_PTR, &[0]),
                 ]),
             },
-            Instruction::BinOp {
+            Instruction::IntegerBinary {
                 out: t9,
-                op: BinOp::Add,
+                kind: IntegerKind::SIGNED_64,
+                operation: IntegerBinaryOperation::Add,
                 lhs: Value::Temp(t1),
                 rhs: Value::Temp(t7),
             },
             Instruction::ArraySet {
                 array: Value::Temp(t3),
-                index: Value::IntConst(0),
-                value: Value::IntConst(0),
+                index: signed64(0),
+                value: signed64(0),
                 array_type: mutable_int_array,
             },
             Instruction::ArraySet {
                 array: Value::Temp(t8),
-                index: Value::IntConst(0),
+                index: signed64(0),
                 value: Value::Temp(t6),
                 array_type: mutable_point_array,
             },
             Instruction::ArrayAssembly {
                 out: t10,
                 parts: vec![
-                    scoop_lir::ArrayAssemblyPart::Element(Value::IntConst(9)),
+                    scoop_lir::ArrayAssemblyPart::Element(signed64(9)),
                     scoop_lir::ArrayAssemblyPart::CopyArray(Value::Local(numbers)),
                 ],
                 array_type: int_array,
@@ -192,8 +193,8 @@ fn arrays_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
@@ -250,6 +251,22 @@ fn emits_m5_arrays() {
         .len();
     assert!(len > 0, "object file is empty");
     std::fs::remove_file(&output).ok();
+}
+
+#[test]
+fn array_assembly_checks_the_long_logical_length_limit() {
+    let ir = ir_of(&arrays_module());
+    assert!(
+        ir.lines().any(|line| {
+            line.contains("assembly_long_size_overflow = icmp ugt i64")
+                && line.contains("9223372036854775807")
+        }),
+        "ArrayAssembly must reject logical lengths above Long.MAX_VALUE:\n{ir}"
+    );
+    assert!(
+        ir.contains("assembly.size.long.ok.1"),
+        "the Long length check must branch through the array-size trap:\n{ir}"
+    );
 }
 
 fn array_codegen_error(module: &Module) -> CodegenError {

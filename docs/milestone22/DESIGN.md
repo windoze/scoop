@@ -111,7 +111,7 @@ winner commit后literal成为封闭的`IntegerConstant::{Signed8(u8), Signed16(u
 - `and`、`or`、`xor`、`inv`直接作用于W位bit pattern；signedness只影响结果解释，不改变bit；
 - shift的count参数为`Long`，实际count取其低`log2(W)`位。signed `shr`为算术右移，signed `ushr`与unsigned `shr`为逻辑右移，`shl`丢弃移出位；任何count都不能触发LLVM overshift poison；
 - 比较按kind选择signed或unsigned次序；`compareTo`返回canonical `Long`的`-1/0/1`，`equals`仍要求同一type；
-- HIR const evaluator、普通执行、default/annotation常量与优化后的结果必须逐项一致。常量除零是const定义错误；普通表达式即使operand为literal也保持运行期异常语义；
+- HIR const evaluator、普通执行、default/annotation常量与优化后的结果必须逐项一致。源码显式整数方法调用只有在typed registry精确解析到对应representation intrinsic时才可进入const evaluator；同名用户callable与`toString`等普通方法仍不是常量表达式。常量`div`/`rem`除零是const定义错误；普通表达式即使operand为literal也保持运行期异常语义；
 - unary plus/minus、inc/dec、add/sub/mul、compare/equals、bit、shift与conversion是GC-free且不抛异常，其core intrinsic声明必须显式带`@NoGC`，registry也把它们登记为typed NoGc target；这是language spec §13.1允许`@Intrinsic`与`@NoGC`共存的封闭例外。div/rem可能构造异常，声明不得带`@NoGC`且registry登记为Managed。MIR使用已经解析的`ArithmeticException`构造目标显式展开除零分支，并在signed `MIN/-1`路径直接产生规定结果；只有其余安全路径进入primitive div/rem。codegen不得为wrapping运算添加`nsw`/`nuw`，也不得自行补异常控制流。
 
 每种integer提供固定宽度命名的`toInt8()`/`toInt16()`/`toInt32()`/`toInt64()`与`toUInt8()`/`toUInt16()`/`toUInt32()`/`toUInt64()`，并可提供`toByte()`/`toShort()`/`toInt()`/`toLong()`等源码友好名称的转发member。转换不抛异常：先把数学值按`2^targetWidth`取模，再按目标signedness解释；这同时定义identity、narrowing、signed/unsigned跨族和widening。alias返回类型仍是同一个目标identity。

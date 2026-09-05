@@ -33,12 +33,9 @@ impl<'a> FunctionLowerer<'a> {
                             let ty = self.value_type(&ty);
                             let local = self.new_hidden_local(ty);
                             self.push(lir::Instruction::Store { local, value });
-                            let address = self.new_temp(lir::RAW_PTR);
-                            self.push(lir::Instruction::LocalAddress {
-                                out: address,
-                                local,
-                            });
-                            bridge_args.push(lir::Value::Temp(address));
+                            bridge_args.push(lir::Value::CArgumentStorage(
+                                lir::CArgumentStorage::address_of(local),
+                            ));
                         }
                         let bridge_parameter_types = vec![lir::RAW_PTR; bridge_args.len()];
                         if returns_unit {
@@ -287,6 +284,11 @@ impl<'a> FunctionLowerer<'a> {
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::StringCompare => {
+                        assert_eq!(
+                            *result_ty,
+                            mir::Type::Integer(mir::IntegerKind::SIGNED_64),
+                            "the closed string-compare runtime ABI returns signed 64-bit",
+                        );
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::LirType::I64)
                     }
                     // The pin / handle intrinsics exchange a word with

@@ -142,8 +142,8 @@ fn classes_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
@@ -322,7 +322,7 @@ pub(super) fn heap_module() -> Module {
             Instruction::HeapStore {
                 object: Value::Temp(t0),
                 offset: 16,
-                value: Value::IntConst(42),
+                value: signed64(42),
             },
             Instruction::HeapStore {
                 object: Value::Temp(t0),
@@ -386,8 +386,8 @@ pub(super) fn heap_module() -> Module {
     Module {
         globals,
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),

@@ -42,7 +42,7 @@ fn try_and_throw_become_explicit_cfg() {
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module
+Module mangling=compact-v2
   class MyError vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -63,7 +63,7 @@ Module
     bb4 try.handler_cleanup.4
       end_catch
       Type Int
-      IntLiteral 2
+      IntegerLiteral Int value=2 bits=0x00000002
       resume
     bb5 try.exit_pad.5
       landing_pad cleanup=true
@@ -92,16 +92,16 @@ Module
       goto bb11
     bb10 try.next.10 unwind bb5
       Type Int
-      IntLiteral 2
+      IntegerLiteral Int value=2 bits=0x00000002
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
       Type Int
-      IntLiteral 1
+      IntegerLiteral Int value=1 bits=0x00000001
       goto bb12
     bb12 scope.12
       end_catch
       Type Int
-      IntLiteral 2
+      IntegerLiteral Int value=2 bits=0x00000002
       goto bb7
   fun init.MyError.$c0 @scoop.init.MyError.$c0(this: MyError) -> Unit
     bb0 entry
@@ -114,16 +114,19 @@ Module
 #[test]
 fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     let mut h = Harness::new();
+    let one = int_lit(&h, 1);
+    let negation = integer_unary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::NoGcIntegerOperation::UnaryMinus,
+        one,
+    );
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
             statements: vec![
-                expr_stmt(primitive_unary(
-                    hir::PrimitiveUnaryKind::IntUnaryMinus,
-                    int_lit(&h, 1),
-                    h.int,
-                )),
+                expr_stmt(negation),
                 expr_stmt(expr(
                     hir::ExprKind::Unary {
                         op: hir::UnOp::Not,
@@ -137,19 +140,26 @@ fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     let module = lower(&h.finish(main));
 
     let body = &module.functions[module.entry].body;
-    let ops: Vec<mir::UnOp> = entry_statements(body)
-        .iter()
-        .map(|statement| {
-            let mir::StatementKind::Expr(expr) = &statement.kind else {
-                panic!("expected an expression statement")
-            };
-            let mir::ExprKind::Unary { op, .. } = &expr.kind else {
-                panic!("expected a unary expression")
-            };
-            *op
+    let [integer, boolean] = entry_statements(body) else {
+        panic!("expected the two unary expression statements")
+    };
+    assert!(matches!(
+        integer.kind,
+        mir::StatementKind::Expr(mir::Expr {
+            kind: mir::ExprKind::IntegerUnary { operation, .. },
+            ..
+        }) if operation.operator() == mir::IntegerUnaryOperator::Negate
+    ));
+    assert!(matches!(
+        boolean.kind,
+        mir::StatementKind::Expr(mir::Expr {
+            kind: mir::ExprKind::Unary {
+                op: mir::UnOp::BoolNot,
+                ..
+            },
+            ..
         })
-        .collect();
-    assert_eq!(ops, [mir::UnOp::IntNeg, mir::UnOp::BoolNot]);
+    ));
 }
 
 #[test]

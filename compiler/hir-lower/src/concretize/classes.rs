@@ -553,15 +553,17 @@ impl Concretizer<'_> {
         storage: &export::GlobalStorage,
     ) -> concrete::GlobalStorage {
         match storage {
-            export::GlobalStorage::Managed { initializer } => concrete::GlobalStorage::Managed {
-                initializer: match initializer {
-                    export::ManagedGlobalInitializer::Image(value) => {
-                        concrete::ManagedGlobalInitializer::Image(self.lower_constant(value))
+            export::GlobalStorage::Managed { state } => concrete::GlobalStorage::Managed {
+                state: match state {
+                    export::HirStaticInitialState::EncodedStaticValue { payload } => {
+                        concrete::HirStaticInitialState::EncodedStaticValue {
+                            payload: self.lower_constant(payload),
+                        }
                     }
-                    export::ManagedGlobalInitializer::RuntimeZeroed(unit) => {
-                        concrete::ManagedGlobalInitializer::RuntimeZeroed(
-                            concrete::InitializationUnitId::from_raw(unit.into_raw()),
-                        )
+                    export::HirStaticInitialState::ZeroedForRuntimeUnit { unit } => {
+                        concrete::HirStaticInitialState::ZeroedForRuntimeUnit {
+                            unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                        }
                     }
                 },
             },
@@ -586,27 +588,33 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_constant(
         &mut self,
-        value: &export::ConstantValue,
-    ) -> concrete::ConstantValue {
+        value: &export::HirConstantImage,
+    ) -> concrete::HirConstantImage {
         match value {
-            export::ConstantValue::Int(value) => concrete::ConstantValue::Int(*value),
-            export::ConstantValue::Bool(value) => concrete::ConstantValue::Bool(*value),
-            export::ConstantValue::String(value) => concrete::ConstantValue::String(value.clone()),
-            export::ConstantValue::NullPtr => concrete::ConstantValue::NullPtr,
-            export::ConstantValue::NullFunPtr => concrete::ConstantValue::NullFunPtr,
-            export::ConstantValue::EnumUnit {
+            export::HirConstantImage::Integer(value) => concrete::HirConstantImage::Integer(*value),
+            export::HirConstantImage::Boolean(value) => concrete::HirConstantImage::Boolean(*value),
+            export::HirConstantImage::String(value) => {
+                concrete::HirConstantImage::String(value.clone())
+            }
+            export::HirConstantImage::NullPointer(kind) => {
+                concrete::HirConstantImage::NullPointer(match kind {
+                    export::HirPointerNullKind::Raw => concrete::HirPointerNullKind::Raw,
+                    export::HirPointerNullKind::Code => concrete::HirPointerNullKind::Code,
+                })
+            }
+            export::HirConstantImage::EnumUnit {
                 application,
                 variant,
-            } => concrete::ConstantValue::EnumUnit {
+            } => concrete::HirConstantImage::EnumUnit {
                 enum_id: self.lower_enum_application(*application, &[]),
                 variant: *variant,
             },
-            export::ConstantValue::Struct {
+            export::HirConstantImage::Struct {
                 application,
                 fields,
             } => {
                 let struct_id = self.lower_struct_application(*application, &[]);
-                concrete::ConstantValue::Struct {
+                concrete::HirConstantImage::Struct {
                     struct_id,
                     fields: fields
                         .iter()

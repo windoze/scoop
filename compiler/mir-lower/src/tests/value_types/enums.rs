@@ -66,13 +66,16 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         .iter()
         .map(|(_, def)| def.name.as_str())
         .collect();
-    assert_eq!(names, ["Option$I", "Color", "Option$S", "Option$D1_SX"]);
+    assert_eq!(names, ["Option$I32", "Color", "Option$S", "Option$D1_SX"]);
 
     // The variant field types are substituted with the instance's
     // type arguments.
     let option_int_def = &module.enums[la_arena::Idx::from_raw(0.into())];
     assert_eq!(option_int_def.variants[0].name, "Some");
-    assert_eq!(option_int_def.variants[0].fields[0].ty, mir::Type::Int);
+    assert_eq!(
+        option_int_def.variants[0].fields[0].ty,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
     assert!(option_int_def.gc_free);
     assert!(
         option_int_def
@@ -94,6 +97,24 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     assert!(!option_string_def.gc_free);
     assert!(!option_string_def.variants[0].gc_free);
     assert!(option_string_def.variants[1].gc_free);
+    assert_eq!(module.option_core.len(), 3);
+    for enum_id in [
+        la_arena::Idx::from_raw(0.into()),
+        la_arena::Idx::from_raw(2.into()),
+        la_arena::Idx::from_raw(3.into()),
+    ] {
+        let option = module
+            .option_core(enum_id)
+            .expect("each concrete core Option has exact MIR provenance");
+        assert_eq!(option.some_variant(), 0);
+        assert_eq!(option.none_variant(), 1);
+    }
+    assert!(
+        module
+            .option_core(la_arena::Idx::from_raw(1.into()))
+            .is_none(),
+        "an equal-shaped user enum must not be recognized as core Option"
+    );
     // Color's variants are all unit variants.
     let color_def = &module.enums[la_arena::Idx::from_raw(1.into())];
     assert!(color_def.gc_free);
@@ -152,33 +173,33 @@ fn option_nodes_become_generic_enum_operations() {
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module
-  enum Option$I
+Module mangling=compact-v2
+  enum Option$I32
     Some(_1: Int)
     None()
   fun main @scoop_main() -> Unit
     bb0 entry
-      val o: Option$I<Int>
-        Type Option$I<Int>
-        VariantConstruct Option$I<Int> v0
+      val o: Option$I32<Int>
+        Type Option$I32<Int>
+        VariantConstruct Option$I32<Int> v0
           Type Int
-          IntLiteral 41
-      val n: Option$I<Int>
-        Type Option$I<Int>
-        VariantConstruct Option$I<Int> v1
+          IntegerLiteral Int value=41 bits=0x00000029
+      val n: Option$I32<Int>
+        Type Option$I32<Int>
+        VariantConstruct Option$I32<Int> v1
       val b: Boolean
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type Option$I<Int>
+            Type Option$I32<Int>
             Local o
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
       val y: Int
         Type Int
         EnumField v0 f0
-          Type Option$I<Int>
+          Type Option$I32<Int>
           Local o
       return
   entry @scoop_main
@@ -227,27 +248,27 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // guards the extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
     let expected = "\
-Module
-  enum Option$I
+Module mangling=compact-v2
+  enum Option$I32
     Some(_1: Int)
     None()
   class UnwrapException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
-      val o: Option$I<Int>
-        Type Option$I<Int>
-        VariantConstruct Option$I<Int> v0
+      val o: Option$I32<Int>
+        Type Option$I32<Int>
+        VariantConstruct Option$I32<Int> v0
           Type Int
-          IntLiteral 1
-      val $opt.1: Option$I<Int>
-        Type Option$I<Int>
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $opt.1: Option$I32<Int>
+        Type Option$I32<Int>
         Local o
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type Option$I<Int>
+            Type Option$I32<Int>
             Local $opt.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -255,7 +276,7 @@ Module
       val $uw.2: Int
         Type Int
         EnumField v0 f0
-          Type Option$I<Int>
+          Type Option$I32<Int>
           Local $opt.1
       goto bb3
     bb2 if.else.2

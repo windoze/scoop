@@ -53,6 +53,8 @@ const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {
     {&world, sizeof world, &scoop_td_String},
 };
 const uint64_t scoop_image_immortal_object_count = 2;
+const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
+const uint64_t scoop_image_initialization_unit_count = 0;
 
 /* 64-byte plain object without references: exactly two per line, for
  * the free-line reuse test. */
@@ -123,15 +125,15 @@ ScoopArray *make_ref_array(void) {
     ScoopArray *array = scoop_rt_alloc(&ref_array_td, sizeof(ScoopArray) + 2 * sizeof(uint64_t));
     array->size = 2;
     const ScoopString **elements = (const ScoopString **)array->elements;
-    elements[0] = scoop_rt_int_to_string(1001);
-    elements[1] = scoop_rt_int_to_string(1002);
+    elements[0] = scoop_rt_long_to_string(1001);
+    elements[1] = scoop_rt_long_to_string(1002);
     return array;
 }
 
 ScoopBoxedEnum *make_boxed_enum_a(void) {
     ScoopBoxedEnum *e = scoop_rt_alloc(&enum_td, sizeof(ScoopBoxedEnum));
     e->tag = 0;
-    e->a_ref = scoop_rt_int_to_string(1003);
+    e->a_ref = scoop_rt_long_to_string(1003);
     return e;
 }
 
@@ -149,11 +151,11 @@ ScoopArray *make_nested_array(void) {
     array->size = 2;
     ScoopNestedElement *elements = (ScoopNestedElement *)array->elements;
     elements[0].tag = 0;
-    elements[0].a_ref = scoop_rt_int_to_string(1004);
-    elements[0].tail = scoop_rt_int_to_string(1005);
+    elements[0].a_ref = scoop_rt_long_to_string(1004);
+    elements[0].tail = scoop_rt_long_to_string(1005);
     elements[1].tag = 1;
     elements[1].pure_payload = UINT64_C(0xDEADBEEF0);
-    elements[1].tail = scoop_rt_int_to_string(1006);
+    elements[1].tail = scoop_rt_long_to_string(1006);
     return array;
 }
 

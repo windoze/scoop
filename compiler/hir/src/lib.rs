@@ -36,6 +36,9 @@ pub use ids::*;
 mod types;
 pub use types::*;
 
+mod integer;
+pub use integer::*;
+
 mod entities;
 pub use entities::*;
 

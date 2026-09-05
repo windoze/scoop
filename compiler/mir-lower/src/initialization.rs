@@ -127,10 +127,11 @@ impl Lowerer {
             ),
         ];
         let cycle_message = smir::Expr::local(message, mir::Type::String);
+        let option = option_core_for_type(module, &self.enums, &cycle.message_type);
         let some_message = smir::Expr::new(
             cycle.message_type.clone(),
             smir::ExprKind::VariantConstruct {
-                variant: self.option_variants.0,
+                variant: option.some_variant(),
                 fields: vec![cycle_message],
             },
         );

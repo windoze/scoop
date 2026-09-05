@@ -88,9 +88,18 @@ pub enum WhenFallback {
 /// A fully instantiated exhaustiveness witness.
 #[derive(Debug, Clone)]
 pub enum ExhaustivenessProof {
-    IrrefutableArm { subject_ty: TypeId },
-    PatternMatrix { subject_ty: TypeId },
-    EnumPatternMatrix { subject_ty: TypeId, enum_id: EnumId },
+    IrrefutableArm {
+        subject_ty: TypeId,
+    },
+    /// A tuple, struct, or exact integer domain is covered by the complete
+    /// recursive pattern matrix.
+    PatternMatrix {
+        subject_ty: TypeId,
+    },
+    EnumPatternMatrix {
+        subject_ty: TypeId,
+        enum_id: EnumId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -115,8 +124,8 @@ pub enum Pattern {
     Wildcard,
     Literal {
         value: Expr,
-        /// Exact ordinary operator target selected by Export HIR.
-        equals: Callable,
+        /// Exact equality plan selected by Export HIR.
+        equality: LiteralPatternEquality,
         /// Static subject type used to select dispatch. This is explicit so
         /// MIR never reconstructs it from its recursive pattern context.
         subject_ty: TypeId,
@@ -133,6 +142,20 @@ pub enum Pattern {
     },
 }
 
+/// Fully instantiated literal-pattern equality plan. The mutually exclusive
+/// variants prevent an integer intrinsic from being mistaken for a user
+/// function by MIR lowering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralPatternEquality {
+    Integer {
+        kind: IntegerKind,
+        target: NoGcCallableRef,
+    },
+    Ordinary {
+        equals: Callable,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
@@ -144,7 +167,7 @@ pub struct Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     StringLiteral(String),
-    IntLiteral(i64),
+    IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
@@ -186,8 +209,8 @@ pub enum ExprKind {
         coercion: FunctionCoercionId,
         target_type: FunctionTypeId,
     },
-    PtrFromUInt(Box<Expr>),
-    PtrToUInt(Box<Expr>),
+    PtrFromNonZeroULong(Box<Expr>),
+    PtrToULong(Box<Expr>),
     PtrCast(Box<Expr>),
     PtrLoad {
         pointer: Box<Expr>,
@@ -206,7 +229,6 @@ pub enum ExprKind {
     AddressOf(Place),
     SizeOf(TypeId),
     AlignOf(TypeId),
-    FunPtrNull,
     FunctionAddress(FunctionId),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
@@ -279,6 +301,14 @@ pub enum ExprKind {
         kind: PrimitiveUnaryKind,
         operand: Box<Expr>,
     },
+    IntegerOperation {
+        operation: HirIntegerOperation,
+        arguments: HirIntegerOperationArguments,
+    },
+    IntegerConversion {
+        conversion: HirIntegerConversion,
+        operand: Box<Expr>,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -295,6 +325,12 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum HirIntegerOperationArguments {
+    Unary(Box<Expr>),
+    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
 }
 
 #[derive(Debug, Clone)]

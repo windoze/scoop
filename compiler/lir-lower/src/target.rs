@@ -38,10 +38,9 @@ impl LoweringContext {
         PhysicalLayout::from_scalar(self.target_profile.scalar_layout(kind))
     }
 
-    /// The pre-M22 MIR `Int` / `UInt` carrier remains explicitly I64 until
-    /// the atomic typed-integer cutover replaces those two legacy variants.
-    pub(crate) fn legacy_integer_layout(self) -> PhysicalLayout {
-        self.scalar_layout(lir::BackendScalarKind::I64)
+    /// Natural target layout of one exact-width source integer.
+    pub(crate) fn integer_layout(self, kind: lir::IntegerKind) -> PhysicalLayout {
+        self.scalar_layout(kind.width().backend_scalar_kind())
     }
 
     /// Every current internal machine-scalar domain still lowers to I64.

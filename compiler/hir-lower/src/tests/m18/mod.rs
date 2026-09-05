@@ -459,7 +459,7 @@ fn overloadable_expressions_select_only_typed_operator_roles() {
     let compare_to = operator(method_expr(
         "compareTo",
         vec![("other", ty_named("Number"))],
-        Some(ty_named("Int")),
+        Some(ty_named("Long")),
         int_lit(0),
     ));
     let contains = operator(method_expr(
@@ -558,8 +558,12 @@ fn overloadable_expressions_select_only_typed_operator_roles() {
     assert_eq!(direct_method_name(&module, operand), "Bag.contains");
     assert!(matches!(
         local_init(body, "remainder").kind,
-        hir::ExprKind::PrimitiveBinary {
-            kind: hir::PrimitiveBinaryKind::IntRem,
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::Managed {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::IntegerDivRem::Rem,
+                ..
+            },
             ..
         }
     ));
@@ -577,6 +581,7 @@ fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
             val("product", binary(BinOp::Mul, int_lit(3), int_lit(2))),
             val("quotient", binary(BinOp::Div, int_lit(6), int_lit(2))),
             val("remainder", binary(BinOp::Rem, int_lit(7), int_lit(3))),
+            val("equal", binary(BinOp::Eq, int_lit(1), int_lit(1))),
             val("ordered", binary(BinOp::Lt, int_lit(1), int_lit(2))),
             val("negated", unary(UnOp::Not, bool_lit(false))),
             val("text", binary(BinOp::Add, str_lit("a"), str_lit("b"))),
@@ -596,41 +601,104 @@ fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
     )]))
     .expect("validated core operators must normalize after overload selection");
     let body = function_body(&module, "main");
-    for (name, kind) in [
-        ("positive", hir::PrimitiveUnaryKind::IntUnaryPlus),
-        ("negative", hir::PrimitiveUnaryKind::IntUnaryMinus),
-        ("negated", hir::PrimitiveUnaryKind::BooleanNot),
+    assert!(matches!(
+        local_init(body, "positive").kind,
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::NoGc {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::NoGcIntegerOperation::UnaryPlus,
+                ..
+            },
+            ..
+        }
+    ));
+    assert!(matches!(
+        local_init(body, "negative").kind,
+        hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(value))
+            if value == u32::MAX
+    ));
+    assert!(matches!(
+        local_init(body, "negated").kind,
+        hir::ExprKind::PrimitiveUnary {
+            kind: hir::PrimitiveUnaryKind::BooleanNot,
+            ..
+        }
+    ));
+    for (name, operation) in [
+        ("sum", hir::NoGcIntegerOperation::Add),
+        ("difference", hir::NoGcIntegerOperation::Sub),
+        ("product", hir::NoGcIntegerOperation::Mul),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::PrimitiveUnary { kind: actual, .. } if *actual == kind
+            hir::ExprKind::IntegerOperation {
+                operation: hir::IntegerOperation::NoGc {
+                    kind: hir::IntegerKind::SIGNED_32,
+                    operation: actual,
+                    ..
+                },
+                ..
+            } if *actual == operation
         ));
     }
-    for (name, kind) in [
-        ("sum", hir::PrimitiveBinaryKind::IntAdd),
-        ("difference", hir::PrimitiveBinaryKind::IntSub),
-        ("product", hir::PrimitiveBinaryKind::IntMul),
-        ("quotient", hir::PrimitiveBinaryKind::IntDiv),
-        ("remainder", hir::PrimitiveBinaryKind::IntRem),
-        ("text", hir::PrimitiveBinaryKind::StringConcat),
+    assert!(matches!(
+        local_init(body, "equal").kind,
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::NoGc {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::NoGcIntegerOperation::Equals,
+                ..
+            },
+            ..
+        }
+    ));
+    for (name, operation) in [
+        ("quotient", hir::IntegerDivRem::Div),
+        ("remainder", hir::IntegerDivRem::Rem),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::PrimitiveBinary { kind: actual, .. } if *actual == kind
+            hir::ExprKind::IntegerOperation {
+                operation: hir::IntegerOperation::Managed {
+                    kind: hir::IntegerKind::SIGNED_32,
+                    operation: actual,
+                    ..
+                },
+                ..
+            } if *actual == operation
         ));
     }
-    for (name, kind) in [
-        ("ordered", hir::PrimitiveBinaryKind::IntCompareTo),
-        ("text_ordered", hir::PrimitiveBinaryKind::StringCompareTo),
-    ] {
-        let hir::ExprKind::Binary { lhs, .. } = &local_init(body, name).kind else {
-            panic!("comparison must compare a typed compareTo result")
-        };
-        assert!(matches!(
-            &lhs.kind,
-            hir::ExprKind::PrimitiveBinary { kind: actual, .. } if *actual == kind
-        ));
-    }
+    assert!(matches!(
+        local_init(body, "text").kind,
+        hir::ExprKind::PrimitiveBinary {
+            kind: hir::PrimitiveBinaryKind::StringConcat,
+            ..
+        }
+    ));
+    let hir::ExprKind::Binary { lhs, .. } = &local_init(body, "ordered").kind else {
+        panic!("comparison must compare a typed compareTo result")
+    };
+    assert!(matches!(
+        &lhs.kind,
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::NoGc {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::NoGcIntegerOperation::CompareTo,
+                ..
+            },
+            ..
+        }
+    ));
+    let hir::ExprKind::Binary { lhs, .. } = &local_init(body, "text_ordered").kind else {
+        panic!("comparison must compare a typed compareTo result")
+    };
+    assert!(matches!(
+        &lhs.kind,
+        hir::ExprKind::PrimitiveBinary {
+            kind: hir::PrimitiveBinaryKind::StringCompareTo,
+            ..
+        }
+    ));
     assert!(matches!(
         local_init(body, "first").kind,
         hir::ExprKind::Index {
@@ -1062,7 +1130,7 @@ fn multi_index_get_and_set_use_typed_roles_and_set_reserves_its_value() {
     };
     assert_eq!(args.len(), 2, "vararg indices plus the reserved value");
     assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
-    assert_eq!(args[1].ty, module.int);
+    assert_eq!(args[1].ty, int_type(&module));
 }
 
 #[test]

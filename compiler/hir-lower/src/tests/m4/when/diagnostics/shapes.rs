@@ -7,16 +7,16 @@ fn when_subject_must_be_patternable() {
     let file = file(vec![fun(
         "main",
         vec![when_stmt(
-            int_lit(1),
+            str_lit("not patternable"),
             vec![arm(pat_wild(), None, vec![])],
             None,
         )],
     )]);
-    let errors = lower_user(file).expect_err("Int subject must fail");
+    let errors = lower_user(file).expect_err("String subject must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`when` subject must be an enum, tuple or struct, found Int"
+        "`when` subject must be an enum, tuple, struct or fixed-width integer, found String"
     );
 }
 

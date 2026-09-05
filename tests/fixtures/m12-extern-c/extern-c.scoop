@@ -8,17 +8,17 @@ struct NativePacked(val flag: Boolean, val value: Int)
 struct NativeEnvelope(
     val tag: Boolean,
     val packed: NativePacked,
-    val tail: UInt
+    val tail: ULong
 )
 
 @Extern(lib = "fixture_native", name = "native_add")
 fun nativeAdd(left: Int, right: Int): Int
 
 @Extern(lib = "fixture_native", name = "native_add_unsigned")
-fun nativeAddUnsigned(left: UInt, right: UInt): UInt
+fun nativeAddUnsigned(left: ULong, right: ULong): ULong
 
 @Extern(lib = "fixture_native")
-fun nativeDefault(value: UInt): UInt
+fun nativeDefault(value: ULong): ULong
 
 @Extern(lib = "fixture_extra", name = "extra_delta")
 fun extraDelta(value: Int): Int

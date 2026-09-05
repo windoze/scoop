@@ -13,9 +13,15 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
-            Instruction::BinOp { .. } | Instruction::UnaryOp { .. } => {
-                self.emit_operator_instruction(instruction)
-            }
+            Instruction::BinOp { .. }
+            | Instruction::UnaryOp { .. }
+            | Instruction::IntegerUnary { .. }
+            | Instruction::IntegerBinary { .. }
+            | Instruction::SafeIntegerDivRem { .. }
+            | Instruction::IntegerCompare { .. }
+            | Instruction::IntegerCompareTo { .. }
+            | Instruction::IntegerShift { .. }
+            | Instruction::IntegerConvert { .. } => self.emit_operator_instruction(instruction),
             Instruction::MakeAggregate { .. } | Instruction::ExtractValue { .. } => {
                 self.emit_aggregate_instruction(instruction)
             }
@@ -31,8 +37,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::ForeignCallbackOperation(_) => {
                 self.emit_callback_instruction(instruction)
             }
-            Instruction::IntToPtr { .. }
-            | Instruction::PtrToInt { .. }
+            Instruction::ULongToPtr { .. }
+            | Instruction::PtrToULong { .. }
             | Instruction::RawLoad { .. }
             | Instruction::RawStore { .. }
             | Instruction::PtrOffset { .. }

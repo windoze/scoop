@@ -16,7 +16,7 @@ impl Lowerer {
                 ty: throwable_ty.clone(),
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
-                    initializer: mir::ConstantValue::Zero,
+                    initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
                 },
             });
             let id = self
@@ -192,20 +192,20 @@ impl Lowerer {
                 &mut self.shell,
             );
             let storage = match &global.storage {
-                hir::GlobalStorage::Managed { initializer } => mir::GlobalStorage::Managed {
-                    initializer: match initializer {
-                        hir::ManagedGlobalInitializer::Image(value) => {
-                            lower_global_constant(value, &ty, &self.structs.defs, &mut self.strings)
-                        }
-                        hir::ManagedGlobalInitializer::RuntimeZeroed(_) => mir::ConstantValue::Zero,
-                    },
+                hir::GlobalStorage::Managed { state } => mir::GlobalStorage::Managed {
+                    initial_state: lower_managed_static_state(
+                        state,
+                        &ty,
+                        &self.structs.defs,
+                        &mut self.strings,
+                    ),
                 },
                 hir::GlobalStorage::Local {
                     thread_local,
                     initializer,
                 } => mir::GlobalStorage::Local {
                     thread_local: *thread_local,
-                    initializer: lower_global_constant(
+                    initial_state: lower_encoded_static_state(
                         initializer,
                         &ty,
                         &self.structs.defs,

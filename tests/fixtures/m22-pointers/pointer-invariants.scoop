@@ -1,0 +1,36 @@
+@Extern(name = "malloc")
+fun malloc(size: ULong): Ptr<Unit>
+
+@Extern(name = "free")
+fun free(pointer: Ptr<Unit>)
+
+@Unsafe
+fun <T : value> reconstruct(raw: ULong): Ptr<T> = Ptr<T>(raw)
+
+@Unsafe
+fun <T : value> forwardRaw(raw: ULong): ULong = reconstruct<T>(raw).toULong()
+
+fun main() {
+    @Unsafe {
+        val allocation = malloc(sizeOf<Int>())
+        val raw = forwardRaw<Int>(allocation.toULong())
+        val pointer = Ptr<Int>(raw = raw)
+        pointer.store(42)
+        println(pointer.load())
+        println(pointer.load(0L))
+        println(pointer.toULong() == raw)
+
+        val present: Ptr<Int>? = Some(pointer)
+        val absent: Ptr<Int>? = None
+        when (present) {
+            Some(value) -> println(value.load())
+            None -> println(0)
+        }
+        when (absent) {
+            Some(value) -> println(value.load())
+            None -> println(43)
+        }
+
+        free(pointer.cast<Unit>())
+    }
+}

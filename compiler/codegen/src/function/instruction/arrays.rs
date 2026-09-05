@@ -210,6 +210,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                     self.array_size_check(overflow, &format!("assembly.size.sum.ok.{part_index}"))?;
+                    let exceeds_long_max = builder
+                        .build_int_compare(
+                            IntPredicate::UGT,
+                            next_total,
+                            i64_ty.const_int(i64::MAX as u64, false),
+                            "assembly_long_size_overflow",
+                        )
+                        .map_err(|error| {
+                            CodegenError(format!(
+                                "check array assembly Long size limit @{symbol}: {error}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.array_size_check(
+                        exceeds_long_max,
+                        &format!("assembly.size.long.ok.{part_index}"),
+                    )?;
                     total = next_total;
                 }
 

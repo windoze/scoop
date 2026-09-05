@@ -60,7 +60,6 @@ impl Lowerer {
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,

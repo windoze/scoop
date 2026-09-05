@@ -48,17 +48,21 @@ impl Concretizer<'_> {
         self.struct_source.insert(id, source_id);
         let ty = match self.structs[id].representation {
             concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::Int,
+                application: concrete::IntrinsicTypeRepresentation::Integer(kind),
                 ..
-            } => self.intern_type(concrete::TypeKind::Int, true),
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::UInt,
-                ..
-            } => self.intern_type(concrete::TypeKind::UInt, true),
+            } => self.intern_type(concrete::TypeKind::Integer(kind), true),
             concrete::StructRepresentation::Intrinsic {
                 application: concrete::IntrinsicTypeRepresentation::Boolean,
                 ..
             } => self.intern_type(concrete::TypeKind::Boolean, true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Ptr { pointee },
+                ..
+            } => self.intern_type(concrete::TypeKind::Ptr(pointee), true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::FunPtr { signature },
+                ..
+            } => self.intern_type(concrete::TypeKind::FunPtr(signature), true),
             concrete::StructRepresentation::Declared { .. } => {
                 self.intern_type(concrete::TypeKind::Struct(id), false)
             }
@@ -472,8 +476,16 @@ impl Concretizer<'_> {
     pub(super) fn encode_type(&self, ty: concrete::TypeId) -> String {
         match &self.types[ty].kind {
             concrete::TypeKind::Unit => "U".to_string(),
-            concrete::TypeKind::Int => "I".to_string(),
-            concrete::TypeKind::UInt => "V".to_string(),
+            concrete::TypeKind::Integer(kind) => match *kind {
+                export::IntegerKind::SIGNED_8 => "I8".to_string(),
+                export::IntegerKind::SIGNED_16 => "I16".to_string(),
+                export::IntegerKind::SIGNED_32 => "I32".to_string(),
+                export::IntegerKind::SIGNED_64 => "I64".to_string(),
+                export::IntegerKind::UNSIGNED_8 => "V8".to_string(),
+                export::IntegerKind::UNSIGNED_16 => "V16".to_string(),
+                export::IntegerKind::UNSIGNED_32 => "V32".to_string(),
+                export::IntegerKind::UNSIGNED_64 => "V64".to_string(),
+            },
             concrete::TypeKind::Boolean => "B".to_string(),
             concrete::TypeKind::String => "S".to_string(),
             concrete::TypeKind::Struct(id) => {

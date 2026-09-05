@@ -7,7 +7,14 @@ impl<'a> FunctionLowerer<'a> {
         let ty = &expr.ty;
         match &expr.kind {
             mir::ExprKind::StringConst(id) => lir::Value::Global(self.global_map[id]),
-            mir::ExprKind::IntLiteral(value) => lir::Value::IntConst(*value),
+            mir::ExprKind::IntegerLiteral(value) => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(value.kind()),
+                    "an integer literal has its exact constant kind",
+                );
+                lir::Value::IntegerConst(integer_constant(*value))
+            }
             mir::ExprKind::MachineScalarLiteral(value) => {
                 lir::Value::MachineScalar(machine_scalar_value(*value))
             }
@@ -193,6 +200,11 @@ impl<'a> FunctionLowerer<'a> {
                 array_type,
                 operand,
             } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(mir::IntegerKind::SIGNED_64),
+                    "array length is canonical Long",
+                );
                 let operand = self.lower_expr(operand);
                 let out = self.new_temp(lir::LirType::I64);
                 self.push(lir::Instruction::ArrayLen {
@@ -247,16 +259,38 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::InitializationUnitAddress(unit) => {
                 lir::Value::InitializationUnit(lir::InitializationUnitId::from_raw(unit.into_raw()))
             }
-            mir::ExprKind::PtrFromUInt { operand, .. } => {
+            mir::ExprKind::PtrFromNonZeroULong { operand, pointee } => {
+                assert_eq!(
+                    operand.ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "raw pointer construction consumes canonical ULong",
+                );
+                let mir::Type::Ptr(result_pointee) = ty else {
+                    panic!("PtrFromNonZeroULong result must be a raw pointer")
+                };
+                assert_eq!(
+                    result_pointee.as_ref(),
+                    pointee.as_ref(),
+                    "PtrFromNonZeroULong result carries its declared pointee",
+                );
                 let value = self.lower_expr(operand);
                 let out = self.new_temp(lir::RAW_PTR);
-                self.push(lir::Instruction::IntToPtr { out, value });
+                self.push(lir::Instruction::ULongToPtr { out, value });
                 lir::Value::Temp(out)
             }
-            mir::ExprKind::PtrToUInt(operand) => {
+            mir::ExprKind::PtrToULong(operand) => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "raw pointer bits are exposed as canonical ULong",
+                );
+                assert!(
+                    matches!(&operand.ty, mir::Type::Ptr(_)),
+                    "PtrToULong consumes only a raw data pointer",
+                );
                 let value = self.lower_expr(operand);
                 let out = self.new_temp(lir::LirType::I64);
-                self.push(lir::Instruction::PtrToInt { out, value });
+                self.push(lir::Instruction::PtrToULong { out, value });
                 lir::Value::Temp(out)
             }
             mir::ExprKind::PtrCast { operand, pointee } => {
@@ -383,14 +417,23 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::ExprKind::SizeOf(value_ty) => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "sizeOf produces canonical ULong",
+                );
                 let (size, _) = self.value_layout(value_ty);
-                lir::Value::IntConst(size as i64)
+                lir::Value::IntegerConst(lir::LirIntegerConstant::Unsigned64(size))
             }
             mir::ExprKind::AlignOf(value_ty) => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "alignOf produces canonical ULong",
+                );
                 let (_, align) = self.value_layout(value_ty);
-                lir::Value::IntConst(align as i64)
+                lir::Value::IntegerConst(lir::LirIntegerConstant::Unsigned64(align))
             }
-            mir::ExprKind::FunPtrNull(_) => lir::Value::NullPointer(lir::PointerKind::Code),
             mir::ExprKind::FunctionAddress { callback } => {
                 let out = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
@@ -740,7 +783,6 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::ExprKind::Unary { op, operand } => {
                 let lir_op = match op {
-                    mir::UnOp::IntNeg => lir::UnOp::Neg,
                     mir::UnOp::BoolNot => lir::UnOp::Not,
                 };
                 let operand = self.lower_expr(operand);
@@ -749,6 +791,197 @@ impl<'a> FunctionLowerer<'a> {
                 self.push(lir::Instruction::UnaryOp {
                     out,
                     op: lir_op,
+                    operand,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerUnary { operation, operand } => {
+                let kind = integer_kind(operation.kind());
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(operation.kind()),
+                    "integer unary result preserves its exact kind",
+                );
+                let operand = self.lower_expr(operand);
+                let out = self.new_temp(kind.scalar_type());
+                match operation.operator() {
+                    mir::IntegerUnaryOperator::Identity => {
+                        self.push(lir::Instruction::IntegerUnary {
+                            out,
+                            kind,
+                            operation: lir::IntegerUnaryOperation::Plus,
+                            operand,
+                        });
+                    }
+                    mir::IntegerUnaryOperator::Negate => {
+                        self.push(lir::Instruction::IntegerUnary {
+                            out,
+                            kind,
+                            operation: lir::IntegerUnaryOperation::Negate,
+                            operand,
+                        });
+                    }
+                    mir::IntegerUnaryOperator::BitNot => {
+                        self.push(lir::Instruction::IntegerUnary {
+                            out,
+                            kind,
+                            operation: lir::IntegerUnaryOperation::BitwiseNot,
+                            operand,
+                        });
+                    }
+                    mir::IntegerUnaryOperator::Increment | mir::IntegerUnaryOperator::Decrement => {
+                        let one = mir::MirIntegerConstant::from_raw_bits(operation.kind(), 1)
+                            .expect("one is representable by every integer kind");
+                        self.push(lir::Instruction::IntegerBinary {
+                            out,
+                            kind,
+                            operation: if operation.operator()
+                                == mir::IntegerUnaryOperator::Increment
+                            {
+                                lir::IntegerBinaryOperation::Add
+                            } else {
+                                lir::IntegerBinaryOperation::Subtract
+                            },
+                            lhs: operand,
+                            rhs: lir::Value::IntegerConst(integer_constant(one)),
+                        });
+                    }
+                }
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerBinary {
+                operation,
+                lhs,
+                rhs,
+            } => {
+                let kind = integer_kind(operation.kind());
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(operation.kind()),
+                    "integer binary result preserves its exact kind",
+                );
+                let lhs = self.lower_expr(lhs);
+                let rhs = self.lower_expr(rhs);
+                let out = self.new_temp(kind.scalar_type());
+                self.push(lir::Instruction::IntegerBinary {
+                    out,
+                    kind,
+                    operation: integer_binary_op(operation.operator()),
+                    lhs,
+                    rhs,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::SafeIntegerDivRem {
+                operation,
+                lhs,
+                rhs,
+            } => {
+                let kind = integer_kind(operation.kind());
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(operation.kind()),
+                    "safe integer div/rem result preserves its exact kind",
+                );
+                let lhs = self.lower_expr(lhs);
+                let rhs = self.lower_expr(rhs);
+                let out = self.new_temp(kind.scalar_type());
+                self.push(lir::Instruction::SafeIntegerDivRem {
+                    out,
+                    kind,
+                    operation: integer_div_rem_op(operation.operator()),
+                    lhs,
+                    rhs,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerCompare {
+                operation,
+                lhs,
+                rhs,
+            } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Boolean,
+                    "integer comparison returns Boolean"
+                );
+                let lhs = self.lower_expr(lhs);
+                let rhs = self.lower_expr(rhs);
+                let out = self.new_temp(lir::LirType::I1);
+                self.push(lir::Instruction::IntegerCompare {
+                    out,
+                    kind: integer_kind(operation.operand_kind()),
+                    comparison: integer_comparison(operation.operator()),
+                    lhs,
+                    rhs,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerCompareTo {
+                operation,
+                lhs,
+                rhs,
+            } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(mir::IntegerKind::SIGNED_64),
+                    "integer compareTo returns canonical Long",
+                );
+                let lhs = self.lower_expr(lhs);
+                let rhs = self.lower_expr(rhs);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::IntegerCompareTo {
+                    out,
+                    operand_kind: integer_kind(operation.operand_kind()),
+                    lhs,
+                    rhs,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerShift {
+                operation,
+                value,
+                count,
+            } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(operation.value_kind()),
+                    "integer shift preserves its exact value kind",
+                );
+                assert_eq!(
+                    count.ty,
+                    mir::Type::Integer(operation.count_kind()),
+                    "integer shift count is normalized to the value's exact kind",
+                );
+                let value = self.lower_expr(value);
+                let count = self.lower_expr(count);
+                let kind = integer_kind(operation.value_kind());
+                let out = self.new_temp(kind.scalar_type());
+                self.push(lir::Instruction::IntegerShift {
+                    out,
+                    kind,
+                    operation: integer_shift_op(*operation),
+                    value,
+                    normalized_count: count,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Integer(conversion.target_kind()),
+                    "integer conversion has its exact target kind",
+                );
+                let operand = self.lower_expr(operand);
+                let target_kind = integer_kind(conversion.target_kind());
+                let out = self.new_temp(target_kind.scalar_type());
+                self.push(lir::Instruction::IntegerConvert {
+                    out,
+                    source_kind: integer_kind(conversion.source_kind()),
+                    target_kind,
                     operand,
                 });
                 lir::Value::Temp(out)

@@ -156,12 +156,17 @@ struct Harness {
         HashMap<(hir::InterfaceId, Vec<hir::TypeId>), hir::InterfaceApplicationId>,
     top_level: Vec<hir::FunctionId>,
     unit: hir::TypeId,
+    integers: hir::IntegerTypeCore<hir::TypeId>,
     int: hir::TypeId,
+    long: hir::TypeId,
+    uint: hir::TypeId,
+    ulong: hir::TypeId,
     boolean: hir::TypeId,
     string: hir::TypeId,
     option_enum: hir::EnumId,
+    needs_initialization_core: bool,
     write: Option<hir::FunctionId>,
-    int_to_string: Option<hir::FunctionId>,
+    long_to_string: Option<hir::FunctionId>,
     bool_to_string: Option<hir::FunctionId>,
     /// core's `print` / `println` overloads (ordinary functions,
     /// M7), created on first use.
@@ -172,7 +177,6 @@ struct Harness {
     println_int: Option<hir::FunctionId>,
     println_boolean: Option<hir::FunctionId>,
     instantiations: Arena<hir::ResolvedGenericFunction>,
-    uint: Option<hir::TypeId>,
     gc_core: Option<GcCore>,
     intrinsic_array: Option<hir::ClassId>,
     intrinsic_mutable_array: Option<hir::ClassId>,
@@ -225,8 +229,26 @@ fn expr_stmt(expr: hir::Expr) -> hir::Statement {
     stmt(hir::StatementKind::Expr(expr))
 }
 
-fn int_lit(h: &Harness, value: i64) -> hir::Expr {
-    expr(hir::ExprKind::IntLiteral(value), h.int)
+fn int_lit(h: &Harness, value: i32) -> hir::Expr {
+    expr(
+        hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(value as u32)),
+        h.int,
+    )
+}
+
+fn integer_lit(h: &Harness, kind: hir::IntegerKind, raw_bits: u64) -> hir::Expr {
+    let value = match kind {
+        hir::IntegerKind::SIGNED_8 => hir::HirIntegerConstant::Signed8(raw_bits as u8),
+        hir::IntegerKind::SIGNED_16 => hir::HirIntegerConstant::Signed16(raw_bits as u16),
+        hir::IntegerKind::SIGNED_32 => hir::HirIntegerConstant::Signed32(raw_bits as u32),
+        hir::IntegerKind::SIGNED_64 => hir::HirIntegerConstant::Signed64(raw_bits),
+        hir::IntegerKind::UNSIGNED_8 => hir::HirIntegerConstant::Unsigned8(raw_bits as u8),
+        hir::IntegerKind::UNSIGNED_16 => hir::HirIntegerConstant::Unsigned16(raw_bits as u16),
+        hir::IntegerKind::UNSIGNED_32 => hir::HirIntegerConstant::Unsigned32(raw_bits as u32),
+        hir::IntegerKind::UNSIGNED_64 => hir::HirIntegerConstant::Unsigned64(raw_bits),
+    };
+    assert_eq!(value.raw_bits(), raw_bits & kind.width().raw_mask());
+    expr(hir::ExprKind::IntegerLiteral(value), h.integer(kind))
 }
 
 fn bool_lit(h: &Harness, value: bool) -> hir::Expr {
@@ -280,6 +302,201 @@ fn primitive_unary(
         },
         ty,
     )
+}
+
+fn integer_operation(
+    h: &mut Harness,
+    kind: hir::IntegerKind,
+    operation: hir::NoGcIntegerOperation,
+    arguments: hir::HirIntegerOperationArguments,
+) -> hir::Expr {
+    let owner = h.integer(kind);
+    let result_ty = match operation {
+        hir::NoGcIntegerOperation::CompareTo => h.long,
+        hir::NoGcIntegerOperation::Equals => h.boolean,
+        _ => owner,
+    };
+    let function = h.functions.alloc(hir::Function {
+        name: format!("$testIntegerNoGc{}", h.functions.len()),
+        access: hir::DeclarationAccess::public(),
+        override_access: Vec::new(),
+        genericity: hir::FunctionGenericity::Plain,
+        is_suspend: false,
+        modifiers: hir::CallableModifiers::default(),
+        params: Vec::new(),
+        return_ty: result_ty,
+        attributes: hir::FunctionAttributes {
+            gc_effect: hir::GcEffect::NoGc,
+            ..hir::FunctionAttributes::default()
+        },
+        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
+                kind,
+                operation,
+            }),
+            provider: hir::IntrinsicProviderId::from_raw(0),
+        }),
+        method: Some(hir::Method {
+            owner,
+            modifier: hir::MethodModifier::Final,
+            dispatch: hir::MethodDispatch::Direct,
+        }),
+        span: SPAN,
+    });
+    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
+        .expect("the test target carries the matching no-GC integer intrinsic effect");
+    expr(
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::NoGc {
+                kind,
+                operation,
+                target,
+            },
+            arguments,
+        },
+        result_ty,
+    )
+}
+
+fn integer_binary(
+    h: &mut Harness,
+    kind: hir::IntegerKind,
+    operation: hir::NoGcIntegerOperation,
+    lhs: hir::Expr,
+    rhs: hir::Expr,
+) -> hir::Expr {
+    integer_operation(
+        h,
+        kind,
+        operation,
+        hir::HirIntegerOperationArguments::Binary {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+    )
+}
+
+fn integer_unary(
+    h: &mut Harness,
+    kind: hir::IntegerKind,
+    operation: hir::NoGcIntegerOperation,
+    operand: hir::Expr,
+) -> hir::Expr {
+    integer_operation(
+        h,
+        kind,
+        operation,
+        hir::HirIntegerOperationArguments::Unary(Box::new(operand)),
+    )
+}
+
+fn integer_div_rem(
+    h: &mut Harness,
+    kind: hir::IntegerKind,
+    operation: hir::IntegerDivRem,
+    lhs: hir::Expr,
+    rhs: hir::Expr,
+) -> hir::Expr {
+    let owner = h.integer(kind);
+    let function = h.functions.alloc(hir::Function {
+        name: format!("$testIntegerManaged{}", h.functions.len()),
+        access: hir::DeclarationAccess::public(),
+        override_access: Vec::new(),
+        genericity: hir::FunctionGenericity::Plain,
+        is_suspend: false,
+        modifiers: hir::CallableModifiers::default(),
+        params: Vec::new(),
+        return_ty: owner,
+        attributes: hir::FunctionAttributes::default(),
+        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::Integer(
+                hir::IntegerIntrinsicKind::ManagedOperation { kind, operation },
+            ),
+            provider: hir::IntrinsicProviderId::from_raw(0),
+        }),
+        method: Some(hir::Method {
+            owner,
+            modifier: hir::MethodModifier::Final,
+            dispatch: hir::MethodDispatch::Direct,
+        }),
+        span: SPAN,
+    });
+    let target = hir::ManagedCallableRef::try_from_function(function, &h.functions)
+        .expect("the test target carries the matching managed integer intrinsic effect");
+    expr(
+        hir::ExprKind::IntegerOperation {
+            operation: hir::IntegerOperation::Managed {
+                kind,
+                operation,
+                target,
+            },
+            arguments: hir::HirIntegerOperationArguments::Binary {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        },
+        owner,
+    )
+}
+
+fn integer_conversion(
+    h: &mut Harness,
+    source: hir::IntegerKind,
+    target_kind: hir::IntegerKind,
+    operand: hir::Expr,
+) -> hir::Expr {
+    let owner = h.integer(source);
+    let result_ty = h.integer(target_kind);
+    let function = h.functions.alloc(hir::Function {
+        name: format!("$testIntegerConversion{}", h.functions.len()),
+        access: hir::DeclarationAccess::public(),
+        override_access: Vec::new(),
+        genericity: hir::FunctionGenericity::Plain,
+        is_suspend: false,
+        modifiers: hir::CallableModifiers::default(),
+        params: Vec::new(),
+        return_ty: result_ty,
+        attributes: hir::FunctionAttributes {
+            gc_effect: hir::GcEffect::NoGc,
+            ..hir::FunctionAttributes::default()
+        },
+        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::Conversion {
+                source,
+                target_kind,
+            }),
+            provider: hir::IntrinsicProviderId::from_raw(0),
+        }),
+        method: Some(hir::Method {
+            owner,
+            modifier: hir::MethodModifier::Final,
+            dispatch: hir::MethodDispatch::Direct,
+        }),
+        span: SPAN,
+    });
+    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
+        .expect("the test target carries a no-GC integer conversion effect");
+    expr(
+        hir::ExprKind::IntegerConversion {
+            conversion: hir::IntegerConversion {
+                source,
+                target_kind,
+                target,
+            },
+            operand: Box::new(operand),
+        },
+        result_ty,
+    )
+}
+
+fn module_integer_type(module: &hir::Module, kind: hir::IntegerKind) -> hir::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(id, ty)| {
+            matches!(ty, hir::Type::Integer(found) if *found == kind).then_some(id)
+        })
+        .expect("the test module contains every canonical integer type")
 }
 
 fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Expr {

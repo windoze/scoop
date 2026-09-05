@@ -1,4 +1,4 @@
-fun one(value: Array<Int>): Int = value.size
+fun one(value: Array<Int>): Long = value.size
 
 fun main() {
     one(*[1, 2])

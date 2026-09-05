@@ -184,7 +184,8 @@ impl BodyLowerer<'_> {
             ),
         };
         let option_ty = self.lower_type(expr_ty);
-        let (some, none) = self.option_variants;
+        let option = option_core_for_type(self.module, self.enums, &option_ty);
+        let (some, none) = (option.some_variant(), option.none_variant());
         let result = self.new_hidden("cast", option_ty.clone(), true);
         let some_value = smir::Expr::new(
             option_ty.clone(),

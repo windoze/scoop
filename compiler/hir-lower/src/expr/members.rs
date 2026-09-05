@@ -339,6 +339,22 @@ impl Lowerer {
             );
             return None;
         }
+        if let Some(layer) = self.probe_integer_literal_receiver(
+            receiver,
+            expected,
+            |state, receiver, layer_sink| {
+                state.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    layer_sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                )
+            },
+        ) {
+            return Some(self.commit_expr_layer(layer, sink));
+        }
         let receiver = self.lower_expr(receiver, sink, None)?;
         self.lower_explicit_named_call(
             receiver,
@@ -831,13 +847,32 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let receiver = self.lower_expr(lhs, sink, None)?;
         let args = [ast::CallArgument::positional(rhs.clone())];
         let call = CallSite {
             type_args: &[],
             args: &args,
             span,
         };
+        if let ast::InfixTarget::Named(name) = target
+            && let Some(layer) =
+                self.probe_integer_literal_receiver(lhs, expected, |state, receiver, layer_sink| {
+                    state.lower_explicit_named_call(
+                        receiver,
+                        name,
+                        call,
+                        layer_sink,
+                        expected,
+                        RequiredCallableModifiers {
+                            operator: None,
+                            infix: true,
+                            ..Default::default()
+                        },
+                    )
+                })
+        {
+            return Some(self.commit_expr_layer(layer, sink));
+        }
+        let receiver = self.lower_expr(lhs, sink, None)?;
         match target {
             ast::InfixTarget::Named(name) => self.lower_explicit_named_call(
                 receiver,

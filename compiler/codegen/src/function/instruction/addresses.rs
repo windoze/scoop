@@ -9,12 +9,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let function = self.function;
         match instruction {
-            Instruction::IntToPtr { out, value } => {
+            Instruction::ULongToPtr { out, value } => {
                 let input_ty = function.value_ty(self.globals_arena, *value);
                 let output_ty = &function.temps[*out].ty;
                 if input_ty != LirType::I64 || *output_ty != scoop_lir::RAW_PTR {
                     return Err(CodegenError(format!(
-                        "inttoptr @{} requires i64 -> ptr<raw>, got {} -> {}",
+                        "ulong_to_ptr @{} requires ULong/i64 -> ptr<raw>, got {} -> {}",
                         function.symbol,
                         input_ty.dump(),
                         output_ty.dump()
@@ -26,12 +26,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| CodegenError(format!("inttoptr @{}: {e}", function.symbol)))?;
                 self.temps.insert(*out, result.into());
             }
-            Instruction::PtrToInt { out, value } => {
+            Instruction::PtrToULong { out, value } => {
                 let input_ty = function.value_ty(self.globals_arena, *value);
                 let output_ty = &function.temps[*out].ty;
                 if input_ty != scoop_lir::RAW_PTR || *output_ty != LirType::I64 {
                     return Err(CodegenError(format!(
-                        "ptrtoint @{} requires ptr<raw> -> i64, got {} -> {}",
+                        "ptr_to_ulong @{} requires ptr<raw> -> ULong/i64, got {} -> {}",
                         function.symbol,
                         input_ty.dump(),
                         output_ty.dump()
@@ -40,7 +40,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let value = self.value(*value)?.into_pointer_value();
                 if value.get_type().get_address_space() == self.managed_address_space.inkwell() {
                     return Err(CodegenError(format!(
-                        "managed pointer cannot be lowered by PtrToInt in @{}",
+                        "managed pointer cannot be lowered by PtrToULong in @{}",
                         function.symbol
                     )));
                 }
@@ -276,13 +276,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 roots,
             } => {
                 let native = &self.native_globals[*global];
-                if function.temps[*out].ty != native.ty {
+                let storage_type = native.storage_type();
+                if function.temps[*out].ty != storage_type {
                     return Err(CodegenError(format!(
                         "native global load @{} has result type {}, but `{}` stores {}",
                         function.symbol,
                         function.temps[*out].ty.dump(),
                         native.source_name,
-                        native.ty.dump()
+                        storage_type.dump()
                     )));
                 }
                 let ty = basic_ty(
@@ -290,7 +291,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &native.ty,
+                    &storage_type,
                 )?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
@@ -315,14 +316,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 roots,
             } => {
                 let native = &self.native_globals[*global];
+                let storage_type = native.storage_type();
                 let value_ty = function.value_ty(self.globals_arena, *value);
-                if value_ty != native.ty {
+                if value_ty != storage_type {
                     return Err(CodegenError(format!(
                         "native global store @{} has value type {}, but `{}` stores {}",
                         function.symbol,
                         value_ty.dump(),
                         native.source_name,
-                        native.ty.dump()
+                        storage_type.dump()
                     )));
                 }
                 let ty = basic_ty(
@@ -330,7 +332,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &native.ty,
+                    &storage_type,
                 )?;
                 let slot = self.entry_alloca(ty, "native_global_argument")?;
                 builder
@@ -360,14 +362,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 roots,
             } => {
                 let native = &self.native_globals[*global];
+                let storage_type = native.storage_type();
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, &native.ty)
+                    || validation::contains_machine_scalar(self.structs, self.enums, &storage_type)
                 {
                     return Err(CodegenError(format!(
                         "native_global_address @{} cannot expose `{}` of type {}",
                         function.symbol,
                         native.source_name,
-                        native.ty.dump()
+                        storage_type.dump()
                     )));
                 }
                 let ty: BasicTypeEnum = ptr_ty(context).into();

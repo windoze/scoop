@@ -12,19 +12,7 @@ pub fn emit_object(
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine, profile)?;
-
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
-
-    // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
-    // invoke in the GC-strategy functions into a `gc.statepoint`; the
-    // object file's `__llvm_stackmaps` section is produced from them.
-    // Runs after verification, right before object emission.
-    statepoint::rewrite(&llvm, &machine)?;
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)?;
+    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -39,6 +27,43 @@ pub fn emit_object(
         return Err(error);
     }
     Ok(())
+}
+
+/// Translate typed LIR to verified LLVM IR text without writing an artifact.
+///
+/// This is the same mechanical target-specific translation and statepoint
+/// rewrite used by [`emit_object`]. Source-language and upstream IR semantics
+/// must already be explicit in `module`.
+pub fn render_llvm_ir(module: &Module, profile: TargetProfile) -> Result<String, CodegenError> {
+    profile.validate_lir_target_profile(module.meta.target_profile)?;
+    let expected_safepoints = statepoint::expectations(module)?;
+    let machine = profile.create_target_machine()?;
+    let context = Context::create();
+    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
+    Ok(llvm.print_to_string().to_string())
+}
+
+fn prepare_llvm_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module,
+    machine: &TargetMachine,
+    profile: TargetProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let llvm = emit_llvm_module(context, module, machine, profile)?;
+
+    llvm.verify()
+        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
+
+    // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
+    // invoke in the GC-strategy functions into a `gc.statepoint`; the
+    // object file's `__llvm_stackmaps` section is produced from them.
+    // Both object emission and IR rendering consume this verified form.
+    statepoint::rewrite(&llvm, machine)?;
+    llvm.verify()
+        .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
+    statepoint::verify_rewritten(&llvm, expected_safepoints, profile)?;
+    Ok(llvm)
 }
 
 /// Test helper for constructing the one supported host profile. Production
@@ -188,7 +213,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
             }
             GlobalInit::Storage {
                 ty: lir_ty,
-                initializer,
+                initial_state,
                 thread_local,
             } => {
                 let ty = basic_ty(
@@ -198,15 +223,18 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     managed_address_space,
                     lir_ty,
                 )?;
-                let value = llvm_constant(
-                    context,
-                    &module.structs,
-                    &module.enums,
-                    &globals,
-                    managed_address_space,
-                    lir_ty,
-                    initializer,
-                )?;
+                let value = match initial_state {
+                    LirStaticInitialState::ZeroedForRuntimeUnit => ty.const_zero(),
+                    LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
+                        context,
+                        &module.structs,
+                        &module.enums,
+                        &globals,
+                        managed_address_space,
+                        lir_ty,
+                        payload,
+                    )?,
+                };
                 let llvm_global = llvm.add_global(ty, None, &global.symbol);
                 llvm_global.set_initializer(&value);
                 llvm_global.set_thread_local(*thread_local);

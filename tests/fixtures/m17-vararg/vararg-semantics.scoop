@@ -16,7 +16,7 @@ fun fromSeed(seed: Int, vararg values: Int = [seed]): Array<Int> = values
 
 fun <T> pack(vararg values: T): Array<T> = values
 
-fun frame(prefix: String, vararg values: Int, suffix: String = "!"): Int =
+fun frame(prefix: String, vararg values: Int, suffix: String = "!"): Long =
     values.size
 
 fun prefer(value: Int): String = "regular"
@@ -35,19 +35,19 @@ class Token(val value: Int)
 fun gather(vararg values: Token): Array<Token> = values
 
 class MemberCollector() {
-    final fun count(vararg values: Int): Int = values.size
+    final fun count(vararg values: Int): Long = values.size
 }
 
-fun Int.withValues(vararg values: Int): Int = this + values.size
+fun Int.withValues(vararg values: Int): Long = this.toInt64() + values.size
 
-fun localCount(): Int {
-    fun count(vararg values: Int): Int = values.size
+fun localCount(): Long {
+    fun count(vararg values: Int): Long = values.size
     return count(1, 2, 3)
 }
 
 fun printInts(values: Array<Int>) {
     println(values.size)
-    var index = 0
+    var index: Long = 0
     while (index < values.size) {
         println(values[index])
         index = index + 1

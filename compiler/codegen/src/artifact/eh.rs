@@ -209,16 +209,27 @@ pub(super) fn verify_sections(
     observed_safepoints: &ObservedSafepoints,
     encodings: LsdaEncodingProfile,
 ) -> Result<(), CodegenError> {
+    let parsed_eh_frame = eh_frame.map(parse_eh_frame).transpose()?;
+    if let Some(frame) = &parsed_eh_frame {
+        let text = text.ok_or_else(|| {
+            CodegenError("emitted Mach-O has __eh_frame FDEs but no __text section".to_string())
+        })?;
+        validate_function_ranges(&frame.scoop_fdes, &frame.unwind_only_fdes, text)?;
+    }
     if expected.function_count() == 0 {
-        if eh_frame.is_some() || gcc_except_tab.is_some() {
+        if gcc_except_tab.is_some()
+            || parsed_eh_frame
+                .as_ref()
+                .is_some_and(|frame| !frame.scoop_fdes.is_empty())
+        {
             return Err(CodegenError(
-                "emitted Mach-O contains EH sections but complete LIR has no invoke unwind edges"
+                "emitted Mach-O contains Scoop personality/LSDA metadata but complete LIR has no invoke unwind edges"
                     .to_string(),
             ));
         }
         return Ok(());
     }
-    let eh_frame = eh_frame.ok_or_else(|| {
+    let parsed_eh_frame = parsed_eh_frame.ok_or_else(|| {
         CodegenError("emitted Mach-O has EH functions but no __eh_frame section".to_string())
     })?;
     let gcc_except_tab = gcc_except_tab.ok_or_else(|| {
@@ -234,7 +245,7 @@ pub(super) fn verify_sections(
         )));
     }
 
-    let mut fdes = parse_eh_frame(eh_frame)?;
+    let mut fdes = parsed_eh_frame.scoop_fdes;
     fdes.sort_by_key(|fde| fde.lsda_address);
     if fdes.len() != expected.function_count() {
         return Err(CodegenError(format!(
@@ -243,7 +254,6 @@ pub(super) fn verify_sections(
             expected.function_count()
         )));
     }
-    validate_function_ranges(&fdes, text)?;
     if fdes
         .first()
         .is_none_or(|fde| fde.lsda_address != gcc_except_tab.address)
@@ -438,7 +448,11 @@ fn validate_protected_calls(
     Ok(())
 }
 
-fn validate_function_ranges(fdes: &[Fde], text: &TextSection) -> Result<(), CodegenError> {
+fn validate_function_ranges(
+    scoop_fdes: &[Fde],
+    unwind_only_fdes: &[frame::UnwindOnlyFde],
+    text: &TextSection,
+) -> Result<(), CodegenError> {
     let text_end = text
         .address
         .checked_add(
@@ -446,29 +460,34 @@ fn validate_function_ranges(fdes: &[Fde], text: &TextSection) -> Result<(), Code
                 .map_err(|_| CodegenError("Mach-O __text length exceeds u64::MAX".to_string()))?,
         )
         .ok_or_else(|| CodegenError("Mach-O __text address range overflows".to_string()))?;
-    let mut ranges = Vec::with_capacity(fdes.len());
-    for fde in fdes {
-        let end = fde
-            .function_start
-            .checked_add(fde.function_size)
-            .ok_or_else(|| {
-                CodegenError(format!(
-                    "FDE `{}` function range overflows",
-                    fde.function_symbol
-                ))
-            })?;
-        if fde.function_size == 0
-            || fde.function_start % 4 != 0
-            || fde.function_size % 4 != 0
-            || fde.function_start < text.address
-            || end > text_end
-        {
+    let mut ranges = Vec::with_capacity(scoop_fdes.len() + unwind_only_fdes.len());
+    for (symbol, start, size) in scoop_fdes
+        .iter()
+        .map(|fde| {
+            (
+                fde.function_symbol.as_str(),
+                fde.function_start,
+                fde.function_size,
+            )
+        })
+        .chain(unwind_only_fdes.iter().map(|fde| {
+            (
+                fde.function_symbol.as_str(),
+                fde.function_start,
+                fde.function_size,
+            )
+        }))
+    {
+        let end = start
+            .checked_add(size)
+            .ok_or_else(|| CodegenError(format!("FDE `{symbol}` function range overflows")))?;
+        if size == 0 || start % 4 != 0 || size % 4 != 0 || start < text.address || end > text_end {
             return Err(CodegenError(format!(
-                "FDE `{}` function range {:#x}..{end:#x} lies outside __text {:#x}..{text_end:#x}",
-                fde.function_symbol, fde.function_start, text.address
+                "FDE `{symbol}` function range {start:#x}..{end:#x} lies outside __text {:#x}..{text_end:#x}",
+                text.address
             )));
         }
-        ranges.push((fde.function_start, end, fde.function_symbol.as_str()));
+        ranges.push((start, end, symbol));
     }
     ranges.sort_unstable_by_key(|range| range.0);
     for pair in ranges.windows(2) {

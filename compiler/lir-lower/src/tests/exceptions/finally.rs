@@ -83,7 +83,7 @@ fn return_inside_try_runs_finally_before_returning() {
     // fun f(): Int { try { return 1 } finally { cleanup() } }
     let (mut b, _, _, cleanup) = try_shell(true);
     let mut locals = Arena::new();
-    let result = locals.alloc(local("$return.1", mir::Type::Int));
+    let result = locals.alloc(local("$return.1", INT));
     let mut blocks = Arena::new();
     let entry = cfg_block(&mut blocks, "entry");
     let unwind = cfg_block(&mut blocks, "try.unwind.1");
@@ -143,7 +143,7 @@ fn return_inside_try_runs_finally_before_returning() {
     set_cfg_block(
         &mut blocks,
         try_body,
-        vec![val_decl(result, mir::Expr::int(1))],
+        vec![val_decl(result, int_expr(1))],
         mir::Terminator::Goto(return_finally),
         Some(unwind),
     );
@@ -152,7 +152,7 @@ fn return_inside_try_runs_finally_before_returning() {
         return_finally,
         vec![call_stmt(user_call(cleanup))],
         mir::Terminator::Return {
-            value: Some(local_expr(result, mir::Type::Int)),
+            value: Some(local_expr(result, INT)),
         },
         None,
     );
@@ -169,7 +169,7 @@ fn return_inside_try_runs_finally_before_returning() {
         "f",
         "scoop.f",
         Vec::new(),
-        mir::Type::Int,
+        INT,
         mir::Body {
             locals,
             blocks,
@@ -197,8 +197,8 @@ Module
   block entry
     poll managed-void-target0 sp5 live=[]
     ret
-  fun @scoop.f() -> i64
-    local %0 $return.1: i64
+  fun @scoop.f() -> i32
+    local %0 $return.1: i32
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr<raw>
     local %3 $sc.3: ptr<managed>
@@ -206,7 +206,7 @@ Module
     poll managed-void-target2 sp6 live=[]
     br @try.body.6
   block try.body.6
-    store 1 -> local0
+    store integer<Int>(0x00000001) -> local0
     br @scope.7
   block scope.7
     call managed-void-target0 sp1 live=[] sig=void0 () local-fn2()
@@ -217,7 +217,14 @@ Module
     poll managed-void-target0 sp7 live=[]
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);

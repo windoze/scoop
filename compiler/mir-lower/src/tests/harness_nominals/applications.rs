@@ -133,6 +133,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params,
+            gc_free_pointee_requirements: Vec::new(),
             no_gc: false,
             variants,
             interfaces: Vec::new(),

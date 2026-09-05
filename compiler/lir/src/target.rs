@@ -6,7 +6,7 @@
 //! stage. The closed profile also keeps data- and code-pointer qualification
 //! separate even though the current target gives them the same layout.
 
-use crate::PointerKind;
+use crate::{IntegerKind, PointerKind};
 
 /// Stable identity of one complete executable target profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -183,6 +183,10 @@ impl LirTargetProfile {
             BackendScalarKind::I32 => self.i32,
             BackendScalarKind::I64 => self.i64,
         }
+    }
+
+    pub const fn integer_layout(self, kind: IntegerKind) -> ScalarLayout {
+        self.scalar_layout(kind.width().backend_scalar_kind())
     }
 
     pub const fn managed_pointer_layout(self) -> ScalarLayout {

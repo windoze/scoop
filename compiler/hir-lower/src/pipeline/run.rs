@@ -199,6 +199,23 @@ impl Lowerer {
         self.current_owner = None;
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
+        if let Some(core) = intrinsic_type_core {
+            if self.ffi_ptr != Some(core.ptr) {
+                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.error(
+                    files[0].span,
+                    "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
+                );
+            }
+            if self.ffi_fun_ptr != Some(core.fun_ptr) {
+                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.error(
+                    files[0].span,
+                    "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
+                        .to_string(),
+                );
+            }
+        }
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
@@ -314,7 +331,6 @@ impl Lowerer {
         self.ffi_core = ffi_core;
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
-        self.validate_pointer_type_uses();
         self.resolve_globals(&pending_globals, &pending_objects);
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
@@ -391,6 +407,7 @@ impl Lowerer {
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
         self.check_generic_recursion();
+        self.validate_gc_free_pointee_requirements();
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
@@ -519,7 +536,6 @@ impl Lowerer {
             interface_methods: self.interface_method_entities,
             top_level: self.top_level,
             unit: self.unit,
-            int: self.int,
             boolean: self.boolean,
             string: self.string,
             option_enum,

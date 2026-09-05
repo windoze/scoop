@@ -83,12 +83,12 @@ fn barrier_module() -> Module {
             Instruction::HeapStore {
                 object: Value::Temp(t0),
                 offset: 16,
-                value: Value::IntConst(42),
+                value: signed64(42),
             },
             Instruction::ArraySet {
                 array: Value::Param(1),
-                index: Value::IntConst(0),
-                value: Value::IntConst(7),
+                index: signed64(0),
+                value: signed64(7),
                 array_type: int_array,
             },
         ],
@@ -117,8 +117,8 @@ fn barrier_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
@@ -200,9 +200,9 @@ fn heap_store_inside_the_object_header_is_rejected() {
     let function = &mut module.functions[0];
     let entry = function.entry;
     function.blocks[entry].instructions[2] = Instruction::HeapStore {
-        object: Value::IntConst(0),
+        object: signed64(0),
         offset: 8,
-        value: Value::IntConst(42),
+        value: signed64(42),
     };
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();

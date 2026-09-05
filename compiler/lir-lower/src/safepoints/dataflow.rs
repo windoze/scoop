@@ -5,8 +5,19 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
-        lir::Instruction::BinOp { lhs, rhs, .. } => vec![*lhs, *rhs],
+        lir::Instruction::BinOp { lhs, rhs, .. }
+        | lir::Instruction::IntegerBinary { lhs, rhs, .. }
+        | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
+        | lir::Instruction::IntegerCompare { lhs, rhs, .. }
+        | lir::Instruction::IntegerCompareTo { lhs, rhs, .. } => vec![*lhs, *rhs],
+        lir::Instruction::IntegerShift {
+            value,
+            normalized_count,
+            ..
+        } => vec![*value, *normalized_count],
         lir::Instruction::UnaryOp { operand, .. }
+        | lir::Instruction::IntegerUnary { operand, .. }
+        | lir::Instruction::IntegerConvert { operand, .. }
         | lir::Instruction::ExtractValue {
             aggregate: operand, ..
         }
@@ -19,8 +30,8 @@ pub(super) fn instruction_uses(
         | lir::Instruction::AtomicLoad {
             object: operand, ..
         }
-        | lir::Instruction::IntToPtr { value: operand, .. }
-        | lir::Instruction::PtrToInt { value: operand, .. }
+        | lir::Instruction::ULongToPtr { value: operand, .. }
+        | lir::Instruction::PtrToULong { value: operand, .. }
         | lir::Instruction::RawLoad {
             pointer: operand, ..
         }
@@ -100,6 +111,13 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
     let out = match instruction {
         lir::Instruction::BinOp { out, .. }
         | lir::Instruction::UnaryOp { out, .. }
+        | lir::Instruction::IntegerUnary { out, .. }
+        | lir::Instruction::IntegerBinary { out, .. }
+        | lir::Instruction::SafeIntegerDivRem { out, .. }
+        | lir::Instruction::IntegerCompare { out, .. }
+        | lir::Instruction::IntegerCompareTo { out, .. }
+        | lir::Instruction::IntegerShift { out, .. }
+        | lir::Instruction::IntegerConvert { out, .. }
         | lir::Instruction::MakeAggregate { out, .. }
         | lir::Instruction::ExtractValue { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
@@ -111,8 +129,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::NativeGlobalLoad { out, .. }
         | lir::Instruction::NativeGlobalAddress { out, .. }
         | lir::Instruction::FunctionAddress { out, .. }
-        | lir::Instruction::IntToPtr { out, .. }
-        | lir::Instruction::PtrToInt { out, .. }
+        | lir::Instruction::ULongToPtr { out, .. }
+        | lir::Instruction::PtrToULong { out, .. }
         | lir::Instruction::RawLoad { out, .. }
         | lir::Instruction::PtrOffset { out, .. }
         | lir::Instruction::LocalAddress { out, .. }

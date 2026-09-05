@@ -1,0 +1,6001 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  public interface Continuation<T>
+    fun resume
+    fun resumeWithException
+  public interface SuspendTask<T>
+    suspend fun run
+  public interface SuspendRegistration<T>
+    fun register
+  public struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    public suspend fun run
+  public struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    public fun register
+    @Intrinsic("coroutine_start")
+  public fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  public suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  public fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  public suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+    @Intrinsic("core_ptr")
+  public struct Ptr<T : value> <representation omitted>
+    public operator fun equals
+    public fun toULong
+    public fun cast
+    public fun load
+    public fun load
+    public fun store
+    public fun store
+    public operator fun plus
+    public operator fun minus
+    @Intrinsic("core_fun_ptr")
+  public struct FunPtr<F> <representation omitted>
+    @Unsafe
+    @Intrinsic("address_of")
+  public fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  public fun sizeOf<T : value>(): ULong
+    @NoGC
+    @Intrinsic("align_of")
+  public fun alignOf<T : value>(): ULong
+SourceFile
+  public enum ForeignCallbackMode
+    Reusable
+    OneShot
+  public enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  public struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  public fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  public fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  public fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  public fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
+  public struct PinnedPtr<T : ref>
+    field raw: ULong
+  public struct GcHandle<T : ref>
+    field raw: ULong
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  internal fun _pin<T : ref>(v: T): ULong
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  internal fun _unpin<T : ref>(raw: ULong): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  internal fun _getGcHandle<T : ref>(v: T): ULong
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  internal fun _releaseGcHandle<T : ref>(raw: ULong): T
+    @Unsafe
+  public fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  public fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  public fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  public fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
+    @Intrinsic("rt_gc_collect")
+  public fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  public fun gcStats(): ULong
+SourceFile
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  public fun write(message: String)
+  public fun print<T : ToString>(value: T)
+    =
+      Call write
+        MethodCall toString
+          Var value
+  public fun println<T : ToString>(value: T)
+    Call write
+      MethodCall toString
+        Var value
+    Call write
+      StringLiteral "\n"
+SourceFile
+  public enum Option<T>
+    Some(T)
+    None
+SourceFile
+  public struct SourceLocation
+    field file: String
+    field line: Long
+    field column: Long
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  public fun getCurrentSourceLocation(): SourceLocation
+SourceFile
+  public open class Throwable()
+  public open class Exception(val message: String?) : Throwable(<0 args>)
+  public class UnwrapException() : Exception(<1 args>)
+  public class ClassCastException() : Exception(<1 args>)
+  public class ArithmeticException() : Exception(<1 args>)
+  public class IndexOutOfBoundsException() : Exception(<1 args>)
+  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
+SourceFile
+  public interface ToString
+    fun toString
+  public interface Hash
+    fun hash
+    @Intrinsic("core_int8")
+  public struct Int8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_int16")
+  public struct Int16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_int")
+  public struct Int <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_long")
+  public struct Long <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint8")
+  public struct UInt8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint16")
+  public struct UInt16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint")
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_ulong")
+  public struct ULong <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+  public typealias Byte = Int8
+  public typealias Short = Int16
+  public typealias Int32 = Int
+  public typealias Int64 = Long
+  public typealias UByte = UInt8
+  public typealias UShort = UInt16
+  public typealias UInt32 = UInt
+  public typealias UInt64 = ULong
+    @Intrinsic("core_boolean")
+  public struct Boolean <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun not
+    public fun toString
+    public fun hash
+    @Intrinsic("core_string")
+  public class String(), ToString, Hash
+    public operator fun equals
+    public operator fun plus
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    @Intrinsic("core_array")
+  public class Array<T>()
+    public operator fun get
+    public fun toMutableArray
+    @Intrinsic("core_mutable_array")
+  public class MutableArray<T>()
+    public operator fun get
+    public operator fun set
+    public fun toArray
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  internal fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
+  internal fun coreLongToString(value: Long): String
+    @Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
+  internal fun coreULongToString(value: ULong): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  internal fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_long_hash", abi = "scoop")
+  internal fun coreLongHash(value: Long): Long
+    @Extern(name = "scoop_rt_ulong_hash", abi = "scoop")
+  internal fun coreULongHash(value: ULong): Long
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  internal fun coreBooleanHash(value: Boolean): Long
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  internal fun coreStringHash(value: String): Long
+SourceFile
+  fun defaultKind(value: Int): String
+    =
+      StringLiteral "Int"
+  fun defaultKind(value: Long): String
+    =
+      StringLiteral "Long"
+  fun unsignedDefaultKind(value: UInt): String
+    =
+      StringLiteral "UInt"
+  fun unsignedDefaultKind(value: ULong): String
+    =
+      StringLiteral "ULong"
+  fun second<T>(first: T, second: T): T
+    =
+      Var second
+  fun main()
+    val signed8: Int8
+      IntLiteral 127
+    val signed16: Int16
+      IntLiteral 32767
+    val signed32: Int
+      IntLiteral 2147483647
+    val signed64: Long
+      IntLiteral 9223372036854775807L
+    val unsigned8: UInt8
+      IntLiteral 255u
+    val unsigned16: UInt16
+      IntLiteral 65535u
+    val unsigned32: UInt
+      IntLiteral 4294967295u
+    val unsigned64: ULong
+      IntLiteral 18446744073709551615uL
+    val binary: UInt8
+      IntLiteral 0b11110000u
+    val hexadecimal: Int16
+      IntLiteral 0x7fff
+    val minimum8: Int8
+      Unary Neg
+        IntLiteral 128
+    val minimum16: Int16
+      Unary Neg
+        IntLiteral 32768
+    val minimum32: Int
+      Unary Neg
+        IntLiteral 2147483648
+    val minimum64: Long
+      Unary Neg
+        IntLiteral 9223372036854775808L
+    Call println
+      Binary Add
+        Var signed8
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed16
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed32
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed64
+        IntLiteral 1L
+    Call println
+      Binary Add
+        Var unsigned8
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned16
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned32
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned64
+        IntLiteral 1uL
+    Call println
+      Var binary
+    Call println
+      Var hexadecimal
+    Call println
+      Unary Neg
+        Var unsigned8
+    Call println
+      Unary Neg
+        IntLiteral 1u
+    Call println
+      Binary Sub
+        Var minimum8
+        IntLiteral 1
+    Call println
+      Binary Mul
+        Var signed8
+        IntLiteral 2
+    var incremented: Int8
+      IntLiteral 127
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Var incremented
+    val beforeDecrement
+      Update Postfix Decrement
+        Place incremented
+    Call println
+      Var incremented
+    Call println
+      Var beforeIncrement
+    Call println
+      Var beforeDecrement
+    Call println
+      Binary Div
+        Var minimum8
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Rem
+        Var minimum16
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Div
+        Var minimum32
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Rem
+        Var minimum64
+        Unary Neg
+          IntLiteral 1L
+    try
+      Call println
+        Binary Div
+          Var signed8
+          IntLiteral 0
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "division-by-zero"
+    Call println
+      Binary Add
+        IntLiteral 1
+        Var minimum8
+    Call println
+      Binary Eq
+        IntLiteral 1
+        Var minimum8
+    Call println
+      Binary Eq
+        Var minimum8
+        Unary Neg
+          IntLiteral 128
+    Call println
+      InfixCall and
+        IntLiteral 1
+        Var signed8
+    Call println
+      Binary Lt
+        Var minimum8
+        IntLiteral 0
+    Call println
+      Binary Gt
+        Var unsigned8
+        IntLiteral 0u
+    val unsignedMinusPattern: UInt8
+      Unary Neg
+        IntLiteral 1u
+    when
+      Var unsignedMinusPattern
+      arm -1u
+        Call println
+          StringLiteral "unsigned-minus-pattern"
+      else
+        Call println
+          StringLiteral "unreachable"
+    Call println
+      InfixCall shl
+        IntLiteral 1
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      InfixCall ushr
+        Unary Neg
+          IntLiteral 1
+        IntLiteral 1L
+    Call println
+      InfixCall shr
+        Var unsigned8
+        IntLiteral 7L
+    Call println
+      InfixCall shr
+        Var minimum8
+        IntLiteral 7L
+    Call println
+      MethodCall toUInt64
+        Var minimum8
+    Call println
+      MethodCall toUInt8
+        IntLiteral 257
+    Call println
+      MethodCall toInt8
+        Var unsigned64
+    Call println
+      MethodCall toInt64
+        Var unsigned32
+    Call println
+      Call defaultKind
+        IntLiteral 1
+    Call println
+      Call defaultKind
+        IntLiteral 2147483648
+    Call println
+      Call unsignedDefaultKind
+        IntLiteral 1u
+    Call println
+      Call unsignedDefaultKind
+        IntLiteral 4294967296u
+    Call println
+      Call second
+        IntLiteral 1
+        IntLiteral 2147483648
+    Call println
+      Call second
+        IntLiteral 2147483648
+        IntLiteral 1
+    val jointlyInferredArray
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2147483648
+    Call println
+      Binary Add
+        Index
+          Var jointlyInferredArray
+          IntLiteral 0L
+        Index
+          Var jointlyInferredArray
+          IntLiteral 1L
+    val jointlyInferredIf
+      IfExpression
+        BoolLiteral false
+        IntLiteral 1
+        else
+        IntLiteral 2147483648
+    Call println
+      Var jointlyInferredIf
+    val jointlyInferredWhen
+      WhenExpression
+        Var signed8
+        arm 127
+          IntLiteral 1
+        else
+          IntLiteral 2147483648
+    Call println
+      Var jointlyInferredWhen
+    val jointlyInferredTry
+      TryExpression
+        IntLiteral 1
+        catch error: ArithmeticException
+          IntLiteral 2147483648
+    Call println
+      Var jointlyInferredTry
+    val byte: Byte
+      IntLiteral 42
+    val short: Short
+      IntLiteral 42
+    val int32: Int32
+      IntLiteral 42
+    val int64: Int64
+      IntLiteral 42L
+    val ubyte: UByte
+      IntLiteral 42u
+    val ushort: UShort
+      IntLiteral 42u
+    val uint32: UInt32
+      IntLiteral 42u
+    val uint64: UInt64
+      IntLiteral 42uL
+    Call println
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall toInt64
+              Var byte
+            MethodCall toInt64
+              Var short
+          MethodCall toInt64
+            Var int32
+        Var int64
+    Call println
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall toUInt64
+              Var ubyte
+            MethodCall toUInt64
+              Var ushort
+          MethodCall toUInt64
+            Var uint32
+        Var uint64
+
+== hir ==
+Module
+  typealias Byte = Int8
+  typealias Short = Int16
+  typealias Int32 = Int
+  typealias Int64 = Long
+  typealias UByte = UInt8
+  typealias UShort = UInt16
+  typealias UInt32 = UInt
+  typealias UInt64 = ULong
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException(message: Option<String>)
+  interface Continuation<T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<T>
+    suspend fun run(): T0
+  interface SuspendRegistration<T>
+    fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Long
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    val local2
+      Local task : suspend () -> T0
+    val local3
+      Local $argument.0 : suspend () -> T0
+    val local4
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local $parameter.task : suspend () -> T0
+    val local5
+      Local completion : Continuation<T0>
+    val local6
+      Local $argument.0 : SuspendTask<T0>
+    val local7
+      Local $argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $parameter.task : SuspendTask<T0>
+      Local $parameter.completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    val local1
+      Local registration : (Continuation<T0>) -> Unit
+    val local2
+      Local $argument.0 : (Continuation<T0>) -> Unit
+    val local3
+      Box : SuspendRegistration<T0>
+        StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+          Local $parameter.registration : (Continuation<T0>) -> Unit
+    val local4
+      Local $argument.0 : SuspendRegistration<T0>
+    return
+      Call suspendCoroutine<T0> : T0
+        Local $parameter.registration : SuspendRegistration<T0>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _pin<T0> : ULong
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : ULong
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Local $parameter.raw : ULong
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : ULong
+        Local p : PinnedPtr<T0>
+    val local2
+      Local $argument.0 : ULong
+    return
+      Call _unpin<T0> : T0
+        Local $parameter.raw : ULong
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _getGcHandle<T0> : ULong
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : ULong
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Local $parameter.raw : ULong
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : ULong
+        Local h : GcHandle<T0>
+    val local2
+      Local $argument.0 : ULong
+    return
+      Call _releaseGcHandle<T0> : T0
+        Local $parameter.raw : ULong
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): ULong <intrinsic rt_gc_stats>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    return
+  fun println<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern1 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern2 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern3 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern4 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern5 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern6 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern7 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern8 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern9 abi=scoop symbol=scoop_rt_string_hash>
+  fun defaultKind(value: Int): String
+    return
+      StringLiteral "Int" : String
+  fun defaultKind(value: Long): String
+    return
+      StringLiteral "Long" : String
+  fun unsignedDefaultKind(value: UInt): String
+    return
+      StringLiteral "UInt" : String
+  fun unsignedDefaultKind(value: ULong): String
+    return
+      StringLiteral "ULong" : String
+  fun second<T>(first: T0, second: T0): T0
+    return
+      Local second : T0
+  fun main(): Unit
+    val local0
+      IntegerLiteral 127 : Int8
+    val local1
+      IntegerLiteral 32767 : Int16
+    val local2
+      IntegerLiteral 2147483647 : Int
+    val local3
+      IntegerLiteral 9223372036854775807 : Long
+    val local4
+      IntegerLiteral 255u : UInt8
+    val local5
+      IntegerLiteral 65535u : UInt16
+    val local6
+      IntegerLiteral 4294967295u : UInt
+    val local7
+      IntegerLiteral 18446744073709551615uL : ULong
+    val local8
+      IntegerLiteral 240u : UInt8
+    val local9
+      IntegerLiteral 32767 : Int16
+    val local10
+      IntegerLiteral -128 : Int8
+    val local11
+      IntegerLiteral -32768 : Int16
+    val local12
+      IntegerLiteral -2147483648 : Int
+    val local13
+      IntegerLiteral -9223372036854775808 : Long
+    val local14
+      Local signed8 : Int8
+    val local15
+      IntegerLiteral 1 : Int8
+    val local16
+      Local $argument.0 : Int8
+    val local17
+      IntegerOperation int8.add target=function48 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local18
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local19
+      Local signed16 : Int16
+    val local20
+      IntegerLiteral 1 : Int16
+    val local21
+      Local $argument.0 : Int16
+    val local22
+      IntegerOperation int16.add target=function76 <no-gc> : Int16
+        Local $receiver : Int16
+        Local $parameter.other : Int16
+    val local23
+      Local $argument.0 : Int16
+    Call println<Int16> : Unit
+      Local $parameter.value : Int16
+    val local24
+      Local signed32 : Int
+    val local25
+      IntegerLiteral 1 : Int
+    val local26
+      Local $argument.0 : Int
+    val local27
+      IntegerOperation int.add target=function104 <no-gc> : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local28
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local29
+      Local signed64 : Long
+    val local30
+      IntegerLiteral 1 : Long
+    val local31
+      Local $argument.0 : Long
+    val local32
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local33
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local34
+      Local unsigned8 : UInt8
+    val local35
+      IntegerLiteral 1u : UInt8
+    val local36
+      Local $argument.0 : UInt8
+    val local37
+      IntegerOperation uint8.add target=function160 <no-gc> : UInt8
+        Local $receiver : UInt8
+        Local $parameter.other : UInt8
+    val local38
+      Local $argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $parameter.value : UInt8
+    val local39
+      Local unsigned16 : UInt16
+    val local40
+      IntegerLiteral 1u : UInt16
+    val local41
+      Local $argument.0 : UInt16
+    val local42
+      IntegerOperation uint16.add target=function187 <no-gc> : UInt16
+        Local $receiver : UInt16
+        Local $parameter.other : UInt16
+    val local43
+      Local $argument.0 : UInt16
+    Call println<UInt16> : Unit
+      Local $parameter.value : UInt16
+    val local44
+      Local unsigned32 : UInt
+    val local45
+      IntegerLiteral 1u : UInt
+    val local46
+      Local $argument.0 : UInt
+    val local47
+      IntegerOperation uint.add target=function214 <no-gc> : UInt
+        Local $receiver : UInt
+        Local $parameter.other : UInt
+    val local48
+      Local $argument.0 : UInt
+    Call println<UInt> : Unit
+      Local $parameter.value : UInt
+    val local49
+      Local unsigned64 : ULong
+    val local50
+      IntegerLiteral 1uL : ULong
+    val local51
+      Local $argument.0 : ULong
+    val local52
+      IntegerOperation ulong.add target=function241 <no-gc> : ULong
+        Local $receiver : ULong
+        Local $parameter.other : ULong
+    val local53
+      Local $argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $parameter.value : ULong
+    val local54
+      Local binary : UInt8
+    val local55
+      Local $argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $parameter.value : UInt8
+    val local56
+      Local hexadecimal : Int16
+    val local57
+      Local $argument.0 : Int16
+    Call println<Int16> : Unit
+      Local $parameter.value : Int16
+    val local58
+      Local unsigned8 : UInt8
+    val local59
+      IntegerOperation uint8.unary_minus target=function157 <no-gc> : UInt8
+        Local $receiver : UInt8
+    val local60
+      Local $argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $parameter.value : UInt8
+    val local61
+      IntegerLiteral 1u : UInt
+    val local62
+      IntegerOperation uint.unary_minus target=function211 <no-gc> : UInt
+        Local $receiver : UInt
+    val local63
+      Local $argument.0 : UInt
+    Call println<UInt> : Unit
+      Local $parameter.value : UInt
+    val local64
+      Local minimum8 : Int8
+    val local65
+      IntegerLiteral 1 : Int8
+    val local66
+      Local $argument.0 : Int8
+    val local67
+      IntegerOperation int8.sub target=function49 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local68
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local69
+      Local signed8 : Int8
+    val local70
+      IntegerLiteral 2 : Int8
+    val local71
+      Local $argument.0 : Int8
+    val local72
+      IntegerOperation int8.mul target=function50 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local73
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local74
+      IntegerLiteral 127 : Int8
+    val local75
+      Local incremented : Int8
+    val local76
+      Local $old.0 : Int8
+    val local77
+      IntegerOperation int8.inc target=function46 <no-gc> : Int8
+        Local $receiver : Int8
+    assign incremented
+      Local $new.1 : Int8
+    val local78
+      Local $old.0 : Int8
+    val local79
+      Local incremented : Int8
+    val local80
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local81
+      Local incremented : Int8
+    val local82
+      Local $old.2 : Int8
+    val local83
+      IntegerOperation int8.dec target=function47 <no-gc> : Int8
+        Local $receiver : Int8
+    assign incremented
+      Local $new.3 : Int8
+    val local84
+      Local $old.2 : Int8
+    val local85
+      Local incremented : Int8
+    val local86
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local87
+      Local beforeIncrement : Int8
+    val local88
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local89
+      Local beforeDecrement : Int8
+    val local90
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local91
+      Local minimum8 : Int8
+    val local92
+      IntegerLiteral -1 : Int8
+    val local93
+      Local $argument.0 : Int8
+    val local94
+      IntegerOperation int8.div target=function51 <managed> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local95
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local96
+      Local minimum16 : Int16
+    val local97
+      IntegerLiteral -1 : Int16
+    val local98
+      Local $argument.0 : Int16
+    val local99
+      IntegerOperation int16.rem target=function80 <managed> : Int16
+        Local $receiver : Int16
+        Local $parameter.other : Int16
+    val local100
+      Local $argument.0 : Int16
+    Call println<Int16> : Unit
+      Local $parameter.value : Int16
+    val local101
+      Local minimum32 : Int
+    val local102
+      IntegerLiteral -1 : Int
+    val local103
+      Local $argument.0 : Int
+    val local104
+      IntegerOperation int.div target=function107 <managed> : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local105
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local106
+      Local minimum64 : Long
+    val local107
+      IntegerLiteral -1 : Long
+    val local108
+      Local $argument.0 : Long
+    val local109
+      IntegerOperation long.rem target=function136 <managed> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local110
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    try
+      val local111
+        Local signed8 : Int8
+      val local112
+        IntegerLiteral 0 : Int8
+      val local113
+        Local $argument.0 : Int8
+      val local114
+        IntegerOperation int8.div target=function51 <managed> : Int8
+          Local $receiver : Int8
+          Local $parameter.other : Int8
+      val local115
+        Local $argument.0 : Int8
+      Call println<Int8> : Unit
+        Local $parameter.value : Int8
+    catch error: ArithmeticException
+      val local117
+        StringLiteral "division-by-zero" : String
+      val local118
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    val local119
+      IntegerLiteral 1 : Int8
+    val local120
+      Local minimum8 : Int8
+    val local121
+      Local $argument.0 : Int8
+    val local122
+      IntegerOperation int8.add target=function48 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local123
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local124
+      IntegerOperation int8.equals target=function43 <no-gc> : Boolean
+        IntegerLiteral 1 : Int8
+        Local minimum8 : Int8
+    val local125
+      Local $argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $parameter.value : Boolean
+    val local126
+      IntegerOperation int8.equals target=function43 <no-gc> : Boolean
+        Local minimum8 : Int8
+        IntegerLiteral -128 : Int8
+    val local127
+      Local $argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $parameter.value : Boolean
+    val local128
+      IntegerLiteral 1 : Int8
+    val local129
+      Local signed8 : Int8
+    val local130
+      Local $argument.0 : Int8
+    val local131
+      IntegerOperation int8.and target=function54 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.other : Int8
+    val local132
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local133
+      Local minimum8 : Int8
+    val local134
+      IntegerLiteral 0 : Int8
+    val local135
+      Local $argument.0 : Int8
+    val local136
+      Binary Lt : Boolean
+        IntegerOperation int8.compare_to target=function53 <no-gc> : Long
+          Local $receiver : Int8
+          Local $parameter.other : Int8
+        IntegerLiteral 0 : Long
+    val local137
+      Local $argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $parameter.value : Boolean
+    val local138
+      Local unsigned8 : UInt8
+    val local139
+      IntegerLiteral 0u : UInt8
+    val local140
+      Local $argument.0 : UInt8
+    val local141
+      Binary Gt : Boolean
+        IntegerOperation uint8.compare_to target=function165 <no-gc> : Long
+          Local $receiver : UInt8
+          Local $parameter.other : UInt8
+        IntegerLiteral 0 : Long
+    val local142
+      Local $argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $parameter.value : Boolean
+    val local143
+      IntegerLiteral 1u : UInt8
+    val local144
+      IntegerOperation uint8.unary_minus target=function157 <no-gc> : UInt8
+        Local $receiver : UInt8
+    when
+      Local unsignedMinusPattern : UInt8
+      arm <lit IntegerLiteral(Unsigned8(255))>
+        val local145
+          StringLiteral "unsigned-minus-pattern" : String
+        val local146
+          Local $argument.0 : String
+        Call println<String> : Unit
+          Local $parameter.value : String
+      else
+        val local147
+          StringLiteral "unreachable" : String
+        val local148
+          Local $argument.0 : String
+        Call println<String> : Unit
+          Local $parameter.value : String
+    val local149
+      IntegerLiteral 1 : Int
+    val local150
+      IntegerLiteral -1 : Long
+    val local151
+      Local $argument.0 : Long
+    val local152
+      IntegerOperation int.shl target=function114 <no-gc> : Int
+        Local $receiver : Int
+        Local $parameter.count : Long
+    val local153
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local154
+      IntegerLiteral -1 : Int
+    val local155
+      IntegerLiteral 1 : Long
+    val local156
+      Local $argument.0 : Long
+    val local157
+      IntegerOperation int.ushr target=function116 <no-gc> : Int
+        Local $receiver : Int
+        Local $parameter.count : Long
+    val local158
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local159
+      Local unsigned8 : UInt8
+    val local160
+      IntegerLiteral 7 : Long
+    val local161
+      Local $argument.0 : Long
+    val local162
+      IntegerOperation uint8.shr target=function171 <no-gc> : UInt8
+        Local $receiver : UInt8
+        Local $parameter.count : Long
+    val local163
+      Local $argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $parameter.value : UInt8
+    val local164
+      Local minimum8 : Int8
+    val local165
+      IntegerLiteral 7 : Long
+    val local166
+      Local $argument.0 : Long
+    val local167
+      IntegerOperation int8.shr target=function59 <no-gc> : Int8
+        Local $receiver : Int8
+        Local $parameter.count : Long
+    val local168
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local169
+      Local minimum8 : Int8
+    val local170
+      IntegerConversion Int8 -> ULong target=function68 <no-gc> : ULong
+        Local $receiver : Int8
+    val local171
+      Local $argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $parameter.value : ULong
+    val local172
+      IntegerLiteral 257 : Int
+    val local173
+      IntegerConversion Int -> UInt8 target=function121 <no-gc> : UInt8
+        Local $receiver : Int
+    val local174
+      Local $argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $parameter.value : UInt8
+    val local175
+      Local unsigned64 : ULong
+    val local176
+      IntegerConversion ULong -> Int8 target=function253 <no-gc> : Int8
+        Local $receiver : ULong
+    val local177
+      Local $argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $parameter.value : Int8
+    val local178
+      Local unsigned32 : UInt
+    val local179
+      IntegerConversion UInt -> Long target=function229 <no-gc> : Long
+        Local $receiver : UInt
+    val local180
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local181
+      IntegerLiteral 1 : Int
+    val local182
+      Local $argument.0 : Int
+    val local183
+      Call defaultKind : String
+        Local $parameter.value : Int
+    val local184
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local185
+      IntegerLiteral 2147483648 : Long
+    val local186
+      Local $argument.0 : Long
+    val local187
+      Call defaultKind : String
+        Local $parameter.value : Long
+    val local188
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local189
+      IntegerLiteral 1u : UInt
+    val local190
+      Local $argument.0 : UInt
+    val local191
+      Call unsignedDefaultKind : String
+        Local $parameter.value : UInt
+    val local192
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local193
+      IntegerLiteral 4294967296uL : ULong
+    val local194
+      Local $argument.0 : ULong
+    val local195
+      Call unsignedDefaultKind : String
+        Local $parameter.value : ULong
+    val local196
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local197
+      IntegerLiteral 1 : Long
+    val local198
+      IntegerLiteral 2147483648 : Long
+    val local199
+      Local $argument.0 : Long
+    val local200
+      Local $argument.1 : Long
+    val local201
+      Call second<Long> : Long
+        Local $parameter.first : Long
+        Local $parameter.second : Long
+    val local202
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local203
+      IntegerLiteral 2147483648 : Long
+    val local204
+      IntegerLiteral 1 : Long
+    val local205
+      Local $argument.0 : Long
+    val local206
+      Local $argument.1 : Long
+    val local207
+      Call second<Long> : Long
+        Local $parameter.first : Long
+        Local $parameter.second : Long
+    val local208
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local209
+      ArrayLiteral : Array<Long>
+        IntegerLiteral 1 : Long
+        IntegerLiteral 2147483648 : Long
+    val local210
+      Local jointlyInferredArray : Array<Long>
+    val local211
+      IntegerLiteral 0 : Long
+    val local212
+      Local $argument.0 : Long
+    val local216
+      Index ImmutableGet : Long
+        Local $receiver : Array<Long>
+        Local $parameter.index : Long
+    val local213
+      Local jointlyInferredArray : Array<Long>
+    val local214
+      IntegerLiteral 1 : Long
+    val local215
+      Local $argument.0 : Long
+    val local217
+      Index ImmutableGet : Long
+        Local $receiver : Array<Long>
+        Local $parameter.index : Long
+    val local218
+      Local $argument.0 : Long
+    val local219
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local220
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    if
+      BoolLiteral false : Boolean
+      assign $result.4
+        IntegerLiteral 1 : Long
+    else
+      assign $result.4
+        IntegerLiteral 2147483648 : Long
+    val local222
+      Local $result.4 : Long
+    val local223
+      Local jointlyInferredIf : Long
+    val local224
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    when
+      Local signed8 : Int8
+      arm <lit IntegerLiteral(Signed8(127))>
+        assign $result.5
+          IntegerLiteral 1 : Long
+      else
+        assign $result.5
+          IntegerLiteral 2147483648 : Long
+    val local226
+      Local $result.5 : Long
+    val local227
+      Local jointlyInferredWhen : Long
+    val local228
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    try
+      assign $result.6
+        IntegerLiteral 1 : Long
+    catch error: ArithmeticException
+      assign $result.6
+        IntegerLiteral 2147483648 : Long
+    val local231
+      Local $result.6 : Long
+    val local232
+      Local jointlyInferredTry : Long
+    val local233
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local234
+      IntegerLiteral 42 : Int8
+    val local235
+      IntegerLiteral 42 : Int16
+    val local236
+      IntegerLiteral 42 : Int
+    val local237
+      IntegerLiteral 42 : Long
+    val local238
+      IntegerLiteral 42u : UInt8
+    val local239
+      IntegerLiteral 42u : UInt16
+    val local240
+      IntegerLiteral 42u : UInt
+    val local241
+      IntegerLiteral 42uL : ULong
+    val local242
+      Local byte : Int8
+    val local244
+      IntegerConversion Int8 -> Long target=function64 <no-gc> : Long
+        Local $receiver : Int8
+    val local243
+      Local short : Int16
+    val local245
+      IntegerConversion Int16 -> Long target=function92 <no-gc> : Long
+        Local $receiver : Int16
+    val local246
+      Local $argument.0 : Long
+    val local248
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local247
+      Local int32 : Int
+    val local249
+      IntegerConversion Int -> Long target=function120 <no-gc> : Long
+        Local $receiver : Int
+    val local250
+      Local $argument.0 : Long
+    val local251
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local252
+      Local int64 : Long
+    val local253
+      Local $argument.0 : Long
+    val local254
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local255
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local256
+      Local ubyte : UInt8
+    val local258
+      IntegerConversion UInt8 -> ULong target=function179 <no-gc> : ULong
+        Local $receiver : UInt8
+    val local257
+      Local ushort : UInt16
+    val local259
+      IntegerConversion UInt16 -> ULong target=function206 <no-gc> : ULong
+        Local $receiver : UInt16
+    val local260
+      Local $argument.0 : ULong
+    val local262
+      IntegerOperation ulong.add target=function241 <no-gc> : ULong
+        Local $receiver : ULong
+        Local $parameter.other : ULong
+    val local261
+      Local uint32 : UInt
+    val local263
+      IntegerConversion UInt -> ULong target=function233 <no-gc> : ULong
+        Local $receiver : UInt
+    val local264
+      Local $argument.0 : ULong
+    val local265
+      IntegerOperation ulong.add target=function241 <no-gc> : ULong
+        Local $receiver : ULong
+        Local $parameter.other : ULong
+    val local266
+      Local uint64 : ULong
+    val local267
+      Local $argument.0 : ULong
+    val local268
+      IntegerOperation ulong.add target=function241 <no-gc> : ULong
+        Local $receiver : ULong
+        Local $parameter.other : ULong
+    val local269
+      Local $argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $parameter.value : ULong
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+  instance println<Int8>
+  instance println<Int16>
+  instance println<Int>
+  instance println<Long>
+  instance println<UInt8>
+  instance println<UInt16>
+  instance println<UInt>
+  instance println<ULong>
+  instance println<String>
+  instance println<Boolean>
+  instance second<Long>
+
+== mir ==
+Module mangling=compact-v2
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(ULong) -> String <abi=scoop managed>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef6 coreLongHash @scoop_rt_long_hash(Long) -> Long <abi=scoop managed>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(ULong) -> Long <abi=scoop managed>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
+  extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
+  struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Int8.toString @scoop.Int8.toString(this: Int8) -> String
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int8.hash @scoop.Int8.hash(this: Int8) -> Long
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Int16.toString @scoop.Int16.toString(this: Int16) -> String
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int16.hash @scoop.Int16.hash(this: Int16) -> Long
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Long
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Long.toString @scoop.Long.toString(this: Long) -> String
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local this
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Long.hash @scoop.Long.hash(this: Long) -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local this
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt8.toString @scoop.UInt8.toString(this: UInt8) -> String
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt8.hash @scoop.UInt8.hash(this: UInt8) -> Long
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt16.toString @scoop.UInt16.toString(this: UInt16) -> String
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt16.hash @scoop.UInt16.hash(this: UInt16) -> Long
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      val $receiver: UInt
+        Type UInt
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Long
+    bb0 entry
+      val $receiver: UInt
+        Type UInt
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun ULong.toString @scoop.ULong.toString(this: ULong) -> String
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun ULong.hash @scoop.ULong.hash(this: ULong) -> Long
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $argument.1: Boolean
+        Type Boolean
+        Local other
+      val $parameter.left: Boolean
+        Type Boolean
+        Local $argument.0
+      val $parameter.right: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Boolean = extern1 @scoop_rt_bool_equals direct
+        Type Boolean
+        Local $parameter.left
+        Type Boolean
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: String = extern5 @scoop_rt_bool_to_string direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Long
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: Long = extern8 @scoop_rt_bool_hash direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $argument.1: String
+        Type String
+        Local other
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $call.1: Boolean = extern2 @scoop_rt_string_eq direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Long
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.1: Long = extern9 @scoop_rt_string_hash direct
+        Type String
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun defaultKind @scoop.defaultKind.I32(value: Int) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @scoop.str.0
+  fun defaultKind @scoop.defaultKind.I64(value: Long) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @scoop.str.1
+  fun unsignedDefaultKind @scoop.unsignedDefaultKind.V32(value: UInt) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @scoop.str.2
+  fun unsignedDefaultKind @scoop.unsignedDefaultKind.V64(value: ULong) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @scoop.str.3
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val signed8: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val signed16: Int16
+        Type Int16
+        IntegerLiteral Int16 value=32767 bits=0x7fff
+      val signed32: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val signed64: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val unsigned8: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val unsigned16: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65535 bits=0xffff
+      val unsigned32: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val unsigned64: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val binary: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=240 bits=0xf0
+      val hexadecimal: Int16
+        Type Int16
+        IntegerLiteral Int16 value=32767 bits=0x7fff
+      val minimum8: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val minimum16: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32768 bits=0x8000
+      val minimum32: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val minimum64: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $receiver: Int8
+        Type Int8
+        Local signed8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          Local $parameter.other
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int16
+        Type Int16
+        Local signed16
+      val $argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=1 bits=0x0001
+      val $parameter.other: Int16
+        Type Int16
+        Local $argument.0
+      val $argument.0: Int16
+        Type Int16
+        IntegerBinary add kind=Int16
+          Type Int16
+          Local $receiver
+          Type Int16
+          Local $parameter.other
+      val $parameter.value: Int16
+        Type Int16
+        Local $argument.0
+      call @scoop.println$I16 direct
+        Type Int16
+        Local $parameter.value
+      val $receiver: Int
+        Type Int
+        Local signed32
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $receiver: Long
+        Type Long
+        Local signed64
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        Local unsigned8
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $parameter.other: UInt8
+        Type UInt8
+        Local $argument.0
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerBinary add kind=UInt8
+          Type UInt8
+          Local $receiver
+          Type UInt8
+          Local $parameter.other
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call @scoop.println$V8 direct
+        Type UInt8
+        Local $parameter.value
+      val $receiver: UInt16
+        Type UInt16
+        Local unsigned16
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=1 bits=0x0001
+      val $parameter.other: UInt16
+        Type UInt16
+        Local $argument.0
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerBinary add kind=UInt16
+          Type UInt16
+          Local $receiver
+          Type UInt16
+          Local $parameter.other
+      val $parameter.value: UInt16
+        Type UInt16
+        Local $argument.0
+      call @scoop.println$V16 direct
+        Type UInt16
+        Local $parameter.value
+      val $receiver: UInt
+        Type UInt
+        Local unsigned32
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $parameter.other: UInt
+        Type UInt
+        Local $argument.0
+      val $argument.0: UInt
+        Type UInt
+        IntegerBinary add kind=UInt
+          Type UInt
+          Local $receiver
+          Type UInt
+          Local $parameter.other
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call @scoop.println$V32 direct
+        Type UInt
+        Local $parameter.value
+      val $receiver: ULong
+        Type ULong
+        Local unsigned64
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $parameter.other: ULong
+        Type ULong
+        Local $argument.0
+      val $argument.0: ULong
+        Type ULong
+        IntegerBinary add kind=ULong
+          Type ULong
+          Local $receiver
+          Type ULong
+          Local $parameter.other
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call @scoop.println$V64 direct
+        Type ULong
+        Local $parameter.value
+      val $argument.0: UInt8
+        Type UInt8
+        Local binary
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call @scoop.println$V8 direct
+        Type UInt8
+        Local $parameter.value
+      val $argument.0: Int16
+        Type Int16
+        Local hexadecimal
+      val $parameter.value: Int16
+        Type Int16
+        Local $argument.0
+      call @scoop.println$I16 direct
+        Type Int16
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        Local unsigned8
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerUnary negate kind=UInt8
+          Type UInt8
+          Local $receiver
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call @scoop.println$V8 direct
+        Type UInt8
+        Local $parameter.value
+      val $receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $argument.0: UInt
+        Type UInt
+        IntegerUnary negate kind=UInt
+          Type UInt
+          Local $receiver
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call @scoop.println$V32 direct
+        Type UInt
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local minimum8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerBinary subtract kind=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          Local $parameter.other
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local signed8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=2 bits=0x02
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerBinary multiply kind=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          Local $parameter.other
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      var incremented: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $old.0: Int8
+        Type Int8
+        Local incremented
+      val $receiver: Int8
+        Type Int8
+        Local $old.0
+      val $new.1: Int8
+        Type Int8
+        IntegerUnary increment kind=Int8
+          Type Int8
+          Local $receiver
+      assign incremented
+        Type Int8
+        Local $new.1
+      val beforeIncrement: Int8
+        Type Int8
+        Local $old.0
+      val $argument.0: Int8
+        Type Int8
+        Local incremented
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $old.2: Int8
+        Type Int8
+        Local incremented
+      val $receiver: Int8
+        Type Int8
+        Local $old.2
+      val $new.3: Int8
+        Type Int8
+        IntegerUnary decrement kind=Int8
+          Type Int8
+          Local $receiver
+      assign incremented
+        Type Int8
+        Local $new.3
+      val beforeDecrement: Int8
+        Type Int8
+        Local $old.2
+      val $argument.0: Int8
+        Type Int8
+        Local incremented
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $argument.0: Int8
+        Type Int8
+        Local beforeIncrement
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $argument.0: Int8
+        Type Int8
+        Local beforeDecrement
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local minimum8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $div.1: Int8
+        Type Int8
+        Local $receiver
+      val $div.2: Int8
+        Type Int8
+        Local $parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.2
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c4 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.1
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.2
+          Type Int8
+          IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int8
+        SafeIntegerDivRem divide kind=Int8
+          Type Int8
+          Local $div.1
+          Type Int8
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int8
+        Type Int8
+        Local $div.result.3
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int16
+        Type Int16
+        Local minimum16
+      val $argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-1 bits=0xffff
+      val $parameter.other: Int16
+        Type Int16
+        Local $argument.0
+      val $div.4: Int16
+        Type Int16
+        Local $receiver
+      val $div.5: Int16
+        Type Int16
+        Local $parameter.other
+      branch bb9 bb10
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.5
+          Type Int16
+          IntegerLiteral Int16 value=0 bits=0x0000
+    bb9 if.then.9
+      assign $new.3
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c4 direct
+        Type ArithmeticException
+        Local $new.3
+      throw
+        Type ArithmeticException
+        Local $new.3
+    bb10 if.merge.10
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.4
+          Type Int16
+          IntegerLiteral Int16 value=-32768 bits=0x8000
+    bb11 logic.rhs.11
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.5
+          Type Int16
+          IntegerLiteral Int16 value=-1 bits=0xffff
+      goto bb13
+    bb12 logic.short.12
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb13 logic.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $logic.4
+    bb14 if.then.14
+      assign $div.result.6
+        Type Int16
+        IntegerLiteral Int16 value=0 bits=0x0000
+      goto bb16
+    bb15 if.else.15
+      assign $div.result.6
+        Type Int16
+        SafeIntegerDivRem remainder kind=Int16
+          Type Int16
+          Local $div.4
+          Type Int16
+          Local $div.5
+      goto bb16
+    bb16 if.merge.16
+      val $argument.0: Int16
+        Type Int16
+        Local $div.result.6
+      val $parameter.value: Int16
+        Type Int16
+        Local $argument.0
+      call @scoop.println$I16 direct
+        Type Int16
+        Local $parameter.value
+      val $receiver: Int
+        Type Int
+        Local minimum32
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $div.7: Int
+        Type Int
+        Local $receiver
+      val $div.8: Int
+        Type Int
+        Local $parameter.other
+      branch bb17 bb18
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.8
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb17 if.then.17
+      assign $new.5
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c4 direct
+        Type ArithmeticException
+        Local $new.5
+      throw
+        Type ArithmeticException
+        Local $new.5
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.7
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb19 logic.rhs.19
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.8
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $logic.6
+    bb22 if.then.22
+      assign $div.result.9
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      goto bb24
+    bb23 if.else.23
+      assign $div.result.9
+        Type Int
+        SafeIntegerDivRem divide kind=Int
+          Type Int
+          Local $div.7
+          Type Int
+          Local $div.8
+      goto bb24
+    bb24 if.merge.24
+      val $argument.0: Int
+        Type Int
+        Local $div.result.9
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $receiver: Long
+        Type Long
+        Local minimum64
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $div.10: Long
+        Type Long
+        Local $receiver
+      val $div.11: Long
+        Type Long
+        Local $parameter.other
+      branch bb25 bb26
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.11
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb25 if.then.25
+      assign $new.7
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c4 direct
+        Type ArithmeticException
+        Local $new.7
+      throw
+        Type ArithmeticException
+        Local $new.7
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.10
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb27 logic.rhs.27
+      assign $logic.8
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.11
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb29
+    bb28 logic.short.28
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb29
+    bb29 logic.merge.29
+      branch bb30 bb31
+        Type Boolean
+        Local $logic.8
+    bb30 if.then.30
+      assign $div.result.12
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb32
+    bb31 if.else.31
+      assign $div.result.12
+        Type Long
+        SafeIntegerDivRem remainder kind=Long
+          Type Long
+          Local $div.10
+          Type Long
+          Local $div.11
+      goto bb32
+    bb32 if.merge.32
+      val $argument.0: Long
+        Type Long
+        Local $div.result.12
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      goto bb40
+    bb33 try.unwind.33
+      landing_pad cleanup=false
+      goto bb34
+    bb34 try.dispatch.34
+      begin_catch
+      branch bb50 bb51
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb35 try.handler_pad.35
+      landing_pad cleanup=true
+      goto bb36
+    bb36 try.handler_cleanup.36
+      end_catch
+      resume
+    bb37 try.exit_pad.37
+      landing_pad cleanup=true
+      goto bb38
+    bb38 try.exit_cleanup.38
+      end_catch
+      resume
+    bb39 try.end.39
+      val $receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $argument.0: Int8
+        Type Int8
+        Local minimum8
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          Local $parameter.other
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          IntegerLiteral Int8 value=1 bits=0x01
+          Type Int8
+          Local minimum8
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @scoop.println$B direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local minimum8
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @scoop.println$B direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $argument.0: Int8
+        Type Int8
+        Local signed8
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerBinary bit-and kind=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          Local $parameter.other
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local minimum8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int8 result=Long
+            Type Int8
+            Local $receiver
+            Type Int8
+            Local $parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @scoop.println$B direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        Local unsigned8
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $parameter.other: UInt8
+        Type UInt8
+        Local $argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=UInt8 result=Long
+            Type UInt8
+            Local $receiver
+            Type UInt8
+            Local $parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @scoop.println$B direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val unsignedMinusPattern: UInt8
+        Type UInt8
+        IntegerUnary negate kind=UInt8
+          Type UInt8
+          Local $receiver
+      val $when.16: UInt8
+        Type UInt8
+        Local unsignedMinusPattern
+      branch bb54 bb55
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $when.16
+          Type UInt8
+          IntegerLiteral UInt8 value=255 bits=0xff
+    bb40 try.body.40 unwind bb33
+      val $receiver: Int8
+        Type Int8
+        Local signed8
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $parameter.other: Int8
+        Type Int8
+        Local $argument.0
+      val $div.13: Int8
+        Type Int8
+        Local $receiver
+      val $div.14: Int8
+        Type Int8
+        Local $parameter.other
+      branch bb41 bb42
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.14
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb41 if.then.41 unwind bb33
+      assign $new.9
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c4 direct
+        Type ArithmeticException
+        Local $new.9
+      throw unwind bb33
+        Type ArithmeticException
+        Local $new.9
+    bb42 if.merge.42 unwind bb33
+      branch bb43 bb44
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.13
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+    bb43 logic.rhs.43 unwind bb33
+      assign $logic.10
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.14
+          Type Int8
+          IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb45
+    bb44 logic.short.44 unwind bb33
+      assign $logic.10
+        Type Boolean
+        BoolLiteral false
+      goto bb45
+    bb45 logic.merge.45 unwind bb33
+      branch bb46 bb47
+        Type Boolean
+        Local $logic.10
+    bb46 if.then.46 unwind bb33
+      assign $div.result.15
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb48
+    bb47 if.else.47 unwind bb33
+      assign $div.result.15
+        Type Int8
+        SafeIntegerDivRem divide kind=Int8
+          Type Int8
+          Local $div.13
+          Type Int8
+          Local $div.14
+      goto bb48
+    bb48 if.merge.48 unwind bb33
+      val $argument.0: Int8
+        Type Int8
+        Local $div.result.15
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      goto bb49
+    bb49 scope.49
+      goto bb39
+    bb50 try.catch.50
+      val error: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          CaughtException
+      goto bb52
+    bb51 try.next.51
+      rethrow unwind bb37
+    bb52 scope.52 unwind bb35
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.4
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb53
+    bb53 scope.53
+      end_catch
+      goto bb39
+    bb54 if.then.54
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.5
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb56
+    bb55 if.else.55
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.6
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb56
+    bb56 if.merge.56
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $parameter.count: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerShift left value=Int count=Int
+          Type Int
+          Local $receiver
+          Type Int
+          IntegerConversion Long -> Int
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.count: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerShift unsigned-right value=Int count=Int
+          Type Int
+          Local $receiver
+          Type Int
+          IntegerConversion Long -> Int
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        Local unsigned8
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.count: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerShift right value=UInt8 count=UInt8
+          Type UInt8
+          Local $receiver
+          Type UInt8
+          IntegerConversion Long -> UInt8
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $parameter.count
+              Type Long
+              IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call @scoop.println$V8 direct
+        Type UInt8
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local minimum8
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.count: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Int8
+        Type Int8
+        IntegerShift right value=Int8 count=Int8
+          Type Int8
+          Local $receiver
+          Type Int8
+          IntegerConversion Long -> Int8
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $parameter.count
+              Type Long
+              IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: Int8
+        Type Int8
+        Local minimum8
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion Int8 -> ULong
+          Type Int8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call @scoop.println$V64 direct
+        Type ULong
+        Local $parameter.value
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=257 bits=0x00000101
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerConversion Int -> UInt8
+          Type Int
+          Local $receiver
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call @scoop.println$V8 direct
+        Type UInt8
+        Local $parameter.value
+      val $receiver: ULong
+        Type ULong
+        Local unsigned64
+      val $argument.0: Int8
+        Type Int8
+        IntegerConversion ULong -> Int8
+          Type ULong
+          Local $receiver
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call @scoop.println$I8 direct
+        Type Int8
+        Local $parameter.value
+      val $receiver: UInt
+        Type UInt
+        Local unsigned32
+      val $argument.0: Long
+        Type Long
+        IntegerConversion UInt -> Long
+          Type UInt
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: String = @scoop.defaultKind.I32 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $argument.0: String = @scoop.defaultKind.I64 direct
+        Type Long
+        Local $parameter.value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $argument.0: String = @scoop.unsignedDefaultKind.V32 direct
+        Type UInt
+        Local $parameter.value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=4294967296 bits=0x0000000100000000
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $argument.0: String = @scoop.unsignedDefaultKind.V64 direct
+        Type ULong
+        Local $parameter.value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      call $argument.0: Long = @scoop.second$I64 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      call $argument.0: Long = @scoop.second$I64 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val jointlyInferredArray: Array<Long>
+        Type Array<Long>
+        ArrayLiteral Array$I64
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+          Type Long
+          IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      val $receiver: Array<Long>
+        Type Array<Long>
+        Local jointlyInferredArray
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.index: Long
+        Type Long
+        Local $argument.0
+      val $arr.17: Array<Long>
+        Type Array<Long>
+        Local $receiver
+      val $idx.18: Long
+        Type Long
+        Local $parameter.index
+      branch bb58 bb57
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.18
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb57 logic.rhs.57
+      assign $logic.11
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.18
+          Type Long
+          ArrayLen Array$I64
+            Type Array<Long>
+            Local $arr.17
+      goto bb59
+    bb58 logic.short.58
+      assign $logic.11
+        Type Boolean
+        BoolLiteral true
+      goto bb59
+    bb59 logic.merge.59
+      branch bb60 bb61
+        Type Boolean
+        Local $logic.11
+    bb60 if.then.60
+      assign $new.12
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call @scoop.init.IndexOutOfBoundsException.$c5 direct
+        Type IndexOutOfBoundsException
+        Local $new.12
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.12
+    bb61 if.merge.61
+      val $receiver: Long
+        Type Long
+        ArrayGet Array$I64
+          Type Array<Long>
+          Local $arr.17
+          Type Long
+          Local $idx.18
+      val $receiver: Array<Long>
+        Type Array<Long>
+        Local jointlyInferredArray
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.index: Long
+        Type Long
+        Local $argument.0
+      val $arr.19: Array<Long>
+        Type Array<Long>
+        Local $receiver
+      val $idx.20: Long
+        Type Long
+        Local $parameter.index
+      branch bb63 bb62
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.20
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb62 logic.rhs.62
+      assign $logic.13
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.20
+          Type Long
+          ArrayLen Array$I64
+            Type Array<Long>
+            Local $arr.19
+      goto bb64
+    bb63 logic.short.63
+      assign $logic.13
+        Type Boolean
+        BoolLiteral true
+      goto bb64
+    bb64 logic.merge.64
+      branch bb65 bb66
+        Type Boolean
+        Local $logic.13
+    bb65 if.then.65
+      assign $new.14
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call @scoop.init.IndexOutOfBoundsException.$c5 direct
+        Type IndexOutOfBoundsException
+        Local $new.14
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.14
+    bb66 if.merge.66
+      val $argument.0: Long
+        Type Long
+        ArrayGet Array$I64
+          Type Array<Long>
+          Local $arr.19
+          Type Long
+          Local $idx.20
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      branch bb67 bb68
+        Type Boolean
+        BoolLiteral false
+    bb67 if.then.67
+      assign $result.4
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb69
+    bb68 if.else.68
+      assign $result.4
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      goto bb69
+    bb69 if.merge.69
+      val jointlyInferredIf: Long
+        Type Long
+        Local $result.4
+      val $argument.0: Long
+        Type Long
+        Local jointlyInferredIf
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $when.21: Int8
+        Type Int8
+        Local signed8
+      branch bb70 bb71
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $when.21
+          Type Int8
+          IntegerLiteral Int8 value=127 bits=0x7f
+    bb70 if.then.70
+      assign $result.5
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb72
+    bb71 if.else.71
+      assign $result.5
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      goto bb72
+    bb72 if.merge.72
+      val jointlyInferredWhen: Long
+        Type Long
+        Local $result.5
+      val $argument.0: Long
+        Type Long
+        Local jointlyInferredWhen
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      goto bb80
+    bb73 try.unwind.73
+      landing_pad cleanup=false
+      goto bb74
+    bb74 try.dispatch.74
+      begin_catch
+      branch bb82 bb83
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb75 try.handler_pad.75
+      landing_pad cleanup=true
+      goto bb76
+    bb76 try.handler_cleanup.76
+      end_catch
+      resume
+    bb77 try.exit_pad.77
+      landing_pad cleanup=true
+      goto bb78
+    bb78 try.exit_cleanup.78
+      end_catch
+      resume
+    bb79 try.end.79
+      val jointlyInferredTry: Long
+        Type Long
+        Local $result.6
+      val $argument.0: Long
+        Type Long
+        Local jointlyInferredTry
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val byte: Int8
+        Type Int8
+        IntegerLiteral Int8 value=42 bits=0x2a
+      val short: Int16
+        Type Int16
+        IntegerLiteral Int16 value=42 bits=0x002a
+      val int32: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val int64: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val ubyte: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=42 bits=0x2a
+      val ushort: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=42 bits=0x002a
+      val uint32: UInt
+        Type UInt
+        IntegerLiteral UInt value=42 bits=0x0000002a
+      val uint64: ULong
+        Type ULong
+        IntegerLiteral ULong value=42 bits=0x000000000000002a
+      val $receiver: Int8
+        Type Int8
+        Local byte
+      val $receiver: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $receiver: Int16
+        Type Int16
+        Local short
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local int32
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $argument.0: Long
+        Type Long
+        Local int64
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $receiver: UInt8
+        Type UInt8
+        Local ubyte
+      val $receiver: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $receiver: UInt16
+        Type UInt16
+        Local ushort
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.other: ULong
+        Type ULong
+        Local $argument.0
+      val $receiver: ULong
+        Type ULong
+        IntegerBinary add kind=ULong
+          Type ULong
+          Local $receiver
+          Type ULong
+          Local $parameter.other
+      val $receiver: UInt
+        Type UInt
+        Local uint32
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.other: ULong
+        Type ULong
+        Local $argument.0
+      val $receiver: ULong
+        Type ULong
+        IntegerBinary add kind=ULong
+          Type ULong
+          Local $receiver
+          Type ULong
+          Local $parameter.other
+      val $argument.0: ULong
+        Type ULong
+        Local uint64
+      val $parameter.other: ULong
+        Type ULong
+        Local $argument.0
+      val $argument.0: ULong
+        Type ULong
+        IntegerBinary add kind=ULong
+          Type ULong
+          Local $receiver
+          Type ULong
+          Local $parameter.other
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call @scoop.println$V64 direct
+        Type ULong
+        Local $parameter.value
+      return
+    bb80 try.body.80 unwind bb73
+      assign $result.6
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb81
+    bb81 scope.81
+      goto bb79
+    bb82 try.catch.82
+      val error: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          CaughtException
+      goto bb84
+    bb83 try.next.83
+      rethrow unwind bb77
+    bb84 scope.84 unwind bb75
+      assign $result.6
+        Type Long
+        IntegerLiteral Long value=2147483648 bits=0x0000000080000000
+      goto bb85
+    bb85 scope.85
+      end_catch
+      goto bb79
+  fun println @scoop.println$I8(value: Int8) -> Unit
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local value
+      call $argument.0: String = @scoop.Int8.toString direct
+        Type Int8
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.7
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I16(value: Int16) -> Unit
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local value
+      call $argument.0: String = @scoop.Int16.toString direct
+        Type Int16
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.8
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I32(value: Int) -> Unit
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      call $argument.0: String = @scoop.Int.toString direct
+        Type Int
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.9
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I64(value: Long) -> Unit
+    bb0 entry
+      val $receiver: Long
+        Type Long
+        Local value
+      call $argument.0: String = @scoop.Long.toString direct
+        Type Long
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.10
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$V8(value: UInt8) -> Unit
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local value
+      call $argument.0: String = @scoop.UInt8.toString direct
+        Type UInt8
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.11
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$V16(value: UInt16) -> Unit
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local value
+      call $argument.0: String = @scoop.UInt16.toString direct
+        Type UInt16
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.12
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$V32(value: UInt) -> Unit
+    bb0 entry
+      val $receiver: UInt
+        Type UInt
+        Local value
+      call $argument.0: String = @scoop.UInt.toString direct
+        Type UInt
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.13
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$V64(value: ULong) -> Unit
+    bb0 entry
+      val $receiver: ULong
+        Type ULong
+        Local value
+      call $argument.0: String = @scoop.ULong.toString direct
+        Type ULong
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.14
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      val $receiver: String
+        Type String
+        Local value
+      call $argument.0: String = @scoop.String.toString direct
+        Type String
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.15
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$B(value: Boolean) -> Unit
+    bb0 entry
+      val $receiver: Boolean
+        Type Boolean
+        Local value
+      call $argument.0: String = @scoop.Boolean.toString direct
+        Type Boolean
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.16
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun second @scoop.second$I64(first: Long, second: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local second
+  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+    bb0 entry
+      return
+  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+    bb0 entry
+      call @scoop.init.Throwable.$c0 direct
+        Type Throwable
+        Retype Throwable
+          Type Exception
+          Local this
+      field_set 0
+        Type Exception
+        Local this
+        Type Option$S<String>
+        Local message
+      return
+  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.17
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type UnwrapException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.18
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ClassCastException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.19
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ArithmeticException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.20
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IndexOutOfBoundsException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+    bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        Local message
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c7 @scoop.init.IllegalStateException.$c7(this: IllegalStateException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.21
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          Local file
+          Type Long
+          Local line
+          Type Long
+          Local column
+          Type String
+          Local functionName
+          Type String
+          Local typeName
+  instance @scoop.println$I8 <- println
+  instance @scoop.println$I16 <- println
+  instance @scoop.println$I32 <- println
+  instance @scoop.println$I64 <- println
+  instance @scoop.println$V8 <- println
+  instance @scoop.println$V16 <- println
+  instance @scoop.println$V32 <- println
+  instance @scoop.println$V64 <- println
+  instance @scoop.println$S <- println
+  instance @scoop.println$B <- println
+  instance @scoop.second$I64 <- second
+  str @scoop.str.0 "Int"
+  str @scoop.str.1 "Long"
+  str @scoop.str.2 "UInt"
+  str @scoop.str.3 "ULong"
+  str @scoop.str.4 "division-by-zero"
+  str @scoop.str.5 "unsigned-minus-pattern"
+  str @scoop.str.6 "unreachable"
+  str @scoop.str.7 "\n"
+  str @scoop.str.8 "\n"
+  str @scoop.str.9 "\n"
+  str @scoop.str.10 "\n"
+  str @scoop.str.11 "\n"
+  str @scoop.str.12 "\n"
+  str @scoop.str.13 "\n"
+  str @scoop.str.14 "\n"
+  str @scoop.str.15 "\n"
+  str @scoop.str.16 "\n"
+  str @scoop.str.17 "unwrap on None"
+  str @scoop.str.18 "invalid cast"
+  str @scoop.str.19 "arithmetic error"
+  str @scoop.str.20 "array index out of bounds"
+  str @scoop.str.21 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "Int"
+  global @scoop.str.1 = "Long"
+  global @scoop.str.2 = "UInt"
+  global @scoop.str.3 = "ULong"
+  global @scoop.str.4 = "division-by-zero"
+  global @scoop.str.5 = "unsigned-minus-pattern"
+  global @scoop.str.6 = "unreachable"
+  global @scoop.str.7 = "\n"
+  global @scoop.str.8 = "\n"
+  global @scoop.str.9 = "\n"
+  global @scoop.str.10 = "\n"
+  global @scoop.str.11 = "\n"
+  global @scoop.str.12 = "\n"
+  global @scoop.str.13 = "\n"
+  global @scoop.str.14 = "\n"
+  global @scoop.str.15 = "\n"
+  global @scoop.str.16 = "\n"
+  global @scoop.str.17 = "unwrap on None"
+  global @scoop.str.18 = "invalid cast"
+  global @scoop.str.19 = "arithmetic error"
+  global @scoop.str.20 = "array index out of bounds"
+  global @scoop.str.21 = "illegal state"
+  enum Option$S niche(kind=managed,payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreLongHash @scoop_rt_long_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp132 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp1 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp133 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp2 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp134 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp3 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp135 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp4 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp136 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp5 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp137 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp6 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Long.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp138 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp7 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern3(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Long.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp139 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp8 roots=[] t0 = sig=direct0 (i64) -> i64 extern6(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.UInt8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp140 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp9 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp141 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp10 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp142 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp11 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp143 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp12 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp144 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp13 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp145 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp14 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.ULong.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp146 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp15 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern4(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.ULong.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp147 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp16 roots=[] t0 = sig=direct0 (i64) -> i64 extern7(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $argument.0: i1
+    local %1 $argument.1: i1
+    local %2 $parameter.left: i1
+    local %3 $parameter.right: i1
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp148 live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp17 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern1(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp149 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp18 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern5(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp150 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: ptr<managed>
+    local %2 $parameter.left: ptr<managed>
+    local %3 $parameter.right: ptr<managed>
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp151 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp20 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern2(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp152 live=[param0:ptr<managed>@0]
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter.value: ptr<managed>
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp153 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.defaultKind.I32(i32) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp154 live=[]
+    ret global0
+  fun @scoop.defaultKind.I64(i64) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp155 live=[]
+    ret global1
+  fun @scoop.unsignedDefaultKind.V32(i32) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp156 live=[]
+    ret global2
+  fun @scoop.unsignedDefaultKind.V64(i64) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp157 live=[]
+    ret global3
+  fun @scoop_main() -> void
+    local %0 signed8: i8
+    local %1 signed16: i16
+    local %2 signed32: i32
+    local %3 signed64: i64
+    local %4 unsigned8: i8
+    local %5 unsigned16: i16
+    local %6 unsigned32: i32
+    local %7 unsigned64: i64
+    local %8 binary: i8
+    local %9 hexadecimal: i16
+    local %10 minimum8: i8
+    local %11 minimum16: i16
+    local %12 minimum32: i32
+    local %13 minimum64: i64
+    local %14 $receiver: i8
+    local %15 $argument.0: i8
+    local %16 $parameter.other: i8
+    local %17 $argument.0: i8
+    local %18 $parameter.value: i8
+    local %19 $receiver: i16
+    local %20 $argument.0: i16
+    local %21 $parameter.other: i16
+    local %22 $argument.0: i16
+    local %23 $parameter.value: i16
+    local %24 $receiver: i32
+    local %25 $argument.0: i32
+    local %26 $parameter.other: i32
+    local %27 $argument.0: i32
+    local %28 $parameter.value: i32
+    local %29 $receiver: i64
+    local %30 $argument.0: i64
+    local %31 $parameter.other: i64
+    local %32 $argument.0: i64
+    local %33 $parameter.value: i64
+    local %34 $receiver: i8
+    local %35 $argument.0: i8
+    local %36 $parameter.other: i8
+    local %37 $argument.0: i8
+    local %38 $parameter.value: i8
+    local %39 $receiver: i16
+    local %40 $argument.0: i16
+    local %41 $parameter.other: i16
+    local %42 $argument.0: i16
+    local %43 $parameter.value: i16
+    local %44 $receiver: i32
+    local %45 $argument.0: i32
+    local %46 $parameter.other: i32
+    local %47 $argument.0: i32
+    local %48 $parameter.value: i32
+    local %49 $receiver: i64
+    local %50 $argument.0: i64
+    local %51 $parameter.other: i64
+    local %52 $argument.0: i64
+    local %53 $parameter.value: i64
+    local %54 $argument.0: i8
+    local %55 $parameter.value: i8
+    local %56 $argument.0: i16
+    local %57 $parameter.value: i16
+    local %58 $receiver: i8
+    local %59 $argument.0: i8
+    local %60 $parameter.value: i8
+    local %61 $receiver: i32
+    local %62 $argument.0: i32
+    local %63 $parameter.value: i32
+    local %64 $receiver: i8
+    local %65 $argument.0: i8
+    local %66 $parameter.other: i8
+    local %67 $argument.0: i8
+    local %68 $parameter.value: i8
+    local %69 $receiver: i8
+    local %70 $argument.0: i8
+    local %71 $parameter.other: i8
+    local %72 $argument.0: i8
+    local %73 $parameter.value: i8
+    local %74 incremented: i8
+    local %75 $old.0: i8
+    local %76 $receiver: i8
+    local %77 $new.1: i8
+    local %78 beforeIncrement: i8
+    local %79 $argument.0: i8
+    local %80 $parameter.value: i8
+    local %81 $old.2: i8
+    local %82 $receiver: i8
+    local %83 $new.3: i8
+    local %84 beforeDecrement: i8
+    local %85 $argument.0: i8
+    local %86 $parameter.value: i8
+    local %87 $argument.0: i8
+    local %88 $parameter.value: i8
+    local %89 $argument.0: i8
+    local %90 $parameter.value: i8
+    local %91 $receiver: i8
+    local %92 $argument.0: i8
+    local %93 $parameter.other: i8
+    local %94 $argument.0: i8
+    local %95 $parameter.value: i8
+    local %96 $receiver: i16
+    local %97 $argument.0: i16
+    local %98 $parameter.other: i16
+    local %99 $argument.0: i16
+    local %100 $parameter.value: i16
+    local %101 $receiver: i32
+    local %102 $argument.0: i32
+    local %103 $parameter.other: i32
+    local %104 $argument.0: i32
+    local %105 $parameter.value: i32
+    local %106 $receiver: i64
+    local %107 $argument.0: i64
+    local %108 $parameter.other: i64
+    local %109 $argument.0: i64
+    local %110 $parameter.value: i64
+    local %111 $receiver: i8
+    local %112 $argument.0: i8
+    local %113 $parameter.other: i8
+    local %114 $argument.0: i8
+    local %115 $parameter.value: i8
+    local %116 error: ptr<managed>
+    local %117 $argument.0: ptr<managed>
+    local %118 $parameter.value: ptr<managed>
+    local %119 $receiver: i8
+    local %120 $argument.0: i8
+    local %121 $parameter.other: i8
+    local %122 $argument.0: i8
+    local %123 $parameter.value: i8
+    local %124 $argument.0: i1
+    local %125 $parameter.value: i1
+    local %126 $argument.0: i1
+    local %127 $parameter.value: i1
+    local %128 $receiver: i8
+    local %129 $argument.0: i8
+    local %130 $parameter.other: i8
+    local %131 $argument.0: i8
+    local %132 $parameter.value: i8
+    local %133 $receiver: i8
+    local %134 $argument.0: i8
+    local %135 $parameter.other: i8
+    local %136 $argument.0: i1
+    local %137 $parameter.value: i1
+    local %138 $receiver: i8
+    local %139 $argument.0: i8
+    local %140 $parameter.other: i8
+    local %141 $argument.0: i1
+    local %142 $parameter.value: i1
+    local %143 $receiver: i8
+    local %144 unsignedMinusPattern: i8
+    local %145 $argument.0: ptr<managed>
+    local %146 $parameter.value: ptr<managed>
+    local %147 $argument.0: ptr<managed>
+    local %148 $parameter.value: ptr<managed>
+    local %149 $receiver: i32
+    local %150 $argument.0: i64
+    local %151 $parameter.count: i64
+    local %152 $argument.0: i32
+    local %153 $parameter.value: i32
+    local %154 $receiver: i32
+    local %155 $argument.0: i64
+    local %156 $parameter.count: i64
+    local %157 $argument.0: i32
+    local %158 $parameter.value: i32
+    local %159 $receiver: i8
+    local %160 $argument.0: i64
+    local %161 $parameter.count: i64
+    local %162 $argument.0: i8
+    local %163 $parameter.value: i8
+    local %164 $receiver: i8
+    local %165 $argument.0: i64
+    local %166 $parameter.count: i64
+    local %167 $argument.0: i8
+    local %168 $parameter.value: i8
+    local %169 $receiver: i8
+    local %170 $argument.0: i64
+    local %171 $parameter.value: i64
+    local %172 $receiver: i32
+    local %173 $argument.0: i8
+    local %174 $parameter.value: i8
+    local %175 $receiver: i64
+    local %176 $argument.0: i8
+    local %177 $parameter.value: i8
+    local %178 $receiver: i32
+    local %179 $argument.0: i64
+    local %180 $parameter.value: i64
+    local %181 $argument.0: i32
+    local %182 $parameter.value: i32
+    local %183 $argument.0: ptr<managed>
+    local %184 $parameter.value: ptr<managed>
+    local %185 $argument.0: i64
+    local %186 $parameter.value: i64
+    local %187 $argument.0: ptr<managed>
+    local %188 $parameter.value: ptr<managed>
+    local %189 $argument.0: i32
+    local %190 $parameter.value: i32
+    local %191 $argument.0: ptr<managed>
+    local %192 $parameter.value: ptr<managed>
+    local %193 $argument.0: i64
+    local %194 $parameter.value: i64
+    local %195 $argument.0: ptr<managed>
+    local %196 $parameter.value: ptr<managed>
+    local %197 $argument.0: i64
+    local %198 $argument.1: i64
+    local %199 $parameter.first: i64
+    local %200 $parameter.second: i64
+    local %201 $argument.0: i64
+    local %202 $parameter.value: i64
+    local %203 $argument.0: i64
+    local %204 $argument.1: i64
+    local %205 $parameter.first: i64
+    local %206 $parameter.second: i64
+    local %207 $argument.0: i64
+    local %208 $parameter.value: i64
+    local %209 jointlyInferredArray: ptr<managed>
+    local %210 $receiver: ptr<managed>
+    local %211 $argument.0: i64
+    local %212 $parameter.index: i64
+    local %213 $receiver: ptr<managed>
+    local %214 $argument.0: i64
+    local %215 $parameter.index: i64
+    local %216 $receiver: i64
+    local %217 $argument.0: i64
+    local %218 $parameter.other: i64
+    local %219 $argument.0: i64
+    local %220 $parameter.value: i64
+    local %221 $result.4: i64
+    local %222 jointlyInferredIf: i64
+    local %223 $argument.0: i64
+    local %224 $parameter.value: i64
+    local %225 $result.5: i64
+    local %226 jointlyInferredWhen: i64
+    local %227 $argument.0: i64
+    local %228 $parameter.value: i64
+    local %229 error: ptr<managed>
+    local %230 $result.6: i64
+    local %231 jointlyInferredTry: i64
+    local %232 $argument.0: i64
+    local %233 $parameter.value: i64
+    local %234 byte: i8
+    local %235 short: i16
+    local %236 int32: i32
+    local %237 int64: i64
+    local %238 ubyte: i8
+    local %239 ushort: i16
+    local %240 uint32: i32
+    local %241 uint64: i64
+    local %242 $receiver: i8
+    local %243 $receiver: i16
+    local %244 $receiver: i64
+    local %245 $argument.0: i64
+    local %246 $parameter.other: i64
+    local %247 $receiver: i32
+    local %248 $receiver: i64
+    local %249 $argument.0: i64
+    local %250 $parameter.other: i64
+    local %251 $receiver: i64
+    local %252 $argument.0: i64
+    local %253 $parameter.other: i64
+    local %254 $argument.0: i64
+    local %255 $parameter.value: i64
+    local %256 $receiver: i8
+    local %257 $receiver: i16
+    local %258 $receiver: i64
+    local %259 $argument.0: i64
+    local %260 $parameter.other: i64
+    local %261 $receiver: i32
+    local %262 $receiver: i64
+    local %263 $argument.0: i64
+    local %264 $parameter.other: i64
+    local %265 $receiver: i64
+    local %266 $argument.0: i64
+    local %267 $parameter.other: i64
+    local %268 $argument.0: i64
+    local %269 $parameter.value: i64
+    local %270 $div.1: i8
+    local %271 $div.2: i8
+    local %272 $div.result.3: i8
+    local %273 $div.4: i16
+    local %274 $div.5: i16
+    local %275 $div.result.6: i16
+    local %276 $div.7: i32
+    local %277 $div.8: i32
+    local %278 $div.result.9: i32
+    local %279 $div.10: i64
+    local %280 $div.11: i64
+    local %281 $div.result.12: i64
+    local %282 $div.13: i8
+    local %283 $div.14: i8
+    local %284 $div.result.15: i8
+    local %285 $when.16: i8
+    local %286 $arr.17: ptr<managed>
+    local %287 $idx.18: i64
+    local %288 $arr.19: ptr<managed>
+    local %289 $idx.20: i64
+    local %290 $when.21: i8
+    local %291 $new.1: ptr<managed>
+    local %292 $logic.2: i1
+    local %293 $new.3: ptr<managed>
+    local %294 $logic.4: i1
+    local %295 $new.5: ptr<managed>
+    local %296 $logic.6: i1
+    local %297 $new.7: ptr<managed>
+    local %298 $logic.8: i1
+    local %299 $new.9: ptr<managed>
+    local %300 $logic.10: i1
+    local %301 $logic.11: i1
+    local %302 $new.12: ptr<managed>
+    local %303 $logic.13: i1
+    local %304 $new.14: ptr<managed>
+    local %305 $sc.1: exception_record
+    local %306 $sc.2: ptr<raw>
+    local %307 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target59 sp158 live=[]
+    store integer<Int8>(0x7f) -> local0
+    store integer<Int16>(0x7fff) -> local1
+    store integer<Int>(0x7fffffff) -> local2
+    store integer<Long>(0x7fffffffffffffff) -> local3
+    store integer<UInt8>(0xff) -> local4
+    store integer<UInt16>(0xffff) -> local5
+    store integer<UInt>(0xffffffff) -> local6
+    store integer<ULong>(0xffffffffffffffff) -> local7
+    store integer<UInt8>(0xf0) -> local8
+    store integer<Int16>(0x7fff) -> local9
+    store integer<Int8>(0x80) -> local10
+    store integer<Int16>(0x8000) -> local11
+    store integer<Int>(0x80000000) -> local12
+    store integer<Long>(0x8000000000000000) -> local13
+    store local0 -> local14
+    store integer<Int8>(0x01) -> local15
+    store local15 -> local16
+    t0 = integer_Add<Int8> local14, local16 : i8
+    store t0 -> local17
+    store local17 -> local18
+    call managed-void-target0 sp22 live=[] sig=void0 (i8) local-fn27(local18)
+    t1 = aggregate () : {}
+    store local1 -> local19
+    store integer<Int16>(0x0001) -> local20
+    store local20 -> local21
+    t2 = integer_Add<Int16> local19, local21 : i16
+    store t2 -> local22
+    store local22 -> local23
+    call managed-void-target1 sp23 live=[] sig=void1 (i16) local-fn28(local23)
+    t3 = aggregate () : {}
+    store local2 -> local24
+    store integer<Int>(0x00000001) -> local25
+    store local25 -> local26
+    t4 = integer_Add<Int> local24, local26 : i32
+    store t4 -> local27
+    store local27 -> local28
+    call managed-void-target2 sp24 live=[] sig=void2 (i32) local-fn29(local28)
+    t5 = aggregate () : {}
+    store local3 -> local29
+    store integer<Long>(0x0000000000000001) -> local30
+    store local30 -> local31
+    t6 = integer_Add<Long> local29, local31 : i64
+    store t6 -> local32
+    store local32 -> local33
+    call managed-void-target3 sp25 live=[] sig=void3 (i64) local-fn30(local33)
+    t7 = aggregate () : {}
+    store local4 -> local34
+    store integer<UInt8>(0x01) -> local35
+    store local35 -> local36
+    t8 = integer_Add<UInt8> local34, local36 : i8
+    store t8 -> local37
+    store local37 -> local38
+    call managed-void-target4 sp26 live=[] sig=void4 (i8) local-fn31(local38)
+    t9 = aggregate () : {}
+    store local5 -> local39
+    store integer<UInt16>(0x0001) -> local40
+    store local40 -> local41
+    t10 = integer_Add<UInt16> local39, local41 : i16
+    store t10 -> local42
+    store local42 -> local43
+    call managed-void-target5 sp27 live=[] sig=void5 (i16) local-fn32(local43)
+    t11 = aggregate () : {}
+    store local6 -> local44
+    store integer<UInt>(0x00000001) -> local45
+    store local45 -> local46
+    t12 = integer_Add<UInt> local44, local46 : i32
+    store t12 -> local47
+    store local47 -> local48
+    call managed-void-target6 sp28 live=[] sig=void6 (i32) local-fn33(local48)
+    t13 = aggregate () : {}
+    store local7 -> local49
+    store integer<ULong>(0x0000000000000001) -> local50
+    store local50 -> local51
+    t14 = integer_Add<ULong> local49, local51 : i64
+    store t14 -> local52
+    store local52 -> local53
+    call managed-void-target7 sp29 live=[] sig=void7 (i64) local-fn34(local53)
+    t15 = aggregate () : {}
+    store local8 -> local54
+    store local54 -> local55
+    call managed-void-target8 sp30 live=[] sig=void8 (i8) local-fn31(local55)
+    t16 = aggregate () : {}
+    store local9 -> local56
+    store local56 -> local57
+    call managed-void-target9 sp31 live=[] sig=void9 (i16) local-fn28(local57)
+    t17 = aggregate () : {}
+    store local4 -> local58
+    t18 = integer_Negate<UInt8> local58 : i8
+    store t18 -> local59
+    store local59 -> local60
+    call managed-void-target10 sp32 live=[] sig=void10 (i8) local-fn31(local60)
+    t19 = aggregate () : {}
+    store integer<UInt>(0x00000001) -> local61
+    t20 = integer_Negate<UInt> local61 : i32
+    store t20 -> local62
+    store local62 -> local63
+    call managed-void-target11 sp33 live=[] sig=void11 (i32) local-fn33(local63)
+    t21 = aggregate () : {}
+    store local10 -> local64
+    store integer<Int8>(0x01) -> local65
+    store local65 -> local66
+    t22 = integer_Subtract<Int8> local64, local66 : i8
+    store t22 -> local67
+    store local67 -> local68
+    call managed-void-target12 sp34 live=[] sig=void12 (i8) local-fn27(local68)
+    t23 = aggregate () : {}
+    store local0 -> local69
+    store integer<Int8>(0x02) -> local70
+    store local70 -> local71
+    t24 = integer_Multiply<Int8> local69, local71 : i8
+    store t24 -> local72
+    store local72 -> local73
+    call managed-void-target13 sp35 live=[] sig=void13 (i8) local-fn27(local73)
+    t25 = aggregate () : {}
+    store integer<Int8>(0x7f) -> local74
+    store local74 -> local75
+    store local75 -> local76
+    t26 = integer_Add<Int8> local76, integer<Int8>(0x01) : i8
+    store t26 -> local77
+    store local77 -> local74
+    store local75 -> local78
+    store local74 -> local79
+    store local79 -> local80
+    call managed-void-target14 sp36 live=[] sig=void14 (i8) local-fn27(local80)
+    t27 = aggregate () : {}
+    store local74 -> local81
+    store local81 -> local82
+    t28 = integer_Subtract<Int8> local82, integer<Int8>(0x01) : i8
+    store t28 -> local83
+    store local83 -> local74
+    store local81 -> local84
+    store local74 -> local85
+    store local85 -> local86
+    call managed-void-target15 sp37 live=[] sig=void15 (i8) local-fn27(local86)
+    t29 = aggregate () : {}
+    store local78 -> local87
+    store local87 -> local88
+    call managed-void-target16 sp38 live=[] sig=void16 (i8) local-fn27(local88)
+    t30 = aggregate () : {}
+    store local84 -> local89
+    store local89 -> local90
+    call managed-void-target17 sp39 live=[] sig=void17 (i8) local-fn27(local90)
+    t31 = aggregate () : {}
+    store local10 -> local91
+    store integer<Int8>(0xff) -> local92
+    store local92 -> local93
+    store local91 -> local270
+    store local93 -> local271
+    t32 = integer_compare_Equal<Int8> local271, integer<Int8>(0x00) : i1
+    cbr t32 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target0 sp40 live=[] t33 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t33 -> local291
+    call managed-void-target18 sp41 live=[local291:ptr<managed>@0] sig=void18 (ptr<managed>) local-fn42(local291)
+    t34 = aggregate () : {}
+    throw local291
+    unreachable
+  block if.merge.2
+    t35 = integer_compare_Equal<Int8> local270, integer<Int8>(0x80) : i1
+    cbr t35 then @logic.rhs.3 else @logic.short.4
+  block logic.rhs.3
+    t36 = integer_compare_Equal<Int8> local271, integer<Int8>(0xff) : i1
+    store t36 -> local292
+    br @logic.merge.5
+  block logic.short.4
+    store false -> local292
+    br @logic.merge.5
+  block logic.merge.5
+    cbr local292 then @if.then.6 else @if.else.7
+  block if.then.6
+    store integer<Int8>(0x80) -> local272
+    br @if.merge.8
+  block if.else.7
+    t37 = safe_integer_Divide<Int8> local270, local271 : i8
+    store t37 -> local272
+    br @if.merge.8
+  block if.merge.8
+    store local272 -> local94
+    store local94 -> local95
+    call managed-void-target19 sp42 live=[] sig=void19 (i8) local-fn27(local95)
+    t38 = aggregate () : {}
+    store local11 -> local96
+    store integer<Int16>(0xffff) -> local97
+    store local97 -> local98
+    store local96 -> local273
+    store local98 -> local274
+    t39 = integer_compare_Equal<Int16> local274, integer<Int16>(0x0000) : i1
+    cbr t39 then @if.then.9 else @if.merge.10
+  block if.then.9
+    call managed-direct-target1 sp43 live=[] t40 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t40 -> local293
+    call managed-void-target20 sp44 live=[local293:ptr<managed>@0] sig=void20 (ptr<managed>) local-fn42(local293)
+    t41 = aggregate () : {}
+    throw local293
+    unreachable
+  block if.merge.10
+    t42 = integer_compare_Equal<Int16> local273, integer<Int16>(0x8000) : i1
+    cbr t42 then @logic.rhs.11 else @logic.short.12
+  block logic.rhs.11
+    t43 = integer_compare_Equal<Int16> local274, integer<Int16>(0xffff) : i1
+    store t43 -> local294
+    br @logic.merge.13
+  block logic.short.12
+    store false -> local294
+    br @logic.merge.13
+  block logic.merge.13
+    cbr local294 then @if.then.14 else @if.else.15
+  block if.then.14
+    store integer<Int16>(0x0000) -> local275
+    br @if.merge.16
+  block if.else.15
+    t44 = safe_integer_Remainder<Int16> local273, local274 : i16
+    store t44 -> local275
+    br @if.merge.16
+  block if.merge.16
+    store local275 -> local99
+    store local99 -> local100
+    call managed-void-target21 sp45 live=[] sig=void21 (i16) local-fn28(local100)
+    t45 = aggregate () : {}
+    store local12 -> local101
+    store integer<Int>(0xffffffff) -> local102
+    store local102 -> local103
+    store local101 -> local276
+    store local103 -> local277
+    t46 = integer_compare_Equal<Int> local277, integer<Int>(0x00000000) : i1
+    cbr t46 then @if.then.17 else @if.merge.18
+  block if.then.17
+    call managed-direct-target2 sp46 live=[] t47 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t47 -> local295
+    call managed-void-target22 sp47 live=[local295:ptr<managed>@0] sig=void22 (ptr<managed>) local-fn42(local295)
+    t48 = aggregate () : {}
+    throw local295
+    unreachable
+  block if.merge.18
+    t49 = integer_compare_Equal<Int> local276, integer<Int>(0x80000000) : i1
+    cbr t49 then @logic.rhs.19 else @logic.short.20
+  block logic.rhs.19
+    t50 = integer_compare_Equal<Int> local277, integer<Int>(0xffffffff) : i1
+    store t50 -> local296
+    br @logic.merge.21
+  block logic.short.20
+    store false -> local296
+    br @logic.merge.21
+  block logic.merge.21
+    cbr local296 then @if.then.22 else @if.else.23
+  block if.then.22
+    store integer<Int>(0x80000000) -> local278
+    br @if.merge.24
+  block if.else.23
+    t51 = safe_integer_Divide<Int> local276, local277 : i32
+    store t51 -> local278
+    br @if.merge.24
+  block if.merge.24
+    store local278 -> local104
+    store local104 -> local105
+    call managed-void-target23 sp48 live=[] sig=void23 (i32) local-fn29(local105)
+    t52 = aggregate () : {}
+    store local13 -> local106
+    store integer<Long>(0xffffffffffffffff) -> local107
+    store local107 -> local108
+    store local106 -> local279
+    store local108 -> local280
+    t53 = integer_compare_Equal<Long> local280, integer<Long>(0x0000000000000000) : i1
+    cbr t53 then @if.then.25 else @if.merge.26
+  block if.then.25
+    call managed-direct-target3 sp49 live=[] t54 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t54 -> local297
+    call managed-void-target24 sp50 live=[local297:ptr<managed>@0] sig=void24 (ptr<managed>) local-fn42(local297)
+    t55 = aggregate () : {}
+    throw local297
+    unreachable
+  block if.merge.26
+    t56 = integer_compare_Equal<Long> local279, integer<Long>(0x8000000000000000) : i1
+    cbr t56 then @logic.rhs.27 else @logic.short.28
+  block logic.rhs.27
+    t57 = integer_compare_Equal<Long> local280, integer<Long>(0xffffffffffffffff) : i1
+    store t57 -> local298
+    br @logic.merge.29
+  block logic.short.28
+    store false -> local298
+    br @logic.merge.29
+  block logic.merge.29
+    cbr local298 then @if.then.30 else @if.else.31
+  block if.then.30
+    store integer<Long>(0x0000000000000000) -> local281
+    br @if.merge.32
+  block if.else.31
+    t58 = safe_integer_Remainder<Long> local279, local280 : i64
+    store t58 -> local281
+    br @if.merge.32
+  block if.merge.32
+    store local281 -> local109
+    store local109 -> local110
+    call managed-void-target25 sp51 live=[] sig=void25 (i64) local-fn30(local110)
+    t59 = aggregate () : {}
+    br @try.body.40
+  block try.unwind.33
+    (t60, t61) = landingpad : (exception_record, ptr<raw>)
+    store t60 -> local305
+    store t61 -> local306
+    br @try.dispatch.34
+  block try.dispatch.34
+    t62 = begin_catch local306 : ptr<managed>
+    store t62 -> local307
+    call no-gc-direct-target0 t63 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local307, td9)
+    cbr t63 then @try.catch.50 else @try.next.51
+  block try.handler_pad.35
+    (t64, t65) = cleanup_pad : (exception_record, ptr<raw>)
+    store t64 -> local305
+    store t65 -> local306
+    br @try.handler_cleanup.36
+  block try.handler_cleanup.36
+    end_catch
+    resume local305
+  block try.exit_pad.37
+    (t66, t67) = cleanup_pad : (exception_record, ptr<raw>)
+    store t66 -> local305
+    store t67 -> local306
+    br @try.exit_cleanup.38
+  block try.exit_cleanup.38
+    end_catch
+    resume local305
+  block try.end.39
+    store integer<Int8>(0x01) -> local119
+    store local10 -> local120
+    store local120 -> local121
+    t68 = integer_Add<Int8> local119, local121 : i8
+    store t68 -> local122
+    store local122 -> local123
+    call managed-void-target26 sp52 live=[] sig=void26 (i8) local-fn27(local123)
+    t69 = aggregate () : {}
+    t70 = integer_compare_Equal<Int8> integer<Int8>(0x01), local10 : i1
+    store t70 -> local124
+    store local124 -> local125
+    call managed-void-target27 sp53 live=[] sig=void27 (i1) local-fn36(local125)
+    t71 = aggregate () : {}
+    t72 = integer_compare_Equal<Int8> local10, integer<Int8>(0x80) : i1
+    store t72 -> local126
+    store local126 -> local127
+    call managed-void-target28 sp54 live=[] sig=void28 (i1) local-fn36(local127)
+    t73 = aggregate () : {}
+    store integer<Int8>(0x01) -> local128
+    store local0 -> local129
+    store local129 -> local130
+    t74 = integer_BitwiseAnd<Int8> local128, local130 : i8
+    store t74 -> local131
+    store local131 -> local132
+    call managed-void-target29 sp55 live=[] sig=void29 (i8) local-fn27(local132)
+    t75 = aggregate () : {}
+    store local10 -> local133
+    store integer<Int8>(0x00) -> local134
+    store local134 -> local135
+    t76 = integer_compare_to<Int8> local133, local135 : i64
+    t77 = integer_compare_Less<Long> t76, integer<Long>(0x0000000000000000) : i1
+    store t77 -> local136
+    store local136 -> local137
+    call managed-void-target30 sp56 live=[] sig=void30 (i1) local-fn36(local137)
+    t78 = aggregate () : {}
+    store local4 -> local138
+    store integer<UInt8>(0x00) -> local139
+    store local139 -> local140
+    t79 = integer_compare_to<UInt8> local138, local140 : i64
+    t80 = integer_compare_Greater<Long> t79, integer<Long>(0x0000000000000000) : i1
+    store t80 -> local141
+    store local141 -> local142
+    call managed-void-target31 sp57 live=[] sig=void31 (i1) local-fn36(local142)
+    t81 = aggregate () : {}
+    store integer<UInt8>(0x01) -> local143
+    t82 = integer_Negate<UInt8> local143 : i8
+    store t82 -> local144
+    store local144 -> local285
+    t83 = integer_compare_Equal<UInt8> local285, integer<UInt8>(0xff) : i1
+    cbr t83 then @if.then.54 else @if.else.55
+  block try.body.40
+    store local0 -> local111
+    store integer<Int8>(0x00) -> local112
+    store local112 -> local113
+    store local111 -> local282
+    store local113 -> local283
+    t84 = integer_compare_Equal<Int8> local283, integer<Int8>(0x00) : i1
+    cbr t84 then @if.then.41 else @if.merge.42
+  block if.then.41
+    call managed-direct-target4 sp58 live=[] t85 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t85 -> local299
+    invoke managed-void-target32 sp59 roots=[local299:normal] sig=void32 (ptr<managed>) local-fn42(local299) normal @invoke.normal.1 unwind @try.unwind.33
+    br @invoke.normal.1
+  block if.merge.42
+    t87 = integer_compare_Equal<Int8> local282, integer<Int8>(0x80) : i1
+    cbr t87 then @logic.rhs.43 else @logic.short.44
+  block logic.rhs.43
+    t88 = integer_compare_Equal<Int8> local283, integer<Int8>(0xff) : i1
+    store t88 -> local300
+    br @logic.merge.45
+  block logic.short.44
+    store false -> local300
+    br @logic.merge.45
+  block logic.merge.45
+    cbr local300 then @if.then.46 else @if.else.47
+  block if.then.46
+    store integer<Int8>(0x80) -> local284
+    br @if.merge.48
+  block if.else.47
+    t89 = safe_integer_Divide<Int8> local282, local283 : i8
+    store t89 -> local284
+    br @if.merge.48
+  block if.merge.48
+    store local284 -> local114
+    store local114 -> local115
+    invoke managed-void-target33 sp60 roots=[] sig=void34 (i8) local-fn27(local115) normal @invoke.normal.3 unwind @try.unwind.33
+    br @invoke.normal.3
+  block scope.49
+    br @try.end.39
+  block try.catch.50
+    store local307 -> local116
+    br @scope.52
+  block try.next.51
+    invoke no-gc-void-target1 sig=void35 () runtime @scoop_rt_rethrow() normal @rethrow.normal.4 unwind @try.exit_pad.37
+    br @rethrow.normal.4
+  block scope.52
+    store global4 -> local117
+    store local117 -> local118
+    invoke managed-void-target34 sp61 roots=[local118:argument] sig=void36 (ptr<managed>) local-fn35(local118) normal @invoke.normal.5 unwind @try.handler_pad.35
+    br @invoke.normal.5
+  block scope.53
+    end_catch
+    br @try.end.39
+  block if.then.54
+    store global5 -> local145
+    store local145 -> local146
+    call managed-void-target35 sp62 live=[local146:ptr<managed>@0] sig=void37 (ptr<managed>) local-fn35(local146)
+    t92 = aggregate () : {}
+    br @if.merge.56
+  block if.else.55
+    store global6 -> local147
+    store local147 -> local148
+    call managed-void-target36 sp63 live=[local148:ptr<managed>@0] sig=void38 (ptr<managed>) local-fn35(local148)
+    t93 = aggregate () : {}
+    br @if.merge.56
+  block if.merge.56
+    store integer<Int>(0x00000001) -> local149
+    store integer<Long>(0xffffffffffffffff) -> local150
+    store local150 -> local151
+    t94 = integer_BitwiseAnd<Long> local151, integer<Long>(0x000000000000001f) : i64
+    t95 = integer_convert<Long->Int> t94 : i32
+    t96 = integer_shift_Left<Int> local149, normalized=t95 : i32
+    store t96 -> local152
+    store local152 -> local153
+    call managed-void-target37 sp64 live=[] sig=void39 (i32) local-fn29(local153)
+    t97 = aggregate () : {}
+    store integer<Int>(0xffffffff) -> local154
+    store integer<Long>(0x0000000000000001) -> local155
+    store local155 -> local156
+    t98 = integer_BitwiseAnd<Long> local156, integer<Long>(0x000000000000001f) : i64
+    t99 = integer_convert<Long->Int> t98 : i32
+    t100 = integer_shift_LogicalRight<Int> local154, normalized=t99 : i32
+    store t100 -> local157
+    store local157 -> local158
+    call managed-void-target38 sp65 live=[] sig=void40 (i32) local-fn29(local158)
+    t101 = aggregate () : {}
+    store local4 -> local159
+    store integer<Long>(0x0000000000000007) -> local160
+    store local160 -> local161
+    t102 = integer_BitwiseAnd<Long> local161, integer<Long>(0x0000000000000007) : i64
+    t103 = integer_convert<Long->UInt8> t102 : i8
+    t104 = integer_shift_LogicalRight<UInt8> local159, normalized=t103 : i8
+    store t104 -> local162
+    store local162 -> local163
+    call managed-void-target39 sp66 live=[] sig=void41 (i8) local-fn31(local163)
+    t105 = aggregate () : {}
+    store local10 -> local164
+    store integer<Long>(0x0000000000000007) -> local165
+    store local165 -> local166
+    t106 = integer_BitwiseAnd<Long> local166, integer<Long>(0x0000000000000007) : i64
+    t107 = integer_convert<Long->Int8> t106 : i8
+    t108 = integer_shift_ArithmeticRight<Int8> local164, normalized=t107 : i8
+    store t108 -> local167
+    store local167 -> local168
+    call managed-void-target40 sp67 live=[] sig=void42 (i8) local-fn27(local168)
+    t109 = aggregate () : {}
+    store local10 -> local169
+    t110 = integer_convert<Int8->ULong> local169 : i64
+    store t110 -> local170
+    store local170 -> local171
+    call managed-void-target41 sp68 live=[] sig=void43 (i64) local-fn34(local171)
+    t111 = aggregate () : {}
+    store integer<Int>(0x00000101) -> local172
+    t112 = integer_convert<Int->UInt8> local172 : i8
+    store t112 -> local173
+    store local173 -> local174
+    call managed-void-target42 sp69 live=[] sig=void44 (i8) local-fn31(local174)
+    t113 = aggregate () : {}
+    store local7 -> local175
+    t114 = integer_convert<ULong->Int8> local175 : i8
+    store t114 -> local176
+    store local176 -> local177
+    call managed-void-target43 sp70 live=[] sig=void45 (i8) local-fn27(local177)
+    t115 = aggregate () : {}
+    store local6 -> local178
+    t116 = integer_convert<UInt->Long> local178 : i64
+    store t116 -> local179
+    store local179 -> local180
+    call managed-void-target44 sp71 live=[] sig=void46 (i64) local-fn30(local180)
+    t117 = aggregate () : {}
+    store integer<Int>(0x00000001) -> local181
+    store local181 -> local182
+    call managed-direct-target5 sp72 live=[] t118 = sig=direct6 (i32) -> ptr<managed> local-fn22(local182)
+    store t118 -> local183
+    store local183 -> local184
+    call managed-void-target45 sp73 live=[local184:ptr<managed>@0] sig=void47 (ptr<managed>) local-fn35(local184)
+    t119 = aggregate () : {}
+    store integer<Long>(0x0000000080000000) -> local185
+    store local185 -> local186
+    call managed-direct-target6 sp74 live=[] t120 = sig=direct7 (i64) -> ptr<managed> local-fn23(local186)
+    store t120 -> local187
+    store local187 -> local188
+    call managed-void-target46 sp75 live=[local188:ptr<managed>@0] sig=void48 (ptr<managed>) local-fn35(local188)
+    t121 = aggregate () : {}
+    store integer<UInt>(0x00000001) -> local189
+    store local189 -> local190
+    call managed-direct-target7 sp76 live=[] t122 = sig=direct8 (i32) -> ptr<managed> local-fn24(local190)
+    store t122 -> local191
+    store local191 -> local192
+    call managed-void-target47 sp77 live=[local192:ptr<managed>@0] sig=void49 (ptr<managed>) local-fn35(local192)
+    t123 = aggregate () : {}
+    store integer<ULong>(0x0000000100000000) -> local193
+    store local193 -> local194
+    call managed-direct-target8 sp78 live=[] t124 = sig=direct9 (i64) -> ptr<managed> local-fn25(local194)
+    store t124 -> local195
+    store local195 -> local196
+    call managed-void-target48 sp79 live=[local196:ptr<managed>@0] sig=void50 (ptr<managed>) local-fn35(local196)
+    t125 = aggregate () : {}
+    store integer<Long>(0x0000000000000001) -> local197
+    store integer<Long>(0x0000000080000000) -> local198
+    store local197 -> local199
+    store local198 -> local200
+    call managed-direct-target9 sp80 live=[] t126 = sig=direct10 (i64, i64) -> i64 local-fn37(local199, local200)
+    store t126 -> local201
+    store local201 -> local202
+    call managed-void-target49 sp81 live=[] sig=void51 (i64) local-fn30(local202)
+    t127 = aggregate () : {}
+    store integer<Long>(0x0000000080000000) -> local203
+    store integer<Long>(0x0000000000000001) -> local204
+    store local203 -> local205
+    store local204 -> local206
+    call managed-direct-target10 sp82 live=[] t128 = sig=direct11 (i64, i64) -> i64 local-fn37(local205, local206)
+    store t128 -> local207
+    store local207 -> local208
+    call managed-void-target50 sp83 live=[] sig=void52 (i64) local-fn30(local208)
+    t129 = aggregate () : {}
+    t130 = array_alloc array0 (integer<Long>(0x0000000000000001), integer<Long>(0x0000000080000000)) sp84 live  : ptr<managed>
+    store t130 -> local209
+    store local209 -> local210
+    store integer<Long>(0x0000000000000000) -> local211
+    store local211 -> local212
+    store local210 -> local286
+    store local212 -> local287
+    t131 = integer_compare_Less<Long> local287, integer<Long>(0x0000000000000000) : i1
+    cbr t131 then @logic.short.58 else @logic.rhs.57
+  block logic.rhs.57
+    t132 = array_len array0 local286 : i64
+    t133 = integer_compare_GreaterOrEqual<Long> local287, t132 : i1
+    store t133 -> local301
+    br @logic.merge.59
+  block logic.short.58
+    store true -> local301
+    br @logic.merge.59
+  block logic.merge.59
+    cbr local301 then @if.then.60 else @if.merge.61
+  block if.then.60
+    call managed-direct-target11 sp85 live=[] t134 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    store t134 -> local302
+    call managed-void-target51 sp86 live=[local302:ptr<managed>@0] sig=void53 (ptr<managed>) local-fn43(local302)
+    t135 = aggregate () : {}
+    throw local302
+    unreachable
+  block if.merge.61
+    t136 = array_get array0 local286 local287 : i64
+    store t136 -> local216
+    store local209 -> local213
+    store integer<Long>(0x0000000000000001) -> local214
+    store local214 -> local215
+    store local213 -> local288
+    store local215 -> local289
+    t137 = integer_compare_Less<Long> local289, integer<Long>(0x0000000000000000) : i1
+    cbr t137 then @logic.short.63 else @logic.rhs.62
+  block logic.rhs.62
+    t138 = array_len array0 local288 : i64
+    t139 = integer_compare_GreaterOrEqual<Long> local289, t138 : i1
+    store t139 -> local303
+    br @logic.merge.64
+  block logic.short.63
+    store true -> local303
+    br @logic.merge.64
+  block logic.merge.64
+    cbr local303 then @if.then.65 else @if.merge.66
+  block if.then.65
+    call managed-direct-target12 sp87 live=[] t140 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    store t140 -> local304
+    call managed-void-target52 sp88 live=[local304:ptr<managed>@0] sig=void54 (ptr<managed>) local-fn43(local304)
+    t141 = aggregate () : {}
+    throw local304
+    unreachable
+  block if.merge.66
+    t142 = array_get array0 local288 local289 : i64
+    store t142 -> local217
+    store local217 -> local218
+    t143 = integer_Add<Long> local216, local218 : i64
+    store t143 -> local219
+    store local219 -> local220
+    call managed-void-target53 sp89 live=[] sig=void55 (i64) local-fn30(local220)
+    t144 = aggregate () : {}
+    br @if.else.68
+  block if.else.68
+    store integer<Long>(0x0000000080000000) -> local221
+    br @if.merge.69
+  block if.merge.69
+    store local221 -> local222
+    store local222 -> local223
+    store local223 -> local224
+    call managed-void-target54 sp90 live=[] sig=void56 (i64) local-fn30(local224)
+    t145 = aggregate () : {}
+    store local0 -> local290
+    t146 = integer_compare_Equal<Int8> local290, integer<Int8>(0x7f) : i1
+    cbr t146 then @if.then.70 else @if.else.71
+  block if.then.70
+    store integer<Long>(0x0000000000000001) -> local225
+    br @if.merge.72
+  block if.else.71
+    store integer<Long>(0x0000000080000000) -> local225
+    br @if.merge.72
+  block if.merge.72
+    store local225 -> local226
+    store local226 -> local227
+    store local227 -> local228
+    call managed-void-target55 sp91 live=[] sig=void57 (i64) local-fn30(local228)
+    t147 = aggregate () : {}
+    br @try.body.80
+  block try.end.79
+    store local230 -> local231
+    store local231 -> local232
+    store local232 -> local233
+    call managed-void-target56 sp92 live=[] sig=void58 (i64) local-fn30(local233)
+    t156 = aggregate () : {}
+    store integer<Int8>(0x2a) -> local234
+    store integer<Int16>(0x002a) -> local235
+    store integer<Int>(0x0000002a) -> local236
+    store integer<Long>(0x000000000000002a) -> local237
+    store integer<UInt8>(0x2a) -> local238
+    store integer<UInt16>(0x002a) -> local239
+    store integer<UInt>(0x0000002a) -> local240
+    store integer<ULong>(0x000000000000002a) -> local241
+    store local234 -> local242
+    t157 = integer_convert<Int8->Long> local242 : i64
+    store t157 -> local244
+    store local235 -> local243
+    t158 = integer_convert<Int16->Long> local243 : i64
+    store t158 -> local245
+    store local245 -> local246
+    t159 = integer_Add<Long> local244, local246 : i64
+    store t159 -> local248
+    store local236 -> local247
+    t160 = integer_convert<Int->Long> local247 : i64
+    store t160 -> local249
+    store local249 -> local250
+    t161 = integer_Add<Long> local248, local250 : i64
+    store t161 -> local251
+    store local237 -> local252
+    store local252 -> local253
+    t162 = integer_Add<Long> local251, local253 : i64
+    store t162 -> local254
+    store local254 -> local255
+    call managed-void-target57 sp93 live=[] sig=void59 (i64) local-fn30(local255)
+    t163 = aggregate () : {}
+    store local238 -> local256
+    t164 = integer_convert<UInt8->ULong> local256 : i64
+    store t164 -> local258
+    store local239 -> local257
+    t165 = integer_convert<UInt16->ULong> local257 : i64
+    store t165 -> local259
+    store local259 -> local260
+    t166 = integer_Add<ULong> local258, local260 : i64
+    store t166 -> local262
+    store local240 -> local261
+    t167 = integer_convert<UInt->ULong> local261 : i64
+    store t167 -> local263
+    store local263 -> local264
+    t168 = integer_Add<ULong> local262, local264 : i64
+    store t168 -> local265
+    store local241 -> local266
+    store local266 -> local267
+    t169 = integer_Add<ULong> local265, local267 : i64
+    store t169 -> local268
+    store local268 -> local269
+    call managed-void-target58 sp94 live=[] sig=void60 (i64) local-fn34(local269)
+    t170 = aggregate () : {}
+    ret
+  block try.body.80
+    store integer<Long>(0x0000000000000001) -> local230
+    br @scope.81
+  block scope.81
+    br @try.end.79
+  block invoke.normal.1
+    t86 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void33 (ptr<managed>) runtime @scoop_rt_throw(local299) normal @throw.normal.2 unwind @try.unwind.33
+    br @throw.normal.2
+  block throw.normal.2
+    unreachable
+  block invoke.normal.3
+    t90 = aggregate () : {}
+    br @scope.49
+  block rethrow.normal.4
+    unreachable
+  block invoke.normal.5
+    t91 = aggregate () : {}
+    br @scope.53
+  fun @scoop.println$I8(i8) -> void
+    local %0 $receiver: i8
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp159 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp95 live=[] t0 = sig=direct0 (i8) -> ptr<managed> local-fn0(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp96 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global7 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp97 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I16(i16) -> void
+    local %0 $receiver: i16
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp160 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp98 live=[] t0 = sig=direct0 (i16) -> ptr<managed> local-fn2(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp99 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global8 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp100 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I32(i32) -> void
+    local %0 $receiver: i32
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp161 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp101 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn4(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp102 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global9 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp103 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I64(i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp162 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp104 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn6(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp105 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global10 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp106 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$V8(i8) -> void
+    local %0 $receiver: i8
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp163 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp107 live=[] t0 = sig=direct0 (i8) -> ptr<managed> local-fn8(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp108 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global11 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp109 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$V16(i16) -> void
+    local %0 $receiver: i16
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp164 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp110 live=[] t0 = sig=direct0 (i16) -> ptr<managed> local-fn10(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp111 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global12 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp112 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$V32(i32) -> void
+    local %0 $receiver: i32
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp165 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp113 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn12(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp114 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global13 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp115 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$V64(i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp166 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp116 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn14(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp117 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global14 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp118 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp167 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp119 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn20(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp120 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global15 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp121 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$B(i1) -> void
+    local %0 $receiver: i1
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp168 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp122 live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn17(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp123 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global16 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp124 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.second$I64(i64, i64) -> i64
+  block entry
+    poll managed-void-target0 sp169 live=[]
+    ret param1
+  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp170 live=[]
+    ret
+  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  block entry
+    poll managed-void-target1 sp171 live=[param0:ptr<managed>@0, param1:enum0@0]
+    call managed-void-target0 sp125 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn38(param0)
+    t0 = aggregate () : {}
+    heap_store param0 +16 param1
+    ret
+  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp172 live=[param0:ptr<managed>@0]
+    store global17 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp126 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp173 live=[param0:ptr<managed>@0]
+    store global18 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp127 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp174 live=[param0:ptr<managed>@0]
+    store global19 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp128 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum0
+    local %3 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp175 live=[param0:ptr<managed>@0]
+    store global20 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp129 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+    local %0 $argument.0: enum0
+    local %1 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp176 live=[param0:ptr<managed>@0, param1:enum0@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp130 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c7(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $parameter.message: enum0
+  block entry
+    poll managed-void-target1 sp177 live=[param0:ptr<managed>@0]
+    store global21 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v0 (local1) : enum0
+    store t0 -> local2
+    call managed-void-target0 sp131 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn44(param0, local2)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  block entry
+    t0 = aggregate (param0, param1, param2, param3, param4) : struct0
+    ret t0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
+  td td6 Exception @scoop_td_Exception type-id=7 size=24 parent=td2 vtable=[] itables=[]
+  td td7 UnwrapException @scoop_td_UnwrapException type-id=8 size=24 parent=td6 vtable=[] itables=[]
+  td td8 ClassCastException @scoop_td_ClassCastException type-id=9 size=24 parent=td6 vtable=[] itables=[]
+  td td9 ArithmeticException @scoop_td_ArithmeticException type-id=10 size=24 parent=td6 vtable=[] itables=[]
+  td td10 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=11 size=24 parent=td6 vtable=[] itables=[]
+  td td11 IllegalStateException @scoop_td_IllegalStateException type-id=12 size=24 parent=td6 vtable=[] itables=[]
+  array-type array0 Array$I64 kind=immutable element=i64 size=8 align=8 scan=none td=td4
+  array-type array1 MutableArray$I64 kind=mutable element=i64 size=8 align=8 scan=none td=td5
+  layout String size=24 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  entry @scoop_main
+
+== run ==
+-128
+-32768
+-2147483648
+-9223372036854775808
+0
+0
+0
+0
+240
+32767
+1
+4294967295
+127
+-2
+-128
+127
+127
+-128
+-128
+0
+-2147483648
+0
+division-by-zero
+-127
+false
+true
+1
+true
+true
+unsigned-minus-pattern
+-2147483648
+2147483647
+1
+-1
+18446744073709551488
+1
+-1
+4294967295
+Int
+Long
+UInt
+ULong
+2147483648
+1
+2147483649
+2147483648
+1
+1
+168
+168

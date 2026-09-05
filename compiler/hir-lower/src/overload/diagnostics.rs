@@ -6,13 +6,23 @@ use crate::call_resolution::diagnostics::{
 };
 use crate::expr::ResolvedCallTypeArgument;
 use crate::overload::probe::{
-    CandidateProbeFailure, CandidateProbeFailureKind, CandidateShapeFailure,
+    ApplicableCandidate, CandidateProbeFailure, CandidateProbeFailureKind, CandidateShapeFailure,
 };
+
+mod integers;
+use integers::{primitive_integer_conversion_suggestion, render_literal_exact_commits};
 
 pub(super) struct CandidateFailureContext<'call, 'arguments> {
     pub(super) arguments: &'call OverloadArguments<'arguments>,
     pub(super) extension_receiver: Option<&'call hir::Expr>,
     pub(super) explicit_type_args: &'call [ResolvedCallTypeArgument],
+    pub(super) span: Span,
+}
+
+pub(super) struct AmbiguityContext<'call, 'arguments> {
+    pub(super) applicable: &'call [ApplicableCandidate],
+    pub(super) arguments: &'call OverloadArguments<'arguments>,
+    pub(super) receiver_offset: usize,
     pub(super) span: Span,
 }
 
@@ -78,7 +88,8 @@ impl Lowerer {
         for failure in failures {
             let candidate = &prepared[failure.candidate];
             let signature = callable_source_signature(self, name, &candidate.view);
-            let reason = render_candidate_failure(candidate, failure, explicit_type_args);
+            let reason =
+                render_candidate_failure(candidate, failure, explicit_type_args, arguments);
             traces.push(format!("  - {signature} — {reason}"));
         }
         self.error(
@@ -95,8 +106,14 @@ impl Lowerer {
         name: &str,
         prepared: &[Candidate],
         tied: &[usize],
-        span: Span,
+        context: AmbiguityContext<'_, '_>,
     ) {
+        let AmbiguityContext {
+            applicable,
+            arguments,
+            receiver_offset,
+            span,
+        } = context;
         let views = prepared
             .iter()
             .map(|candidate| candidate.view.clone())
@@ -105,9 +122,28 @@ impl Lowerer {
         let traces = tied
             .iter()
             .map(|&index| {
+                let candidate = &prepared[index];
+                let transaction = applicable
+                    .iter()
+                    .find(|transaction| transaction.candidate == index)
+                    .expect("every tied candidate has an applicability transaction");
+                let literal_commits = render_literal_exact_commits(
+                    candidate,
+                    transaction,
+                    arguments,
+                    receiver_offset,
+                );
                 format!(
-                    "  - {} — tied after pairwise declaration forwarding",
-                    callable_source_signature(self, name, &prepared[index].view)
+                    "  - {} — tied after pairwise declaration forwarding{}",
+                    callable_source_signature(self, name, &candidate.view),
+                    literal_commits.map_or_else(String::new, |commits| format!(
+                        "; requires integer literal exact {}: {commits}",
+                        if commits.contains(", ") {
+                            "commits"
+                        } else {
+                            "commit"
+                        }
+                    ))
                 )
             })
             .collect::<Vec<_>>()
@@ -123,8 +159,9 @@ fn render_candidate_failure(
     candidate: &Candidate,
     failure: &CandidateProbeFailure,
     explicit_type_args: &[ResolvedCallTypeArgument],
+    arguments: &OverloadArguments<'_>,
 ) -> String {
-    let reason = match &failure.kind {
+    let mut reason = match &failure.kind {
         CandidateProbeFailureKind::Shape(CandidateShapeFailure::TypeArgumentArity {
             expected,
             supplied,
@@ -168,6 +205,10 @@ fn render_candidate_failure(
             constraint,
         ),
     };
+    if let Some(suggestion) = primitive_integer_conversion_suggestion(candidate, failure, arguments)
+    {
+        reason.push_str(&suggestion);
+    }
     let CandidateProbeFailureKind::Constraint(constraint) = &failure.kind else {
         return reason;
     };

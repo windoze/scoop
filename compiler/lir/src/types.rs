@@ -216,6 +216,9 @@ impl MachineScalarValue {
 pub enum LirType {
     Void,
     I1,
+    I8,
+    I16,
+    I32,
     I64,
     MachineScalar(MachineScalarKind),
     Ptr(PointerKind),
@@ -294,6 +297,9 @@ impl LirType {
         match self {
             LirType::Void => "void".to_string(),
             LirType::I1 => "i1".to_string(),
+            LirType::I8 => "i8".to_string(),
+            LirType::I16 => "i16".to_string(),
+            LirType::I32 => "i32".to_string(),
             LirType::I64 => "i64".to_string(),
             LirType::MachineScalar(kind) => format!("machine<{}>", kind.name()),
             LirType::Ptr(kind) => format!("ptr<{}>", kind.dump()),

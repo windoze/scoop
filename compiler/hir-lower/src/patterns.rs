@@ -83,8 +83,53 @@ impl Lowerer {
                     self.error(*span, "expected a literal pattern".to_string());
                     return None;
                 }
-                let mut sink = Vec::new();
-                let literal = self.lower_expr(expr, &mut sink, Some(matched_ty))?;
+                let prefixed_integer_literal = match &**expr {
+                    ast::Expr::Unary { op, operand, .. } => match &**operand {
+                        ast::Expr::IntLiteral(literal)
+                            if *op == ast::UnOp::Neg
+                                && matches!(
+                                    literal.suffix,
+                                    ast::IntegerSuffix::Unsigned | ast::IntegerSuffix::UnsignedLong
+                                ) =>
+                        {
+                            Some((*op, *literal))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let literal = if let Some((op, source)) = prefixed_integer_literal {
+                    let mut value =
+                        self.lower_integer_literal(source, Some(matched_ty), false, *span)?;
+                    let Type::Integer(kind) = self.types[value.ty] else {
+                        unreachable!("an integer literal has an integer type")
+                    };
+                    debug_assert_eq!(op, ast::UnOp::Neg);
+                    let operation = hir::NoGcIntegerOperation::UnaryMinus;
+                    let key = hir::IntrinsicFunctionKind::Integer(
+                        hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
+                    );
+                    if !self.intrinsic_functions.contains_key(&key) {
+                        self.error(
+                            *span,
+                            format!(
+                                "type `{}` has no typed core `unaryMinus` intrinsic",
+                                kind.canonical_name(),
+                            ),
+                        );
+                        return None;
+                    }
+                    let hir::ExprKind::IntegerLiteral(constant) = value.kind else {
+                        unreachable!("literal lowering produces an integer constant")
+                    };
+                    value.kind = hir::ExprKind::IntegerLiteral(
+                        crate::globals::integer_wrapping_neg(constant),
+                    );
+                    value
+                } else {
+                    let mut sink = Vec::new();
+                    self.lower_expr(expr, &mut sink, Some(matched_ty))?
+                };
                 if !self.types_equal(literal.ty, matched_ty) {
                     let expected = self.type_name(matched_ty);
                     let found = self.type_name(literal.ty);
@@ -103,11 +148,11 @@ impl Lowerer {
                 {
                     return Some(hir::Pattern::Wildcard);
                 }
-                let (literal, equals) =
+                let (literal, equality) =
                     self.resolve_literal_pattern_equality(matched_ty, literal, *span)?;
                 Some(hir::Pattern::Literal {
                     value: literal,
-                    equals,
+                    equality,
                     subject_ty: matched_ty,
                 })
             }
@@ -383,7 +428,7 @@ pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
 /// equality; a negative integer is unary minus over a literal).
 fn is_literal_expr(expr: &ast::Expr) -> bool {
     match expr {
-        ast::Expr::IntLiteral { .. }
+        ast::Expr::IntLiteral(_)
         | ast::Expr::StringLiteral { .. }
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. } => true,
@@ -391,7 +436,9 @@ fn is_literal_expr(expr: &ast::Expr) -> bool {
             op: ast::UnOp::Neg,
             operand,
             ..
-        } => matches!(&**operand, ast::Expr::IntLiteral { .. }),
+        } => {
+            matches!(&**operand, ast::Expr::IntLiteral(_))
+        }
         _ => false,
     }
 }

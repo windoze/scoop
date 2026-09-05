@@ -285,15 +285,6 @@ impl Lowerer {
                     }
                     if Some(struct_id) == self.ffi_ptr {
                         let pointee = resolved[0];
-                        if self.type_contains_param(pointee)
-                            && self.current_file >= self.user_file_index
-                        {
-                            self.error(
-                                name.span,
-                                "`Ptr` pointee must be a concrete GC-free value type".to_string(),
-                            );
-                            return None;
-                        }
                         let ty = self.intern_type(Type::Ptr(pointee));
                         self.pointer_type_uses
                             .push((ty, self.current_file, name.span));
@@ -477,8 +468,14 @@ impl Lowerer {
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
-                    "Int" => Some(self.int),
-                    "UInt" => Some(self.uint),
+                    "Int8" => Some(self.integer_type(hir::IntegerKind::SIGNED_8)),
+                    "Int16" => Some(self.integer_type(hir::IntegerKind::SIGNED_16)),
+                    "Int" => Some(self.integer_type(hir::IntegerKind::SIGNED_32)),
+                    "Long" => Some(self.integer_type(hir::IntegerKind::SIGNED_64)),
+                    "UInt8" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_8)),
+                    "UInt16" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_16)),
+                    "UInt" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_32)),
+                    "ULong" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_64)),
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
                     // `Any` is a compiler built-in (milestone6 DESIGN.md

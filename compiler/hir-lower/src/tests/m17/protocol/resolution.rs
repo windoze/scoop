@@ -118,7 +118,7 @@ fn override_inherits_default_but_each_static_view_keeps_its_parameter_name() {
     ]))
     .expect("an override inherits one default source while keeping its own parameter name");
     let dump = hir::dump(&module);
-    assert!(dump.contains("IntLiteral 10 : Int"), "{dump}");
+    assert!(dump.contains("IntegerLiteral 10 : Int"), "{dump}");
     assert!(dump.contains("MethodCall Shape.draw"), "{dump}");
     assert!(dump.contains("MethodCall Drawable.draw"), "{dump}");
 }

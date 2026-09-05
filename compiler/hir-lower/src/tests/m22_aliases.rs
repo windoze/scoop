@@ -170,7 +170,7 @@ fn tuple_and_function_alias_targets_are_structurally_complete() {
     let hir::Type::Tuple(elements) = &module.types[pair.target] else {
         panic!("Pair must expand to a tuple")
     };
-    assert_eq!(elements, &[module.int, module.string]);
+    assert_eq!(elements, &[int_type(&module), module.string]);
     let hir::Type::Function(function_type) = module.types[callback.target] else {
         panic!("Callback must expand to a function type")
     };
@@ -420,7 +420,7 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
         };
         assert_eq!(
             module.enum_applications[*application].arguments,
-            vec![module.int]
+            vec![int_type(&module)]
         );
     }
 }
@@ -513,9 +513,9 @@ fn alias_visibility_and_public_export_identity_are_preserved() {
     assert_eq!(defaulted.access.declared, hir::DeclaredVisibility::Internal);
     assert_eq!(file_local.access.declared, hir::DeclaredVisibility::Private);
     assert!(published.access.lookup.0.is_universal());
-    assert_eq!(published.target, module.int);
-    assert_eq!(defaulted.target, module.int);
-    assert_eq!(file_local.target, module.int);
+    assert_eq!(published.target, int_type(&module));
+    assert_eq!(defaulted.target, int_type(&module));
+    assert_eq!(file_local.target, int_type(&module));
     assert!(module.public_surface.type_aliases.contains(&published_id));
     assert!(!module.public_surface.type_aliases.contains(&defaulted_id));
     assert!(!module.public_surface.type_aliases.contains(&file_local_id));
@@ -638,7 +638,7 @@ fn alias_qualified_const_reads_preserve_access_diagnostics() {
     assert!(matches!(
         copied.representation,
         hir::PropertyRepresentation::Const {
-            value: hir::ConstPropertyValue::Integer(42)
+            value: hir::ConstPropertyValue::Integer(hir::HirIntegerConstant::Signed32(42))
         }
     ));
 }

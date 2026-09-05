@@ -163,7 +163,7 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                     .is_some_and(block_contains_return)
         }
         ast::Expr::StringLiteral { .. }
-        | ast::Expr::IntLiteral { .. }
+        | ast::Expr::IntLiteral(_)
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. }
         | ast::Expr::Var(_)

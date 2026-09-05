@@ -16,7 +16,7 @@ impl Concretizer<'_> {
             export::ExprKind::StringLiteral(value) => {
                 concrete::ExprKind::StringLiteral(value.clone())
             }
-            export::ExprKind::IntLiteral(value) => concrete::ExprKind::IntLiteral(*value),
+            export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
             export::ExprKind::BoolLiteral(value) => concrete::ExprKind::BoolLiteral(*value),
             export::ExprKind::UnitLiteral => concrete::ExprKind::UnitLiteral,
             export::ExprKind::TupleLiteral(elements) => concrete::ExprKind::TupleLiteral(
@@ -95,10 +95,14 @@ impl Concretizer<'_> {
                 coercion: self.ensure_coercion(*coercion, substitution),
                 target_type: self.lower_function_type(*target_type, substitution),
             },
-            export::ExprKind::PtrFromUInt(value) => concrete::ExprKind::PtrFromUInt(Box::new(
-                self.lower_expr(value, substitution, locals),
-            )),
-            export::ExprKind::PtrToUInt(value) => concrete::ExprKind::PtrToUInt(Box::new(
+            export::ExprKind::PtrFromNonZeroULong(value) => {
+                concrete::ExprKind::PtrFromNonZeroULong(Box::new(self.lower_expr(
+                    value,
+                    substitution,
+                    locals,
+                )))
+            }
+            export::ExprKind::PtrToULong(value) => concrete::ExprKind::PtrToULong(Box::new(
                 self.lower_expr(value, substitution, locals),
             )),
             export::ExprKind::PtrCast(value) => {
@@ -139,7 +143,6 @@ impl Concretizer<'_> {
             export::ExprKind::AlignOf(align) => {
                 concrete::ExprKind::AlignOf(self.lower_type(*align, substitution))
             }
-            export::ExprKind::FunPtrNull => concrete::ExprKind::FunPtrNull,
             export::ExprKind::FunctionAddress(function) => {
                 concrete::ExprKind::FunctionAddress(self.request_function(*function, Vec::new()))
             }
@@ -229,6 +232,17 @@ impl Concretizer<'_> {
                 callee,
                 args,
             } => {
+                let source_function = self.source.callable_function(*callee);
+                assert!(
+                    !matches!(
+                        &self.source.functions[source_function].kind,
+                        export::FunctionKind::Intrinsic(export::IntrinsicFunction {
+                            kind: export::IntrinsicFunctionKind::Integer(_),
+                            ..
+                        })
+                    ),
+                    "integer intrinsic MethodCall must be normalized before LocalConcrete HIR"
+                );
                 let mut receiver = self.lower_expr(receiver, substitution, locals);
                 let callee = match callee {
                     export::MethodCallee::Callable(callable) => {
@@ -410,6 +424,67 @@ impl Concretizer<'_> {
                     operand: Box::new(self.lower_expr(operand, substitution, locals)),
                 }
             }
+            export::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                let operation = match *operation {
+                    export::IntegerOperation::NoGc {
+                        kind,
+                        operation,
+                        target,
+                    } => concrete::IntegerOperation::NoGc {
+                        kind,
+                        operation,
+                        target: concrete::NoGcCallableRef::map_from_export(target, |source| {
+                            self.lower_integer_callable(kind, source)
+                        }),
+                    },
+                    export::IntegerOperation::Managed {
+                        kind,
+                        operation,
+                        target,
+                    } => concrete::IntegerOperation::Managed {
+                        kind,
+                        operation,
+                        target: concrete::ManagedCallableRef::map_from_export(target, |source| {
+                            self.lower_integer_callable(kind, source)
+                        }),
+                    },
+                };
+                let arguments =
+                    match arguments {
+                        export::HirIntegerOperationArguments::Unary(operand) => {
+                            concrete::HirIntegerOperationArguments::Unary(Box::new(
+                                self.lower_expr(operand, substitution, locals),
+                            ))
+                        }
+                        export::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                            concrete::HirIntegerOperationArguments::Binary {
+                                lhs: Box::new(self.lower_expr(lhs, substitution, locals)),
+                                rhs: Box::new(self.lower_expr(rhs, substitution, locals)),
+                            }
+                        }
+                    };
+                concrete::ExprKind::IntegerOperation {
+                    operation,
+                    arguments,
+                }
+            }
+            export::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => concrete::ExprKind::IntegerConversion {
+                conversion: concrete::IntegerConversion {
+                    source: conversion.source,
+                    target_kind: conversion.target_kind,
+                    target: concrete::NoGcCallableRef::map_from_export(
+                        conversion.target,
+                        |source| self.lower_integer_callable(conversion.source, source),
+                    ),
+                },
+                operand: Box::new(self.lower_expr(operand, substitution, locals)),
+            },
             export::ExprKind::Binary { op, lhs, rhs } => concrete::ExprKind::Binary {
                 op: *op,
                 lhs: Box::new(self.lower_expr(lhs, substitution, locals)),
@@ -440,6 +515,21 @@ impl Concretizer<'_> {
             span: source.span,
             origin: source.origin.concrete(),
         }
+    }
+
+    pub(super) fn lower_integer_callable(
+        &mut self,
+        kind: export::IntegerKind,
+        function: export::FunctionId,
+    ) -> concrete::FunctionId {
+        let owner = self.source.intrinsic_type_core.integers.owner(kind);
+        let application = self.source.structs[owner].self_application;
+        let owner = self.lower_struct_application(application, &[]);
+        self.request_method(
+            function,
+            concrete::MethodOwner::Struct(owner),
+            MethodRequest::Plain,
+        )
     }
 
     fn lower_current_source_location(
@@ -474,7 +564,7 @@ impl Concretizer<'_> {
             self.source.structs[self.source.source_location_core.location].self_application;
         let location = self.lower_struct_application(location_application, substitution);
         let string_type = self.lower_type(self.source.string, substitution);
-        let int_type = self.lower_type(self.source.int, substitution);
+        let long_type = self.lower_integer_type(export::IntegerKind::SIGNED_64, substitution);
         assert_eq!(
             self.struct_type[&location], ty,
             "current_source_location return type must be SourceLocation"
@@ -490,8 +580,18 @@ impl Concretizer<'_> {
                 struct_id: location,
                 args: vec![
                     literal(concrete::ExprKind::StringLiteral(file_name), string_type),
-                    literal(concrete::ExprKind::IntLiteral(line), int_type),
-                    literal(concrete::ExprKind::IntLiteral(column), int_type),
+                    literal(
+                        concrete::ExprKind::IntegerLiteral(export::HirIntegerConstant::Signed64(
+                            line as u64,
+                        )),
+                        long_type,
+                    ),
+                    literal(
+                        concrete::ExprKind::IntegerLiteral(export::HirIntegerConstant::Signed64(
+                            column as u64,
+                        )),
+                        long_type,
+                    ),
                     literal(
                         concrete::ExprKind::StringLiteral(function_name),
                         string_type,

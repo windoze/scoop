@@ -9,7 +9,7 @@ pub(super) fn value_name(value: Value) -> String {
         Value::Local(id) => format!("local{}", id.into_raw()),
         Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),
-        Value::IntConst(value) => format!("{value}"),
+        Value::IntegerConst(value) => value.dump(),
         Value::MachineScalar(value) => {
             format!("machine<{}>({value:?})", value.kind().name())
         }
@@ -19,6 +19,9 @@ pub(super) fn value_name(value: Value) -> String {
         Value::RootScan(id) => format!("root-scan{}", id.into_raw()),
         Value::Global(id) => format!("global{}", id.into_raw()),
         Value::InitializationUnit(id) => format!("init{}", id.into_raw()),
+        Value::CArgumentStorage(storage) => {
+            format!("c-arg-address(local{})", storage.local().into_raw())
+        }
     }
 }
 

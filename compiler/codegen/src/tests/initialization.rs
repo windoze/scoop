@@ -9,7 +9,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             ty: LirType::I64,
-            initializer: scoop_lir::ConstantValue::Zero,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
         },
     });
@@ -19,7 +19,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             ty: MANAGED_PTR,
-            initializer: scoop_lir::ConstantValue::Zero,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
         },
     });
@@ -29,7 +29,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             ty: LirType::I64,
-            initializer: scoop_lir::ConstantValue::Zero,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
         },
     });
@@ -39,7 +39,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             ty: MANAGED_PTR,
-            initializer: scoop_lir::ConstantValue::Zero,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
         },
     });
@@ -94,7 +94,7 @@ fn storage_global_rejects_machine_scalar_type() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
-            initializer: scoop_lir::ConstantValue::Zero,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
         },
     });

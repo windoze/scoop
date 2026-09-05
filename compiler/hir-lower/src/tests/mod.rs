@@ -29,6 +29,11 @@ mod m21_properties;
 mod m21_top_level_storage;
 mod m21_visibility;
 mod m22_aliases;
+mod m22_contextual_inference;
+mod m22_integer_diagnostics;
+mod m22_integer_exhaustiveness;
+mod m22_integers;
+mod m22_joint_integer_inference;
 mod m3;
 mod m4;
 mod m5;
@@ -46,6 +51,42 @@ use ast::{
 
 pub(crate) use builders::*;
 pub(crate) use core::*;
+
+fn integer_syntax(magnitude: u64) -> ast::IntegerLiteralSyntax {
+    ast::IntegerLiteralSyntax {
+        magnitude,
+        radix: ast::IntegerRadix::Decimal,
+        suffix: ast::IntegerSuffix::None,
+        span: sp(),
+    }
+}
+
+fn integer_type(module: &hir::Module, kind: hir::IntegerKind) -> hir::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(id, ty)| (*ty == hir::Type::Integer(kind)).then_some(id))
+        .expect("lowered module contains every canonical integer type")
+}
+
+fn int_type(module: &hir::Module) -> hir::TypeId {
+    integer_type(module, hir::IntegerKind::SIGNED_32)
+}
+
+fn concrete_integer_type(
+    module: &hir::concrete::Module,
+    kind: hir::IntegerKind,
+) -> hir::concrete::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(id, ty)| (ty.kind == hir::concrete::TypeKind::Integer(kind)).then_some(id))
+        .expect("concrete module contains every canonical integer type")
+}
+
+fn concrete_int_type(module: &hir::concrete::Module) -> hir::concrete::TypeId {
+    concrete_integer_type(module, hir::IntegerKind::SIGNED_32)
+}
 
 fn binding_local(pattern: &hir::Pattern) -> Option<hir::LocalId> {
     match pattern {

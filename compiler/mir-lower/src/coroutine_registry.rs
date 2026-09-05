@@ -36,7 +36,9 @@ impl CoroutineRegistry {
             let step = &self.steps[*id];
             return (*id, mir::Type::Enum(step.enum_id, Vec::new()));
         }
-        let name = format!("CoroutineStep${}", mir::encode_type(shell, result));
+        let encoded = mir::encode_type(shell, result)
+            .expect("coroutine result types are source-level MIR types");
+        let name = format!("CoroutineStep${encoded}");
         let result_gc_free = mir_type_gc_free(result, structs, enums);
         let variants = vec![
             mir::VariantDef {
@@ -90,7 +92,9 @@ impl CoroutineRegistry {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id, Vec::new()));
         }
-        let name = format!("CoroutineSlot${}", mir::encode_type(shell, value));
+        let encoded = mir::encode_type(shell, value)
+            .expect("coroutine slot types are source-level MIR types");
+        let name = format!("CoroutineSlot${encoded}");
         let value_gc_free = mir_type_gc_free(value, structs, enums);
         let variants = vec![
             mir::VariantDef {
@@ -141,7 +145,8 @@ impl CoroutineRegistry {
         {
             return (*resume, *failure);
         }
-        let encoded = mir::encode_type(shell, result);
+        let encoded = mir::encode_type(shell, result)
+            .expect("continuation result types are source-level MIR types");
         let mut resume_locals = Arena::new();
         let receiver = resume_locals.alloc(mir::Local {
             name: "this".to_string(),
@@ -358,7 +363,8 @@ impl CoroutineRegistry {
             },
             unwind: Some(catch_pad),
         });
-        let encoded = mir::encode_type(shell, result);
+        let encoded = mir::encode_type(shell, result)
+            .expect("coroutine result types are source-level MIR types");
         let function = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine${encoded}"),

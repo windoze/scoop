@@ -9,7 +9,7 @@ fun startOne(
 fun joinOne(job: Ptr<Unit>): Int
 
 class ForeignGate(
-    var job: Ptr<Unit>,
+    var job: Ptr<Unit>?,
     var observer: ForeignCallback<(Int, Ptr<Unit>) -> Int>?
 )
 
@@ -27,7 +27,7 @@ class ForeignRegistration(val gate: ForeignGate) : SuspendRegistration<Int> {
                 ForeignCallbackMode.OneShot
             )
             gate.observer = Some(retainForeignCallback(worker))
-            gate.job = startOne(worker.function, worker.context, 41)
+            gate.job = Some(startOne(worker.function, worker.context, 41))
         }
     }
 }
@@ -56,12 +56,12 @@ fun <T> isNone(value: T?): Boolean = when (value) {
 fun main() {
     @Unsafe {
         val gate = ForeignGate(
-            Ptr<Unit>(sizeOf<Int>() - sizeOf<Int>()),
+            None,
             None
         )
         startCoroutine(ForeignTask(gate), ForeignCompletion())
         println("suspended")
-        println(joinOne(gate.job))
+        println(joinOne(gate.job!!))
         val observer = gate.observer!!
         println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
         println(isNone(foreignCallbackFailure(observer)))

@@ -13,11 +13,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let lir_ty = &function.temps[*out].ty;
                 let expected_elements = match lir_ty {
-                    LirType::Aggregate(elements) => elements.iter().collect::<Vec<_>>(),
-                    LirType::Struct(id) => self.structs[*id]
-                        .fields
-                        .iter()
-                        .map(|field| &field.ty)
+                    LirType::Aggregate(elements) => elements.clone(),
+                    LirType::Struct(id) => (0..self.structs[*id].field_count())
+                        .map(|index| {
+                            self.structs[*id]
+                                .field_storage_type(index)
+                                .expect("index is below the field count")
+                        })
                         .collect::<Vec<_>>(),
                     other => {
                         return Err(CodegenError(format!(
@@ -39,7 +41,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     elements.iter().zip(&expected_elements).enumerate()
                 {
                     let actual = function.value_ty(self.globals_arena, *element);
-                    if &actual != *expected {
+                    if actual != *expected {
                         return Err(CodegenError(format!(
                             "aggregate construction @{} element {} has type {}, expected {}",
                             function.symbol,
@@ -58,7 +60,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?
                 .into_struct_type();
                 let aggregate = if let LirType::Struct(id) = lir_ty
-                    && self.structs[*id].c_layout.is_some()
+                    && self.structs[*id].is_c_layout()
                 {
                     let definition = &self.structs[*id];
                     let payload_ty = ty
@@ -123,10 +125,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let aggregate_ty = function.value_ty(self.globals_arena, *aggregate);
                 let expected = match &aggregate_ty {
                     LirType::Aggregate(elements) => elements.get(*index as usize).cloned(),
-                    LirType::Struct(id) => self.structs[*id]
-                        .fields
-                        .get(*index as usize)
-                        .map(|field| field.ty.clone()),
+                    LirType::Struct(id) => self.structs[*id].field_storage_type(*index as usize),
                     _ => None,
                 }
                 .ok_or_else(|| {
@@ -148,7 +147,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 let aggregate = self.value(*aggregate)?.into_struct_value();
                 let element = if let LirType::Struct(id) = aggregate_ty
-                    && self.structs[id].c_layout.is_some()
+                    && self.structs[id].is_c_layout()
                 {
                     let payload = builder
                         .build_extract_value(aggregate, 1, "c_layout_payload")

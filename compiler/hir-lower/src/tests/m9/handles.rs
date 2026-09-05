@@ -72,15 +72,15 @@ fn pinned_ptr_construction_and_field_access() {
             // (the `raw` field is an ordinary struct field).
             val_ty(
                 "r2",
-                Some(ty_named("UInt")),
+                Some(ty_named("ULong")),
                 field(call("pin", vec![str_lit("x")]), "raw"),
             ),
         ])],
     )]);
     let module = lower_user_with_gc(file).expect("handle construction must lower");
     assert_eq!(local_ty(&module, "h"), "PinnedPtr<String>");
-    assert_eq!(local_ty(&module, "r"), "UInt");
-    assert_eq!(local_ty(&module, "r2"), "UInt");
+    assert_eq!(local_ty(&module, "r"), "ULong");
+    assert_eq!(local_ty(&module, "r2"), "ULong");
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn pinned_ptr_construction_checks_the_raw_field() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for constructor `PinnedPtr` in nominal constructor candidate layer:\n  - struct PinnedPtr<T : ref>(raw: UInt) — argument for `raw` has type Int, which is not a subtype of UInt"
+        "integer literal `1` is not representable as ULong"
     );
 }
 
@@ -111,6 +111,6 @@ fn gcstats_result_is_uint_not_int() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "initializer of `n` must be of type Int, found UInt"
+        "initializer of `n` must be of type Int, found ULong"
     );
 }

@@ -26,12 +26,12 @@ fn lowers_function_and_struct_annotations_to_typed_hir() {
         args: vec![
             ast::AnnotationArg {
                 name: Some(ident("aligned")),
-                value: ast::AnnotationLiteral::Int(8),
+                value: ast::AnnotationLiteral::Int(integer_syntax(8)),
                 span: sp(),
             },
             ast::AnnotationArg {
                 name: Some(ident("packed")),
-                value: ast::AnnotationLiteral::Int(1),
+                value: ast::AnnotationLiteral::Int(integer_syntax(1)),
                 span: sp(),
             },
         ],
@@ -56,9 +56,9 @@ fn lowers_function_and_struct_annotations_to_typed_hir() {
             .1
             .attributes
             .c_layout,
-        Some(hir::CLayout {
-            aligned: 8,
-            packed: 1
+        Some(hir::HirCLayoutContract {
+            aligned: hir::HirCLayoutValue::A8,
+            packed: hir::HirCLayoutValue::A1,
         })
     );
     let dump = hir::dump(&module);

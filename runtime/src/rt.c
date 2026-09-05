@@ -26,9 +26,8 @@ void scoop_rt_println(const ScoopString *s) {
     fputc('\n', stdout);
 }
 
-// Format an i64 into a fresh ScoopString (GC-allocated), backing
-// core's `intToString` (M7).
-const ScoopString *scoop_rt_int_to_string(int64_t v) {
+// Format a fixed-width Long into a fresh ScoopString (GC-allocated).
+const ScoopString *scoop_rt_long_to_string(int64_t v) {
     char buf[24]; // -2^63 needs 20 chars + NUL
     int len = snprintf(buf, sizeof(buf), "%lld", (long long)v);
     ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
@@ -37,7 +36,7 @@ const ScoopString *scoop_rt_int_to_string(int64_t v) {
     return result;
 }
 
-const ScoopString *scoop_rt_uint_to_string(uint64_t v) {
+const ScoopString *scoop_rt_ulong_to_string(uint64_t v) {
     char buf[24]; // 2^64 - 1 needs 20 chars + NUL
     int len = snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
     ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
@@ -59,14 +58,6 @@ const ScoopString *scoop_rt_bool_to_string(bool v) {
     return result;
 }
 
-bool scoop_rt_int_equals(int64_t left, int64_t right) {
-    return left == right;
-}
-
-bool scoop_rt_uint_equals(uint64_t left, uint64_t right) {
-    return left == right;
-}
-
 bool scoop_rt_bool_equals(bool left, bool right) {
     return left == right;
 }
@@ -80,11 +71,11 @@ static uint64_t scoop_rt_mix_word(uint64_t value) {
     return value;
 }
 
-int64_t scoop_rt_int_hash(int64_t v) {
+int64_t scoop_rt_long_hash(int64_t v) {
     return (int64_t)scoop_rt_mix_word((uint64_t)v);
 }
 
-int64_t scoop_rt_uint_hash(uint64_t v) {
+int64_t scoop_rt_ulong_hash(uint64_t v) {
     return (int64_t)scoop_rt_mix_word(v);
 }
 
@@ -139,11 +130,11 @@ int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
     return (a->len > b->len) - (a->len < b->len);
 }
 
-void scoop_rt_print_int(int64_t value) {
+void scoop_rt_print_long(int64_t value) {
     printf("%" PRId64, value);
 }
 
-void scoop_rt_println_int(int64_t value) {
+void scoop_rt_println_long(int64_t value) {
     printf("%" PRId64 "\n", value);
 }
 

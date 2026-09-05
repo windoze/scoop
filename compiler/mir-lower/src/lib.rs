@@ -129,7 +129,8 @@ use instances::{InstanceRegistry, function_instance};
 use structured as smir;
 use types::{
     BoxedRegistry, EnumRegistry, InterfaceRegistry, StructRegistry, Types, is_boxable,
-    is_reference_mir, mir_type_gc_free,
+    is_reference_mir, lower_integer_constant, lower_integer_kind, mir_type_gc_free,
+    raise_integer_kind, remap_idx,
 };
 
 /// Lower HIR to MIR.
@@ -170,7 +171,6 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
-        option_variants: (0, 0),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -245,7 +245,6 @@ struct Lowerer {
     /// to its symbol (see `declare_symbol`).
     overloaded: HashSet<String>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
-    option_variants: (u32, u32),
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,
     closure_classes: Arena<mir::ClosureClass>,

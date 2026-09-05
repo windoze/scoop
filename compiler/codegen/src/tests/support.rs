@@ -1,8 +1,13 @@
 use super::*;
+use scoop_lir::LirIntegerConstant;
 
 mod calls;
 
 pub(super) use calls::*;
+
+pub(super) const fn signed64(raw_bits: u64) -> Value {
+    Value::IntegerConst(LirIntegerConstant::Signed64(raw_bits))
+}
 
 pub(super) fn host_profile() -> TargetProfile {
     TargetProfile::resolve_host().expect("supported host target")
@@ -168,11 +173,12 @@ pub(super) fn values_module() -> Module {
     blocks[entry] = BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
-            Instruction::BinOp {
+            Instruction::IntegerBinary {
                 out: t0,
-                op: BinOp::Add,
-                lhs: Value::IntConst(1),
-                rhs: Value::IntConst(2),
+                kind: IntegerKind::SIGNED_64,
+                operation: IntegerBinaryOperation::Add,
+                lhs: signed64(1),
+                rhs: signed64(2),
             },
             Instruction::Store {
                 local: n,
@@ -180,7 +186,7 @@ pub(super) fn values_module() -> Module {
             },
             Instruction::MakeAggregate {
                 out: t1,
-                elements: vec![Value::IntConst(40), Value::IntConst(2)],
+                elements: vec![signed64(40), signed64(2)],
             },
             Instruction::Store {
                 local: point,
@@ -191,11 +197,12 @@ pub(super) fn values_module() -> Module {
                 aggregate: Value::Local(point),
                 index: 0,
             },
-            Instruction::BinOp {
+            Instruction::IntegerCompare {
                 out: t3,
-                op: BinOp::Lt,
+                kind: IntegerKind::SIGNED_64,
+                comparison: IntegerComparison::Less,
                 lhs: Value::Temp(t2),
-                rhs: Value::IntConst(100),
+                rhs: signed64(100),
             },
             Instruction::Call { site: concat },
         ],
@@ -207,9 +214,10 @@ pub(super) fn values_module() -> Module {
     };
     blocks[then_block] = BasicBlock {
         name: "then".to_string(),
-        instructions: vec![Instruction::UnaryOp {
+        instructions: vec![Instruction::IntegerUnary {
             out: t4,
-            op: UnOp::Neg,
+            kind: IntegerKind::SIGNED_64,
+            operation: IntegerUnaryOperation::Negate,
             operand: Value::Temp(t2),
         }],
         terminator: Terminator::Br(end),
@@ -241,8 +249,8 @@ pub(super) fn values_module() -> Module {
     Module {
         globals,
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),

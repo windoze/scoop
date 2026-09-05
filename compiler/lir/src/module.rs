@@ -5,10 +5,10 @@ pub struct Module {
     pub initialization_units: Arena<InitializationUnit>,
     /// Struct definitions with complete physical layouts (indexed by
     /// `StructDefId`; ids align with MIR struct ids).
-    pub structs: Arena<StructDef>,
+    pub structs: StructDefs,
     /// Enum definitions with fixed representations (indexed by
     /// `EnumDefId`).
-    pub enums: Arena<EnumDef>,
+    pub enums: EnumDefs,
     pub functions: Vec<Function>,
     /// Native declarations and C-bridge descriptions, transposed from MIR.
     /// ABI-refined references can only be minted while declarations are
@@ -69,7 +69,7 @@ pub struct CallbackBridge {
     pub bridge_symbol: String,
     pub trampoline_symbol: String,
     pub params: Vec<CType>,
-    pub return_type: CType,
+    pub return_type: CReturnType,
 }
 
 /// One concrete managed-callback protocol family. All three ids are nominal:
@@ -88,7 +88,7 @@ pub struct ForeignCallbackBridge {
     pub trampoline_symbol: String,
     pub signature_symbol: String,
     pub params: Vec<CType>,
-    pub return_type: CType,
+    pub return_type: CReturnType,
     pub context_index: u32,
     pub mode: ForeignCallbackMode,
 }
@@ -156,10 +156,15 @@ pub struct NativeGlobal {
     pub source_name: String,
     pub native_symbol: String,
     pub library: String,
-    pub ty: LirType,
     pub c_type: CType,
     pub thread_local: bool,
     pub access: NativeGlobalAccess,
+}
+
+impl NativeGlobal {
+    pub fn storage_type(&self) -> LirType {
+        self.c_type.storage_type()
+    }
 }
 
 #[derive(Debug, Default)]

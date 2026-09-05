@@ -63,7 +63,8 @@ impl LiveValue {
             lir::Value::Param(index) => Some(Self::Param(index)),
             lir::Value::Local(id) => Some(Self::Local(id)),
             lir::Value::Temp(id) => Some(Self::Temp(id)),
-            lir::Value::IntConst(_)
+            lir::Value::CArgumentStorage(storage) => Some(Self::Local(storage.local())),
+            lir::Value::IntegerConst(_)
             | lir::Value::MachineScalar(_)
             | lir::Value::BoolConst(_)
             | lir::Value::NullPointer(_)
@@ -94,8 +95,8 @@ impl LiveValue {
 pub(super) fn complete_function(
     context: &LoweringContext,
     function: &mut lir::Function,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
     ids: &mut SafepointIds,
 ) {
     fold_constant_branches(function);

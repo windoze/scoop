@@ -17,6 +17,105 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+        Instruction::IntegerUnary {
+            out,
+            kind,
+            operation,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = integer_{:?}<{}> {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerBinary {
+            out,
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::SafeIntegerDivRem {
+            out,
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = safe_integer_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerCompare {
+            out,
+            kind,
+            comparison,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_compare_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            comparison,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerCompareTo {
+            out,
+            operand_kind,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_compare_to<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operand_kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerShift {
+            out,
+            kind,
+            operation,
+            value,
+            normalized_count,
+        } => buf.push_str(&format!(
+            "    t{} = integer_shift_{:?}<{}> {}, normalized={} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*value),
+            value_name(*normalized_count),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerConvert {
+            out,
+            source_kind,
+            target_kind,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = integer_convert<{}->{}> {} : {}\n",
+            out.into_raw(),
+            source_kind.canonical_name(),
+            target_kind.canonical_name(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::MakeAggregate { out, elements } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
             buf.push_str(&format!(
@@ -237,13 +336,13 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 value_name(callback)
             )),
         },
-        Instruction::IntToPtr { out, value } => buf.push_str(&format!(
-            "    t{} = int_to_ptr {} : ptr\n",
+        Instruction::ULongToPtr { out, value } => buf.push_str(&format!(
+            "    t{} = ulong_to_ptr {} : ptr\n",
             out.into_raw(),
             value_name(*value)
         )),
-        Instruction::PtrToInt { out, value } => buf.push_str(&format!(
-            "    t{} = ptr_to_int {} : i64\n",
+        Instruction::PtrToULong { out, value } => buf.push_str(&format!(
+            "    t{} = ptr_to_ulong {} : i64\n",
             out.into_raw(),
             value_name(*value)
         )),

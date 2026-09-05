@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use scoop_hir as hir;
 
 use crate::Type;
@@ -9,8 +7,10 @@ use crate::Type;
 /// narrower source domain than values the remaining pipeline can produce.
 pub(super) fn integer_domain(ty: &Type) -> Option<IntegerDomain> {
     match ty {
-        Type::Int => Some(IntegerDomain::signed(64)),
-        Type::UInt => Some(IntegerDomain::unsigned(64)),
+        Type::Integer(kind) => Some(match kind.signedness() {
+            hir::IntegerSignedness::Signed => IntegerDomain::signed(kind.width().bits() as u8),
+            hir::IntegerSignedness::Unsigned => IntegerDomain::unsigned(kind.width().bits() as u8),
+        }),
         Type::Unit
         | Type::Boolean
         | Type::String
@@ -78,10 +78,6 @@ impl IntegerDomain {
         }
     }
 
-    fn normalize(self, value: i128) -> u64 {
-        value.rem_euclid(self.cardinality() as i128) as u64
-    }
-
     pub(super) fn render(self, raw: u64) -> String {
         let raw = raw & self.mask();
         if self.signed {
@@ -107,56 +103,43 @@ pub(super) fn integer_pattern_raw(pattern: &hir::Pattern, domain: IntegerDomain)
 
 pub(super) fn first_missing_integer_ordinal(
     domain: IntegerDomain,
-    ordinals: &BTreeSet<u128>,
+    ordinals: impl IntoIterator<Item = u128>,
 ) -> Option<u128> {
-    if ordinals.len() as u128 == domain.cardinality() {
-        return None;
-    }
     let mut expected = 0u128;
     for ordinal in ordinals {
-        if *ordinal != expected {
+        if ordinal != expected {
             return Some(expected);
         }
         expected += 1;
     }
-    Some(expected)
+    (expected < domain.cardinality()).then_some(expected)
 }
 
 fn integer_literal_raw(value: &hir::Expr, domain: IntegerDomain) -> Option<u64> {
     match &value.kind {
-        hir::ExprKind::IntLiteral(value) => Some(domain.normalize(i128::from(*value))),
-        hir::ExprKind::PrimitiveUnary {
-            kind: hir::PrimitiveUnaryKind::IntUnaryPlus | hir::PrimitiveUnaryKind::UIntUnaryPlus,
-            operand,
-        } => integer_literal_raw(operand, domain),
-        hir::ExprKind::PrimitiveUnary {
-            kind: hir::PrimitiveUnaryKind::IntUnaryMinus,
-            operand,
-        } => {
-            let operand = integer_literal_raw(operand, domain)?;
-            Some(0u64.wrapping_sub(operand) & domain.mask())
-        }
+        hir::ExprKind::IntegerLiteral(value) => Some(value.raw_bits() & domain.mask()),
         _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
 
     #[test]
     fn integer_domain_uses_mathematical_order_and_u128_cardinality() {
-        let source_int = integer_domain(&Type::Int).expect("Int has a closed domain");
-        assert_eq!(source_int, IntegerDomain::signed(64));
-        assert_eq!(source_int.cardinality(), 18_446_744_073_709_551_616);
-        assert_eq!(
-            source_int.render(0x8000_0000_0000_0000),
-            "-9223372036854775808"
-        );
+        let source_int = integer_domain(&Type::Integer(hir::IntegerKind::SIGNED_32))
+            .expect("Int has a closed domain");
+        assert_eq!(source_int, IntegerDomain::signed(32));
+        assert_eq!(source_int.cardinality(), 4_294_967_296);
+        assert_eq!(source_int.render(0x8000_0000), "-2147483648");
 
-        let source_uint = integer_domain(&Type::UInt).expect("UInt has a closed domain");
-        assert_eq!(source_uint, IntegerDomain::unsigned(64));
-        assert_eq!(source_uint.cardinality(), 18_446_744_073_709_551_616);
+        let source_uint = integer_domain(&Type::Integer(hir::IntegerKind::UNSIGNED_32))
+            .expect("UInt has a closed domain");
+        assert_eq!(source_uint, IntegerDomain::unsigned(32));
+        assert_eq!(source_uint.cardinality(), 4_294_967_296);
         assert_eq!(source_uint.render(0), "0u");
 
         let signed = IntegerDomain::signed(8);
@@ -177,10 +160,25 @@ mod tests {
     fn finite_integer_domain_is_exhaustive_only_after_every_bit_pattern() {
         let domain = IntegerDomain::signed(8);
         let mut ordinals: BTreeSet<u128> = (0..256).collect();
-        assert_eq!(first_missing_integer_ordinal(domain, &ordinals), None);
+        assert_eq!(
+            first_missing_integer_ordinal(domain, ordinals.iter().copied()),
+            None
+        );
 
         ordinals.remove(&127);
-        assert_eq!(first_missing_integer_ordinal(domain, &ordinals), Some(127));
+        assert_eq!(
+            first_missing_integer_ordinal(domain, ordinals.iter().copied()),
+            Some(127)
+        );
         assert_eq!(domain.render(domain.raw_from_ordinal(127)), "-1");
+    }
+
+    #[test]
+    fn complete_uint16_coverage_scans_only_observed_ordinals() {
+        let domain = IntegerDomain::unsigned(16);
+        assert_eq!(
+            first_missing_integer_ordinal(domain, 0..domain.cardinality()),
+            None
+        );
     }
 }

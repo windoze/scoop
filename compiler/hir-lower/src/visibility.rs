@@ -593,8 +593,9 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
-            hir::Type::Int => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Int),
-            hir::Type::UInt => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::UInt),
+            hir::Type::Integer(kind) => {
+                self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
+            }
             hir::Type::Boolean => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
@@ -683,8 +684,9 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
-            hir::Type::Int => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Int),
-            hir::Type::UInt => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::UInt),
+            hir::Type::Integer(kind) => {
+                self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
+            }
             hir::Type::Boolean => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
@@ -770,8 +772,7 @@ impl Lowerer {
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
             hir::Type::Unit
-            | hir::Type::Int
-            | hir::Type::UInt
+            | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::String
             | hir::Type::Any

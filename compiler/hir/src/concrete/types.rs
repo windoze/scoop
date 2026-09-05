@@ -187,8 +187,7 @@ pub struct Type {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeKind {
     Unit,
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Struct(StructId),

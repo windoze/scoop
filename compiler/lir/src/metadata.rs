@@ -1,18 +1,205 @@
 use super::*;
 
+#[derive(Debug)]
 pub struct StructDef {
     pub name: String,
-    pub fields: Vec<StructField>,
     pub size: u64,
     pub align: u64,
-    pub c_layout: Option<CLayout>,
     pub interior_mutable: bool,
+    pub representation: StructRepresentation,
+}
+
+/// Immutable-by-classification struct definition store. C-layout references
+/// can only be minted here, and the only post-allocation updates preserve the
+/// representation family that justified the refinement.
+#[derive(Debug, Default)]
+pub struct StructDefs {
+    definitions: Arena<StructDef>,
+}
+
+impl StructDefs {
+    pub fn alloc_scoop(
+        &mut self,
+        name: String,
+        size: u64,
+        align: u64,
+        interior_mutable: bool,
+        fields: Vec<StructField>,
+    ) -> StructDefId {
+        self.definitions.alloc(StructDef {
+            name,
+            size,
+            align,
+            interior_mutable,
+            representation: StructRepresentation::Scoop { fields },
+        })
+    }
+
+    pub fn alloc_c(
+        &mut self,
+        name: String,
+        size: u64,
+        align: u64,
+        interior_mutable: bool,
+        contract: LirCLayoutContract,
+        fields: Vec<CStructField>,
+    ) -> CStructRef {
+        let id = self.definitions.alloc(StructDef {
+            name,
+            size,
+            align,
+            interior_mutable,
+            representation: StructRepresentation::C { contract, fields },
+        });
+        CStructRef::from_validated_definition(id)
+    }
+
+    pub fn alloc_intrinsic(
+        &mut self,
+        name: String,
+        size: u64,
+        align: u64,
+        representation: IntrinsicTypeRepresentation,
+    ) -> StructDefId {
+        self.definitions.alloc(StructDef {
+            name,
+            size,
+            align,
+            interior_mutable: false,
+            representation: StructRepresentation::Intrinsic(representation),
+        })
+    }
+
+    pub fn set_scoop_fields(&mut self, id: StructDefId, fields: Vec<StructField>) {
+        let StructRepresentation::Scoop {
+            fields: stored_fields,
+        } = &mut self.definitions[id].representation
+        else {
+            panic!("only a Scoop struct shell accepts Scoop fields")
+        };
+        *stored_fields = fields;
+    }
+
+    pub fn set_c_fields(&mut self, reference: CStructRef, fields: Vec<CStructField>) {
+        let StructRepresentation::C {
+            fields: stored_fields,
+            ..
+        } = &mut self.definitions[reference.definition()].representation
+        else {
+            unreachable!("CStructRef can only identify a C struct")
+        };
+        *stored_fields = fields;
+    }
+
+    pub fn c_ref(&self, id: StructDefId) -> Option<CStructRef> {
+        self.definitions[id]
+            .is_c_layout()
+            .then_some(CStructRef::from_validated_definition(id))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (StructDefId, &StructDef)> {
+        self.definitions.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.definitions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.definitions.is_empty()
+    }
+}
+
+impl std::ops::Index<StructDefId> for StructDefs {
+    type Output = StructDef;
+
+    fn index(&self, index: StructDefId) -> &Self::Output {
+        &self.definitions[index]
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructField {
     pub ty: LirType,
     pub layout: FieldLayout,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CStructField {
+    pub ty: CType,
+    pub layout: FieldLayout,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StructRepresentation {
+    Scoop {
+        fields: Vec<StructField>,
+    },
+    C {
+        contract: LirCLayoutContract,
+        fields: Vec<CStructField>,
+    },
+    /// Nominal declaration shell for a compiler pointer intrinsic. Canonical
+    /// values use `LirType::Ptr`; this branch prevents the declaration from
+    /// being mistaken for an ordinary zero-field aggregate.
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+impl StructDef {
+    pub const fn c_layout(&self) -> Option<LirCLayoutContract> {
+        match &self.representation {
+            StructRepresentation::Scoop { .. } => None,
+            StructRepresentation::C { contract, .. } => Some(*contract),
+            StructRepresentation::Intrinsic(_) => None,
+        }
+    }
+
+    pub const fn is_c_layout(&self) -> bool {
+        matches!(&self.representation, StructRepresentation::C { .. })
+    }
+
+    pub fn scoop_fields(&self) -> Option<&[StructField]> {
+        match &self.representation {
+            StructRepresentation::Scoop { fields } => Some(fields),
+            StructRepresentation::C { .. } | StructRepresentation::Intrinsic(_) => None,
+        }
+    }
+
+    pub fn c_fields(&self) -> Option<&[CStructField]> {
+        match &self.representation {
+            StructRepresentation::Scoop { .. } => None,
+            StructRepresentation::C { fields, .. } => Some(fields),
+            StructRepresentation::Intrinsic(_) => None,
+        }
+    }
+
+    pub fn field_count(&self) -> usize {
+        match &self.representation {
+            StructRepresentation::Scoop { fields } => fields.len(),
+            StructRepresentation::C { fields, .. } => fields.len(),
+            StructRepresentation::Intrinsic(_) => 0,
+        }
+    }
+
+    pub fn field_layout(&self, index: usize) -> Option<FieldLayout> {
+        match &self.representation {
+            StructRepresentation::Scoop { fields } => fields.get(index).map(|field| field.layout),
+            StructRepresentation::C { fields, .. } => fields.get(index).map(|field| field.layout),
+            StructRepresentation::Intrinsic(_) => None,
+        }
+    }
+
+    pub fn field_storage_type(&self, index: usize) -> Option<LirType> {
+        match &self.representation {
+            StructRepresentation::Scoop { fields } => {
+                fields.get(index).map(|field| field.ty.clone())
+            }
+            StructRepresentation::C { fields, .. } => {
+                fields.get(index).map(|field| field.ty.storage_type())
+            }
+            StructRepresentation::Intrinsic(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,9 +211,32 @@ pub struct FieldLayout {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CLayout {
-    pub aligned: u8,
-    pub packed: u8,
+pub enum LirCLayoutValue {
+    Natural,
+    A1,
+    A2,
+    A4,
+    A8,
+    A16,
+}
+
+impl LirCLayoutValue {
+    pub const fn bytes(self) -> Option<u64> {
+        match self {
+            Self::Natural => None,
+            Self::A1 => Some(1),
+            Self::A2 => Some(2),
+            Self::A4 => Some(4),
+            Self::A8 => Some(8),
+            Self::A16 => Some(16),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LirCLayoutContract {
+    pub aligned: LirCLayoutValue,
+    pub packed: LirCLayoutValue,
 }
 
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
@@ -152,7 +362,7 @@ pub struct Layout {
     pub size: u64,
     pub align: u64,
     pub fields: Vec<FieldLayout>,
-    pub c_layout: Option<CLayout>,
+    pub c_layout: Option<LirCLayoutContract>,
     pub interior_mutable: bool,
     pub kind: LayoutKind,
 }
@@ -175,10 +385,48 @@ pub enum LayoutKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
+    Ptr { pointee: LirDataPointee },
+    FunPtr { signature: LirFunctionType },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LirDataPointee {
+    OpaqueVoid,
+    Value(Box<LirType>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirFunctionType {
+    pub params: Vec<LirType>,
+    pub return_type: LirReturnType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LirReturnType {
+    Void,
+    Value(Box<LirType>),
+}
+
+impl LirReturnType {
+    pub fn storage_type(&self) -> LirType {
+        match self {
+            Self::Void => LirType::Void,
+            Self::Value(ty) => ty.as_ref().clone(),
+        }
+    }
+
+    pub const fn is_void(&self) -> bool {
+        matches!(self, Self::Void)
+    }
+}
+
+impl LirFunctionType {
+    pub fn storage_return_type(&self) -> LirType {
+        self.return_type.storage_type()
+    }
 }
 
 /// Recursive, layout-complete description of references in an inline
@@ -250,6 +498,158 @@ pub struct EnumDef {
     pub scan: RefScan,
 }
 
+/// Enum definitions are immutable after allocation except for their recursive
+/// scan program.  A C-nullable option's exact payload contract is bound once,
+/// on the first refined-reference request, and every later request must agree.
+/// Consequently a provenance-and-type-refined nullable reference minted by
+/// this store cannot be invalidated or rebound later.
+#[derive(Debug, Default)]
+pub struct EnumDefs {
+    definitions: Arena<EnumDef>,
+    c_nullable_options: Vec<Option<CNullableOptionKind>>,
+}
+
+#[derive(Debug)]
+enum CNullableOptionKind {
+    DataPointer(std::sync::OnceLock<CDataPointee>),
+    CodePointer(std::sync::OnceLock<CFunctionType>),
+}
+
+impl EnumDefs {
+    pub fn alloc(&mut self, definition: EnumDef) -> EnumDefId {
+        self.alloc_with_c_nullable_kind(definition, None)
+    }
+
+    pub fn alloc_c_nullable_data_pointer_option(&mut self, definition: EnumDef) -> EnumDefId {
+        assert!(
+            matches!(
+                definition.repr,
+                EnumRepr::Niche {
+                    kind: NichePointerKind::Raw,
+                    ..
+                }
+            ),
+            "a nullable C data-pointer Option has raw-pointer niche storage",
+        );
+        self.alloc_with_c_nullable_kind(
+            definition,
+            Some(CNullableOptionKind::DataPointer(std::sync::OnceLock::new())),
+        )
+    }
+
+    pub fn alloc_c_nullable_code_pointer_option(&mut self, definition: EnumDef) -> EnumDefId {
+        assert!(
+            matches!(
+                definition.repr,
+                EnumRepr::Niche {
+                    kind: NichePointerKind::Code,
+                    ..
+                }
+            ),
+            "a nullable C code-pointer Option has code-pointer niche storage",
+        );
+        self.alloc_with_c_nullable_kind(
+            definition,
+            Some(CNullableOptionKind::CodePointer(std::sync::OnceLock::new())),
+        )
+    }
+
+    fn alloc_with_c_nullable_kind(
+        &mut self,
+        definition: EnumDef,
+        kind: Option<CNullableOptionKind>,
+    ) -> EnumDefId {
+        let id = self.definitions.alloc(definition);
+        assert_eq!(
+            id.into_raw().into_u32() as usize,
+            self.c_nullable_options.len(),
+            "enum definition and refinement stores remain index-aligned",
+        );
+        self.c_nullable_options.push(kind);
+        id
+    }
+
+    pub fn set_scan(&mut self, id: EnumDefId, scan: RefScan) {
+        self.definitions[id].scan = scan;
+    }
+
+    pub fn nullable_data_pointer_ref(
+        &self,
+        id: EnumDefId,
+        pointee: CDataPointee,
+    ) -> Option<NullableDataPointerEnumRef> {
+        let Some(CNullableOptionKind::DataPointer(binding)) = self
+            .c_nullable_options
+            .get(id.into_raw().into_u32() as usize)
+            .and_then(Option::as_ref)
+        else {
+            return None;
+        };
+        (binding.get_or_init(|| pointee.clone()) == &pointee).then_some(
+            NullableDataPointerEnumRef::from_validated_definition(id, pointee),
+        )
+    }
+
+    pub fn nullable_code_pointer_ref(
+        &self,
+        id: EnumDefId,
+        signature: CFunctionType,
+    ) -> Option<NullableCodePointerEnumRef> {
+        let Some(CNullableOptionKind::CodePointer(binding)) = self
+            .c_nullable_options
+            .get(id.into_raw().into_u32() as usize)
+            .and_then(Option::as_ref)
+        else {
+            return None;
+        };
+        (binding.get_or_init(|| signature.clone()) == &signature).then_some(
+            NullableCodePointerEnumRef::from_validated_definition(id, signature),
+        )
+    }
+
+    pub fn nullable_data_pointer_binding(&self, id: EnumDefId) -> Option<&CDataPointee> {
+        let CNullableOptionKind::DataPointer(binding) = self
+            .c_nullable_options
+            .get(id.into_raw().into_u32() as usize)?
+            .as_ref()?
+        else {
+            return None;
+        };
+        binding.get()
+    }
+
+    pub fn nullable_code_pointer_binding(&self, id: EnumDefId) -> Option<&CFunctionType> {
+        let CNullableOptionKind::CodePointer(binding) = self
+            .c_nullable_options
+            .get(id.into_raw().into_u32() as usize)?
+            .as_ref()?
+        else {
+            return None;
+        };
+        binding.get()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (EnumDefId, &EnumDef)> {
+        self.definitions.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.definitions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.definitions.is_empty()
+    }
+}
+
+impl std::ops::Index<EnumDefId> for EnumDefs {
+    type Output = EnumDef;
+
+    fn index(&self, index: EnumDefId) -> &Self::Output {
+        &self.definitions[index]
+    }
+}
+
 #[derive(Debug)]
 pub enum EnumRepr {
     /// Niche optimization (spec 7.4): only an enum structurally isomorphic to
@@ -300,15 +700,20 @@ pub enum GlobalInit {
     CString(String),
     Storage {
         ty: LirType,
-        initializer: ConstantValue,
+        initial_state: LirStaticInitialState,
         thread_local: bool,
     },
 }
 
 #[derive(Debug)]
-pub enum ConstantValue {
-    Zero,
-    Int(i64),
+pub enum LirStaticInitialState {
+    ZeroedForRuntimeUnit,
+    EncodedStaticValue { payload: LirConstantImage },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LirConstantImage {
+    Integer(LirIntegerConstant),
     Bool(bool),
     NullPointer(PointerKind),
     GlobalPointer {
@@ -321,6 +726,6 @@ pub enum ConstantValue {
     },
     Struct {
         struct_id: StructDefId,
-        fields: Vec<ConstantValue>,
+        fields: Vec<LirConstantImage>,
     },
 }

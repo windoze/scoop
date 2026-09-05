@@ -15,11 +15,25 @@ impl Concretizer<'_> {
             export::Pattern::Wildcard => concrete::Pattern::Wildcard,
             export::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => concrete::Pattern::Literal {
                 value: self.lower_expr(value, substitution, locals),
-                equals: self.lower_callable(*equals, substitution),
+                equality: match *equality {
+                    export::LiteralPatternEquality::Integer { kind, target } => {
+                        concrete::LiteralPatternEquality::Integer {
+                            kind,
+                            target: concrete::NoGcCallableRef::map_from_export(target, |source| {
+                                self.lower_integer_callable(kind, source)
+                            }),
+                        }
+                    }
+                    export::LiteralPatternEquality::Ordinary { equals } => {
+                        concrete::LiteralPatternEquality::Ordinary {
+                            equals: self.lower_callable(equals, substitution),
+                        }
+                    }
+                },
                 subject_ty: self.lower_type(*subject_ty, substitution),
             },
             export::Pattern::Variant {

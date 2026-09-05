@@ -276,7 +276,7 @@ fn a_generic_default_callable_body_keeps_the_callee_application() {
         function.name.starts_with("$lambda")
             && matches!(
                 output.local.types[function.return_ty].kind,
-                hir::concrete::TypeKind::Int
+                hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
             )
     }));
 }
@@ -435,7 +435,7 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::IntLiteral(30),
+                kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(30)),
                 ..
             },
             ..
@@ -472,7 +472,7 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::IntLiteral(10),
+                kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(10)),
                 ..
             },
             ..

@@ -42,7 +42,10 @@ fn parses_marker_positional_named_and_multiple_annotations() {
         Some("name")
     );
     assert!(matches!(&args[2].value, AnnotationLiteral::Boolean(true)));
-    assert!(matches!(&args[3].value, AnnotationLiteral::Int(12)));
+    assert!(matches!(
+        &args[3].value,
+        AnnotationLiteral::Int(literal) if literal.magnitude == 12
+    ));
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n    @NoGC\n    @Extern(\"native\", name = \"sum\", enabled = true, version = 12)\n  fun sum(): Int\n    =\n      IntLiteral 0\n"

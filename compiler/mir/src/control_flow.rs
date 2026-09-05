@@ -205,8 +205,162 @@ impl Expr {
         Self::new(ty, ExprKind::Local(local))
     }
 
-    pub fn int(value: i64) -> Self {
-        Self::new(Type::Int, ExprKind::IntLiteral(value))
+    pub fn integer(value: MirIntegerConstant) -> Self {
+        Self::new(Type::Integer(value.kind()), ExprKind::IntegerLiteral(value))
+    }
+
+    pub fn integer_unary(operation: IntegerUnaryOperation, operand: Self) -> Self {
+        assert_eq!(
+            operand.ty,
+            Type::Integer(operation.kind()),
+            "integer unary operand has the operation's exact kind"
+        );
+        Self::new(
+            Type::Integer(operation.kind()),
+            ExprKind::IntegerUnary {
+                operation,
+                operand: Box::new(operand),
+            },
+        )
+    }
+
+    pub fn integer_binary(operation: IntegerBinaryOperation, lhs: Self, rhs: Self) -> Self {
+        let ty = Type::Integer(operation.kind());
+        assert_eq!(
+            lhs.ty, ty,
+            "integer binary lhs has the operation's exact kind"
+        );
+        assert_eq!(
+            rhs.ty, ty,
+            "integer binary rhs has the operation's exact kind"
+        );
+        Self::new(
+            ty,
+            ExprKind::IntegerBinary {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub fn safe_integer_div_rem(
+        operation: SafeIntegerDivRemOperation,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
+        let ty = Type::Integer(operation.kind());
+        assert_eq!(
+            lhs.ty, ty,
+            "safe integer div/rem lhs has the operation's exact kind"
+        );
+        assert_eq!(
+            rhs.ty, ty,
+            "safe integer div/rem rhs has the operation's exact kind"
+        );
+        Self::new(
+            ty,
+            ExprKind::SafeIntegerDivRem {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub fn integer_compare(operation: IntegerComparisonOperation, lhs: Self, rhs: Self) -> Self {
+        let operand_ty = Type::Integer(operation.operand_kind());
+        assert_eq!(
+            lhs.ty, operand_ty,
+            "integer comparison lhs has the operation's exact kind"
+        );
+        assert_eq!(
+            rhs.ty, operand_ty,
+            "integer comparison rhs has the operation's exact kind"
+        );
+        Self::new(
+            Type::Boolean,
+            ExprKind::IntegerCompare {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub fn integer_compare_to(operation: IntegerCompareToOperation, lhs: Self, rhs: Self) -> Self {
+        let operand_ty = Type::Integer(operation.operand_kind());
+        assert_eq!(
+            lhs.ty, operand_ty,
+            "integer compareTo lhs has the operation's exact kind"
+        );
+        assert_eq!(
+            rhs.ty, operand_ty,
+            "integer compareTo rhs has the operation's exact kind"
+        );
+        Self::new(
+            Type::Integer(operation.result_kind()),
+            ExprKind::IntegerCompareTo {
+                operation,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        )
+    }
+
+    pub fn integer_shift(operation: IntegerShiftOperation, value: Self, count: Self) -> Self {
+        assert_eq!(
+            value.ty,
+            Type::Integer(operation.value_kind()),
+            "integer shift value has the operation's exact kind"
+        );
+        assert_eq!(
+            count.ty,
+            Type::Integer(operation.count_kind()),
+            "integer shift count is normalized to the value's exact width"
+        );
+        Self::new(
+            Type::Integer(operation.value_kind()),
+            ExprKind::IntegerShift {
+                operation,
+                value: Box::new(value),
+                count: Box::new(count),
+            },
+        )
+    }
+
+    pub fn integer_conversion(conversion: IntegerConversion, operand: Self) -> Self {
+        assert_eq!(
+            operand.ty,
+            Type::Integer(conversion.source_kind()),
+            "integer conversion operand has the exact source kind"
+        );
+        Self::new(
+            Type::Integer(conversion.target_kind()),
+            ExprKind::IntegerConversion {
+                conversion,
+                operand: Box::new(operand),
+            },
+        )
+    }
+
+    /// Preserve the validated nonzero source proof while converting the raw
+    /// `ULong` carrier into a data pointer. There is deliberately no MIR
+    /// operation for converting an arbitrary (possibly zero) integer to a
+    /// pointer.
+    pub fn ptr_from_non_zero_ulong(operand: Self, pointee: Type) -> Self {
+        assert_eq!(
+            operand.ty,
+            Type::Integer(IntegerKind::UNSIGNED_64),
+            "nonzero pointer conversion consumes the ULong carrier"
+        );
+        Self::new(
+            Type::Ptr(Box::new(pointee.clone())),
+            ExprKind::PtrFromNonZeroULong {
+                operand: Box::new(operand),
+                pointee: Box::new(pointee),
+            },
+        )
     }
 
     pub fn machine_scalar(value: MachineScalarValue) -> Self {
@@ -256,7 +410,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     StringConst(StringConstId),
-    IntLiteral(i64),
+    IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),
     UnitLiteral,
@@ -286,11 +440,13 @@ pub enum ExprKind {
     GlobalRead(GlobalId),
     /// Address of the image descriptor for one typed exactly-once unit.
     InitializationUnitAddress(InitializationUnitId),
-    PtrFromUInt {
+    /// Integer-to-pointer conversion with a validation proof that the source
+    /// `ULong` value is nonzero.
+    PtrFromNonZeroULong {
         operand: Box<Expr>,
         pointee: Box<Type>,
     },
-    PtrToUInt(Box<Expr>),
+    PtrToULong(Box<Expr>),
     PtrCast {
         operand: Box<Expr>,
         pointee: Box<Type>,
@@ -322,7 +478,6 @@ pub enum ExprKind {
     },
     SizeOf(Box<Type>),
     AlignOf(Box<Type>),
-    FunPtrNull(FunctionTypeId),
     FunctionAddress {
         callback: CallbackBridgeId,
     },
@@ -369,7 +524,7 @@ pub enum ExprKind {
     Box(Box<Expr>),
     /// Unbox a reference back to a value type.
     Unbox(Box<Expr>),
-    /// `expr is T` (result `Int`-as-bool). The checked type is in
+    /// `expr is T` (result `Boolean`). The checked type is in
     /// `check_ty`.
     IsInstance {
         operand: Box<Expr>,
@@ -398,7 +553,7 @@ pub enum ExprKind {
         array: Box<Expr>,
         index: Box<Expr>,
     },
-    /// `array.size`; result is `Int`.
+    /// `array.size`; result is canonical `Long`.
     ArrayLen {
         array_type: ClassId,
         operand: Box<Expr>,
@@ -417,6 +572,39 @@ pub enum ExprKind {
     },
     Unary {
         op: UnOp,
+        operand: Box<Expr>,
+    },
+    IntegerUnary {
+        operation: IntegerUnaryOperation,
+        operand: Box<Expr>,
+    },
+    IntegerBinary {
+        operation: IntegerBinaryOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    SafeIntegerDivRem {
+        operation: SafeIntegerDivRemOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerCompare {
+        operation: IntegerComparisonOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerCompareTo {
+        operation: IntegerCompareToOperation,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    IntegerShift {
+        operation: IntegerShiftOperation,
+        value: Box<Expr>,
+        count: Box<Expr>,
+    },
+    IntegerConversion {
+        conversion: IntegerConversion,
         operand: Box<Expr>,
     },
     /// Variant construction. The enclosing `Expr::ty` is the instantiated
@@ -446,30 +634,140 @@ pub enum ArrayAssemblyPart {
 /// mir-lower (docs/milestone2/DESIGN.md 2.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
-    IntAdd,
-    IntSub,
-    IntMul,
-    IntDiv,
-    IntRem,
-    UIntDiv,
-    UIntRem,
-    IntCompareTo,
-    UIntCompareTo,
-    IntLt,
-    IntLe,
-    IntGt,
-    IntGe,
-    IntEq,
-    IntNe,
     /// Equality within one compiler-owned scalar domain. The kind is carried
     /// explicitly so lower stages never infer it from a physical integer.
     MachineEq(MachineScalarKind),
+    /// Identity comparison of two reference-represented source values.
+    RefEq,
+    RefNe,
     BoolEq,
     BoolNe,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
-    IntNeg,
     BoolNot,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_integer_operations_fix_result_and_operand_contracts() {
+        let kind = IntegerKind::UNSIGNED_8;
+        let lhs = Expr::integer(MirIntegerConstant::Unsigned8(2));
+        let rhs = Expr::integer(MirIntegerConstant::Unsigned8(3));
+
+        let binary = Expr::integer_binary(
+            IntegerBinaryOperation::new(kind, IntegerBinaryOperator::Add),
+            lhs.clone(),
+            rhs.clone(),
+        );
+        assert_eq!(binary.ty, Type::Integer(kind));
+
+        let comparison = Expr::integer_compare(
+            IntegerComparisonOperation::new(kind, IntegerComparisonOperator::LessThan),
+            lhs.clone(),
+            rhs.clone(),
+        );
+        assert_eq!(comparison.ty, Type::Boolean);
+
+        let compare_to = Expr::integer_compare_to(IntegerCompareToOperation::new(kind), lhs, rhs);
+        assert_eq!(compare_to.ty, Type::Integer(IntegerKind::SIGNED_64));
+    }
+
+    #[test]
+    fn shifts_store_value_width_normalized_counts_and_signed_only_ushr() {
+        let signed_8_ushr =
+            IntegerShiftOperation::new(IntegerKind::SIGNED_8, IntegerShiftOperator::UnsignedRight)
+                .expect("signed integers provide ushr");
+        assert_eq!(signed_8_ushr.value_kind(), IntegerKind::SIGNED_8);
+        assert_eq!(signed_8_ushr.count_kind(), IntegerKind::SIGNED_8);
+        assert_eq!(
+            IntegerShiftOperation::new(
+                IntegerKind::UNSIGNED_8,
+                IntegerShiftOperator::UnsignedRight,
+            ),
+            None
+        );
+
+        let shift = Expr::integer_shift(
+            signed_8_ushr,
+            Expr::integer(MirIntegerConstant::Signed8(0xff)),
+            Expr::integer(MirIntegerConstant::Signed8(1)),
+        );
+        assert_eq!(shift.ty, Type::Integer(IntegerKind::SIGNED_8));
+    }
+
+    #[test]
+    fn safe_div_rem_has_a_dedicated_structural_proof_node() {
+        let kind = IntegerKind::SIGNED_16;
+        let operation = SafeIntegerDivRemOperation::new(kind, SafeIntegerDivRemOperator::Remainder);
+        let expression = Expr::safe_integer_div_rem(
+            operation,
+            Expr::integer(MirIntegerConstant::Signed16(7)),
+            Expr::integer(MirIntegerConstant::Signed16(3)),
+        );
+
+        assert_eq!(expression.ty, Type::Integer(kind));
+        assert!(matches!(
+            expression.kind,
+            ExprKind::SafeIntegerDivRem {
+                operation: found,
+                ..
+            } if found == operation
+        ));
+    }
+
+    #[test]
+    fn integer_conversion_carries_both_exact_kinds() {
+        let conversion = IntegerConversion::new(IntegerKind::SIGNED_16, IntegerKind::UNSIGNED_64);
+        let expression = Expr::integer_conversion(
+            conversion,
+            Expr::integer(MirIntegerConstant::Signed16(0xffff)),
+        );
+        assert_eq!(conversion.source_kind(), IntegerKind::SIGNED_16);
+        assert_eq!(conversion.target_kind(), IntegerKind::UNSIGNED_64);
+        assert_eq!(expression.ty, Type::Integer(IntegerKind::UNSIGNED_64));
+    }
+
+    #[test]
+    fn nonzero_ulong_pointer_conversion_has_a_dedicated_typed_node() {
+        let expression = Expr::ptr_from_non_zero_ulong(
+            Expr::integer(MirIntegerConstant::Unsigned64(1)),
+            Type::Integer(IntegerKind::SIGNED_32),
+        );
+        assert_eq!(
+            expression.ty,
+            Type::Ptr(Box::new(Type::Integer(IntegerKind::SIGNED_32)))
+        );
+        assert!(matches!(
+            expression.kind,
+            ExprKind::PtrFromNonZeroULong { operand, .. }
+                if operand.ty == Type::Integer(IntegerKind::UNSIGNED_64)
+        ));
+    }
+
+    #[test]
+    #[should_panic(expected = "nonzero pointer conversion consumes the ULong carrier")]
+    fn nonzero_ulong_pointer_conversion_rejects_other_carriers() {
+        let _ = Expr::ptr_from_non_zero_ulong(
+            Expr::integer(MirIntegerConstant::Signed64(1)),
+            Type::Integer(IntegerKind::SIGNED_32),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "integer shift count is normalized to the value's exact width")]
+    fn integer_shift_rejects_non_normalized_count_kind() {
+        let operation =
+            IntegerShiftOperation::new(IntegerKind::SIGNED_8, IntegerShiftOperator::Left)
+                .expect("left shift is valid for every integer kind");
+        let _ = Expr::integer_shift(
+            operation,
+            Expr::integer(MirIntegerConstant::Signed8(1)),
+            Expr::integer(MirIntegerConstant::Signed64(1)),
+        );
+    }
 }

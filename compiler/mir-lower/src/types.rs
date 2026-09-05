@@ -6,8 +6,51 @@ use la_arena::Arena;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
-fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
+pub(super) fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
+}
+
+pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKind {
+    let signedness = match kind.signedness() {
+        hir::IntegerSignedness::Signed => mir::IntegerSignedness::Signed,
+        hir::IntegerSignedness::Unsigned => mir::IntegerSignedness::Unsigned,
+    };
+    let width = match kind.width() {
+        hir::IntegerWidth::W8 => mir::IntegerWidth::W8,
+        hir::IntegerWidth::W16 => mir::IntegerWidth::W16,
+        hir::IntegerWidth::W32 => mir::IntegerWidth::W32,
+        hir::IntegerWidth::W64 => mir::IntegerWidth::W64,
+    };
+    mir::IntegerKind::new(signedness, width)
+}
+
+pub(super) const fn raise_integer_kind(kind: mir::IntegerKind) -> hir::IntegerKind {
+    let signedness = match kind.signedness() {
+        mir::IntegerSignedness::Signed => hir::IntegerSignedness::Signed,
+        mir::IntegerSignedness::Unsigned => hir::IntegerSignedness::Unsigned,
+    };
+    let width = match kind.width() {
+        mir::IntegerWidth::W8 => hir::IntegerWidth::W8,
+        mir::IntegerWidth::W16 => hir::IntegerWidth::W16,
+        mir::IntegerWidth::W32 => hir::IntegerWidth::W32,
+        mir::IntegerWidth::W64 => hir::IntegerWidth::W64,
+    };
+    hir::IntegerKind::new(signedness, width)
+}
+
+pub(super) const fn lower_integer_constant(
+    value: hir::HirIntegerConstant,
+) -> mir::MirIntegerConstant {
+    match value {
+        hir::HirIntegerConstant::Signed8(bits) => mir::MirIntegerConstant::Signed8(bits),
+        hir::HirIntegerConstant::Signed16(bits) => mir::MirIntegerConstant::Signed16(bits),
+        hir::HirIntegerConstant::Signed32(bits) => mir::MirIntegerConstant::Signed32(bits),
+        hir::HirIntegerConstant::Signed64(bits) => mir::MirIntegerConstant::Signed64(bits),
+        hir::HirIntegerConstant::Unsigned8(bits) => mir::MirIntegerConstant::Unsigned8(bits),
+        hir::HirIntegerConstant::Unsigned16(bits) => mir::MirIntegerConstant::Unsigned16(bits),
+        hir::HirIntegerConstant::Unsigned32(bits) => mir::MirIntegerConstant::Unsigned32(bits),
+        hir::HirIntegerConstant::Unsigned64(bits) => mir::MirIntegerConstant::Unsigned64(bits),
+    }
 }
 
 /// Concrete interface applications. The MIR identity includes every type
@@ -80,8 +123,7 @@ impl Types<'_> {
     ) -> mir::Type {
         match &self.module.types[ty].kind {
             hir::TypeKind::Unit => mir::Type::Unit,
-            hir::TypeKind::Int => mir::Type::Int,
-            hir::TypeKind::UInt => mir::Type::UInt,
+            hir::TypeKind::Integer(kind) => mir::Type::Integer(lower_integer_kind(*kind)),
             hir::TypeKind::Boolean => mir::Type::Boolean,
             hir::TypeKind::String => mir::Type::String,
             hir::TypeKind::Struct(id) => mir::Type::Struct(self.struct_map[id]),
@@ -173,6 +215,24 @@ impl EnumRegistry {
         self.defs[id].variants = variants;
         id
     }
+
+    pub(super) fn option_core(
+        &self,
+        module: &hir::Module,
+        enum_id: mir::EnumId,
+    ) -> Option<mir::OptionCore> {
+        let &hir_id = self.hir_ids.get(&enum_id)?;
+        module.enums[hir_id]
+            .option_variants
+            .map(|(some, none)| mir::OptionCore::new(enum_id, some.into_raw(), none.into_raw()))
+    }
+
+    pub(super) fn all_option_core(&self, module: &hir::Module) -> Vec<mir::OptionCore> {
+        self.defs
+            .iter()
+            .filter_map(|(enum_id, _)| self.option_core(module, enum_id))
+            .collect()
+    }
 }
 
 /// Concrete struct definitions and their mandatory local-concrete HIR
@@ -194,8 +254,7 @@ pub(super) fn mir_type_gc_free(
 ) -> bool {
     match ty {
         mir::Type::Unit
-        | mir::Type::Int
-        | mir::Type::UInt
+        | mir::Type::Integer(_)
         | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::Ptr(_)
@@ -231,7 +290,9 @@ impl BoxedRegistry {
         if let Some((_, id)) = self.by_type.iter().find(|(found, _)| found == payload) {
             return *id;
         }
-        let name = format!("box${}", mir::encode_type(shell, payload));
+        let encoded = mir::encode_type(shell, payload)
+            .expect("box payloads always use source-level MIR types");
+        let name = format!("box${encoded}");
         let id = classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
@@ -270,8 +331,7 @@ pub(super) fn is_boxable(ty: &mir::Type) -> bool {
         mir::Type::Struct(_)
             | mir::Type::Enum(..)
             | mir::Type::Tuple(_)
-            | mir::Type::Int
-            | mir::Type::UInt
+            | mir::Type::Integer(_)
             | mir::Type::Boolean
             | mir::Type::Unit
     )

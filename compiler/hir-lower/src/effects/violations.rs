@@ -129,7 +129,7 @@ impl Lowerer {
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),
             )),
-            ExprKind::IntLiteral(_)
+            ExprKind::IntegerLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -323,19 +323,7 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(callback, out, requirements);
             }
             ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
-                if matches!(
-                    kind,
-                    hir::PrimitiveBinaryKind::IntDiv
-                        | hir::PrimitiveBinaryKind::IntRem
-                        | hir::PrimitiveBinaryKind::UIntDiv
-                        | hir::PrimitiveBinaryKind::UIntRem
-                ) {
-                    out.push((
-                        expr.span,
-                        "integer division is not allowed in `@NoGC` code because it may throw"
-                            .to_string(),
-                    ));
-                } else if *kind == hir::PrimitiveBinaryKind::StringConcat {
+                if *kind == hir::PrimitiveBinaryKind::StringConcat {
                     out.push((
                         expr.span,
                         "string concatenation is not allowed in `@NoGC` code".to_string(),
@@ -348,12 +336,36 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
+            ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                if matches!(operation, hir::IntegerOperation::Managed { .. }) {
+                    out.push((
+                        expr.span,
+                        "integer division is not allowed in `@NoGC` code because it may throw"
+                            .to_string(),
+                    ));
+                }
+                match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                        self.collect_no_gc_expr_violations(operand, out, requirements);
+                    }
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        self.collect_no_gc_expr_violations(lhs, out, requirements);
+                        self.collect_no_gc_expr_violations(rhs, out, requirements);
+                    }
+                }
+            }
+            ExprKind::IntegerConversion { operand, .. } => {
+                self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
             ExprKind::Unary { operand, .. }
             | ExprKind::PrimitiveUnary { operand, .. }
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
-            | ExprKind::PtrFromUInt(operand)
-            | ExprKind::PtrToUInt(operand)
+            | ExprKind::PtrFromNonZeroULong(operand)
+            | ExprKind::PtrToULong(operand)
             | ExprKind::PtrCast(operand) => {
                 self.collect_no_gc_expr_violations(operand, out, requirements)
             }
@@ -383,10 +395,7 @@ impl Lowerer {
             // `addressOf` only materializes an already validated GC-free
             // place. It is unsafe, but does not allocate or enter the GC.
             ExprKind::AddressOf(_) => {}
-            ExprKind::SizeOf(_)
-            | ExprKind::AlignOf(_)
-            | ExprKind::FunPtrNull
-            | ExprKind::FunctionAddress(_) => {}
+            ExprKind::SizeOf(_) | ExprKind::AlignOf(_) | ExprKind::FunctionAddress(_) => {}
             ExprKind::Unwrap {
                 operand,
                 trap_on_none,

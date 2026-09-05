@@ -1,23 +1,63 @@
 use super::*;
 
+fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NichePointerKind> {
+    let option = module.option_core(id)?;
+    assert_eq!(option.enum_id(), id, "Option refinement has exact identity");
+    let definition = &module.enums[id];
+    let some = definition
+        .variants
+        .get(option.some_variant() as usize)
+        .expect("core Option Some variant exists");
+    let none = definition
+        .variants
+        .get(option.none_variant() as usize)
+        .expect("core Option None variant exists");
+    let [payload] = some.fields.as_slice() else {
+        panic!("core Option Some has exactly one payload field")
+    };
+    assert!(none.fields.is_empty(), "core Option None has no fields");
+    match payload.ty {
+        mir::Type::Ptr(_) => Some(lir::NichePointerKind::Raw),
+        mir::Type::FunPtr(_) => Some(lir::NichePointerKind::Code),
+        _ => None,
+    }
+}
+
 /// Fix the representation of every MIR enum definition (spec 7.4).
-pub(crate) fn lower_enums(context: &LoweringContext, module: &mir::Module) -> Arena<lir::EnumDef> {
+pub(crate) fn lower_enums(context: &LoweringContext, module: &mir::Module) -> lir::EnumDefs {
     let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
     reprs.resize_with(module.enums.len(), || None);
     for (id, _) in module.enums.iter() {
         compute_repr(context, module, &mut reprs, id);
     }
-    let mut enums = Arena::new();
-    for ((_, def), repr) in module.enums.iter().zip(reprs) {
-        enums.alloc(lir::EnumDef {
+    let mut enums = lir::EnumDefs::default();
+    for ((mir_id, def), repr) in module.enums.iter().zip(reprs) {
+        let definition = lir::EnumDef {
             name: def.name.clone(),
             repr: repr.expect("compute_repr fills every entry"),
             scan: lir::RefScan::None,
-        });
+        };
+        let lir_id = match c_nullable_option_kind(module, mir_id) {
+            Some(lir::NichePointerKind::Raw) => {
+                enums.alloc_c_nullable_data_pointer_option(definition)
+            }
+            Some(lir::NichePointerKind::Code) => {
+                enums.alloc_c_nullable_code_pointer_option(definition)
+            }
+            Some(lir::NichePointerKind::Managed) => {
+                unreachable!("C-nullable Option payloads are raw or code pointers")
+            }
+            None => enums.alloc(definition),
+        };
+        assert_eq!(
+            lir_id,
+            enum_def_id(mir_id),
+            "MIR and LIR enum definition stores remain index-aligned",
+        );
     }
     for (id, _) in module.enums.iter() {
         let scan = ref_scan(context, module, &enums, &mir::Type::Enum(id, Vec::new()), 0);
-        enums[enum_def_id(id)].scan = scan;
+        enums.set_scan(enum_def_id(id), scan);
     }
     enums
 }
@@ -42,8 +82,7 @@ pub(crate) fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<m
         },
         // References hide whatever they point at behind a pointer.
         mir::Type::Unit
-        | mir::Type::Int
-        | mir::Type::UInt
+        | mir::Type::Integer(_)
         | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::String

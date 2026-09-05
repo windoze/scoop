@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-pointers/errors/funptr-non-function.scoop:3:23: error: `FunPtr` type argument must be an ordinary concrete function type

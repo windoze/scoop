@@ -76,11 +76,10 @@ mod substitution;
 fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
     match (&types[a], &types[b]) {
         (Type::Unit, Type::Unit)
-        | (Type::Int, Type::Int)
-        | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String)
         | (Type::Any, Type::Any) => true,
+        (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,

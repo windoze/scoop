@@ -40,10 +40,10 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
         assert_eq!(target, want);
     }
 
-    assert!(has_instantiation(&module, println, &[module.int]));
+    assert!(has_instantiation(&module, println, &[int_type(&module)]));
     assert!(has_instantiation(&module, println, &[module.string]));
     assert!(has_instantiation(&module, println, &[module.boolean]));
-    assert!(has_instantiation(&module, print, &[module.int]));
+    assert!(has_instantiation(&module, print, &[int_type(&module)]));
 
     // Arguments keep their exact types; formatting no longer crosses Any.
     let body = body_of(&module, module.entry);
@@ -51,7 +51,7 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     let hir::ExprKind::Call { args, .. } = &first.kind else {
         panic!("expected a call")
     };
-    assert_eq!(args[0].ty, module.int);
+    assert_eq!(args[0].ty, int_type(&module));
     let second = expression_statement(body, 1);
     let hir::ExprKind::Call { args, .. } = &second.kind else {
         panic!("expected a call")
@@ -181,9 +181,27 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
         panic!("the core method body must call its representation helper")
     };
     let helper = module.callable_function(callee);
-    assert_eq!(module.functions[helper].name, "coreIntToString");
+    assert_eq!(module.functions[helper].name, "coreLongToString");
     assert!(matches!(
         module.functions[helper].kind,
         hir::FunctionKind::Extern(_)
     ));
+    assert!(body.statements.iter().any(|statement| {
+        matches!(
+            &statement.kind,
+            hir::StatementKind::ValDecl {
+                init:
+                    hir::Expr {
+                        kind:
+                            hir::ExprKind::IntegerConversion {
+                                conversion,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } if conversion.source == hir::IntegerKind::SIGNED_32
+                && conversion.target_kind == hir::IntegerKind::SIGNED_64
+        )
+    }));
 }

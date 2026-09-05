@@ -33,7 +33,6 @@ pub struct Module {
     pub interfaces: Arena<InterfaceDef>,
     pub top_level: Vec<FunctionId>,
     pub unit: TypeId,
-    pub int: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
     pub option_variants: (VariantId, VariantId),
@@ -136,8 +135,7 @@ pub struct ForeignCallbackCore {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IntrinsicTypeCore {
-    pub int: StructId,
-    pub uint: StructId,
+    pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,
 }

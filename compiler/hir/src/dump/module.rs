@@ -707,7 +707,8 @@ fn dump_struct_attributes(attributes: StructAttributes) -> String {
     if let Some(layout) = attributes.c_layout {
         values.push(format!(
             "c-layout aligned={} packed={}",
-            layout.aligned, layout.packed
+            dump_c_layout_value(layout.aligned),
+            dump_c_layout_value(layout.packed)
         ));
     }
     if attributes.interior_mutable {
@@ -718,6 +719,10 @@ fn dump_struct_attributes(attributes: StructAttributes) -> String {
     } else {
         format!(" <{}>", values.join(" "))
     }
+}
+
+fn dump_c_layout_value(value: HirCLayoutValue) -> u8 {
+    value.bytes().unwrap_or(0)
 }
 
 fn dump_interface_list(module: &Module, interfaces: &[TypeId]) -> String {

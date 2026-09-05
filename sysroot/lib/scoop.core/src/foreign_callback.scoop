@@ -21,7 +21,7 @@ public struct ForeignCallback<F>(
 @Intrinsic("foreign_callback_register")
 public fun <F> foreignCallback(
     callback: Any,
-    contextIndex: Int,
+    contextIndex: Long,
     mode: ForeignCallbackMode
 ): ForeignCallback<F>
 

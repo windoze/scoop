@@ -56,6 +56,6 @@ pub(super) fn gc_api_declarations() -> Vec<Decl> {
             ),
         )),
         intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
-        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
+        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("ULong"))),
     ]
 }

@@ -37,15 +37,8 @@ impl Concretizer<'_> {
         };
         let required_interface = self.lower_interface_application(interface_bound, substitution);
         match self.types[receiver].kind.clone() {
-            concrete::TypeKind::Int => {
-                let source = self.source.intrinsic_type_core.int;
-                let conformances = self.source.structs[source]
-                    .interface_implementations
-                    .clone();
-                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
-            }
-            concrete::TypeKind::UInt => {
-                let source = self.source.intrinsic_type_core.uint;
+            concrete::TypeKind::Integer(kind) => {
+                let source = self.source.intrinsic_type_core.integers.owner(kind);
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
@@ -176,8 +169,7 @@ impl Concretizer<'_> {
         let value = matches!(
             self.types[receiver.ty].kind,
             concrete::TypeKind::Unit
-                | concrete::TypeKind::Int
-                | concrete::TypeKind::UInt
+                | concrete::TypeKind::Integer(_)
                 | concrete::TypeKind::Boolean
                 | concrete::TypeKind::Struct(_)
                 | concrete::TypeKind::Enum(_)

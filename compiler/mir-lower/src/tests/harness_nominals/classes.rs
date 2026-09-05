@@ -150,6 +150,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application,
             type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
             representation: hir::ClassRepresentation::Declared,
             fields,
             properties,
@@ -211,14 +212,18 @@ impl Harness {
         let illegal_state_exception = self.exception_target("IllegalStateException", include);
         let illegal_state_class = illegal_state_exception.constructor.class;
         let zero_argument_constructor = illegal_state_exception.constructor.constructor;
+        // Focused lowering fixtures without initialization units never consume
+        // this capability. Keep their nominal graphs minimal; fixtures that
+        // exercise initialization use the exact core Option<String> contract.
+        let message_type = if self.needs_initialization_core {
+            self.option(self.string)
+        } else {
+            self.string
+        };
         let parameter = hir::ConstructorParameter {
             id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
             name: "message".to_string(),
-            // Handcrafted MIR-lower unit modules contain no initialization
-            // units. A concrete one-parameter callable keeps the typed core
-            // shell structurally complete without materializing an unrelated
-            // Option<String> application into every focused dump.
-            ty: self.string,
+            ty: message_type,
         };
         self.next_constructor_param += 1;
         let owner = self.classes[illegal_state_class].self_application;

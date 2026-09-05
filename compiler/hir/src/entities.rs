@@ -105,9 +105,10 @@ pub struct Module {
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
-    /// Well-known types, allocated first by hir-lower.
+    /// Non-integer well-known types allocated by HIR lowering. Canonical
+    /// integer owners are held by `intrinsic_type_core.integers`; expression
+    /// types carry their exact `IntegerKind` directly.
     pub unit: TypeId,
-    pub int: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
     /// The `Option` enum from `scoop.core` (the desugar target of
@@ -149,7 +150,7 @@ pub struct FfiCore {
     pub fun_ptr: StructId,
     pub pinned_ptr: StructId,
     pub gc_handle: StructId,
-    pub ptr_to_uint: FunctionId,
+    pub ptr_to_ulong: FunctionId,
     pub ptr_cast: FunctionId,
     pub ptr_load: FunctionId,
     pub ptr_load_offset: FunctionId,
@@ -180,12 +181,13 @@ pub struct ForeignCallbackCore {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTypeCore {
-    pub int: StructId,
-    pub uint: StructId,
+    pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,
     pub array: ClassId,
     pub mutable_array: ClassId,
+    pub ptr: StructId,
+    pub fun_ptr: StructId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -398,6 +400,15 @@ impl FunctionCallee for MethodCallee {
     }
 }
 
+/// A generic type parameter that must denote a recursively GC-free value
+/// whenever it is used as the pointee of the compiler-represented `Ptr`
+/// family. This condition is intentionally distinct from a callable's
+/// `@NoGC` effect requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RequiresGcFreePointee {
+    pub type_param: TypeParamId,
+}
+
 /// A generic HIR function definition. Generic identity is deliberately
 /// separate from the underlying function identity (AGENTS.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -408,6 +419,9 @@ pub struct GenericFunction {
     /// is inferred from the resolved signature/body and checked at every
     /// instantiation; unused/representation-erased parameters are omitted.
     pub no_gc_type_params: Vec<TypeParamId>,
+    /// Pointee constraints inferred from this template's signature/body and
+    /// transitively required generic calls.
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
 }
 
 /// A generic function with every call-site type argument resolved.
@@ -468,6 +482,7 @@ pub struct DerivedEqualityApplication {
 pub struct GenericMethod {
     pub function: FunctionId,
     pub no_gc_type_params: Vec<TypeParamId>,
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
 }
 
 /// Exact owner kinds accepted by non-interface generic methods.

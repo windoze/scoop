@@ -30,12 +30,6 @@ pub(super) enum Constructor {
     },
     Boolean(bool),
     Unit,
-    Integer {
-        domain: IntegerDomain,
-        raw: u64,
-        /// The symbolic partition for every literal not explicitly present.
-        remainder: bool,
-    },
     String {
         value: String,
         /// The symbolic partition for every literal not explicitly present.
@@ -51,11 +45,7 @@ impl Constructor {
             Self::EnumVariant { field_types, .. }
             | Self::Tuple { field_types }
             | Self::Struct { field_types, .. } => field_types,
-            Self::Boolean(_)
-            | Self::Unit
-            | Self::Integer { .. }
-            | Self::String { .. }
-            | Self::Opaque => &[],
+            Self::Boolean(_) | Self::Unit | Self::String { .. } | Self::Opaque => &[],
         }
     }
 
@@ -94,7 +84,6 @@ impl Constructor {
             },
             Self::Boolean(value) => Witness::Boolean(value),
             Self::Unit => Witness::Unit,
-            Self::Integer { domain, raw, .. } => Witness::Integer { domain, raw },
             Self::String { value, .. } => Witness::String(value),
             Self::Opaque => Witness::Opaque,
         }

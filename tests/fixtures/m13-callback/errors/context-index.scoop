@@ -1,4 +1,4 @@
-fun dynamicIndex(index: Int) {
+fun dynamicIndex(index: Long) {
     @Unsafe {
         foreignCallback<(Int, Ptr<Unit>) -> Int>(
             { value: Int -> value },

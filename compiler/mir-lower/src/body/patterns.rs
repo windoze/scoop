@@ -26,26 +26,42 @@ impl BodyLowerer<'_> {
             hir::Pattern::Wildcard => None,
             hir::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => {
                 debug_assert_eq!(self.lower_type(*subject_ty), *ty);
-                let function = self.module.callable_function(*equals);
-                let callee = self.instances.get(function).map_or_else(
-                    || mir::Callee::User(self.function_map[&function]),
-                    mir::Callee::Monomorphized,
-                );
-                Some(smir::Expr::new(
-                    mir::Type::Boolean,
-                    smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee,
-                        },
-                        args: vec![self.accessed(root, path), self.lower_expr(value)],
-                        return_ty: mir::Type::Boolean,
-                    }),
-                ))
+                match equality {
+                    hir::LiteralPatternEquality::Integer { kind, .. } => {
+                        let kind = lower_integer_kind(*kind);
+                        debug_assert_eq!(*ty, mir::Type::Integer(kind));
+                        Some(smir::Expr::integer_compare(
+                            mir::IntegerComparisonOperation::new(
+                                kind,
+                                mir::IntegerComparisonOperator::Equal,
+                            ),
+                            self.accessed(root, path),
+                            self.lower_expr(value),
+                        ))
+                    }
+                    hir::LiteralPatternEquality::Ordinary { equals } => {
+                        let function = self.module.callable_function(*equals);
+                        let callee = self.instances.get(function).map_or_else(
+                            || mir::Callee::User(self.function_map[&function]),
+                            mir::Callee::Monomorphized,
+                        );
+                        Some(smir::Expr::new(
+                            mir::Type::Boolean,
+                            smir::ExprKind::Call(smir::Call {
+                                target: mir::CallTarget {
+                                    kind: mir::CallKind::Direct,
+                                    callee,
+                                },
+                                args: vec![self.accessed(root, path), self.lower_expr(value)],
+                                return_ty: mir::Type::Boolean,
+                            }),
+                        ))
+                    }
+                }
             }
             hir::Pattern::Variant {
                 variant, fields, ..

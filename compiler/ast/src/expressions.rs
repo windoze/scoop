@@ -1,6 +1,6 @@
 use crate::{
-    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, LambdaId, Param, Pattern,
-    PlaceExpr, Span, Try, TypeRef, When,
+    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, IntegerLiteralSyntax, LambdaId,
+    Param, Pattern, PlaceExpr, Span, Try, TypeRef, When,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,10 +9,7 @@ pub enum Expr {
         value: String,
         span: Span,
     },
-    IntLiteral {
-        value: i64,
-        span: Span,
-    },
+    IntLiteral(IntegerLiteralSyntax),
     BoolLiteral {
         value: bool,
         span: Span,
@@ -193,8 +190,8 @@ pub enum InfixTarget {
 impl Expr {
     pub fn span(&self) -> Span {
         match self {
+            Expr::IntLiteral(literal) => literal.span,
             Expr::StringLiteral { span, .. }
-            | Expr::IntLiteral { span, .. }
             | Expr::BoolLiteral { span, .. }
             | Expr::UnitLiteral { span }
             | Expr::TupleLiteral { span, .. }

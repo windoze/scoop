@@ -65,7 +65,7 @@ fn if_else_becomes_basic_blocks() {
 Module
   global @scoop.str.0 = "ok"
   global @scoop.str.1 = "ng"
-  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
     poll managed-void-target0 sp3 live=[]
@@ -77,7 +77,14 @@ Module
   block if.merge.3
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
@@ -88,7 +95,7 @@ fn while_becomes_basic_blocks() {
     // var n = 0; while (n < 3) { n = n + 1 }
     let mut b = Builder::new();
     let mut locals = Arena::new();
-    let n = locals.alloc(var("n", mir::Type::Int));
+    let n = locals.alloc(var("n", INT));
     let mut blocks = Arena::new();
     let entry = cfg_block(&mut blocks, "entry");
     let cond = cfg_block(&mut blocks, "while.cond.1");
@@ -97,7 +104,7 @@ fn while_becomes_basic_blocks() {
     set_cfg_block(
         &mut blocks,
         entry,
-        vec![val_decl(n, mir::Expr::int(0))],
+        vec![val_decl(n, int_expr(0))],
         mir::Terminator::Goto(cond),
         None,
     );
@@ -106,11 +113,11 @@ fn while_becomes_basic_blocks() {
         cond,
         Vec::new(),
         mir::Terminator::Branch {
-            cond: binary(
-                mir::BinOp::IntLt,
-                local_expr(n, mir::Type::Int),
-                mir::Expr::int(3),
-                mir::Type::Boolean,
+            cond: integer_compare_expr(
+                mir::IntegerKind::SIGNED_32,
+                mir::IntegerComparisonOperator::LessThan,
+                local_expr(n, INT),
+                int_expr(3),
             ),
             then_block: body,
             else_block: exit,
@@ -122,11 +129,11 @@ fn while_becomes_basic_blocks() {
         body,
         vec![assign(
             n,
-            binary(
-                mir::BinOp::IntAdd,
-                local_expr(n, mir::Type::Int),
-                mir::Expr::int(1),
-                mir::Type::Int,
+            integer_binary_expr(
+                mir::IntegerKind::SIGNED_32,
+                mir::IntegerBinaryOperator::Add,
+                local_expr(n, INT),
+                int_expr(1),
             ),
         )],
         mir::Terminator::Goto(cond),
@@ -155,23 +162,30 @@ fn while_becomes_basic_blocks() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
-    local %0 n: i64
+    local %0 n: i32
   block entry
     poll managed-void-target0 sp1 live=[]
-    store 0 -> local0
+    store integer<Int>(0x00000000) -> local0
     br @while.cond.1
   block while.cond.1
     poll managed-void-target0 sp2 live=[]
-    t0 = Lt local0, 3 : i1
+    t0 = integer_compare_Less<Int> local0, integer<Int>(0x00000003) : i1
     cbr t0 then @while.body.2 else @while.exit.3
   block while.body.2
-    t1 = Add local0, 1 : i64
+    t1 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
     store t1 -> local0
     br @while.cond.1
   block while.exit.3
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
@@ -277,7 +291,14 @@ Module
   block logic.merge.3
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
@@ -364,7 +385,14 @@ Module
   block logic.merge.3
     ret
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);

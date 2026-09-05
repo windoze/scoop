@@ -207,7 +207,7 @@ fn when_literal_patterns() {
             panic!("expected a literal pattern");
         };
         match expect {
-            "int" => assert!(matches!(*expr.clone(), Expr::IntLiteral { .. })),
+            "int" => assert!(matches!(*expr.clone(), Expr::IntLiteral(_))),
             "string" => assert!(matches!(*expr.clone(), Expr::StringLiteral { .. })),
             _ => assert!(matches!(*expr.clone(), Expr::BoolLiteral { .. })),
         }

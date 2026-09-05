@@ -8,7 +8,7 @@ fn class_field_reads_are_heap_loads() {
     let c = b.class(
         "C",
         None,
-        &[("a", mir::Type::Int), ("s", mir::Type::String)],
+        &[("a", INT), ("s", mir::Type::String)],
         empty_vtable(),
         vec![],
     );
@@ -50,20 +50,20 @@ fn class_allocation_and_initializer_store_fields() {
     let point = b.class(
         "Point",
         None,
-        &[("x", mir::Type::Int), ("s", mir::Type::String)],
+        &[("x", INT), ("s", mir::Type::String)],
         empty_vtable(),
         vec![],
     );
     let mut ctor_locals = Arena::new();
     let this = ctor_locals.alloc(local("this", mir::Type::Class(point)));
-    let x = ctor_locals.alloc(local("x", mir::Type::Int));
+    let x = ctor_locals.alloc(local("x", INT));
     let s = ctor_locals.alloc(local("s", mir::Type::String));
     let ctor = b.user_fn_body(
         "init.Point.$c0",
         "scoop.init.Point.$c0",
         vec![
             param("this", mir::Type::Class(point), this),
-            param("x", mir::Type::Int, x),
+            param("x", INT, x),
             param("s", mir::Type::String, s),
         ],
         mir::Type::Unit,
@@ -73,7 +73,7 @@ fn class_allocation_and_initializer_store_fields() {
                 stmt(mir::StatementKind::FieldSet {
                     object: local_expr(this, mir::Type::Class(point)),
                     index: 0,
-                    value: local_expr(x, mir::Type::Int),
+                    value: local_expr(x, INT),
                 }),
                 stmt(mir::StatementKind::FieldSet {
                     object: local_expr(this, mir::Type::Class(point)),
@@ -103,7 +103,7 @@ fn class_allocation_and_initializer_store_fields() {
                 },
                 args: vec![
                     local_expr(p, mir::Type::Class(point)),
-                    mir::Expr::int(1),
+                    int_expr(1),
                     string_expr(str_x),
                 ],
             }),
@@ -117,7 +117,7 @@ fn class_allocation_and_initializer_store_fields() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   global @scoop.str.0 = "x"
-  fun @scoop.init.Point.$c0(ptr<managed>, i64, ptr<managed>) -> void
+  fun @scoop.init.Point.$c0(ptr<managed>, i32, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp3 live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -129,12 +129,19 @@ Module
     poll managed-void-target1 sp4 live=[]
     call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
     store t0 -> local0
-    call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i64, ptr<managed>) local-fn0(local0, 1, global0)
+    call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
     t1 = aggregate () : {}
     ret
   td td0 Point @scoop_td_Point type-id=2 size=32 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=32 align=8 refs=[24]
   entry @scoop_main
@@ -143,16 +150,10 @@ Module
 
 #[test]
 fn field_set_lowers_to_a_heap_store() {
-    // `p.y = 3`: MIR FieldSet index 1 → byte offset 24 after the
+    // `p.y = 3`: MIR FieldSet index 1 → byte offset 20 after the
     // 16-byte header and the first Int field.
     let mut b = Builder::new();
-    let c = b.class(
-        "C",
-        None,
-        &[("x", mir::Type::Int), ("y", mir::Type::Int)],
-        empty_vtable(),
-        vec![],
-    );
+    let c = b.class("C", None, &[("x", INT), ("y", INT)], empty_vtable(), vec![]);
     let mut locals = Arena::new();
     let p = locals.alloc(local("p", mir::Type::Class(c)));
     let main = b.main(
@@ -160,7 +161,7 @@ fn field_set_lowers_to_a_heap_store() {
         vec![stmt(mir::StatementKind::FieldSet {
             object: local_expr(p, mir::Type::Class(c)),
             index: 1,
-            value: mir::Expr::int(3),
+            value: int_expr(3),
         })],
     );
     let module = lower(&b.finish(main));
@@ -169,14 +170,17 @@ fn field_set_lowers_to_a_heap_store() {
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::HeapStore {
         object,
-        offset: 24,
+        offset: 20,
         value,
     } = instructions[0]
     else {
         panic!("a FieldSet must lower to a HeapStore")
     };
     assert!(matches!(object, lir::Value::Local(_)));
-    assert!(matches!(value, lir::Value::IntConst(3)));
+    assert!(matches!(
+        value,
+        lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(3))
+    ));
 }
 
 #[test]
@@ -262,16 +266,16 @@ fn retype_rejects_machine_scalar_to_source_integer() {
     let machine_ty = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
     let mut locals = Arena::new();
     let machine = locals.alloc(local("machine", machine_ty.clone()));
-    let integer = locals.alloc(local("integer", mir::Type::Int));
+    let integer = locals.alloc(local("integer", INT));
     let main = b.main(
         locals,
         vec![val_decl(
             integer,
             expr(
-                mir::Type::Int,
+                INT,
                 mir::ExprKind::Retype {
                     operand: Box::new(local_expr(machine, machine_ty)),
-                    ty: Box::new(mir::Type::Int),
+                    ty: Box::new(INT),
                 },
             ),
         )],
@@ -295,7 +299,7 @@ fn a_trap_only_body_seals_the_function() {
         "Base.id",
         "scoop.Base.id",
         vec![param("this", mir::Type::Any, this)],
-        mir::Type::Int,
+        INT,
         locals,
         vec![call_stmt(runtime_call(
             mir::RuntimeFn::Trap,

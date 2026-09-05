@@ -17,7 +17,15 @@ pub(super) fn dump_expr(
                 module.strings[*id].symbol
             ));
         }
-        ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        ExprKind::IntegerLiteral(value) => {
+            let digits = usize::from(value.width().bytes()) * 2;
+            out.push_str(&format!(
+                "{pad}IntegerLiteral {} value={} bits=0x{:0digits$x}\n",
+                value.kind().canonical_name(),
+                value.mathematical_value(),
+                value.raw_bits(),
+            ));
+        }
         ExprKind::MachineScalarLiteral(value) => {
             out.push_str(&format!("{pad}MachineScalarLiteral {value:?}\n"));
         }
@@ -73,15 +81,15 @@ pub(super) fn dump_expr(
             "{pad}GlobalRead {}\n",
             module.globals[*global].name
         )),
-        ExprKind::PtrFromUInt { operand, pointee } => {
+        ExprKind::PtrFromNonZeroULong { operand, pointee } => {
             out.push_str(&format!(
-                "{pad}PtrFromUInt {}\n",
+                "{pad}PtrFromNonZeroULong {}\n",
                 type_name(module, pointee)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::PtrToUInt(operand) => {
-            out.push_str(&format!("{pad}PtrToUInt\n"));
+        ExprKind::PtrToULong(operand) => {
+            out.push_str(&format!("{pad}PtrToULong\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::PtrCast { operand, pointee } => {
@@ -141,10 +149,6 @@ pub(super) fn dump_expr(
         ExprKind::AlignOf(ty) => {
             out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
         }
-        ExprKind::FunPtrNull(signature) => out.push_str(&format!(
-            "{pad}FunPtrNull function_type{}\n",
-            signature.into_raw().into_u32()
-        )),
         ExprKind::FunctionAddress { callback } => out.push_str(&format!(
             "{pad}FunctionAddress cb{}\n",
             callback.into_raw().into_u32()
@@ -295,6 +299,91 @@ pub(super) fn dump_expr(
         }
         ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IntegerUnary { operation, operand } => {
+            out.push_str(&format!(
+                "{pad}IntegerUnary {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IntegerBinary {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerBinary {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::SafeIntegerDivRem {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}SafeIntegerDivRem {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerCompare {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerCompare {} operands={} result=Boolean\n",
+                operation.operator().name(),
+                operation.operand_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerCompareTo {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerCompareTo operands={} result={}\n",
+                operation.operand_kind().canonical_name(),
+                operation.result_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerShift {
+            operation,
+            value,
+            count,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerShift {} value={} count={}\n",
+                operation.operator().name(),
+                operation.value_kind().canonical_name(),
+                operation.count_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, value, indent + 1, out);
+            dump_expr(module, locals, count, indent + 1, out);
+        }
+        ExprKind::IntegerConversion {
+            conversion,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerConversion {} -> {}\n",
+                conversion.source_kind().canonical_name(),
+                conversion.target_kind().canonical_name(),
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::VariantConstruct { variant, fields } => {

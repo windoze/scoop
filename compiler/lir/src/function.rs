@@ -39,7 +39,7 @@ impl Function {
             Value::Local(id) => self.locals[id].ty.clone(),
             Value::Temp(id) => self.temps[id].ty.clone(),
             Value::Param(index) => self.params[index as usize].clone(),
-            Value::IntConst(_) => LirType::I64,
+            Value::IntegerConst(value) => value.scalar_type(),
             Value::MachineScalar(value) => LirType::MachineScalar(value.kind()),
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),
@@ -47,6 +47,7 @@ impl Function {
             Value::RootScan(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
             Value::InitializationUnit(_) => METADATA_PTR,
+            Value::CArgumentStorage(_) => RAW_PTR,
         }
     }
 }

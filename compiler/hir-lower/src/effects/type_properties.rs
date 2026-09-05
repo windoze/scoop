@@ -52,8 +52,7 @@ impl Lowerer {
     ) -> Option<HashSet<hir::TypeParamId>> {
         match &self.types[ty] {
             hir::Type::Unit
-            | hir::Type::Int
-            | hir::Type::UInt
+            | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_) => Some(HashSet::new()),
