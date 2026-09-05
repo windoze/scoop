@@ -7,6 +7,45 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompilationOutcome {
+    Success,
+    Diagnostics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FixtureExpectation {
+    Compile,
+    Diagnostics,
+    Trap,
+}
+
+impl FixtureExpectation {
+    fn directive(self) -> &'static str {
+        match self {
+            Self::Compile => "// EXPECT-COMPILE",
+            Self::Diagnostics => "// EXPECT-DIAGNOSTICS",
+            Self::Trap => "// EXPECT-TRAP",
+        }
+    }
+
+    fn outcome(self) -> CompilationOutcome {
+        match self {
+            Self::Compile | Self::Trap => CompilationOutcome::Success,
+            Self::Diagnostics => CompilationOutcome::Diagnostics,
+        }
+    }
+}
+
+impl CompilationOutcome {
+    fn description(self) -> &'static str {
+        match self {
+            Self::Success => "successful compilation",
+            Self::Diagnostics => "compile-time diagnostics",
+        }
+    }
+}
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -16,6 +55,116 @@ fn workspace_root() -> PathBuf {
 
 fn fixture_root() -> PathBuf {
     workspace_root().join("tests/fixtures")
+}
+
+fn declared_fixture_expectation(source: &str, relative: &str) -> Option<FixtureExpectation> {
+    let mut declared = None;
+    for line in source.lines().map(str::trim) {
+        let expectation = match line {
+            "// EXPECT-COMPILE" => Some(FixtureExpectation::Compile),
+            "// EXPECT-DIAGNOSTICS" => Some(FixtureExpectation::Diagnostics),
+            "// EXPECT-TRAP" => Some(FixtureExpectation::Trap),
+            "" if declared.is_none() => continue,
+            line if line.starts_with("// EXPECT-") => {
+                panic!("{relative}: unknown fixture expectation `{line}`")
+            }
+            _ => None,
+        };
+        if let Some(expectation) = expectation {
+            assert!(
+                declared.is_none_or(|previous| previous == expectation),
+                "{relative}: fixture declares conflicting expectations"
+            );
+            declared = Some(expectation);
+        } else {
+            break;
+        }
+    }
+    declared
+}
+
+#[test]
+fn compilation_outcome_directives_are_explicit() {
+    assert_eq!(
+        declared_fixture_expectation("// EXPECT-COMPILE\nfun main() {}", "fixture.scoop"),
+        Some(FixtureExpectation::Compile)
+    );
+    assert_eq!(
+        declared_fixture_expectation("// EXPECT-DIAGNOSTICS\nfun main() {}", "fixture.scoop"),
+        Some(FixtureExpectation::Diagnostics)
+    );
+    assert_eq!(
+        declared_fixture_expectation("// EXPECT-TRAP\nfun main() {}", "fixture.scoop"),
+        Some(FixtureExpectation::Trap)
+    );
+    assert_eq!(
+        declared_fixture_expectation(
+            "/*\n// EXPECT-DIAGNOSTICS\n*/\nfun main() {}",
+            "fixture.scoop"
+        ),
+        None
+    );
+    assert_eq!(
+        declared_fixture_expectation("fun main() {}", "fixture.scoop"),
+        None
+    );
+}
+
+#[test]
+#[should_panic(expected = "fixture.scoop: fixture declares conflicting expectations")]
+fn compilation_outcome_directives_cannot_conflict() {
+    declared_fixture_expectation("// EXPECT-COMPILE\n// EXPECT-DIAGNOSTICS", "fixture.scoop");
+}
+
+fn existing_snapshot_outcome(fixture: &Path) -> Option<CompilationOutcome> {
+    let file_name = fixture
+        .file_name()
+        .expect("fixture has a file name")
+        .to_string_lossy();
+    let snapshot = fixture.with_file_name(format!("{file_name}.snap"));
+    match snapshot.try_exists() {
+        Ok(true) => {}
+        Ok(false) => return None,
+        Err(error) => panic!("cannot inspect {}: {error}", snapshot.display()),
+    }
+    let existing = insta::Snapshot::from_file(&snapshot)
+        .unwrap_or_else(|error| panic!("cannot read {}: {error}", snapshot.display()));
+    let body = existing
+        .as_text()
+        .unwrap_or_else(|| panic!("existing snapshot for {} is not text", fixture.display()))
+        .to_string();
+    if body.starts_with("== ast ==\n") {
+        Some(CompilationOutcome::Success)
+    } else if body.starts_with("== diagnostics ==\n") {
+        Some(CompilationOutcome::Diagnostics)
+    } else {
+        panic!(
+            "existing snapshot for {} does not have a compilation outcome",
+            fixture.display()
+        )
+    }
+}
+
+fn required_compilation_outcome(
+    declared: Option<FixtureExpectation>,
+    snapshot: Option<CompilationOutcome>,
+    relative: &str,
+) -> CompilationOutcome {
+    declared
+        .map(FixtureExpectation::outcome)
+        .or(snapshot)
+        .unwrap_or_else(|| {
+            panic!(
+                "{relative}: new fixture has no accepted snapshot; declare one of \
+                 `// EXPECT-COMPILE`, `// EXPECT-DIAGNOSTICS`, or `// EXPECT-TRAP` at the file header"
+            )
+        })
+}
+
+#[test]
+#[should_panic(expected = "new.scoop: new fixture has no accepted snapshot")]
+fn new_fixtures_must_declare_their_expected_outcome() {
+    required_compilation_outcome(None, None, "new.scoop");
 }
 
 fn collect_fixtures(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -159,10 +308,10 @@ fn fixtures() {
         // Fixtures whose first line is `// EXPECT-TRAP` must compile and
         // then abort at runtime (M3: `!!` on `None`); their stderr is
         // snapshotted instead of stdout.
-        let expect_trap = source
-            .lines()
-            .next()
-            .is_some_and(|line| line.trim() == "// EXPECT-TRAP");
+        let declared = declared_fixture_expectation(&source, &relative);
+        let expect_trap = declared == Some(FixtureExpectation::Trap);
+        let snapshot_outcome = existing_snapshot_outcome(&fixture);
+        let expected_outcome = required_compilation_outcome(declared, snapshot_outcome, &relative);
 
         let mut options = scoopc::CompileOptions::default();
         let native_sources = native_sources(fixture.parent().expect("fixture directory"));
@@ -200,7 +349,22 @@ fn fixtures() {
             options.library_paths.push(out_dir.clone());
         }
 
-        let snapshot = match scoopc::compile_file_with_options(&compile_path, &out_dir, &options) {
+        let compilation = scoopc::compile_file_with_options(&compile_path, &out_dir, &options);
+        let outcome = if compilation.is_ok() {
+            CompilationOutcome::Success
+        } else {
+            CompilationOutcome::Diagnostics
+        };
+        assert_eq!(
+            outcome,
+            expected_outcome,
+            "{relative}: {} expected {}, but compilation produced {}",
+            declared.map_or("accepted snapshot", FixtureExpectation::directive),
+            expected_outcome.description(),
+            outcome.description(),
+        );
+
+        let snapshot = match compilation {
             Ok(success) => {
                 if relative == "m15-moving/handle-pin.scoop" {
                     verify_linked_stackmap_fixups(&success.binary, &relative);
