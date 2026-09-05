@@ -358,7 +358,7 @@ val S { f1: x, f2: y, .. } = s
 
 ### 4.7 零尺寸值类型（ZST）
 
-零尺寸是concrete exact value type的结构属性，不是新的source kind；M23 v1的`ZstStatus`与target无关，target profile只决定其正alignment及外层ABI细节。`sizeOf<T>() == 0u`的concrete value type称为ZST；它仍保留自己的nominal/structural identity、generic application、方法、构造过程与TypeDescriptor，不能因layout相同而与另一类型合并。
+零尺寸是concrete exact value type的结构属性，不是新的source kind；M23 v1的`ZstStatus`与target无关，target profile只决定其正alignment及外层ABI细节。`sizeOf<T>() == 0uL`的concrete value type称为ZST；它仍保留自己的nominal/structural identity、generic application、方法、构造过程与TypeDescriptor，不能因layout相同而与另一类型合并。
 
 - `Unit`和空的普通非`@CLayout` struct固定为size 0、alignment 1；非空tuple及其他普通非`@CLayout` struct在每个元素/字段都是ZST时也是ZST，alignment取字段alignment的最大值且始终为正的2次幂。ZST字段不增加aggregate size，可以共享offset 0；wire/runtime模型仍保留大于1的ZST alignment以便组合layout与未来扩展，但M23不新增独立的源码over-alignment语法。M23也不对enum做“单值所以删除discriminant”的新优化：tagged enum至少保留现有tag，`Option<ZST>`必须保留可区分`None`/`Some`的tag；
 - ZST必须是GC-free且递归scan为空；反向不成立。它没有可区分值的存储bit，但构造器、initializer、getter、函数调用、array literal元素、赋值RHS及用户方法的求值和副作用一律保留。复制ZST不复制字节，不得借此删除产生该值的求值；
@@ -739,7 +739,7 @@ fun references() {
 - 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可按同一普通subtyping/nominal-invariance关系转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
 - 若唯一候选能转发给所有其他候选而反向不成立，则它胜出；互相可转发或互相都不能转发时，依次应用规范已有的附加规则：非参数化候选优先；M17起，在互相可转发的集合中实际使用更少默认值者优先，仍相同时无`vararg`者优先。命名/位置写法本身不参与优先级。仍不唯一即为歧义。
 - 无外层expected type的分支、数组元素或其他LUB计算只有在同一generic template的全部类型实参逐项相等时才能保留该application；`G<A>`与`G<B>`不会合成为`G<LUB(A, B)>`。否则沿普通共同父class/interface/`Any`规则寻找上界，必要时装箱整个value。expected type存在时可让各分支直接按同一个exact target构造/检查，但不能把已经形成的不同application隐式转换到该target。多个互不可比较的nominal共同上界仍不产生交叉类型。
-- 整数字面量按11.2持有candidate-local可表示type集合；assignment/return/argument/call-or-operator receiver等位置的exact expected integer type可提交一个可表示literal。literal receiver对integer representation intrinsic及11.8的四个core range member都适用：只枚举八个canonical integer owner，再在假设owner上执行普通core-member决议，不能在查找`and`/`shl`/`rangeTo`/`until`前抢先默认。该规则不枚举任意用户或extension member，也不扩展为普通类型的全局反向推断。fixed point后仍未被约束的无后缀/`u`literal分别默认`Int`/`UInt`。普通MSC及上述附加规则仍并列时，默认类型exact commit优于同族其他fit；多个非默认fit互不支配。literal fit不建立整数type间的subtyping/coercion，失败probe不得泄漏已提交type。
+- 整数字面量按11.2持有candidate-local可表示type集合；assignment/return/argument/call-or-operator receiver等位置的exact expected integer type可提交一个可表示literal。literal receiver对integer representation intrinsic及11.8的四个core range member都适用：只枚举八个canonical integer owner，再在假设owner上执行普通core-member决议，不能在查找`and`/`shl`/`rangeTo`/`until`前抢先默认。该规则不枚举任意用户或extension member，也不扩展为普通类型的全局反向推断。fixed point后仍未被约束的无后缀literal按`Int` → `Long`、`u/U` literal按`UInt` → `ULong`选择第一个可表示其值的类型。普通MSC及上述附加规则仍并列时，默认阶梯产生的exact commit优于同族其他fit；多个非默认fit互不支配。literal fit不建立整数type间的subtyping/coercion，失败probe不得泄漏已提交type。
 - 无匹配与歧义都是HIR编译错误。诊断必须列出所在候选层、每个相关候选的完整签名及其失败原因（形态映射、类型实参数量、未解变量、bound、实参类型或MSC并列），不能只报告“unknown function”或由下游根据缺失callee猜测失败原因。
 
 ### 8.7 循环控制
@@ -877,7 +877,7 @@ HIR把通过验证的角色保存为封闭、类型化的operator identity；表
 | `set` | 至少2个 | 返回`Unit`；最后一个参数是写入值且不得为`vararg`，此前参数是索引 |
 | `invoke` | 任意 | 使用完整8.5调用参数协议 |
 | `plusAssign` / `minusAssign` / `timesAssign` / `divAssign` / `remAssign` | 1 | 返回`Unit` |
-| `compareTo` | 1 | 返回`Int` |
+| `compareTo` | 1 | 返回`Long` |
 | `equals` | 1 | 返回`Boolean`；见下述收紧规则 |
 | `componentN`（`N`为正十进制整数） | 0 | 返回类型不限 |
 | `iterator` | 0 | 返回值在`for`使用点满足11.8的`Iterator<T>`协议 |
@@ -903,7 +903,7 @@ HIR把通过验证的角色保存为封闭、类型化的operator identity；表
 | `a[i1, ..., iN]` | `a.get(i1, ..., iN)` |
 | `a[i1, ..., iN] = v` | `a.set(i1, ..., iN, v)` |
 | `a(args...)` | function-value call，或`a.invoke(args...)`（见9.3.4） |
-| `a < b` / `a <= b` / `a > b` / `a >= b` | `a.compareTo(b)`的`Int`结果与0比较 |
+| `a < b` / `a <= b` / `a > b` / `a >= b` | `a.compareTo(b)`的`Long`结果与0比较 |
 | `a == b` / `a != b` | 11.11的成员`equals`调用 / 对同一结果取反 |
 
 receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先求值`b`、再求值`a`；这是有意保留的Kotlin顺序。其他表项按书写的receiver再到operand顺序求值。`&&` / `||`仍是只接受`Boolean`的内建短路操作，`===` / `!==`仍是不可重载的引用identity比较；`=`, `?:`, `!!`, `is` / `as`及安全导航本身也不可重载。
@@ -975,9 +975,9 @@ Scoop 内置两个数组类型（引用类型，属于核心库）：
 
 当 `T` 是引用类型时，数组存储引用。
 
-当`T`是ZST时，`Array<T>`/`MutableArray<T>`使用专门的zero-sized element storage：对象仍保存普通ref identity与精确`size: Int`，元素区起点仍按`alignOf<T>()`对齐，但任意长度都不分配element payload bytes。所有literal/assembly/spread输入仍按源码顺序求值并计算逻辑元素数。`get`先按普通调用规则求值receiver与index，再检查`0 <= index < size`并返回该exact ZST值；`set`先按普通调用规则依次求值receiver、index与RHS，随后执行bounds check，成功时不写物理字节。因而即使index越界，RHS的副作用或异常也不能因ZST被跳过。不同index表示不同逻辑元素，但不承诺不同物理地址；现有`addressOf`不能用于array元素。
+当`T`是ZST时，`Array<T>`/`MutableArray<T>`使用专门的zero-sized element storage：对象仍保存普通ref identity与精确`size: Long`，元素区起点仍按`alignOf<T>()`对齐，但任意长度都不分配element payload bytes。所有literal/assembly/spread输入仍按源码顺序求值并计算逻辑元素数。`get`先按普通调用规则求值receiver与index，再检查`0 <= index < size`并返回该exact ZST值；`set`先按普通调用规则依次求值receiver、index与RHS，随后执行bounds check，成功时不写物理字节。因而即使index越界，RHS的副作用或异常也不能因ZST被跳过。不同index表示不同逻辑元素，但不承诺不同物理地址；现有`addressOf`不能用于array元素。
 
-ZST array的iterator必须保存array ref与整数index，以`index < size`终止并按1递增；不得用element pointer是否到达end判断进度。`Array`/`MutableArray`互转和clone仍分配新的array对象并保留size，所以结果ref identity与源不同，但不执行payload `memcpy`。物理分配大小恰为对齐后的元素区起点，与size无关；size仍须是非负可表示`Int`，因此不能用“分配字节数很小”绕过长度、assembly求和或迭代index的overflow检查。M23公开表面没有接受任意signed length的array constructor：literal与spread/vararg assembly只从非负元素/component count经checked求和得到size；clone/互转则先验证source exact array TypeDescriptor、side metadata与`0 <= source.size <= Int.MAX_VALUE`一致，再读取该source size作为目标logical count。未来若增加length-based core API须另行规定其源码前置条件与异常。
+ZST array的iterator必须保存array ref与`Long` index，以`index < size`终止并按1递增；不得用element pointer是否到达end判断进度。`Array`/`MutableArray`互转和clone仍分配新的array对象并保留size，所以结果ref identity与源不同，但不执行payload `memcpy`。物理分配大小恰为对齐后的元素区起点，与size无关；size仍须位于数学区间`0..=INT64_MAX`，因此不能用“分配字节数很小”绕过长度、assembly求和或迭代index的overflow检查，也不要求core新增整数边界companion常量。M23公开表面没有接受任意signed length的array constructor：literal与spread/vararg assembly只从非负元素/component count经checked求和得到size；clone/互转则先验证source exact array TypeDescriptor、side metadata与`0 <= source.size <= INT64_MAX`一致，再读取该source size作为目标logical count。未来若增加length-based core API须另行规定其源码前置条件与异常。
 
 ### 10.2 数组字面量
 
@@ -1028,9 +1028,9 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 ### 10.5 操作
 
-- 下标访问 `a[i]`通过普通成员`operator fun get(index: Int): T`；`MutableArray`通过`operator fun set(index: Int, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
+- 下标访问 `a[i]`通过普通成员`operator fun get(index: Long): T`；`MutableArray`通过`operator fun set(index: Long, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
-- `size` 属性；实现 `Iterable<T>`，可用于 `for` 循环。
+- `size: Long` 属性；实现 `Iterable<T>`，可用于 `for` 循环。
 
 ---
 
@@ -1050,30 +1050,30 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 均为值类型（struct 语义）：
 
 - `Boolean`；
-- 八种整数表示：8/16/32/64位二进制补码signed/unsigned标量。其固定宽度拼写为`Int8`/`Int16`/`Int32`/`Int64`与`UInt8`/`UInt16`/`UInt32`/`UInt64`；64位canonical源码声明仍是`Int`/`UInt`，`Int64`/`UInt64`是它们的透明alias；
-- Kotlin风格名称是3.2.1的透明alias：`Byte ≡ Int8`、`Short ≡ Int16`、`Int ≡ Int64 ≡ Long`，以及`UByte ≡ UInt8`、`UShort ≡ UInt16`、`UInt ≡ UInt64 ≡ ULong`。`Int`/`UInt`在所有target上永久固定64位；等价拼写不产生overload、RTTI、layout、mangling或ABI差异；
+- 八种整数表示：8/16/32/64位二进制补码signed/unsigned标量。八个canonical源码声明分别是`Int8`/`Int16`/`Int`/`Long`与`UInt8`/`UInt16`/`UInt`/`ULong`；它们是八个不同的nominal type；
+- 固定宽度与Kotlin风格名称通过3.2.1的透明alias对应：`Byte ≡ Int8`、`Short ≡ Int16`、`Int32 ≡ Int`、`Int64 ≡ Long`，以及`UByte ≡ UInt8`、`UShort ≡ UInt16`、`UInt32 ≡ UInt`、`UInt64 ≡ ULong`。`Int`/`UInt`在所有target上永久固定32位，`Long`/`ULong`永久固定64位；等价拼写不产生overload、RTTI、layout、mangling或ABI差异；
 - 浮点：`Float`（f32）/ `Double`（f64）；
 - `Char`。
 
-core中的对应声明是`public typealias Byte = Int8`、`public typealias Short = Int16`、`public typealias Int64 = Int`、`public typealias Long = Int`、`public typealias UByte = UInt8`、`public typealias UShort = UInt16`、`public typealias UInt64 = UInt`与`public typealias ULong = UInt`。
+core中的对应声明是`public typealias Byte = Int8`、`public typealias Short = Int16`、`public typealias Int32 = Int`、`public typealias Int64 = Long`、`public typealias UByte = UInt8`、`public typealias UShort = UInt16`、`public typealias UInt32 = UInt`与`public typealias UInt64 = ULong`。当前语言不定义platform-native integer；本版本中要求保留64位数值范围的已有source/core API显式使用`Long`/`ULong`，这不把二者定义为target-native type。
 
-整数literal接受十进制、`0b`/`0B`二进制、`0x`/`0X`十六进制及位于两个有效数字之间的`_`，不接受八进制。后缀规则为：无后缀候选域是可精确表示magnitude的signed整数且默认`Int`；`u/U`候选域是unsigned整数且默认`UInt`；`l/L`固定signed 64位；`uL/UL`及大小写组合固定unsigned 64位。radix前缀后必须有数字，separator不能位于首尾或紧邻前缀/后缀。各进制literal先表示非负数学magnitude，不按bit pattern自动重解释；超过数学值`2^64 - 1`的magnitude非法。
+整数literal接受十进制、`0b`/`0B`二进制、`0x`/`0X`十六进制及位于两个有效数字之间的`_`，不接受八进制。后缀规则为：无后缀候选域是可精确表示magnitude的signed整数，无其他约束时按`Int` → `Long`选择第一个可表示值的默认类型；`u/U`候选域是unsigned整数，无其他约束时按`UInt` → `ULong`选择；`l/L`精确固定为`Long`；`uL/UL`及大小写组合精确固定为`ULong`。radix前缀后必须有数字，separator不能位于首尾或紧邻前缀/后缀。各进制literal先表示非负数学magnitude，不按bit pattern自动重解释；超过数学值`2^64 - 1`的magnitude非法。
 
-literal在8.6 winner commit前持有candidate-local可表示type集合。exact expected同符号族integer type可在值可表示时直接提交；该能力也适用于call/operator receiver，不建立整数type间的一般subtyping或conversion。无后缀不能适配unsigned，带`u`不能适配signed；`L`/`UL`不能适配窄type。AST上的`unaryMinus`直接作用于无`u`literal时，二者作为完整负数学值检查边界，使每种signed `MIN`可表示；括号不形成语义节点，空白/注释不改变该关系。`-1u`则是普通unsigned `unaryMinus`。默认`Int`/`UInt`commit在其他8.6规则后优于同族非默认fit；多个非默认fit仍歧义。
+literal在8.6 winner commit前持有candidate-local可表示type集合。exact expected同符号族integer type可在值可表示时直接提交；该能力也适用于call/operator receiver，不建立整数type间的一般subtyping或conversion。无后缀不能适配unsigned，带`u`不能适配signed；`L`/`UL`已分别具有exact `Long`/`ULong`类型，不参与其他integer expected-type fit。AST上的`unaryMinus`直接作用于无`u`literal时，二者作为完整负数学值检查边界，使每种signed `MIN`可表示；括号不形成语义节点，空白/注释不改变该关系。`-1u`则是普通unsigned `unaryMinus`。默认阶梯产生的exact commit在其他8.6规则后优于同族非默认fit；多个非默认fit仍歧义。
 
-core整数的二元算术、逐bit运算和比较要求两个已定型operand为同一canonical type；literal可按上段直接提交。shift例外地要求左operand/result保持该integer type、count为canonical `Int`。不同width或signedness的非literal不隐式提升，必须显式转换。对宽度W：
+core整数的二元算术、逐bit运算和比较要求两个已定型operand为同一canonical type；literal可按上段直接提交。shift例外地要求左operand/result保持该integer type、count为canonical `Long`。不同width或signedness的非literal不隐式提升，必须显式转换。对宽度W：
 
 - `+`、`-`、`*`、一元`-`、`inc`/`dec`及bit操作按`2^W`wrapping；一元`+`是同类型identity。signed结果按W位二进制补码解释，overflow不抛异常；
 - `/`向零截断，`%`余数与被除数同号；除数为0抛`ArithmeticException`。signed `MIN / -1 == MIN`且`MIN % -1 == 0`，不能继承后端poison/trap；
-- `and`/`or`/`xor`/`inv`逐bit工作。`shl`/`shr`/`ushr`的count为`Int`，有效count取低`log2(W)`位；signed `shr`为算术右移，signed `ushr`和unsigned右移为逻辑右移；
-- signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Int`的`-1/0/1`；
+- `and`/`or`/`xor`/`inv`逐bit工作。`shl`/`shr`/`ushr`的count为`Long`，有效count取其低`log2(W)`位；signed `shr`为算术右移，signed `ushr`和unsigned右移为逻辑右移；
+- signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Long`的`-1L/0L/1L`；
 - const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。
 
-每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按具体value工作，不经过装箱或`Any`分派。
+每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。窄signed/unsigned owner的字符串化与hash可分别先无损扩展为`Long`/`ULong`并复用64位core fallback；`Long`/`ULong`的完整输入不得先截断为`Int`/`UInt`。
 
-八个canonical integer struct及`Byte`/`Short`/`Int64`/`Long`/`UByte`/`UShort`/`UInt64`/`ULong` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
+八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
-每个kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个kind的转换；unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除`compareTo: Int`、`equals: Boolean`和shift count `Int`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
+每个kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个kind的转换；unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除`compareTo: Long`、`equals: Boolean`和shift count `Long`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
 
 除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
@@ -1084,7 +1084,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 ### 11.4 `String`
 
 - 引用类型，immutable，UTF-8 语义（编码细节由实现定义）。
-- 支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作。
+- 支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作；索引、长度与切片边界使用`Long`，保留既有64位范围。
 - 实现内容相等的成员`operator fun equals(other: String): Boolean`与内容相关`Hash`；`toString()`返回自身（`ToString`的恒等实现）。这些能力均是String的具体core contract，不来自`Any`或TypeDescriptor缺省槽。
 
 ### 11.5 `Option<T>`
@@ -1167,17 +1167,19 @@ while (true) {
 
 展开实际使用hygienic temporary、typed loop/interface/variant identity，不进行源码名称查找。`iterator()`若为suspend，只能在允许挂起的上下文选择，可在首轮前挂起但仍只调用一次；core `next()`固定ordinary。每轮binding都是新值，closure捕获对应轮次，不共享一个反复覆写的隐藏`var`。Array/MutableArray必须以普通public conformance实现`Iterable<T>`。
 
-integer range只有两个canonical nominal type：`public final class IntRange : Iterable<Int>`与`public final class UIntRange : Iterable<UInt>`。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。core显式声明`public typealias LongRange = IntRange`与`public typealias ULongRange = UIntRange`；二者没有独立layout或overload identity。`CharRange`等到Char进入已实现子集后另行定义。
+integer range有四个canonical nominal type：`public final class IntRange : Iterable<Int>`、`public final class LongRange : Iterable<Long>`、`public final class UIntRange : Iterable<UInt>`与`public final class ULongRange : Iterable<ULong>`。四者是不同的nominal type，`LongRange`/`ULongRange`不再是alias。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。`CharRange`等到Char进入已实现子集后另行定义。
 
-每个signed canonical integer owner `S`都提供public member `operator fun rangeTo(other: S): IntRange`、`operator fun rangeUntil(other: S): IntRange`、`infix fun until(other: S): IntRange`与`infix fun downTo(other: S): IntRange`；每个unsigned owner `U`提供同形public member并返回`UIntRange`。这里的`S`/`U`只是规范元变量，各实际声明都使用owner自己的exact type，不是generic API。`IntRange`精确提供`public override operator fun iterator(): Iterator<Int>`、`public infix fun step(value: Int): IntRange`与`public operator fun contains(value: Int): Boolean`；`UIntRange`分别提供返回`Iterator<UInt>`、接受/返回`UInt`/`UIntRange`的同形成员。它们都是member而非extension。Array/MutableArray同样以`public override operator fun iterator(): Iterator<T>`实现Iterable；internal iterator owner中的`next`以显式`public override`满足slot，其effective domain仍受owner限制。
+`Int8`/`Int16`/`Int`的四个range member返回`IntRange`，`Long`的四个成员返回`LongRange`；`UInt8`/`UInt16`/`UInt`返回`UIntRange`，`ULong`返回`ULongRange`。这四个成员是`rangeTo`、`rangeUntil`、`until`与`downTo`，各实际声明的endpoint参数使用owner自己的exact type，不是generic API。
 
-对同一canonical signed integer type的两个endpoint，core提供返回`IntRange`的`rangeTo`/`rangeUntil`/`until`/`downTo`；unsigned对应返回`UIntRange`。窄endpoint在已选core函数体内显式、无损扩展为`Int`/`UInt`，所以窄range元素也是`Int`/`UInt`；这不建立一般隐式conversion，两个已定型且类型不同的endpoint仍不能混用。
+每个range type `R` 都精确提供`public override operator fun iterator(): Iterator<E>`、`public infix fun step(value: E): R`与`public operator fun contains(value: E): Boolean`：`IntRange`的`E`/`R`为`Int`/`IntRange`，`LongRange`为`Long`/`LongRange`，`UIntRange`为`UInt`/`UIntRange`，`ULongRange`为`ULong`/`ULongRange`。它们都是member而非extension。Array/MutableArray同样以`public override operator fun iterator(): Iterator<T>`实现Iterable；internal array iterator的index固定为`Long`，`next`以显式`public override`满足slot，其effective domain仍受owner限制。
+
+`Int8`/`Int16`的endpoint在已选core函数体内显式、无损扩展为`Int`，`UInt8`/`UInt16`同理扩展为`UInt`，所以窄range元素分别是`Int`/`UInt`。`Long`/`ULong`端点不截断且分别保留在`LongRange`/`ULongRange`中。这不建立一般隐式conversion，两个已定型且类型不同的endpoint仍不能混用。
 
 - `a..b`从a以1升序并包含b，`a > b`为空；
 - `a..<b`与`a until b`从a升序且不包含b，`a >= b`为空；
 - `a downTo b`从a以1降序并包含b，`a < b`为空；
-- `IntRange step n`要求`n: Int > 0`，`UIntRange step n`要求`n: UInt > 0u`，否则求值时抛`IllegalArgumentException`。它保留原方向、端点包含性与first，只替换步长绝对值；
-- `contains`的value参数分别为`Int`/`UInt`，只在值位于端点范围且与first的step对齐时为true；实现差值/对齐判断时不能让源码整数overflow改变结果；
+- `IntRange`/`LongRange`/`UIntRange`/`ULongRange` 的`step n`分别要求`n: Int > 0`、`n: Long > 0L`、`n: UInt > 0u`与`n: ULong > 0uL`，否则求值时抛`IllegalArgumentException`。它保留原方向、端点包含性与first，只替换步长绝对值；
+- `contains`的value参数与该range的element type精确相同，只在值位于端点范围且与first的step对齐时为true；实现差值/对齐判断时不能让源码整数overflow改变结果；
 - iterator先判断下一步是否越过endpoint或发生机器溢出，再更新current；不得依赖wrapping sentinel，因而MIN/MAX端点也必须正确终止。
 
 range、iterator、`until`/`downTo`/`step`/`contains`均为普通public core声明，除9.3 operator展开和上述for协议外没有按type name识别的编译器旁路。`..`与rest pattern的消歧见4.6。
@@ -1237,15 +1239,15 @@ suspend fun <T> suspendCoroutine(
   - **引用类型**：只使用该class/interface静态类型声明或继承的成员operator equals；不存在时是编译错误。`Any`没有成员，因而`Any == Any`非法；运行期对象另有equals不能补齐静态契约。需要identity比较时显式使用`===`。
   - equals 的决议只考虑成员函数（含编译器派生）；扩展函数不得参与——import不能改变某类型`==`的语义。
 - **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object/struct/enum都必须在声明中显式列出该interface并提供合法override；字段或payload实现`ToString`不会让宿主自动获得conformance。generic nominal type若在实现体中调用类型参数值的`toString()`，必须为相应参数声明普通`ToString`上界。tuple与Unit不能声明implements列表，因而不实现`ToString`。String与基础类型由core中的intrinsic nominal声明显式adopt，String实现返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback，也不按成员同形或字段结构补齐conformance。
-- **`Hash`（哈希）**：接口`interface Hash { fun hash(): Int }`。**没有任何缺省或派生实现**；基本类型与String由核心库提供内容相关实现，其他类型显式opt-in。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。
+- **`Hash`（哈希）**：接口`interface Hash { fun hash(): Long }`。**没有任何缺省或派生实现**；基本类型与String由核心库提供内容相关实现，其他类型显式opt-in。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic
 
 ```
 struct SourceLocation(
     val file: String,
-    val line: Int,
-    val column: Int,
+    val line: Long,
+    val column: Long,
     val functionName: String,
     val typeName: String        // 不在任何类型内部时为空串
 )
@@ -1483,20 +1485,20 @@ public struct Int : ToString, Hash {
     @NoGC
     public operator fun equals(other: Int): Boolean
 
-    public override fun toString(): String = coreIntToString(this)
+    public override fun toString(): String = coreLongToString(this.toLong())
 
-    public override fun hash(): Int = coreIntHash(this)
+    public override fun hash(): Long = coreLongHash(this.toLong())
 }
 
-@Extern(name = "scoop_rt_int_to_string", abi = "scoop")
-internal fun coreIntToString(value: Int): String
+@Extern(name = "scoop_rt_long_to_string", abi = "scoop")
+internal fun coreLongToString(value: Long): String
 
-@Extern(name = "scoop_rt_int_hash", abi = "scoop")
-internal fun coreIntHash(value: Int): Int
+@Extern(name = "scoop_rt_long_hash", abi = "scoop")
+internal fun coreLongHash(value: Long): Long
 ```
 
-- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明，唯一例外是13.10封闭规定的`Ptr<T>(raw: UInt)` unsafe construction entry；
-- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。登记表可按同一契约增加其他compiler-represented value/reference type；
+- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明，唯一例外是13.10封闭规定的`Ptr<T>(raw: ULong)` unsafe construction entry；
+- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/bound及representation family；所有参数按3.2固定为invariant。`Array<T>`与`MutableArray<T>`各要求一个无bound参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
 - 生产语言只允许指定的`scoop.core` provider声明intrinsic。编译器测试可以通过实现内部的、按输入provider授权的策略绕过这一条来源检查；该能力不是源码、manifest或稳定CLI的一部分，也不放宽以下name、target、shape、signature与唯一性规则。
 
@@ -1572,7 +1574,7 @@ M23 `.slib`导出当前Cone全部extern contract；import/re-export只传播原c
 ### 13.5 `@CLayout`
 
 ```
-annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
+annotation class CLayout(val aligned: Long = 0L, val packed: Long = 0L)
 ```
 
 - 用于 struct，指定该结构体内部成员的 align/pack 规范。
@@ -1613,7 +1615,7 @@ C没有跨当前支持profile可依赖的零尺寸object ABI。C-FFI-safe classi
 
 ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
 
-定宽integer在C ABI参数、返回、extern global/TLS及`@CLayout`字段中精确映射：`Int8/16/32/64`分别为`int8_t/int16_t/int32_t/int64_t`，`UInt8/16/32/64`分别为`uint8_t/uint16_t/uint32_t/uint64_t`。transparent alias先展开；因此`Int`/`Long`都是`int64_t`而不是C的`int`/`long`/`intptr_t`，`UInt`/`ULong`都是`uint64_t`。窄integer实参/返回的寄存器extension与aggregate分类继续由M12的host C bridge按真实`stdint.h`签名处理，不能假定Scoop typed ABI恰好等于目标C ABI。
+定宽integer在C ABI参数、返回、extern global/TLS及`@CLayout`字段中精确映射：`Int8`/`Int16`/`Int`/`Long`（即`Int8`/`Int16`/`Int32`/`Int64`）分别为`int8_t`/`int16_t`/`int32_t`/`int64_t`，`UInt8`/`UInt16`/`UInt`/`ULong`（即`UInt8`/`UInt16`/`UInt32`/`UInt64`）分别为`uint8_t`/`uint16_t`/`uint32_t`/`uint64_t`。transparent alias先展开；不依据Scoop拼写把它们推断为C的`int`/`long`/`intptr_t`。窄integer实参/返回的寄存器extension与aggregate分类继续由M12的host C bridge按真实`stdint.h`签名处理，不能假定Scoop typed ABI恰好等于目标C ABI。
 
 ### 13.9 `value` / `ref` 类型约束
 
@@ -1637,7 +1639,7 @@ needValue("hello")    // 编译错误：String 不是值类型
 
 二者定义于 `scoop.core`，是 FFI 的基础辅助类型，均为值类型。
 
-当前可执行target profile要求C ABI data pointer与code pointer都恰为64位、两类null都对应内部carrier的全零位模式，并保证合法非null地址与编译器/runtime内部64位raw carrier逐bit往返；因此`Ptr`的公开`toUInt`及两种pointer value的内部表示可使用canonical 64位`UInt`。这只是target与表示契约，不新增隐式pointer/integer转换：既有`Ptr<T>(raw: UInt)`仍是显式unsafe构造，`FunPtr`则没有integer构造或转换；非null `FunPtr`只能来自本节下述合法入口。任何不满足该宽度、null表示或往返能力的target都必须在生成IR前报unsupported target；未来支持此类target必须先修订本节source surface、C ABI classifier与runtime callback token契约，不能把固定64位`UInt`静默当作另一宽度的pointer word。
+当前可执行target profile要求C ABI data pointer与code pointer都恰为64位、两类null都对应内部carrier的全零位模式，并保证合法非null地址与编译器/runtime内部64位raw carrier逐bit往返；因此`Ptr`的公开integer往返surface暂时使用canonical 64位`ULong`。内部data/code pointer仍分别使用带Raw/Code provenance的typed carrier，不是源码`ULong`值，尤其不能据此给`FunPtr`开放integer访问。这只是target与表示契约，不新增隐式pointer/integer转换：`Ptr<T>(raw: ULong)`是显式unsafe构造，`FunPtr`没有integer构造或转换；非null `FunPtr`只能来自本节下述合法入口。任何不满足该宽度、null表示或往返能力的target都必须在生成IR前报unsupported target；未来支持此类target必须另行修订本节source surface、C ABI classifier与runtime callback token契约，是否引入何种native integer以及迁移哪些surface届时逐项决定，不能把固定64位`ULong`静默当作另一宽度的pointer word。
 
 #### `Ptr<T>`
 
@@ -1648,13 +1650,13 @@ needValue("hello")    // 编译错误：String 不是值类型
 public struct Ptr<T : value> {
     public operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
-            return this.toUInt() == other.toUInt()
+            return this.toULong() == other.toULong()
         }
     }
 
     @NoGC @Unsafe
-    @Intrinsic("ptr_to_uint")
-    public fun toUInt(): UInt
+    @Intrinsic("ptr_to_ulong")
+    public fun toULong(): ULong
 
     @NoGC @Unsafe
     @Intrinsic("ptr_cast")
@@ -1666,7 +1668,7 @@ public struct Ptr<T : value> {
 
     @NoGC @Unsafe
     @Intrinsic("ptr_load_offset")
-    public fun load(offset: Int): T
+    public fun load(offset: Long): T
 
     @NoGC @Unsafe
     @Intrinsic("ptr_store")
@@ -1674,15 +1676,15 @@ public struct Ptr<T : value> {
 
     @NoGC @Unsafe
     @Intrinsic("ptr_store_offset")
-    public fun store(offset: Int, value: T)
+    public fun store(offset: Long, value: T)
 
     @NoGC @Unsafe
     @Intrinsic("ptr_plus")
-    public operator fun plus(offset: Int): Ptr<T>
+    public operator fun plus(offset: Long): Ptr<T>
 
     @NoGC @Unsafe
     @Intrinsic("ptr_minus")
-    public operator fun minus(offset: Int): Ptr<T>
+    public operator fun minus(offset: Long): Ptr<T>
 }
 
 @Unsafe
@@ -1691,8 +1693,8 @@ public fun <T : value> addressOf(v: T): Ptr<T>
 ```
 
 - `core_ptr`登记为一个以exact GC-free value pointee type参数化、以data pointer表示的compiler-represented value family；它没有源码可见field或普通primary constructor，不能被字段访问、解构或copy update。源码`T : value`只表达kind，不能证明GC-free：每个concrete `Ptr<T>` application还必须递归证明`T`为GC-free；generic template中出现`Ptr<T>`时保存并向实例化者传播该typed deferred条件，所有type argument具体化后失败即为编译错误。`equals`是普通core body；其余上述方法均为compiler intrinsic且都是unsafe function（见13.3）。按13.1的规则`@Intrinsic`通常不得与其他注解共存；此处是单独说明的例外：这些intrinsic允许与`@NoGC`/`@Unsafe`组合。
-- registry只为显式`Ptr<T>(raw: UInt)`提供一个call-shaped、`@NoGC @Unsafe`的特殊construction entry；它不是普通struct constructor，也不能由representation field合成。该entry是从integer显式制造data pointer的唯一形态，要求unsafe context及`raw != 0u`前置条件。编译期常量零直接诊断；运行期值违反该unsafe前置条件时行为未定义。它不建立隐式conversion，未对齐、越界、悬垂地址、算术结果变为零及生命周期均由unsafe调用者负责。
-- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与非ZST C object pointer算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。对ZST pointee，任意offset的物理byte displacement恒为0且所得pointer bit值不变；`load`产生该exact ZST值，`store`不写payload byte，但receiver、offset、value仍求值，且unsafe调用者仍必须保证pointer非null、满足alignment/lifetime并指向相应逻辑place。算法不得用ZST pointer值变化表达迭代进度；`Ptr<Unit>`若需要逐byte移动必须先使用语义上正确的`Ptr<UInt8>`，不能把opaque `void *`自动当byte pointer；
+- registry只为显式`Ptr<T>(raw: ULong)`提供一个call-shaped、`@NoGC @Unsafe`的特殊construction entry；它不是普通struct constructor，也不能由representation field合成。该entry是从integer显式制造data pointer的唯一形态，要求unsafe context及`raw != 0uL`前置条件。编译期常量零直接诊断；运行期值违反该unsafe前置条件时行为未定义。它不建立隐式conversion，未对齐、越界、悬垂地址、算术结果变为零及生命周期均由unsafe调用者负责。
+- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset: Long` 以**元素个数**计，其数学byte displacement为`offset`与`sizeOf<T>()`数值的乘积，与非ZST C object pointer算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。对ZST pointee，任意offset的物理byte displacement恒为0且所得pointer bit值不变；`load`产生该exact ZST值，`store`不写payload byte，但receiver、offset、value仍求值，且unsafe调用者仍必须保证pointer非null、满足alignment/lifetime并指向相应逻辑place。算法不得用ZST pointer值变化表达迭代进度；`Ptr<Unit>`若需要逐byte移动必须先使用语义上正确的`Ptr<UInt8>`，不能把opaque `void *`自动当byte pointer；
 - `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
 - **null与可空指针**：裸`Ptr<T>`没有null值，内部data-pointer carrier的全零位模式保留给`Option<Ptr<T>>.None`及inactive/zeroed storage。FFI边界上的可空data pointer必须用`Option<Ptr<T>>`表示；声明返回裸`Ptr<T>`的native函数返回null属于契约违反。布局由niche保证（见7.4）。
@@ -1703,11 +1705,11 @@ public fun <T : value> addressOf(v: T): Ptr<T>
 ```
 @NoGC
 @Intrinsic("size_of")
-public fun <T : value> sizeOf(): UInt
+public fun <T : value> sizeOf(): ULong
 
 @NoGC
 @Intrinsic("align_of")
-public fun <T : value> alignOf(): UInt
+public fun <T : value> alignOf(): ULong
 ```
 
 - 返回 `T` 的大小 / 对齐（字节数），编译期求值；ZST返回size 0和严格大于0的alignment。手工内存管理（配合 C 的 `malloc` / `free` 等）时不能把`malloc(0)`结果当成可取址ZST place，需按4.7自行提供至少1 byte且满足alignment的token。
@@ -1734,14 +1736,14 @@ public struct FunPtr<F>
 //                         int64_t (*cmp)(int64_t, int64_t))
 
 @Extern(lib = "sample", name = "compare_int")
-fun compareInt(a: Int, b: Int, cmp: FunPtr<(Int, Int) -> Int>): Int
+fun compareLong(a: Long, b: Long, cmp: FunPtr<(Long, Long) -> Long>): Long
 
 @NoGC
-fun cmp(a: Int, b: Int) = if (a > b) { 1 } else { 0 }
+fun cmp(a: Long, b: Long) = if (a > b) { 1L } else { 0L }
 
 @Unsafe
 fun caller() {
-    compareInt(10, 10, ::cmp)
+    compareLong(10L, 10L, ::cmp)
 }
 ```
 
@@ -1756,8 +1758,8 @@ Scoop ABI（见 13.8）供能识别 Scoop 类型信息并与 GC 交互的外部�
 ```
 package scoop.core.gc
 
-struct PinnedPtr<T : ref>(val raw: UInt64)
-struct GcHandle<T : ref>(val raw: UInt64)
+struct PinnedPtr<T : ref>(val raw: ULong)
+struct GcHandle<T : ref>(val raw: ULong)
 
 @Unsafe fun <T : ref> pin(v: T): PinnedPtr<T>
 @Unsafe fun <T : ref> unpin(p: PinnedPtr<T>): T
@@ -1769,7 +1771,7 @@ struct GcHandle<T : ref>(val raw: UInt64)
 - **`unpin`**：按地址清除 pin 标志并取回对象，O(1)；之后该对象可以正常参与 GC。
 - **`getGcHandle`**：获取对象的 GC handle。handle 被视为对象的引用：对象存在未释放的 handle 时不会被回收，但 GC 可能在堆上移动它。一个对象可同时存在多个 handle，全部释放后才可能被回收。
 - **`releaseGcHandle`**：释放 handle 并取回对象，不再阻止回收。
-- `PinnedPtr` 与 `GcHandle` 是不同的类型，混用（如 `unpin` 一个 `GcHandle`）是编译错误。二者都是只含一个 `UInt64` 字段的 GC-free 值类型，ABI 与 `UInt64` 一致，可以直接出现在 C ABI 签名中（13.4 的 C-FFI-safe 约束）。
+- `PinnedPtr` 与 `GcHandle` 是不同的类型，混用（如 `unpin` 一个 `GcHandle`）是编译错误。二者都是只含一个 `ULong`（即`UInt64`）字段的 GC-free 值类型，ABI 与 `ULong` 一致，可以直接出现在 C ABI 签名中（13.4 的 C-FFI-safe 约束）。
 - 取舍：短期持有并需要裸指针时用 `pin`（O(1)，但阻碍 GC 移动）；长期保活且允许移动时用 `GcHandle`。
 - Scoop ABI extern 的同步调用期间若只借用 direct ref，调用方不需要显式 pin 或 handle；被调方需要跨 safepoint或调用结束保存引用时才使用 14.3 的 native root、pin 或 handle机制。
 - handle 取回对象时类型 `T` 来自 handle 的类型参数，编译器无法校验其真实性——这层正确性由 runtime 作者保证。
@@ -1820,7 +1822,7 @@ struct ForeignCallback<F>(
 @Intrinsic("foreign_callback_register")
 fun <F> foreignCallback(
     callback: Any,
-    contextIndex: Int,
+    contextIndex: Long,
     mode: ForeignCallbackMode
 ): ForeignCallback<F>
 
