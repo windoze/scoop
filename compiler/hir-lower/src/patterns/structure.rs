@@ -70,11 +70,43 @@ impl Lowerer {
                     };
                     Some(PatternTarget::Variant(application, variant))
                 }
-                Type::Struct(application)
-                    if self.structs[self.struct_applications[application].template].name
-                        == name.text =>
-                {
-                    Some(PatternTarget::Struct(application))
+                Type::Struct(application) => {
+                    let struct_id = self.struct_applications[application].template;
+                    if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                        if target == crate::NominalTarget::Struct(struct_id) {
+                            return Some(PatternTarget::Struct(application));
+                        }
+                        let found = self.type_name(matched_ty);
+                        self.error(
+                            name.span,
+                            format!(
+                                "pattern `{}` does not match a subject of type {found}",
+                                name.text
+                            ),
+                        );
+                        return None;
+                    }
+                    if self.structs[struct_id].name == name.text {
+                        return Some(PatternTarget::Struct(application));
+                    }
+                    if self.source_type_alias_named(&name.text).is_some() {
+                        let target = self.resolve_type_alias_reference(name, false)?;
+                        if self.types_equal(target, matched_ty) {
+                            let Type::Struct(application) = self.types[target] else {
+                                unreachable!("a type equal to a struct has struct representation")
+                            };
+                            return Some(PatternTarget::Struct(application));
+                        }
+                    }
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        name.span,
+                        format!(
+                            "pattern `{}` does not match a subject of type {found}",
+                            name.text
+                        ),
+                    );
+                    None
                 }
                 _ => {
                     let found = self.type_name(matched_ty);
@@ -89,8 +121,42 @@ impl Lowerer {
                 }
             },
             [enum_name, variant_name] => {
-                let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
-                    self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
+                let lexical_target = self.lexical_nested_nominal_target(&enum_name.text);
+                let (enum_id, required_type) = if let Some(target) = lexical_target {
+                    let crate::NominalTarget::Enum(enum_id) = target else {
+                        self.error(
+                            enum_name.span,
+                            format!("type `{}` does not name an enum", enum_name.text),
+                        );
+                        return None;
+                    };
+                    (enum_id, None)
+                } else if self.source_type_alias_named(&enum_name.text).is_some() {
+                    let target = self.resolve_type_alias_reference(enum_name, false)?;
+                    let Type::Enum(application) = self.types[target] else {
+                        self.error(
+                            enum_name.span,
+                            format!("typealias `{}` does not name an enum", enum_name.text),
+                        );
+                        return None;
+                    };
+                    (self.enum_applications[application].template, Some(target))
+                } else {
+                    let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
+                        self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
+                        return None;
+                    };
+                    (enum_id, None)
+                };
+                if required_type.is_some_and(|required| !self.types_equal(required, matched_ty)) {
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        span,
+                        format!(
+                            "pattern `{}.{}` does not match a subject of type {found}",
+                            enum_name.text, variant_name.text
+                        ),
+                    );
                     return None;
                 };
                 let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {

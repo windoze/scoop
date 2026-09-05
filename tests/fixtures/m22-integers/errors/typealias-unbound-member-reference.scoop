@@ -1,0 +1,9 @@
+class Mapper {
+    fun map(value: Int): Int = value
+}
+
+typealias Alias = Mapper
+
+fun main() {
+    val operation = Alias::map
+}

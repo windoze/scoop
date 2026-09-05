@@ -234,40 +234,68 @@ impl Lowerer {
             // `Name(args...)` where the parser already knows `Name` is
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
-                Constructor::Struct { struct_id, ty } => {
+                Constructor::Struct {
+                    struct_id,
+                    ty,
+                    alias,
+                } => {
                     let call = CallSite {
                         type_args: &[],
                         args,
                         span: *span,
                     };
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
                     if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
                         self.lower_ffi_struct_init(struct_id, call, sink, expected)
                     } else {
                         self.lower_struct_init(struct_id, ty, call, sink, expected)
                     }
                 }
-                Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+                Constructor::Variant {
                     enum_id,
                     variant,
-                    CallSite {
-                        type_args: &[],
-                        args,
-                        span: *span,
-                    },
-                    sink,
-                    expected,
-                ),
-                Constructor::Class { class_id } => self.lower_class_construct(
-                    class_id,
-                    CallSite {
-                        type_args: &[],
-                        args,
-                        span: *span,
-                    },
-                    sink,
-                    expected,
-                ),
+                    alias,
+                } => {
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
+                    self.lower_variant_construct(
+                        enum_id,
+                        variant,
+                        CallSite {
+                            type_args: &[],
+                            args,
+                            span: *span,
+                        },
+                        sink,
+                        expected,
+                    )
+                }
+                Constructor::Class { class_id, alias } => {
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
+                    self.lower_class_construct(
+                        class_id,
+                        CallSite {
+                            type_args: &[],
+                            args,
+                            span: *span,
+                        },
+                        sink,
+                        expected,
+                    )
+                }
                 Constructor::Unmatched => {
+                    if self.lexical_nested_nominal_target(&name.text).is_none()
+                        && self.source_type_alias_named(&name.text).is_some()
+                    {
+                        self.resolve_type_alias_reference(name, false)?;
+                        self.error(
+                            name.span,
+                            format!(
+                                "typealias `{}` does not name a constructible type",
+                                name.text
+                            ),
+                        );
+                        return None;
+                    }
                     let object = self
                         .lexical_nested_nominal_target(&name.text)
                         .or_else(|| self.top_level_nominal_target(&name.text))
@@ -456,13 +484,25 @@ enum Constructor {
     Variant {
         enum_id: hir::EnumId,
         variant: u32,
+        alias: Option<AliasExpansion>,
     },
     Struct {
         struct_id: hir::StructId,
         ty: TypeId,
+        alias: Option<AliasExpansion>,
     },
     Class {
         class_id: hir::ClassId,
+        alias: Option<AliasExpansion>,
     },
     Unmatched,
+}
+
+/// Source-only information retained while an expression qualifier is being
+/// lowered. The target is already the fully expanded type; only the spelling
+/// is kept long enough to diagnose attempts to apply type arguments twice.
+#[derive(Clone)]
+struct AliasExpansion {
+    name: ast::Ident,
+    target: TypeId,
 }

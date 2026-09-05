@@ -90,6 +90,7 @@
 //! than a call-site intrinsic-name special case. `gcCollect` / `gcStats`
 //! are ordinary test-only intrinsics.
 
+mod aliases;
 mod annotations;
 mod argument_materialization;
 mod call_resolution;
@@ -334,6 +335,12 @@ pub(crate) struct Lowerer {
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
     pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
+    /// Resolver-only alias declarations. Their ids and resolution state never
+    /// cross the Export HIR boundary.
+    pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) source_type_aliases_by_name: HashMap<String, aliases::SourceTypeAliasId>,
+    pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
+    pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.

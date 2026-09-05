@@ -137,6 +137,10 @@ impl Parser {
                 self.peek().span,
                 "`for` loops are not supported yet (milestone M5)",
             )),
+            TokenKind::Ident(text) if text == "typealias" => Err(Diagnostic::at(
+                self.peek().span,
+                "local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
+            )),
             // `try` / `catch` / `finally` / `throw` are contextual: they
             // stay identifiers everywhere except statement position.
             TokenKind::Ident(text) if text == "try" => self.parse_try(),

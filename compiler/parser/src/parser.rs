@@ -120,7 +120,21 @@ impl Parser {
             TokenKind::Ident(text) => {
                 matches!(
                     text.as_str(),
-                    "open" | "abstract" | "sealed" | "object" | "operator"
+                    "public"
+                        | "internal"
+                        | "private"
+                        | "protected"
+                        | "const"
+                        | "lateinit"
+                        | "inner"
+                        | "open"
+                        | "final"
+                        | "abstract"
+                        | "override"
+                        | "sealed"
+                        | "object"
+                        | "operator"
+                        | "typealias"
                 )
             }
             _ => false,

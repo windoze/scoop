@@ -33,10 +33,12 @@ enum ReferenceFailureKind {
 
 impl Lowerer {
     pub(super) fn is_declared_type_name(&self, name: &str) -> bool {
-        self.classes_by_name.contains_key(name)
+        self.lexical_nested_nominal_target(name).is_some()
+            || self.classes_by_name.contains_key(name)
             || self.interfaces_by_name.contains_key(name)
             || self.structs_by_name.contains_key(name)
             || self.enums_by_name.contains_key(name)
+            || (self.source_type_alias_named(name).is_some() && self.type_alias_is_accessible(name))
     }
 
     pub(super) fn expected_function_signature(

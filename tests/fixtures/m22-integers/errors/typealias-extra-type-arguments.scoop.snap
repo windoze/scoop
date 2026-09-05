@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-extra-type-arguments.scoop:3:20: error: typealias `Count` is not generic

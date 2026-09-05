@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-non-constructible.scoop:4:5: error: typealias `Pair` does not name a constructible type

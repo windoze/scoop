@@ -165,6 +165,13 @@ impl Lowerer {
                         .then_some(declaration.singleton_value)
                 })
                 .collect(),
+            type_aliases: self
+                .type_aliases
+                .iter()
+                .filter_map(|(id, alias)| {
+                    Self::declaration_is_exported(&alias.access).then_some(id)
+                })
+                .collect(),
         }
     }
 
@@ -875,7 +882,7 @@ impl Lowerer {
         result
     }
 
-    fn signature_exposure_witnesses(
+    pub(crate) fn signature_exposure_witnesses(
         &mut self,
         access: &hir::DeclarationAccess,
         signature_types: &[hir::TypeId],

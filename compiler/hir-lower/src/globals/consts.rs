@@ -336,7 +336,14 @@ impl Lowerer {
                 let ast::FieldSelector::Name(name) = &access.selector else {
                     unreachable!("the match guard selected a named field")
                 };
-                let Some(target) = self.nominal_qualifier_target(&access.receiver) else {
+                let alias_target = match self.resolve_direct_type_alias_qualifier(&access.receiver)
+                {
+                    Ok(alias) => alias.map(|(_, target)| target),
+                    Err(()) => return None,
+                };
+                let target =
+                    alias_target.or_else(|| self.nominal_qualifier_target(&access.receiver));
+                let Some(target) = target else {
                     self.error(
                         access.span,
                         "const initializer qualifiers must name an object or a companion host"

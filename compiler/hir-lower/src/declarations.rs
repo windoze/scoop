@@ -33,9 +33,9 @@ impl Lowerer {
         None
     }
 
-    /// Whether a type name is already taken in the shared type
-    /// namespace (structs, enums, classes, interfaces). Returns the
-    /// kind of the existing declaration for diagnostics.
+    /// Whether a name is already taken in the shared type namespace. This
+    /// includes compiler built-ins, top-level aliases and every nominal kind.
+    /// Returns the kind of the existing declaration for diagnostics.
     pub(super) fn type_namespace_conflict(
         &self,
         owner: Option<Owner>,
@@ -56,7 +56,11 @@ impl Lowerer {
         if owner.is_some() {
             return None;
         }
-        if self.structs_by_name.contains_key(name) {
+        if matches!(name, "Unit" | "Any") {
+            Some("a built-in type")
+        } else if self.source_type_aliases_by_name.contains_key(name) {
+            Some("a typealias")
+        } else if self.structs_by_name.contains_key(name) {
             Some("a struct")
         } else if self.enums_by_name.contains_key(name) {
             Some("an enum")

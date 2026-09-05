@@ -1,0 +1,6 @@
+typealias Count = Int
+
+fun select(value: Int): Int = value
+fun select(value: Count): Int = value
+
+fun main() {}

@@ -347,6 +347,11 @@ impl Lowerer {
                 })
             {
                 format!("property `{}` is not accessible here", call.callee.text)
+            } else if self.lexical_nested_nominal_target(&name).is_none()
+                && self.source_type_alias_named(&name).is_some()
+                && self.type_alias_is_accessible(&name)
+            {
+                format!("typealias `{name}` does not name a constructible type")
             } else {
                 format!("unknown function `{}`", call.callee.text)
             };

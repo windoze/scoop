@@ -49,6 +49,7 @@ pub type ExportDefaultExprId = Idx<ExportDefaultExpr>;
 pub type ExportDefaultSourceId = Idx<ExportDefaultSource>;
 pub type ExportVarargParameterTypeId = Idx<ExportVarargParameterType>;
 pub type SourceContextId = Idx<SourceContext>;
+pub type ExportTypeAliasId = Idx<TypeAliasDecl>;
 
 /// Export-side identity of one class virtual-dispatch family. Every override
 /// in the family carries the same id; overloads always receive distinct ids.

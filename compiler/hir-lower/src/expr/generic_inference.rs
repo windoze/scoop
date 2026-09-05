@@ -360,6 +360,18 @@ impl Lowerer {
         name: &ast::Ident,
         args: &[ast::CallArgument],
     ) -> bool {
+        let qualifier = name
+            .text
+            .split_once('.')
+            .map_or(name.text.as_str(), |(qualifier, _)| qualifier);
+        // A non-generic alias already fixes the complete target application.
+        // Invalid/inaccessible aliases are also lowered immediately so their
+        // focused diagnostic is not hidden behind contextual postponement.
+        if self.lexical_nested_nominal_target(qualifier).is_none()
+            && self.source_type_alias_named(qualifier).is_some()
+        {
+            return false;
+        }
         if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
             && self.array_class_kind(class).is_some()
         {
@@ -393,6 +405,13 @@ impl Lowerer {
             return false;
         };
         if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
+        {
+            return false;
+        }
+        if self
+            .lexical_nested_nominal_target(&enum_name.text)
+            .is_none()
+            && self.source_type_alias_named(&enum_name.text).is_some()
         {
             return false;
         }
@@ -513,6 +532,15 @@ impl Lowerer {
             return None;
         };
         if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
+        {
+            return None;
+        }
+        // An alias target is a complete application, so even a generic enum's
+        // unit variant no longer needs an expected type to infer owner args.
+        if self
+            .lexical_nested_nominal_target(&enum_name.text)
+            .is_none()
+            && self.source_type_alias_named(&enum_name.text).is_some()
         {
             return None;
         }

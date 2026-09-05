@@ -28,6 +28,7 @@ mod m21_objects;
 mod m21_properties;
 mod m21_top_level_storage;
 mod m21_visibility;
+mod m22_aliases;
 mod m3;
 mod m4;
 mod m5;

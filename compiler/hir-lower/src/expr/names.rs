@@ -139,6 +139,16 @@ impl Lowerer {
                 );
                 return None;
             }
+            if self.lexical_nested_nominal_target(&name.text).is_none()
+                && self.source_type_alias_named(&name.text).is_some()
+            {
+                self.resolve_type_alias_reference(name, false)?;
+                self.error(
+                    name.span,
+                    format!("typealias `{}` is a type, not a value", name.text),
+                );
+                return None;
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };

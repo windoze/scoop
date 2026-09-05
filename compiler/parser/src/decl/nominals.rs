@@ -424,6 +424,9 @@ impl Parser {
                     self.peek().span,
                     "constructors are not allowed in interfaces",
                 )),
+                TokenKind::Ident(text) if text == "typealias" => {
+                    self.unsupported_nested_type_alias()
+                }
                 _ => Err(Diagnostic::at(
                     self.peek().span,
                     "expected an interface function, property, nested declaration, or companion object",
@@ -558,6 +561,7 @@ impl Parser {
                     self.parse_secondary_constructor(prefix.annotations, prefix.visibility)
                 })
                 .map(ClassMember::SecondaryConstructor),
+            TokenKind::Ident(text) if text == "typealias" => self.unsupported_nested_type_alias(),
             TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => self
                 .parse_nested_nominal(prefix)
                 .map(Box::new)
@@ -815,6 +819,9 @@ impl Parser {
                         self.parse_secondary_constructor(prefix.annotations, prefix.visibility)
                     })
                     .map(StructMember::SecondaryConstructor),
+                TokenKind::Ident(text) if text == "typealias" => {
+                    self.unsupported_nested_type_alias()
+                }
                 TokenKind::Val | TokenKind::Var => self
                     .parse_property(prefix, PropertyContext::ValueType)
                     .map(Box::new)
@@ -1132,6 +1139,7 @@ impl Parser {
                     ));
                 }
                 modifiers.is_override = true;
+                modifiers.override_span = Some(token.span);
             } else if let Some(modality) = modality {
                 if let Some(existing) = modifiers.method_modifier {
                     let existing = match existing {

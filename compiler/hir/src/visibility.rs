@@ -119,6 +119,7 @@ pub struct PublicSemanticSurface {
     pub object_types: Vec<crate::ObjectTypeId>,
     pub companion_relations: Vec<crate::CompanionRelationId>,
     pub singleton_values: Vec<crate::SingletonValueId>,
+    pub type_aliases: Vec<crate::ExportTypeAliasId>,
 }
 
 fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u32) {
@@ -208,6 +209,7 @@ pub struct LookupAccessWitness {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AccessDeclaration {
     Function(FunctionId),
+    TypeAlias(crate::ExportTypeAliasId),
     Class(ClassId),
     Interface(InterfaceId),
     Struct(StructId),

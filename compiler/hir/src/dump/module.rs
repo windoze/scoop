@@ -9,6 +9,13 @@ pub fn dump(module: &Module) -> String {
         .iter()
         .map(|(_, declaration)| declaration.backing_class)
         .collect::<std::collections::HashSet<_>>();
+    for (_, alias) in module.type_aliases.iter() {
+        out.push_str(&format!(
+            "  typealias {} = {}\n",
+            alias.name,
+            type_name(module, alias.target)
+        ));
+    }
     for (id, decl) in module.structs.iter() {
         if id == module.ffi_core.ptr
             || id == module.ffi_core.fun_ptr

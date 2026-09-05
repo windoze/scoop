@@ -140,12 +140,24 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<TypeId> {
         let first = path.first().expect("a qualified type path is non-empty");
-        let Some(mut target) = self
-            .top_level_nominal_target(&first.text)
-            .or_else(|| self.lexical_nested_nominal_target(&first.text))
-        else {
-            self.error(first.span, format!("unknown type `{}`", first.text));
-            return None;
+        let mut target = if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
+            target
+        } else if self.source_type_alias_named(&first.text).is_some() {
+            let alias = self.resolve_type_alias_reference(first, false)?;
+            let Some(target) = self.nominal_target_for_type(alias) else {
+                self.error(
+                    first.span,
+                    format!("typealias `{}` does not name a type qualifier", first.text),
+                );
+                return None;
+            };
+            target
+        } else {
+            let Some(target) = self.top_level_nominal_target(&first.text) else {
+                self.error(first.span, format!("unknown type `{}`", first.text));
+                return None;
+            };
+            target
         };
         for segment in &path[1..] {
             let owner = target.owner();
@@ -236,6 +248,9 @@ impl Lowerer {
                 if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
+                }
+                if self.source_type_alias_named(&name.text).is_some() {
+                    return self.resolve_type_alias_reference(name, true);
                 }
                 // Generic structs (M9, spec 3.2).
                 if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
@@ -456,6 +471,9 @@ impl Lowerer {
                         name.span,
                         &name.text,
                     );
+                }
+                if self.source_type_alias_named(&name.text).is_some() {
+                    return self.resolve_type_alias_reference(name, false);
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),

@@ -443,6 +443,7 @@ impl Harness {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: Arena::new(),
+            type_aliases: Arena::new(),
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,

@@ -64,6 +64,9 @@ pub struct Module {
     /// Hidden effective-delegate storage, separate from both logical
     /// properties and the physical field/global identity it occupies.
     pub delegate_storages: Arena<DelegateStorage>,
+    /// Top-level transparent aliases exported as source API. Alias identities
+    /// are deliberately absent from `types` and LocalConcrete HIR.
+    pub type_aliases: Arena<TypeAliasDecl>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.

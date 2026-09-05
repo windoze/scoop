@@ -7,6 +7,10 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let direct_alias = match self.resolve_direct_alias_qualifier(&access.receiver) {
+            Ok(alias) => alias,
+            Err(()) => return None,
+        };
         // A qualified nested object is a value only at the final path
         // component. Resolving the owner chain itself is structural and must
         // not initialize any outer object.
@@ -25,11 +29,17 @@ impl Lowerer {
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).
-        let qualifier = self.nominal_qualifier_target(&access.receiver);
+        let qualifier = direct_alias
+            .as_ref()
+            .map(|(_, target)| *target)
+            .or_else(|| self.nominal_qualifier_target(&access.receiver));
         if let (Some(crate::NominalTarget::Enum(enum_id)), ast::FieldSelector::Name(name)) =
             (qualifier, &access.selector)
             && self.find_variant(enum_id, &name.text).is_some()
         {
+            let expected = direct_alias
+                .as_ref()
+                .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if let (Some(qualifier), ast::FieldSelector::Name(name)) = (qualifier, &access.selector)
@@ -50,6 +60,9 @@ impl Lowerer {
             }
         }
         if let Some(crate::NominalTarget::Enum(enum_id)) = qualifier {
+            let expected = direct_alias
+                .as_ref()
+                .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if matches!(&*access.receiver, ast::Expr::This { .. })

@@ -154,18 +154,30 @@ impl Lowerer {
             }
         }
         match self.classify_constructor(&call.callee)? {
-            Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+            Constructor::Variant {
                 enum_id,
                 variant,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-            ),
-            Constructor::Struct { struct_id, ty } => {
+                alias,
+            } => {
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
+                self.lower_variant_construct(
+                    enum_id,
+                    variant,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    sink,
+                    expected,
+                )
+            }
+            Constructor::Struct {
+                struct_id,
+                ty,
+                alias,
+            } => {
                 if Some(struct_id) == self.ffi_foreign_callback {
                     self.error(
                         call.span,
@@ -174,6 +186,8 @@ impl Lowerer {
                     );
                     return None;
                 }
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
                 let site = CallSite {
                     type_args: &call.type_args,
                     args: &call.args,
@@ -185,16 +199,24 @@ impl Lowerer {
                     self.lower_struct_init(struct_id, ty, site, sink, expected)
                 }
             }
-            Constructor::Class { class_id } => self.lower_class_construct(
-                class_id,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-            ),
+            Constructor::Class { class_id, alias } => {
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
+                if let Some(target_kind) = self.array_class_kind(class_id) {
+                    self.lower_array_conversion(call, sink, class_id, target_kind, expected)
+                } else {
+                    self.lower_class_construct(
+                        class_id,
+                        CallSite {
+                            type_args: &call.type_args,
+                            args: &call.args,
+                            span: call.span,
+                        },
+                        sink,
+                        expected,
+                    )
+                }
+            }
             Constructor::Unmatched => {
                 let object = self
                     .lexical_nested_nominal_target(&call.callee.text)

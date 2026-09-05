@@ -12,13 +12,12 @@ impl Lowerer {
         let user_file_index = files.len() - 1;
         self.user_file_index = user_file_index;
 
-        // Pass 1: declare structs, enums, classes, interfaces and
-        // functions across all files (core first), so bodies and field
-        // types resolve regardless of declaration order. Structs,
-        // enums, classes and interfaces share the *type* namespace and
-        // must not collide; functions occupy a separate namespace where
-        // one name may collect several overloads (M7), and member
-        // functions live in per-owner namespaces.
+        // Pass 1: declare aliases, nominals and functions across all files
+        // (core first), so bodies and field types resolve regardless of
+        // declaration order. Aliases and top-level nominals share the type
+        // namespace and must not collide; functions occupy a separate
+        // namespace where one name may collect several overloads (M7), and
+        // member functions live in per-owner namespaces.
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
@@ -80,6 +79,9 @@ impl Lowerer {
                             None,
                         );
                     }
+                    ast::Decl::TypeAlias(decl) => {
+                        self.declare_type_alias(decl, file_index);
+                    }
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, &mut pending_functions, file_index)
                     }
@@ -124,6 +126,19 @@ impl Lowerer {
         for (id, declaration, file) in root_objects {
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
+
+        // Alias targets may mention any declaration in the Cone, including a
+        // later alias, `Option<T>` through nullable syntax, and the special
+        // pointer families. Establish those source identities before the
+        // alias graph is expanded. Application bounds are checked again once
+        // every nominal constraint is complete below.
+        self.ffi_ptr = self.require_core_struct("Ptr", files);
+        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
+        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
+        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
+        self.validate_option_enum(files);
+        self.resolve_all_type_aliases();
 
         // Type-parameter names and arities are declared in pass 1. Resolve
         // their ordered constraints only after every nominal name is visible,
@@ -201,15 +216,10 @@ impl Lowerer {
         self.current_owner = None;
         self.check_interface_inheritance_cycles(&pending_interfaces);
 
-        self.ffi_ptr = self.require_core_struct("Ptr", files);
-        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
-        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
-        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
-        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
-
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
-        self.validate_option_enum(files);
+        // It was validated before alias expansion above because an alias
+        // target may itself contain nullable syntax.
         // The core library's `Throwable` is the root every `throw`
         // operand and catch parameter type is checked against (spec
         // 11.7).
@@ -257,6 +267,12 @@ impl Lowerer {
             self.resolve_object(id, decl);
         }
         self.current_owner = None;
+
+        // Every nominal constraint and inheritance edge is now complete, so
+        // fixed alias applications can prove both kind and nominal bounds.
+        // Intrinsic owner lookup is also total, which lets exposure witnesses
+        // retain the real core declaration domain for primitive targets.
+        self.validate_type_alias_targets();
 
         // Pass 2.5: resolve function and method signatures, so calls
         // in any body see parameter and return types regardless of
@@ -470,6 +486,7 @@ impl Lowerer {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: self.delegate_storages,
+            type_aliases: self.type_aliases,
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,

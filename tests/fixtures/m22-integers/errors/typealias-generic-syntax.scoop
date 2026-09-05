@@ -1,0 +1,3 @@
+typealias Boxed<T> = Array<T>
+
+fun main() {}

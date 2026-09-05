@@ -112,6 +112,7 @@ fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
         Decl::Class(decl) => &mut decl.type_params,
         Decl::Object(_) => panic!("objects have no type parameters"),
         Decl::Global(_) => panic!("globals have no type parameters"),
+        Decl::TypeAlias(_) => panic!("M22 typealiases have no type parameters"),
     };
     type_params[0].inline_bound = Some(ast::TypeBound::Kind(kind));
     decl

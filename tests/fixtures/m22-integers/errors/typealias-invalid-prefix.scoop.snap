@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-invalid-prefix.scoop:1:1: error: annotations are not allowed on typealias declarations
+m22-integers/errors/typealias-invalid-prefix.scoop:3:1: error: only visibility modifiers are allowed on typealias declarations

@@ -75,6 +75,9 @@ impl Parser {
                         self.peek().span,
                         "secondary constructors are not allowed in enums",
                     )),
+                    TokenKind::Ident(text) if text == "typealias" => {
+                        self.unsupported_nested_type_alias()
+                    }
                     _ => Err(Diagnostic::at(
                         self.peek().span,
                         "expected an enum property, function, nested declaration, or companion object",
@@ -149,6 +152,7 @@ impl Parser {
                     | "companion"
                     | "init"
                     | "constructor"
+                    | "typealias"
             ),
             _ => false,
         }
