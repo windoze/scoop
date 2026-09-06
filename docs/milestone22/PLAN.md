@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.52
+版本：0.61
 
 最后更新：2026-09-07
 
@@ -43,7 +43,7 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 进行中 | 4.5 提交 `8ba3320b`；4.6 正并行冻结规范、实现接点与测试矩阵，审计收敛前不写实现、不跑测试 |
+| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 完成待提交 | 4.5 提交 `8ba3320b`；4.6 spec-first 提交 `fc381075`，实现、定向门、分段一次遍历的 full fixture refresh 与 snapshot 审计均已通过 |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
@@ -192,7 +192,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.6 四种 range 与整数循环组合
 
-当前执行状态：进行中。三路只读审计已全部收口；先提交 spec-first 修订，再一次性落地普通 core 实现与完整测试批。range、iterator 与 `IllegalArgumentException` 全部由普通 core 源码实现，不增加 runtime ABI、compiler `RangeCore`、LIR 专用指令或按 type name 分支；runtime spec 无需修改。实现只改 `types.scoop`、新增 `ranges.scoop`、补 `throwable.scoop`，其余 production compiler 不变。
+当前执行状态：完成待提交。spec-first 修订已提交为 `fc381075`；普通 core、parser/HIR 定向测试、fixture/codegen 验收三批均已落地并完成三路静态交叉审查。格式化、受影响 crate clippy、parser/HIR 3 项定向门与 codegen overflow-flag 门均已通过；full fixture refresh 在首段暴露组合 fixture 的 visibility 问题后，仅从失败路径继续到末尾，两段合起来对排序后的 fixture 集合完成一次逻辑遍历且全绿。临时路径筛选已立即撤除；新 range、M22 组合链与既有 snapshot 漂移审计均无 blocker，不重复 replay。
 
 1. 在 core 源码中加入独立 nominal `IntRange`、`UIntRange`、`LongRange`、`ULongRange` 及对应 iterator。
 2. 补齐 closed / open / `until` / `downTo` / `step` / `contains`，计数器始终使用 element exact integer kind。
@@ -204,7 +204,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 8. 验证批固定为：静态清单归零后一次 `cargo fmt --all`；受影响 crate 一次 all-target clippy；parser 若无生产修改则不重跑；HIR/core 定向测试只运行一批；全部稳定后只运行一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures`。任何失败只集中修复并重跑失败门，不重跑已通过门；本切片不运行 workspace suite。
 9. parser 只补一个 `for` header + `..<` / `until` / `downTo` + `step` / membership 的组合 AST 用例；HIR 用两个表驱动用例一次锁定四种 nominal surface、八种 owner 映射、窄整数扩展及 exact target；MIR/LIR 不增加 range 专用节点或重复 synthetic 单测。
 10. codegen 只把既有 wrapping `add/sub/mul` 无 `nsw` / `nuw` 断言扩到 s32/u32/s64/u64；signed/unsigned compare、safe remainder 与 integer conversion 复用现有覆盖。
-11. full-pipeline 使用一个独立 `m22-ranges/semantics.scoop` 覆盖四类 range 的普通语义、完整端点与非法 step；一个汇总 negative fixture 锁定 constructor visibility、nominal 不可互换、mixed endpoint 与错误 step/contains exact type。suspend + moving-GC 直接扩已有 stress 白名单中的 `m22-iteration/combined.scoop`，不增加第二个慢 stress 程序。
+11. full-pipeline 使用一个独立 `m22-ranges/semantics.scoop` 覆盖四类 range 的普通语义、完整端点与非法 step；一个汇总 negative fixture 锁定 constructor visibility、nominal 不可互换、mixed endpoint 与错误 step/contains exact type。suspend + moving-GC 直接扩已有 stress 白名单中的 `m22-iteration/combined.scoop`，并在同一程序内提前满足 4.7 的 fixed-width range → for destructuring → recursive when → struct copy update → try/finally continue/break → suspend/moving-GC 组合门，不增加第二个慢 stress 程序，也不为 4.7 再刷新 fixture。
 12. 唯一验证命令批为：`cargo fmt --all`；`cargo clippy -p scoop-parser -p scoop-hir-lower -p scoop-codegen --all-targets -- -D warnings`；`cargo test -p scoop-parser -p scoop-hir-lower m22_range`；既有 codegen overflow-flag 用例；最后一次 fixture snapshot refresh。新/改 snapshot 完整审计，其余 snapshot 只做 core 插入与 ID 顺延归一化审计；不再 replay fixture、不运行 workspace clippy/test。
 13. `ranges.scoop` 的四个 range 保存 exact `first/bound/stride` 与 `descending/inclusive`，四个 iterator 保存 exact `current/bound/stride`、方向/开闭与 `hasNext`；不做 endpoint±1、不保存长度。signed distance 先把有序端点 bit-preserving 转为同宽 unsigned，再以方向对应的 unsigned subtraction 与 remainder 判断；只有 `stride <= distance`（闭）或 `stride < distance`（开）时才更新 current。
 14. `IllegalArgumentException` 是普通 public `Exception` 子类且不进入 `CompilerExceptionCore`；32 个 owner member 必须写回八个 nominal struct，窄 owner 在 body 内显式 `toInt32()` / `toUInt32()`，不能用 extension、隐式转换或 generic numeric 抽象替代。
@@ -295,3 +295,12 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.6 测试审计收口：只补 1 个 parser 组合 AST、2 个 HIR 表驱动测试，并扩既有 codegen 无 overflow-flag 断言；range 不穿越为专用 MIR/LIR 节点，因此不造重复 synthetic suite。端到端新增一个 semantics 与一个汇总 negative，suspend/moving-GC 复用现有 `m22-iteration/combined.scoop`。fixture harness 没有路径过滤，故必须等实现、测试与静态审查全部稳定后才运行唯一一次完整 refresh；本切片不运行 workspace suite。
 - 2026-09-07：4.6 实现接点审计收口，无 compiler production blocker。实现面严格收敛为 `types.scoop` 的八 owner × 四 member、新 `ranges.scoop` 的四 range / 四 iterator，以及 `throwable.scoop` 的普通异常。signed 全域统一以同宽 unsigned distance 做 contains/终止，open range 不做 endpoint−1，更新 current 前先证明 stride 未越界。三路清单现已冻结；先完成独立 spec-first 提交，随后才并行写实现与测试，期间不运行验证。
 - 2026-09-07：4.6 spec-first 最终复核无 blocker；补充冻结五种成功构造路径均产生 fresh range identity（含空 range 与 `step`，结果不与 receiver 同一引用）。语言、实现、设计与既有 runtime 条款现一致；提交前只执行文档 diff / whitespace 门，不运行代码 suite。
+- 2026-09-07：完成并提交 4.6 spec-first 修订 `fc381075`；只运行 `git diff --check`，未运行代码测试。随后把普通 core、parser/HIR 定向测试、fixture/codegen 验收拆成三个无重叠文件批并行实现；所有批次和静态交叉审查完成前继续不运行 fmt、build、test 或 snapshot refresh。
+- 2026-09-07：按批量验证纪律把 4.7 的最终跨特性组合门前移到本批已有的 `m22-iteration/combined.scoop`，与 range suspend/moving-GC 扩展共同落地；不新增第二个 stress 程序。这样 4.6 的唯一 fixture refresh 同时产出 M22 组合 golden，后续若静态收口不再改行为则不重复运行完整 fixture。
+- 2026-09-07：4.6 三个实现/测试批与三路交叉静态审查全部收口。终审在任何验证前一次性发现并修正 5 处当前 parser 不支持的 `when (val ...)`、1 处普通 `if` 缺 block，以及空 range 构造/step 的 fresh identity 覆盖；core 全域算术、32 owner member、HIR builder/API、negative 隔离、有限输出与两次 suspend/moving-GC 时序复核均无 blocker。现在才启动一次 fmt、一次受影响 clippy 与整批定向测试。
+- 2026-09-07：统一 `cargo fmt --all` 已完成。首次受影响 crate clippy 只暴露两处新 Rust 测试的机械编译问题：对非 `Copy` 的 `LirType` 使用数组重复表达式，以及 HIR 断言 helper 超过七参数 lint；现已成批改为显式三个 type 与组合 modifier 参数，只重跑 clippy 门，不重复格式化或启动其他测试。
+- 2026-09-07：只重跑 clippy 失败门后，`scoop-parser` / `scoop-hir-lower` / `scoop-codegen` all-target clippy 全绿。随后一次运行 parser/HIR `m22_range` 定向批，HIR 2/2、parser 1/1；codegen 只运行扩宽后的 s32/u32/s64/u64 overflow-flag 用例，1/1。下一步执行本切片唯一一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures`，不再运行已通过门或 workspace suite。
+- 2026-09-07：首次 full fixture refresh 在 393.83 秒后只于改动的 `m22-iteration/combined.scoop` 失败；此前路径已完成 snapshot 更新。单文件 `scoopc build` 定位为新增 Iterator/Iterable 的 public generic slot 暴露 fixture-internal `Entry<Node>`；helper owner 收窄为 `internal` 后 slot contract 仍要求 exact type 公开，因此同时把 `Entry` / `Node` 明确为 `public`。继续只重跑该单文件定向编译，确认后再重跑失败的 fixture 门；不重跑 fmt、clippy、parser/HIR/codegen 或 workspace suite。
+- 2026-09-07：修正 visibility 后，单文件定向门全部通过：组合 fixture 编译成功，ordinary 与 `SCOOP_GC_STRESS_MOVE=1` 均退出 0 且输出一致；range semantics 单文件编译/运行成功，完整域序列、粘滞耗尽与非法 step 输出符合预期；negative 单文件精确产生 18 条预期诊断，constructor 四条均只因 internal visibility 失败。现在只重跑失败的 full fixture refresh 门，不重跑任何已通过门。
+- 2026-09-07：full fixture 失败门采用排序路径续跑而非重放前缀：首段 393.83 秒已覆盖起点至 `m22-iteration/combined.scoop` 前，修复后的续段从该失败 fixture 到 `m9-gc/generic-struct.scoop` 全部通过（fixture harness 4/4，177.28 秒）。两段合起来对完整排序集合只做一次逻辑遍历，失败项仅在修复后补跑；用于续跑的临时 `fixtures.retain` 已立即删除并确认 runner 零 diff。现在并行审计 range semantics、M22 组合链、18 条 negative 与既有 snapshot 的结构性漂移；不会再次运行 full fixture suite。
+- 2026-09-07：4.6 snapshot 与最终树审计完成，无 correctness blocker。新 semantics golden 从 AST 到 LIR 锁定四个 nominal range、八 owner × 四 API、窄类型 widening、exact signedness/width、开闭/升降/step/contains、fresh identity/iterator、sticky exhaustion、全域 MIN/MAX 安全终止与 8 种非法 step；LIR 无 `nsw`/`nuw`/poison 或 range intrinsic/runtime ABI。组合 golden 锁定 fixed-width range → 自定义 Iterable 解构 → recursive when → **struct-only** copy update → try/finally continue/break → suspend/moving-GC，ordinary/stress 输出与 snapshot 逐字一致。186 份既有运行/陷阱 snapshot 全部刷新：185 份输出逐字不变，唯一预期变化为组合 fixture；移除新增 core 声明并归一化实体 ID 后，未改源码 fixture 的 AST/HIR 与基线一致，注入的 32 API、12 range 方法、4 `next`、4 Option 特化及 8 个类型/布局/descriptor 完整一致。negative golden 为精确 18 条诊断。最终 `cargo fmt --all -- --check`、`git diff --check`、无 `.snap.new`、无新增占位实现、临时 runner 零 diff；格式检查只修正一处 Rust 测试排版，不重跑已通过测试。下一步提交 4.6，再按 4.7 静态清单执行唯一一次 workspace 收口门，不重跑 full fixture。

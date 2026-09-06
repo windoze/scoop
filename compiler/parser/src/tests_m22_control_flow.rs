@@ -1,4 +1,4 @@
-use scoop_ast::{Expr, Pattern, Span, StatementKind};
+use scoop_ast::{BinOp, Expr, InfixTarget, Pattern, Span, StatementKind};
 
 use crate::parse;
 use crate::tests::{block_body, err, ok, only_function};
@@ -27,6 +27,76 @@ fn for_preserves_pattern_iterable_body_and_spans() {
     ));
     assert_eq!(for_.body.statements.len(), 1);
     assert_eq!(for_.body.span.end, statement.span.end);
+}
+
+#[test]
+fn m22_range_for_header_and_infix_chains_keep_ast_shape() {
+    let file = ok("fun main() {\n\
+         \x20   for (value in 1..<8 step 2) {}\n\
+         \x20   val descending = 8 downTo 1 step 3\n\
+         \x20   val member = 1 in 0 until 2\n\
+         }\n");
+    let statements = &block_body(only_function(&file)).statements;
+
+    let StatementKind::For(for_) = &statements[0].kind else {
+        panic!("expected a for statement");
+    };
+    let Expr::InfixCall {
+        lhs: for_range,
+        target: InfixTarget::Named(step),
+        rhs: for_step,
+        ..
+    } = &for_.iterable
+    else {
+        panic!("for iterable must keep the outer step infix call");
+    };
+    assert_eq!(step.text, "step");
+    assert!(matches!(
+        for_range.as_ref(),
+        Expr::Binary {
+            op: BinOp::RangeUntil,
+            ..
+        }
+    ));
+    assert!(matches!(for_step.as_ref(), Expr::IntLiteral(_)));
+
+    let StatementKind::ValDecl(descending) = &statements[1].kind else {
+        panic!("expected descending range binding");
+    };
+    let Expr::InfixCall {
+        lhs: descending_range,
+        target: InfixTarget::Named(step),
+        ..
+    } = &descending.init
+    else {
+        panic!("descending range must keep the outer step call");
+    };
+    assert_eq!(step.text, "step");
+    assert!(matches!(
+        descending_range.as_ref(),
+        Expr::InfixCall {
+            target: InfixTarget::Named(target),
+            ..
+        } if target.text == "downTo"
+    ));
+
+    let StatementKind::ValDecl(member) = &statements[2].kind else {
+        panic!("expected membership binding");
+    };
+    assert!(matches!(
+        &member.init,
+        Expr::Binary {
+            op: BinOp::Contains,
+            rhs,
+            ..
+        } if matches!(
+            rhs.as_ref(),
+            Expr::InfixCall {
+                target: InfixTarget::Named(target),
+                ..
+            } if target.text == "until"
+        )
+    ));
 }
 
 #[test]

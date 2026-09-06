@@ -1,0 +1,489 @@
+public class IntRange internal constructor(
+    private val first: Int,
+    private val endpoint: Int,
+    private val stride: Int,
+    private val descending: Boolean,
+    private val inclusive: Boolean
+) : Iterable<Int> {
+    public override operator fun iterator(): Iterator<Int> =
+        IntRangeIterator(first, endpoint, stride, descending, inclusive, false)
+
+    public infix fun step(value: Int): IntRange {
+        if (value <= 0) {
+            throw IllegalArgumentException()
+        }
+        return IntRange(first, endpoint, value, descending, inclusive)
+    }
+
+    public operator fun contains(value: Int): Boolean {
+        if (descending) {
+            if (value > first) {
+                return false
+            }
+            if (inclusive) {
+                if (value < endpoint) {
+                    return false
+                }
+            } else {
+                if (value <= endpoint) {
+                    return false
+                }
+            }
+            val distance = first.toUInt32() - value.toUInt32()
+            return distance % stride.toUInt32() == 0u
+        }
+
+        if (value < first) {
+            return false
+        }
+        if (inclusive) {
+            if (value > endpoint) {
+                return false
+            }
+        } else {
+            if (value >= endpoint) {
+                return false
+            }
+        }
+        val distance = value.toUInt32() - first.toUInt32()
+        return distance % stride.toUInt32() == 0u
+    }
+}
+
+internal class IntRangeIterator internal constructor(
+    private var current: Int,
+    private val endpoint: Int,
+    private val stride: Int,
+    private val descending: Boolean,
+    private val inclusive: Boolean,
+    private var exhausted: Boolean
+) : Iterator<Int> {
+    public override fun next(): Option<Int> {
+        if (exhausted) {
+            return None
+        }
+
+        if (descending) {
+            if (inclusive) {
+                if (current < endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current <= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        } else {
+            if (inclusive) {
+                if (current > endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current >= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        }
+
+        val value = current
+        val distance = if (descending) {
+            current.toUInt32() - endpoint.toUInt32()
+        } else {
+            endpoint.toUInt32() - current.toUInt32()
+        }
+        val unsignedStride = stride.toUInt32()
+        if (inclusive) {
+            if (unsignedStride <= distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        } else {
+            if (unsignedStride < distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        }
+        return Some(value)
+    }
+}
+
+public class LongRange internal constructor(
+    private val first: Long,
+    private val endpoint: Long,
+    private val stride: Long,
+    private val descending: Boolean,
+    private val inclusive: Boolean
+) : Iterable<Long> {
+    public override operator fun iterator(): Iterator<Long> =
+        LongRangeIterator(first, endpoint, stride, descending, inclusive, false)
+
+    public infix fun step(value: Long): LongRange {
+        if (value <= 0L) {
+            throw IllegalArgumentException()
+        }
+        return LongRange(first, endpoint, value, descending, inclusive)
+    }
+
+    public operator fun contains(value: Long): Boolean {
+        if (descending) {
+            if (value > first) {
+                return false
+            }
+            if (inclusive) {
+                if (value < endpoint) {
+                    return false
+                }
+            } else {
+                if (value <= endpoint) {
+                    return false
+                }
+            }
+            val distance = first.toUInt64() - value.toUInt64()
+            return distance % stride.toUInt64() == 0uL
+        }
+
+        if (value < first) {
+            return false
+        }
+        if (inclusive) {
+            if (value > endpoint) {
+                return false
+            }
+        } else {
+            if (value >= endpoint) {
+                return false
+            }
+        }
+        val distance = value.toUInt64() - first.toUInt64()
+        return distance % stride.toUInt64() == 0uL
+    }
+}
+
+internal class LongRangeIterator internal constructor(
+    private var current: Long,
+    private val endpoint: Long,
+    private val stride: Long,
+    private val descending: Boolean,
+    private val inclusive: Boolean,
+    private var exhausted: Boolean
+) : Iterator<Long> {
+    public override fun next(): Option<Long> {
+        if (exhausted) {
+            return None
+        }
+
+        if (descending) {
+            if (inclusive) {
+                if (current < endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current <= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        } else {
+            if (inclusive) {
+                if (current > endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current >= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        }
+
+        val value = current
+        val distance = if (descending) {
+            current.toUInt64() - endpoint.toUInt64()
+        } else {
+            endpoint.toUInt64() - current.toUInt64()
+        }
+        val unsignedStride = stride.toUInt64()
+        if (inclusive) {
+            if (unsignedStride <= distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        } else {
+            if (unsignedStride < distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        }
+        return Some(value)
+    }
+}
+
+public class UIntRange internal constructor(
+    private val first: UInt,
+    private val endpoint: UInt,
+    private val stride: UInt,
+    private val descending: Boolean,
+    private val inclusive: Boolean
+) : Iterable<UInt> {
+    public override operator fun iterator(): Iterator<UInt> =
+        UIntRangeIterator(first, endpoint, stride, descending, inclusive, false)
+
+    public infix fun step(value: UInt): UIntRange {
+        if (value == 0u) {
+            throw IllegalArgumentException()
+        }
+        return UIntRange(first, endpoint, value, descending, inclusive)
+    }
+
+    public operator fun contains(value: UInt): Boolean {
+        if (descending) {
+            if (value > first) {
+                return false
+            }
+            if (inclusive) {
+                if (value < endpoint) {
+                    return false
+                }
+            } else {
+                if (value <= endpoint) {
+                    return false
+                }
+            }
+            val distance = first - value
+            return distance % stride == 0u
+        }
+
+        if (value < first) {
+            return false
+        }
+        if (inclusive) {
+            if (value > endpoint) {
+                return false
+            }
+        } else {
+            if (value >= endpoint) {
+                return false
+            }
+        }
+        val distance = value - first
+        return distance % stride == 0u
+    }
+}
+
+internal class UIntRangeIterator internal constructor(
+    private var current: UInt,
+    private val endpoint: UInt,
+    private val stride: UInt,
+    private val descending: Boolean,
+    private val inclusive: Boolean,
+    private var exhausted: Boolean
+) : Iterator<UInt> {
+    public override fun next(): Option<UInt> {
+        if (exhausted) {
+            return None
+        }
+
+        if (descending) {
+            if (inclusive) {
+                if (current < endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current <= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        } else {
+            if (inclusive) {
+                if (current > endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current >= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        }
+
+        val value = current
+        val distance = if (descending) {
+            current - endpoint
+        } else {
+            endpoint - current
+        }
+        if (inclusive) {
+            if (stride <= distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        } else {
+            if (stride < distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        }
+        return Some(value)
+    }
+}
+
+public class ULongRange internal constructor(
+    private val first: ULong,
+    private val endpoint: ULong,
+    private val stride: ULong,
+    private val descending: Boolean,
+    private val inclusive: Boolean
+) : Iterable<ULong> {
+    public override operator fun iterator(): Iterator<ULong> =
+        ULongRangeIterator(first, endpoint, stride, descending, inclusive, false)
+
+    public infix fun step(value: ULong): ULongRange {
+        if (value == 0uL) {
+            throw IllegalArgumentException()
+        }
+        return ULongRange(first, endpoint, value, descending, inclusive)
+    }
+
+    public operator fun contains(value: ULong): Boolean {
+        if (descending) {
+            if (value > first) {
+                return false
+            }
+            if (inclusive) {
+                if (value < endpoint) {
+                    return false
+                }
+            } else {
+                if (value <= endpoint) {
+                    return false
+                }
+            }
+            val distance = first - value
+            return distance % stride == 0uL
+        }
+
+        if (value < first) {
+            return false
+        }
+        if (inclusive) {
+            if (value > endpoint) {
+                return false
+            }
+        } else {
+            if (value >= endpoint) {
+                return false
+            }
+        }
+        val distance = value - first
+        return distance % stride == 0uL
+    }
+}
+
+internal class ULongRangeIterator internal constructor(
+    private var current: ULong,
+    private val endpoint: ULong,
+    private val stride: ULong,
+    private val descending: Boolean,
+    private val inclusive: Boolean,
+    private var exhausted: Boolean
+) : Iterator<ULong> {
+    public override fun next(): Option<ULong> {
+        if (exhausted) {
+            return None
+        }
+
+        if (descending) {
+            if (inclusive) {
+                if (current < endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current <= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        } else {
+            if (inclusive) {
+                if (current > endpoint) {
+                    exhausted = true
+                    return None
+                }
+            } else {
+                if (current >= endpoint) {
+                    exhausted = true
+                    return None
+                }
+            }
+        }
+
+        val value = current
+        val distance = if (descending) {
+            current - endpoint
+        } else {
+            endpoint - current
+        }
+        if (inclusive) {
+            if (stride <= distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        } else {
+            if (stride < distance) {
+                if (descending) {
+                    current = current - stride
+                } else {
+                    current = current + stride
+                }
+            } else {
+                exhausted = true
+            }
+        }
+        return Some(value)
+    }
+}

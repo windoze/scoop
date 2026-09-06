@@ -439,32 +439,54 @@ fn typed_integer_operation_rejects_same_width_constant_of_the_wrong_kind() {
 }
 
 #[test]
-fn wrapping_add_subtract_and_multiply_have_no_llvm_overflow_flags() {
-    let module = instruction_module(vec![LirType::I32; 4], vec![LirType::I32; 6], |results| {
-        [IntegerKind::SIGNED_32, IntegerKind::UNSIGNED_32]
+fn wrapping_s32_u32_s64_u64_arithmetic_has_no_llvm_overflow_flags() {
+    let kinds = [
+        IntegerKind::SIGNED_32,
+        IntegerKind::UNSIGNED_32,
+        IntegerKind::SIGNED_64,
+        IntegerKind::UNSIGNED_64,
+    ];
+    let params = kinds
+        .iter()
+        .flat_map(|kind| [kind.scalar_type(), kind.scalar_type()])
+        .collect();
+    let result_types = kinds
+        .iter()
+        .flat_map(|kind| [kind.scalar_type(), kind.scalar_type(), kind.scalar_type()])
+        .collect();
+    let module = instruction_module(params, result_types, |results| {
+        kinds
             .into_iter()
-            .flat_map(|kind| {
+            .enumerate()
+            .flat_map(|(kind_index, kind)| {
                 [
                     IntegerBinaryOperation::Add,
                     IntegerBinaryOperation::Subtract,
                     IntegerBinaryOperation::Multiply,
                 ]
                 .into_iter()
-                .map(move |operation| (kind, operation))
-            })
-            .enumerate()
-            .map(|(index, (kind, operation))| Instruction::IntegerBinary {
-                out: results[index],
-                kind,
-                operation,
-                lhs: Value::Param(if kind == IntegerKind::SIGNED_32 { 0 } else { 2 }),
-                rhs: Value::Param(if kind == IntegerKind::SIGNED_32 { 1 } else { 3 }),
+                .enumerate()
+                .map(move |(operation_index, operation)| {
+                    Instruction::IntegerBinary {
+                        out: results[kind_index * 3 + operation_index],
+                        kind,
+                        operation,
+                        lhs: Value::Param((kind_index * 2) as u32),
+                        rhs: Value::Param((kind_index * 2 + 1) as u32),
+                    }
+                })
             })
             .collect()
     });
     let ir = ir_of(&module);
-    for operation in ["add i32", "sub i32", "mul i32"] {
-        assert_eq!(ir.matches(operation).count(), 2, "{ir}");
+    for llvm_ty in ["i32", "i64"] {
+        for opcode in ["add", "sub", "mul"] {
+            assert_eq!(
+                ir.matches(&format!("{opcode} {llvm_ty}")).count(),
+                2,
+                "{ir}"
+            );
+        }
     }
     assert!(!ir.contains(" nsw "), "wrapping IR contains nsw:\n{ir}");
     assert!(!ir.contains(" nuw "), "wrapping IR contains nuw:\n{ir}");

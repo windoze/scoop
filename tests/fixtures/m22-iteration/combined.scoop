@@ -1,11 +1,42 @@
 // EXPECT-COMPILE
 
-struct Entry<T>(
+public struct Entry<T>(
     val slot: Long,
     val payload: (T, String)
 )
 
-class Node(val text: String)
+public class Node(val text: String)
+
+struct RangePatternPayload(
+    val entry: Entry<Node>,
+    val marker: (Boolean, Int)
+)
+
+struct RangeCheckpoint(
+    val ordinal: Int,
+    val retained: Node,
+    val label: String
+)
+
+enum RangeSignal {
+    Data { payload: RangePatternPayload, enabled: Boolean },
+    End
+}
+
+fun classifyRangeSignal(signal: RangeSignal): Int = when (signal) {
+    Data {
+        payload: {
+            entry: { payload: (node, label), .. },
+            marker: (true, ordinal)
+        },
+        enabled: true
+    } -> {
+        println("range-match-" + label + "-" + node.text)
+        ordinal
+    }
+    Data { payload: _, enabled: _ } -> -99
+    End -> -100
+}
 
 fun <T> markArray(values: Array<T>): Array<T> {
     println("array-source")
@@ -70,6 +101,27 @@ class EmptyValueSource {
         println("value-iterator")
         return EmptyValueIterator()
     }
+}
+
+internal class RangeEntryIterator(val inner: Iterator<Int>) : Iterator<Entry<Node>> {
+    public final override fun next(): Option<Entry<Node>> {
+        val next = inner.next()
+        return when (next) {
+            Some(value) -> Some(Entry(
+                value.toInt64(),
+                (
+                    Node("range-node-" + value.toString()),
+                    "range-label-" + value.toString()
+                )
+            ))
+            None -> None
+        }
+    }
+}
+
+internal class RangeEntries(val range: IntRange) : Iterable<Entry<Node>> {
+    public final override operator fun iterator(): Iterator<Entry<Node>> =
+        RangeEntryIterator(range.iterator())
 }
 
 fun boxedValueIteratorPath() {
@@ -188,6 +240,51 @@ class IterationTask(
             if (slot == 1L) continue
             total = total + slot
         }
+
+        val rangeFirst: Int8 = -2
+        val rangeLast: Int8 = 2
+        val traversal: IntRange = (rangeFirst..rangeLast) step 2
+        // M22 completion chain: fixed-width range through destructuring, recursive
+        // matching, copy update, abrupt cleanup, suspension, and moving GC.
+        for ({ slot, payload: (node, label) } in RangeEntries(traversal)) {
+            val ordinal = slot.toInt32()
+            val classified = classifyRangeSignal(RangeSignal.Data(
+                payload = RangePatternPayload(
+                    Entry(slot, (node, label)),
+                    (true, ordinal)
+                ),
+                enabled = true
+            ))
+            val checkpoint = RangeCheckpoint(-1, node, "old").{
+                label: "copy-" + label,
+                ordinal: classified
+            }
+            try {
+                println("range-copy-" + checkpoint.label)
+                if (ordinal == 0) {
+                    println("range-continue")
+                    continue
+                }
+                if (ordinal == 2) {
+                    println("range-break")
+                    break
+                }
+                println("range-value-" + checkpoint.ordinal.toString())
+                total = total + checkpoint.ordinal.toInt64()
+            } finally {
+                println("range-finally-enter-" + ordinal.toString())
+                if (ordinal == 0) {
+                    println("range-await")
+                    waitFor(gate)
+                    collectAndMove()
+                    println(checkpoint.retained.text)
+                    if (ordinal in traversal) {
+                        println("range-contained")
+                    }
+                }
+                println("range-finally-exit-" + ordinal.toString())
+            }
+        }
         return total
     }
 }
@@ -232,6 +329,9 @@ fun main() {
         RecordingCompletion()
     )
     println("iterator-suspended")
+    collectAndMove()
+    gate.complete()
+    println("range-suspended")
     collectAndMove()
     gate.complete()
 }
