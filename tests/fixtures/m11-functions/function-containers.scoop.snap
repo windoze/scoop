@@ -1496,19 +1496,22 @@ Module mangling=compact-v2
           Local $parameter.other
   fun $lambda.1 @scoop.$lambda.1($closure: ((Int, Int)) -> Int, $arg.0: (Int, Int)) -> Int
     bb0 entry
-      val $bind.1: (Int, Int)
-        Type (Int, Int)
-        Local $arg.0
-      val left: Int
+      val $binding.projection.0: Int
         Type Int
         FieldAccess 0
           Type (Int, Int)
-          Local $bind.1
-      val right: Int
+          Local $arg.0
+      val left: Int
+        Type Int
+        Local $binding.projection.0
+      val $binding.projection.1: Int
         Type Int
         FieldAccess 1
           Type (Int, Int)
-          Local $bind.1
+          Local $arg.0
+      val right: Int
+        Type Int
+        Local $binding.projection.1
       val $receiver: Int
         Type Int
         Local left
@@ -2239,23 +2242,25 @@ Module
     t1 = integer_Add<Int> local0, local2 : i32
     ret t1
   fun @scoop.$lambda.1(ptr<managed>, {i32, i32}) -> i32
-    local %0 left: i32
-    local %1 right: i32
-    local %2 $receiver: i32
-    local %3 $argument.0: i32
-    local %4 $parameter.other: i32
-    local %5 $bind.1: {i32, i32}
+    local %0 $binding.projection.0: i32
+    local %1 left: i32
+    local %2 $binding.projection.1: i32
+    local %3 right: i32
+    local %4 $receiver: i32
+    local %5 $argument.0: i32
+    local %6 $parameter.other: i32
   block entry
     poll managed-void-target0 sp78 live=[]
-    store param1 -> local5
-    t0 = extract local5, 0 : i32
+    t0 = extract param1, 0 : i32
     store t0 -> local0
-    t1 = extract local5, 1 : i32
-    store t1 -> local1
-    store local0 -> local2
-    store local1 -> local3
-    store local3 -> local4
-    t2 = integer_Add<Int> local2, local4 : i32
+    store local0 -> local1
+    t1 = extract param1, 1 : i32
+    store t1 -> local2
+    store local2 -> local3
+    store local1 -> local4
+    store local3 -> local5
+    store local5 -> local6
+    t2 = integer_Add<Int> local4, local6 : i32
     ret t2
   fun @scoop.println$I32(i32) -> void
     local %0 $receiver: i32

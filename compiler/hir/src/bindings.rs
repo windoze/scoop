@@ -15,6 +15,7 @@ pub struct BindingTemporary {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BindingLeaf {
     pub local: LocalId,
+    pub ty: TypeId,
     pub mutability: BindingMutability,
 }
 
@@ -75,6 +76,9 @@ pub enum IrrefutableBindingAction {
         index: NonZeroU32,
         result: BindingTemporary,
         setup: Vec<Statement>,
+        /// Exact resolved component call. Its callable carries the checked
+        /// `Component { index }` operator role and its receiver/arguments
+        /// already read the action's source temporary.
         call: Expr,
         span: Span,
     },

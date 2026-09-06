@@ -10,6 +10,23 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        self.with_pattern_transaction(|state| {
+            state.lower_lambda_inner(is_suspend, parameters, body, span, expected)
+        })
+    }
+
+    /// A lambda is one lowering owner: its complete parameter header, binding
+    /// plans, body, captures and generated entities commit together. Callers
+    /// enter through `lower_lambda`, which supplies the single owner-level
+    /// transaction around this implementation.
+    fn lower_lambda_inner(
+        &mut self,
+        is_suspend: bool,
+        parameters: Option<&[ast::LambdaParam]>,
+        body: &ast::Block,
+        span: Span,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
         if block_contains_return(body) {
             self.error(
                 span,
@@ -145,7 +162,7 @@ impl Lowerer {
                 };
                 if let Some(name) = binding_name {
                     let pattern = ast::Pattern::Binding(name.clone());
-                    let hir::Pattern::Binding { local } = self.lower_pattern(
+                    let hir::Pattern::Binding { local } = self.lower_pattern_inner(
                         &pattern,
                         parameter_ty,
                         PatternCtx {
@@ -163,26 +180,15 @@ impl Lowerer {
                     });
                 } else {
                     let local = self.alloc_local(format!("$arg.{index}"), parameter_ty, false);
-                    let pattern = self.lower_pattern(
+                    let plan = self.lower_irrefutable_binding_plan_from_subject(
                         target.expect("non-binding source parameter has a pattern"),
-                        parameter_ty,
-                        PatternCtx {
-                            mutable: false,
-                            in_when: false,
+                        hir::BindingTemporary {
+                            local,
+                            ty: parameter_ty,
                         },
+                        false,
                     )?;
-                    prefix.push(hir::Statement {
-                        kind: hir::StatementKind::ValDecl {
-                            pattern,
-                            init: hir::Expr {
-                                kind: ExprKind::Local(local),
-                                ty: parameter_ty,
-                                span,
-                                origin: self.expression_origin(span),
-                            },
-                        },
-                        span,
-                    });
+                    prefix.extend(plan.into_statements());
                     abi_params.push(hir::Param {
                         name: format!("$arg.{index}"),
                         ty: parameter_ty,

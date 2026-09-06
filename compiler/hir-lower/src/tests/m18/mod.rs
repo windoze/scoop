@@ -1033,14 +1033,33 @@ fn class_destructuring_uses_typed_components_and_materializes_subject_once() {
         1,
         "the destructuring subject must be evaluated once"
     );
+    let component_calls = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            matches!(init.kind, hir::ExprKind::MethodCall { .. })
+                .then(|| direct_method_name(&module, init))
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        direct_method_name(&module, local_init(body, "left")),
-        "Pair.component1"
+        component_calls,
+        vec!["Pair.component1", "Pair.component2"],
+        "component actions execute in source order"
     );
-    assert_eq!(
-        direct_method_name(&module, local_init(body, "right")),
-        "Pair.component2"
-    );
+    for name in ["left", "right"] {
+        let hir::ExprKind::Local(component) = local_init(body, name).kind else {
+            panic!("a user leaf must read its completed component temporary")
+        };
+        assert!(
+            body.locals[component]
+                .name
+                .starts_with("$binding.component.")
+        );
+        assert!(!body.locals[component].mutable);
+    }
 
     let errors = lower_user(file(vec![
         class_decl(
@@ -1070,8 +1089,556 @@ fn class_destructuring_uses_typed_components_and_materializes_subject_once() {
     assert!(
         errors
             .iter()
-            .any(|error| { error.message == "pattern has 1 element(s), but class `Plain` has 0" })
+            .any(|error| error.message == "type `Plain` has no method `component1`")
     );
+}
+
+#[test]
+fn class_destructuring_resolves_only_the_exact_written_component_prefix() {
+    let sparse = || {
+        class_decl(
+            ast::ClassModifier::Final,
+            "Sparse",
+            vec![],
+            None,
+            vec![],
+            vec![
+                operator(method_expr(
+                    "component1",
+                    vec![],
+                    Some(ty_named("Int")),
+                    int_lit(1),
+                )),
+                operator(method_expr(
+                    "component3",
+                    vec![],
+                    Some(ty_named("Int")),
+                    int_lit(3),
+                )),
+            ],
+        )
+    };
+    let module = lower_user(file(vec![
+        sparse(),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("first")], None),
+                None,
+                call("Sparse", vec![]),
+            )],
+        ),
+    ]))
+    .expect("one written position requires only component1");
+    let body = function_body(&module, "main");
+    let calls = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            matches!(init.kind, hir::ExprKind::MethodCall { .. })
+                .then(|| direct_method_name(&module, init))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(calls, vec!["Sparse.component1"]);
+
+    let errors = lower_user(file(vec![
+        sparse(),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("first"), pat_bind("second")], None),
+                None,
+                call("Sparse", vec![]),
+            )],
+        ),
+    ]))
+    .expect_err("the second written position requires component2 exactly");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "type `Sparse` has no method `component2`")
+    );
+
+    let errors = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Offset",
+            vec![],
+            None,
+            vec![],
+            vec![operator(method_expr(
+                "component2",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(2),
+            ))],
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], None),
+                None,
+                call("Offset", vec![]),
+            )],
+        ),
+    ]))
+    .expect_err("component2 does not imply component1");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "type `Offset` has no method `component1`")
+    );
+}
+
+#[test]
+fn class_destructuring_is_depth_first_calls_wildcards_and_rejects_rest() {
+    let inner = class_decl(
+        ast::ClassModifier::Final,
+        "Inner",
+        vec![],
+        None,
+        vec![],
+        vec![
+            operator(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            )),
+            operator(method_expr(
+                "component2",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(2),
+            )),
+        ],
+    );
+    let outer = class_decl(
+        ast::ClassModifier::Final,
+        "Outer",
+        vec![],
+        None,
+        vec![],
+        vec![
+            operator(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Inner")),
+                call("Inner", vec![]),
+            )),
+            operator(method_expr(
+                "component2",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(3),
+            )),
+        ],
+    );
+    let module = lower_user(file(vec![
+        inner,
+        outer,
+        fun(
+            "main",
+            vec![val_pat(
+                true,
+                pat_tuple(
+                    vec![
+                        pat_tuple(vec![pat_bind("left"), pat_wild()], None),
+                        pat_bind("right"),
+                    ],
+                    None,
+                ),
+                None,
+                call("Outer", vec![]),
+            )],
+        ),
+    ]))
+    .expect("nested class components must use one depth-first plan");
+    let body = function_body(&module, "main");
+    let calls = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            matches!(init.kind, hir::ExprKind::MethodCall { .. })
+                .then(|| direct_method_name(&module, init))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        calls,
+        vec![
+            "Outer.component1",
+            "Inner.component1",
+            "Inner.component2",
+            "Outer.component2",
+        ],
+        "a wildcard still invokes its component and nested actions are depth-first"
+    );
+    for (_, local) in body.locals.iter() {
+        if local.name.starts_with("$binding.") {
+            assert!(!local.mutable, "all plan temporaries are immutable");
+        }
+        if matches!(local.name.as_str(), "left" | "right") {
+            assert!(local.mutable, "only var leaves are mutable");
+        }
+    }
+
+    let errors = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Single",
+            vec![],
+            None,
+            vec![],
+            vec![operator(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            ))],
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], Some(sp())),
+                None,
+                call("Single", vec![]),
+            )],
+        ),
+    ]))
+    .expect_err("class component patterns have no declaration-sized rest");
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(
+        errors[0].message,
+        "a class component pattern cannot contain `..`"
+    );
+}
+
+#[test]
+fn class_binding_plan_keeps_one_complete_lambda_parameter() {
+    let operation = ast::Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_tuple(vec![pat_bind("left"), pat_wild()], None),
+            ty: None,
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("left"))]),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Pair",
+            vec![],
+            None,
+            vec![],
+            vec![
+                operator(method_expr(
+                    "component1",
+                    vec![],
+                    Some(ty_named("Int")),
+                    int_lit(1),
+                )),
+                operator(method_expr(
+                    "component2",
+                    vec![],
+                    Some(ty_named("String")),
+                    str_lit("ignored"),
+                )),
+            ],
+        ),
+        fun(
+            "main",
+            vec![val_ty(
+                "operation",
+                Some(ty_function(false, vec![ty_named("Pair")], ty_named("Int"))),
+                operation,
+            )],
+        ),
+    ]))
+    .expect("a lambda class pattern must share the irrefutable planner");
+    let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
+    let signature = &module.function_types[lambda.function_type];
+    let invoke = &module.functions[lambda.function];
+    assert_eq!(
+        signature.parameter_types,
+        vec![invoke.params[1].ty],
+        "one composite source pattern is one complete function-type parameter"
+    );
+    assert_eq!(
+        hir::type_name(&module, signature.parameter_types[0]),
+        "Pair"
+    );
+    assert_eq!(
+        invoke
+            .params
+            .iter()
+            .map(|param| param.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["$closure", "$arg.0"],
+        "the invoke ABI has one hidden closure receiver and one complete source parameter"
+    );
+    assert_eq!(invoke.params[0].ty, signature.canonical_type);
+    let hir::FunctionKind::User(body) = &invoke.kind else {
+        panic!("lambda invoke body")
+    };
+    let source = invoke.params[1].local;
+    assert_eq!(body.locals[source].name, "$arg.0");
+    assert_eq!(body.locals[source].ty, signature.parameter_types[0]);
+    assert!(!body.locals[source].mutable);
+    assert!(
+        body.statements.iter().any(|statement| matches!(
+            &statement.kind,
+            hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { .. },
+                init: hir::Expr {
+                    kind: hir::ExprKind::Local(local),
+                    ..
+                },
+            } if *local == source
+        )),
+        "component setup must read the existing ABI parameter as its subject"
+    );
+    let calls = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            matches!(init.kind, hir::ExprKind::MethodCall { .. })
+                .then(|| direct_method_name(&module, init))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(calls, vec!["Pair.component1", "Pair.component2"]);
+    assert!(
+        body.statements[..body.statements.len() - 1]
+            .iter()
+            .all(|statement| matches!(
+                statement.kind,
+                hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Binding { .. },
+                    ..
+                }
+            )),
+        "the complete plan prefix must expand before the source-body return"
+    );
+    assert!(
+        !body
+            .locals
+            .iter()
+            .any(|(_, local)| local.name.starts_with("$binding.subject."))
+    );
+}
+
+#[test]
+fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_counter() {
+    let first_span = Span::new(410, 415);
+    let missing_span = Span::new(420, 427);
+    let suspend_span = Span::new(430, 438);
+    let escaped_span = Span::new(440, 445);
+    let failed_header = ast::Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: Some(vec![
+            ast::LambdaParam {
+                target: pat_tuple(vec![pat_bind_at("first", first_span)], None),
+                ty: None,
+                span: first_span,
+            },
+            ast::LambdaParam {
+                target: pat_tuple(vec![pat_bind_at("missing", missing_span)], None),
+                ty: None,
+                span: missing_span,
+            },
+        ]),
+        body: block(vec![stmt(int_lit(0))]),
+        span: sp(),
+    };
+    let failed_effect = ast::Expr::Lambda {
+        id: ast::LambdaId(1),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_tuple(vec![pat_bind_at("value", suspend_span)], None),
+            ty: None,
+            span: suspend_span,
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    };
+    let escaped = ast::Expr::Var(ident_at("first", escaped_span));
+    let errors = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Complete",
+            vec![],
+            None,
+            vec![],
+            vec![operator(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            ))],
+        ),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Incomplete",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            ast::ClassModifier::Final,
+            "AsyncRollback",
+            vec![],
+            None,
+            vec![],
+            vec![operator(with_suspend(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            )))],
+        ),
+        fun(
+            "main",
+            vec![
+                val_ty(
+                    "failedHeader",
+                    Some(ty_function(
+                        false,
+                        vec![ty_named("Complete"), ty_named("Incomplete")],
+                        ty_named("Int"),
+                    )),
+                    failed_header,
+                ),
+                val_ty(
+                    "failedEffect",
+                    Some(ty_function(
+                        false,
+                        vec![ty_named("AsyncRollback")],
+                        ty_named("Int"),
+                    )),
+                    failed_effect,
+                ),
+                stmt(escaped),
+            ],
+        ),
+    ]))
+    .expect_err("a failed lambda owner must not commit any partial lowering state");
+
+    assert_eq!(errors.len(), 3, "{errors:?}");
+    assert_eq!(
+        errors[0].message,
+        "type `Incomplete` has no method `component1`"
+    );
+    assert_eq!(errors[0].span, Some(missing_span));
+    assert_eq!(
+        errors[1].message,
+        "suspend function `AsyncRollback.component1` cannot be called from non-suspend function `$lambda.0`",
+        "the failed first lambda must roll back its generated-function counter"
+    );
+    assert_eq!(errors[1].span, Some(suspend_span));
+    assert!(
+        errors[2].message.starts_with("unknown variable `first`"),
+        "the successfully planned first parameter of the failed owner must not escape"
+    );
+    assert_eq!(errors[2].span, Some(escaped_span));
+}
+
+#[test]
+fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
+    let async_class = || {
+        class_decl(
+            ast::ClassModifier::Final,
+            "AsyncValue",
+            vec![],
+            None,
+            vec![],
+            vec![operator(with_suspend(method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            )))],
+        )
+    };
+    let operation = |is_suspend| ast::Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_tuple(vec![pat_bind("value")], None),
+            ty: None,
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    };
+    let errors = lower_user(file(vec![
+        async_class(),
+        fun(
+            "main",
+            vec![val_ty(
+                "operation",
+                Some(ty_function(
+                    false,
+                    vec![ty_named("AsyncValue")],
+                    ty_named("Int"),
+                )),
+                operation(false),
+            )],
+        ),
+    ]))
+    .expect_err("an ordinary lambda cannot invoke a suspend component");
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(errors[0].message.contains(
+        "suspend function `AsyncValue.component1` cannot be called from non-suspend function `$lambda.0`"
+    ));
+
+    let module = lower_user(file(vec![
+        async_class(),
+        fun(
+            "main",
+            vec![val_ty(
+                "operation",
+                Some(ty_function(
+                    true,
+                    vec![ty_named("AsyncValue")],
+                    ty_named("Int"),
+                )),
+                operation(true),
+            )],
+        ),
+    ]))
+    .expect("a suspend lambda may invoke a suspend component");
+    let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
+    assert!(module.functions[lambda.function].is_suspend);
+    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+        panic!("lambda invoke body")
+    };
+    assert!(body.statements.iter().any(|statement| matches!(
+        &statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::MethodCall { .. },
+                ..
+            },
+            ..
+        }
+    )));
 }
 
 #[test]
@@ -1642,4 +2209,276 @@ fn function_body<'module>(module: &'module hir::Module, name: &str) -> &'module 
             })
         })
         .unwrap_or_else(|| panic!("missing function `{name}`"))
+}
+
+#[test]
+fn class_destructuring_uses_a_typed_extension_component_action() {
+    let component = operator_extension(
+        ty_named("ExtensionParts"),
+        "component1",
+        vec![],
+        ty_named("Int"),
+        int_lit(42),
+    );
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "ExtensionParts",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+        component,
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], None),
+                None,
+                call("ExtensionParts", vec![]),
+            )],
+        ),
+    ]))
+    .expect("a typed extension component enables class destructuring");
+    let body = function_body(&module, "main");
+
+    let subjects = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            body.locals[local]
+                .name
+                .starts_with("$binding.subject.")
+                .then_some((local, init))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(subjects.len(), 1, "the class subject is materialized once");
+    assert!(matches!(
+        subjects[0].1.kind,
+        hir::ExprKind::ClassInit { .. }
+    ));
+    assert!(!body.locals[subjects[0].0].mutable);
+
+    let component_calls = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            let hir::ExprKind::Call { callee, .. } = &init.kind else {
+                return None;
+            };
+            let function = module.callable_function(*callee);
+            (module.functions[function].modifiers.operator
+                == Some(hir::OperatorKind::Component {
+                    index: std::num::NonZeroU32::new(1).expect("one is nonzero"),
+                }))
+            .then_some((local, init, function))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        component_calls.len(),
+        1,
+        "exactly one typed extension component is called"
+    );
+    let (component_local, component_call, component_function) = component_calls[0];
+    assert_eq!(module.functions[component_function].name, "component1");
+    assert_eq!(direct_callable_name(&module, component_call), "component1");
+    assert!(
+        body.locals[component_local]
+            .name
+            .starts_with("$binding.component.")
+    );
+    assert!(!body.locals[component_local].mutable);
+    assert_eq!(body.locals[component_local].ty, int_type(&module));
+
+    let hir::ExprKind::Local(bound_from) = &local_init(body, "value").kind else {
+        panic!("the user leaf must read the completed extension component temporary")
+    };
+    assert_eq!(*bound_from, component_local);
+}
+
+fn assert_adapted_extension_component(
+    module: &hir::Module,
+    subject_type: &str,
+    receiver_type: &str,
+) {
+    let body = function_body(module, "main");
+    let subjects = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            body.locals[local]
+                .name
+                .starts_with("$binding.subject.")
+                .then_some((local, init))
+        })
+        .collect::<Vec<_>>();
+    let [(subject, subject_init)] = subjects.as_slice() else {
+        panic!("class destructuring must materialize exactly one subject")
+    };
+    assert_eq!(
+        hir::type_name(module, body.locals[*subject].ty),
+        subject_type
+    );
+    assert_eq!(subject_init.ty, body.locals[*subject].ty);
+
+    let receivers = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            body.locals[local]
+                .name
+                .eq("$receiver")
+                .then_some((local, init))
+        })
+        .collect::<Vec<_>>();
+    let [(receiver, receiver_init)] = receivers.as_slice() else {
+        panic!("one extension component must materialize exactly one receiver")
+    };
+    let hir::ExprKind::Local(receiver_source) = receiver_init.kind else {
+        panic!("the adapted extension receiver must read the class subject")
+    };
+    assert_eq!(receiver_source, *subject);
+    assert_eq!(hir::type_name(module, receiver_init.ty), receiver_type);
+    assert_eq!(body.locals[*receiver].ty, receiver_init.ty);
+    assert!(!body.locals[*receiver].mutable);
+
+    let components = body
+        .statements
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            body.locals[local]
+                .name
+                .starts_with("$binding.component.")
+                .then_some((local, init))
+        })
+        .collect::<Vec<_>>();
+    let [(component, call)] = components.as_slice() else {
+        panic!("one written position must have exactly one component result")
+    };
+    let hir::ExprKind::Call { callee, args } = &call.kind else {
+        panic!("an extension component must remain a direct typed call")
+    };
+    let [argument] = args.as_slice() else {
+        panic!("an extension component has exactly its receiver argument")
+    };
+    let hir::ExprKind::Local(argument_source) = argument.kind else {
+        panic!("the component call must read its materialized receiver")
+    };
+    assert_eq!(argument_source, *receiver);
+    assert_eq!(argument.ty, receiver_init.ty);
+
+    let winner = module.callable_function(*callee);
+    assert_eq!(module.functions[winner].name, "component1");
+    assert_eq!(module.functions[winner].method, None);
+    assert_eq!(
+        module.functions[winner].modifiers.operator,
+        Some(hir::OperatorKind::Component {
+            index: std::num::NonZeroU32::new(1).expect("one is nonzero"),
+        }),
+        "the adapted call must retain the exact typed component1 winner"
+    );
+    assert_eq!(call.ty, int_type(module));
+    assert_eq!(body.locals[*component].ty, call.ty);
+    assert!(!body.locals[*component].mutable);
+
+    let hir::ExprKind::Local(bound_from) = local_init(body, "value").kind else {
+        panic!("the user leaf must read the completed component temporary")
+    };
+    assert_eq!(bound_from, *component);
+}
+
+#[test]
+fn class_destructuring_adapts_a_base_extension_component_receiver() {
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Open,
+            "ComponentBase",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            ast::ClassModifier::Final,
+            "DerivedParts",
+            vec![],
+            Some(("ComponentBase", vec![])),
+            vec![],
+            vec![],
+        ),
+        operator_extension(
+            ty_named("ComponentBase"),
+            "component1",
+            vec![],
+            ty_named("Int"),
+            int_lit(41),
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], None),
+                None,
+                call("DerivedParts", vec![]),
+            )],
+        ),
+    ]))
+    .expect("a class may use a component extension declared on its base type");
+
+    assert_adapted_extension_component(&module, "DerivedParts", "ComponentBase");
+}
+
+#[test]
+fn class_destructuring_adapts_an_interface_extension_component_receiver() {
+    let module = lower_user(file(vec![
+        interface_decl("ComponentView", vec![]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "ViewedParts",
+            vec![],
+            None,
+            vec!["ComponentView"],
+            vec![],
+        ),
+        operator_extension(
+            ty_named("ComponentView"),
+            "component1",
+            vec![],
+            ty_named("Int"),
+            int_lit(42),
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], None),
+                None,
+                call("ViewedParts", vec![]),
+            )],
+        ),
+    ]))
+    .expect("a class may use a component extension declared on an implemented interface");
+
+    assert_adapted_extension_component(&module, "ViewedParts", "ComponentView");
 }

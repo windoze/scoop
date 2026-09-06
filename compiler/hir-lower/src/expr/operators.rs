@@ -31,36 +31,6 @@ impl Lowerer {
         )
     }
 
-    pub(crate) fn component_operator_indices(
-        &mut self,
-        receiver_ty: TypeId,
-    ) -> Vec<std::num::NonZeroU32> {
-        let mut indices = self
-            .signatures
-            .values()
-            .filter_map(|signature| match signature.modifiers.operator {
-                Some(hir::OperatorKind::Component { index }) => Some(index),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        indices.sort_unstable();
-        indices.dedup();
-        indices.retain(|&index| {
-            let operator = hir::OperatorKind::Component { index };
-            !self.methods_by_operator(receiver_ty, operator).is_empty()
-                || self
-                    .extension_operator_candidate_layers(operator)
-                    .into_iter()
-                    .flatten()
-                    .any(|function| {
-                        let extension_ty = self.extension_receivers[&function];
-                        matches!(self.types[extension_ty], Type::Param(_))
-                            || self.is_subtype(receiver_ty, extension_ty)
-                    })
-        });
-        indices
-    }
-
     pub(super) fn lower_conventional_binary(
         &mut self,
         op: ast::BinOp,

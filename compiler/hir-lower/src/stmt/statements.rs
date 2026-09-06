@@ -275,31 +275,6 @@ impl Lowerer {
                 (init, ty)
             }
         };
-        if let (
-            Type::Class(_),
-            ast::Pattern::Tuple {
-                elements,
-                rest,
-                span,
-            },
-        ) = (self.types[ty].clone(), &decl.target)
-        {
-            let planned = self.with_pattern_transaction(move |state| {
-                let mut planned = Vec::new();
-                state.lower_class_destructuring(
-                    elements,
-                    *rest,
-                    *span,
-                    decl.mutable,
-                    init,
-                    sink,
-                    &mut planned,
-                )?;
-                Some(planned)
-            })?;
-            out.extend(planned);
-            return Some(());
-        }
         // A trivial named declaration needs no separate subject/projection
         // schedule. Composite and wildcard targets use the shared binding
         // planner, which expands to binding-only HIR declarations in source
@@ -325,66 +300,6 @@ impl Lowerer {
             out.extend(sink);
             out.extend(plan.into_statements());
         }
-        Some(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn lower_class_destructuring(
-        &mut self,
-        elements: &[ast::Pattern],
-        rest: Option<Span>,
-        span: Span,
-        mutable: bool,
-        init: hir::Expr,
-        mut statements: Vec<hir::Statement>,
-        out: &mut Vec<hir::Statement>,
-    ) -> Option<()> {
-        let receiver_ty = init.ty;
-        let indices = self.component_operator_indices(receiver_ty);
-        let total = indices.last().map_or(0, |index| index.get() as usize);
-        let owner = format!("class `{}`", self.type_name(receiver_ty));
-        let positions = self.positional_pattern_indices(elements, rest, total, &owner, span)?;
-
-        let receiver = self.alloc_hidden("subject", receiver_ty);
-        statements.push(hir::Statement {
-            kind: hir::StatementKind::ValDecl {
-                pattern: hir::Pattern::Binding { local: receiver },
-                init,
-            },
-            span,
-        });
-        let origin = self.expression_origin(span);
-        for (element, position) in elements.iter().zip(positions) {
-            let index = std::num::NonZeroU32::new((position + 1) as u32)
-                .expect("class component indices start at one");
-            let component = self.lower_component_call(
-                hir::Expr {
-                    kind: hir::ExprKind::Local(receiver),
-                    ty: receiver_ty,
-                    span,
-                    origin,
-                },
-                index,
-                span,
-                &mut statements,
-            )?;
-            let pattern = self.lower_pattern(
-                element,
-                component.ty,
-                PatternCtx {
-                    mutable,
-                    in_when: false,
-                },
-            )?;
-            statements.push(hir::Statement {
-                kind: hir::StatementKind::ValDecl {
-                    pattern,
-                    init: component,
-                },
-                span,
-            });
-        }
-        out.extend(statements);
         Some(())
     }
 

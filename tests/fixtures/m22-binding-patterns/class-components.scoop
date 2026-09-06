@@ -1,0 +1,63 @@
+// EXPECT-COMPILE
+
+class Inner {
+    operator fun component1(): Int {
+        println("inner-1")
+        return 11
+    }
+
+    operator fun component2(): Int {
+        println("inner-2")
+        return 12
+    }
+}
+
+class Outer {
+    operator fun component1(): Inner {
+        println("outer-1")
+        return Inner()
+    }
+
+    operator fun component2(): Int {
+        println("outer-2")
+        return 22
+    }
+
+    operator fun component99(): Int {
+        println("wrong-99")
+        return 99
+    }
+}
+
+fun makeOuter(): Outer {
+    println("subject")
+    return Outer()
+}
+
+class Explosive {
+    operator fun component1(): Int {
+        println("throw-1")
+        return 1
+    }
+
+    operator fun component2(): Int {
+        println("throw-2")
+        throw UnwrapException()
+    }
+
+    operator fun component3(): Int {
+        println("wrong-3")
+        return 3
+    }
+}
+
+fun main() {
+    val ((kept, _), _) = makeOuter()
+    println(kept)
+
+    try {
+        val (first, second, never) = Explosive()
+    } catch (exception: UnwrapException) {
+        println("caught")
+    }
+}

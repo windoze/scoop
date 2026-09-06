@@ -220,28 +220,48 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
     ]);
     let module = lower_user(source).expect("nested named lambda parameter must lower");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+    let invoke = &module.functions[lambda.function];
+    assert_eq!(
+        invoke.params.len(),
+        2,
+        "closure receiver plus one complete source parameter"
+    );
+    assert_eq!(invoke.params[1].name, "$arg.0");
+    let hir::FunctionKind::User(body) = &invoke.kind else {
         panic!("lambda invoke must have a body")
     };
-    let hir::StatementKind::ValDecl { pattern, .. } = &body.statements[0].kind else {
-        panic!("destructured lambda parameter must have a binding prefix")
-    };
-    let hir::Pattern::Struct { fields, .. } = pattern else {
-        panic!("lambda parameter must retain its outer struct pattern")
-    };
-    let hir::Pattern::Struct {
-        fields: leaf_fields,
-        ..
-    } = &fields[0].1
-    else {
-        panic!("lambda parameter must retain its nested struct pattern")
-    };
-    assert_eq!(leaf_fields.len(), 2);
-    assert!(matches!(
-        &leaf_fields[0].1,
-        hir::Pattern::Binding { local } if body.locals[*local].name == "value"
-    ));
-    assert!(matches!(&leaf_fields[1].1, hir::Pattern::Wildcard));
+    assert!(body.statements[..3].iter().all(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            pattern: hir::Pattern::Binding { .. },
+            ..
+        }
+    )));
+    let projections = body.statements[..3]
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            let hir::ExprKind::FieldAccess {
+                field: hir::FieldRef::StructField(field),
+                ..
+            } = init.kind
+            else {
+                return None;
+            };
+            Some(field.local_index())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(projections, vec![0, 0]);
+    assert_eq!(body.locals[invoke.params[1].local].name, "$arg.0");
+    assert!(body.locals.iter().any(|(_, local)| local.name == "value"));
+    assert!(
+        !body
+            .locals
+            .iter()
+            .any(|(_, local)| local.name.starts_with("$binding.subject."))
+    );
 }
 
 #[test]
