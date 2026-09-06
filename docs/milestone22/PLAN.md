@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.8
+版本：0.9
 
 最后更新：2026-09-06
 
@@ -15,6 +15,7 @@
 - HIR / MIR / LIR 的信息必须结构完备；stage 之间只通过各自 IR crate 通信，不在下游重新按名称、FQN、ordinal 或上下文猜测上游语义。
 - 失败 candidate、pattern plan 或 lowering transaction 不得污染永久 arena、scope、warning、实例化请求或 statement sink；`Error` 是失败基线，warning 只随成功路径提交。
 - 每个功能提交除专项完成门外都必须执行 `git diff --check` 并确认没有 `.snap.new`；实际命令与结果写入第 7 节。
+- 开发中先攒齐同一切片的实现、validator、artifact、fixture 与审查修复，只运行 `cargo check`、受影响的定向测试和必要的 LLVM verifier；专项完整 suite 只在该批次稳定后的完成门运行一次，全 workspace 与全 fixture 也只在功能提交前各运行一次。若完成门后又改动行为，则只重跑受影响的定向项，直到下一次最终完成门，不用完整 suite 代替静态审计。
 - 本文件持续更新：开始切片时标为“进行中”，完成验证并提交后记录 commit 与验证结果；范围或顺序变化时同步写明原因。
 
 ## 2. 不可变范围决定
@@ -199,3 +200,4 @@
 - 2026-09-06：4.3 开始。并行审计三条路径：LIR logical / physical signature ownership，32 / 24 字节及平坦 / 嵌套 aggregate 的 full-pipeline 复现矩阵，Darwin/AArch64 codegen definition / direct / dispatch / statepoint / Scoop extern artifact。当前已确认 `Function.params`、call signature 与 `LirFunctionType` 尚无参数 classification sum，codegen仍从各自的 `LirType`列表构造物理参数；先闭合共同 target classifier，再改 storage/root，不做单 shape 阈值补丁。
 - 2026-09-06：完成 4.3 的 LIR ownership 与 codegen / root 只读审计收敛。确认 ABI ownership 在 MIR → LIR，签名使用单一 `ScoopAbiSignature` / Abi sum，参数物理顺序由 logical entry 机械派生；首版所有非空 aggregate 间接传递，声明与 callsite 发射 typed `byval / sret / align`，显式 statepoint 使用 `5 + physical_index`。记录 indirect storage 在 ordinary / invoke / native-borrowed 中的 root / relocation 硬门，并把 definition 与 caller 一致性定为不可拆分的行为提交边界。
 - 2026-09-06：复现矩阵进一步定位 physical mismatch。原始 32-byte 嵌套 tuple 构造参数期望 `3/0/4/0`、实际 `3/0/0/1`；24-byte `(Signal, Long)` 构造参数期望 `3/4/55`、实际 `3/4/4294967296`，同 shape 经 NoGC 自由函数与 generic specialization 也失败，而 flat 32-byte 对照通过。LLVM IR 两端都写 raw by-value aggregate，但 AArch64 caller 与 callee 对溢出 stack 叶的拆分 offset 不一致；这直接验证了 exact indirect storage 的修复方向。
+- 2026-09-06：补充验证效率纪律。开发期先合并同一切片的全部实现、测试与审查修复，只跑定向检查；专项完整 suite、全 workspace 与全 fixture 分别留到稳定完成门一次执行，避免用反复全量回归发现可由静态审计或定向用例提前确定的缺口。
