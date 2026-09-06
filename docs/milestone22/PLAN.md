@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.12
+版本：0.13
 
 最后更新：2026-09-06
 
@@ -42,7 +42,7 @@
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
-| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a 正在把 HIR 内部 bool 统一为 target-aware outcome 集合；parser 继续拒绝新语法 |
+| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a outcome 集合 `64f90ca7` 已完成；下一切片为 4.4b typed target + ordinary/EH cleanup，parser 继续拒绝新语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
@@ -140,9 +140,9 @@
 
 依赖：4.2 的 planner 接口稳定；while header 前置已由 `f1745b5` 完成。实现采用 downstream-first，parser 在所有 cleanup / coroutine / poll 路径闭合后才开放源码语法：
 
-当前切片 4.4a：只重构 HIR lowering 内部控制流事实，不提前修改 Export / LocalConcrete HIR，也不开放 parser。生产分析以不可构造 target 实例化通用 outcome 集合；测试用 synthetic typed target 锁定未来 `Break` / `Continue` 的集合代数。sequence 只替换 `Fallthrough`，`when` 按 first-match 从 fallback 反向组合并分析 guard setup，`while` 先分析 condition setup，`finally` 使用“正常完成恢复 incoming、实际 abrupt 覆盖 incoming”的笛卡尔式组合。所有 non-Unit callable 与 value block 只从该集合投影 `Fallthrough`，不再维护第二套 bool 规则。
+4.4a（已完成：`64f90ca7`）：只重构 HIR lowering 内部控制流事实，不提前修改 Export / LocalConcrete HIR，也不开放 parser。生产分析以不可构造 target 实例化通用 outcome 集合；测试用 synthetic typed target 锁定未来 `Break` / `Continue` 的集合代数。sequence 只替换 `Fallthrough`，`when` 按 first-match 从 fallback 反向组合并分析 guard setup，`while` 先分析 condition setup，`finally` 使用“正常完成恢复 incoming、实际 abrupt 覆盖 incoming”的笛卡尔式组合。所有 non-Unit callable 与 value block 只从该集合投影 `Fallthrough`，不再维护第二套 bool 规则。值位置 `when` 的 hint、seed、LUB、外层 expected 与最终 materialization 只接收实际可达的 branch；不可达 branch 独立 type-check 并显式保留尾表达式求值。
 
-4.4a 的验证批次一次覆盖 sequence 短路、分支 union、when guard / 首个不可反驳 arm 截断、while setup、try/catch、finally 正常恢复 / 完全覆盖 / mixed 覆盖 / 空 incoming，以及 synthetic target；完成实现与审查修复后统一格式化，运行 `scoop-hir-lower` 定向 clippy / 测试和 `git diff --check`。本切片不运行 workspace、fixture 或 codegen 全量。
+4.4a 的验证覆盖 sequence 短路、分支 union、when refutable / guard / 首个不可反驳 arm 截断、while setup、try/catch、finally 正常恢复 / 完全覆盖 / mixed 覆盖 / 空 incoming、synthetic target，以及 value-when 不可达 arm / else 不参与结果推断但保留 HIR 求值。验证通过：格式检查；`cargo clippy -p scoop-hir-lower --all-targets -- -D warnings`；首次 crate 门 693 项中 692 项通过并暴露一处 probe scope 回归，修正后原失败用例 1/1 与新增不可达分支用例 2/2 定向通过；`git diff --check`；无 `.snap.new`。按效率纪律未重跑不受该 probe 修正影响的 692 项，也未运行 workspace、fixture 或 codegen 全量。两路最终静态审查无 blocker。
 
 后续 ownership 固定为：AST 只保存无标签语法；Export HIR 与 LocalConcrete HIR 各用独立的 stage-local `LoopId` / target 家族并由 concretization 显式重映射；mir-lower 私有层拥有 cleanup depth / cursor 与词法 target stack；跨 CFG → coroutine 的 pending transfer、typed resume target 与 loop-header poll marker 由 `scoop-mir` 保存；LIR 不接收 source / HIR LoopId，只机械消费 MIR marker 生成既有 typed managed poll。普通 `Throw` / `Rethrow` 始终沿 typed unwind 边，只有已物化并结束 native catch 的 managed throwable 才能进入 suspend frame variant。
 
@@ -219,4 +219,5 @@
 - 2026-09-06：提交 `f40f728`，先在语言与实现规范冻结 Darwin / AArch64 profile 的 aggregate Scoop ABI mapping：非空 aggregate 统一 indirect，caller / callee 共享 exact physical signature，LLVM adapter 一致发射 `byval` / `sret` / alignment 与 statepoint 参数属性。runtime function、对象模型与 GC 协议未变化，因此 runtime spec 无需修改。实现审查同时发现 native shim 必须从 incoming stack 取得 24-byte `byval` storage，且 moving-GC fixture 不能使用 immortal String；两项均在首次定向验证前集中修正。
 - 2026-09-06：完成 4.3 Scoop aggregate 参数 ABI classification，提交 `9fbbd68`。LIR classification、definition / call / extern 物理签名、indirect storage、ZST、statepoint attributes、root-plan validator、reload-before-pop、Darwin / AArch64 native shim 与 full-pipeline matrix 原子落地。先集中静态审计和定向修复，再只运行一次全 workspace / fixture 完成门；完整回归、ordinary / moving-GC stress 与 snapshot 审计全部通过。下一执行切片为 4.4 typed loop target 与 abrupt cleanup。
 - 2026-09-06：开始 4.4a HIR target-aware outcome。先完成只读审计并一次性列齐 sequence、if/when/while、try/finally、value block 与 callable consumers 的修改和测试矩阵；生产 target 暂用不可构造类型，真实 `LoopId` 留到 4.4b。按用户要求进一步收紧验证效率：本切片集中完成实现与审查修复后只跑定向 HIR-lower 门，不运行 workspace / fixture / codegen 全量。
-- 2026-09-06：完成 4.4 downstream 静态审计。确认现有 while header 正规化可复用、return-only cleanup 与 catch materialization 可作为重构基线，但 `PendingTransfer` / suspend frame metadata、typed resume target及显式 MIR poll marker都必须结构化新增；LIR 的自然回边推断不能继续作为 correctness 来源。无外部 blocker，后续保持 outcome → typed target/EH → coroutine/poll → parser 的四批顺序。
+- 2026-09-06：完成 4.4 downstream 静态审计。确认现有 while header 正规化可复用、return-only cleanup 与 catch materialization 可作为重构基线，但 `PendingTransfer` / suspend frame metadata、typed resume target 及显式 MIR poll marker 都必须结构化新增；LIR 的自然回边推断不能继续作为 correctness 来源。无外部 blocker，后续保持 outcome → typed target/EH → coroutine/poll → parser 的四批顺序。
+- 2026-09-06：完成并提交 4.4a HIR target-aware outcome `64f90ca7`。`ControlOutcomes<Target>` 统一 sequence、if/when/while、try/finally、non-Unit callable 与 value block 的控制事实；production 暂以 `Infallible` 封闭未开放 target，synthetic target 测试锁定 Break/Continue 身份与 finally 组合。同步修复 value-position `when` 让首个不可反驳 arm 后的不可达 arm / else 不再污染 seed、hint、LUB、expected 或 result materialization，尾表达式仍显式保留。验证严格采用“先攒批、再定向”：未重跑 workspace/full fixture；下一切片为 4.4b typed target + ordinary/EH cleanup。
