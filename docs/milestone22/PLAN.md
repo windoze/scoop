@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.14
+版本：0.18
 
 最后更新：2026-09-07
 
@@ -42,7 +42,7 @@
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
-| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a outcome 集合 `64f90ca7` 已完成；下一切片为 4.4b typed target + ordinary/EH cleanup，parser 继续拒绝新语法 |
+| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a outcome 集合 `64f90ca7`、4.4b HIR typed target / fresh remap 与 MIR ordinary/EH cleanup `b42ce94f` 已完成；下一切片为 coroutine pending transfer + explicit loop-header poll，parser 继续拒绝新语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
@@ -144,9 +144,11 @@
 
 4.4a 的验证覆盖 sequence 短路、分支 union、when refutable / guard / 首个不可反驳 arm 截断、while setup、try/catch、finally 正常恢复 / 完全覆盖 / mixed 覆盖 / 空 incoming、synthetic target，以及 value-when 不可达 arm / else 不参与结果推断但保留 HIR 求值。验证通过：格式检查；`cargo clippy -p scoop-hir-lower --all-targets -- -D warnings`；首次 crate 门 693 项中 692 项通过并暴露一处 probe scope 回归，修正后原失败用例 1/1 与新增不可达分支用例 2/2 定向通过；`git diff --check`；无 `.snap.new`。按效率纪律未重跑不受该 probe 修正影响的 692 项，也未运行 workspace、fixture 或 codegen 全量。两路最终静态审查无 blocker。
 
-4.4b（进行中）：Export HIR 与 LocalConcrete HIR 各自新增内联于结构化 loop / jump 的独立 `LoopId` newtype，不给 `Body` 增加不能覆盖 default template 等 detached region 的空 arena。HIR lowering 使用 Cone-wide 单调 allocator 和 callable-local 词法 stack；default template 的每次展开与每个 concrete body / 泛型实例都分配 fresh target，并通过当前 active loop 显式重映射，既不复制旧 id，也不按 raw ordinal 转型。parser 继续拒绝 `break` / `continue`，本切片只用内部构造 IR 锁定下游协议。
+4.4b（已完成：`b42ce94f`）：Export HIR 与 LocalConcrete HIR 各自新增内联于结构化 loop / jump 的独立 `LoopId` newtype，不给 `Body` 增加不能覆盖 default template 等 detached region 的空 arena。HIR lowering 使用 Cone-wide 单调 allocator 和 callable-local 词法 stack；default template 的每次展开与每个 concrete body / 泛型实例都分配 fresh target，并通过当前 active loop 显式重映射，既不复制旧 id，也不按 raw ordinal 转型。parser 继续拒绝 `break` / `continue`，本切片只用内部构造 IR 锁定下游协议。
 
 MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `PendingTransfer::{Fallthrough, Return, Break, Continue}` 持有互不兼容的 typed resume / return payload / loop exit / loop header target；每个 target 非可选地保存 cleanup depth。显式 `CleanupCursor` 只逆序执行当前位置到目标 depth 的 suffix，每步先截断当前 cleanup 视图；因此 finally 内的新外向 transfer 从 cursor 之后继续而不会重入，内部已消费的 loop jump / caught throw 正常结束后仍恢复旧 pending。try body、catch body的正常结束也走同一 router；catch stack 维持 `Finally` 后压入 `EndCatch`，保证 LIFO 下每条正常离开 catch 的边先且仅执行一次 `EndCatch`。普通 Throw / Rethrow 仍走现有 typed unwind。
+
+4.4b 完成证据：Export / LocalConcrete HIR stage-local target、callable / detached-region 隔离、default / concretization fresh remap、MIR typed loop target 与统一 normal-transfer router 已原子提交。静态交叉审查发现并修复 outer catch 内 nested cleanup-free try 外跳时的 unwind owner mismatch；程序化 CFG 回归覆盖 setup / body 的 break / continue、nested loop、try/catch/finally、`EndCatch` 次数、finally 覆盖、non-Unit return 保存/恢复，以及 if / PatternDecision 双侧 abrupt 的不可达 merge。验证通过：`cargo fmt --all`；受影响三 crate clippy（`-D warnings`）；HIR loop-target 定向 7/7；MIR control-flow 定向 16/16；`git diff --check`；无 `.snap.new`。按完成门效率纪律未运行 workspace 或 full fixture suite。
 
 后续 ownership 固定为：AST 只保存无标签语法；Export HIR 与 LocalConcrete HIR 各用独立的 stage-local `LoopId` / target 家族并由 concretization 显式重映射；mir-lower 私有层拥有 cleanup depth / cursor 与词法 target stack；跨 CFG → coroutine 的 pending transfer、typed resume target 与 loop-header poll marker 由 `scoop-mir` 保存；LIR 不接收 source / HIR LoopId，只机械消费 MIR marker 生成既有 typed managed poll。普通 `Throw` / `Rethrow` 始终沿 typed unwind 边，只有已物化并结束 native catch 的 managed throwable 才能进入 suspend frame variant。
 
@@ -226,3 +228,6 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-06：完成 4.4 downstream 静态审计。确认现有 while header 正规化可复用、return-only cleanup 与 catch materialization 可作为重构基线，但 `PendingTransfer` / suspend frame metadata、typed resume target 及显式 MIR poll marker 都必须结构化新增；LIR 的自然回边推断不能继续作为 correctness 来源。无外部 blocker，后续保持 outcome → typed target/EH → coroutine/poll → parser 的四批顺序。
 - 2026-09-06：完成并提交 4.4a HIR target-aware outcome `64f90ca7`。`ControlOutcomes<Target>` 统一 sequence、if/when/while、try/finally、non-Unit callable 与 value block 的控制事实；production 暂以 `Infallible` 封闭未开放 target，synthetic target 测试锁定 Break/Continue 身份与 finally 组合。同步修复 value-position `when` 让首个不可反驳 arm 后的不可达 arm / else 不再污染 seed、hint、LUB、expected 或 result materialization，尾表达式仍显式保留。验证严格采用“先攒批、再定向”：未重跑 workspace/full fixture；下一切片为 4.4b typed target + ordinary/EH cleanup。
 - 2026-09-07：开始 4.4b typed target + ordinary/EH cleanup。两路只读审计裁决为 While 内联的 Export / LocalConcrete 独立 `LoopId`、default / concretization fresh 显式重映射，以及包含 Fallthrough 的单一 MIR normal-transfer router；不新增 `Body` arena，不开放 parser，不把 Throw / Rethrow 改写成 normal pending。实现、穷尽 visitor 修复和 HIR/MIR 定向矩阵先一次性攒齐，再统一格式化、lint 与相关 crate 验证；不运行 workspace/full fixture 全量。
+- 2026-09-07：4.4b HIR 批已静态收口：Export / LocalConcrete 独立 `LoopId`、callable / detached region 隔离、default / concretization fresh top-exact remap、typed flow 与 visitor 穷尽更新已齐；MIR 批继续集中补齐 loop CFG、normal-transfer cleanup、catch `EndCatch`、finally 覆盖和无伪 merge 的程序化断言。最终合并前不逐 case 运行测试；待两批与静态审查一次性收敛后，只运行一次格式化、受影响 crate clippy 与精准测试，不运行 workspace 或 full fixture suite。
+- 2026-09-07：4.4b 实现与测试矩阵已合批。静态交叉审查先一次性补强 nested loop + finally 的 typed outcome、non-Unit return 跨 finally 的保存/恢复、PatternDecision 双侧 abrupt、callable/CFG scope 平衡断言和测试遍历的 When/Try 覆盖，并更新受统一 catch router 影响的单元 golden；随后发现并修复 outer catch 内 nested cleanup-free try 外跳时的 `EndCatch` owner mismatch，新增 nested try body / catch 两条外跳路径的回归。最终静态复核无剩余 correctness blocker。下一步只执行一次格式化、受影响三 crate clippy、HIR loop-target filter 与 MIR control-flow 模块测试；仍不运行 workspace/full fixture。
+- 2026-09-07：完成并提交 4.4b typed target + ordinary/EH cleanup `b42ce94f`。实现、测试与静态审查修复全部攒齐后统一验证一次：格式化、三 crate clippy、HIR 7 项 loop-target 定向测试、MIR 16 项 control-flow 定向测试、diff / snapshot 卫生检查均通过；未运行 workspace/full fixture suite。下一切片为 4.4c coroutine pending transfer + explicit loop-header poll，parser 继续保持关闭。
