@@ -75,7 +75,7 @@ Scoop 的类型分为两大类：
 ### 3.1 顶层与底层类型
 
 - `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。`Any` **没有任何成员方法**：值相等走 `==` 的运算符决议（见 11.11），字符串化与哈希是独立的接口（`ToString` / `Hash`，见 11.11）——不把 `equals` / `hashCode` / `toString` 挂在类型根上（那是 Java 的遗迹）。
-- `Nothing`：所有类型的子类型，无实例。值类型可以向下转型到 `Nothing`（实际上不可达，仅类型系统规则）。
+- `Nothing`：所有类型的子类型，无实例。值类型可以向下转型到 `Nothing`（实际上不可达，仅类型系统规则）。`Nothing`作为源码可命名类型以及一般jump expression的完整落地属于后续语言子集；M22的`break`/`continue`不会仅为表达这一底层语义而构造`Nothing`类型的表达式。
 
 ### 3.2 泛型
 
@@ -373,6 +373,8 @@ val S { f1: x, f2: y, .. } = s
 Kotlin 原有的`when`语法（等值匹配、类型匹配、区间、条件分支）原样保留。以下扩展对**enum、tuple与struct**生效。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性算法。
 
 `if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以`return`/`throw`或8.7的`break`/`continue`结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
+
+M22实现子集把`break`/`continue`与既有`return`/`throw`统一视为jump statement，而不是一般expression。`break`/`continue`的成功语法位置只包括块内的完整语句、直接作为不带花括号的`if`分支体，以及直接作为`when`箭头后的单条分支体；即使外围`if`/`when`/`try`正在值位置使用，jump自身仍是终止该分支的语句。`value ?: break`、`f(break)`、`val x = break`、`(break)`以及把`break`/`continue`用作receiver、operator operand或其他子表达式均不属于M22成功语法，必须产生稳定的未支持诊断且不得进入成功AST。一般jump expression与源码可命名的`Nothing`一并留给后续子集。
 
 值位置的 `if` 必须有 `else`；结果被丢弃时可以省略。值位置的 `when` 必须穷尽。`try` 的结果由正常完成的 try body 与各 catch body 共同决定；`finally` 的结果值始终丢弃，但其中实际离开当前finally的`return`/`throw`/`break`/`continue`仍按第8章覆盖先前路径。
 
@@ -744,10 +746,10 @@ fun references() {
 
 ### 8.7 循环控制
 
-本规范在M22规定的循环控制子集是`while`、`for`与不带标签的`break`/`continue`；`do-while`及带标签控制流仍属于2.1所列完整语言的后续子集。
+本规范在M22规定的循环控制子集是`while`、`for`与不带标签的`break`/`continue` jump statement；成功及失败语法位置由第5章新增段落与本节共同规定。`do-while`、带标签控制流及一般jump expression仍属于2.1所列完整语言的后续子集。
 
 - `break`退出当前callable内词法最内层循环，`continue`进入其下一轮；函数、匿名函数、lambda和局部函数各自建立控制边界，不能跳到外层callable的循环。循环外使用是编译错误；
-- `break`/`continue`终止当前路径且类型为`Nothing`。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
+- `break`/`continue`不产生正常结果并终止当前路径；该路径不参与第5章的结果类型合并，语义效果等同于bottom，但jump自身不是`Nothing`类型的表达式。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
 - while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
 - 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
 
@@ -1043,7 +1045,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 ### 11.1 类型层级根
 
 - `Any`：所有类型的根。**没有任何成员方法**（见 3.1 与 11.11）。
-- `Nothing`：所有类型的子类型，无实例。
+- `Nothing`：所有类型的子类型，无实例。这一条固定完整语言及其core/runtime metadata的未来契约；源码可命名的canonical实体、完整类型系统行为与一般jump expression由后续子集一并落地，M22不要求现行sysroot已提供可解析的`Nothing`声明，也不为jump statement提前物化该类型。
 
 ### 11.2 基本类型
 

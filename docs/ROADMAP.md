@@ -235,7 +235,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 - struct字段默认值与命名参数调用 → M17；次构造函数 → M19；
 - 副本更新表达式 `s.{ f: v }`（spec 4.5）→ M22；
-- 不带标签的`break`/`continue`/`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
+- 不带标签的`break`/`continue` jump statement、`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
+- 源码可命名的底类型`Nothing`（含signature、generic application与cast）及一般jump expression（例如`value ?: break`、argument/initializer中的jump）→ 后续里程碑；M22只以`ControlOutcome`表达jump路径的semantic bottom，不物化`Nothing` expression/type；
 - 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；M22修订为`Int`/`UInt`固定i32、`Long`/`ULong`固定i64）→ M22；
 - 整数溢出语义 → M22（spec 11.2已固定wrapping、除法与shift边界）；
 - 内建 print 重载 → M7 转为 core 普通重载（设计已含）。

@@ -166,7 +166,8 @@ for (item in source()) {
 
 - 不带标签的`break`/`continue`分别指向当前callable内词法最内层循环；循环外使用是编译错误；
 - lambda、匿名函数与局部函数建立新的callable边界。即使文本上嵌在循环体内，其中的`break`/`continue`也不能跳出外层循环；
-- 两种控制表达式不正常产出值，类型为`Nothing`；`while`/`for`正常落空的语句结果为`Unit`；
+- 两者都是jump statement，不产生正常结果；其所在路径不参与外围控制表达式的结果类型合并，表现为semantic bottom，但不构造`Nothing`类型的表达式。`while`/`for`正常落空的语句结果为`Unit`；
+- 成功位置限于块内完整语句、不带花括号的`if`分支体以及`when`箭头后的单条分支体。`value ?: break`、argument/initializer/receiver/operator operand、`(break)`及对应的`continue`形式属于未来的一般jump expression，M22必须给出稳定的未支持诊断；
 - `break`跳到循环exit；`continue`跳到循环header：`while`重新执行完整condition setup和condition，`for`重新调用一次`next()`；
 - 循环体内的`try`/`catch`/`finally`按照5.3执行离开目标之前的全部cleanup。finally正常结束后恢复原transfer；只有实际离开当前finally的return/throw/break/continue才替换旧transfer。在finally内部被catch或只退出其内层循环的控制流不会覆盖外部pending transfer；
 - 本里程碑parser对`break@label`、`continue@label`、labeled loop与`do-while`继续给出正式的未支持诊断，不建立半实现的label id。
@@ -420,6 +421,8 @@ Statement::Continue { span }
 Expr::CopyUpdate { base, NonEmpty<FieldUpdate>, span }
 FieldPattern { field, subpattern: Box<Pattern>, span }
 ```
+
+`Statement::Break`与`Statement::Continue`是完整的statement variant，不得另增`Expr::Break`/`Expr::Continue`、伪造`Nothing` type id或用缺失expression type表达控制转移。parser除普通块语句外，还在不带花括号的`if`分支体和`when`箭头后的单条分支体接受这两个statement，并把它们包装为相同的block statement结构；其他expression子位置以当前语法单元为恢复边界产生正式未支持诊断，残缺节点不得进入AST。这样`val x = if (done()) { break } else { 1 }`仍由唯一正常分支定型，而`value ?: break`在M22中明确失败。
 
 所有出现整数token的AST入口（普通表达式、annotation argument及其他受限常量语法）都复用`IntegerLiteralSyntax`或等价的同一payload，不能保留平行的`AnnotationArg::Int(i64)`。
 
