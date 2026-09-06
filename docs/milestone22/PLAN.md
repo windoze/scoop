@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.7
+版本：0.8
 
 最后更新：2026-09-06
 
@@ -113,7 +113,18 @@
 4. 加入边界尺寸、平坦/嵌套 aggregate、caller/callee 分离、generic materialization、普通/managed call 及 C/Scoop ABI 隔离回归，并单独提交。
 5. 完成门包括专项 HIR / MIR / LIR golden、LLVM function/call attribute artifact、端到端输出、`cargo test --workspace`、全 workspace clippy、`git diff --check` 与无 `.snap.new`。
 
-当前审计基线：LIR function、typed call 与 Scoop extern signature 仍只保存 logical `LirType`；codegen 分别从 definition 和 call site 的类型列表构造 LLVM 参数，并仅以 `uses_return_slot` 闭合 aggregate return。4.3 不接受按单个 size / shape 打补丁；第一实现切片必须先让 target-owned typed classifier 成为 definition、direct / dispatch call 与 Scoop extern 的共同物理签名来源，再迁移 storage、root 与 artifact 验证。
+当前审计基线：LIR function、typed call 与 Scoop extern signature 仍只保存 logical `LirType`；codegen 分别从 definition 和 call site 的类型列表构造 LLVM 参数，并仅以 `uses_return_slot` 闭合 aggregate return。4.3 不接受按单个 size / shape 打补丁。
+
+已锁定的实现形状：
+
+- ABI ownership 从 MIR → LIR 开始；HIR / MIR 继续保留 logical exact signature。struct / enum layout 完成后、任何 body lowering 前，对所有最终 MIR function 与 Scoop extern 预分类；callee definition、local direct call、dispatch / closure call 与 Scoop extern 必须复用共同签名，不重新分类。
+- `ScoopAbiSignature` 按 logical 顺序只保存一组 `AbiArgument` 与一个 `AbiReturn`，每个 entry 原子绑定 storage type、size / alignment、scan 与 `ElidedZst / Direct / Indirect`。不保存可与之矛盾的第二份 physical vector 或 parameter index；物理顺序固定为可选 sret，再按 logical 顺序跳过 ZST、发射 direct value 或 indirect storage pointer。
+- Darwin / AArch64 首版保守分类：Unit result 为 `UnitVoid`；任意 size 0 参数与非 Unit result 为 `ElidedZst`；scalar、qualified pointer 与 niche enum 为 `Direct`；所有非空 tuple / struct / tagged enum / exception record 为 `Indirect`。未来放宽 aggregate direct 必须新增明确 coercion pieces，不得回到 size threshold。
+- indirect 参数使用 caller-owned fresh exact storage，并以 `byval(exact LLVM type) align N` 发射；indirect result 作为首个物理参数并以 `sret(exact LLVM type) align N` 发射。声明、普通 call / invoke 与 dispatch 使用物理索引 `i`，显式 managed statepoint invoke 把同一属性平移到 intrinsic 参数 `5 + i`，callee `elementtype` 仍在参数 2。
+- `AbiCallArgument` 区分 elided logical value、direct value与 refined indirect storage。含 managed ref 的 indirect storage 自身是递归 root region；native-borrowed handshake 前发布该稳定 storage，relocation 后把同一个已更新 storage pointer 传给 callee。AS0 storage pointer 本身不是 `gc-live`，只按 exact scan 处理其 AS1 leaves。
+- `UnitVoid` 与非 Unit `ElidedZst` 在 LIR 中保持不同 return / call arm；后者物理返回 void，但在正常边生成 exact logical ZST value。address-taken elided parameter 使用独立、满足对齐的 1-byte place token，不发射空 LLVM aggregate 参数。
+
+最小 correctness-closed 行为提交必须原子包含：LIR sum / checked classifier 与 validator；definition、direct / dispatch、call / invoke、Scoop extern 的共同物理签名；callee logical → physical parameter mapping、caller ABI storage 与 ZST elision；`sret / byval / align` 及显式 statepoint 属性；ordinary / exceptional / native root relocation；pre / post-RS4GC artifact 与 full-pipeline 复现。不会在 definition 与 caller 不一致时作为完成提交。
 
 ### 4.4 typed loop target 与 abrupt cleanup
 
@@ -186,3 +197,5 @@
 - 2026-09-06：根据独立 loop / ABI 审计更新后续顺序。aggregate 问题改名为一般 Scoop ABI classification 缺口并前移到 4.3；loop 采用 outcome → typed target / cleanup → coroutine / explicit header poll → parser 开放的 downstream-first 顺序。记录 `Component` action 接入前校验与 binding plan 持久化前封闭构造为后续硬门。
 - 2026-09-06：完成 4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC，提交 `dde7063`。最终审查发现并修复 extension component receiver 被合法拓宽为父类 / 接口后错误要求 exact type 的断言，并补两类正向回归。验证通过：`cargo fmt --all -- --check`；`cargo clippy --workspace --all-targets -- -D warnings`；`cargo test -p scoop-hir-lower`（679/679）；snapshot refresh；`INSTA_UPDATE=no cargo test --workspace`（端到端 fixture 4/4，324.84 秒，全部 doctest 通过）；手工 baseline 与 `SCOOP_GC_STRESS_MOVE=1` 输出一致；`git diff --check`；无 `.snap.new` 或新增 `TODO` / `unimplemented!`。三路独立审查最终均无 correctness blocker。该切片只复用既有 typed call、EH、coroutine frame 与 moving-GC root / relocation 契约，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。下一执行切片为 4.3 Scoop aggregate 参数 ABI classification。
 - 2026-09-06：4.3 开始。并行审计三条路径：LIR logical / physical signature ownership，32 / 24 字节及平坦 / 嵌套 aggregate 的 full-pipeline 复现矩阵，Darwin/AArch64 codegen definition / direct / dispatch / statepoint / Scoop extern artifact。当前已确认 `Function.params`、call signature 与 `LirFunctionType` 尚无参数 classification sum，codegen仍从各自的 `LirType`列表构造物理参数；先闭合共同 target classifier，再改 storage/root，不做单 shape 阈值补丁。
+- 2026-09-06：完成 4.3 的 LIR ownership 与 codegen / root 只读审计收敛。确认 ABI ownership 在 MIR → LIR，签名使用单一 `ScoopAbiSignature` / Abi sum，参数物理顺序由 logical entry 机械派生；首版所有非空 aggregate 间接传递，声明与 callsite 发射 typed `byval / sret / align`，显式 statepoint 使用 `5 + physical_index`。记录 indirect storage 在 ordinary / invoke / native-borrowed 中的 root / relocation 硬门，并把 definition 与 caller 一致性定为不可拆分的行为提交边界。
+- 2026-09-06：复现矩阵进一步定位 physical mismatch。原始 32-byte 嵌套 tuple 构造参数期望 `3/0/4/0`、实际 `3/0/0/1`；24-byte `(Signal, Long)` 构造参数期望 `3/4/55`、实际 `3/4/4294967296`，同 shape 经 NoGC 自由函数与 generic specialization 也失败，而 flat 32-byte 对照通过。LLVM IR 两端都写 raw by-value aggregate，但 AArch64 caller 与 callee 对溢出 stack 叶的拆分 offset 不一致；这直接验证了 exact indirect storage 的修复方向。
