@@ -257,6 +257,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m22-aggregate-abi/aggregate-calls.scoop"
             | "m22-binding-patterns/class-component-suspend-moving-gc.scoop"
             | "m22-copy-update/suspend-moving-gc.scoop"
+            | "m22-iteration/combined.scoop"
             | "m25-eh/combined.scoop"
     )
 }

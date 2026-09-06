@@ -430,7 +430,7 @@ HIR新增以下内部能力：
 - alias table以`TypeAliasId`保存visibility/origin/target，并在所有type/qualifier入口统一展开；
 - integer literal variable作为M16 constraint atom，winner commit一次性产出exact nominal type与width-matched `IntegerConstant` variant；
 - `IntegerTypeCore`以对八个`IntegerKind`的total map保存各自唯一canonical nominal owner；缺项、重复owner或owner kind不符都使core contract失败，不能只在registry Vec中假定“应该齐全”；
-- `IterationCore`非可选地保存Iterator template、`next` interface slot、Option template及Some/None variant id；core contract缺失或visibility/signature不符时整个模块不能进入MIR；
+- `IterationCore`非可选地保存Iterator template与`next` exact interface slot，并复用模块唯一的canonical checked `OptionCore`关系；不得复制第二套Option template、Some payload field或None variant身份。core contract缺失或visibility/signature不符时整个模块不能进入MIR；
 - 每个source `for`另有不可缺失的`ForIterationPlan`，原子保存source temporary、唯一iterator call及result type、exact `Iterator<T>` application、具体conformance/boxing witness、specialized next slot、exact `Option<T>`与Some/None variant、element type、binding plan和`LoopId`。`IterationCore`不能代替该use-site witness；
 - source loop建立不可跨callable的typed `LoopId`栈；break/continue在HIR即绑定目标，不以整数深度或nullable label表示；
 - 组合式控制流分析使用`ControlOutcome::{Fallthrough, Return, Throw, Break(LoopId), Continue(LoopId)}`集合而非“是否落空”bool；sequence只把Fallthrough送入下一语句，分支取union，每个loop消费指向自己的Break/Continue，finally按实际离开目标决定是否替换进入它的outcome。该分析sum不等于MIR的normal `PendingTransfer`，其中Throw仍只沿异常边传播；

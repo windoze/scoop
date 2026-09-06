@@ -1,0 +1,43 @@
+// EXPECT-DIAGNOSTICS
+
+class MissingSource
+
+class GoodIterator : Iterator<Int> {
+    public final override fun next(): Option<Int> = None
+}
+
+class BadLayeredSource {
+    operator fun iterator(): Int = 0
+}
+
+operator fun BadLayeredSource.iterator(): GoodIterator = GoodIterator()
+
+interface LeftSource {}
+interface RightSource {}
+class AmbiguousSource : LeftSource, RightSource
+
+operator fun LeftSource.iterator(): GoodIterator = GoodIterator()
+operator fun RightSource.iterator(): GoodIterator = GoodIterator()
+
+interface GenericSource<I> {
+    operator fun iterator(): I
+}
+
+fun missingOperator(source: MissingSource) {
+    for (value in source) {}
+}
+
+fun ambiguousOperator(source: AmbiguousSource) {
+    for (value in source) {}
+}
+
+fun invalidMemberResult(source: BadLayeredSource) {
+    for (value in source) {}
+}
+
+fun <I : Iterator<Int>, S : GenericSource<I>> multipleApplications(source: S)
+    where I : Iterator<String> {
+    for (value in source) {}
+}
+
+fun main() {}

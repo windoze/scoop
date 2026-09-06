@@ -63,7 +63,7 @@ fn when_single_expression_arm_body_needs_a_separator() {
 
 #[test]
 fn when_arm_body_is_not_a_declaration() {
-    // Only expression statements are allowed without braces.
+    // Only expression statements and M22 loop jumps are allowed without braces.
     let (_, message) = err("fun main() {\n    when (s) {\n        Red -> val x = 1\n    }\n}\n");
     assert_eq!(message, "expected expression, found `val`");
 }

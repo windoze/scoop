@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -531,18 +542,28 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property13: Array<T0>
+    field1 property14: Long
+    property13 val source: Array<T0> getter13=storage <stored field0 init=parameter13>
+    property14 var index: Long getter14=storage setter0=storage <stored field1 init=parameter14>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property15: MutableArray<T0>
+    field3 property16: Long
+    property15 val source: MutableArray<T0> getter15=storage <stored field2 init=parameter15>
+    property16 var index: Long getter16=storage setter1=storage <stored field3 init=parameter16>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property13: Option<String>
-    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
+    field4 property17: Option<String>
+    property17 val message: Option<String> getter17=storage <stored field4 init=parameter17>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException(message: Option<String>)
   open class Animal(name: String)
-    field1 property14: String
-    property14 val name: String getter14=storage <stored field1 init=parameter15>
+    field5 property18: String
+    property18 val name: String getter18=storage <stored field5 init=parameter19>
   class Dog()
   class DogProducer() : Producer<Dog>
   class IntProducer() : Producer<Int>
@@ -555,6 +576,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
@@ -1206,7 +1231,7 @@ Module mangling=compact-v2
       assign $new.1
         Type Dog
         ClassAlloc Dog
-      call @scoop.init.Dog.$c8 direct
+      call @scoop.init.Dog.$c10 direct
         Type Dog
         Local $new.1
       return
@@ -1250,7 +1275,7 @@ Module mangling=compact-v2
       assign $new.1
         Type DogProducer
         ClassAlloc DogProducer
-      call @scoop.init.DogProducer.$c9 direct
+      call @scoop.init.DogProducer.$c11 direct
         Type DogProducer
         Local $new.1
       val producer: Producer$C3_DogX
@@ -1276,7 +1301,7 @@ Module mangling=compact-v2
       assign $new.3
         Type AnimalConsumer
         ClassAlloc AnimalConsumer
-      call @scoop.init.AnimalConsumer.$c11 direct
+      call @scoop.init.AnimalConsumer.$c13 direct
         Type AnimalConsumer
         Local $new.3
       val consumer: Consumer$C6_AnimalX
@@ -1288,7 +1313,7 @@ Module mangling=compact-v2
       assign $new.4
         Type Dog
         ClassAlloc Dog
-      call @scoop.init.Dog.$c8 direct
+      call @scoop.init.Dog.$c10 direct
         Type Dog
         Local $new.4
       val $argument.0: Animal
@@ -1305,7 +1330,7 @@ Module mangling=compact-v2
       assign $new.5
         Type IntProducer
         ClassAlloc IntProducer
-      call @scoop.init.IntProducer.$c10 direct
+      call @scoop.init.IntProducer.$c12 direct
         Type IntProducer
         Local $new.5
       val $receiver: IntProducer
@@ -1359,7 +1384,7 @@ Module mangling=compact-v2
       assign $new.6
         Type AnyConsumer
         ClassAlloc AnyConsumer
-      call @scoop.init.AnyConsumer.$c12 direct
+      call @scoop.init.AnyConsumer.$c14 direct
         Type AnyConsumer
         Local $new.6
       val $receiver: AnyConsumer
@@ -1381,7 +1406,7 @@ Module mangling=compact-v2
       assign $new.7
         Type IntProducer
         ClassAlloc IntProducer
-      call @scoop.init.IntProducer.$c10 direct
+      call @scoop.init.IntProducer.$c12 direct
         Type IntProducer
         Local $new.7
       val $argument.0: Producer$I32
@@ -1498,12 +1523,12 @@ Module mangling=compact-v2
         FieldAccess 0
           Type Value$I32
           Local this
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -1514,7 +1539,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1530,7 +1555,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -1538,7 +1563,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1554,7 +1579,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -1562,7 +1587,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1578,7 +1603,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -1586,7 +1611,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1602,7 +1627,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -1610,7 +1635,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -1618,7 +1643,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -1626,7 +1651,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c13 @scoop.init.IllegalStateException.$c13(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c15 @scoop.init.IllegalStateException.$c15(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1639,13 +1664,13 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.Animal.$c7 @scoop.init.Animal.$c7(this: Animal, name: String) -> Unit
+  fun init.Animal.$c9 @scoop.init.Animal.$c9(this: Animal, name: String) -> Unit
     bb0 entry
       field_set 0
         Type Animal
@@ -1653,7 +1678,7 @@ Module mangling=compact-v2
         Type String
         Local name
       return
-  fun init.Dog.$c8 @scoop.init.Dog.$c8(this: Dog) -> Unit
+  fun init.Dog.$c10 @scoop.init.Dog.$c10(this: Dog) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1661,7 +1686,7 @@ Module mangling=compact-v2
       val $parameter.name: String
         Type String
         Local $argument.0
-      call @scoop.init.Animal.$c7 direct
+      call @scoop.init.Animal.$c9 direct
         Type Animal
         Retype Animal
           Type Dog
@@ -1669,16 +1694,16 @@ Module mangling=compact-v2
         Type String
         Local $parameter.name
       return
-  fun init.DogProducer.$c9 @scoop.init.DogProducer.$c9(this: DogProducer) -> Unit
+  fun init.DogProducer.$c11 @scoop.init.DogProducer.$c11(this: DogProducer) -> Unit
     bb0 entry
       return
-  fun init.IntProducer.$c10 @scoop.init.IntProducer.$c10(this: IntProducer) -> Unit
+  fun init.IntProducer.$c12 @scoop.init.IntProducer.$c12(this: IntProducer) -> Unit
     bb0 entry
       return
-  fun init.AnimalConsumer.$c11 @scoop.init.AnimalConsumer.$c11(this: AnimalConsumer) -> Unit
+  fun init.AnimalConsumer.$c13 @scoop.init.AnimalConsumer.$c13(this: AnimalConsumer) -> Unit
     bb0 entry
       return
-  fun init.AnyConsumer.$c12 @scoop.init.AnyConsumer.$c12(this: AnyConsumer) -> Unit
+  fun init.AnyConsumer.$c14 @scoop.init.AnyConsumer.$c14(this: AnyConsumer) -> Unit
     bb0 entry
       return
   fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
@@ -2284,18 +2309,18 @@ Module
     poll managed-void-target0 sp101 live=[]
     t0 = extract param0, 0 : i32
     ret t0
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp102 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target1 sp103 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp61 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn33(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2310,7 +2335,7 @@ Module
     call managed-void-target0 sp62 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2325,7 +2350,7 @@ Module
     call managed-void-target0 sp63 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2340,7 +2365,7 @@ Module
     call managed-void-target0 sp64 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2355,7 +2380,7 @@ Module
     call managed-void-target0 sp65 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -2365,7 +2390,7 @@ Module
     call managed-void-target0 sp66 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c13(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c15(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -2378,12 +2403,12 @@ Module
     call managed-void-target0 sp67 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.Animal.$c7(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.Animal.$c9(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp110 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.Dog.$c8(ptr<managed>) -> void
+  fun @scoop.init.Dog.$c10(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.name: ptr<managed>
   block entry
@@ -2393,19 +2418,19 @@ Module
     call managed-void-target0 sp68 live=[param0:ptr<managed>@0, local1:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn41(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.DogProducer.$c9(ptr<managed>) -> void
+  fun @scoop.init.DogProducer.$c11(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp112 live=[]
     ret
-  fun @scoop.init.IntProducer.$c10(ptr<managed>) -> void
+  fun @scoop.init.IntProducer.$c12(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp113 live=[]
     ret
-  fun @scoop.init.AnimalConsumer.$c11(ptr<managed>) -> void
+  fun @scoop.init.AnimalConsumer.$c13(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp114 live=[]
     ret
-  fun @scoop.init.AnyConsumer.$c12(ptr<managed>) -> void
+  fun @scoop.init.AnyConsumer.$c14(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp115 live=[]
     ret

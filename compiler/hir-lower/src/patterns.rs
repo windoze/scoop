@@ -32,6 +32,7 @@ use hir::{Type, TypeId};
 use crate::{Lowerer, VariantStyle};
 
 mod binding;
+pub(crate) use binding::expand_irrefutable_binding_plan;
 mod exhaustiveness;
 mod structure;
 

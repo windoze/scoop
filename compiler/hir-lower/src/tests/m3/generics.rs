@@ -38,6 +38,10 @@ fn generic_identity_infers_type_arguments() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -351,6 +355,10 @@ fn nested_generic_calls_record_param_instantiations() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -478,6 +486,10 @@ fn generic_option_roundtrip() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

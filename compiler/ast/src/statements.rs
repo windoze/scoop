@@ -38,6 +38,12 @@ pub enum StatementKind {
     Assign(Assign),
     If(If),
     While(While),
+    /// `for (pattern in iterable) { ... }` (spec 8.7 / 11.8).
+    For(For),
+    /// Unlabelled loop-control jumps. Their source spans live on the
+    /// containing [`Statement`], like the payload-free form of `return`.
+    Break,
+    Continue,
     Block(Block),
     /// A lexical safety override. Unlike annotations on declarations, this is
     /// a dedicated syntax node and cannot be mistaken for a function call.
@@ -216,6 +222,14 @@ pub struct If {
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
     pub cond: Expr,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct For {
+    pub pattern: Pattern,
+    pub iterable: Expr,
     pub body: Block,
     pub span: Span,
 }

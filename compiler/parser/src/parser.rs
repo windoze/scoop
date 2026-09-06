@@ -3,9 +3,8 @@
 //! Parsing recovers at declaration, member and statement boundaries and
 //! returns every independent spanned diagnostic found in one file. A file
 //! with any diagnostic does not produce an AST. Constructs that are
-//! lexically recognizable but outside the subset (`for`, `when`
-//! expressions, string interpolation, field assignment, ranges, slices,
-//! companion/`object` declarations, `sealed` classes, `try` expressions)
+//! lexically recognizable but outside the subset (string interpolation,
+//! slices, loop labels, `do-while`, `sealed` classes)
 //! get dedicated "not supported" diagnostics rather than generic syntax
 //! errors. Declaration parsing lives in `decl.rs`, type parsing in `ty.rs`,
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in

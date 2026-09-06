@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -524,26 +535,36 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property11: Array<T0>
+    field1 property12: Long
+    property11 val source: Array<T0> getter11=storage <stored field0 init=parameter11>
+    property12 var index: Long getter12=storage setter0=storage <stored field1 init=parameter12>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property13: MutableArray<T0>
+    field3 property14: Long
+    property13 val source: MutableArray<T0> getter13=storage <stored field2 init=parameter13>
+    property14 var index: Long getter14=storage setter1=storage <stored field3 init=parameter14>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field4 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field4 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException(message: Option<String>)
   class ForeignGate(job: Option<Ptr<Unit>>, observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>)
-    field1 property12: Option<Ptr<Unit>>
-    field2 property13: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
-    property12 var job: Option<Ptr<Unit>> getter12=storage setter0=storage <stored field1 init=parameter13>
-    property13 var observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>> getter13=storage setter1=storage <stored field2 init=parameter14>
+    field5 property16: Option<Ptr<Unit>>
+    field6 property17: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
+    property16 var job: Option<Ptr<Unit>> getter16=storage setter2=storage <stored field5 init=parameter17>
+    property17 var observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>> getter17=storage setter3=storage <stored field6 init=parameter18>
   class ForeignRegistration(gate: ForeignGate) : SuspendRegistration<Int>
-    field3 property14: ForeignGate
-    property14 val gate: ForeignGate getter14=storage <stored field3 init=parameter15>
+    field7 property18: ForeignGate
+    property18 val gate: ForeignGate getter18=storage <stored field7 init=parameter19>
   class ForeignTask(gate: ForeignGate) : SuspendTask<Int>
-    field4 property15: ForeignGate
-    property15 val gate: ForeignGate getter15=storage <stored field4 init=parameter16>
+    field8 property19: ForeignGate
+    property19 val gate: ForeignGate getter19=storage <stored field8 init=parameter20>
   class ForeignCompletion() : Continuation<Int>
   interface Continuation<T>
     fun resume(value: T0): Unit
@@ -552,6 +573,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
@@ -1406,7 +1431,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ForeignGate
         ClassAlloc ForeignGate
-      call @scoop.init.ForeignGate.$c7 direct
+      call @scoop.init.ForeignGate.$c9 direct
         Type ForeignGate
         Local $new.1
         Type Option$PUX<Ptr<Unit>>
@@ -1425,7 +1450,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ForeignTask
         ClassAlloc ForeignTask
-      call @scoop.init.ForeignTask.$c9 direct
+      call @scoop.init.ForeignTask.$c11 direct
         Type ForeignTask
         Local $new.2
         Type ForeignGate
@@ -1436,7 +1461,7 @@ Module mangling=compact-v2
       assign $new.3
         Type ForeignCompletion
         ClassAlloc ForeignCompletion
-      call @scoop.init.ForeignCompletion.$c10 direct
+      call @scoop.init.ForeignCompletion.$c12 direct
         Type ForeignCompletion
         Local $new.3
       val $argument.1: Continuation$I32
@@ -1483,7 +1508,7 @@ Module mangling=compact-v2
       assign $new.4
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c2 direct
+      call @scoop.init.UnwrapException.$c4 direct
         Type UnwrapException
         Local $new.4
       throw
@@ -1526,7 +1551,7 @@ Module mangling=compact-v2
       assign $new.5
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c2 direct
+      call @scoop.init.UnwrapException.$c4 direct
         Type UnwrapException
         Local $new.5
       throw
@@ -1876,12 +1901,12 @@ Module mangling=compact-v2
         BoolLiteral false
     bb24 pattern.merge.24
       unreachable
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -1892,7 +1917,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1908,7 +1933,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -1916,7 +1941,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1932,7 +1957,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -1940,7 +1965,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1956,7 +1981,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -1964,7 +1989,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1980,7 +2005,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -1988,7 +2013,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -1996,7 +2021,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -2004,7 +2029,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c11 @scoop.init.IllegalStateException.$c11(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c13 @scoop.init.IllegalStateException.$c13(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -2017,13 +2042,13 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ForeignGate.$c7 @scoop.init.ForeignGate.$c7(this: ForeignGate, job: Option$PUX<Ptr<Unit>>, observer: Option$D29_ForeignCallback$FI32_PUXRI32XX<ForeignCallback$FI32_PUXRI32X>) -> Unit
+  fun init.ForeignGate.$c9 @scoop.init.ForeignGate.$c9(this: ForeignGate, job: Option$PUX<Ptr<Unit>>, observer: Option$D29_ForeignCallback$FI32_PUXRI32XX<ForeignCallback$FI32_PUXRI32X>) -> Unit
     bb0 entry
       field_set 0
         Type ForeignGate
@@ -2036,7 +2061,7 @@ Module mangling=compact-v2
         Type Option$D29_ForeignCallback$FI32_PUXRI32XX<ForeignCallback$FI32_PUXRI32X>
         Local observer
       return
-  fun init.ForeignRegistration.$c8 @scoop.init.ForeignRegistration.$c8(this: ForeignRegistration, gate: ForeignGate) -> Unit
+  fun init.ForeignRegistration.$c10 @scoop.init.ForeignRegistration.$c10(this: ForeignRegistration, gate: ForeignGate) -> Unit
     bb0 entry
       field_set 0
         Type ForeignRegistration
@@ -2044,7 +2069,7 @@ Module mangling=compact-v2
         Type ForeignGate
         Local gate
       return
-  fun init.ForeignTask.$c9 @scoop.init.ForeignTask.$c9(this: ForeignTask, gate: ForeignGate) -> Unit
+  fun init.ForeignTask.$c11 @scoop.init.ForeignTask.$c11(this: ForeignTask, gate: ForeignGate) -> Unit
     bb0 entry
       field_set 0
         Type ForeignTask
@@ -2052,7 +2077,7 @@ Module mangling=compact-v2
         Type ForeignGate
         Local gate
       return
-  fun init.ForeignCompletion.$c10 @scoop.init.ForeignCompletion.$c10(this: ForeignCompletion) -> Unit
+  fun init.ForeignCompletion.$c12 @scoop.init.ForeignCompletion.$c12(this: ForeignCompletion) -> Unit
     bb0 entry
       return
   fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
@@ -2174,7 +2199,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ForeignRegistration
         ClassAlloc ForeignRegistration
-      call @scoop.init.ForeignRegistration.$c8 direct
+      call @scoop.init.ForeignRegistration.$c10 direct
         Type ForeignRegistration
         Local $new.1
         Type ForeignGate
@@ -2265,7 +2290,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c11 direct
+      call @scoop.init.IllegalStateException.$c13 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -2489,7 +2514,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c11 direct
+      call @scoop.init.IllegalStateException.$c13 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -2524,7 +2549,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c11 direct
+      call @scoop.init.IllegalStateException.$c13 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -2688,7 +2713,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c11 direct
+      call @scoop.init.IllegalStateException.$c13 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -3638,18 +3663,18 @@ Module
     ret true
   block pattern.else.23
     ret false
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp124 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum2) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum2) -> void
   block entry
     poll managed-void-target1 sp125 live=[param0:ptr<managed>@0, param1:enum2@0]
     call managed-void-target0 sp57 live=[param0:ptr<managed>@0, param1:enum2@0] sig=void0 (ptr<managed>) local-fn33(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum2
@@ -3664,7 +3689,7 @@ Module
     call managed-void-target0 sp58 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum2
@@ -3679,7 +3704,7 @@ Module
     call managed-void-target0 sp59 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum2
@@ -3694,7 +3719,7 @@ Module
     call managed-void-target0 sp60 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum2
@@ -3709,7 +3734,7 @@ Module
     call managed-void-target0 sp61 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn34(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum2) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum2) -> void
     local %0 $argument.0: enum2
     local %1 $parameter.message: enum2
   block entry
@@ -3719,7 +3744,7 @@ Module
     call managed-void-target0 sp62 live=[param0:ptr<managed>@0, local1:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn34(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c11(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c13(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum2
@@ -3732,23 +3757,23 @@ Module
     call managed-void-target0 sp63 live=[param0:ptr<managed>@0, local2:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn39(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ForeignGate.$c7(ptr<managed>, enum0, indirect<enum1 size=24 align=8 scan=none>) -> void
+  fun @scoop.init.ForeignGate.$c9(ptr<managed>, enum0, indirect<enum1 size=24 align=8 scan=none>) -> void
   block entry
     poll managed-void-target0 sp132 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop.init.ForeignRegistration.$c8(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.ForeignRegistration.$c10(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp133 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.ForeignTask.$c9(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.ForeignTask.$c11(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp134 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.ForeignCompletion.$c10(ptr<managed>) -> void
+  fun @scoop.init.ForeignCompletion.$c12(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp135 live=[]
     ret

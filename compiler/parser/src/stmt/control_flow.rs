@@ -1,8 +1,8 @@
 //! Structured conditional, loop, pattern dispatch, and exception syntax.
 
 use scoop_ast::{
-    Block, CatchClause, Diagnostic, Expr, If, Span, Statement, StatementKind, Try, When, WhenArm,
-    While,
+    Block, CatchClause, Diagnostic, Expr, For, If, Span, Statement, StatementKind, Try, When,
+    WhenArm, While,
 };
 
 use crate::lexer::TokenKind;
@@ -11,8 +11,9 @@ use crate::pattern::pattern_span;
 
 impl Parser {
     /// `if (<cond>) { ... } (else { ... })?` — the condition is always
-    /// parenthesized. `else if` chains get no special treatment (M2 design
-    /// section 6): `else` must be followed by a block.
+    /// parenthesized. M22 additionally permits an unbraced `break` or
+    /// `continue` as either branch. Other unbraced bodies, including
+    /// `else if`, remain outside the accepted syntax.
     pub(super) fn parse_if(&mut self) -> Result<Statement, Diagnostic> {
         let if_ = self.parse_if_node()?;
         Ok(Statement {
@@ -30,11 +31,11 @@ impl Parser {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
         self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let then_block = self.parse_block()?;
+        let then_block = self.parse_if_branch_body()?;
         let mut end = then_block.span.end;
         let else_block = if matches!(self.peek().kind, TokenKind::Else) {
             self.bump();
-            let block = self.parse_block()?;
+            let block = self.parse_if_branch_body()?;
             end = block.span.end;
             Some(block)
         } else {
@@ -49,11 +50,21 @@ impl Parser {
         })
     }
 
+    fn parse_if_branch_body(&mut self) -> Result<Block, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::LBrace) {
+            return self.parse_block();
+        }
+        if matches!(&self.peek().kind, TokenKind::Break | TokenKind::Continue) {
+            return self.parse_loop_jump_block();
+        }
+        self.parse_block()
+    }
+
     /// `when (<subject>) { <arm>* (else -> <block>)? }` — statement-level
     /// pattern matching (spec chapter 5). An arm is
-    /// `<pattern> (if (<guard>))? -> <body>` where the body is a block or
-    /// a single expression statement (`Red -> println("red")`, spec 5.1);
-    /// arms end like statements, and `else` must be the last one.
+    /// `<pattern> (if (<guard>))? -> <body>` where the body is a block, a
+    /// single expression statement (`Red -> println("red")`, spec 5.1), or
+    /// an M22 loop jump; arms end like statements, and `else` must be last.
     pub(super) fn parse_when(&mut self) -> Result<Statement, Diagnostic> {
         let when = self.parse_when_node()?;
         Ok(Statement {
@@ -81,7 +92,9 @@ impl Parser {
                 TokenKind::Else => {
                     self.bump();
                     self.expect("`->`", |k| matches!(k, TokenKind::Arrow))?;
-                    else_body = Some(self.parse_arm_body()?);
+                    let body = self.parse_arm_body()?;
+                    self.expect_statement_end()?;
+                    else_body = Some(body);
                     // `else` must be the last arm.
                     break self.expect("`}`", |k| matches!(k, TokenKind::RBrace))?;
                 }
@@ -118,11 +131,15 @@ impl Parser {
         })
     }
 
-    /// A `when` arm body: a block, or a single expression statement
-    /// wrapped in a synthetic block (the AST keeps `Block` either way).
+    /// A `when` arm body: a block, a single expression statement, or an M22
+    /// loop jump, wrapped in a synthetic block (the AST keeps `Block` for all
+    /// three forms).
     fn parse_arm_body(&mut self) -> Result<Block, Diagnostic> {
         if matches!(self.peek().kind, TokenKind::LBrace) {
             return self.parse_block();
+        }
+        if matches!(&self.peek().kind, TokenKind::Break | TokenKind::Continue) {
+            return self.parse_loop_jump_block();
         }
         let expr = self.parse_expr()?;
         let span = expr.span();
@@ -131,6 +148,15 @@ impl Parser {
                 kind: StatementKind::Expr(expr),
                 span,
             }],
+            span,
+        })
+    }
+
+    fn parse_loop_jump_block(&mut self) -> Result<Block, Diagnostic> {
+        let statement = self.parse_loop_jump()?;
+        let span = statement.span;
+        Ok(Block {
+            statements: vec![statement],
             span,
         })
     }
@@ -146,6 +172,28 @@ impl Parser {
         Ok(Statement {
             span,
             kind: StatementKind::While(While { cond, body, span }),
+        })
+    }
+
+    /// `for (<pattern> in <iterable>) { ... }`. Pattern syntax is deliberately
+    /// shared with `val`/lambda/`when`; irrefutability is a later typed check.
+    pub(super) fn parse_for(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump(); // `for`
+        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
+        let pattern = self.parse_pattern()?;
+        self.expect("`in`", |kind| matches!(kind, TokenKind::In))?;
+        let iterable = self.parse_expr()?;
+        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let body = self.parse_block()?;
+        let span = Span::new(keyword.span.start, body.span.end);
+        Ok(Statement {
+            kind: StatementKind::For(For {
+                pattern,
+                iterable,
+                body,
+                span,
+            }),
+            span,
         })
     }
 

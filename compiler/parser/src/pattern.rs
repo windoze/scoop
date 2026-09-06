@@ -1,8 +1,9 @@
 //! Pattern parsing (spec 4.6 and chapter 5).
 //!
-//! Pattern positions — destructuring `val` declarations and `when` arm
-//! conditions — are pure pattern syntax: `..` here is always the rest
-//! marker, never the range operator (the spec 4.6 disambiguation rule).
+//! Pattern positions — destructuring `val` declarations, `for` bindings,
+//! lambda parameters, and `when` arm conditions — are pure pattern syntax:
+//! `..` here is always the rest marker, never the range operator (the spec
+//! 4.6 disambiguation rule).
 //! Enum variant patterns and struct patterns share their shapes
 //! (`Path(...)`, `Path { ... }`, tuple patterns); HIR resolves which is
 //! which. Except for the built-in `Unit` literal spelling, an unqualified

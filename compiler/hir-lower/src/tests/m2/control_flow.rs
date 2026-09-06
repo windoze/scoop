@@ -41,6 +41,10 @@ fn var_rebinding_and_control_flow() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -208,6 +212,10 @@ fn inner_scopes_shadow_and_do_not_leak() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

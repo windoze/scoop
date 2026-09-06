@@ -54,6 +54,9 @@ pub enum StatementKind {
         cond: Expr,
         body: Vec<Statement>,
     },
+    /// Source iteration remains explicit only in Export HIR. The complete
+    /// typed plan is expanded before LocalConcrete HIR reaches MIR.
+    For(Box<ForIterationPlan>),
     Break {
         target: LoopId,
     },

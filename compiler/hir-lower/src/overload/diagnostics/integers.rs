@@ -126,6 +126,19 @@ fn collect_statement_integer_literal_kinds(
                 collect_integer_literal_kinds(lowerer, cond, kinds);
                 collect_statement_integer_literal_kinds(lowerer, body, kinds);
             }
+            hir::StatementKind::For(plan) => {
+                collect_statement_integer_literal_kinds(lowerer, plan.source_setup(), kinds);
+                collect_integer_literal_kinds(lowerer, plan.source_init(), kinds);
+                collect_statement_integer_literal_kinds(lowerer, plan.iterator_setup(), kinds);
+                collect_integer_literal_kinds(lowerer, plan.iterator_call(), kinds);
+                for action in &plan.binding().actions {
+                    if let hir::IrrefutableBindingAction::Component { setup, call, .. } = action {
+                        collect_statement_integer_literal_kinds(lowerer, setup, kinds);
+                        collect_integer_literal_kinds(lowerer, call, kinds);
+                    }
+                }
+                collect_statement_integer_literal_kinds(lowerer, plan.body(), kinds);
+            }
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::LocalFunction(_)
             | hir::StatementKind::Return { value: None }

@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -794,10 +805,20 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property11: Array<T0>
+    field1 property12: Long
+    property11 val source: Array<T0> getter11=storage <stored field0 init=parameter11>
+    property12 var index: Long getter12=storage setter0=storage <stored field1 init=parameter12>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property13: MutableArray<T0>
+    field3 property14: Long
+    property13 val source: MutableArray<T0> getter13=storage <stored field2 init=parameter13>
+    property14 var index: Long getter14=storage setter1=storage <stored field3 init=parameter14>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field4 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field4 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -806,14 +827,14 @@ Module
   class Done() : Continuation<Int>
   class UnitDone() : Continuation<Unit>
   class Gate(waiter: Option<Continuation<Int>>)
-    field1 property12: Option<Continuation<Int>>
-    property12 var waiter: Option<Continuation<Int>> getter12=storage setter0=storage <stored field1 init=parameter13>
+    field5 property16: Option<Continuation<Int>>
+    property16 var waiter: Option<Continuation<Int>> getter16=storage setter2=storage <stored field5 init=parameter17>
   class Worker(gate: Gate)
-    field2 property13: Gate
-    property13 val gate: Gate getter13=storage <stored field2 init=parameter14>
+    field6 property17: Gate
+    property17 val gate: Gate getter17=storage <stored field6 init=parameter18>
   class AsyncWorker(gate: Gate) : AsyncValue
-    field3 property14: Gate
-    property14 val gate: Gate getter14=storage <stored field3 init=parameter15>
+    field7 property18: Gate
+    property18 val gate: Gate getter18=storage <stored field7 init=parameter19>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -821,6 +842,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
@@ -947,7 +972,7 @@ Module
   fun makeTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda1 invoke=$lambda.0 captures=1 : suspend () -> Int
-        capture gate binding88 : Gate
+        capture gate binding94 : Gate
   suspend fun referenced(): Int
     return
       IntegerLiteral 43 : Int
@@ -966,7 +991,7 @@ Module
         Local exact : suspend (Any) -> Int
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : suspend () -> Int
-        capture widened binding119 : suspend (Int) -> Any
+        capture widened binding125 : suspend (Int) -> Any
   fun dynamicVarianceTask(): suspend () -> Int
     val local0
       CallableReference reference2 target=acceptAny captures=0 : suspend (Any) -> Int
@@ -977,15 +1002,15 @@ Module
         Local erased : Any
     return
       Lambda lambda4 invoke=$lambda.4 captures=1 : suspend () -> Int
-        capture checked binding123 : suspend (Int) -> Any
+        capture checked binding129 : suspend (Int) -> Any
   fun constantTask<T>(value: T0): suspend () -> T0
     return
       Lambda lambda5 invoke=$lambda.5 captures=1 : suspend () -> T0
-        capture value binding125 : T0
+        capture value binding131 : T0
   fun failureTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda7 invoke=$lambda.6 captures=1 : suspend () -> Int
-        capture gate binding127 : Gate
+        capture gate binding133 : Gate
   suspend fun synchronousValue(): Int
     val local0
       Lambda lambda8 invoke=$lambda.8 captures=0 : (Continuation<Int>) -> Unit
@@ -1029,7 +1054,7 @@ Module
   fun nestedTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda15 invoke=$lambda.13 captures=1 : suspend () -> Int
-        capture gate binding174 : Gate
+        capture gate binding180 : Gate
   fun main(): Unit
     val local0
       Lambda lambda16 invoke=$lambda.16 captures=0 : suspend () -> Int
@@ -2114,7 +2139,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c2 direct
+      call @scoop.init.UnwrapException.$c4 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -2167,7 +2192,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c2 direct
+      call @scoop.init.UnwrapException.$c4 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -2344,7 +2369,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c3 direct
+      call @scoop.init.ClassCastException.$c5 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -2551,7 +2576,7 @@ Module mangling=compact-v2
       assign $new.1
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.1
       val $argument.1: Continuation$I32
@@ -2586,7 +2611,7 @@ Module mangling=compact-v2
       assign $new.2
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.2
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -2606,7 +2631,7 @@ Module mangling=compact-v2
       assign $new.3
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.3
       val $argument.1: Continuation$I32
@@ -2656,7 +2681,7 @@ Module mangling=compact-v2
       assign $new.4
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.4
       val $argument.1: Continuation$I32
@@ -2703,7 +2728,7 @@ Module mangling=compact-v2
       assign $new.5
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c3 direct
+      call @scoop.init.ClassCastException.$c5 direct
         Type ClassCastException
         Local $new.5
       throw
@@ -2721,7 +2746,7 @@ Module mangling=compact-v2
       assign $new.6
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.6
       val $argument.1: Continuation$I32
@@ -2747,7 +2772,7 @@ Module mangling=compact-v2
       assign $new.7
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.7
       val $argument.1: Continuation$I32
@@ -2773,7 +2798,7 @@ Module mangling=compact-v2
       assign $new.8
         Type UnitDone
         ClassAlloc UnitDone
-      call @scoop.init.UnitDone.$c8 direct
+      call @scoop.init.UnitDone.$c10 direct
         Type UnitDone
         Local $new.8
       val $argument.1: Continuation$U
@@ -2799,7 +2824,7 @@ Module mangling=compact-v2
       assign $new.9
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.9
       val $argument.1: Continuation$I32
@@ -2825,7 +2850,7 @@ Module mangling=compact-v2
       assign $new.10
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.10
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -2842,7 +2867,7 @@ Module mangling=compact-v2
       assign $new.11
         Type Worker
         ClassAlloc Worker
-      call @scoop.init.Worker.$c10 direct
+      call @scoop.init.Worker.$c12 direct
         Type Worker
         Local $new.11
         Type Gate
@@ -2858,7 +2883,7 @@ Module mangling=compact-v2
       assign $new.12
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.12
       val $argument.1: Continuation$I32
@@ -2898,7 +2923,7 @@ Module mangling=compact-v2
       assign $new.13
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.13
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -2915,7 +2940,7 @@ Module mangling=compact-v2
       assign $new.14
         Type AsyncWorker
         ClassAlloc AsyncWorker
-      call @scoop.init.AsyncWorker.$c11 direct
+      call @scoop.init.AsyncWorker.$c13 direct
         Type AsyncWorker
         Local $new.14
         Type Gate
@@ -2934,7 +2959,7 @@ Module mangling=compact-v2
       assign $new.15
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.15
       val $argument.1: Continuation$I32
@@ -2974,7 +2999,7 @@ Module mangling=compact-v2
       assign $new.16
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.16
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -2994,7 +3019,7 @@ Module mangling=compact-v2
       assign $new.17
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.17
       val $argument.1: Continuation$I32
@@ -3029,7 +3054,7 @@ Module mangling=compact-v2
       assign $new.18
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.18
       val $argument.1: Continuation$I32
@@ -3050,7 +3075,7 @@ Module mangling=compact-v2
       assign $new.19
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.19
       val $argument.1: Continuation$I32
@@ -3079,7 +3104,7 @@ Module mangling=compact-v2
       assign $new.20
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.20
       val $argument.1: Continuation$I32
@@ -3102,7 +3127,7 @@ Module mangling=compact-v2
       assign $new.21
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.21
       val $argument.1: Continuation$I32
@@ -3125,7 +3150,7 @@ Module mangling=compact-v2
       assign $new.22
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.22
       val $argument.1: Continuation$I32
@@ -3148,7 +3173,7 @@ Module mangling=compact-v2
       assign $new.23
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.23
       val $argument.1: Continuation$I32
@@ -3171,7 +3196,7 @@ Module mangling=compact-v2
       assign $new.24
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.24
       val $argument.1: Continuation$I32
@@ -3194,7 +3219,7 @@ Module mangling=compact-v2
       assign $new.25
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.25
       val $argument.1: Continuation$I32
@@ -3220,7 +3245,7 @@ Module mangling=compact-v2
       assign $new.26
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.26
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -3240,7 +3265,7 @@ Module mangling=compact-v2
       assign $new.27
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.27
       val $argument.1: Continuation$I32
@@ -3281,7 +3306,7 @@ Module mangling=compact-v2
       assign $new.28
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.Gate.$c9 direct
+      call @scoop.init.Gate.$c11 direct
         Type Gate
         Local $new.28
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -3301,7 +3326,7 @@ Module mangling=compact-v2
       assign $new.29
         Type Done
         ClassAlloc Done
-      call @scoop.init.Done.$c7 direct
+      call @scoop.init.Done.$c9 direct
         Type Done
         Local $new.29
       val $argument.1: Continuation$I32
@@ -3324,7 +3349,7 @@ Module mangling=compact-v2
       assign $new.30
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c4 direct
+      call @scoop.init.ArithmeticException.$c6 direct
         Type ArithmeticException
         Local $new.30
       val $argument.0: Throwable
@@ -3623,7 +3648,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c4 direct
+      call @scoop.init.ArithmeticException.$c6 direct
         Type ArithmeticException
         Local $new.1
       val $argument.0: Throwable
@@ -3643,7 +3668,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c4 direct
+      call @scoop.init.ArithmeticException.$c6 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -3668,7 +3693,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c4 direct
+      call @scoop.init.ArithmeticException.$c6 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -3838,7 +3863,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c4 direct
+      call @scoop.init.ArithmeticException.$c6 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -4613,12 +4638,12 @@ Module mangling=compact-v2
       return
         Type CoroutineStep$I32
         Local $step
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -4629,7 +4654,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -4645,7 +4670,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -4653,7 +4678,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -4669,7 +4694,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -4677,7 +4702,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -4693,7 +4718,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -4701,7 +4726,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -4717,7 +4742,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -4725,7 +4750,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -4733,7 +4758,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -4741,7 +4766,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c12 @scoop.init.IllegalStateException.$c12(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c14 @scoop.init.IllegalStateException.$c14(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -4754,19 +4779,19 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.Done.$c7 @scoop.init.Done.$c7(this: Done) -> Unit
+  fun init.Done.$c9 @scoop.init.Done.$c9(this: Done) -> Unit
     bb0 entry
       return
-  fun init.UnitDone.$c8 @scoop.init.UnitDone.$c8(this: UnitDone) -> Unit
+  fun init.UnitDone.$c10 @scoop.init.UnitDone.$c10(this: UnitDone) -> Unit
     bb0 entry
       return
-  fun init.Gate.$c9 @scoop.init.Gate.$c9(this: Gate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.Gate.$c11 @scoop.init.Gate.$c11(this: Gate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
     bb0 entry
       field_set 0
         Type Gate
@@ -4774,7 +4799,7 @@ Module mangling=compact-v2
         Type Option$J16_Continuation$I32X<Continuation$I32>
         Local waiter
       return
-  fun init.Worker.$c10 @scoop.init.Worker.$c10(this: Worker, gate: Gate) -> Unit
+  fun init.Worker.$c12 @scoop.init.Worker.$c12(this: Worker, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type Worker
@@ -4782,7 +4807,7 @@ Module mangling=compact-v2
         Type Gate
         Local gate
       return
-  fun init.AsyncWorker.$c11 @scoop.init.AsyncWorker.$c11(this: AsyncWorker, gate: Gate) -> Unit
+  fun init.AsyncWorker.$c13 @scoop.init.AsyncWorker.$c13(this: AsyncWorker, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type AsyncWorker
@@ -5276,7 +5301,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5355,7 +5380,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5390,7 +5415,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5523,7 +5548,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5702,7 +5727,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5788,7 +5813,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5823,7 +5848,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -5956,7 +5981,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6135,7 +6160,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6221,7 +6246,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6256,7 +6281,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6389,7 +6414,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6566,7 +6591,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6645,7 +6670,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6680,7 +6705,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6813,7 +6838,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -6994,7 +7019,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7073,7 +7098,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7108,7 +7133,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7241,7 +7266,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7422,7 +7447,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7501,7 +7526,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7536,7 +7561,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7669,7 +7694,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7856,7 +7881,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7935,7 +7960,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7970,7 +7995,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8103,7 +8128,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8290,7 +8315,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8369,7 +8394,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8404,7 +8429,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8537,7 +8562,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8724,7 +8749,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8810,7 +8835,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8845,7 +8870,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8978,7 +9003,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9161,7 +9186,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9247,7 +9272,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9282,7 +9307,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9415,7 +9440,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9600,7 +9625,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9672,7 +9697,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9707,7 +9732,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9840,7 +9865,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10025,7 +10050,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10097,7 +10122,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10132,7 +10157,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10265,7 +10290,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10450,7 +10475,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10522,7 +10547,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10557,7 +10582,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10690,7 +10715,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10875,7 +10900,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10947,7 +10972,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10982,7 +11007,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11115,7 +11140,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11300,7 +11325,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11372,7 +11397,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11407,7 +11432,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11540,7 +11565,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11721,7 +11746,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11800,7 +11825,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11835,7 +11860,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11968,7 +11993,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12240,7 +12265,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw unwind bb1
@@ -12333,7 +12358,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12368,7 +12393,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12501,7 +12526,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12688,7 +12713,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12767,7 +12792,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12802,7 +12827,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -12935,7 +12960,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13105,7 +13130,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c3 direct
+      call @scoop.init.ClassCastException.$c5 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -13141,7 +13166,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13220,7 +13245,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13255,7 +13280,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13388,7 +13413,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13558,7 +13583,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c3 direct
+      call @scoop.init.ClassCastException.$c5 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -13594,7 +13619,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13673,7 +13698,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13708,7 +13733,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -13841,7 +13866,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14119,7 +14144,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw unwind bb1
@@ -14198,7 +14223,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14233,7 +14258,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14366,7 +14391,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14555,7 +14580,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14634,7 +14659,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14669,7 +14694,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -14802,7 +14827,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15001,7 +15026,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15080,7 +15105,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15115,7 +15140,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15248,7 +15273,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15425,7 +15450,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15504,7 +15529,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15539,7 +15564,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15672,7 +15697,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15849,7 +15874,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15928,7 +15953,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15963,7 +15988,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16096,7 +16121,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16273,7 +16298,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16352,7 +16377,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16387,7 +16412,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16520,7 +16545,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16697,7 +16722,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16776,7 +16801,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16811,7 +16836,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -16944,7 +16969,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17121,7 +17146,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17200,7 +17225,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17235,7 +17260,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17368,7 +17393,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17595,7 +17620,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17819,7 +17844,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -17854,7 +17879,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18018,7 +18043,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18230,7 +18255,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18309,7 +18334,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18344,7 +18369,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18477,7 +18502,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18653,7 +18678,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18725,7 +18750,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18760,7 +18785,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -18884,7 +18909,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19065,7 +19090,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19144,7 +19169,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19179,7 +19204,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19312,7 +19337,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19488,7 +19513,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19560,7 +19585,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19595,7 +19620,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19719,7 +19744,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19904,7 +19929,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -19990,7 +20015,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20025,7 +20050,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20158,7 +20183,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20343,7 +20368,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20429,7 +20454,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20464,7 +20489,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -20597,7 +20622,7 @@ Module mangling=compact-v2
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c12 direct
+      call @scoop.init.IllegalStateException.$c14 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -23107,18 +23132,18 @@ Module
     call managed-indirect-target0 sp239 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum2 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn130(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp1024 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum1) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum1) -> void
   block entry
     poll managed-void-target1 sp1025 live=[param0:ptr<managed>@0, param1:enum1@0]
     call managed-void-target0 sp240 live=[param0:ptr<managed>@0, param1:enum1@0] sig=void0 (ptr<managed>) local-fn88(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -23133,7 +23158,7 @@ Module
     call managed-void-target0 sp241 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn89(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -23148,7 +23173,7 @@ Module
     call managed-void-target0 sp242 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn89(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -23163,7 +23188,7 @@ Module
     call managed-void-target0 sp243 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn89(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -23178,7 +23203,7 @@ Module
     call managed-void-target0 sp244 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn89(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum1) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum1) -> void
     local %0 $argument.0: enum1
     local %1 $parameter.message: enum1
   block entry
@@ -23188,7 +23213,7 @@ Module
     call managed-void-target0 sp245 live=[param0:ptr<managed>@0, local1:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn89(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c12(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c14(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum1
@@ -23201,25 +23226,25 @@ Module
     call managed-void-target0 sp246 live=[param0:ptr<managed>@0, local2:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn94(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.Done.$c7(ptr<managed>) -> void
+  fun @scoop.init.Done.$c9(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp1032 live=[]
     ret
-  fun @scoop.init.UnitDone.$c8(ptr<managed>) -> void
+  fun @scoop.init.UnitDone.$c10(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp1033 live=[]
     ret
-  fun @scoop.init.Gate.$c9(ptr<managed>, enum0) -> void
+  fun @scoop.init.Gate.$c11(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target0 sp1034 live=[param0:ptr<managed>@0, param1:enum0@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.Worker.$c10(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.Worker.$c12(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp1035 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.AsyncWorker.$c11(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.AsyncWorker.$c13(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp1036 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1

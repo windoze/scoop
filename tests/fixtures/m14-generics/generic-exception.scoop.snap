@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -492,10 +503,20 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property11: Array<T0>
+    field1 property12: Long
+    property11 val source: Array<T0> getter11=storage <stored field0 init=parameter11>
+    property12 var index: Long getter12=storage setter0=storage <stored field1 init=parameter12>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property13: MutableArray<T0>
+    field3 property14: Long
+    property13 val source: MutableArray<T0> getter13=storage <stored field2 init=parameter13>
+    property14 var index: Long getter14=storage setter1=storage <stored field3 init=parameter14>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field4 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field4 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -509,6 +530,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
@@ -1074,7 +1099,7 @@ Module mangling=compact-v2
       assign $new.1
         Type GenericError$I32
         ClassAlloc GenericError$I32
-      call @scoop.init.GenericError$I32.$c7 direct
+      call @scoop.init.GenericError$I32.$c9 direct
         Type GenericError$I32
         Local $new.1
       throw
@@ -1085,7 +1110,7 @@ Module mangling=compact-v2
       assign $new.1
         Type GenericError$S
         ClassAlloc GenericError$S
-      call @scoop.init.GenericError$S.$c7 direct
+      call @scoop.init.GenericError$S.$c9 direct
         Type GenericError$S
         Local $new.1
       throw
@@ -1099,7 +1124,7 @@ Module mangling=compact-v2
       goto bb2
     bb2 try.dispatch.2
       begin_catch
-      branch bb10 bb11
+      branch bb9 bb10
         Type Boolean
         IsInstance GenericError$I32
           Type Any
@@ -1117,22 +1142,20 @@ Module mangling=compact-v2
       end_catch
       resume
     bb7 try.end.7
-      goto bb21
+      goto bb20
     bb8 try.body.8 unwind bb1
       call @scoop.failInt direct
-      goto bb9
-    bb9 scope.9
       goto bb7
-    bb10 try.catch.10
+    bb9 try.catch.9
       val error: GenericError$I32
         Type GenericError$I32
         Retype GenericError$I32
           Type Any
           CaughtException
-      goto bb12
-    bb11 try.next.11
+      goto bb11
+    bb10 try.next.10
       rethrow unwind bb5
-    bb12 scope.12 unwind bb3
+    bb11 scope.11 unwind bb3
       val $argument.0: String
         Type String
         StringConst @scoop.str.0
@@ -1142,53 +1165,51 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb13
-    bb13 scope.13
       end_catch
+      goto bb12
+    bb12 scope.12
       goto bb7
-    bb14 try.unwind.14
+    bb13 try.unwind.13
       landing_pad cleanup=false
-      goto bb15
-    bb15 try.dispatch.15
+      goto bb14
+    bb14 try.dispatch.14
       begin_catch
-      branch bb23 bb24
+      branch bb21 bb22
         Type Boolean
         IsInstance GenericError$I32
           Type Any
           CaughtException
-    bb16 try.handler_pad.16
+    bb15 try.handler_pad.15
       landing_pad cleanup=true
-      goto bb17
-    bb17 try.handler_cleanup.17
+      goto bb16
+    bb16 try.handler_cleanup.16
       end_catch
       resume
-    bb18 try.exit_pad.18
+    bb17 try.exit_pad.17
       landing_pad cleanup=true
-      goto bb19
-    bb19 try.exit_cleanup.19
+      goto bb18
+    bb18 try.exit_cleanup.18
       end_catch
       resume
-    bb20 try.end.20
+    bb19 try.end.19
       return
-    bb21 try.body.21 unwind bb14
+    bb20 try.body.20 unwind bb13
       call @scoop.failString direct
-      goto bb22
-    bb22 scope.22
-      goto bb20
-    bb23 try.catch.23
+      goto bb19
+    bb21 try.catch.21
       val error: GenericError$I32
         Type GenericError$I32
         Retype GenericError$I32
           Type Any
           CaughtException
-      goto bb25
-    bb24 try.next.24
-      branch bb27 bb28
+      goto bb23
+    bb22 try.next.22
+      branch bb25 bb26
         Type Boolean
         IsInstance Exception
           Type Any
           CaughtException
-    bb25 scope.25 unwind bb16
+    bb23 scope.23 unwind bb15
       val $argument.0: String
         Type String
         StringConst @scoop.str.1
@@ -1198,20 +1219,20 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb26
-    bb26 scope.26
       end_catch
-      goto bb20
-    bb27 try.catch.27
+      goto bb24
+    bb24 scope.24
+      goto bb19
+    bb25 try.catch.25
       val error: Exception
         Type Exception
         Retype Exception
           Type Any
           CaughtException
-      goto bb29
-    bb28 try.next.28
-      rethrow unwind bb18
-    bb29 scope.29 unwind bb16
+      goto bb27
+    bb26 try.next.26
+      rethrow unwind bb17
+    bb27 scope.27 unwind bb15
       val $argument.0: String
         Type String
         StringConst @scoop.str.2
@@ -1221,10 +1242,10 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb30
-    bb30 scope.30
       end_catch
-      goto bb20
+      goto bb28
+    bb28 scope.28
+      goto bb19
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       val $receiver: String
@@ -1249,12 +1270,12 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -1265,7 +1286,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1281,7 +1302,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -1289,7 +1310,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1305,7 +1326,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -1313,7 +1334,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1329,7 +1350,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -1337,7 +1358,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1353,7 +1374,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -1361,7 +1382,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -1369,7 +1390,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -1377,7 +1398,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c10 @scoop.init.IllegalStateException.$c10(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -1390,13 +1411,13 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.GenericError$I32.$c7 @scoop.init.GenericError$I32.$c7(this: GenericError$I32) -> Unit
+  fun init.GenericError$I32.$c9 @scoop.init.GenericError$I32.$c9(this: GenericError$I32) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -1404,7 +1425,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type GenericError$I32
@@ -1412,7 +1433,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.GenericError$S.$c7 @scoop.init.GenericError$S.$c7(this: GenericError$S) -> Unit
+  fun init.GenericError$S.$c9 @scoop.init.GenericError$S.$c9(this: GenericError$S) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -1420,7 +1441,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type GenericError$S
@@ -1810,7 +1831,7 @@ Module
     t2 = begin_catch local10 : ptr<managed>
     store t2 -> local11
     call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local11, td10)
-    cbr t3 then @try.catch.10 else @try.next.11
+    cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local9
@@ -1828,106 +1849,102 @@ Module
     end_catch
     resume local9
   block try.end.7
-    br @try.body.21
+    br @try.body.20
   block try.body.8
     invoke managed-void-target0 sp26 roots=[] sig=void0 () local-fn22() normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
-  block scope.9
-    br @try.end.7
-  block try.catch.10
+  block try.catch.9
     store local11 -> local0
-    br @scope.12
-  block try.next.11
+    br @scope.11
+  block try.next.10
     invoke no-gc-void-target0 sig=void1 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.5
     br @rethrow.normal.2
-  block scope.12
+  block scope.11
     store global0 -> local1
     store local1 -> local2
     invoke managed-void-target1 sp27 roots=[local2:argument] sig=void2 (ptr<managed>) local-fn25(local2) normal @invoke.normal.3 unwind @try.handler_pad.3
     br @invoke.normal.3
-  block scope.13
-    end_catch
+  block scope.12
     br @try.end.7
-  block try.unwind.14
+  block try.unwind.13
     (t10, t11) = landingpad : (exception_record, ptr<raw>)
     store t10 -> local9
     store t11 -> local10
-    br @try.dispatch.15
-  block try.dispatch.15
+    br @try.dispatch.14
+  block try.dispatch.14
     t12 = begin_catch local10 : ptr<managed>
     store t12 -> local11
     call no-gc-direct-target1 t13 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local11, td10)
-    cbr t13 then @try.catch.23 else @try.next.24
-  block try.handler_pad.16
+    cbr t13 then @try.catch.21 else @try.next.22
+  block try.handler_pad.15
     (t14, t15) = cleanup_pad : (exception_record, ptr<raw>)
     store t14 -> local9
     store t15 -> local10
-    br @try.handler_cleanup.17
-  block try.handler_cleanup.17
+    br @try.handler_cleanup.16
+  block try.handler_cleanup.16
     end_catch
     resume local9
-  block try.exit_pad.18
+  block try.exit_pad.17
     (t16, t17) = cleanup_pad : (exception_record, ptr<raw>)
     store t16 -> local9
     store t17 -> local10
-    br @try.exit_cleanup.19
-  block try.exit_cleanup.19
+    br @try.exit_cleanup.18
+  block try.exit_cleanup.18
     end_catch
     resume local9
-  block try.end.20
+  block try.end.19
     ret
-  block try.body.21
-    invoke managed-void-target2 sp28 roots=[] sig=void3 () local-fn23() normal @invoke.normal.4 unwind @try.unwind.14
+  block try.body.20
+    invoke managed-void-target2 sp28 roots=[] sig=void3 () local-fn23() normal @invoke.normal.4 unwind @try.unwind.13
     br @invoke.normal.4
-  block scope.22
-    br @try.end.20
-  block try.catch.23
+  block try.catch.21
     store local11 -> local3
-    br @scope.25
-  block try.next.24
+    br @scope.23
+  block try.next.22
     call no-gc-direct-target2 t19 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local11, td4)
-    cbr t19 then @try.catch.27 else @try.next.28
-  block scope.25
+    cbr t19 then @try.catch.25 else @try.next.26
+  block scope.23
     store global1 -> local4
     store local4 -> local5
-    invoke managed-void-target3 sp29 roots=[local5:argument] sig=void4 (ptr<managed>) local-fn25(local5) normal @invoke.normal.5 unwind @try.handler_pad.16
+    invoke managed-void-target3 sp29 roots=[local5:argument] sig=void4 (ptr<managed>) local-fn25(local5) normal @invoke.normal.5 unwind @try.handler_pad.15
     br @invoke.normal.5
-  block scope.26
-    end_catch
-    br @try.end.20
-  block try.catch.27
+  block scope.24
+    br @try.end.19
+  block try.catch.25
     store local11 -> local6
-    br @scope.29
-  block try.next.28
-    invoke no-gc-void-target1 sig=void5 () runtime @scoop_rt_rethrow() normal @rethrow.normal.6 unwind @try.exit_pad.18
+    br @scope.27
+  block try.next.26
+    invoke no-gc-void-target1 sig=void5 () runtime @scoop_rt_rethrow() normal @rethrow.normal.6 unwind @try.exit_pad.17
     br @rethrow.normal.6
-  block scope.29
+  block scope.27
     store global2 -> local7
     store local7 -> local8
-    invoke managed-void-target4 sp30 roots=[local8:argument] sig=void6 (ptr<managed>) local-fn25(local8) normal @invoke.normal.7 unwind @try.handler_pad.16
+    invoke managed-void-target4 sp30 roots=[local8:argument] sig=void6 (ptr<managed>) local-fn25(local8) normal @invoke.normal.7 unwind @try.handler_pad.15
     br @invoke.normal.7
-  block scope.30
-    end_catch
-    br @try.end.20
+  block scope.28
+    br @try.end.19
   block invoke.normal.1
     t8 = aggregate () : {}
-    br @scope.9
+    br @try.end.7
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
     t9 = aggregate () : {}
-    br @scope.13
+    end_catch
+    br @scope.12
   block invoke.normal.4
     t18 = aggregate () : {}
-    br @scope.22
+    br @try.end.19
   block invoke.normal.5
     t20 = aggregate () : {}
-    br @scope.26
+    end_catch
+    br @scope.24
   block rethrow.normal.6
     unreachable
   block invoke.normal.7
     t21 = aggregate () : {}
-    br @scope.30
+    end_catch
+    br @scope.28
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
@@ -1947,18 +1964,18 @@ Module
     call native-borrowed-void-target1 sp33 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp69 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target1 sp70 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp34 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn26(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -1973,7 +1990,7 @@ Module
     call managed-void-target0 sp35 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -1988,7 +2005,7 @@ Module
     call managed-void-target0 sp36 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2003,7 +2020,7 @@ Module
     call managed-void-target0 sp37 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -2018,7 +2035,7 @@ Module
     call managed-void-target0 sp38 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -2028,7 +2045,7 @@ Module
     call managed-void-target0 sp39 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c8(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c10(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -2041,7 +2058,7 @@ Module
     call managed-void-target0 sp40 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.GenericError$I32.$c7(ptr<managed>) -> void
+  fun @scoop.init.GenericError$I32.$c9(ptr<managed>) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -2052,7 +2069,7 @@ Module
     call managed-void-target0 sp41 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local1)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.GenericError$S.$c7(ptr<managed>) -> void
+  fun @scoop.init.GenericError$S.$c9(ptr<managed>) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry

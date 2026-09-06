@@ -327,6 +327,8 @@ impl Lowerer {
         self.validate_core_operator_intrinsics(files);
         self.validate_array_conversion_intrinsics(files);
         let source_location_core = self.validate_source_location_core(files);
+        let iteration_core = self.validate_iteration_core(files);
+        self.iteration_core = iteration_core;
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
@@ -479,6 +481,8 @@ impl Lowerer {
         let option_core = self
             .option_core
             .expect("a missing or invalid core `Option` is always diagnosed");
+        let iteration_core = iteration_core
+            .expect("a missing or invalid core iteration protocol is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
         let exception_core = exception_core
@@ -553,6 +557,7 @@ impl Lowerer {
             boolean: self.boolean,
             string: self.string,
             option_core,
+            iteration_core,
             exception_core,
             coroutine_core,
             ffi_core,

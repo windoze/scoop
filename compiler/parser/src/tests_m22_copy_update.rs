@@ -68,7 +68,12 @@ fn copy_update_rejects_statements_and_trailing_commas() {
         "copy update field values must be expressions, not statements"
     );
 
-    for (statement, end) in [("throw error", 42), ("break", 42), ("continue", 45)] {
+    for (statement, end) in [
+        ("throw error", 42),
+        ("break", 42),
+        ("continue", 45),
+        ("for (item in items) {}", 40),
+    ] {
         let source = format!("fun main() {{ val x = source.{{ first: {statement} }} }}");
         let (span, message) = err(&source);
         assert_eq!(span, Span::new(37, end));

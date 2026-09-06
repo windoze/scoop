@@ -67,6 +67,32 @@ pub(super) fn patch_local_function_calls(
                 patch_local_function_call_expr(cond, target, captures);
                 patch_local_function_calls(body, target, captures);
             }
+            hir::StatementKind::For(plan) => {
+                let mut parts = plan.as_ref().clone().into_parts();
+                patch_local_function_calls(&mut parts.source_setup, target, captures);
+                patch_local_function_call_expr(&mut parts.source_init, target, captures);
+                patch_local_function_calls(&mut parts.iterator_setup, target, captures);
+                patch_local_function_call_expr(&mut parts.iterator_call, target, captures);
+                for action in &mut parts.binding.actions {
+                    if let hir::IrrefutableBindingAction::Component { setup, call, .. } = action {
+                        patch_local_function_calls(setup, target, captures);
+                        patch_local_function_call_expr(call, target, captures);
+                    }
+                }
+                patch_local_function_calls(&mut parts.body, target, captures);
+                **plan = hir::ForIterationPlan::new(
+                    parts.target,
+                    parts.source_setup,
+                    parts.source,
+                    parts.source_init,
+                    parts.iterator_setup,
+                    parts.iterator_call,
+                    parts.conformance,
+                    parts.next,
+                    parts.binding,
+                    parts.body,
+                );
+            }
             hir::StatementKind::When(when) => {
                 patch_local_function_call_expr(&mut when.subject, target, captures);
                 for arm in &mut when.arms {

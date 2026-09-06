@@ -36,6 +36,10 @@ fn some_none_and_nullable_annotations() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -146,6 +150,10 @@ fn safe_field_access_desugars_to_hidden_locals() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -257,6 +265,10 @@ fn elvis_desugars_to_hidden_locals() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

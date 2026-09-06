@@ -172,6 +172,13 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_expr(&while_.cond, indent + 1, out);
             dump_block(&while_.body, indent + 1, out);
         }
+        StatementKind::For(for_) => {
+            out.push_str(&format!("{pad}for {}\n", dump_pattern(&for_.pattern)));
+            dump_expr(&for_.iterable, indent + 1, out);
+            dump_block(&for_.body, indent + 1, out);
+        }
+        StatementKind::Break => out.push_str(&format!("{pad}break\n")),
+        StatementKind::Continue => out.push_str(&format!("{pad}continue\n")),
         StatementKind::Block(block) => {
             out.push_str(&format!("{pad}block\n"));
             dump_block(block, indent + 1, out);

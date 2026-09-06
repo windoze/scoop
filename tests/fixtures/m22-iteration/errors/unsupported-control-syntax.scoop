@@ -1,0 +1,35 @@
+// EXPECT-DIAGNOSTICS
+
+fun labelledBreak() {
+    break@outer
+}
+
+fun labelledContinue() {
+    continue@outer
+}
+
+fun labelledReturn() {
+    return@outer
+}
+
+fun labelledWhile() {
+    outer@ while (true) {}
+}
+
+fun labelledFor(values: Array<Int>) {
+    outer@ for (value in values) {}
+}
+
+fun breakExpression(value: Int?) {
+    val selected = value ?: break
+}
+
+fun continueExpression() {
+    consume(continue)
+}
+
+fun doWhile() {
+    do {} while (false)
+}
+
+fun main() {}

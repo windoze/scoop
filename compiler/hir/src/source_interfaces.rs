@@ -141,6 +141,10 @@ pub struct ExportDefaultExpr {
     pub statements: Vec<Statement>,
     pub value: Expr,
     pub result_type: TypeId,
+    /// Whether this declaration-bound region may contain suspend calls.
+    /// The reader boundary checks this against every source-parameter owner
+    /// that references the template.
+    pub allows_suspend: bool,
     /// The exact declaration identities referenced by `Type::Param` nodes in
     /// the template. An inherited source relates these to its own static view
     /// through `ExportDefaultSource::type_arguments`.

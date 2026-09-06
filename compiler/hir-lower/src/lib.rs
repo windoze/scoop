@@ -476,6 +476,9 @@ pub(crate) struct Lowerer {
     /// Complete typed Option contract, established only after pass 2 has
     /// resolved and checked the `Some(T)` / `None` variant shapes.
     pub(crate) option_core: Option<hir::OptionCore>,
+    /// Complete typed source-iteration contract, established after interface
+    /// method signatures and the canonical Option relation are available.
+    pub(crate) iteration_core: Option<hir::IterationCore>,
     /// Ordinary core-prelude variant bindings. Contextual enum lookup is a
     /// separate, lower-priority layer and never populates this table.
     pub(crate) core_prelude_variants: CorePreludeVariantBindings,

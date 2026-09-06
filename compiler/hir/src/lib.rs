@@ -54,6 +54,9 @@ pub use body::*;
 mod bindings;
 pub use bindings::*;
 
+mod iteration;
+pub use iteration::*;
+
 mod intrinsics;
 pub use intrinsics::*;
 

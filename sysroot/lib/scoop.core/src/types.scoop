@@ -899,16 +899,18 @@ public class String : ToString, Hash {
 }
 
 @Intrinsic("core_array")
-public class Array<T> {
+public class Array<T> : Iterable<T> {
     @Intrinsic("array_get")
     public operator fun get(index: Long): T
 
     @Intrinsic("array_to_mutable")
     public fun toMutableArray(): MutableArray<T>
+
+    public override operator fun iterator(): Iterator<T> = ArrayIterator<T>(this, 0L)
 }
 
 @Intrinsic("core_mutable_array")
-public class MutableArray<T> {
+public class MutableArray<T> : Iterable<T> {
     @Intrinsic("mutable_array_get")
     public operator fun get(index: Long): T
 
@@ -917,6 +919,8 @@ public class MutableArray<T> {
 
     @Intrinsic("array_to_immutable")
     public fun toArray(): Array<T>
+
+    public override operator fun iterator(): Iterator<T> = MutableArrayIterator<T>(this, 0L)
 }
 
 // Representation-level fallbacks used by ordinary source methods. Integer

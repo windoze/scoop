@@ -1,0 +1,27 @@
+// EXPECT-DIAGNOSTICS
+
+fun refutableVariant(values: Array<Option<Int>>) {
+    for (Some(value) in values) {}
+}
+
+fun refutableLiteral(values: Array<Int>) {
+    for (1 in values) {}
+}
+
+fun jumpsOutsideLoop() {
+    break
+    continue
+}
+
+fun crossCallable(values: Array<Int>) {
+    for (value in values) {
+        val stop: () -> Unit = {
+            break
+        }
+        val skip: () -> Unit = {
+            continue
+        }
+    }
+}
+
+fun main() {}

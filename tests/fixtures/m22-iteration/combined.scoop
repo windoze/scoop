@@ -1,0 +1,237 @@
+// EXPECT-COMPILE
+
+struct Entry<T>(
+    val slot: Long,
+    val payload: (T, String)
+)
+
+class Node(val text: String)
+
+fun <T> markArray(values: Array<T>): Array<T> {
+    println("array-source")
+    return values
+}
+
+fun <T> installReaders(
+    entries: Array<Entry<T>>,
+    readers: MutableArray<() -> T>
+) {
+    for ({ slot, payload: (value, _) } in markArray(entries)) {
+        readers[slot] = { value }
+    }
+}
+
+fun <T> replayReaders(
+    readers: MutableArray<() -> T>,
+    render: (T) -> String
+) {
+    for (reader in readers) {
+        println(render(reader()))
+    }
+}
+
+class UserIterator(
+    val values: Array<Int>,
+    var index: Long
+) : Iterator<Int> {
+    public override fun next(): Option<Int> {
+        println("user-next-" + index.toString())
+        if (index < values.size) {
+            val value = values[index]
+            index = index + 1L
+            return Some(value)
+        }
+        return None
+    }
+}
+
+class UserIterable(val values: Array<Int>) : Iterable<Int> {
+    public override operator fun iterator(): Iterator<Int> {
+        println("user-iterator")
+        return UserIterator(values, 0L)
+    }
+}
+
+fun replayIterable(values: Iterable<Int>) {
+    for (value in values) {
+        println("user-value-" + value.toString())
+    }
+}
+
+struct EmptyValueIterator() : Iterator<Unit> {
+    public override fun next(): Option<Unit> {
+        println("value-next")
+        return None
+    }
+}
+
+class EmptyValueSource {
+    operator fun iterator(): EmptyValueIterator {
+        println("value-iterator")
+        return EmptyValueIterator()
+    }
+}
+
+fun boxedValueIteratorPath() {
+    for (_ in EmptyValueSource()) {
+        println("unexpected-value-body")
+    }
+}
+
+fun nestedLoopTargets() {
+    val outerValues = [1, 2, 3]
+    val innerValues = [0, 1, 2, 3]
+    for (outer in outerValues) {
+        for (inner in innerValues) {
+            if (inner == 0) continue
+            if (outer == 2) break
+            println(outer * 10 + inner)
+        }
+        if (outer == 2) continue
+        if (outer == 3) break
+        println(outer)
+    }
+}
+
+fun jumpCleanup() {
+    val values = [0, 1, 2, 3]
+    for (value in values) {
+        try {
+            if (value == 0) {
+                println("jump-continue")
+                continue
+            }
+            if (value == 2) {
+                println("jump-break")
+                break
+            }
+            println("jump-body-" + value.toString())
+        } finally {
+            println("jump-cleanup-" + value.toString())
+        }
+    }
+}
+
+class Gate(var waiter: Continuation<Unit>?) {
+    fun complete() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(Unit)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Unit> {
+    public final override fun register(continuation: Continuation<Unit>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate) {
+    suspendCoroutine(Registration(gate))
+}
+
+class DelayedIterator<T>(
+    val values: Array<T>,
+    var index: Long
+) : Iterator<T> {
+    public final override fun next(): Option<T> {
+        println("next-" + index.toString())
+        if (index < values.size) {
+            val value = values[index]
+            index = index + 1L
+            return Some(value)
+        }
+        return None
+    }
+}
+
+class DelayedIterable<T>(
+    val gate: Gate,
+    val values: Array<T>
+) {
+    suspend operator fun iterator(): DelayedIterator<T> {
+        println("iterator-enter")
+        waitFor(gate)
+        println("iterator-resume")
+        return DelayedIterator<T>(values, 0L)
+    }
+}
+
+fun <T> delayedSource(gate: Gate, values: Array<T>): DelayedIterable<T> {
+    println("delayed-source")
+    return DelayedIterable<T>(gate, values)
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 128) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun collectAndMove() {
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+}
+
+class IterationTask(
+    val gate: Gate,
+    val entries: Array<Entry<Node>>
+) : SuspendTask<Long> {
+    public final override suspend fun run(): Long {
+        var total = 0L
+        for ({ slot, payload: (node, label) } in delayedSource(gate, entries)) {
+            collectAndMove()
+            println("delayed-" + label + "-" + node.text)
+            if (slot == 1L) continue
+            total = total + slot
+        }
+        return total
+    }
+}
+
+class RecordingCompletion : Continuation<Long> {
+    public final override fun resume(value: Long) {
+        println("suspend-done")
+        println(value)
+    }
+
+    public final override fun resumeWithException(exception: Throwable) {
+        println("unexpected-failure")
+    }
+}
+
+fun main() {
+    val entries: Array<Entry<Node>> = [
+        Entry(0L, (Node("capture-a"), "a")),
+        Entry(1L, (Node("capture-b"), "b")),
+        Entry(2L, (Node("capture-c"), "c"))
+    ]
+    val fallback = Node("unset")
+    val readers: MutableArray<() -> Node> = [
+        { fallback },
+        { fallback },
+        { fallback }
+    ]
+
+    collectAndMove()
+    installReaders(entries, readers)
+    collectAndMove()
+    replayReaders(readers) { node: Node -> node.text }
+    replayIterable(UserIterable([]))
+    replayIterable(UserIterable([4]))
+    boxedValueIteratorPath()
+    nestedLoopTargets()
+    jumpCleanup()
+
+    val gate = Gate(None)
+    startCoroutine(
+        IterationTask(gate, entries),
+        RecordingCompletion()
+    )
+    println("iterator-suspended")
+    collectAndMove()
+    gate.complete()
+}

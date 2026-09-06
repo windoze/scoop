@@ -320,6 +320,46 @@ impl Harness {
         }
     }
 
+    fn test_iteration_core(&mut self, option_core: hir::OptionCore) -> hir::IterationCore {
+        let parameter = hir::TypeParamDecl {
+            id: hir::TypeParamId::with_substitution_slot(u32::MAX, 0),
+            name: "T".to_string(),
+            bounds: hir::TypeParamBounds::Unconstrained,
+            span: SPAN,
+        };
+        let parameter_ty = self.types.alloc(hir::Type::Param(parameter.id));
+        let iterator =
+            self.declare_interface("Iterator", vec![parameter], vec![parameter_ty], Vec::new());
+        let option_application = self.enum_application(self.option_enum, vec![parameter_ty]);
+        let option_ty = self.enum_applications[option_application].canonical_type;
+        self.add_interface_method_signature(
+            iterator,
+            hir::MethodSig {
+                name: "next".to_string(),
+                is_suspend: false,
+                attributes: hir::FunctionAttributes::default(),
+                type_params: Vec::new(),
+                params: Vec::new(),
+                return_ty: option_ty,
+                span: SPAN,
+            },
+        );
+        let next = self.interfaces[iterator].methods[0];
+        hir::IterationCore::checked(
+            &self.interfaces,
+            &self.interface_applications,
+            &self.interface_methods,
+            &self.functions,
+            &self.enums,
+            &self.enum_applications,
+            &self.types,
+            option_core,
+            iterator,
+            next,
+        )
+        .expect("test Iterator has the core shape")
+    }
+
     pub(super) fn finish(self, entry: hir::FunctionId) -> hir::Module {
         self.finish_with_coroutine_core(entry, false)
     }
@@ -428,6 +468,7 @@ impl Harness {
         let option_core =
             hir::OptionCore::checked(&self.enums, &self.types, option_some_payload, option_none)
                 .expect("test Option has the core shape");
+        let iteration_core = self.test_iteration_core(option_core);
         let callback_mode_application = self.enums[callback_mode].self_application;
         let callback_modes = hir::ForeignCallbackModes::checked(
             &self.enums,
@@ -558,6 +599,7 @@ impl Harness {
             boolean: self.boolean,
             string: self.string,
             option_core,
+            iteration_core,
             exception_core,
             coroutine_core,
             ffi_core,

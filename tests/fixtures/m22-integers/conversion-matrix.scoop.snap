@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -684,10 +695,20 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property11: Array<T0>
+    field1 property12: Long
+    property11 val source: Array<T0> getter11=storage <stored field0 init=parameter11>
+    property12 var index: Long getter12=storage setter0=storage <stored field1 init=parameter12>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property13: MutableArray<T0>
+    field3 property14: Long
+    property13 val source: MutableArray<T0> getter13=storage <stored field2 init=parameter13>
+    property14 var index: Long getter14=storage setter1=storage <stored field3 init=parameter14>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field4 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field4 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -700,6 +721,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
@@ -827,7 +852,7 @@ Module
     val local1
       Local i8 : Int8
     val local2
-      IntegerConversion Int8 -> Int8 target=function61 <no-gc> : Int8
+      IntegerConversion Int8 -> Int8 target=function65 <no-gc> : Int8
         Local $receiver : Int8
     val local3
       Local $argument.0 : Int8
@@ -836,7 +861,7 @@ Module
     val local4
       Local i8 : Int8
     val local5
-      IntegerConversion Int8 -> Int16 target=function62 <no-gc> : Int16
+      IntegerConversion Int8 -> Int16 target=function66 <no-gc> : Int16
         Local $receiver : Int8
     val local6
       Local $argument.0 : Int16
@@ -845,7 +870,7 @@ Module
     val local7
       Local i8 : Int8
     val local8
-      IntegerConversion Int8 -> Int target=function63 <no-gc> : Int
+      IntegerConversion Int8 -> Int target=function67 <no-gc> : Int
         Local $receiver : Int8
     val local9
       Local $argument.0 : Int
@@ -854,7 +879,7 @@ Module
     val local10
       Local i8 : Int8
     val local11
-      IntegerConversion Int8 -> Long target=function64 <no-gc> : Long
+      IntegerConversion Int8 -> Long target=function68 <no-gc> : Long
         Local $receiver : Int8
     val local12
       Local $argument.0 : Long
@@ -863,7 +888,7 @@ Module
     val local13
       Local i8 : Int8
     val local14
-      IntegerConversion Int8 -> UInt8 target=function65 <no-gc> : UInt8
+      IntegerConversion Int8 -> UInt8 target=function69 <no-gc> : UInt8
         Local $receiver : Int8
     val local15
       Local $argument.0 : UInt8
@@ -872,7 +897,7 @@ Module
     val local16
       Local i8 : Int8
     val local17
-      IntegerConversion Int8 -> UInt16 target=function66 <no-gc> : UInt16
+      IntegerConversion Int8 -> UInt16 target=function70 <no-gc> : UInt16
         Local $receiver : Int8
     val local18
       Local $argument.0 : UInt16
@@ -881,7 +906,7 @@ Module
     val local19
       Local i8 : Int8
     val local20
-      IntegerConversion Int8 -> UInt target=function67 <no-gc> : UInt
+      IntegerConversion Int8 -> UInt target=function71 <no-gc> : UInt
         Local $receiver : Int8
     val local21
       Local $argument.0 : UInt
@@ -890,7 +915,7 @@ Module
     val local22
       Local i8 : Int8
     val local23
-      IntegerConversion Int8 -> ULong target=function68 <no-gc> : ULong
+      IntegerConversion Int8 -> ULong target=function72 <no-gc> : ULong
         Local $receiver : Int8
     val local24
       Local $argument.0 : ULong
@@ -901,7 +926,7 @@ Module
     val local26
       Local i16 : Int16
     val local27
-      IntegerConversion Int16 -> Int8 target=function89 <no-gc> : Int8
+      IntegerConversion Int16 -> Int8 target=function93 <no-gc> : Int8
         Local $receiver : Int16
     val local28
       Local $argument.0 : Int8
@@ -910,7 +935,7 @@ Module
     val local29
       Local i16 : Int16
     val local30
-      IntegerConversion Int16 -> Int16 target=function90 <no-gc> : Int16
+      IntegerConversion Int16 -> Int16 target=function94 <no-gc> : Int16
         Local $receiver : Int16
     val local31
       Local $argument.0 : Int16
@@ -919,7 +944,7 @@ Module
     val local32
       Local i16 : Int16
     val local33
-      IntegerConversion Int16 -> Int target=function91 <no-gc> : Int
+      IntegerConversion Int16 -> Int target=function95 <no-gc> : Int
         Local $receiver : Int16
     val local34
       Local $argument.0 : Int
@@ -928,7 +953,7 @@ Module
     val local35
       Local i16 : Int16
     val local36
-      IntegerConversion Int16 -> Long target=function92 <no-gc> : Long
+      IntegerConversion Int16 -> Long target=function96 <no-gc> : Long
         Local $receiver : Int16
     val local37
       Local $argument.0 : Long
@@ -937,7 +962,7 @@ Module
     val local38
       Local i16 : Int16
     val local39
-      IntegerConversion Int16 -> UInt8 target=function93 <no-gc> : UInt8
+      IntegerConversion Int16 -> UInt8 target=function97 <no-gc> : UInt8
         Local $receiver : Int16
     val local40
       Local $argument.0 : UInt8
@@ -946,7 +971,7 @@ Module
     val local41
       Local i16 : Int16
     val local42
-      IntegerConversion Int16 -> UInt16 target=function94 <no-gc> : UInt16
+      IntegerConversion Int16 -> UInt16 target=function98 <no-gc> : UInt16
         Local $receiver : Int16
     val local43
       Local $argument.0 : UInt16
@@ -955,7 +980,7 @@ Module
     val local44
       Local i16 : Int16
     val local45
-      IntegerConversion Int16 -> UInt target=function95 <no-gc> : UInt
+      IntegerConversion Int16 -> UInt target=function99 <no-gc> : UInt
         Local $receiver : Int16
     val local46
       Local $argument.0 : UInt
@@ -964,7 +989,7 @@ Module
     val local47
       Local i16 : Int16
     val local48
-      IntegerConversion Int16 -> ULong target=function96 <no-gc> : ULong
+      IntegerConversion Int16 -> ULong target=function100 <no-gc> : ULong
         Local $receiver : Int16
     val local49
       Local $argument.0 : ULong
@@ -975,7 +1000,7 @@ Module
     val local51
       Local i32 : Int
     val local52
-      IntegerConversion Int -> Int8 target=function117 <no-gc> : Int8
+      IntegerConversion Int -> Int8 target=function121 <no-gc> : Int8
         Local $receiver : Int
     val local53
       Local $argument.0 : Int8
@@ -984,7 +1009,7 @@ Module
     val local54
       Local i32 : Int
     val local55
-      IntegerConversion Int -> Int16 target=function118 <no-gc> : Int16
+      IntegerConversion Int -> Int16 target=function122 <no-gc> : Int16
         Local $receiver : Int
     val local56
       Local $argument.0 : Int16
@@ -993,7 +1018,7 @@ Module
     val local57
       Local i32 : Int
     val local58
-      IntegerConversion Int -> Int target=function119 <no-gc> : Int
+      IntegerConversion Int -> Int target=function123 <no-gc> : Int
         Local $receiver : Int
     val local59
       Local $argument.0 : Int
@@ -1002,7 +1027,7 @@ Module
     val local60
       Local i32 : Int
     val local61
-      IntegerConversion Int -> Long target=function120 <no-gc> : Long
+      IntegerConversion Int -> Long target=function124 <no-gc> : Long
         Local $receiver : Int
     val local62
       Local $argument.0 : Long
@@ -1011,7 +1036,7 @@ Module
     val local63
       Local i32 : Int
     val local64
-      IntegerConversion Int -> UInt8 target=function121 <no-gc> : UInt8
+      IntegerConversion Int -> UInt8 target=function125 <no-gc> : UInt8
         Local $receiver : Int
     val local65
       Local $argument.0 : UInt8
@@ -1020,7 +1045,7 @@ Module
     val local66
       Local i32 : Int
     val local67
-      IntegerConversion Int -> UInt16 target=function122 <no-gc> : UInt16
+      IntegerConversion Int -> UInt16 target=function126 <no-gc> : UInt16
         Local $receiver : Int
     val local68
       Local $argument.0 : UInt16
@@ -1029,7 +1054,7 @@ Module
     val local69
       Local i32 : Int
     val local70
-      IntegerConversion Int -> UInt target=function123 <no-gc> : UInt
+      IntegerConversion Int -> UInt target=function127 <no-gc> : UInt
         Local $receiver : Int
     val local71
       Local $argument.0 : UInt
@@ -1038,7 +1063,7 @@ Module
     val local72
       Local i32 : Int
     val local73
-      IntegerConversion Int -> ULong target=function124 <no-gc> : ULong
+      IntegerConversion Int -> ULong target=function128 <no-gc> : ULong
         Local $receiver : Int
     val local74
       Local $argument.0 : ULong
@@ -1049,7 +1074,7 @@ Module
     val local76
       Local i64 : Long
     val local77
-      IntegerConversion Long -> Int8 target=function145 <no-gc> : Int8
+      IntegerConversion Long -> Int8 target=function149 <no-gc> : Int8
         Local $receiver : Long
     val local78
       Local $argument.0 : Int8
@@ -1058,7 +1083,7 @@ Module
     val local79
       Local i64 : Long
     val local80
-      IntegerConversion Long -> Int16 target=function146 <no-gc> : Int16
+      IntegerConversion Long -> Int16 target=function150 <no-gc> : Int16
         Local $receiver : Long
     val local81
       Local $argument.0 : Int16
@@ -1067,7 +1092,7 @@ Module
     val local82
       Local i64 : Long
     val local83
-      IntegerConversion Long -> Int target=function147 <no-gc> : Int
+      IntegerConversion Long -> Int target=function151 <no-gc> : Int
         Local $receiver : Long
     val local84
       Local $argument.0 : Int
@@ -1076,7 +1101,7 @@ Module
     val local85
       Local i64 : Long
     val local86
-      IntegerConversion Long -> Long target=function148 <no-gc> : Long
+      IntegerConversion Long -> Long target=function152 <no-gc> : Long
         Local $receiver : Long
     val local87
       Local $argument.0 : Long
@@ -1085,7 +1110,7 @@ Module
     val local88
       Local i64 : Long
     val local89
-      IntegerConversion Long -> UInt8 target=function149 <no-gc> : UInt8
+      IntegerConversion Long -> UInt8 target=function153 <no-gc> : UInt8
         Local $receiver : Long
     val local90
       Local $argument.0 : UInt8
@@ -1094,7 +1119,7 @@ Module
     val local91
       Local i64 : Long
     val local92
-      IntegerConversion Long -> UInt16 target=function150 <no-gc> : UInt16
+      IntegerConversion Long -> UInt16 target=function154 <no-gc> : UInt16
         Local $receiver : Long
     val local93
       Local $argument.0 : UInt16
@@ -1103,7 +1128,7 @@ Module
     val local94
       Local i64 : Long
     val local95
-      IntegerConversion Long -> UInt target=function151 <no-gc> : UInt
+      IntegerConversion Long -> UInt target=function155 <no-gc> : UInt
         Local $receiver : Long
     val local96
       Local $argument.0 : UInt
@@ -1112,7 +1137,7 @@ Module
     val local97
       Local i64 : Long
     val local98
-      IntegerConversion Long -> ULong target=function152 <no-gc> : ULong
+      IntegerConversion Long -> ULong target=function156 <no-gc> : ULong
         Local $receiver : Long
     val local99
       Local $argument.0 : ULong
@@ -1123,7 +1148,7 @@ Module
     val local101
       Local u8 : UInt8
     val local102
-      IntegerConversion UInt8 -> Int8 target=function172 <no-gc> : Int8
+      IntegerConversion UInt8 -> Int8 target=function176 <no-gc> : Int8
         Local $receiver : UInt8
     val local103
       Local $argument.0 : Int8
@@ -1132,7 +1157,7 @@ Module
     val local104
       Local u8 : UInt8
     val local105
-      IntegerConversion UInt8 -> Int16 target=function173 <no-gc> : Int16
+      IntegerConversion UInt8 -> Int16 target=function177 <no-gc> : Int16
         Local $receiver : UInt8
     val local106
       Local $argument.0 : Int16
@@ -1141,7 +1166,7 @@ Module
     val local107
       Local u8 : UInt8
     val local108
-      IntegerConversion UInt8 -> Int target=function174 <no-gc> : Int
+      IntegerConversion UInt8 -> Int target=function178 <no-gc> : Int
         Local $receiver : UInt8
     val local109
       Local $argument.0 : Int
@@ -1150,7 +1175,7 @@ Module
     val local110
       Local u8 : UInt8
     val local111
-      IntegerConversion UInt8 -> Long target=function175 <no-gc> : Long
+      IntegerConversion UInt8 -> Long target=function179 <no-gc> : Long
         Local $receiver : UInt8
     val local112
       Local $argument.0 : Long
@@ -1159,7 +1184,7 @@ Module
     val local113
       Local u8 : UInt8
     val local114
-      IntegerConversion UInt8 -> UInt8 target=function176 <no-gc> : UInt8
+      IntegerConversion UInt8 -> UInt8 target=function180 <no-gc> : UInt8
         Local $receiver : UInt8
     val local115
       Local $argument.0 : UInt8
@@ -1168,7 +1193,7 @@ Module
     val local116
       Local u8 : UInt8
     val local117
-      IntegerConversion UInt8 -> UInt16 target=function177 <no-gc> : UInt16
+      IntegerConversion UInt8 -> UInt16 target=function181 <no-gc> : UInt16
         Local $receiver : UInt8
     val local118
       Local $argument.0 : UInt16
@@ -1177,7 +1202,7 @@ Module
     val local119
       Local u8 : UInt8
     val local120
-      IntegerConversion UInt8 -> UInt target=function178 <no-gc> : UInt
+      IntegerConversion UInt8 -> UInt target=function182 <no-gc> : UInt
         Local $receiver : UInt8
     val local121
       Local $argument.0 : UInt
@@ -1186,7 +1211,7 @@ Module
     val local122
       Local u8 : UInt8
     val local123
-      IntegerConversion UInt8 -> ULong target=function179 <no-gc> : ULong
+      IntegerConversion UInt8 -> ULong target=function183 <no-gc> : ULong
         Local $receiver : UInt8
     val local124
       Local $argument.0 : ULong
@@ -1197,7 +1222,7 @@ Module
     val local126
       Local u16 : UInt16
     val local127
-      IntegerConversion UInt16 -> Int8 target=function199 <no-gc> : Int8
+      IntegerConversion UInt16 -> Int8 target=function203 <no-gc> : Int8
         Local $receiver : UInt16
     val local128
       Local $argument.0 : Int8
@@ -1206,7 +1231,7 @@ Module
     val local129
       Local u16 : UInt16
     val local130
-      IntegerConversion UInt16 -> Int16 target=function200 <no-gc> : Int16
+      IntegerConversion UInt16 -> Int16 target=function204 <no-gc> : Int16
         Local $receiver : UInt16
     val local131
       Local $argument.0 : Int16
@@ -1215,7 +1240,7 @@ Module
     val local132
       Local u16 : UInt16
     val local133
-      IntegerConversion UInt16 -> Int target=function201 <no-gc> : Int
+      IntegerConversion UInt16 -> Int target=function205 <no-gc> : Int
         Local $receiver : UInt16
     val local134
       Local $argument.0 : Int
@@ -1224,7 +1249,7 @@ Module
     val local135
       Local u16 : UInt16
     val local136
-      IntegerConversion UInt16 -> Long target=function202 <no-gc> : Long
+      IntegerConversion UInt16 -> Long target=function206 <no-gc> : Long
         Local $receiver : UInt16
     val local137
       Local $argument.0 : Long
@@ -1233,7 +1258,7 @@ Module
     val local138
       Local u16 : UInt16
     val local139
-      IntegerConversion UInt16 -> UInt8 target=function203 <no-gc> : UInt8
+      IntegerConversion UInt16 -> UInt8 target=function207 <no-gc> : UInt8
         Local $receiver : UInt16
     val local140
       Local $argument.0 : UInt8
@@ -1242,7 +1267,7 @@ Module
     val local141
       Local u16 : UInt16
     val local142
-      IntegerConversion UInt16 -> UInt16 target=function204 <no-gc> : UInt16
+      IntegerConversion UInt16 -> UInt16 target=function208 <no-gc> : UInt16
         Local $receiver : UInt16
     val local143
       Local $argument.0 : UInt16
@@ -1251,7 +1276,7 @@ Module
     val local144
       Local u16 : UInt16
     val local145
-      IntegerConversion UInt16 -> UInt target=function205 <no-gc> : UInt
+      IntegerConversion UInt16 -> UInt target=function209 <no-gc> : UInt
         Local $receiver : UInt16
     val local146
       Local $argument.0 : UInt
@@ -1260,7 +1285,7 @@ Module
     val local147
       Local u16 : UInt16
     val local148
-      IntegerConversion UInt16 -> ULong target=function206 <no-gc> : ULong
+      IntegerConversion UInt16 -> ULong target=function210 <no-gc> : ULong
         Local $receiver : UInt16
     val local149
       Local $argument.0 : ULong
@@ -1271,7 +1296,7 @@ Module
     val local151
       Local u32 : UInt
     val local152
-      IntegerConversion UInt -> Int8 target=function226 <no-gc> : Int8
+      IntegerConversion UInt -> Int8 target=function230 <no-gc> : Int8
         Local $receiver : UInt
     val local153
       Local $argument.0 : Int8
@@ -1280,7 +1305,7 @@ Module
     val local154
       Local u32 : UInt
     val local155
-      IntegerConversion UInt -> Int16 target=function227 <no-gc> : Int16
+      IntegerConversion UInt -> Int16 target=function231 <no-gc> : Int16
         Local $receiver : UInt
     val local156
       Local $argument.0 : Int16
@@ -1289,7 +1314,7 @@ Module
     val local157
       Local u32 : UInt
     val local158
-      IntegerConversion UInt -> Int target=function228 <no-gc> : Int
+      IntegerConversion UInt -> Int target=function232 <no-gc> : Int
         Local $receiver : UInt
     val local159
       Local $argument.0 : Int
@@ -1298,7 +1323,7 @@ Module
     val local160
       Local u32 : UInt
     val local161
-      IntegerConversion UInt -> Long target=function229 <no-gc> : Long
+      IntegerConversion UInt -> Long target=function233 <no-gc> : Long
         Local $receiver : UInt
     val local162
       Local $argument.0 : Long
@@ -1307,7 +1332,7 @@ Module
     val local163
       Local u32 : UInt
     val local164
-      IntegerConversion UInt -> UInt8 target=function230 <no-gc> : UInt8
+      IntegerConversion UInt -> UInt8 target=function234 <no-gc> : UInt8
         Local $receiver : UInt
     val local165
       Local $argument.0 : UInt8
@@ -1316,7 +1341,7 @@ Module
     val local166
       Local u32 : UInt
     val local167
-      IntegerConversion UInt -> UInt16 target=function231 <no-gc> : UInt16
+      IntegerConversion UInt -> UInt16 target=function235 <no-gc> : UInt16
         Local $receiver : UInt
     val local168
       Local $argument.0 : UInt16
@@ -1325,7 +1350,7 @@ Module
     val local169
       Local u32 : UInt
     val local170
-      IntegerConversion UInt -> UInt target=function232 <no-gc> : UInt
+      IntegerConversion UInt -> UInt target=function236 <no-gc> : UInt
         Local $receiver : UInt
     val local171
       Local $argument.0 : UInt
@@ -1334,7 +1359,7 @@ Module
     val local172
       Local u32 : UInt
     val local173
-      IntegerConversion UInt -> ULong target=function233 <no-gc> : ULong
+      IntegerConversion UInt -> ULong target=function237 <no-gc> : ULong
         Local $receiver : UInt
     val local174
       Local $argument.0 : ULong
@@ -1345,7 +1370,7 @@ Module
     val local176
       Local u64 : ULong
     val local177
-      IntegerConversion ULong -> Int8 target=function253 <no-gc> : Int8
+      IntegerConversion ULong -> Int8 target=function257 <no-gc> : Int8
         Local $receiver : ULong
     val local178
       Local $argument.0 : Int8
@@ -1354,7 +1379,7 @@ Module
     val local179
       Local u64 : ULong
     val local180
-      IntegerConversion ULong -> Int16 target=function254 <no-gc> : Int16
+      IntegerConversion ULong -> Int16 target=function258 <no-gc> : Int16
         Local $receiver : ULong
     val local181
       Local $argument.0 : Int16
@@ -1363,7 +1388,7 @@ Module
     val local182
       Local u64 : ULong
     val local183
-      IntegerConversion ULong -> Int target=function255 <no-gc> : Int
+      IntegerConversion ULong -> Int target=function259 <no-gc> : Int
         Local $receiver : ULong
     val local184
       Local $argument.0 : Int
@@ -1372,7 +1397,7 @@ Module
     val local185
       Local u64 : ULong
     val local186
-      IntegerConversion ULong -> Long target=function256 <no-gc> : Long
+      IntegerConversion ULong -> Long target=function260 <no-gc> : Long
         Local $receiver : ULong
     val local187
       Local $argument.0 : Long
@@ -1381,7 +1406,7 @@ Module
     val local188
       Local u64 : ULong
     val local189
-      IntegerConversion ULong -> UInt8 target=function257 <no-gc> : UInt8
+      IntegerConversion ULong -> UInt8 target=function261 <no-gc> : UInt8
         Local $receiver : ULong
     val local190
       Local $argument.0 : UInt8
@@ -1390,7 +1415,7 @@ Module
     val local191
       Local u64 : ULong
     val local192
-      IntegerConversion ULong -> UInt16 target=function258 <no-gc> : UInt16
+      IntegerConversion ULong -> UInt16 target=function262 <no-gc> : UInt16
         Local $receiver : ULong
     val local193
       Local $argument.0 : UInt16
@@ -1399,7 +1424,7 @@ Module
     val local194
       Local u64 : ULong
     val local195
-      IntegerConversion ULong -> UInt target=function259 <no-gc> : UInt
+      IntegerConversion ULong -> UInt target=function263 <no-gc> : UInt
         Local $receiver : ULong
     val local196
       Local $argument.0 : UInt
@@ -1408,7 +1433,7 @@ Module
     val local197
       Local u64 : ULong
     val local198
-      IntegerConversion ULong -> ULong target=function260 <no-gc> : ULong
+      IntegerConversion ULong -> ULong target=function264 <no-gc> : ULong
         Local $receiver : ULong
     val local199
       Local $argument.0 : ULong
@@ -2941,12 +2966,12 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -2957,7 +2982,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -2973,7 +2998,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -2981,7 +3006,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -2997,7 +3022,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -3005,7 +3030,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3021,7 +3046,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -3029,7 +3054,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3045,7 +3070,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -3053,7 +3078,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -3061,7 +3086,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -3069,7 +3094,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c7 @scoop.init.IllegalStateException.$c7(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c9 @scoop.init.IllegalStateException.$c9(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3082,7 +3107,7 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
@@ -4188,18 +4213,18 @@ Module
     call native-borrowed-void-target1 sp109 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp148 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target1 sp149 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp110 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn31(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -4214,7 +4239,7 @@ Module
     call managed-void-target0 sp111 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -4229,7 +4254,7 @@ Module
     call managed-void-target0 sp112 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -4244,7 +4269,7 @@ Module
     call managed-void-target0 sp113 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -4259,7 +4284,7 @@ Module
     call managed-void-target0 sp114 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -4269,7 +4294,7 @@ Module
     call managed-void-target0 sp115 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c7(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c9(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0

@@ -304,6 +304,26 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(cond, out);
                     self.collect_generic_calls_in_statements(body, out);
                 }
+                hir::StatementKind::For(plan) => {
+                    self.collect_generic_calls_in_statements(plan.source_setup(), out);
+                    self.collect_generic_calls_in_expr(plan.source_init(), out);
+                    self.collect_generic_calls_in_statements(plan.iterator_setup(), out);
+                    self.collect_generic_calls_in_expr(plan.iterator_call(), out);
+                    let next = plan.next();
+                    if let Some(call) =
+                        self.generic_call(hir::Callable::Method(next.callable()), next.span())
+                    {
+                        out.push(call);
+                    }
+                    for action in &plan.binding().actions {
+                        if let hir::IrrefutableBindingAction::Component { setup, call, .. } = action
+                        {
+                            self.collect_generic_calls_in_statements(setup, out);
+                            self.collect_generic_calls_in_expr(call, out);
+                        }
+                    }
+                    self.collect_generic_calls_in_statements(plan.body(), out);
+                }
                 hir::StatementKind::When(when) => {
                     self.collect_generic_calls_in_expr(&when.subject, out);
                     for arm in &when.arms {

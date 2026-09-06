@@ -342,6 +342,7 @@ impl Lowerer {
                     statements,
                     value,
                     result_type: parameter.ty,
+                    allows_suspend: context.is_suspend,
                     type_parameters: context
                         .type_parameters
                         .iter()

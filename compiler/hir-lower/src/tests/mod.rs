@@ -3,9 +3,9 @@
 //!
 //! Every test compiles the user file together with a minimal
 //! `scoop.core` (`core_file()`: the `Option<T>` enum, the `Throwable`
-//! exception root, the M10 coroutine protocol, plus the M7 `io.scoop`
-//! overloads and their backing intrinsic), mirroring the driver's
-//! sysroot convention — core files first, the user file last.
+//! exception root, the M10 coroutine and M22 iteration protocols, plus
+//! the M7 `io.scoop` overloads and their backing intrinsic), mirroring
+//! the driver's sysroot convention — core files first, the user file last.
 
 mod basics;
 mod builders;
@@ -36,6 +36,7 @@ mod m22_copy_updates;
 mod m22_integer_diagnostics;
 mod m22_integer_exhaustiveness;
 mod m22_integers;
+mod m22_iteration;
 mod m22_joint_integer_inference;
 mod m22_loop_targets;
 mod m22_pattern_warnings;

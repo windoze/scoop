@@ -168,6 +168,30 @@ fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes 
             }
             result
         }
+        hir::StatementKind::For(plan) => {
+            let setup = statements_control_outcomes(plan.source_setup())
+                .then(statements_control_outcomes(plan.iterator_setup()));
+            let reaches_iteration = setup.can_fall_through();
+            let mut result = setup;
+            result.values.remove(&ControlOutcome::Fallthrough);
+
+            if reaches_iteration {
+                // `next` may return `None` before the first iteration, so a
+                // completed source/iterator setup always leaves a normal exit.
+                result.values.insert(ControlOutcome::Fallthrough);
+                let mut iteration = HirControlOutcomes::fallthrough();
+                for action in &plan.binding().actions {
+                    if let hir::IrrefutableBindingAction::Component { setup, .. } = action {
+                        iteration = iteration.then(statements_control_outcomes(setup));
+                    }
+                }
+                iteration = iteration.then(statements_control_outcomes(plan.body()));
+                iteration.values.remove(&ControlOutcome::Fallthrough);
+                iteration.consume_loop_jumps(plan.target());
+                result = result.union(iteration);
+            }
+            result
+        }
         hir::StatementKind::Expr(_)
         | hir::StatementKind::InitializationEnsure(_)
         | hir::StatementKind::LocalFunction(_)

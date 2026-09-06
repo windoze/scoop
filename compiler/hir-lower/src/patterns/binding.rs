@@ -27,71 +27,87 @@ impl LoweredIrrefutableBindingPlan {
     /// has a single binding target, so recursive source binding patterns do
     /// not cross the Export HIR boundary for this owner.
     pub(crate) fn into_statements(self) -> Vec<hir::Statement> {
-        validate_leaf_schedule(&self.plan);
-        let hir::IrrefutableBindingPlan {
-            subject,
-            shape: _,
-            actions,
-        } = self.plan;
-        let mut statements = Vec::with_capacity(actions.len() + 1);
+        let mut statements = Vec::new();
         if let BindingSubject::Initialize { init, span } = self.subject {
-            statements.push(binding_statement(subject.local, init, span));
+            statements.push(binding_statement(self.plan.subject.local, init, span));
         }
-        for action in actions {
-            match action {
-                hir::IrrefutableBindingAction::Project {
-                    source,
-                    result,
-                    projection,
-                    span,
-                    origin,
-                } => {
-                    let field = match projection {
-                        hir::BindingProjection::TupleIndex(index) => {
-                            hir::FieldRef::TupleIndex(index)
-                        }
-                        hir::BindingProjection::StructField(field) => {
-                            hir::FieldRef::StructField(field)
-                        }
-                    };
-                    let init = hir::Expr {
-                        kind: hir::ExprKind::FieldAccess {
-                            receiver: Box::new(binding_local_expr(source, span, origin)),
-                            field,
-                        },
-                        ty: result.ty,
-                        span,
-                        origin,
-                    };
-                    statements.push(binding_statement(result.local, init, span));
-                }
-                hir::IrrefutableBindingAction::Component {
-                    source,
-                    index,
-                    result,
-                    mut setup,
-                    call,
-                    span,
-                } => {
-                    assert_component_call_source(&setup, &call, source);
-                    assert_ne!(index.get(), 0);
-                    assert_eq!(call.ty, result.ty);
-                    statements.append(&mut setup);
-                    statements.push(binding_statement(result.local, call, span));
-                }
-                hir::IrrefutableBindingAction::Bind {
-                    source,
-                    target,
-                    span,
-                    origin,
-                } => {
-                    let init = binding_local_expr(source, span, origin);
-                    statements.push(binding_statement(target.local, init, span));
-                }
-            }
-        }
+        statements.extend(expand_irrefutable_binding_plan(self.plan));
         statements
     }
+
+    /// Retain the completed plan for an Export-HIR owner such as source
+    /// iteration. Only an existing subject can cross that boundary; an
+    /// owner-specific initializer must be emitted by its owner.
+    pub(crate) fn into_plan(self) -> hir::IrrefutableBindingPlan {
+        assert!(matches!(self.subject, BindingSubject::Existing));
+        validate_leaf_schedule(&self.plan);
+        self.plan
+    }
+}
+
+/// Expand one already validated plan into ordinary typed Export-HIR
+/// statements. Concretization uses this after substituting the enclosing
+/// iteration protocol; no name or overload lookup is repeated here.
+pub(crate) fn expand_irrefutable_binding_plan(
+    plan: hir::IrrefutableBindingPlan,
+) -> Vec<hir::Statement> {
+    validate_leaf_schedule(&plan);
+    let hir::IrrefutableBindingPlan {
+        subject: _,
+        shape: _,
+        actions,
+    } = plan;
+    let mut statements = Vec::with_capacity(actions.len() + 1);
+    for action in actions {
+        match action {
+            hir::IrrefutableBindingAction::Project {
+                source,
+                result,
+                projection,
+                span,
+                origin,
+            } => {
+                let field = match projection {
+                    hir::BindingProjection::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
+                    hir::BindingProjection::StructField(field) => hir::FieldRef::StructField(field),
+                };
+                let init = hir::Expr {
+                    kind: hir::ExprKind::FieldAccess {
+                        receiver: Box::new(binding_local_expr(source, span, origin)),
+                        field,
+                    },
+                    ty: result.ty,
+                    span,
+                    origin,
+                };
+                statements.push(binding_statement(result.local, init, span));
+            }
+            hir::IrrefutableBindingAction::Component {
+                source,
+                index,
+                result,
+                mut setup,
+                call,
+                span,
+            } => {
+                assert_component_call_source(&setup, &call, source);
+                assert_ne!(index.get(), 0);
+                assert_eq!(call.ty, result.ty);
+                statements.append(&mut setup);
+                statements.push(binding_statement(result.local, call, span));
+            }
+            hir::IrrefutableBindingAction::Bind {
+                source,
+                target,
+                span,
+                origin,
+            } => {
+                let init = binding_local_expr(source, span, origin);
+                statements.push(binding_statement(target.local, init, span));
+            }
+        }
+    }
+    statements
 }
 
 fn binding_statement(local: hir::LocalId, init: hir::Expr, span: Span) -> hir::Statement {

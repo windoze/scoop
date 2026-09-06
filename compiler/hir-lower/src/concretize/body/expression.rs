@@ -310,7 +310,26 @@ impl Concretizer<'_> {
                 }
             }
             export::ExprKind::Box(value) => {
-                concrete::ExprKind::Box(Box::new(self.lower_expr(value, substitution, locals)))
+                let value = self.lower_expr(value, substitution, locals);
+                if matches!(
+                    self.types[value.ty].kind,
+                    concrete::TypeKind::Unit
+                        | concrete::TypeKind::Integer(_)
+                        | concrete::TypeKind::Boolean
+                        | concrete::TypeKind::Struct(_)
+                        | concrete::TypeKind::Enum(_)
+                        | concrete::TypeKind::Tuple(_)
+                        | concrete::TypeKind::Ptr(_)
+                        | concrete::TypeKind::FunPtr(_)
+                ) {
+                    concrete::ExprKind::Box(Box::new(value))
+                } else {
+                    // A source type parameter with interface-only bounds is
+                    // conservatively represented as Box in Export HIR. Its
+                    // concrete argument may instead be a reference; in that
+                    // case the adaptation is a zero-cost retype.
+                    value.kind
+                }
             }
             export::ExprKind::Unbox(value) => {
                 concrete::ExprKind::Unbox(Box::new(self.lower_expr(value, substitution, locals)))

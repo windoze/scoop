@@ -19,13 +19,6 @@ fn if_and_when_parse_in_expression_position() {
 }
 
 #[test]
-fn for_loop_not_supported() {
-    let (span, message) = err("fun main() { for (i in xs) {} }");
-    assert_eq!(span, Span::new(13, 16));
-    assert_eq!(message, "`for` loops are not supported yet (milestone M5)");
-}
-
-#[test]
 fn string_interpolation_not_supported() {
     let (span, message) = err("fun main() {\n    val s = f\"x {y}\"\n}\n");
     assert_eq!(span, Span::new(25, 26));

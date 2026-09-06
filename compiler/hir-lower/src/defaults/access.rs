@@ -178,6 +178,35 @@ impl ReferenceCollector<'_> {
                 self.expression(cond);
                 self.statements(body);
             }
+            hir::StatementKind::For(plan) => {
+                self.statements(plan.source_setup());
+                self.expression(plan.source_init());
+                self.statements(plan.iterator_setup());
+                self.expression(plan.iterator_call());
+                let next = plan.next();
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Method(
+                        next.callable(),
+                    )),
+                    next.origin().definition(),
+                );
+                for action in &plan.binding().actions {
+                    match action {
+                        hir::IrrefutableBindingAction::Project {
+                            projection: hir::BindingProjection::StructField(field),
+                            origin,
+                            ..
+                        } => self.field(hir::FieldRef::StructField(*field), origin.definition()),
+                        hir::IrrefutableBindingAction::Project { .. }
+                        | hir::IrrefutableBindingAction::Bind { .. } => {}
+                        hir::IrrefutableBindingAction::Component { setup, call, .. } => {
+                            self.statements(setup);
+                            self.expression(call);
+                        }
+                    }
+                }
+                self.statements(plan.body());
+            }
             hir::StatementKind::When(value) => {
                 self.expression(&value.subject);
                 for arm in &value.arms {

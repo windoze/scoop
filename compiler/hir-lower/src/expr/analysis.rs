@@ -65,6 +65,10 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
         ast::StatementKind::While(while_) => {
             expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
         }
+        ast::StatementKind::For(for_) => {
+            expr_contains_return(&for_.iterable) || block_contains_return(&for_.body)
+        }
+        ast::StatementKind::Break | ast::StatementKind::Continue => false,
         ast::StatementKind::Block(block) | ast::StatementKind::SafetyBlock { block, .. } => {
             block_contains_return(block)
         }

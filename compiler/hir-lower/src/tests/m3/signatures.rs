@@ -38,6 +38,10 @@ fn expression_body_and_parameters() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -164,6 +168,10 @@ fn return_with_unit_value_is_a_bare_return() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

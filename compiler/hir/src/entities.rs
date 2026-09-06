@@ -115,6 +115,9 @@ pub struct Module {
     /// desugar target of `T?`, spec 7.1). Guaranteed present: a core library
     /// without the exact `Some(T)` / `None` shape is rejected before HIR.
     pub option_core: OptionCore,
+    /// Compiler-owned source iteration protocol. Per-use exact applications
+    /// and conformance witnesses remain in `ForIterationPlan`.
+    pub iteration_core: IterationCore,
     /// Compiler-generated exception construction targets. Every entry is a
     /// validated, zero-argument class constructor; later stages never find
     /// these entities by source or link name.

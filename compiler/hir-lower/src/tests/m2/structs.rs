@@ -47,6 +47,10 @@ fn struct_construction_and_field_access() {
     fun toString(): String
   interface Hash
     fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

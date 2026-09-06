@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.34
+版本：0.46
 
 最后更新：2026-09-07
 
@@ -35,7 +35,7 @@
 | target layout、pointer provenance、八种整数、透明 alias 与 exact pointer ABI | 已完成基线，最终组合验收待 M22 收口 | `31b47fb`、`9950e8f`、透明 alias `7eb6643` |
 | 递归 pattern matrix、missing witness 与命名字段递归子模式 | 已完成基线 | `1179679`、`ac38ee2` |
 | 表示无关 enum primitive 与 Option consumer 迁移 | 已完成 | `272801a`、`28e36ba` |
-| while header 正规化 | 已完成前置 | `f1745b5`；break / continue target 与 cleanup 尚未实现 |
+| while header、typed loop target 与 cleanup | 已完成 | header 基线 `f1745b5`；target / cleanup / coroutine transfer / poll 由 `64f90ca7`、`b42ce94f`、`dd753c09`、`6402e115` 闭合 |
 | contextual bare enum variant、typed source pattern 与 catch-all warning | 已完成基线 | `526b2d7`、`998bb67`、`a19de09` |
 | struct copy update | 已完成并按最新决定收窄 | `2a32133`、修正提交 `50a300e`；enum 不进入 plan，也没有状态检查或异常路径 |
 | compiler-owned enum producer identity | 已完成 | `9706b4b` |
@@ -43,7 +43,7 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 进行中 | 4.5 审计已确认先修 canonical `OptionCore` 关系与 parser 归属；实现前继续收敛 pipeline / core-test 两路清单，不跑测试 |
+| Iterator / Iterable、`for` 与四种 range | 4.5 完成待提交，4.6 待开始 | 4.5 格式、受影响 crate clippy、parser 11/11、HIR 32/32 及唯一 full fixture 4/4（371.80 秒）已通过；6 份新 snapshot 与 186 份既有 snapshot 审计无 blocker，四种 range 留给 4.6 |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
@@ -177,6 +177,8 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.5 Iterator / Iterable 与 source `for`
 
+当前执行状态：4.5 已完成实现与验证，待功能提交。schema 冻结为模块唯一 `IterationCore`、per-use `AppliedOptionCore`、raw-result → exact `Iterator<E>` conformance witness、specialized ordinary `next` 与完整 `ForIterationPlan`；所有 plan 字段私有，并由 Export-HIR reader boundary 统一验证 core canonical backref、winner/result closure、local/type/mutability、binding action dataflow 与 innermost loop target。parser/AST 已开放专用 token 的 `for` / `break` / `continue` 并继续拒绝 label、jump expression 与 `do-while`；core source已加入 Iterator/Iterable 及 Array/MutableArray iterator。definition reader 以同一套 typed outcome 处理 return/throw/typed break/continue、嵌套 while/for、when subject/guard、try/finally 与不可达区域，并把 mutable assignment-only merge local 纳入 plan ownership；不可达语法仍登记 identity，但不触发 future-read 或污染正常路径交集。格式化与受影响 crate all-target clippy 已通过；parser 定向测试 11/11、HIR 32/32 通过。source `For` 在 HIR concretization 已完全展开，LocalConcrete HIR/MIR 没有 `For` 分支且 MIR production 未改，因此 MIR 专项门经边界审计记为 N/A。唯一一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4 通过（371.80 秒）；6 份新 snapshot 和 186 份既有 snapshot 的 AST/HIR/MIR/LIR/run/trap/diagnostic 归一化审计均无 blocker，且无 `.snap.new`。workspace 全量保留给 M22 最终门。
+
 1. AST / parser 同一原子切片开放 source `for` 及此前 4.4 已完成下游语义的无标签 `break` / `continue`；labels、`do-while` 与 jump expression 继续明确拒绝。一次验证的非可选 HIR `IterationCore` 与完整 HIR lowering 同时落地；`IterationCore` 固定 Iterator template、`next` exact slot 并复用模块唯一的 checked `OptionCore` 关系，不复制第二套 Some / None 身份。
 2. 每个 source `for` 保存完整 `ForIterationPlan`：source temporary、唯一 iterator winner/result、exact `Iterator<T>`、conformance/boxing witness、specialized next slot、exact `Option<T>` refs、element type、binding plan 和 `LoopId`。
 3. binding plan 首次持久进入 Export HIR / meta 前，必须以私有 checked constructor 或完整边界 validator 封闭跨字段不变量；同一门还要验证外层 IterationCore / ForIterationPlan 的 winner result → Iterator<E> witness → specialized next slot → OptionCore<E> payload → binding subject E → LoopId 全链关系，并覆盖 local/type/mutability、shape/application/field、action 数据流与 component winner/call；reader 不能接收任意 public-field 组合。
@@ -186,6 +188,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 7. 每轮创建 fresh binding scope；lambda / local callable capture 必须指向该轮独立 binding，不复用上一轮存储。
 8. core 源码加入 Iterator / Iterable、ArrayIterator / MutableArrayIterator 及 Array / MutableArray 普通 public Iterable conformance；端到端 fixture 覆盖两类 array。
 9. 首次验证前整批补齐：无 / 歧义 iterator、高优先级 winner 协议错误不回退、0 / 多个不同 Iterator application、ordinary 上下文选择 suspend iterator、用户同名 next / Some / None 无效、generic bound witness 不重查、source / iterator / next 次数、fresh capture、refutable pattern、for 内 break / continue + try/finally + header poll，以及 suspend / moving-GC 存活；静态审计和实现合批完成后才运行一次分层定向门。
+10. 4.5 验证批固定为：一次 `cargo fmt --all`；一次受影响 crate all-target clippy；一次 parser / HIR-lower 定向测试批；MIR-lower 仅在 source plan 穿过其边界或 production 分支变化时运行专项门，本切片经审计为 N/A；全部定向门稳定后，一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 生成并验证新 fixture snapshots。某一门失败时只修复并重跑该门及其直接下游，不回头重跑已通过的慢门；本切片不运行 `cargo test --workspace`。
 
 ### 4.6 四种 range 与整数循环组合
 
@@ -217,8 +220,8 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 - 全量 clone `Lowerer` 能保证 transaction 正确，但在大量 pattern 下可能产生二次复杂度。当前优先闭合语义；4.2 planner 落地时应减少嵌套 clone，保证每个 owner 至多一个 transaction。
 - 新 binding fixture 最初复现了“32 字节 tuple 作为 struct 构造器参数时运行值损坏”；独立 ABI 审计进一步证明根因是一般 Scoop aggregate 参数分类缺口而不是 32 字节阈值：嵌套 24 字节也可失败，平坦 32 字节也可通过。4.3 必须用 caller / callee 共用的 typed ABI classification 修复，不能接受错误输出为 golden。
-- 4.2a 的 plan 当前只由 HIR lowering 内部 builder 构造并在 val / var owner 内立即消费；公开数据模型尚不能独自排除所有跨字段非法组合。它不阻塞本切片，但在 4.5 持久进入 Export HIR / meta 前必须以 checked construction 或完整 validator 封闭。
-- `for` 当前仍在 parser 阶段明确拒绝；不能在 LoopId、cleanup、IterationCore 未结构化完成前先做仅语法可用的半实现。
+- 4.2a 时公开 binding 数据模型尚不能独自排除所有跨字段非法组合；4.5 已将持久化的 binding plan 纳入私有 `ForIterationPlan` 与完整 reader-boundary validator。本切片提交前仍须以伪造 plan 的 negative 测试锁定 owner/signature、局部量 freshness、action dataflow 与 loop target 拒绝边界。
+- 4.5 原子切片前，`for` 曾在 parser 阶段明确拒绝，以避免 LoopId、cleanup、IterationCore 未结构化时出现仅语法可用的半实现；当前 parser/AST 已随完整协议链开放，提交门是 Export HIR plan 必须在进入具体化前通过完整 reader validation。
 - coroutine CFG 审计发现仅靠 LIR 自然回边识别 header poll 在 resume edge 参与时不可靠；4.4 必须先加入由 MIR 显式携带并穿过 coroutine 变换的 header poll marker，再开放 `break` / `continue` parser。
 - runtime spec 仅在 ABI、对象模型、GC 或 runtime function contract 变化时修改。binding 名称分流和 compile-time transaction 复用既有 EH / coroutine / root 契约，不单独增加 runtime 规则。
 
@@ -262,3 +265,15 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：完成并提交 4.4c2 coroutine pending-transfer chain `6402e115`。首次 clippy 一次性暴露新代码误用 `la_arena::Arena::get` 的 24 处同类编译错误，统一改为 checked typed arena lookup 后只重跑该门，四个受影响 crate all-target clippy 通过；MIR / MIR-lower `coroutine` 定向测试各 9/9。fixture 验证按静态清单续跑：首轮已完成 7 份既有 snapshot 后，新 fixture 因公开函数签名引用 internal `Node` 被编译器正确拒绝；修正源码可见性后只运行新 fixture 与剩余 19 份，没有重跑前 7 份，20 份在 43.93 秒内通过，且新 fixture ordinary / moving-GC stress 输出一致。26 份既有 snapshot 的 AST/HIR/run 均与 `HEAD` 字节一致；三路独立审查覆盖全部 27 份相关 snapshot，确认 typed parents/leaves、per-scope EH、exact saved/failure slots、metadata-derived dispatch 及 GC frame refs 均无 blocker。`git diff --check` 通过，无 `.snap.new`、临时 fixture filter 或新增占位实现；按验证效率纪律未运行 workspace/full fixture suite。下一切片为 Iterator / Iterable、`for` 与四种 range。
 - 2026-09-07：开始 4.5 Iterator / Iterable 与 source `for`。三路只读审计并行覆盖：语言/实现/runtime spec 的 exact iteration contract 与跨文档一致性；parser → AST → Export HIR → LocalConcrete HIR → MIR 的现有 loop/binding/operator/conformance 链；普通 core、Array/MutableArray iterator、generic/suspend/capture/moving-GC 的最小 correctness-closed 测试矩阵。审计收敛并冻结完整 API/diagnostic/测试清单前不改实现、不运行测试；实现、validator、negative与fixture整批齐备后再统一验证。
 - 2026-09-07：4.5 spec 审计确认语言/runtime 主线一致且无需新增 runtime ABI，但发现实现规范把 IterationCore 描述为另一套 Option 变体身份、以及 4.4 未开放的 break / continue 在剩余计划中没有 parser 归属。先把 IterationCore 统一为复用 canonical checked OptionCore（含 Some payload field / None ref），把外层 plan + binding plan 完整 reader 验证列为硬门，并明确 4.5 原子开放 for / break / continue；其余两路审计收敛前仍不改实现、不跑测试。
+- 2026-09-07：4.5 三路只读审计与 API 冻结完成。parser/AST 以专用 token 原子开放 `for` / `break` / `continue`，继续封闭 labels、jump expression 与 `do-while`；Export HIR 采用私有 `ForIterationPlan`、raw result conformance witness 与 per-use `AppliedOptionCore`，完整 reader validator 覆盖 canonical core、唯一 exact Iterator closure、next/Option、binding schedule 与 typed loop；concretization 机械展开为既有 While，并把接口约束参数的 Box 适配延迟到实际 value/ref kind。core source 同批加入 Iterator/Iterable、ArrayIterator/MutableArrayIterator 与普通 array conformance。当前 visitor、default-template、测试/fixture仍在合批，尚未运行格式化、编译或测试；静态清单清零后再启动唯一分层验证批。
+- 2026-09-07：4.5 实现/测试批已在首次验证前整体落盘：parser/AST、Export-HIR 完整 plan 与 validator、LocalConcrete 展开、default-template fresh remap、core Iterator/Iterable 与两类 array iterator、全部相关 visitor已齐；5 组 HIR 测试集中锁定 basic relation、exactly-once/poll、member winner、0/多 exact application、generic value boxing/reference retype 及 nested typed loop，单一 full-pipeline fixture 同时覆盖 Array/MutableArray、递归解构、fresh capture、suspend iterator 与 moving GC。现在并行做 reader boundary/pipeline 顺序及 schema/concretization 的最终只读审计；尚未运行 fmt、lint、编译、测试或 snapshot refresh，审计修复一次合并后才启动唯一验证批。
+- 2026-09-07：4.5 首次验证前静态终审定位并合批处理四类缺口：protocol method/bound owner与完整专门化签名校验、source/iterator/component setup局部量freshness、手写Export HIR harness的canonical IterationCore，以及DESIGN/PLAN中过时的Option身份和parser风险描述；同时补伪造plan与高优先级失败/ordinary effect/control-flow negative覆盖。此时仍未运行任何格式化、lint或测试，待静态清单一次清零后统一验证。
+- 2026-09-07：按“静态清单一次收齐、完整 suite 只在完成门运行”的效率纪律继续4.5终审。静态交叉检查又发现合法 named struct 反序字段解构的 declaration-order shape 与 source-order action 被 reader 按同一 cursor 消费；validator 已改为先按源码序验证 action dataflow，再按 typed edge 与声明序 shape 唯一匹配并全部消费，同时锁定 for 叶 binding 不可变。对应反序正例与 method owner、bound signature、reserved local、错误 loop target、mutable leaf 伪造负例已合批；23处内联 HIR core golden 与一个用户自定义 `Iterator` 名称冲突也已静态修正。仍未启动格式化、编译、测试或 snapshot refresh。
+- 2026-09-07：4.5 最新树的静态审计再合批闭合三项边界：reader 现以 callable/default region 全局定义集合拒绝 plan hidden local 复用函数参数、default receiver/value parameter、外围 `val` 或另一分支 local，同时保留 plan 内部错误的更精确诊断；component call 不再被错误地一律限制为 ordinary，ordinary caller 的 effect negative 与 suspend `for` 的 component 正例同时锁定；parser 在 statement/direct-branch 入口也会把 `break + 1`、`continue.member`、`break()` 精确诊断为未支持的一般 jump expression。测试文件已按职责拆分且均低于长度门，fixture/sysroot/moving-GC 与 parser 审计无剩余 blocker；两路 HIR 最新树复核完成前仍不启动任何验证命令。
+- 2026-09-07：继续按“先收齐静态清单、后跑唯一验证批”处理 4.5。reader 新增 source 前缀 future-local 扫描，覆盖五个 reserved temporary、iterator/component setup、binding action、loop body，以及 Lambda/anonymous/callable-reference capture 和 bound receiver 的间接求值；非法/循环 callable entity 安全拒绝。协议 receiver validation 现区分 member subtype 与 extension exact parameter，并验证 reference upcast、value/interface boxing、function coercion 的 typed proof。每个 callable/default region 非可选地携带 suspend permission，default template 同时核对全部 source owner、orphan/非法 source 与继承后一致性。对应 inherited member/extension upcast、suspend iterator/component/default 与 forged future read/box/effect/source 负例已集中补齐；尚未运行 fmt、lint、build、test 或 snapshot refresh，待最新树终审归零后一次执行。
+- 2026-09-07：4.5 首次验证前按完整验收矩阵再做一次静态清单审计，没有用慢 suite 逐项探测。由此补齐 source setup 的 self/forward/单分支/loop definite-definition reader proof，generic bound 已选 extension 不因 concrete member 出现而重选的判别性用例，canonical `next` ordinary 负例，LocalConcrete Some test/payload projection 结构断言，以及用户 `Iterable<T>` 静态视图、empty path和 boxed ZST value iterator 的 full-pipeline 场景。unsafe lexical block 因 Export HIR 既有统一扁平化且不改变后续控制流/ABI shape，仍沿用普通 HIR producer 信任边界，不给 iteration plan 另造 safety 状态。此时仍未运行 fmt、lint、build、test 或 snapshot refresh；最新树无 blocker 后才进入单一验证批。
+- 2026-09-07：4.5 首次验证前最后一轮 reader 审计发现旧的“定义集合 + future 全树扫描”不能表达 abrupt reachability，并漏记由首次 mutable assignment 建立的 merge local。现已统一为一套 source-order definite-definition / ownership flow：normal edge 才参与交集，return/throw/typed break/continue 显式传播，嵌套 while/for 消费自身 jump，when 先检查 subject，try/finally 按完成方式合流；不可达语法只登记 identity、不检查 read。同步补齐 when subject 前向读、abrupt loop、return 后不可达 future-read、assignment-only local 跨 plan 复用和 `@NoGC` 隐藏 `next` 回归。三路最终静态复审均无 blocker，且至此仍未运行 fmt、lint、build、test 或 snapshot refresh；下一步严格按第 4.5.10 项执行唯一验证批。
+- 2026-09-07：4.5 分层验证已完成前两级。先统一格式化并通过受影响 `scoop-hir` / `scoop-hir-lower` all-target clippy；parser 定向门 11/11 通过后不再重复。HIR 首轮 23/32，通过完整失败输出一次归并出 visibility、非法裸 expression statement、value-to-interface extension boxing、bound signature receiver 投影与 generic winner 用例隔离五类问题；整批修正并静态复核后只重跑 HIR 门，32/32 全绿。下一步仅执行审计确认的最小 MIR/downstream 门和一次 full fixture snapshot refresh，不运行 workspace suite。
+- 2026-09-07：4.5 下游门审计确认 source `For` 在 Export → LocalConcrete HIR 具体化时已完整展开为 `ValDecl + While`，LocalConcrete HIR 与 MIR 均不存在 `For` variant；MIR production 未改，mir-lower 只为新增必填 `Module::iteration_core` 更新测试 harness，且已由 all-target clippy 编译覆盖。因此不为凑验证项重跑旧 MIR control-flow suite，直接由 HIR concrete-shape 测试和唯一一次 full-pipeline fixture 覆盖实际 MIR/LIR/codegen、suspend/header-poll/moving-GC 组合。
+- 2026-09-07：4.5 唯一 full fixture 完成门已通过：`INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4，371.80 秒。新 `m22-iteration` 正向与 5 个 negative snapshot 均已生成；core 新增声明使 186 份既有 snapshot 系统性刷新。不会再跑完整 fixture；当前并行审计新 fixture 语义、既有 snapshot 漂移与最终树卫生，只对真实 blocker 做定向处理。
+- 2026-09-07：4.5 snapshot 与最终树审计完成，无 correctness blocker。新正向 golden 锁定 Array/MutableArray、Iterable 静态视图、ZST iterator boxing、递归解构/fresh capture、typed jump/finally、suspend/header poll 与 moving-GC roots；5 份 negative 的位置和消息完整。186 份既有 snapshot 中，185 份 AST/HIR 归一化后只含新增 iteration core 与实体 ID 顺延，175 个 run 和 10 个 trap 输出逐字不变；45 份 MIR/37 份 LIR 的额外 CFG 规范化全部可归因于已提交的 typed cleanup 路由 `b42ce94f`。唯一 diagnostics 变化是用户测试类型 `Iterator` → `Cursor` 的预期避名。提交前把 iteration default-instantiation 原样拆为 255 行子模块，使父文件从 1018 降到 767 行；只重跑格式化与 `scoop-hir-lower` all-target clippy并通过。`git diff --check`、无 `.snap.new`、无新增占位实现等卫生门均通过。本切片只复用既有 runtime/GC/coroutine/ABI 合同，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec；下一步提交 4.5，随后进入 4.6 range。

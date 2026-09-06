@@ -19,6 +19,8 @@ mod nominals;
 mod types;
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
+    export::validate_iteration_plans(module)
+        .expect("Export HIR iteration plans must pass the complete reader boundary validator");
     Concretizer::new(module).run()
 }
 

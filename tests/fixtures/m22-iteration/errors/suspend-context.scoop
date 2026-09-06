@@ -1,0 +1,13 @@
+// EXPECT-DIAGNOSTICS
+
+class SuspendIterator : Iterator<Int> {
+    public final override fun next(): Option<Int> = None
+}
+
+class SuspendSource {
+    suspend operator fun iterator(): SuspendIterator = SuspendIterator()
+}
+
+fun main() {
+    for (value in SuspendSource()) {}
+}

@@ -211,6 +211,32 @@ impl Lowerer {
                     body,
                 }
             }
+            ast::StatementKind::For(for_) => {
+                let Some(plan) = self.lower_for(for_) else {
+                    return;
+                };
+                hir::StatementKind::For(Box::new(plan))
+            }
+            ast::StatementKind::Break => {
+                let Some(&target) = self.loop_targets.last() else {
+                    self.error(
+                        statement.span,
+                        "`break` is only allowed inside a loop".into(),
+                    );
+                    return;
+                };
+                hir::StatementKind::Break { target }
+            }
+            ast::StatementKind::Continue => {
+                let Some(&target) = self.loop_targets.last() else {
+                    self.error(
+                        statement.span,
+                        "`continue` is only allowed inside a loop".into(),
+                    );
+                    return;
+                };
+                hir::StatementKind::Continue { target }
+            }
             ast::StatementKind::Block(block) => {
                 self.push_scope();
                 for statement in &block.statements {

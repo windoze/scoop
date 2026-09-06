@@ -76,6 +76,66 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
+                hir::StatementKind::For(plan) => {
+                    self.collect_no_gc_statement_violations(plan.source_setup(), out, requirements);
+                    self.collect_no_gc_expr_violations(plan.source_init(), out, requirements);
+                    self.collect_no_gc_statement_violations(
+                        plan.iterator_setup(),
+                        out,
+                        requirements,
+                    );
+                    self.collect_no_gc_expr_violations(plan.iterator_call(), out, requirements);
+                    let conformance = plan.conformance();
+                    self.collect_no_gc_type_violations(
+                        conformance.iterator().ty,
+                        conformance.span(),
+                        out,
+                        requirements,
+                    );
+                    let next = plan.next();
+                    self.check_no_gc_callee(
+                        hir::Callable::Method(next.callable()),
+                        next.span(),
+                        out,
+                    );
+                    self.collect_no_gc_type_violations(
+                        next.result().ty,
+                        next.span(),
+                        out,
+                        requirements,
+                    );
+                    self.collect_no_gc_type_violations(
+                        next.element().ty,
+                        next.span(),
+                        out,
+                        requirements,
+                    );
+                    for action in &plan.binding().actions {
+                        match action {
+                            hir::IrrefutableBindingAction::Project { result, span, .. } => {
+                                self.collect_no_gc_type_violations(
+                                    result.ty,
+                                    *span,
+                                    out,
+                                    requirements,
+                                );
+                            }
+                            hir::IrrefutableBindingAction::Component { setup, call, .. } => {
+                                self.collect_no_gc_statement_violations(setup, out, requirements);
+                                self.collect_no_gc_expr_violations(call, out, requirements);
+                            }
+                            hir::IrrefutableBindingAction::Bind { target, span, .. } => {
+                                self.collect_no_gc_type_violations(
+                                    target.ty,
+                                    *span,
+                                    out,
+                                    requirements,
+                                );
+                            }
+                        }
+                    }
+                    self.collect_no_gc_statement_violations(plan.body(), out, requirements);
+                }
                 hir::StatementKind::When(when) => {
                     self.collect_no_gc_expr_violations(&when.subject, out, requirements);
                     for arm in &when.arms {
@@ -115,18 +175,7 @@ impl Lowerer {
         requirements: &mut HashSet<hir::TypeParamId>,
     ) {
         use hir::ExprKind;
-        match self.gc_free_requirements(expr.ty) {
-            Some(required) => requirements.extend(required),
-            None => {
-                out.push((
-                    expr.span,
-                    format!(
-                        "value of non-GC-free type {} is not allowed in `@NoGC` code",
-                        self.type_name(expr.ty)
-                    ),
-                ));
-            }
-        }
+        self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
             ExprKind::StringLiteral(_) => out.push((
                 expr.span,
@@ -419,6 +468,27 @@ impl Lowerer {
                     ));
                 }
                 self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
+        }
+    }
+
+    fn collect_no_gc_type_violations(
+        &self,
+        ty: hir::TypeId,
+        span: Span,
+        out: &mut Vec<(Span, String)>,
+        requirements: &mut HashSet<hir::TypeParamId>,
+    ) {
+        match self.gc_free_requirements(ty) {
+            Some(required) => requirements.extend(required),
+            None => {
+                out.push((
+                    span,
+                    format!(
+                        "value of non-GC-free type {} is not allowed in `@NoGC` code",
+                        self.type_name(ty)
+                    ),
+                ));
             }
         }
     }

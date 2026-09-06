@@ -27,7 +27,7 @@ impl IntegerLiteralLexeme {
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,
 /// `sealed`, `companion`, `init`, `constructor`, `try`, `catch`,
-/// `finally`, `throw`) stay identifiers too — the parser matches them
+/// `finally`, `throw`, `do`) stay identifiers too — the parser matches them
 /// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
@@ -44,6 +44,9 @@ pub(crate) enum TokenKind {
     Else,
     When,
     While,
+    For,
+    Break,
+    Continue,
     Return,
     True,
     False,
@@ -129,6 +132,9 @@ impl Token {
             TokenKind::Else => "`else`".to_string(),
             TokenKind::When => "`when`".to_string(),
             TokenKind::While => "`while`".to_string(),
+            TokenKind::For => "`for`".to_string(),
+            TokenKind::Break => "`break`".to_string(),
+            TokenKind::Continue => "`continue`".to_string(),
             TokenKind::Return => "`return`".to_string(),
             TokenKind::True => "`true`".to_string(),
             TokenKind::False => "`false`".to_string(),

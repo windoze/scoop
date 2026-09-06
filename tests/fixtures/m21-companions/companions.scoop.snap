@@ -141,6 +141,15 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
+    public fun next
+SourceFile
   public enum Option<T>
     Some(T)
     None
@@ -424,14 +433,16 @@ SourceFile
     public fun toString
     public fun hash
     @Intrinsic("core_array")
-  public class Array<T>()
+  public class Array<T>(), Iterable<T>
     public operator fun get
     public fun toMutableArray
+    public operator fun iterator
     @Intrinsic("core_mutable_array")
-  public class MutableArray<T>()
+  public class MutableArray<T>(), Iterable<T>
     public operator fun get
     public operator fun set
     public fun toArray
+    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -645,42 +656,52 @@ Module
     None()
   enum EnumHost
     Entry()
+  class ArrayIterator<T>(source: Array<T0>, index: Long) : Iterator<T0>
+    field0 property11: Array<T0>
+    field1 property12: Long
+    property11 val source: Array<T0> getter11=storage <stored field0 init=parameter11>
+    property12 var index: Long getter12=storage setter0=storage <stored field1 init=parameter12>
+  class MutableArrayIterator<T>(source: MutableArray<T0>, index: Long) : Iterator<T0>
+    field2 property13: MutableArray<T0>
+    field3 property14: Long
+    property13 val source: MutableArray<T0> getter13=storage <stored field2 init=parameter13>
+    property14 var index: Long getter14=storage setter1=storage <stored field3 init=parameter14>
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field4 property15: Option<String>
+    property15 val message: Option<String> getter15=storage <stored field4 init=parameter15>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException(message: Option<String>)
   class Box<T>(value: T0)
-    field1 property12: T0
-    property12 val value: T0 getter12=storage <stored field1 init=parameter13>
+    field5 property16: T0
+    property16 val value: T0 getter16=storage <stored field5 init=parameter17>
   class DefaultHost()
   class Independent()
   open class FactoryBase()
-    field2 property13: Int
-    property13 val inheritedProperty: Int getter13=storage <stored field2 init=expression>
+    field6 property17: Int
+    property17 val inheritedProperty: Int getter17=storage <stored field6 init=expression>
   class InheritedHost()
   object ObjectHost <object0 type0 value0 root0 init0>
-    property18 val token: Int getter18=constant <const Integer(Signed32(11))>
+    property22 val token: Int getter22=constant <const Integer(Signed32(11))>
   companion object StructHost.Maker <object1 type1 value1 root1 init1 companion0>
   companion object EnumHost.Values <object2 type2 value2 root2 init2 companion1>
   companion object Box.Factory <object3 type3 value3 root3 init3 companion2>
-    field3 property14: Int
-    field4 property15: Int
-    property14 val seed: Int getter14=storage <stored field3 init=expression>
-    property15 var count: Int getter15=storage setter0=storage <stored field4 init=expression>
-    property19 val version: Int getter19=constant <const Integer(Signed32(21))>
+    field7 property18: Int
+    field8 property19: Int
+    property18 val seed: Int getter18=storage <stored field7 init=expression>
+    property19 var count: Int getter19=storage setter2=storage <stored field8 init=expression>
+    property23 val version: Int getter23=constant <const Integer(Signed32(21))>
   companion object DefaultHost.Companion <object4 type4 value4 root4 init4 companion3>
   companion object Independent.Companion <object5 type5 value5 root5 init5 companion4>
-    field5 property16: Int
-    property16 val seed: Int getter16=storage <stored field5 init=expression>
+    field9 property20: Int
+    property20 val seed: Int getter20=storage <stored field9 init=expression>
   companion object InheritedHost.Companion : FactoryBase <object6 type6 value6 root6 init6 companion5>
   companion object InterfaceHost.Provider <object7 type7 value7 root7 init7 companion6>
   companion object ObjectHost.NestedCompanion <object8 type8 value8 root8 init8 companion7>
-    property20 val token: Int getter20=constant <const Integer(Signed32(12))>
+    property24 val token: Int getter24=constant <const Integer(Signed32(12))>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -688,12 +709,16 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface ToString
     fun toString(): String
   interface Hash
     fun hash(): Long
   interface InterfaceHost
-  property17 val combinedVersion: Int getter17=constant <const Integer(Signed32(42))>
+  property21 val combinedVersion: Int getter21=constant <const Integer(Signed32(42))>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -847,7 +872,7 @@ Module
     val local6
       Local $argument.0 : Int
     val local7
-      IntegerOperation int.add target=function104 <no-gc> : Int
+      IntegerOperation int.add target=function108 <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local8
@@ -888,7 +913,7 @@ Module
       Local $argument.0 : Int
     assign .field
       SingletonValue Factory : Box.Factory
-      IntegerOperation int.add target=function104 <no-gc> : Int
+      IntegerOperation int.add target=function108 <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local19
@@ -1598,7 +1623,7 @@ Module mangling=compact-v2
       assign $new.1
         Type Box$I32
         ClassAlloc Box$I32
-      call @scoop.init.Box$I32.$c7 direct
+      call @scoop.init.Box$I32.$c9 direct
         Type Box$I32
         Local $new.1
         Type Int
@@ -1668,7 +1693,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ObjectHost
         ClassAlloc ObjectHost
-      call @scoop.init.ObjectHost.$c12 direct
+      call @scoop.init.ObjectHost.$c14 direct
         Type ObjectHost
         Local $new.1
       global_assign $singleton$object:ObjectHost
@@ -1690,7 +1715,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -1704,7 +1729,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -1728,19 +1753,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -1752,33 +1775,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -1788,8 +1811,8 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun chooseFactory @scoop.chooseFactory(value: Box.Factory) -> Box.Factory
     bb0 entry
       return
@@ -2148,7 +2171,7 @@ Module mangling=compact-v2
       assign $new.2
         Type Independent
         ClassAlloc Independent
-      call @scoop.init.Independent.$c9 direct
+      call @scoop.init.Independent.$c11 direct
         Type Independent
         Local $new.2
       val independent: Independent
@@ -2206,7 +2229,7 @@ Module mangling=compact-v2
       assign $new.1
         Type StructHost.Maker
         ClassAlloc StructHost.Maker
-      call @scoop.init.StructHost.Maker.$c13 direct
+      call @scoop.init.StructHost.Maker.$c15 direct
         Type StructHost.Maker
         Local $new.1
       global_assign $singleton$companion:StructHost.Maker
@@ -2228,7 +2251,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2242,7 +2265,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2266,19 +2289,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2290,33 +2311,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2326,14 +2347,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$2 @scoop.$init$body$2() -> Unit
     bb0 entry
       assign $new.1
         Type EnumHost.Values
         ClassAlloc EnumHost.Values
-      call @scoop.init.EnumHost.Values.$c14 direct
+      call @scoop.init.EnumHost.Values.$c16 direct
         Type EnumHost.Values
         Local $new.1
       global_assign $singleton$companion:EnumHost.Values
@@ -2355,7 +2376,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2369,7 +2390,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2393,19 +2414,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:EnumHost.Values
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2417,33 +2436,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:EnumHost.Values
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:EnumHost.Values
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2453,14 +2472,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$3 @scoop.$init$body$3() -> Unit
     bb0 entry
       assign $new.1
         Type Box.Factory
         ClassAlloc Box.Factory
-      call @scoop.init.Box.Factory.$c15 direct
+      call @scoop.init.Box.Factory.$c17 direct
         Type Box.Factory
         Local $new.1
       global_assign $singleton$companion:Box.Factory
@@ -2482,7 +2501,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2496,7 +2515,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2520,19 +2539,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Box.Factory
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2544,33 +2561,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Box.Factory
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Box.Factory
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2580,14 +2597,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$4 @scoop.$init$body$4() -> Unit
     bb0 entry
       assign $new.1
         Type DefaultHost.Companion
         ClassAlloc DefaultHost.Companion
-      call @scoop.init.DefaultHost.Companion.$c16 direct
+      call @scoop.init.DefaultHost.Companion.$c18 direct
         Type DefaultHost.Companion
         Local $new.1
       global_assign $singleton$companion:DefaultHost.Companion
@@ -2609,7 +2626,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2623,7 +2640,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2647,19 +2664,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:DefaultHost.Companion
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2671,33 +2686,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:DefaultHost.Companion
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:DefaultHost.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2707,14 +2722,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$5 @scoop.$init$body$5() -> Unit
     bb0 entry
       assign $new.1
         Type Independent.Companion
         ClassAlloc Independent.Companion
-      call @scoop.init.Independent.Companion.$c17 direct
+      call @scoop.init.Independent.Companion.$c19 direct
         Type Independent.Companion
         Local $new.1
       global_assign $singleton$companion:Independent.Companion
@@ -2736,7 +2751,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2750,7 +2765,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2774,19 +2789,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Independent.Companion
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2798,33 +2811,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Independent.Companion
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Independent.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2834,14 +2847,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$6 @scoop.$init$body$6() -> Unit
     bb0 entry
       assign $new.1
         Type InheritedHost.Companion
         ClassAlloc InheritedHost.Companion
-      call @scoop.init.InheritedHost.Companion.$c18 direct
+      call @scoop.init.InheritedHost.Companion.$c20 direct
         Type InheritedHost.Companion
         Local $new.1
       global_assign $singleton$companion:InheritedHost.Companion
@@ -2863,7 +2876,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -2877,7 +2890,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -2901,19 +2914,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:InheritedHost.Companion
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -2925,33 +2936,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:InheritedHost.Companion
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:InheritedHost.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -2961,14 +2972,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$7 @scoop.$init$body$7() -> Unit
     bb0 entry
       assign $new.1
         Type InterfaceHost.Provider
         ClassAlloc InterfaceHost.Provider
-      call @scoop.init.InterfaceHost.Provider.$c19 direct
+      call @scoop.init.InterfaceHost.Provider.$c21 direct
         Type InterfaceHost.Provider
         Local $new.1
       global_assign $singleton$companion:InterfaceHost.Provider
@@ -2990,7 +3001,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -3004,7 +3015,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -3028,19 +3039,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init7 companion:InterfaceHost.Provider
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -3052,33 +3061,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init7 companion:InterfaceHost.Provider
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init7 companion:InterfaceHost.Provider
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -3088,14 +3097,14 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun $init$body$8 @scoop.$init$body$8() -> Unit
     bb0 entry
       assign $new.1
         Type ObjectHost.NestedCompanion
         ClassAlloc ObjectHost.NestedCompanion
-      call @scoop.init.ObjectHost.NestedCompanion.$c20 direct
+      call @scoop.init.ObjectHost.NestedCompanion.$c22 direct
         Type ObjectHost.NestedCompanion
         Local $new.1
       global_assign $singleton$companion:ObjectHost.NestedCompanion
@@ -3117,7 +3126,7 @@ Module mangling=compact-v2
     bb1 if.then.1
       goto bb11
     bb2 if.else.2
-      branch bb16 bb17
+      branch bb15 bb16
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
@@ -3131,7 +3140,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance Throwable
           Type Any
@@ -3155,19 +3164,17 @@ Module mangling=compact-v2
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val $init.caught: Throwable
         Type Throwable
         Retype Throwable
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       call $init.materialized: Throwable = @scoop_rt_materialize_exception direct
         Type Throwable
         Local $init.caught
@@ -3179,33 +3186,33 @@ Module mangling=compact-v2
       throw unwind bb6
         Type Throwable
         Local $init.materialized
-    bb16 if.then.16
-      goto bb18
-    bb17 if.else.17
-      branch bb19 bb20
+    bb15 if.then.15
+      goto bb17
+    bb16 if.else.16
+      branch bb18 bb19
         Type Boolean
         Binary MachineEq(InitializationOutcome)
           Type machine<initialization-outcome>
           Local $init.state
           Type machine<initialization-outcome>
           MachineScalarLiteral InitializationOutcome(Failed)
-    bb18 if.merge.18
+    bb17 if.merge.17
       goto bb3
-    bb19 if.then.19
+    bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
         InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       throw
         Type Throwable
         Local $init.failure
-    bb20 if.else.20
+    bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local $new.1
         Type Option$S<String>
@@ -3215,8 +3222,8 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $new.1
-    bb21 if.merge.21
-      goto bb18
+    bb20 if.merge.20
+      unreachable
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       val $receiver: String
@@ -3294,12 +3301,12 @@ Module mangling=compact-v2
       return
         Type Int
         Local value
-  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+  fun init.Throwable.$c2 @scoop.init.Throwable.$c2(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c3 @scoop.init.Exception.$c3(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c0 direct
+      call @scoop.init.Throwable.$c2 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -3310,7 +3317,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c4 @scoop.init.UnwrapException.$c4(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3326,7 +3333,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -3334,7 +3341,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c5 @scoop.init.ClassCastException.$c5(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3350,7 +3357,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -3358,7 +3365,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c6 @scoop.init.ArithmeticException.$c6(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3374,7 +3381,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -3382,7 +3389,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c7 @scoop.init.IndexOutOfBoundsException.$c7(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3398,7 +3405,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -3406,7 +3413,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c8 @scoop.init.IllegalStateException.$c8(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -3414,7 +3421,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c1 direct
+      call @scoop.init.Exception.$c3 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -3422,7 +3429,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c21 @scoop.init.IllegalStateException.$c21(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c23 @scoop.init.IllegalStateException.$c23(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3435,22 +3442,22 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c6 direct
+      call @scoop.init.IllegalStateException.$c8 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.DefaultHost.$c8 @scoop.init.DefaultHost.$c8(this: DefaultHost) -> Unit
+  fun init.DefaultHost.$c10 @scoop.init.DefaultHost.$c10(this: DefaultHost) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.$c12 @scoop.init.ObjectHost.$c12(this: ObjectHost) -> Unit
+  fun init.ObjectHost.$c14 @scoop.init.ObjectHost.$c14(this: ObjectHost) -> Unit
     bb0 entry
       return
-  fun init.Independent.$c9 @scoop.init.Independent.$c9(this: Independent) -> Unit
+  fun init.Independent.$c11 @scoop.init.Independent.$c11(this: Independent) -> Unit
     bb0 entry
       return
-  fun init.FactoryBase.$c10 @scoop.init.FactoryBase.$c10(this: FactoryBase) -> Unit
+  fun init.FactoryBase.$c12 @scoop.init.FactoryBase.$c12(this: FactoryBase) -> Unit
     bb0 entry
       field_set 0
         Type FactoryBase
@@ -3458,16 +3465,16 @@ Module mangling=compact-v2
         Type Int
         IntegerLiteral Int value=14 bits=0x0000000e
       return
-  fun init.InheritedHost.$c11 @scoop.init.InheritedHost.$c11(this: InheritedHost) -> Unit
+  fun init.InheritedHost.$c13 @scoop.init.InheritedHost.$c13(this: InheritedHost) -> Unit
     bb0 entry
       return
-  fun init.StructHost.Maker.$c13 @scoop.init.StructHost.Maker.$c13(this: StructHost.Maker) -> Unit
+  fun init.StructHost.Maker.$c15 @scoop.init.StructHost.Maker.$c15(this: StructHost.Maker) -> Unit
     bb0 entry
       return
-  fun init.EnumHost.Values.$c14 @scoop.init.EnumHost.Values.$c14(this: EnumHost.Values) -> Unit
+  fun init.EnumHost.Values.$c16 @scoop.init.EnumHost.Values.$c16(this: EnumHost.Values) -> Unit
     bb0 entry
       return
-  fun init.Box.Factory.$c15 @scoop.init.Box.Factory.$c15(this: Box.Factory) -> Unit
+  fun init.Box.Factory.$c17 @scoop.init.Box.Factory.$c17(this: Box.Factory) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3497,10 +3504,10 @@ Module mangling=compact-v2
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
-  fun init.DefaultHost.Companion.$c16 @scoop.init.DefaultHost.Companion.$c16(this: DefaultHost.Companion) -> Unit
+  fun init.DefaultHost.Companion.$c18 @scoop.init.DefaultHost.Companion.$c18(this: DefaultHost.Companion) -> Unit
     bb0 entry
       return
-  fun init.Independent.Companion.$c17 @scoop.init.Independent.Companion.$c17(this: Independent.Companion) -> Unit
+  fun init.Independent.Companion.$c19 @scoop.init.Independent.Companion.$c19(this: Independent.Companion) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -3525,21 +3532,21 @@ Module mangling=compact-v2
         Type Int
         Local $call.1
       return
-  fun init.InheritedHost.Companion.$c18 @scoop.init.InheritedHost.Companion.$c18(this: InheritedHost.Companion) -> Unit
+  fun init.InheritedHost.Companion.$c20 @scoop.init.InheritedHost.Companion.$c20(this: InheritedHost.Companion) -> Unit
     bb0 entry
-      call @scoop.init.FactoryBase.$c10 direct
+      call @scoop.init.FactoryBase.$c12 direct
         Type FactoryBase
         Retype FactoryBase
           Type InheritedHost.Companion
           Local this
       return
-  fun init.InterfaceHost.Provider.$c19 @scoop.init.InterfaceHost.Provider.$c19(this: InterfaceHost.Provider) -> Unit
+  fun init.InterfaceHost.Provider.$c21 @scoop.init.InterfaceHost.Provider.$c21(this: InterfaceHost.Provider) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.NestedCompanion.$c20 @scoop.init.ObjectHost.NestedCompanion.$c20(this: ObjectHost.NestedCompanion) -> Unit
+  fun init.ObjectHost.NestedCompanion.$c22 @scoop.init.ObjectHost.NestedCompanion.$c22(this: ObjectHost.NestedCompanion) -> Unit
     bb0 entry
       return
-  fun init.Box$I32.$c7 @scoop.init.Box$I32.$c7(this: Box$I32, value: Int) -> Unit
+  fun init.Box$I32.$c9 @scoop.init.Box$I32.$c9(this: Box$I32, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box$I32
@@ -4024,7 +4031,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4036,7 +4043,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4058,34 +4065,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp29 roots=[] sig=void0 () local-fn32() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp31 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp32 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init0, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp33 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init0)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp34 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
     store t17 -> local4
     call managed-direct-target4 sp35 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4099,7 +4104,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp30 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init0)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -4474,7 +4479,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4486,7 +4491,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4508,34 +4513,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp112 roots=[] sig=void0 () local-fn36() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp114 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp115 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init1, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp116 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init1)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp117 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
     store t17 -> local4
     call managed-direct-target4 sp118 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4549,7 +4552,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp113 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init1)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -4584,7 +4587,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4596,7 +4599,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4618,34 +4621,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp123 roots=[] sig=void0 () local-fn38() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp125 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp126 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init2, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp127 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init2)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp128 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init2)
     store t17 -> local4
     call managed-direct-target4 sp129 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4659,7 +4660,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp124 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init2)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -4694,7 +4695,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4706,7 +4707,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4728,34 +4729,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp134 roots=[] sig=void0 () local-fn40() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp136 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp137 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init3, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp138 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init3)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp139 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init3)
     store t17 -> local4
     call managed-direct-target4 sp140 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4769,7 +4768,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp135 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init3)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -4804,7 +4803,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4816,7 +4815,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4838,34 +4837,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp145 roots=[] sig=void0 () local-fn42() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp147 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp148 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init4, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp149 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init4)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp150 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init4)
     store t17 -> local4
     call managed-direct-target4 sp151 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4879,7 +4876,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp146 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init4)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -4914,7 +4911,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -4926,7 +4923,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -4948,34 +4945,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp156 roots=[] sig=void0 () local-fn44() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp158 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp159 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init5, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp160 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init5)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp161 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init5)
     store t17 -> local4
     call managed-direct-target4 sp162 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -4989,7 +4984,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp157 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init5)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -5024,7 +5019,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -5036,7 +5031,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -5058,34 +5053,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp167 roots=[] sig=void0 () local-fn46() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp169 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp170 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init6, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp171 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init6)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp172 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init6)
     store t17 -> local4
     call managed-direct-target4 sp173 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -5099,7 +5092,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp168 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init6)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -5134,7 +5127,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -5146,7 +5139,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -5168,34 +5161,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp178 roots=[] sig=void0 () local-fn48() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp180 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp181 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init7, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp182 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init7)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp183 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init7)
     store t17 -> local4
     call managed-direct-target4 sp184 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -5209,7 +5200,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp179 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init7)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -5244,7 +5235,7 @@ Module
     br @try.body.11
   block if.else.2
     t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
-    cbr t2 then @if.then.16 else @if.else.17
+    cbr t2 then @if.then.15 else @if.else.16
   block if.merge.3
     ret
   block try.unwind.4
@@ -5256,7 +5247,7 @@ Module
     t5 = begin_catch local7 : ptr<managed>
     store t5 -> local8
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, td3)
-    cbr t6 then @try.catch.13 else @try.next.14
+    cbr t6 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local6
@@ -5278,34 +5269,32 @@ Module
   block try.body.11
     invoke managed-void-target0 sp189 roots=[] sig=void0 () local-fn50() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local8 -> local1
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     call managed-direct-target1 sp191 live=[local1:ptr<managed>@0] t13 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
     store t13 -> local2
     call managed-void-target2 sp192 live=[local2:ptr<managed>@0] sig=void3 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init8, local2)
     t14 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.3 unwind @try.handler_pad.6
     br @throw.normal.3
-  block if.then.16
-    br @if.merge.18
-  block if.else.17
+  block if.then.15
+    br @if.merge.17
+  block if.else.16
     t15 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
-    cbr t15 then @if.then.19 else @if.else.20
-  block if.merge.18
+    cbr t15 then @if.then.18 else @if.else.19
+  block if.merge.17
     br @if.merge.3
-  block if.then.19
+  block if.then.18
     call managed-direct-target2 sp193 live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init8)
     store t16 -> local3
     throw local3
     unreachable
-  block if.else.20
+  block if.else.19
     call managed-direct-target3 sp194 live=[] t17 = sig=direct4 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init8)
     store t17 -> local4
     call managed-direct-target4 sp195 live=[local4:ptr<managed>@0] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
@@ -5319,7 +5308,7 @@ Module
     t11 = aggregate () : {}
     call managed-void-target1 sp190 live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init8)
     t12 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block throw.normal.3
@@ -5385,18 +5374,18 @@ Module
   block entry
     poll managed-void-target0 sp271 live=[]
     ret param1
-  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  fun @scoop.init.Throwable.$c2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp272 live=[]
     ret
-  fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
+  fun @scoop.init.Exception.$c3(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target1 sp273 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp206 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn56(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+  fun @scoop.init.UnwrapException.$c4(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -5411,7 +5400,7 @@ Module
     call managed-void-target0 sp207 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn57(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+  fun @scoop.init.ClassCastException.$c5(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -5426,7 +5415,7 @@ Module
     call managed-void-target0 sp208 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn57(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+  fun @scoop.init.ArithmeticException.$c6(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -5441,7 +5430,7 @@ Module
     call managed-void-target0 sp209 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn57(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+  fun @scoop.init.IndexOutOfBoundsException.$c7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -5456,7 +5445,7 @@ Module
     call managed-void-target0 sp210 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn57(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
+  fun @scoop.init.IllegalStateException.$c8(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -5466,7 +5455,7 @@ Module
     call managed-void-target0 sp211 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn57(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c21(ptr<managed>) -> void
+  fun @scoop.init.IllegalStateException.$c23(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -5479,36 +5468,36 @@ Module
     call managed-void-target0 sp212 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn62(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.DefaultHost.$c8(ptr<managed>) -> void
+  fun @scoop.init.DefaultHost.$c10(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp280 live=[]
     ret
-  fun @scoop.init.ObjectHost.$c12(ptr<managed>) -> void
+  fun @scoop.init.ObjectHost.$c14(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp281 live=[]
     ret
-  fun @scoop.init.Independent.$c9(ptr<managed>) -> void
+  fun @scoop.init.Independent.$c11(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp282 live=[]
     ret
-  fun @scoop.init.FactoryBase.$c10(ptr<managed>) -> void
+  fun @scoop.init.FactoryBase.$c12(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp283 live=[param0:ptr<managed>@0]
     heap_store param0 +16 integer<Int>(0x0000000e)
     ret
-  fun @scoop.init.InheritedHost.$c11(ptr<managed>) -> void
+  fun @scoop.init.InheritedHost.$c13(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp284 live=[]
     ret
-  fun @scoop.init.StructHost.Maker.$c13(ptr<managed>) -> void
+  fun @scoop.init.StructHost.Maker.$c15(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp285 live=[]
     ret
-  fun @scoop.init.EnumHost.Values.$c14(ptr<managed>) -> void
+  fun @scoop.init.EnumHost.Values.$c16(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp286 live=[]
     ret
-  fun @scoop.init.Box.Factory.$c15(ptr<managed>) -> void
+  fun @scoop.init.Box.Factory.$c17(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -5525,11 +5514,11 @@ Module
     heap_store param0 +16 local4
     heap_store param0 +20 integer<Int>(0x00000001)
     ret
-  fun @scoop.init.DefaultHost.Companion.$c16(ptr<managed>) -> void
+  fun @scoop.init.DefaultHost.Companion.$c18(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp288 live=[]
     ret
-  fun @scoop.init.Independent.Companion.$c17(ptr<managed>) -> void
+  fun @scoop.init.Independent.Companion.$c19(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -5545,21 +5534,21 @@ Module
     store t0 -> local4
     heap_store param0 +16 local4
     ret
-  fun @scoop.init.InheritedHost.Companion.$c18(ptr<managed>) -> void
+  fun @scoop.init.InheritedHost.Companion.$c20(ptr<managed>) -> void
   block entry
     poll managed-void-target1 sp290 live=[param0:ptr<managed>@0]
     call managed-void-target0 sp215 live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn67(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.InterfaceHost.Provider.$c19(ptr<managed>) -> void
+  fun @scoop.init.InterfaceHost.Provider.$c21(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp291 live=[]
     ret
-  fun @scoop.init.ObjectHost.NestedCompanion.$c20(ptr<managed>) -> void
+  fun @scoop.init.ObjectHost.NestedCompanion.$c22(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp292 live=[]
     ret
-  fun @scoop.init.Box$I32.$c7(ptr<managed>, i32) -> void
+  fun @scoop.init.Box$I32.$c9(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp293 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

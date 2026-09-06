@@ -79,6 +79,17 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
+            if !self.peek().newline_before
+                && matches!(self.peek().kind, TokenKind::Break | TokenKind::Continue)
+            {
+                let token = self.peek();
+                let name = if matches!(&token.kind, TokenKind::Break) {
+                    "break"
+                } else {
+                    "continue"
+                };
+                return Err(loop_jump_expression_diagnostic(name, token.span));
+            }
             // Elvis is right-associative; every other binary/infix source
             // form in this table is left-associative.
             if matches!(self.peek().kind, TokenKind::QuestionColon) {
@@ -386,10 +397,16 @@ impl Parser {
             })?;
             let statement_only = matches!(
                 self.peek().kind,
-                TokenKind::Val | TokenKind::Var | TokenKind::Return | TokenKind::While
+                TokenKind::Val
+                    | TokenKind::Var
+                    | TokenKind::Return
+                    | TokenKind::While
+                    | TokenKind::For
+                    | TokenKind::Break
+                    | TokenKind::Continue
             ) || matches!(
                 &self.peek().kind,
-                TokenKind::Ident(text) if matches!(text.as_str(), "throw" | "break" | "continue")
+                TokenKind::Ident(text) if text == "throw"
             );
             if statement_only {
                 return Err(Diagnostic::at(
@@ -572,4 +589,11 @@ impl Parser {
             )),
         }
     }
+}
+
+pub(crate) fn loop_jump_expression_diagnostic(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::at(
+        span,
+        format!("`{name}` jump expressions are not supported in M22"),
+    )
 }
