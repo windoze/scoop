@@ -15,7 +15,7 @@
 - 整数字面量在HIR winner commit前是candidate-local literal constraint，不是提前定型的`Int`。无后缀的无上下文默认阶梯为`Int`，超出后为`Long`；`u/U`阶梯为`UInt`，超出后为`ULong`；`L`与`UL`分别精确固定为`Long`与`ULong`。expected exact整数类型可接收domain内可表示的字面量；不存在非字面量的隐式整数转换或混宽运算；
 - M22只实现不带标签的`break`/`continue`以及`for`；目标是同一callable内的最内层循环。`do-while`、带标签的`break`/`continue`/`return`不进入本里程碑；
 - `for`只消费M18已有的普通`iterator` operator候选。其结果必须唯一满足某个exact `Iterator<T>` conformance；`next()`及`Option.Some/None`来自一次验证后保存的typed core contract，不按名称/FQN查找；
-- `val`/`var`、lambda参数与`for`变量使用递归、不可失败的binding pattern；`when`使用允许literal/variant的refutable match pattern。`for (Some(x) in xs)`不是过滤语法，而是编译错误；
+- `val`/`var`、lambda参数与`for`变量使用递归、不可失败的binding pattern；其中除内建`Unit` literal外的普通裸标识符恒为新binding，不查询enum/import/value，只有按subject exact enum解析成功的显式variant shape才按refutable pattern拒绝。`when`使用允许literal/variant的refutable match pattern，并保留enum subject下的variant-first裸名解析。`for (Some(x) in xs)`不是过滤语法，而是编译错误；
 - 穷尽性统一使用递归constructor/pattern-matrix算法。enum variant的payload、Boolean、Unit、tuple和struct都递归参与覆盖；guard不贡献覆盖；缺失诊断给出一个稳定witness；
 - 副本更新只支持具有声明字段的exact struct。任何enum目标（包括命名字段variant）都是稳定编译错误，必须用`when`匹配并显式重建；编译器不生成active-variant检查或`IllegalStateException`路径；
 - 表达式位裸variant只由普通可见候选或唯一expected exact enum application引入，不扫描全程序全部enum；`Option`不再拥有另一套硬编码表达式解析；
@@ -222,12 +222,12 @@ loop {
 
 `val`/`var`、lambda参数与`for`变量共用一个`IrrefutableBindingPlan`：
 
-- binding name、`_`与`..`不失败；
-- tuple/struct按声明顺序递归投影；字段模式先按字段id正规化；
-- class位置解构复用M18 `componentN`普通operator resolution，每个实际位置选择唯一typed target，subject只求值一次；class没有声明式总元数，因此该模式不能含`..`，写出的N个位置精确调用`component1`至`componentN`；
-- enum variant和literal pattern是refutable，不能出现在binding plan的任何深度；
-- lambda/for引入的名字不可重新绑定；`var`解构声明中的每个名字保持现有mutable binding语义；
-- 所有投影/component调用按模式从左到右求值；失败、异常或挂起不会重复求值subject或已完成的component。
+- 一个plan只接收一个完整subject并将其保存到immutable hidden temporary；lambda的一个composite pattern仍对应一个logical source参数、一个函数类型参数与一个typed Scoop ABI classification entry，annotation描述这个完整subject，不按叶binding flatten；物理entry仍可分类为`ElidedZst`/`Direct`/`Indirect`，closure environment与suspend continuation是各自独立的hidden参数；
+- binding name、`_`与`..`不失败。除4.3内建`Unit` literal外，binding上下文任意深度的普通裸标识符恒建立新binding，不按subject exact enum、import或既有value做variant/value lookup；`val None = o`因此合法。`Unit`/`()`仍是literal并拒绝。只有显式`E.V`、`V()`、`V(...)`或`V { ... }`等shape按subject exact enum解析成功时才作为refutable variant拒绝；解析为struct的同形pattern仍可进入irrefutable plan；
+- tuple/struct位置模式按位置从左到右递归。命名字段先解析为exact typed field id：完整shape及与coverage/layout共享的field mapping按声明顺序，运行期action entries保留源码显式字段顺序并逐项depth-first执行；`..`补出的wildcard只有shape、没有运行期动作；
+- class位置解构复用M18 `componentN`普通operator resolution，每个实际位置选择唯一typed target；class没有声明式总元数，因此该模式不能含`..`，写出的N个位置精确调用`component1`至`componentN`。每次component结果先保存到新的immutable hidden temporary，再递归处理对应子pattern；
+- subject、内建投影结果与component结果的hidden temporary全部immutable。lambda/for的用户binding不可重新绑定；`var`解构声明也只有最终用户可见叶binding是mutable，不能把共享subject或中间temporary建成`var`；
+- 运行期严格按上述source-order、depth-first action顺序执行。component抛异常时保留此前外部副作用并跳过后续action；component挂起时把subject和全部已完成temporary保存在协程状态中，正常恢复后先保存本次结果再继续，不能重跑subject或已完成的投影/component；异常恢复等价于在原call点throw并跳过全部后续action。在ordinary上下文选择`suspend componentN`是effect错误。
 
 现有仅在`val` lowering中特判class component解构的路径必须抽出，不能给lambda与`for`各复制一份resolver。
 
@@ -331,7 +331,7 @@ HIR内部的`CopyUpdatePlan`原子保存base temporary、exact struct applicatio
 
 ### 4.1 binding pattern与match pattern
 
-M22正式区分两种上下文，而不是笼统称为“赋值位置”：
+M22正式区分两种上下文，而不是笼统称为“赋值位置”。parser在两种位置都产出同一封闭`PatternSyntax` AST；下列文法描述结合subject type并完成name/shape解析后的成功HIR语义分类。binding位置若写literal或显式enum variant shape，仍先保留完整AST与span，再在构造`BindingPattern`时产生稳定诊断，而不是由parser提前删掉：
 
 ```text
 BindingPattern = Binding | Wildcard | Positional(BindingElement*)
@@ -348,21 +348,23 @@ VariantPayload = Unit | Positional(MatchElement*)
                | Fields(FieldMatchElement*)
 ```
 
-`Field(...)`包含显式`field: pattern`，字段shorthand在AST中展开为同名binding；`FieldRest`在同一字段列表至多出现一次且只能位于末尾。`EnumVariant`始终保存已经解析的variant id及unit/位置/具名字段三种互斥payload shape，不能把具名enum payload伪装成struct pattern。`Rest`不是可独立出现的pattern，只能出现在position/variant element list或字段列表中，并遵守language spec §4.6的数量与位置约束。源码`Positional`在subject type确定后分类：binding位置可成为tuple投影、struct投影或class component plan，match位置只能成为tuple/struct投影；class component只属于binding位置，不能把可能有副作用的`componentN`调用放入match或coverage算法，且其element list不允许`Rest`。`val`/`var`、lambda与`for`只接受递归irrefutable的`BindingPattern`；`when`的模式分支接受`MatchPattern`。一个外层tuple/struct不能用嵌套literal或variant绕过binding限制。单variant enum仍是sum constructor，M22不为它引入特殊的“声明式可失败解构”。
+`Field(...)`包含显式`field: pattern`；字段shorthand在AST中精确展开为同名的普通pattern syntax，RHS仍按所在上下文的完整规则分类。binding上下文通常把它分类为同名binding，但名称`Unit`仍优先成为内建literal并被拒绝，必须写成`Unit: value`等显式不同绑定名；match上下文也先应用Unit literal特例，再对其他名称执行variant-first分类。`FieldRest`在同一字段列表至多出现一次且只能位于末尾。`EnumVariant`始终保存已经解析的variant id及unit/位置/具名字段三种互斥payload shape，不能把具名enum payload伪装成struct pattern。`Rest`不是可独立出现的pattern，只能出现在position/variant element list或字段列表中，并遵守language spec §4.6的数量与位置约束。源码`Positional`在subject type确定后分类：binding位置可成为tuple投影、struct投影或class component plan，match位置只能成为tuple/struct投影；class component只属于binding位置，不能把可能有副作用的`componentN`调用放入match或coverage算法，且其element list不允许`Rest`。`val`/`var`、lambda与`for`只接受递归irrefutable的`BindingPattern`；`when`的模式分支接受`MatchPattern`。一个外层tuple/struct不能用嵌套literal或variant绕过binding限制。单variant enum仍是sum constructor，M22不为它引入特殊的“声明式可失败解构”。
+
+两种上下文对裸标识符的分类刻意不同。除4.3的内建`Unit` literal外，`BindingPattern`中的普通裸标识符在任何深度都直接形成`Binding`，绝不尝试解析同名enum variant、import或value；`Unit`/`()`仍按literal拒绝。只有`E.V`、`V()`、`V(...)`与`V { ... }`等显式shape按subject exact enum解析成功时，才会被识别为refutable variant并拒绝；解析为struct时仍是irrefutable struct pattern。`MatchPattern`先把`Unit`/`()`分类为内建literal；其他裸标识符再按subject exact enum查询，unit variant形成variant pattern，payload variant缺少shape时直接诊断，只有名称未命中时才形成catch-all binding。同名enum variant `Unit`因此必须限定为`E.Unit`或写出payload shape。lambda参数的parser文法按language spec §8.1.2为`PatternSyntax [':' Type]`，成功语义节点必须是`BindingPattern`；一个composite pattern保留一个logical source/function-type parameter identity和一个typed ABI classification entry，annotation属于完整subject，物理payload分类以及closure environment/suspend continuation按language spec §4.7/§8.2另行处理。
 
 ### 4.2 命名字段子模式
 
 字段模式元素统一为：
 
 ```text
-field             // field: field 的shorthand binding
+field             // 精确展开为 field: field；RHS按所在context分类
 field: pattern    // RHS是完整递归子模式
 ..                // 仅末尾一次，补齐未列字段为wildcard
 ```
 
-因此`S { f1: 0, nested: (x, _), ignored: _, .. }`在`when`中合法；`{ f1, f2: renamed }`仍按shorthand/binding解释。`_`不能作为字段key，但可作为`field: _`的RHS。字段名必须存在且不能重复；所有binding名称在整个pattern内唯一。未列出全部字段时仍必须以`..`结尾。
+因此`S { f1: 0, nested: (x, _), ignored: _, .. }`在`when`中合法；`{ f1, f2: renamed }`中的`f1`仍精确展开为`f1: f1`，其RHS再按binding或match上下文分类。`{ Unit }`同理展开为`{ Unit: Unit }`并命中内建literal特例，不会建立名为`Unit`的binding。`_`不能作为字段key，但可作为`field: _`的RHS。字段名必须存在且不能重复；所有binding名称在整个pattern内唯一。未列出全部字段时仍必须以`..`结尾。
 
-AST的`FieldPattern`保存`field: Ident`与boxed完整`subpattern`，不再保存只能表示rename的`Option<Ident>`。HIR解析到typed field id后，按声明顺序补全wildcard并形成完整field vector；MIR不按名称查字段。
+AST的`FieldPattern`保存`field: Ident`与boxed完整`subpattern`，不再保存只能表示rename的`Option<Ident>`。HIR先把每个源码字段解析为subject exact type中的封闭typed field identity：struct字段使用`AppliedStructFieldRef`，enum payload字段使用`AppliedEnumVariantFieldRef`（或类型上同样隔离的封闭sum），不得用可混用的裸index。随后同时建立两种共享同一identity的顺序：按声明顺序补全wildcard的完整field vector供shape检查、match coverage与layout映射使用；按源码显式字段顺序保存的binding action entries供运行期depth-first执行。`FieldRest`只向前一种表示补wildcard，不生成后一种action。MIR不按名称查字段，也不得从声明序vector反推运行期binding顺序。
 
 ### 4.3 表达式位裸variant
 
@@ -377,7 +379,7 @@ qualified `E.V(...)`始终按普通variant constructor解析；显式/default st
 
 `scoop.core.Option.*`通过prelude的typed default-import条目工作；编译器不再写`Some`/`None`短名称特判。未来M23只需把同一候选层换成真实import metadata。
 
-模式位variant仍由subject exact enum type解析。未解析为该enum variant的裸标识符保持catch-all binding；为防拼写错误，M22补上spec既有的非致命warning，并在诊断中建议variant全限定名或显式`_`/binding命名。
+match pattern位variant仍由subject exact enum type解析。未解析为该enum variant的裸标识符保持catch-all binding；为防拼写错误，M22补上spec既有的非致命warning，并在诊断中建议variant全限定名或显式`_`/binding命名。该variant-first规则不进入4.1定义的binding上下文。
 
 ### 4.4 递归pattern matrix
 
@@ -432,10 +434,12 @@ HIR新增以下内部能力：
 - 每个source `for`另有不可缺失的`ForIterationPlan`，原子保存source temporary、唯一iterator call及result type、exact `Iterator<T>` application、具体conformance/boxing witness、specialized next slot、exact `Option<T>`与Some/None variant、element type、binding plan和`LoopId`。`IterationCore`不能代替该use-site witness；
 - source loop建立不可跨callable的typed `LoopId`栈；break/continue在HIR即绑定目标，不以整数深度或nullable label表示；
 - 组合式控制流分析使用`ControlOutcome::{Fallthrough, Return, Throw, Break(LoopId), Continue(LoopId)}`集合而非“是否落空”bool；sequence只把Fallthrough送入下一语句，分支取union，每个loop消费指向自己的Break/Continue，finally按实际离开目标决定是否替换进入它的outcome。该分析sum不等于MIR的normal `PendingTransfer`，其中Throw仍只沿异常边传播；
-- `IrrefutableBindingPlan`供val/lambda/for共用；`CopyUpdatePlan`、contextual variant candidate和pattern matrix只存在于HIR lowering事务；失败candidate不得污染永久arena；
+- `IrrefutableBindingPlan`供val/lambda/for共用，并原子保存单一typed subject、immutable hidden temporaries、声明序field shape mapping、源码序depth-first actions、typed component winner与叶binding mutability。整个递归plan的名称引入、field identity解析、component resolution、effect检查与type检查属于同一个compile-time lowering事务：全部成功时只commit到紧邻的拥有者事务；普通已选语句可由此进入scope与永久arena，但overload candidate中的lambda等嵌套plan必须继续保持candidate-private，直到外层MSC winner commit才进入永久状态。任一错误只把该路径选定的稳定诊断交给拥有者并回滚全部暂存实体，不得留下部分binding或残缺plan。`CopyUpdatePlan`、contextual variant candidate和pattern matrix同样只存在于HIR lowering事务；失败candidate不得污染永久arena；
 - Export HIR为public alias、integer intrinsic representation、public Iterator/Iterable/range surface、pattern所需typed declaration shape提供M23可打包的完备接口。generic body里的for在template中保存完整`ForIterationPlan`的typed协议/loop结构，具体化只替换已有typed引用，不得重新按名称找core。
 
 `LocalConcreteHir`可以保留结构化typed loop与已绑定`Break(LoopId)`/`Continue(LoopId)`，但source `For`必须已展开为一次iterator初始化、重复typed next/Option branch、binding plan和loop。while与for统一具有显式header区域；所有进入新一轮的边都指向header。它不包含alias type、literal variable、source字段名、unresolved variant、coverage matrix、source copy update或未绑定控制转移。
+
+上述compile-time事务性不提供运行期回滚。成功编译后的binding plan一旦开始执行，subject只求值一次；component调用之前已发生的外部副作用在后续throw时保留，throw跳过剩余action。挂起保存subject与已完成的immutable temporary；正常恢复点位于该component call之后，异常恢复则等价于在原call点throw，两者都不能重新执行已经完成的步骤。
 
 ### 5.3 MIR CFG、cleanup与协程
 
@@ -508,7 +512,7 @@ M22修改`scoop.core`源码与core contract，但不新增必须由C runtime实�
 - generic/nested/循环typealias、alias环、alias target不可访问、alias导致重复overload；
 - loop外或跨lambda/local function的break/continue、label与do-while当前未支持；
 - `iterator` role缺失/歧义、返回type零个或多个不同`Iterator<T>` conformance、core协议损坏；
-- for/lambda/val中的literal/variant等refutable pattern；componentN缺失/歧义与字段/rest/重复binding错误；
+- for/lambda/val中的literal/显式variant shape等refutable pattern；componentN缺失/歧义、ordinary上下文的suspend component，以及字段/rest/重复binding错误；裸variant同名标识符本身不是binding位置的refutable pattern；
 - copy update空列表、non-struct base（包括任何enum）、未知/重复struct字段与字段type mismatch；enum在字段候选或RHS lowering之前按统一非法base诊断拒绝，不存在variant候选或运行期mismatch路径；
 - 裸variant无expected enum、错误expected type、import/context候选歧义及constructor argument失败；
 - 不穷尽`when`显示稳定missing witness；guard不计覆盖时明确提示；疑似拼错的enum variant catch-all binding产生非致命warning；
@@ -538,7 +542,8 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 - while/for普通、嵌套和empty路径；break/continue绑定正确target，condition setup在continue后重新执行；
 - member/extension/generic/suspend iterator operator，一次source/iterator求值，零/多Iterator conformance；
 - Array/MutableArray、四种真实整数range与用户Iterable；array size/index/iterator index保持`Long`且在`INT64_MAX`边界不截断，每轮fresh binding及closure capture；
-- tuple/struct/class component解构，异常/挂起时不重复subject/component；refutable for pattern negative；
+- tuple/struct/class component解构；命名字段故意逆声明序书写并嵌套有副作用component，以锁定源码序depth-first动作；throw保留先前副作用并跳过后续动作，挂起恢复不重复subject/已完成temporary/component；ordinary上下文选择suspend component为negative；
+- lambda composite pattern在有/无expected type下的完整subject annotation；一个pattern只对应一个logical source/function-type参数及一个typed ABI classification entry，且不按叶binding flatten；`var`只让用户叶binding mutable，所有hidden temporary保持immutable；
 - closed/open/until/downTo/step/contains的空、单元素、方向和alignment；MIN/MAX端点不溢出或死循环；非法step抛IllegalArgumentException；
 - try/catch/finally内外break/continue、finally覆盖、每个EndCatch恰好一次；suspend finally恢复pending target；
 - ordinary/continue回边都有poll，moving-GC stress下iterator/array/payload跨call被正确relocate。
@@ -546,9 +551,10 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 ### 8.3 copy update与pattern
 
 - struct/generic struct/nested update的base一次、RHS源码顺序、声明顺序重建与原值不变；
-- 字段shorthand、literal/`_`/nested tuple/struct/enum subpattern、rest补全、重复/未知字段与binding；
 - unit、位置payload与命名字段payload enum均锁定同一个non-struct base诊断；即使命名字段集合唯一匹配也不能建立copy-update plan、lower RHS或生成variant test/projection/construction/throw；
 - 含ref字段的struct覆盖普通、异常、挂起与moving-GC路径，锁定base及更新temporary的root/relocation；
+- 字段shorthand、literal/`_`/nested tuple/struct/enum subpattern、rest补全、重复/未知字段与binding；按typed field identity得到的声明序shape/coverage vector与源码序binding actions分别锁定；
+- binding位置的`val None = o`及嵌套裸`None`建立新binding，`Unit`/`()`以及字段名为`Unit`的shorthand仍按literal拒绝（显式`Unit: value`可绑定），显式`E.None`/`None()`/payload variant shape在val/var/lambda/for中稳定报refutable；match位置的裸`None`仍按subject exact enum解析variant，并覆盖字段shorthand RHS恰与Unit literal或unit/payload variant同名的情况；
 - enum payload递归覆盖、Boolean product组合、nested enum/tuple/struct、guard不计覆盖；enum/tuple/struct中的一个`Int8`列由全256个literal覆盖时可穷尽、少一个给真实witness，unsigned witness带`u`后缀，String开放域要求wildcard；
 - 专门回归单variant `V(Boolean)`只有`V(true)`必须报缺失`V(false)`，且MIR不得把该arm无条件化；
 - annotated return/argument/generic expected下的裸unit/payload variant、普通/import/context层优先级、无expected失败和Option无特判；

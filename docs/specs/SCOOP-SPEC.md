@@ -318,17 +318,19 @@ val t2 = (4, 5, s)
 val (a, b, { f1, f2: renamedF2 }) = t2   // 解构可以嵌套
 ```
 
-本节定义的是**binding pattern**：用于`val`/`var`声明、`for`循环变量和lambda参数，必须对输入静态类型递归不可失败。第5章的`when`使用范围更大的**match pattern**，额外允许literal与enum variant。一个外层tuple/struct不能用嵌套的可失败子模式绕过本条；`for (Some(x) in values)`不是过滤语法。
+本节定义的是**binding pattern**：用于`val`/`var`声明、`for`循环变量和lambda参数，必须对输入静态类型递归不可失败。parser在这些位置与第5章共用完整pattern syntax；`BindingPattern`是结合subject type后的成功语义分类，不是parser删减后的另一套语法。因此literal或显式variant shape先形成完整AST，再由本节规则给出稳定的refutable-pattern诊断。第5章的`when`使用范围更大的**match pattern**，额外允许literal与enum variant。一个外层tuple/struct不能用嵌套的可失败子模式绕过本条；`for (Some(x) in values)`不是过滤语法。
+
+binding上下文中，除`_`以及4.3定义的内建Unit字面量写法`Unit`/`()`外，语法上只有一个普通标识符的pattern在任意嵌套深度都恒为新的binding；它不按subject type查询enum variant，也不查询import或既有value。例如`val None = o`合法并声明名为`None`的新binding，即使`o`的类型拥有或当前作用域导入了`None` variant。`Unit`与`()`仍是literal而不是binding；binding pattern不接收literal，所以二者在`val`/`var`、lambda与`for`中拒绝。对enum variant而言，只有显式写出variant shape的`E.V`、`V()`、`V(...)`或`V { ... }`（包括其限定形式）并按subject exact enum解析成功时，才会被识别为refutable variant pattern并在这些binding位置的任意深度拒绝；同形语法若解析为struct pattern，仍按本节的irrefutable struct规则处理。第5章“enum variant优先于binding”的规则只属于match pattern，不适用于本节。
 
 规则：
 
 - **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。class component位置模式不适用该元数规则，单独按下文处理。
-- **字段模式**由`field`、`field: subpattern`和末尾可选`..`组成。`field`是`field: field`的shorthand；`field: renamed`绑定到`renamed`；`field: _`显式忽略该字段。冒号右侧是完整递归pattern，不再只是rename。`_`不能作为字段key，但可以作为RHS。字段不能未知或重复，整个pattern内的binding名称必须唯一。
-- 未列出全部字段时必须以`..`结尾；列全时可省略。字段模式可带type前缀（`S { f1: x, .. }`），前缀必须解析到subject的exact type。
+- **字段模式**由`field`、`field: subpattern`和末尾可选`..`组成。`field`精确等价于`field: field`，展开后的RHS仍按所在上下文的完整规则分类；因此在本节的binding上下文中通常建立同名binding，但字段名恰为`Unit`时，RHS仍是内建Unit literal并被拒绝，需要写成`Unit: value`等显式不同绑定名。第5章的match上下文先应用同一个Unit literal特例，再对其他名称应用variant-first规则；若字段的exact enum type恰有同名unit variant，shorthand会匹配该variant，需要catch-all binding时应显式写成`field: value`等不同名称。`field: renamed`绑定到`renamed`；`field: _`显式忽略该字段。冒号右侧是完整递归pattern，不再只是rename。`_`不能作为字段key，但可以作为RHS。字段不能未知或重复，整个pattern内的binding名称必须唯一。
+- 每个显式字段名先解析为subject exact type中的typed field identity。完整pattern shape、第5章的coverage vector及后端layout映射一律按字段声明顺序；binding plan的运行期动作则按源码显式字段的书写顺序depth-first执行。末尾`..`只为未列字段补充shape/coverage所需的wildcard，不产生投影、temporary或binding动作。未列出全部字段时必须以`..`结尾；列全时可省略。字段模式可带type前缀（`S { f1: x, .. }`），前缀必须解析到subject的exact type。
 - struct既可按主构造字段顺序位置解构，也可按字段名解构；tuple/struct投影是语言内建能力，不查找`componentN`。
-- 普通class可以按位置使用9.3的`componentN` operator解构。subject只求值一次，每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`。class没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。
-- binding pattern的不可失败性递归成立：binding、`_`、rest补位不可失败；tuple/struct只有全部展开后的子模式不可失败时才合法；literal与任何enum variant pattern在binding位置均非法。lambda和`for`引入的binding不可重新绑定，`var`解构声明沿用mutable binding语义。
-- 三种binding位置共享同一求值、投影与component计划；parser可以为lambda参数消歧施加语法限制，但不能改变后续语义。
+- 普通class可以按位置使用9.3的`componentN` operator解构。每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`。每次调用正常返回后，结果先保存到新的immutable hidden temporary，再depth-first处理对应子模式。class没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。挂起调用以异常恢复时等价于在原调用点抛出，后续动作不执行；在不允许挂起的求值上下文中选到`suspend componentN`是effect错误。
+- binding pattern的不可失败性递归成立：binding、`_`、rest补位不可失败；tuple/struct只有全部展开后的子模式不可失败时才合法；literal（包括`Unit`/`()`）与上述显式enum variant shape在binding位置均非法。lambda和`for`引入的binding不可重新绑定；`var`解构声明中只有用户可见的叶binding是mutable，subject、投影及component结果等hidden temporary始终immutable。
+- 三种binding位置共享同一求值、投影与component计划；每个完整subject只求值一次并进入immutable hidden temporary，位置元素按源码从左到右、命名字段按源码书写顺序递归depth-first执行。任一component调用抛出时，已经发生的外部副作用不回滚，后续投影、调用和binding均不执行；调用挂起时保存subject与全部已完成的hidden temporary，恢复后从该调用返回之后继续，不重新求值subject或任何已完成步骤。parser可以为lambda参数消歧施加语法限制，但不能改变后续语义。
 
 #### `..` 忽略其余字段
 
@@ -383,7 +385,7 @@ M22实现子集把`break`/`continue`与既有`return`/`throw`统一视为jump st
 模式when适用两条全局规则：
 
 - **穷尽性**：模式when（无论作为语句还是表达式）必须由递归pattern-matrix证明穷尽；不能证明时是编译错误并给出至少一个稳定missing witness，也可以显式加`else`。带guard的arm不贡献覆盖，因为guard可能为false。
-- **绑定优先**：分支模式中的裸标识符是新的binding而不是对既有变量的引用；M22只允许literal直接匹配值，匹配既有const须改用guard，限定名只用于enum variant。enum subject下先按其exact type解析同名variant，未解析为variant的裸标识符是匹配一切的binding（效果同`else`），编译器必须给出非致命warning以避免variant拼写错误。
+- **match中的绑定优先**：本条只适用于`when`的match pattern，不改变4.6的binding上下文。分支模式中的裸标识符不引用既有变量；M22只允许literal直接匹配值，匹配既有const须改用guard，限定名只用于enum variant。4.3的内建`Unit`/`()`首先按Unit literal分类；enum即使声明同名`Unit` variant，也必须以`E.Unit`或相应显式payload shape匹配。除此之外，enum subject下先按其exact type查询同名variant：命中unit variant时形成variant pattern，命中带payload的variant时报告缺少显式payload shape的错误，只有名称完全未命中时才建立匹配一切的新binding（效果同`else`）并给出非致命warning以避免拼写错误。相反，4.6中除`Unit`字面量外的普通裸标识符不执行这一步variant查询，即使名称相同也恒为新binding。
 
 穷尽性按以下typed constructor递归定义：
 
@@ -592,8 +594,9 @@ Scoop 当前不提供 Kotlin 的 receiver function type（`A.(B) -> R`）；扩�
 
 lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { parameters -> body }`。匿名函数写作 `fun(parameters)[: R] { body }`，挂起匿名函数写作 `suspend fun(parameters)[: R] { body }`，其中方括号表示返回类型可省略并由 body 推导。四种形式都会产生函数值，也都可以捕获外层词法环境。
 
-- 有期望函数类型时，lambda 的参数类型可省略，由期望类型给出；无期望类型时，每个显式参数都必须写出类型。单参数 lambda 在期望元数为 1 且省略参数列表时隐式声明 `it`；无参数 lambda 使用 `{ body }`。
-- lambda 参数支持 4.6 的解构模式。解构失败不产生运行期分支：参数静态类型必须能按该模式解构，否则是编译错误。
+- 每个逗号分隔的lambda参数在parser层使用`LambdaParameter = PatternSyntax [':' Type]`，随后必须按4.6验证为`BindingPattern`；这保留了refutable shape的完整span与稳定语义诊断。一个成功pattern恒表示一个logical源码参数与一个函数类型参数；经过typed Scoop ABI classification后，它也只产生一个对应的`ElidedZst`/`Direct`/`Indirect`参数分类entry，tuple、struct或class component等composite pattern不会按叶binding数量flatten。物理payload仍可按4.7省略或间接传递；closure environment与挂起调用的continuation是各自独立的hidden参数，不计入源码参数。type annotation属于完整subject，而不是某个叶binding。
+- 有期望函数类型时，每个lambda parameter的完整subject type可由对应的一个期望参数类型给出；期望元数按source pattern数量匹配。无期望类型时，每个显式参数（包括composite pattern）都必须为完整subject写出type annotation。单参数 lambda 在期望元数为 1 且省略参数列表时隐式声明 `it`；无参数 lambda 使用 `{ body }`。
+- lambda 参数支持 4.6 的解构模式。传入的单个参数值作为该pattern的subject且只处理一次；解构失败不产生运行期分支，参数静态类型必须能按该模式解构，否则是编译错误。投影、component调用、hidden temporary、异常与挂起语义均遵守4.6，不改变函数的源码/函数类型元数或该参数对应的单个typed ABI classification entry。
 - lambda 的值是 body 最后一个表达式的值；期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
 - lambda 中的裸 `return` 是编译错误。Scoop 不提供 Kotlin inline lambda 的 non-local return；需要提前返回时应使用匿名函数，其 `return` 只返回该匿名函数。
 - `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
