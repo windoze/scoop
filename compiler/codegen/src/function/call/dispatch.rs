@@ -89,6 +89,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         destination: scoop_lir::CallDestination,
         fn_ty: inkwell::types::FunctionType<'ctx>,
+        signature: &scoop_lir::ScoopAbiSignature,
+        apply_scoop_abi_attributes: bool,
     ) -> Result<inkwell::values::FunctionValue<'ctx>, CodegenError> {
         let symbol = match destination {
             scoop_lir::CallDestination::Local(id) => {
@@ -121,6 +123,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 unreachable!("dispatch destinations have no direct callee")
             }
         };
+        if apply_scoop_abi_attributes {
+            return abi::declare_or_get(
+                self.context,
+                self.llvm,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                symbol,
+                signature,
+            );
+        }
         if let Some(function) = self.llvm.get_function(symbol) {
             if function.get_type() != fn_ty {
                 return Err(CodegenError(format!(

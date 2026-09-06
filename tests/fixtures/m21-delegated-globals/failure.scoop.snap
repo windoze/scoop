@@ -1446,7 +1446,7 @@ Module
     t1 = aggregate () : {}
     throw local0
     unreachable
-  fun @scoop.ExplodingDelegate.getValue(ptr<managed>, {}) -> i32
+  fun @scoop.ExplodingDelegate.getValue(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
   block entry
     poll managed-void-target0 sp50 live=[]
     ret integer<Int>(0x00000000)
@@ -1869,7 +1869,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global7 : ptr<managed>
     t2 = aggregate () : {}
-    call managed-direct-target0 sp38 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, {}) -> i32 local-fn1(t1, t2)
+    call managed-direct-target0 sp38 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 local-fn1(t1, elided-zst t2)
     store t3 -> local0
     ret local0
   fun @scoop.println$S(ptr<managed>) -> void
@@ -1989,7 +1989,7 @@ Module
     call managed-void-target0 sp48 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn36(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

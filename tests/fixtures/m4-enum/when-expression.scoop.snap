@@ -1729,7 +1729,7 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.render(enum1) -> ptr<managed>
+  fun @scoop.render(indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed>
     local %0 value: i32
     local %1 $receiver: i32
     local %2 $argument.0: i32
@@ -1787,6 +1787,8 @@ Module
     local %7 $parameter.choice: enum1
     local %8 $argument.0: ptr<managed>
     local %9 $parameter.value: ptr<managed>
+    local %10 $sc.1: enum1
+    local %11 $sc.2: enum1
   block entry
     poll managed-void-target2 sp59 live=[]
     store integer<Int>(0x00000001) -> local0
@@ -1794,7 +1796,8 @@ Module
     t0 = enum_wrap e1 v0 (local1) : enum1
     store t0 -> local2
     store local2 -> local3
-    call managed-direct-target0 sp22 live=[] t1 = sig=direct0 (enum1) -> ptr<managed> local-fn22(local3)
+    store local3 -> local10
+    call managed-direct-target0 sp22 live=[] t1 = sig=direct0 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local10)
     store t1 -> local4
     store local4 -> local5
     call managed-void-target0 sp23 live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn24(local5)
@@ -1802,7 +1805,8 @@ Module
     t3 = enum_wrap e1 v1 () : enum1
     store t3 -> local6
     store local6 -> local7
-    call managed-direct-target1 sp24 live=[] t4 = sig=direct1 (enum1) -> ptr<managed> local-fn22(local7)
+    store local7 -> local11
+    call managed-direct-target1 sp24 live=[] t4 = sig=direct1 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local11)
     store t4 -> local8
     store local8 -> local9
     call managed-void-target1 sp25 live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn24(local9)
@@ -1921,7 +1925,7 @@ Module
     call managed-void-target0 sp35 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn31(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

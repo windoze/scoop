@@ -101,8 +101,14 @@ pub(super) fn instruction_uses(
     }
 }
 
-pub(super) fn call_uses(args: &[lir::Value], destination: lir::CallDestination) -> Vec<lir::Value> {
-    let mut values = args.to_vec();
+pub(super) fn call_uses(
+    args: &[lir::AbiCallArgument],
+    destination: lir::CallDestination,
+) -> Vec<lir::Value> {
+    let mut values = args
+        .iter()
+        .map(|argument| argument.logical_value())
+        .collect::<Vec<_>>();
     if let lir::CallDestination::Dispatch { table, .. } = destination {
         values.push(table);
     }
@@ -173,7 +179,9 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
 pub(super) fn call_defs(result: lir::TypedCallResult) -> Vec<LiveValue> {
     match result {
         lir::TypedCallResult::Void => Vec::new(),
-        lir::TypedCallResult::Direct(out) => vec![LiveValue::Temp(out)],
+        lir::TypedCallResult::ElidedZst(out) | lir::TypedCallResult::Direct(out) => {
+            vec![LiveValue::Temp(out)]
+        }
         lir::TypedCallResult::IndirectResult(storage) => vec![LiveValue::Local(storage)],
     }
 }
@@ -258,8 +266,18 @@ mod tests {
         let function = lir::Function {
             gc_effect: lir::GcEffect::Managed,
             symbol: "scoop.dataflow.variant".to_string(),
-            params: vec![lir::LirType::Enum(enum_id)],
-            return_ty: lir::LirType::Void,
+            signature: lir::ScoopAbiSignature::new(
+                vec![lir::AbiArgument::Indirect(
+                    lir::AbiValue::new(
+                        lir::LirType::Enum(enum_id),
+                        lir::AbiNonZeroLayout::new(16, 8).expect("test enum has a valid layout"),
+                        lir::RefScan::References(vec![8]),
+                    )
+                    .expect("test enum is a non-void ABI value"),
+                )],
+                lir::AbiReturn::UnitVoid,
+                lir::CallingConvention::Cdecl,
+            ),
             call_targets: lir::CallTargets::default(),
             locals: Arena::default(),
             temps,

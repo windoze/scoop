@@ -28,7 +28,7 @@ pub struct CExternFunction {
 pub struct ScoopExternFunction {
     pub identity: ExternFunctionIdentity,
     pub gc_effect: GcEffect,
-    pub signature: LirFunctionType,
+    pub signature: ScoopAbiSignature,
 }
 
 /// ABI-refined identities into `Module::extern_functions`. The shared arena
@@ -118,7 +118,7 @@ pub enum ExternFunctionKind {
     },
     Scoop {
         gc_effect: GcEffect,
-        signature: LirFunctionType,
+        signature: ScoopAbiSignature,
     },
 }
 

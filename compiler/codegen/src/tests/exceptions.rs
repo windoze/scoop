@@ -18,8 +18,7 @@ pub(super) fn exceptions_module() -> Module {
     let thrower = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.thrower".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -38,8 +37,7 @@ pub(super) fn exceptions_module() -> Module {
     let may_throw = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.may_throw".to_string(),
-        params: Vec::new(),
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(Vec::new(), LirType::I64),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -185,8 +183,7 @@ pub(super) fn exceptions_module() -> Module {
     let eh_test = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.eh_test".to_string(),
-        params: vec![METADATA_PTR],
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(vec![METADATA_PTR], LirType::I64),
         call_targets,
         locals: Arena::default(),
         temps,

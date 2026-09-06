@@ -1666,11 +1666,11 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.consume(enum1) -> i32
+  fun @scoop.consume(indirect<enum1 size=8 align=8 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp59 live=[]
     ret integer<Int>(0x00000002)
-  fun @scoop.describe(enum1) -> i32
+  fun @scoop.describe(indirect<enum1 size=8 align=8 scan=none>) -> i32
     local %0 Raedy: enum1
     local %1 $argument.0: enum1
     local %2 $parameter.value: enum1
@@ -1678,6 +1678,7 @@ Module
     local %4 $when.1: enum1
     local %5 $pattern.subject.2: enum1
     local %6 $call.1: i32
+    local %7 $sc.1: enum1
   block entry
     poll managed-void-target0 sp60 live=[]
     store param0 -> local4
@@ -1691,7 +1692,8 @@ Module
     store local4 -> local0
     store local0 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp22 live=[] t1 = sig=direct0 (enum1) -> i32 local-fn22(local2)
+    store local2 -> local7
+    call managed-direct-target0 sp22 live=[] t1 = sig=direct0 (indirect<enum1 size=8 align=8 scan=none>) -> i32 local-fn22(indirect local7)
     store t1 -> local6
     store local6 -> local3
     br @pattern.merge.3
@@ -1706,12 +1708,15 @@ Module
     local %5 $parameter.value: enum1
     local %6 $argument.0: i32
     local %7 $parameter.value: i32
+    local %8 $sc.1: enum1
+    local %9 $sc.2: enum1
   block entry
     poll managed-void-target2 sp61 live=[]
     t0 = enum_wrap e1 v0 () : enum1
     store t0 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp23 live=[] t1 = sig=direct0 (enum1) -> i32 local-fn23(local1)
+    store local1 -> local8
+    call managed-direct-target0 sp23 live=[] t1 = sig=direct0 (indirect<enum1 size=8 align=8 scan=none>) -> i32 local-fn23(indirect local8)
     store t1 -> local2
     store local2 -> local3
     call managed-void-target0 sp24 live=[] sig=void0 (i32) local-fn25(local3)
@@ -1719,7 +1724,8 @@ Module
     t3 = enum_wrap e1 v1 () : enum1
     store t3 -> local4
     store local4 -> local5
-    call managed-direct-target1 sp25 live=[] t4 = sig=direct1 (enum1) -> i32 local-fn23(local5)
+    store local5 -> local9
+    call managed-direct-target1 sp25 live=[] t4 = sig=direct1 (indirect<enum1 size=8 align=8 scan=none>) -> i32 local-fn23(indirect local9)
     store t4 -> local6
     store local6 -> local7
     call managed-void-target1 sp26 live=[] sig=void1 (i32) local-fn25(local7)
@@ -1838,7 +1844,7 @@ Module
     call managed-void-target0 sp36 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

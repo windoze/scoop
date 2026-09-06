@@ -7,6 +7,7 @@ pub(super) enum LoweredExternFunctionRef {
 }
 
 pub(super) fn lower_extern_functions(
+    context: &LoweringContext,
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
@@ -47,10 +48,13 @@ pub(super) fn lower_extern_functions(
                         mir::GcEffect::Managed => lir::GcEffect::Managed,
                         mir::GcEffect::NoGc => lir::GcEffect::NoGc,
                     },
-                    signature: lir::LirFunctionType {
-                        params: extern_.params.iter().map(lir_type).collect(),
-                        return_type: lir_return_type(&extern_.return_type),
-                    },
+                    signature: abi::classify_mir_signature(
+                        context,
+                        extern_.params.iter(),
+                        &extern_.return_type,
+                        structs,
+                        enums,
+                    ),
                 }))
             }
         };

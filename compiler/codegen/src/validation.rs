@@ -4,19 +4,25 @@ use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
 mod constants;
+mod root_plans;
+mod scoop_abi;
 mod variants;
 use constants::validate_constant_images;
+use root_plans::validate_call_root_plans;
+use scoop_abi::validate_scoop_abi;
 use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_niche_representations(module)?;
+    validate_scoop_abi(module)?;
     validate_constant_images(module)?;
     validate_variant_primitives(module)?;
     validate_machine_containers(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;
     validate_c_abi(module)?;
-    validate_foreign_callbacks(module)
+    validate_foreign_callbacks(module)?;
+    validate_call_root_plans(module)
 }
 
 fn validate_variant_ref(
@@ -70,9 +76,10 @@ fn checked_value_type(
             Ok(function.locals[id].ty.clone())
         }
         Value::Param(index) => function
-            .params
+            .signature
+            .arguments()
             .get(index as usize)
-            .cloned()
+            .map(|argument| argument.logical_storage_type().clone())
             .ok_or_else(|| invalid("parameter", index as usize)),
         Value::Temp(id) => checked_temp_type(function, id, owner).cloned(),
         Value::IntegerConst(value) => Ok(value.scalar_type()),
@@ -191,11 +198,17 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
                     id.into_u32()
                 ))
             })?;
-        if function
-            .params
-            .iter()
-            .any(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
-            || contains_machine_scalar(&module.structs, &module.enums, &function.return_ty)
+        if function.signature.arguments().iter().any(|argument| {
+            contains_machine_scalar(
+                &module.structs,
+                &module.enums,
+                argument.logical_storage_type(),
+            )
+        }) || function
+            .signature
+            .result()
+            .logical_storage_type()
+            .is_some_and(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
         {
             return Err(CodegenError(format!(
                 "type descriptor `{}` dispatches to local function @{} whose signature exposes an internal machine scalar",
@@ -246,10 +259,16 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             Ok(())
         };
     for function in &module.functions {
-        for (index, ty) in function.params.iter().enumerate() {
-            validate_value_type(function, &format!("parameter {index}"), ty)?;
+        for (index, argument) in function.signature.arguments().iter().enumerate() {
+            validate_value_type(
+                function,
+                &format!("parameter {index}"),
+                argument.logical_storage_type(),
+            )?;
         }
-        validate_value_type(function, "result", &function.return_ty)?;
+        if let Some(result) = function.signature.result().logical_storage_type() {
+            validate_value_type(function, "result", result)?;
+        }
         for (id, local) in function.locals.iter() {
             validate_value_type(
                 function,
@@ -374,15 +393,16 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
                 })?;
             }
             ExternFunctionKind::Scoop { signature, .. } => {
-                if signature
-                    .params
-                    .iter()
-                    .any(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
-                    || matches!(
-                        &signature.return_type,
-                        scoop_lir::LirReturnType::Value(ty)
-                            if contains_machine_scalar(&module.structs, &module.enums, ty)
+                if signature.arguments().iter().any(|argument| {
+                    contains_machine_scalar(
+                        &module.structs,
+                        &module.enums,
+                        argument.logical_storage_type(),
                     )
+                }) || signature
+                    .result()
+                    .logical_storage_type()
+                    .is_some_and(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
                 {
                     return Err(CodegenError(format!(
                         "Scoop extern `{}` exposes an internal machine scalar across an artifact boundary",
@@ -430,13 +450,17 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
     fn check(
         module: &Module,
         function: &Function,
-        params: &[LirType],
+        params: &[scoop_lir::AbiArgument],
         result: Option<&LirType>,
     ) -> Result<(), CodegenError> {
-        let has_machine = params
-            .iter()
-            .any(|ty| contains_machine_scalar(&module.structs, &module.enums, ty))
-            || result.is_some_and(|ty| contains_machine_scalar(&module.structs, &module.enums, ty));
+        let has_machine = params.iter().any(|argument| {
+            contains_machine_scalar(
+                &module.structs,
+                &module.enums,
+                argument.logical_storage_type(),
+            )
+        }) || result
+            .is_some_and(|ty| contains_machine_scalar(&module.structs, &module.enums, ty));
         if has_machine {
             return Err(CodegenError(format!(
                 "dispatch signature in @{} exposes an internal machine scalar without an authoritative dynamic-slot declaration",
@@ -456,8 +480,22 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 check(
                     module,
                     function,
-                    &targets.void_signatures[target.signature].params,
+                    targets.void_signatures[target.signature].arguments(),
                     None,
+                )?;
+            }
+        }
+        for (_, target) in targets.managed_targets.elided_zst.iter() {
+            if matches!(
+                target.destination,
+                scoop_lir::ManagedCallDestination::Dispatch { .. }
+            ) {
+                let signature = &targets.elided_zst_signatures[target.signature];
+                check(
+                    module,
+                    function,
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
                 )?;
             }
         }
@@ -467,7 +505,12 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 scoop_lir::ManagedCallDestination::Dispatch { .. }
             ) {
                 let signature = &targets.direct_signatures[target.signature];
-                check(module, function, &signature.params, Some(&signature.result))?;
+                check(
+                    module,
+                    function,
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
+                )?;
             }
         }
         for (_, target) in targets.managed_targets.indirect_result.iter() {
@@ -479,8 +522,8 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 check(
                     module,
                     function,
-                    &signature.params,
-                    Some(&signature.result.ty),
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
                 )?;
             }
         }
@@ -492,8 +535,22 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 check(
                     module,
                     function,
-                    &targets.void_signatures[target.signature].params,
+                    targets.void_signatures[target.signature].arguments(),
                     None,
+                )?;
+            }
+        }
+        for (_, target) in targets.no_gc_targets.elided_zst.iter() {
+            if matches!(
+                target.destination,
+                scoop_lir::NoGcCallDestination::Dispatch { .. }
+            ) {
+                let signature = &targets.elided_zst_signatures[target.signature];
+                check(
+                    module,
+                    function,
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
                 )?;
             }
         }
@@ -503,7 +560,12 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 scoop_lir::NoGcCallDestination::Dispatch { .. }
             ) {
                 let signature = &targets.direct_signatures[target.signature];
-                check(module, function, &signature.params, Some(&signature.result))?;
+                check(
+                    module,
+                    function,
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
+                )?;
             }
         }
         for (_, target) in targets.no_gc_targets.indirect_result.iter() {
@@ -515,8 +577,8 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
                 check(
                     module,
                     function,
-                    &signature.params,
-                    Some(&signature.result.ty),
+                    signature.arguments(),
+                    Some(signature.result().storage_type()),
                 )?;
             }
         }
@@ -887,9 +949,23 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                 bridge.adapter_symbol
             )));
         }
+        let adapter_params_match = adapter.signature.arguments().len() == expected_params.len()
+            && adapter
+                .signature
+                .arguments()
+                .iter()
+                .zip(expected_params.iter())
+                .all(|(argument, expected)| {
+                    matches!(argument, scoop_lir::AbiArgument::Direct(value)
+                        if value.storage_type() == expected)
+                });
+        let adapter_result_matches = matches!(
+            adapter.signature.result(),
+            scoop_lir::AbiReturn::Direct(value) if value.storage_type() == &expected_result
+        );
         if adapter.gc_effect != GcEffect::Managed
-            || adapter.params.as_slice() != expected_params
-            || adapter.return_ty != expected_result
+            || !adapter_params_match
+            || !adapter_result_matches
         {
             return Err(CodegenError(format!(
                 "foreign callback adapter @{} must be managed (ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>",

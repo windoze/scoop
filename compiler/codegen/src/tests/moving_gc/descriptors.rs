@@ -89,8 +89,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![],
-            return_ty: LirType::Void,
+            signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps,

@@ -2593,10 +2593,13 @@ Module
     local %48 $call.3: ptr<managed>
     local %49 $call.4: ptr<managed>
     local %50 $new.5: ptr<managed>
-    local %51 $sc.1: struct10
-    local %52 $sc.2: exception_record
-    local %53 $sc.3: ptr<raw>
-    local %54 $sc.4: ptr<managed>
+    local %51 $sc.1: {ptr<managed>, ptr<managed>}
+    local %52 $sc.2: struct10
+    local %53 $sc.3: exception_record
+    local %54 $sc.4: ptr<raw>
+    local %55 $sc.5: ptr<managed>
+    local %56 $sc.6: struct10
+    local %57 $sc.7: enum1
   block entry
     poll managed-void-target3 sp85 live=[]
     store global0 -> local0
@@ -2623,8 +2626,9 @@ Module
     store t4 -> local14
     store local13 -> local15
     store local14 -> local16
-    call no-gc-indirect-target0 local51 = sig=indirect0 (sret struct10, ptr<managed>, {ptr<managed>, ptr<managed>}) local-fn36(local15, local16)
-    store local51 -> local17
+    store local16 -> local51
+    call no-gc-indirect-target0 local52 = sig=indirect0 (sret struct10 size=24 align=8 scan=refs[0, 8, 16], ptr<managed>, indirect<{ptr<managed>, ptr<managed>} size=16 align=8 scan=refs[0, 8]>) local-fn36(local15, indirect local51)
+    store local52 -> local17
     store global8 -> local18
     store global9 -> local19
     store local19 -> local20
@@ -2654,21 +2658,21 @@ Module
     br @try.body.6
   block try.unwind.1
     (t11, t12) = landingpad : (exception_record, ptr<raw>)
-    store t11 -> local52
-    store t12 -> local53
+    store t11 -> local53
+    store t12 -> local54
     br @try.dispatch.2
   block try.dispatch.2
-    t13 = begin_catch local53 : ptr<managed>
-    store t13 -> local54
+    t13 = begin_catch local54 : ptr<managed>
+    store t13 -> local55
     br @scope.7
   block try.exit_pad.3
     (t14, t15) = cleanup_pad : (exception_record, ptr<raw>)
-    store t14 -> local52
-    store t15 -> local53
+    store t14 -> local53
+    store t15 -> local54
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local52
+    resume local53
   block try.body.6
     store local3 -> local36
     store local17 -> local37
@@ -2680,7 +2684,9 @@ Module
     store local39 -> local43
     call managed-direct-target8 sp31 live=[local40:ptr<managed>@0, local41:struct10@0+8+16, local42:enum1@8+16, local43:ptr<managed>@0] t16 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(88)))
     store t16 -> local50
-    invoke managed-void-target0 sp32 roots=[local40:argument, local41:refs[0, 8, 16]:argument, local42:refs[8, 16]:argument, local43:argument, local50:normal] sig=void0 (ptr<managed>, ptr<managed>, struct10, enum1, ptr<managed>) local-fn34(local50, local40, local41, local42, local43) normal @invoke.normal.1 unwind @try.unwind.1
+    store local41 -> local56
+    store local42 -> local57
+    invoke managed-void-target0 sp32 roots=[local40:argument, local43:argument, local50:normal, local56:refs[0, 8, 16]:argument, local57:refs[8, 16]:argument] sig=void0 (ptr<managed>, ptr<managed>, indirect<struct10 size=24 align=8 scan=refs[0, 8, 16]>, indirect<enum1 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) local-fn34(local50, local40, indirect local56, indirect local57, local43) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block scope.7
     call managed-void-target1 sp33 live=[] sig=void2 () runtime @scoop_rt_gc_collect()
@@ -3122,7 +3128,7 @@ Module
     call managed-void-target0 sp61 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.CombinedMovingError.$c7(ptr<managed>, ptr<managed>, struct10, enum1, ptr<managed>) -> void
+  fun @scoop.init.CombinedMovingError.$c7(ptr<managed>, ptr<managed>, indirect<struct10 size=24 align=8 scan=refs[0, 8, 16]>, indirect<enum1 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -3141,11 +3147,11 @@ Module
     heap_store param0 +56 param3
     heap_store param0 +80 param4
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.NestedPayload.$c6(ptr<managed>, {ptr<managed>, ptr<managed>}) -> struct10 <no-gc>
+  fun @scoop.ctor.NestedPayload.$c6(ptr<managed>, indirect<{ptr<managed>, ptr<managed>} size=16 align=8 scan=refs[0, 8]>) -> sret<struct10 size=24 align=8 scan=refs[0, 8, 16]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

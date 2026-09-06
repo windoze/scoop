@@ -2896,7 +2896,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local2
-  fun @scoop.selected(enum2) -> enum3
+  fun @scoop.selected(indirect<enum2 size=8 align=8 scan=none>) -> enum3
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $result.1: enum3
@@ -3101,6 +3101,7 @@ Module
     local %102 $sc.3: struct11
     local %103 $sc.4: struct12
     local %104 $sc.5: struct12
+    local %105 $sc.6: enum2
   block entry
     poll managed-void-target32 sp129 live=[]
     call managed-direct-target0 sp30 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
@@ -3128,7 +3129,7 @@ Module
     t8 = aggregate () : {}
     store local82 -> local6
     store local6 -> local7
-    call no-gc-indirect-target0 local100 = sig=indirect0 (sret struct10, ptr<managed>) local-fn45(local7)
+    call no-gc-indirect-target0 local100 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>) local-fn45(local7)
     store local100 -> local8
     call managed-direct-target4 sp38 live=[local2:enum1@0, local5:ptr<managed>@0, local8:struct10@0] t9 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
     store t9 -> local83
@@ -3162,7 +3163,7 @@ Module
     t25 = aggregate () : {}
     store local90 -> local20
     store local20 -> local21
-    call no-gc-indirect-target2 local103 = sig=indirect2 (sret struct12, ptr<managed>) local-fn47(local21)
+    call no-gc-indirect-target2 local103 = sig=indirect2 (sret struct12 size=8 align=8 scan=refs[0], ptr<managed>) local-fn47(local21)
     store local103 -> local91
     store local91 -> local104
     t26 = local_address local104 : ptr
@@ -3304,7 +3305,8 @@ Module
     t69 = enum_wrap e2 v0 () : enum2
     store t69 -> local50
     store local50 -> local51
-    call managed-direct-target23 sp78 live=[local17:ptr<managed>@0, local23:ptr<managed>@0, local32:ptr<managed>@0] t70 = sig=direct23 (enum2) -> enum3 local-fn24(local51)
+    store local51 -> local105
+    call managed-direct-target23 sp78 live=[local17:ptr<managed>@0, local23:ptr<managed>@0, local32:ptr<managed>@0] t70 = sig=direct23 (indirect<enum2 size=8 align=8 scan=none>) -> enum3 local-fn24(indirect local105)
     store t70 -> local74
     store local74 -> local75
     t71 = variant_test e3 v0 local75 : i1
@@ -3552,19 +3554,19 @@ Module
     poll managed-void-target0 sp146 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.ValueBox$C6_AnimalX.$c6(ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.ValueBox$C6_AnimalX.$c6(ptr<managed>) -> sret<struct10 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
-  fun @scoop.ctor.ValueBox$C3_CatX.$c6(ptr<managed>) -> struct11 <no-gc>
+  fun @scoop.ctor.ValueBox$C3_CatX.$c6(ptr<managed>) -> sret<struct11 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct11
     ret t0
-  fun @scoop.ctor.ValueBox$C3_DogX.$c6(ptr<managed>) -> struct12 <no-gc>
+  fun @scoop.ctor.ValueBox$C3_DogX.$c6(ptr<managed>) -> sret<struct12 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct12
     ret t0

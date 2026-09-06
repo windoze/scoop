@@ -42,8 +42,6 @@ struct FnEmitter<'a, 'ctx> {
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
-    /// LIR parameters start after the hidden result pointer when present.
-    param_offset: u32,
     allocas: Vec<PointerValue<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
     /// Canonical addressable storage for every parameter/temporary named by
@@ -80,6 +78,11 @@ struct NativeTransition<'ctx> {
 struct RootStorage<'ctx> {
     pointer: PointerValue<'ctx>,
     ty: BasicTypeEnum<'ctx>,
+}
+
+struct ReloadedRoot<'ctx> {
+    storage: RootStorage<'ctx>,
+    value: BasicValueEnum<'ctx>,
 }
 
 struct CompilerRootFrame<'ctx> {
@@ -137,22 +140,27 @@ impl CallProtocol<'_> {
 
 enum TypedCallResult<'a> {
     Void,
+    ElidedZst {
+        out: TempId,
+        value: &'a scoop_lir::AbiZst,
+    },
     Direct {
         out: TempId,
-        ty: &'a LirType,
-        scan: &'a RefScan,
+        value: &'a scoop_lir::AbiValue,
     },
     Indirect {
         storage: scoop_lir::LocalId,
-        ty: &'a LirType,
-        scan: &'a RefScan,
+        value: &'a scoop_lir::AbiValue,
+        convention: scoop_lir::IndirectResultConvention,
     },
 }
 
 fn result_scan<'a>(result: &TypedCallResult<'a>) -> &'a RefScan {
     match result {
-        TypedCallResult::Void => &RefScan::None,
-        TypedCallResult::Direct { scan, .. } | TypedCallResult::Indirect { scan, .. } => scan,
+        TypedCallResult::Void | TypedCallResult::ElidedZst { .. } => &RefScan::None,
+        TypedCallResult::Direct { value, .. } | TypedCallResult::Indirect { value, .. } => {
+            value.scan()
+        }
     }
 }
 
@@ -208,13 +216,17 @@ pub(super) fn emit_function<'ctx>(
         .map(|block| block.expect("every LIR block is created"))
         .collect();
 
-    let param_offset = u32::from(uses_return_slot(module_ctx.enums, &function.return_ty));
-    let return_slot = (param_offset != 0).then(|| {
-        llvm_function
-            .get_nth_param(0)
-            .expect("return-slot function has its hidden parameter")
-            .into_pointer_value()
-    });
+    let return_slot = match function.signature.result() {
+        scoop_lir::AbiReturn::Indirect(_) => Some(
+            llvm_function
+                .get_nth_param(0)
+                .expect("indirect-result function has its sret parameter")
+                .into_pointer_value(),
+        ),
+        scoop_lir::AbiReturn::UnitVoid
+        | scoop_lir::AbiReturn::ElidedZst(_)
+        | scoop_lir::AbiReturn::Direct(_) => None,
+    };
     let (unwind_root_sources, compiler_unwind_blocks) = compiler_unwind_plan(function);
     let root_scans = function
         .call_targets
@@ -259,7 +271,6 @@ pub(super) fn emit_function<'ctx>(
         root_scans,
         target_data: module_ctx.target_data,
         return_slot,
-        param_offset,
         allocas: Vec::with_capacity(function.locals.len()),
         temps: HashMap::new(),
         root_storage: HashMap::new(),
@@ -286,11 +297,25 @@ pub(super) fn emit_function<'ctx>(
             module_ctx.managed_address_space,
             &local.ty,
         )?;
-        emitter.allocas.push(
-            builder
-                .build_alloca(ty, &local.name)
-                .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?,
-        );
+        let is_zero_sized = module_ctx.target_data.get_store_size(&ty) == 0;
+        let allocation_type = if is_zero_sized {
+            context.i8_type().into()
+        } else {
+            ty
+        };
+        let storage = builder
+            .build_alloca(allocation_type, &local.name)
+            .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?;
+        if is_zero_sized {
+            storage
+                .as_instruction_value()
+                .expect("alloca is an instruction")
+                .set_alignment(module_ctx.target_data.get_abi_alignment(&ty))
+                .map_err(|e| {
+                    CodegenError(format!("align zero-sized place %{}: {e}", local.name))
+                })?;
+        }
+        emitter.allocas.push(storage);
     }
     emitter.prepare_root_storage()?;
     for (block_id, block) in function.blocks.iter() {
@@ -376,60 +401,59 @@ pub(super) fn emit_function<'ctx>(
                     .map_err(|e| CodegenError(format!("cbr @{}: {e}", block.name)))?;
             }
             Terminator::Return { value } => {
-                match value {
-                    Some(value)
-                        if function.value_ty(module_ctx.globals_arena, *value)
-                            != function.return_ty =>
-                    {
-                        return Err(CodegenError(format!(
-                            "ret @{} has value type {}, but function returns {}",
-                            function.symbol,
-                            function.value_ty(module_ctx.globals_arena, *value).dump(),
-                            function.return_ty.dump()
-                        )));
+                let logical_result_ty = function.signature.result().logical_storage_type();
+                match (value, logical_result_ty) {
+                    (Some(value), Some(expected)) => {
+                        let actual = function.value_ty(module_ctx.globals_arena, *value);
+                        if &actual != expected {
+                            return Err(CodegenError(format!(
+                                "ret @{} has value type {}, but function returns {}",
+                                function.symbol,
+                                actual.dump(),
+                                expected.dump()
+                            )));
+                        }
                     }
-                    None if function.return_ty != LirType::Void => {
+                    (None, Some(expected)) => {
                         return Err(CodegenError(format!(
                             "ret @{} has no value, but function returns {}",
                             function.symbol,
-                            function.return_ty.dump()
+                            expected.dump()
                         )));
                     }
-                    Some(_) if function.return_ty == LirType::Void => {
+                    (Some(_), None) => {
                         return Err(CodegenError(format!(
                             "ret @{} has a value, but function returns void",
                             function.symbol
                         )));
                     }
-                    Some(_) | None => {}
+                    (None, None) => {}
                 }
-                let value = value
-                    .map(|value| emitter.value(value))
-                    .transpose()
-                    .map_err(|e: CodegenError| {
-                        CodegenError(format!("ret @{}: {}", function.symbol, e.0))
-                    })?;
-                if let Some(slot) = emitter.return_slot {
-                    let value = value.ok_or_else(|| {
-                        CodegenError(format!(
-                            "ret @{}: aggregate return has no value",
-                            function.symbol
-                        ))
-                    })?;
-                    builder
-                        .build_store(slot, value)
-                        .map_err(|e| CodegenError(format!("ret slot @{}: {e}", function.symbol)))?;
-                    builder
-                        .build_return(None)
-                        .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
-                } else {
-                    builder
-                        .build_return(
-                            value
-                                .as_ref()
-                                .map(|v| v as &dyn inkwell::values::BasicValue),
-                        )
-                        .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+
+                match function.signature.result() {
+                    scoop_lir::AbiReturn::UnitVoid | scoop_lir::AbiReturn::ElidedZst(_) => {
+                        builder
+                            .build_return(None)
+                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                    }
+                    scoop_lir::AbiReturn::Direct(_) => {
+                        let value = emitter.value(value.expect("direct result was validated"))?;
+                        builder
+                            .build_return(Some(&value))
+                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                    }
+                    scoop_lir::AbiReturn::Indirect(_) => {
+                        let value = emitter.value(value.expect("indirect result was validated"))?;
+                        let slot = emitter
+                            .return_slot
+                            .expect("indirect-result function has its sret parameter");
+                        builder.build_store(slot, value).map_err(|e| {
+                            CodegenError(format!("ret slot @{}: {e}", function.symbol))
+                        })?;
+                        builder
+                            .build_return(None)
+                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                    }
                 }
             }
             Terminator::Resume { exception } => {

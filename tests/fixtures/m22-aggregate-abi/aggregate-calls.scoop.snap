@@ -1,0 +1,4433 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  public interface Continuation<T>
+    fun resume
+    fun resumeWithException
+  public interface SuspendTask<T>
+    suspend fun run
+  public interface SuspendRegistration<T>
+    fun register
+  public struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    public suspend fun run
+  public struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    public fun register
+    @Intrinsic("coroutine_start")
+  public fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  public suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  public fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  public suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+    @Intrinsic("core_ptr")
+  public struct Ptr<T : value> <representation omitted>
+    public operator fun equals
+    public fun toULong
+    public fun cast
+    public fun load
+    public fun load
+    public fun store
+    public fun store
+    public operator fun plus
+    public operator fun minus
+    @Intrinsic("core_fun_ptr")
+  public struct FunPtr<F> <representation omitted>
+    @Unsafe
+    @Intrinsic("address_of")
+  public fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  public fun sizeOf<T : value>(): ULong
+    @NoGC
+    @Intrinsic("align_of")
+  public fun alignOf<T : value>(): ULong
+SourceFile
+  public enum ForeignCallbackMode
+    Reusable
+    OneShot
+  public enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  public struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  public fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  public fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  public fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  public fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
+  public struct PinnedPtr<T : ref>
+    field raw: ULong
+  public struct GcHandle<T : ref>
+    field raw: ULong
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  internal fun _pin<T : ref>(v: T): ULong
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  internal fun _unpin<T : ref>(raw: ULong): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  internal fun _getGcHandle<T : ref>(v: T): ULong
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  internal fun _releaseGcHandle<T : ref>(raw: ULong): T
+    @Unsafe
+  public fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  public fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  public fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  public fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
+    @Intrinsic("rt_gc_collect")
+  public fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  public fun gcStats(): ULong
+SourceFile
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  public fun write(message: String)
+  public fun print<T : ToString>(value: T)
+    =
+      Call write
+        MethodCall toString
+          Var value
+  public fun println<T : ToString>(value: T)
+    Call write
+      MethodCall toString
+        Var value
+    Call write
+      StringLiteral "\n"
+SourceFile
+  public enum Option<T>
+    Some(T)
+    None
+SourceFile
+  public struct SourceLocation
+    field file: String
+    field line: Long
+    field column: Long
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  public fun getCurrentSourceLocation(): SourceLocation
+SourceFile
+  public open class Throwable()
+  public open class Exception(val message: String?) : Throwable(<0 args>)
+  public class UnwrapException() : Exception(<1 args>)
+  public class ClassCastException() : Exception(<1 args>)
+  public class ArithmeticException() : Exception(<1 args>)
+  public class IndexOutOfBoundsException() : Exception(<1 args>)
+  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
+SourceFile
+  public interface ToString
+    fun toString
+  public interface Hash
+    fun hash
+    @Intrinsic("core_int8")
+  public struct Int8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_int16")
+  public struct Int16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_int")
+  public struct Int <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_long")
+  public struct Long <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint8")
+  public struct UInt8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint16")
+  public struct UInt16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_uint")
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+    @Intrinsic("core_ulong")
+  public struct ULong <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toString
+    public fun hash
+  public typealias Byte = Int8
+  public typealias Short = Int16
+  public typealias Int32 = Int
+  public typealias Int64 = Long
+  public typealias UByte = UInt8
+  public typealias UShort = UInt16
+  public typealias UInt32 = UInt
+  public typealias UInt64 = ULong
+    @Intrinsic("core_boolean")
+  public struct Boolean <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun not
+    public fun toString
+    public fun hash
+    @Intrinsic("core_string")
+  public class String(), ToString, Hash
+    public operator fun equals
+    public operator fun plus
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    @Intrinsic("core_array")
+  public class Array<T>()
+    public operator fun get
+    public fun toMutableArray
+    @Intrinsic("core_mutable_array")
+  public class MutableArray<T>()
+    public operator fun get
+    public operator fun set
+    public fun toArray
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  internal fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
+  internal fun coreLongToString(value: Long): String
+    @Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
+  internal fun coreULongToString(value: ULong): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  internal fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_long_hash", abi = "scoop")
+  internal fun coreLongHash(value: Long): Long
+    @Extern(name = "scoop_rt_ulong_hash", abi = "scoop")
+  internal fun coreULongHash(value: ULong): Long
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  internal fun coreBooleanHash(value: Boolean): Long
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  internal fun coreStringHash(value: String): Long
+SourceFile
+  enum Signal
+    Ready
+    Payload(Int)
+  struct OriginalBundle
+    field optional: Int?
+    field signal: Signal
+    field nested: (Signal, Int?)
+  struct Nested24Box
+    field marker: Int
+    field nested: (Signal, Long)
+  struct ManagedAggregate
+    field first: String
+    field nested: (String, Long)
+    @NoGC
+  fun signalValue(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 0
+        arm Payload(number)
+          Var number
+    @NoGC
+  fun optionValue(value: Int?): Int
+    =
+      WhenExpression
+        Var value
+        arm None
+          IntLiteral 0
+        arm Some(number)
+          Var number
+    @NoGC
+  fun noGcNested24(value: (Signal, Long)): (Int, Long)
+    =
+      TupleLiteral
+        Call signalValue
+          FieldAccess _1
+            Var value
+        FieldAccess _2
+          Var value
+    @NoGC
+  fun noGcFlat32(value: (Long, Long, Long, Long)): Long
+    =
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess _1
+              Var value
+            FieldAccess _2
+              Var value
+          FieldAccess _3
+            Var value
+        FieldAccess _4
+          Var value
+  fun genericRoundTrip<T>(value: T): T
+    =
+      Var value
+  fun makeText(left: String, right: String): String
+    =
+      Binary Add
+        Var left
+        Var right
+  fun managedRoundTrip(value: ManagedAggregate): ManagedAggregate
+    Call gcCollect
+    return
+      Var value
+  fun managedMaybeThrow(value: ManagedAggregate, shouldThrow: Boolean): ManagedAggregate
+    Call gcCollect
+    if
+      Var shouldThrow
+      throw
+        Call UnwrapException
+    return
+      Var value
+  fun main()
+    Call println
+      StringLiteral "original-nested-32"
+    val original
+      Call OriginalBundle
+        Call Some
+          IntLiteral 3
+        FieldAccess Ready
+          Var Signal
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 4
+          Var None
+    Call println
+      Call optionValue
+        FieldAccess optional
+          Var original
+    Call println
+      Call signalValue
+        FieldAccess signal
+          Var original
+    Call println
+      Call signalValue
+        FieldAccess _1
+          FieldAccess nested
+            Var original
+    Call println
+      Call optionValue
+        FieldAccess _2
+          FieldAccess nested
+            Var original
+    Call println
+      StringLiteral "nested-24-constructor"
+    val nested24Box
+      Call Nested24Box
+        IntLiteral 3
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 4
+          IntLiteral 55L
+    Call println
+      FieldAccess marker
+        Var nested24Box
+    Call println
+      Call signalValue
+        FieldAccess _1
+          FieldAccess nested
+            Var nested24Box
+    Call println
+      FieldAccess _2
+        FieldAccess nested
+          Var nested24Box
+    Call println
+      StringLiteral "nested-24-nogc"
+    val nested24
+      TupleLiteral
+        MethodCall Payload
+          Var Signal
+          IntLiteral 40
+        IntLiteral 55L
+    val inspected24
+      Call noGcNested24
+        Var nested24
+    Call println
+      FieldAccess _1
+        Var inspected24
+    Call println
+      FieldAccess _2
+        Var inspected24
+    Call println
+      StringLiteral "generic-specialization-24"
+    val generic24
+      Call genericRoundTrip
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 60
+          IntLiteral 70L
+    Call println
+      Call signalValue
+        FieldAccess _1
+          Var generic24
+    Call println
+      FieldAccess _2
+        Var generic24
+    Call println
+      StringLiteral "flat-32-control"
+    Call println
+      Call noGcFlat32
+        TupleLiteral
+          IntLiteral 10L
+          IntLiteral 20L
+          IntLiteral 30L
+          IntLiteral 40L
+    val managed
+      Call ManagedAggregate
+        Call makeText
+          StringLiteral "alpha"
+          StringLiteral "-live"
+        TupleLiteral
+          Call makeText
+            StringLiteral "beta"
+            StringLiteral "-live"
+          IntLiteral 700L
+    Call println
+      StringLiteral "managed-call"
+    val roundTrip
+      Call managedRoundTrip
+        Var managed
+    Call println
+      FieldAccess first
+        Var roundTrip
+    Call println
+      FieldAccess _1
+        FieldAccess nested
+          Var roundTrip
+    Call println
+      FieldAccess _2
+        FieldAccess nested
+          Var roundTrip
+    Call println
+      StringLiteral "managed-invoke-normal"
+    try
+      val normal
+        Call managedMaybeThrow
+          Var managed
+          BoolLiteral false
+      Call println
+        FieldAccess first
+          Var normal
+      Call println
+        FieldAccess _1
+          FieldAccess nested
+            Var normal
+      Call println
+        FieldAccess _2
+          FieldAccess nested
+            Var normal
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "unexpected-normal-catch"
+    Call println
+      StringLiteral "managed-invoke-throw"
+    try
+      val ignored
+        Call managedMaybeThrow
+          Var managed
+          BoolLiteral true
+      Call println
+        FieldAccess first
+          Var ignored
+      Call println
+        StringLiteral "unexpected-throw-return"
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "caught-managed-invoke"
+    Call println
+      StringLiteral "closure-hidden-receiver-24"
+    val bias
+      IntLiteral 1000L
+    val closure: ((Signal, Long)) -> (Int, Long)
+      Lambda 0 suspend=false
+        param (signal, number): _
+        Call gcCollect
+        TupleLiteral
+          Call signalValue
+            Var signal
+          Binary Add
+            Var bias
+            Var number
+    val closureResult
+      MethodCall invoke
+        Var closure
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 9
+          IntLiteral 90L
+    Call println
+      FieldAccess _1
+        Var closureResult
+    Call println
+      FieldAccess _2
+        Var closureResult
+
+== hir ==
+Module
+  typealias Byte = Int8
+  typealias Short = Int16
+  typealias Int32 = Int
+  typealias Int64 = Long
+  typealias UByte = UInt8
+  typealias UShort = UInt16
+  typealias UInt32 = UInt
+  typealias UInt64 = ULong
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field0 task: suspend () -> T0
+    property0 val task: suspend () -> T0 getter0=storage <stored struct0-field0>
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field0 registration: (Continuation<T0>) -> Unit
+    property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
+  struct OriginalBundle
+    field0 optional: Option<Int>
+    field1 signal: Signal
+    field2 nested: (Signal, Option<Int>)
+    property11 val optional: Option<Int> getter11=storage <stored struct17-field0>
+    property12 val signal: Signal getter12=storage <stored struct17-field1>
+    property13 val nested: (Signal, Option<Int>) getter13=storage <stored struct17-field2>
+  struct Nested24Box
+    field0 marker: Int
+    field1 nested: (Signal, Long)
+    property14 val marker: Int getter14=storage <stored struct18-field0>
+    property15 val nested: (Signal, Long) getter15=storage <stored struct18-field1>
+  struct ManagedAggregate
+    field0 first: String
+    field1 nested: (String, Long)
+    property16 val first: String getter16=storage <stored struct19-field0>
+    property17 val nested: (String, Long) getter17=storage <stored struct19-field1>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum Signal
+    Ready()
+    Payload(_1: Int)
+  open class Throwable()
+  open class Exception(message: Option<String>)
+    field0 property18: Option<String>
+    property18 val message: Option<String> getter18=storage <stored field0 init=parameter18>
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException(message: Option<String>)
+  interface Continuation<T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<T>
+    suspend fun run(): T0
+  interface SuspendRegistration<T>
+    fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Long
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    val local2
+      Local task : suspend () -> T0
+    val local3
+      Local $argument.0 : suspend () -> T0
+    val local4
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local $parameter.task : suspend () -> T0
+    val local5
+      Local completion : Continuation<T0>
+    val local6
+      Local $argument.0 : SuspendTask<T0>
+    val local7
+      Local $argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $parameter.task : SuspendTask<T0>
+      Local $parameter.completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    val local1
+      Local registration : (Continuation<T0>) -> Unit
+    val local2
+      Local $argument.0 : (Continuation<T0>) -> Unit
+    val local3
+      Box : SuspendRegistration<T0>
+        StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+          Local $parameter.registration : (Continuation<T0>) -> Unit
+    val local4
+      Local $argument.0 : SuspendRegistration<T0>
+    return
+      Call suspendCoroutine<T0> : T0
+        Local $parameter.registration : SuspendRegistration<T0>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _pin<T0> : ULong
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : ULong
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Local $parameter.raw : ULong
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : ULong
+        Local p : PinnedPtr<T0>
+    val local2
+      Local $argument.0 : ULong
+    return
+      Call _unpin<T0> : T0
+        Local $parameter.raw : ULong
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _getGcHandle<T0> : ULong
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : ULong
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Local $parameter.raw : ULong
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : ULong
+        Local h : GcHandle<T0>
+    val local2
+      Local $argument.0 : ULong
+    return
+      Call _releaseGcHandle<T0> : T0
+        Local $parameter.raw : ULong
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): ULong <intrinsic rt_gc_stats>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    return
+  fun println<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern1 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern2 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern3 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern4 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern5 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern6 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern7 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern8 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern9 abi=scoop symbol=scoop_rt_string_hash>
+  fun signalValue(value: Signal): Int <no-gc cdecl>
+    when
+      Local value : Signal
+      arm variant0()
+        assign $result.0
+          IntegerLiteral 0 : Int
+      arm variant1(0: local1)
+        assign $result.0
+          Local number : Int
+      impossible <enum pattern matrix for Signal>
+    return
+      Local $result.0 : Int
+  fun optionValue(value: Option<Int>): Int <no-gc cdecl>
+    when
+      Local value : Option<Int>
+      arm variant1()
+        assign $result.1
+          IntegerLiteral 0 : Int
+      arm variant0(0: local1)
+        assign $result.1
+          Local number : Int
+      impossible <enum pattern matrix for Option<Int>>
+    return
+      Local $result.1 : Int
+  fun noGcNested24(value: (Signal, Long)): (Int, Long) <no-gc cdecl>
+    val local1
+      FieldAccess _1 : Signal
+        Local value : (Signal, Long)
+    val local2
+      Local $argument.0 : Signal
+    return
+      TupleLiteral : (Int, Long)
+        Call signalValue : Int
+          Local $parameter.value : Signal
+        FieldAccess _2 : Long
+          Local value : (Signal, Long)
+  fun noGcFlat32(value: (Long, Long, Long, Long)): Long <no-gc cdecl>
+    val local1
+      FieldAccess _1 : Long
+        Local value : (Long, Long, Long, Long)
+    val local2
+      FieldAccess _2 : Long
+        Local value : (Long, Long, Long, Long)
+    val local3
+      Local $argument.0 : Long
+    val local4
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local5
+      FieldAccess _3 : Long
+        Local value : (Long, Long, Long, Long)
+    val local6
+      Local $argument.0 : Long
+    val local7
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+    val local8
+      FieldAccess _4 : Long
+        Local value : (Long, Long, Long, Long)
+    val local9
+      Local $argument.0 : Long
+    return
+      IntegerOperation long.add target=function132 <no-gc> : Long
+        Local $receiver : Long
+        Local $parameter.other : Long
+  fun genericRoundTrip<T>(value: T0): T0
+    return
+      Local value : T0
+  fun makeText(left: String, right: String): String
+    val local2
+      Local left : String
+    val local3
+      Local right : String
+    val local4
+      Local $argument.0 : String
+    return
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+  fun managedRoundTrip(value: ManagedAggregate): ManagedAggregate
+    Call gcCollect : Unit
+    return
+      Local value : ManagedAggregate
+  fun managedMaybeThrow(value: ManagedAggregate, shouldThrow: Boolean): ManagedAggregate
+    Call gcCollect : Unit
+    if
+      Local shouldThrow : Boolean
+      throw
+        ClassInit UnwrapException : UnwrapException
+    return
+      Local value : ManagedAggregate
+  fun main(): Unit
+    val local0
+      StringLiteral "original-nested-32" : String
+    val local1
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local2
+      IntegerLiteral 3 : Int
+    val local3
+      Local $argument.0 : Int
+    val local6
+      VariantConstruct Option.Some<Int> : Option<Int>
+        Local $parameter._1 : Int
+    val local7
+      VariantConstruct Signal.Ready : Signal
+    val local4
+      IntegerLiteral 4 : Int
+    val local5
+      Local $argument.0 : Int
+    val local8
+      TupleLiteral : (Signal, Option<Int>)
+        VariantConstruct Signal.Payload : Signal
+          Local $parameter._1 : Int
+        VariantConstruct Option.None<Int> : Option<Int>
+    val local9
+      Local $argument.0 : Option<Int>
+    val local10
+      Local $argument.1 : Signal
+    val local11
+      Local $argument.2 : (Signal, Option<Int>)
+    val local12
+      StructInit OriginalBundle : OriginalBundle
+        Local $parameter.optional : Option<Int>
+        Local $parameter.signal : Signal
+        Local $parameter.nested : (Signal, Option<Int>)
+    val local13
+      FieldAccess field 0 : Option<Int>
+        Local original : OriginalBundle
+    val local14
+      Local $argument.0 : Option<Int>
+    val local15
+      Call optionValue : Int
+        Local $parameter.value : Option<Int>
+    val local16
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local17
+      FieldAccess field 1 : Signal
+        Local original : OriginalBundle
+    val local18
+      Local $argument.0 : Signal
+    val local19
+      Call signalValue : Int
+        Local $parameter.value : Signal
+    val local20
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local21
+      FieldAccess _1 : Signal
+        FieldAccess field 2 : (Signal, Option<Int>)
+          Local original : OriginalBundle
+    val local22
+      Local $argument.0 : Signal
+    val local23
+      Call signalValue : Int
+        Local $parameter.value : Signal
+    val local24
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local25
+      FieldAccess _2 : Option<Int>
+        FieldAccess field 2 : (Signal, Option<Int>)
+          Local original : OriginalBundle
+    val local26
+      Local $argument.0 : Option<Int>
+    val local27
+      Call optionValue : Int
+        Local $parameter.value : Option<Int>
+    val local28
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local29
+      StringLiteral "nested-24-constructor" : String
+    val local30
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local33
+      IntegerLiteral 3 : Int
+    val local31
+      IntegerLiteral 4 : Int
+    val local32
+      Local $argument.0 : Int
+    val local34
+      TupleLiteral : (Signal, Long)
+        VariantConstruct Signal.Payload : Signal
+          Local $parameter._1 : Int
+        IntegerLiteral 55 : Long
+    val local35
+      Local $argument.0 : Int
+    val local36
+      Local $argument.1 : (Signal, Long)
+    val local37
+      StructInit Nested24Box : Nested24Box
+        Local $parameter.marker : Int
+        Local $parameter.nested : (Signal, Long)
+    val local38
+      FieldAccess field 0 : Int
+        Local nested24Box : Nested24Box
+    val local39
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local40
+      FieldAccess _1 : Signal
+        FieldAccess field 1 : (Signal, Long)
+          Local nested24Box : Nested24Box
+    val local41
+      Local $argument.0 : Signal
+    val local42
+      Call signalValue : Int
+        Local $parameter.value : Signal
+    val local43
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local44
+      FieldAccess _2 : Long
+        FieldAccess field 1 : (Signal, Long)
+          Local nested24Box : Nested24Box
+    val local45
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local46
+      StringLiteral "nested-24-nogc" : String
+    val local47
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local48
+      IntegerLiteral 40 : Int
+    val local49
+      Local $argument.0 : Int
+    val local50
+      TupleLiteral : (Signal, Long)
+        VariantConstruct Signal.Payload : Signal
+          Local $parameter._1 : Int
+        IntegerLiteral 55 : Long
+    val local51
+      Local nested24 : (Signal, Long)
+    val local52
+      Local $argument.0 : (Signal, Long)
+    val local53
+      Call noGcNested24 : (Int, Long)
+        Local $parameter.value : (Signal, Long)
+    val local54
+      FieldAccess _1 : Int
+        Local inspected24 : (Int, Long)
+    val local55
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local56
+      FieldAccess _2 : Long
+        Local inspected24 : (Int, Long)
+    val local57
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local58
+      StringLiteral "generic-specialization-24" : String
+    val local59
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local60
+      IntegerLiteral 60 : Int
+    val local61
+      Local $argument.0 : Int
+    val local62
+      TupleLiteral : (Signal, Long)
+        VariantConstruct Signal.Payload : Signal
+          Local $parameter._1 : Int
+        IntegerLiteral 70 : Long
+    val local63
+      Local $argument.0 : (Signal, Long)
+    val local64
+      Call genericRoundTrip<(Signal, Long)> : (Signal, Long)
+        Local $parameter.value : (Signal, Long)
+    val local65
+      FieldAccess _1 : Signal
+        Local generic24 : (Signal, Long)
+    val local66
+      Local $argument.0 : Signal
+    val local67
+      Call signalValue : Int
+        Local $parameter.value : Signal
+    val local68
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local69
+      FieldAccess _2 : Long
+        Local generic24 : (Signal, Long)
+    val local70
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local71
+      StringLiteral "flat-32-control" : String
+    val local72
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local73
+      TupleLiteral : (Long, Long, Long, Long)
+        IntegerLiteral 10 : Long
+        IntegerLiteral 20 : Long
+        IntegerLiteral 30 : Long
+        IntegerLiteral 40 : Long
+    val local74
+      Local $argument.0 : (Long, Long, Long, Long)
+    val local75
+      Call noGcFlat32 : Long
+        Local $parameter.value : (Long, Long, Long, Long)
+    val local76
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local77
+      StringLiteral "alpha" : String
+    val local78
+      StringLiteral "-live" : String
+    val local79
+      Local $argument.0 : String
+    val local80
+      Local $argument.1 : String
+    val local85
+      Call makeText : String
+        Local $parameter.left : String
+        Local $parameter.right : String
+    val local81
+      StringLiteral "beta" : String
+    val local82
+      StringLiteral "-live" : String
+    val local83
+      Local $argument.0 : String
+    val local84
+      Local $argument.1 : String
+    val local86
+      TupleLiteral : (String, Long)
+        Call makeText : String
+          Local $parameter.left : String
+          Local $parameter.right : String
+        IntegerLiteral 700 : Long
+    val local87
+      Local $argument.0 : String
+    val local88
+      Local $argument.1 : (String, Long)
+    val local89
+      StructInit ManagedAggregate : ManagedAggregate
+        Local $parameter.first : String
+        Local $parameter.nested : (String, Long)
+    val local90
+      StringLiteral "managed-call" : String
+    val local91
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local92
+      Local managed : ManagedAggregate
+    val local93
+      Local $argument.0 : ManagedAggregate
+    val local94
+      Call managedRoundTrip : ManagedAggregate
+        Local $parameter.value : ManagedAggregate
+    val local95
+      FieldAccess field 0 : String
+        Local roundTrip : ManagedAggregate
+    val local96
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local97
+      FieldAccess _1 : String
+        FieldAccess field 1 : (String, Long)
+          Local roundTrip : ManagedAggregate
+    val local98
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local99
+      FieldAccess _2 : Long
+        FieldAccess field 1 : (String, Long)
+          Local roundTrip : ManagedAggregate
+    val local100
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local101
+      StringLiteral "managed-invoke-normal" : String
+    val local102
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    try
+      val local103
+        Local managed : ManagedAggregate
+      val local104
+        BoolLiteral false : Boolean
+      val local105
+        Local $argument.0 : ManagedAggregate
+      val local106
+        Local $argument.1 : Boolean
+      val local107
+        Call managedMaybeThrow : ManagedAggregate
+          Local $parameter.value : ManagedAggregate
+          Local $parameter.shouldThrow : Boolean
+      val local108
+        FieldAccess field 0 : String
+          Local normal : ManagedAggregate
+      val local109
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+      val local110
+        FieldAccess _1 : String
+          FieldAccess field 1 : (String, Long)
+            Local normal : ManagedAggregate
+      val local111
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+      val local112
+        FieldAccess _2 : Long
+          FieldAccess field 1 : (String, Long)
+            Local normal : ManagedAggregate
+      val local113
+        Local $argument.0 : Long
+      Call println<Long> : Unit
+        Local $parameter.value : Long
+    catch exception: UnwrapException
+      val local115
+        StringLiteral "unexpected-normal-catch" : String
+      val local116
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    val local117
+      StringLiteral "managed-invoke-throw" : String
+    val local118
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    try
+      val local119
+        Local managed : ManagedAggregate
+      val local120
+        BoolLiteral true : Boolean
+      val local121
+        Local $argument.0 : ManagedAggregate
+      val local122
+        Local $argument.1 : Boolean
+      val local123
+        Call managedMaybeThrow : ManagedAggregate
+          Local $parameter.value : ManagedAggregate
+          Local $parameter.shouldThrow : Boolean
+      val local124
+        FieldAccess field 0 : String
+          Local ignored : ManagedAggregate
+      val local125
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+      val local126
+        StringLiteral "unexpected-throw-return" : String
+      val local127
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    catch exception: UnwrapException
+      val local129
+        StringLiteral "caught-managed-invoke" : String
+      val local130
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    val local131
+      StringLiteral "closure-hidden-receiver-24" : String
+    val local132
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local133
+      IntegerLiteral 1000 : Long
+    val local134
+      Lambda lambda0 invoke=$lambda.0 captures=1 : ((Signal, Long)) -> (Int, Long)
+        capture bias binding252 : Long
+    val local135
+      IntegerLiteral 9 : Int
+    val local136
+      Local $argument.0 : Int
+    val local137
+      CallableCall function_type5 : (Int, Long)
+        Local closure : ((Signal, Long)) -> (Int, Long)
+        TupleLiteral : (Signal, Long)
+          VariantConstruct Signal.Payload : Signal
+            Local $parameter._1 : Int
+          IntegerLiteral 90 : Long
+    val local138
+      FieldAccess _1 : Int
+        Local closureResult : (Int, Long)
+    val local139
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local140
+      FieldAccess _2 : Long
+        Local closureResult : (Int, Long)
+    val local141
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+  instance println<String>
+  instance println<Int>
+  instance println<Long>
+  instance genericRoundTrip<(Signal, Long)>
+
+== mir ==
+Module mangling=compact-v2
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(ULong) -> String <abi=scoop managed>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef6 coreLongHash @scoop_rt_long_hash(Long) -> Long <abi=scoop managed>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(ULong) -> Long <abi=scoop managed>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
+  extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
+  struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
+  struct OriginalBundle (optional: Option$I32<Int>, signal: Signal, nested: (Signal, Option$I32<Int>))
+  struct Nested24Box (marker: Int, nested: (Signal, Long))
+  struct ManagedAggregate (first: String, nested: (String, Long))
+  enum Signal
+    Ready()
+    Payload(_1: Int)
+  enum Option$I32
+    Some(_1: Int)
+    None()
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0 captures=1
+  fun Int8.toString @scoop.Int8.toString(this: Int8) -> String
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int8.hash @scoop.Int8.hash(this: Int8) -> Long
+    bb0 entry
+      val $receiver: Int8
+        Type Int8
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Int16.toString @scoop.Int16.toString(this: Int16) -> String
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int16.hash @scoop.Int16.hash(this: Int16) -> Long
+    bb0 entry
+      val $receiver: Int16
+        Type Int16
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Long
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $receiver
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Long.toString @scoop.Long.toString(this: Long) -> String
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local this
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: String = extern3 @scoop_rt_long_to_string direct
+        Type Long
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Long.hash @scoop.Long.hash(this: Long) -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local this
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = extern6 @scoop_rt_long_hash direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt8.toString @scoop.UInt8.toString(this: UInt8) -> String
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt8.hash @scoop.UInt8.hash(this: UInt8) -> Long
+    bb0 entry
+      val $receiver: UInt8
+        Type UInt8
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt16.toString @scoop.UInt16.toString(this: UInt16) -> String
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt16.hash @scoop.UInt16.hash(this: UInt16) -> Long
+    bb0 entry
+      val $receiver: UInt16
+        Type UInt16
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      val $receiver: UInt
+        Type UInt
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Long
+    bb0 entry
+      val $receiver: UInt
+        Type UInt
+        Local this
+      val $argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $receiver
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun ULong.toString @scoop.ULong.toString(this: ULong) -> String
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: String = extern4 @scoop_rt_ulong_to_string direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun ULong.hash @scoop.ULong.hash(this: ULong) -> Long
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local this
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $call.1: Long = extern7 @scoop_rt_ulong_hash direct
+        Type ULong
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $argument.1: Boolean
+        Type Boolean
+        Local other
+      val $parameter.left: Boolean
+        Type Boolean
+        Local $argument.0
+      val $parameter.right: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Boolean = extern1 @scoop_rt_bool_equals direct
+        Type Boolean
+        Local $parameter.left
+        Type Boolean
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: String = extern5 @scoop_rt_bool_to_string direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type String
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Long
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local this
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: Long = extern8 @scoop_rt_bool_hash direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $argument.1: String
+        Type String
+        Local other
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $call.1: Boolean = extern2 @scoop_rt_string_eq direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Long
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local this
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.1: Long = extern9 @scoop_rt_string_hash direct
+        Type String
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun signalValue @scoop.signalValue(value: Signal) -> Int <no-gc>
+    bb0 entry
+      val $when.1: Signal
+        Type Signal
+        Local value
+      val $pattern.subject.2: Signal
+        Type Signal
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Signal v0
+          Type Signal
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Signal
+        Type Signal
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Signal v1
+          Type Signal
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Signal v1 f0
+          Type Signal
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun optionValue @scoop.optionValue(value: Option$I32<Int>) -> Int <no-gc>
+    bb0 entry
+      val $when.1: Option$I32<Int>
+        Type Option$I32<Int>
+        Local value
+      val $pattern.subject.2: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option$I32 v1
+          Type Option$I32<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Option$I32 v0 f0
+          Type Option$I32<Int>
+          Local $pattern.subject.3
+      assign $result.1
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun noGcNested24 @scoop.noGcNested24(value: (Signal, Long)) -> (Int, Long) <no-gc>
+    bb0 entry
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local value
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $call.1: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      return
+        Type (Int, Long)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Long
+          FieldAccess 1
+            Type (Signal, Long)
+            Local value
+  fun noGcFlat32 @scoop.noGcFlat32(value: (Long, Long, Long, Long)) -> Long <no-gc>
+    bb0 entry
+      val $receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Long, Long, Long)
+          Local value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Long, Long, Long, Long)
+          Local value
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Long, Long, Long)
+          Local value
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      val $receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+      val $argument.0: Long
+        Type Long
+        FieldAccess 3
+          Type (Long, Long, Long, Long)
+          Local value
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $receiver
+          Type Long
+          Local $parameter.other
+  fun makeText @scoop.makeText(left: String, right: String) -> String
+    bb0 entry
+      val $receiver: String
+        Type String
+        Local left
+      val $argument.0: String
+        Type String
+        Local right
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      return
+        Type String
+        Local $call.1
+  fun managedRoundTrip @scoop.managedRoundTrip(value: ManagedAggregate) -> ManagedAggregate
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type ManagedAggregate
+        Local value
+  fun managedMaybeThrow @scoop.managedMaybeThrow(value: ManagedAggregate, shouldThrow: Boolean) -> ManagedAggregate
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      branch bb1 bb2
+        Type Boolean
+        Local shouldThrow
+    bb1 if.then.1
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call @scoop.init.UnwrapException.$c2 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb2 if.merge.2
+      return
+        Type ManagedAggregate
+        Local value
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Option$I32<Int>
+        Type Option$I32<Int>
+        VariantConstruct Option$I32<Int> v0
+          Type Int
+          Local $parameter._1
+      val $argument.1: Signal
+        Type Signal
+        VariantConstruct Signal v0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.2: (Signal, Option$I32<Int>)
+        Type (Signal, Option$I32<Int>)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Option$I32<Int>
+          VariantConstruct Option$I32<Int> v1
+      val $parameter.optional: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $argument.0
+      val $parameter.signal: Signal
+        Type Signal
+        Local $argument.1
+      val $parameter.nested: (Signal, Option$I32<Int>)
+        Type (Signal, Option$I32<Int>)
+        Local $argument.2
+      call original: OriginalBundle = @scoop.ctor.OriginalBundle.$c6 direct
+        Type Option$I32<Int>
+        Local $parameter.optional
+        Type Signal
+        Local $parameter.signal
+        Type (Signal, Option$I32<Int>)
+        Local $parameter.nested
+      val $argument.0: Option$I32<Int>
+        Type Option$I32<Int>
+        FieldAccess 0
+          Type OriginalBundle
+          Local original
+      val $parameter.value: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $argument.0
+      call $argument.0: Int = @scoop.optionValue direct
+        Type Option$I32<Int>
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 1
+          Type OriginalBundle
+          Local original
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $argument.0: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Option$I32<Int>)
+          FieldAccess 2
+            Type OriginalBundle
+            Local original
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $argument.0: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Option$I32<Int>
+        Type Option$I32<Int>
+        FieldAccess 1
+          Type (Signal, Option$I32<Int>)
+          FieldAccess 2
+            Type OriginalBundle
+            Local original
+      val $parameter.value: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $argument.0
+      call $argument.0: Int = @scoop.optionValue direct
+        Type Option$I32<Int>
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.1: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=55 bits=0x0000000000000037
+      val $parameter.marker: Int
+        Type Int
+        Local $argument.0
+      val $parameter.nested: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.1
+      call nested24Box: Nested24Box = @scoop.ctor.Nested24Box.$c7 direct
+        Type Int
+        Local $parameter.marker
+        Type (Signal, Long)
+        Local $parameter.nested
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Nested24Box
+          Local nested24Box
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          FieldAccess 1
+            Type Nested24Box
+            Local nested24Box
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $argument.0: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          FieldAccess 1
+            Type Nested24Box
+            Local nested24Box
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.2
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val nested24: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=55 bits=0x0000000000000037
+      val $argument.0: (Signal, Long)
+        Type (Signal, Long)
+        Local nested24
+      val $parameter.value: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.0
+      call inspected24: (Int, Long) = @scoop.noGcNested24 direct
+        Type (Signal, Long)
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Long)
+          Local inspected24
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Int, Long)
+          Local inspected24
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.3
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=60 bits=0x0000003c
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $parameter.value: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.0
+      call generic24: (Signal, Long) = @scoop.genericRoundTrip$TE6_SignalX_I64X direct
+        Type (Signal, Long)
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local generic24
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $argument.0: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          Local generic24
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.4
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: (Long, Long, Long, Long)
+        Type (Long, Long, Long, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=10 bits=0x000000000000000a
+          Type Long
+          IntegerLiteral Long value=20 bits=0x0000000000000014
+          Type Long
+          IntegerLiteral Long value=30 bits=0x000000000000001e
+          Type Long
+          IntegerLiteral Long value=40 bits=0x0000000000000028
+      val $parameter.value: (Long, Long, Long, Long)
+        Type (Long, Long, Long, Long)
+        Local $argument.0
+      call $argument.0: Long = @scoop.noGcFlat32 direct
+        Type (Long, Long, Long, Long)
+        Local $parameter.value
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.5
+      val $argument.1: String
+        Type String
+        StringConst @scoop.str.6
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $argument.0: String = @scoop.makeText direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.7
+      val $argument.1: String
+        Type String
+        StringConst @scoop.str.8
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $call.1: String = @scoop.makeText direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      val $argument.1: (String, Long)
+        Type (String, Long)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=700 bits=0x00000000000002bc
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.nested: (String, Long)
+        Type (String, Long)
+        Local $argument.1
+      call managed: ManagedAggregate = @scoop.ctor.ManagedAggregate.$c8 direct
+        Type String
+        Local $parameter.first
+        Type (String, Long)
+        Local $parameter.nested
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.9
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      call roundTrip: ManagedAggregate = @scoop.managedRoundTrip direct
+        Type ManagedAggregate
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local roundTrip
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local roundTrip
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local roundTrip
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.10
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.12
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb21
+    bb8 try.body.8 unwind bb1
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      val $parameter.shouldThrow: Boolean
+        Type Boolean
+        Local $argument.1
+      call normal: ManagedAggregate = @scoop.managedMaybeThrow direct
+        Type ManagedAggregate
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.shouldThrow
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local normal
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local normal
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local normal
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      goto bb9
+    bb9 scope.9
+      goto bb7
+    bb10 try.catch.10
+      val exception: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          CaughtException
+      goto bb12
+    bb11 try.next.11
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.11
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb13
+    bb13 scope.13
+      end_catch
+      goto bb7
+    bb14 try.unwind.14
+      landing_pad cleanup=false
+      goto bb15
+    bb15 try.dispatch.15
+      begin_catch
+      branch bb23 bb24
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb16 try.handler_pad.16
+      landing_pad cleanup=true
+      goto bb17
+    bb17 try.handler_cleanup.17
+      end_catch
+      resume
+    bb18 try.exit_pad.18
+      landing_pad cleanup=true
+      goto bb19
+    bb19 try.exit_cleanup.19
+      end_catch
+      resume
+    bb20 try.end.20
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.15
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val bias: Long
+        Type Long
+        IntegerLiteral Long value=1000 bits=0x00000000000003e8
+      val closure: ((Signal, Long)) -> (Int, Long)
+        Type ((Signal, Long)) -> (Int, Long)
+        ClosureAlloc cc0 $Closure$lambda0
+          Type Long
+          Local bias
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call closureResult: (Int, Long) = <closure:function_type0> closure[function_type0]
+        Type ((Signal, Long)) -> (Int, Long)
+        Local closure
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=90 bits=0x000000000000005a
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Long)
+          Local closureResult
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Int, Long)
+          Local closureResult
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      return
+    bb21 try.body.21 unwind bb14
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      val $parameter.shouldThrow: Boolean
+        Type Boolean
+        Local $argument.1
+      call ignored: ManagedAggregate = @scoop.managedMaybeThrow direct
+        Type ManagedAggregate
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.shouldThrow
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local ignored
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.13
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb22
+    bb22 scope.22
+      goto bb20
+    bb23 try.catch.23
+      val exception: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          CaughtException
+      goto bb25
+    bb24 try.next.24
+      rethrow unwind bb18
+    bb25 scope.25 unwind bb16
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.14
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb26
+    bb26 scope.26
+      end_catch
+      goto bb20
+  fun $lambda.0 @scoop.$lambda.0($closure: ((Signal, Long)) -> (Int, Long), $arg.0: (Signal, Long)) -> (Int, Long)
+    bb0 entry
+      val $binding.projection.2: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local $arg.0
+      val signal: Signal
+        Type Signal
+        Local $binding.projection.2
+      val $binding.projection.3: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          Local $arg.0
+      val number: Long
+        Type Long
+        Local $binding.projection.3
+      call @scoop_rt_gc_collect direct
+      val $argument.0: Signal
+        Type Signal
+        Local signal
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      val $receiver: Long
+        Type Long
+        ClosureCapture cc0 0
+          Type ((Signal, Long)) -> (Int, Long)
+          Local $closure
+      val $argument.0: Long
+        Type Long
+        Local number
+      val $parameter.other: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Int = @scoop.signalValue direct
+        Type Signal
+        Local $parameter.value
+      return
+        Type (Int, Long)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Long
+          IntegerBinary add kind=Long
+            Type Long
+            Local $receiver
+            Type Long
+            Local $parameter.other
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      val $receiver: String
+        Type String
+        Local value
+      call $argument.0: String = @scoop.String.toString direct
+        Type String
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.16
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I32(value: Int) -> Unit
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      call $argument.0: String = @scoop.Int.toString direct
+        Type Int
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.17
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I64(value: Long) -> Unit
+    bb0 entry
+      val $receiver: Long
+        Type Long
+        Local value
+      call $argument.0: String = @scoop.Long.toString direct
+        Type Long
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.18
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun genericRoundTrip @scoop.genericRoundTrip$TE6_SignalX_I64X(value: (Signal, Long)) -> (Signal, Long)
+    bb0 entry
+      return
+        Type (Signal, Long)
+        Local value
+  fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
+    bb0 entry
+      return
+  fun init.Exception.$c1 @scoop.init.Exception.$c1(this: Exception, message: Option$S<String>) -> Unit
+    bb0 entry
+      call @scoop.init.Throwable.$c0 direct
+        Type Throwable
+        Retype Throwable
+          Type Exception
+          Local this
+      field_set 0
+        Type Exception
+        Local this
+        Type Option$S<String>
+        Local message
+      return
+  fun init.UnwrapException.$c2 @scoop.init.UnwrapException.$c2(this: UnwrapException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.19
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type UnwrapException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ClassCastException.$c3 @scoop.init.ClassCastException.$c3(this: ClassCastException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.20
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ClassCastException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.ArithmeticException.$c4 @scoop.init.ArithmeticException.$c4(this: ArithmeticException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.21
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type ArithmeticException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IndexOutOfBoundsException.$c5 @scoop.init.IndexOutOfBoundsException.$c5(this: IndexOutOfBoundsException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.22
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IndexOutOfBoundsException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c6 @scoop.init.IllegalStateException.$c6(this: IllegalStateException, message: Option$S<String>) -> Unit
+    bb0 entry
+      val $argument.0: Option$S<String>
+        Type Option$S<String>
+        Local message
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        Local $argument.0
+      call @scoop.init.Exception.$c1 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun init.IllegalStateException.$c7 @scoop.init.IllegalStateException.$c7(this: IllegalStateException) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.23
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $parameter.message: Option$S<String>
+        Type Option$S<String>
+        VariantConstruct Option$S<String> v0
+          Type String
+          Local $parameter._1
+      call @scoop.init.IllegalStateException.$c6 direct
+        Type IllegalStateException
+        Local this
+        Type Option$S<String>
+        Local $parameter.message
+      return
+  fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          Local file
+          Type Long
+          Local line
+          Type Long
+          Local column
+          Type String
+          Local functionName
+          Type String
+          Local typeName
+  fun ctor.OriginalBundle.$c6 @scoop.ctor.OriginalBundle.$c6(optional: Option$I32<Int>, signal: Signal, nested: (Signal, Option$I32<Int>)) -> OriginalBundle <no-gc>
+    bb0 entry
+      return
+        Type OriginalBundle
+        StructInit OriginalBundle
+          Type Option$I32<Int>
+          Local optional
+          Type Signal
+          Local signal
+          Type (Signal, Option$I32<Int>)
+          Local nested
+  fun ctor.Nested24Box.$c7 @scoop.ctor.Nested24Box.$c7(marker: Int, nested: (Signal, Long)) -> Nested24Box <no-gc>
+    bb0 entry
+      return
+        Type Nested24Box
+        StructInit Nested24Box
+          Type Int
+          Local marker
+          Type (Signal, Long)
+          Local nested
+  fun ctor.ManagedAggregate.$c8 @scoop.ctor.ManagedAggregate.$c8(first: String, nested: (String, Long)) -> ManagedAggregate <no-gc>
+    bb0 entry
+      return
+        Type ManagedAggregate
+        StructInit ManagedAggregate
+          Type String
+          Local first
+          Type (String, Long)
+          Local nested
+  instance @scoop.println$S <- println
+  instance @scoop.println$I32 <- println
+  instance @scoop.println$I64 <- println
+  instance @scoop.genericRoundTrip$TE6_SignalX_I64X <- genericRoundTrip
+  str @scoop.str.0 "original-nested-32"
+  str @scoop.str.1 "nested-24-constructor"
+  str @scoop.str.2 "nested-24-nogc"
+  str @scoop.str.3 "generic-specialization-24"
+  str @scoop.str.4 "flat-32-control"
+  str @scoop.str.5 "alpha"
+  str @scoop.str.6 "-live"
+  str @scoop.str.7 "beta"
+  str @scoop.str.8 "-live"
+  str @scoop.str.9 "managed-call"
+  str @scoop.str.10 "managed-invoke-normal"
+  str @scoop.str.11 "unexpected-normal-catch"
+  str @scoop.str.12 "managed-invoke-throw"
+  str @scoop.str.13 "unexpected-throw-return"
+  str @scoop.str.14 "caught-managed-invoke"
+  str @scoop.str.15 "closure-hidden-receiver-24"
+  str @scoop.str.16 "\n"
+  str @scoop.str.17 "\n"
+  str @scoop.str.18 "\n"
+  str @scoop.str.19 "unwrap on None"
+  str @scoop.str.20 "invalid cast"
+  str @scoop.str.21 "arithmetic error"
+  str @scoop.str.22 "array index out of bounds"
+  str @scoop.str.23 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "original-nested-32"
+  global @scoop.str.1 = "nested-24-constructor"
+  global @scoop.str.2 = "nested-24-nogc"
+  global @scoop.str.3 = "generic-specialization-24"
+  global @scoop.str.4 = "flat-32-control"
+  global @scoop.str.5 = "alpha"
+  global @scoop.str.6 = "-live"
+  global @scoop.str.7 = "beta"
+  global @scoop.str.8 = "-live"
+  global @scoop.str.9 = "managed-call"
+  global @scoop.str.10 = "managed-invoke-normal"
+  global @scoop.str.11 = "unexpected-normal-catch"
+  global @scoop.str.12 = "managed-invoke-throw"
+  global @scoop.str.13 = "unexpected-throw-return"
+  global @scoop.str.14 = "caught-managed-invoke"
+  global @scoop.str.15 = "closure-hidden-receiver-24"
+  global @scoop.str.16 = "\n"
+  global @scoop.str.17 = "\n"
+  global @scoop.str.18 = "\n"
+  global @scoop.str.19 = "unwrap on None"
+  global @scoop.str.20 = "invalid cast"
+  global @scoop.str.21 = "arithmetic error"
+  global @scoop.str.22 = "array index out of bounds"
+  global @scoop.str.23 = "illegal state"
+  enum Signal tagged size=16 align=8 variants=()@8+0 (i32)@8+4
+  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option$S niche(kind=managed,payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
+  extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef3 coreLongToString @scoop_rt_long_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef4 coreULongToString @scoop_rt_ulong_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef5 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreLongHash @scoop_rt_long_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp85 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp1 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp86 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int8->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp2 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp87 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp3 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp88 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int16->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp4 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp89 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp5 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Int.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp90 live=[]
+    store param0 -> local0
+    t0 = integer_convert<Int->Long> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp6 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.Long.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp91 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp7 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern3(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Long.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp92 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp8 roots=[] t0 = sig=direct0 (i64) -> i64 extern6(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.UInt8.toString(i8) -> ptr<managed>
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp93 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp9 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt8.hash(i8) -> i64
+    local %0 $receiver: i8
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp94 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp10 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.toString(i16) -> ptr<managed>
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp95 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp11 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt16.hash(i16) -> i64
+    local %0 $receiver: i16
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp96 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt16->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp12 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.toString(i32) -> ptr<managed>
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: ptr<managed>
+    local %4 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp97 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp13 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.UInt.hash(i32) -> i64
+    local %0 $receiver: i32
+    local %1 $argument.0: i64
+    local %2 $parameter.value: i64
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp98 live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt->ULong> local0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-direct-target0 sp14 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
+    store t1 -> local3
+    ret local3
+  fun @scoop.ULong.toString(i64) -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp99 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp15 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern4(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.ULong.hash(i64) -> i64
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp100 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp16 roots=[] t0 = sig=direct0 (i64) -> i64 extern7(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $argument.0: i1
+    local %1 $argument.1: i1
+    local %2 $parameter.left: i1
+    local %3 $parameter.right: i1
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp101 live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp17 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern1(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: ptr<managed>
+    local %3 $sc.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp102 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp18 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern5(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp103 live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $argument.0: ptr<managed>
+    local %1 $argument.1: ptr<managed>
+    local %2 $parameter.left: ptr<managed>
+    local %3 $parameter.right: ptr<managed>
+    local %4 $call.1: i1
+  block entry
+    poll managed-void-target0 sp104 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-borrowed-direct-target0 sp20 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern2(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp105 live=[param0:ptr<managed>@0]
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter.value: ptr<managed>
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp106 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop.signalValue(indirect<enum0 size=16 align=8 scan=none>) -> i32 <no-gc>
+    local %0 number: i32
+    local %1 $result.0: i32
+    local %2 $when.1: enum0
+    local %3 $pattern.subject.2: enum0
+    local %4 $pattern.subject.3: enum0
+  block entry
+    store param0 -> local2
+    store local2 -> local3
+    t0 = variant_test e0 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Int>(0x00000000) -> local1
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local4
+    t1 = variant_test e0 v1 local4 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local1
+  block pattern.pass.4
+    t2 = variant_payload_project e0 v1 f0 local4 : i32
+    store t2 -> local0
+    store local0 -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
+  fun @scoop.optionValue(indirect<enum1 size=16 align=8 scan=none>) -> i32 <no-gc>
+    local %0 number: i32
+    local %1 $result.1: i32
+    local %2 $when.1: enum1
+    local %3 $pattern.subject.2: enum1
+    local %4 $pattern.subject.3: enum1
+  block entry
+    store param0 -> local2
+    store local2 -> local3
+    t0 = variant_test e1 v1 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Int>(0x00000000) -> local1
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local4
+    t1 = variant_test e1 v0 local4 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local1
+  block pattern.pass.4
+    t2 = variant_payload_project e1 v0 f0 local4 : i32
+    store t2 -> local0
+    store local0 -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
+  fun @scoop.noGcNested24(indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<{i32, i64} size=16 align=8 scan=none> <no-gc>
+    local %0 $argument.0: enum0
+    local %1 $parameter.value: enum0
+    local %2 $call.1: i32
+    local %3 $sc.1: enum0
+  block entry
+    t0 = extract param0, 0 : enum0
+    store t0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call no-gc-direct-target0 t1 = sig=direct0 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local3)
+    store t1 -> local2
+    t2 = extract param0, 1 : i64
+    t3 = aggregate (local2, t2) : {i32, i64}
+    ret t3
+  fun @scoop.noGcFlat32(indirect<{i64, i64, i64, i64} size=32 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $receiver: i64
+    local %4 $argument.0: i64
+    local %5 $parameter.other: i64
+    local %6 $receiver: i64
+    local %7 $argument.0: i64
+    local %8 $parameter.other: i64
+  block entry
+    t0 = extract param0, 0 : i64
+    store t0 -> local0
+    t1 = extract param0, 1 : i64
+    store t1 -> local1
+    store local1 -> local2
+    t2 = integer_Add<Long> local0, local2 : i64
+    store t2 -> local3
+    t3 = extract param0, 2 : i64
+    store t3 -> local4
+    store local4 -> local5
+    t4 = integer_Add<Long> local3, local5 : i64
+    store t4 -> local6
+    t5 = extract param0, 3 : i64
+    store t5 -> local7
+    store local7 -> local8
+    t6 = integer_Add<Long> local6, local8 : i64
+    ret t6
+  fun @scoop.makeText(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp107 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp22 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop.managedRoundTrip(indirect<struct12 size=24 align=8 scan=refs[0, 8]>) -> sret<struct12 size=24 align=8 scan=refs[0, 8]>
+  block entry
+    poll managed-void-target1 sp108 live=[param0:struct12@0+8]
+    call managed-void-target0 sp23 live=[param0:struct12@0+8] sig=void0 () runtime @scoop_rt_gc_collect()
+    t0 = aggregate () : {}
+    ret param0
+  fun @scoop.managedMaybeThrow(indirect<struct12 size=24 align=8 scan=refs[0, 8]>, i1) -> sret<struct12 size=24 align=8 scan=refs[0, 8]>
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target2 sp109 live=[param0:struct12@0+8]
+    call managed-void-target0 sp24 live=[param0:struct12@0+8] sig=void0 () runtime @scoop_rt_gc_collect()
+    t0 = aggregate () : {}
+    cbr param1 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target0 sp25 live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t1 -> local0
+    call managed-void-target1 sp26 live=[local0:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn37(local0)
+    t2 = aggregate () : {}
+    throw local0
+    unreachable
+  block if.merge.2
+    ret param0
+  fun @scoop_main() -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter.value: ptr<managed>
+    local %2 $argument.0: i32
+    local %3 $parameter._1: i32
+    local %4 $argument.0: i32
+    local %5 $parameter._1: i32
+    local %6 $argument.0: enum1
+    local %7 $argument.1: enum0
+    local %8 $argument.2: {enum0, enum1}
+    local %9 $parameter.optional: enum1
+    local %10 $parameter.signal: enum0
+    local %11 $parameter.nested: {enum0, enum1}
+    local %12 original: struct10
+    local %13 $argument.0: enum1
+    local %14 $parameter.value: enum1
+    local %15 $argument.0: i32
+    local %16 $parameter.value: i32
+    local %17 $argument.0: enum0
+    local %18 $parameter.value: enum0
+    local %19 $argument.0: i32
+    local %20 $parameter.value: i32
+    local %21 $argument.0: enum0
+    local %22 $parameter.value: enum0
+    local %23 $argument.0: i32
+    local %24 $parameter.value: i32
+    local %25 $argument.0: enum1
+    local %26 $parameter.value: enum1
+    local %27 $argument.0: i32
+    local %28 $parameter.value: i32
+    local %29 $argument.0: ptr<managed>
+    local %30 $parameter.value: ptr<managed>
+    local %31 $argument.0: i32
+    local %32 $parameter._1: i32
+    local %33 $argument.0: i32
+    local %34 $argument.1: {enum0, i64}
+    local %35 $parameter.marker: i32
+    local %36 $parameter.nested: {enum0, i64}
+    local %37 nested24Box: struct11
+    local %38 $argument.0: i32
+    local %39 $parameter.value: i32
+    local %40 $argument.0: enum0
+    local %41 $parameter.value: enum0
+    local %42 $argument.0: i32
+    local %43 $parameter.value: i32
+    local %44 $argument.0: i64
+    local %45 $parameter.value: i64
+    local %46 $argument.0: ptr<managed>
+    local %47 $parameter.value: ptr<managed>
+    local %48 $argument.0: i32
+    local %49 $parameter._1: i32
+    local %50 nested24: {enum0, i64}
+    local %51 $argument.0: {enum0, i64}
+    local %52 $parameter.value: {enum0, i64}
+    local %53 inspected24: {i32, i64}
+    local %54 $argument.0: i32
+    local %55 $parameter.value: i32
+    local %56 $argument.0: i64
+    local %57 $parameter.value: i64
+    local %58 $argument.0: ptr<managed>
+    local %59 $parameter.value: ptr<managed>
+    local %60 $argument.0: i32
+    local %61 $parameter._1: i32
+    local %62 $argument.0: {enum0, i64}
+    local %63 $parameter.value: {enum0, i64}
+    local %64 generic24: {enum0, i64}
+    local %65 $argument.0: enum0
+    local %66 $parameter.value: enum0
+    local %67 $argument.0: i32
+    local %68 $parameter.value: i32
+    local %69 $argument.0: i64
+    local %70 $parameter.value: i64
+    local %71 $argument.0: ptr<managed>
+    local %72 $parameter.value: ptr<managed>
+    local %73 $argument.0: {i64, i64, i64, i64}
+    local %74 $parameter.value: {i64, i64, i64, i64}
+    local %75 $argument.0: i64
+    local %76 $parameter.value: i64
+    local %77 $argument.0: ptr<managed>
+    local %78 $argument.1: ptr<managed>
+    local %79 $parameter.left: ptr<managed>
+    local %80 $parameter.right: ptr<managed>
+    local %81 $argument.0: ptr<managed>
+    local %82 $argument.1: ptr<managed>
+    local %83 $parameter.left: ptr<managed>
+    local %84 $parameter.right: ptr<managed>
+    local %85 $argument.0: ptr<managed>
+    local %86 $argument.1: {ptr<managed>, i64}
+    local %87 $parameter.first: ptr<managed>
+    local %88 $parameter.nested: {ptr<managed>, i64}
+    local %89 managed: struct12
+    local %90 $argument.0: ptr<managed>
+    local %91 $parameter.value: ptr<managed>
+    local %92 $argument.0: struct12
+    local %93 $parameter.value: struct12
+    local %94 roundTrip: struct12
+    local %95 $argument.0: ptr<managed>
+    local %96 $parameter.value: ptr<managed>
+    local %97 $argument.0: ptr<managed>
+    local %98 $parameter.value: ptr<managed>
+    local %99 $argument.0: i64
+    local %100 $parameter.value: i64
+    local %101 $argument.0: ptr<managed>
+    local %102 $parameter.value: ptr<managed>
+    local %103 $argument.0: struct12
+    local %104 $argument.1: i1
+    local %105 $parameter.value: struct12
+    local %106 $parameter.shouldThrow: i1
+    local %107 normal: struct12
+    local %108 $argument.0: ptr<managed>
+    local %109 $parameter.value: ptr<managed>
+    local %110 $argument.0: ptr<managed>
+    local %111 $parameter.value: ptr<managed>
+    local %112 $argument.0: i64
+    local %113 $parameter.value: i64
+    local %114 exception: ptr<managed>
+    local %115 $argument.0: ptr<managed>
+    local %116 $parameter.value: ptr<managed>
+    local %117 $argument.0: ptr<managed>
+    local %118 $parameter.value: ptr<managed>
+    local %119 $argument.0: struct12
+    local %120 $argument.1: i1
+    local %121 $parameter.value: struct12
+    local %122 $parameter.shouldThrow: i1
+    local %123 ignored: struct12
+    local %124 $argument.0: ptr<managed>
+    local %125 $parameter.value: ptr<managed>
+    local %126 $argument.0: ptr<managed>
+    local %127 $parameter.value: ptr<managed>
+    local %128 exception: ptr<managed>
+    local %129 $argument.0: ptr<managed>
+    local %130 $parameter.value: ptr<managed>
+    local %131 $argument.0: ptr<managed>
+    local %132 $parameter.value: ptr<managed>
+    local %133 bias: i64
+    local %134 closure: ptr<managed>
+    local %135 $argument.0: i32
+    local %136 $parameter._1: i32
+    local %137 closureResult: {i32, i64}
+    local %138 $argument.0: i32
+    local %139 $parameter.value: i32
+    local %140 $argument.0: i64
+    local %141 $parameter.value: i64
+    local %142 $call.1: ptr<managed>
+    local %143 $sc.1: enum1
+    local %144 $sc.2: enum0
+    local %145 $sc.3: {enum0, enum1}
+    local %146 $sc.4: struct10
+    local %147 $sc.5: enum1
+    local %148 $sc.6: enum0
+    local %149 $sc.7: enum0
+    local %150 $sc.8: enum1
+    local %151 $sc.9: {enum0, i64}
+    local %152 $sc.10: struct11
+    local %153 $sc.11: enum0
+    local %154 $sc.12: {enum0, i64}
+    local %155 $sc.13: {i32, i64}
+    local %156 $sc.14: {enum0, i64}
+    local %157 $sc.15: {enum0, i64}
+    local %158 $sc.16: enum0
+    local %159 $sc.17: {i64, i64, i64, i64}
+    local %160 $sc.18: {ptr<managed>, i64}
+    local %161 $sc.19: struct12
+    local %162 $sc.20: struct12
+    local %163 $sc.21: struct12
+    local %164 $sc.22: exception_record
+    local %165 $sc.23: ptr<raw>
+    local %166 $sc.24: ptr<managed>
+    local %167 $sc.25: struct12
+    local %168 $sc.26: struct12
+    local %169 $sc.27: {enum0, i64}
+    local %170 $sc.28: {i32, i64}
+    local %171 $sc.29: struct12
+    local %172 $sc.30: struct12
+  block entry
+    poll managed-void-target33 sp110 live=[]
+    store global0 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp27 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn31(local1)
+    t0 = aggregate () : {}
+    store integer<Int>(0x00000003) -> local2
+    store local2 -> local3
+    t1 = enum_wrap e1 v0 (local3) : enum1
+    store t1 -> local6
+    t2 = enum_wrap e0 v0 () : enum0
+    store t2 -> local7
+    store integer<Int>(0x00000004) -> local4
+    store local4 -> local5
+    t3 = enum_wrap e0 v1 (local5) : enum0
+    t4 = enum_wrap e1 v1 () : enum1
+    t5 = aggregate (t3, t4) : {enum0, enum1}
+    store t5 -> local8
+    store local6 -> local9
+    store local7 -> local10
+    store local8 -> local11
+    store local9 -> local143
+    store local10 -> local144
+    store local11 -> local145
+    call no-gc-indirect-target0 local146 = sig=indirect0 (sret struct10 size=64 align=8 scan=none, indirect<enum1 size=16 align=8 scan=none>, indirect<enum0 size=16 align=8 scan=none>, indirect<{enum0, enum1} size=32 align=8 scan=none>) local-fn44(indirect local143, indirect local144, indirect local145)
+    store local146 -> local12
+    t6 = extract local12, 0 : enum1
+    store t6 -> local13
+    store local13 -> local14
+    store local14 -> local147
+    call no-gc-direct-target0 t7 = sig=direct0 (indirect<enum1 size=16 align=8 scan=none>) -> i32 local-fn23(indirect local147)
+    store t7 -> local15
+    store local15 -> local16
+    call managed-void-target1 sp28 live=[] sig=void1 (i32) local-fn32(local16)
+    t8 = aggregate () : {}
+    t9 = extract local12, 1 : enum0
+    store t9 -> local17
+    store local17 -> local18
+    store local18 -> local148
+    call no-gc-direct-target1 t10 = sig=direct1 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local148)
+    store t10 -> local19
+    store local19 -> local20
+    call managed-void-target2 sp29 live=[] sig=void2 (i32) local-fn32(local20)
+    t11 = aggregate () : {}
+    t12 = extract local12, 2 : {enum0, enum1}
+    t13 = extract t12, 0 : enum0
+    store t13 -> local21
+    store local21 -> local22
+    store local22 -> local149
+    call no-gc-direct-target2 t14 = sig=direct2 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local149)
+    store t14 -> local23
+    store local23 -> local24
+    call managed-void-target3 sp30 live=[] sig=void3 (i32) local-fn32(local24)
+    t15 = aggregate () : {}
+    t16 = extract local12, 2 : {enum0, enum1}
+    t17 = extract t16, 1 : enum1
+    store t17 -> local25
+    store local25 -> local26
+    store local26 -> local150
+    call no-gc-direct-target3 t18 = sig=direct3 (indirect<enum1 size=16 align=8 scan=none>) -> i32 local-fn23(indirect local150)
+    store t18 -> local27
+    store local27 -> local28
+    call managed-void-target4 sp31 live=[] sig=void4 (i32) local-fn32(local28)
+    t19 = aggregate () : {}
+    store global1 -> local29
+    store local29 -> local30
+    call managed-void-target5 sp32 live=[local30:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn31(local30)
+    t20 = aggregate () : {}
+    store integer<Int>(0x00000003) -> local33
+    store integer<Int>(0x00000004) -> local31
+    store local31 -> local32
+    t21 = enum_wrap e0 v1 (local32) : enum0
+    t22 = aggregate (t21, integer<Long>(0x0000000000000037)) : {enum0, i64}
+    store t22 -> local34
+    store local33 -> local35
+    store local34 -> local36
+    store local36 -> local151
+    call no-gc-indirect-target1 local152 = sig=indirect1 (sret struct11 size=32 align=8 scan=none, i32, indirect<{enum0, i64} size=24 align=8 scan=none>) local-fn45(local35, indirect local151)
+    store local152 -> local37
+    t23 = extract local37, 0 : i32
+    store t23 -> local38
+    store local38 -> local39
+    call managed-void-target6 sp33 live=[] sig=void6 (i32) local-fn32(local39)
+    t24 = aggregate () : {}
+    t25 = extract local37, 1 : {enum0, i64}
+    t26 = extract t25, 0 : enum0
+    store t26 -> local40
+    store local40 -> local41
+    store local41 -> local153
+    call no-gc-direct-target4 t27 = sig=direct4 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local153)
+    store t27 -> local42
+    store local42 -> local43
+    call managed-void-target7 sp34 live=[] sig=void7 (i32) local-fn32(local43)
+    t28 = aggregate () : {}
+    t29 = extract local37, 1 : {enum0, i64}
+    t30 = extract t29, 1 : i64
+    store t30 -> local44
+    store local44 -> local45
+    call managed-void-target8 sp35 live=[] sig=void8 (i64) local-fn33(local45)
+    t31 = aggregate () : {}
+    store global2 -> local46
+    store local46 -> local47
+    call managed-void-target9 sp36 live=[local47:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn31(local47)
+    t32 = aggregate () : {}
+    store integer<Int>(0x00000028) -> local48
+    store local48 -> local49
+    t33 = enum_wrap e0 v1 (local49) : enum0
+    t34 = aggregate (t33, integer<Long>(0x0000000000000037)) : {enum0, i64}
+    store t34 -> local50
+    store local50 -> local51
+    store local51 -> local52
+    store local52 -> local154
+    call no-gc-indirect-target2 local155 = sig=indirect2 (sret {i32, i64} size=16 align=8 scan=none, indirect<{enum0, i64} size=24 align=8 scan=none>) local-fn24(indirect local154)
+    store local155 -> local53
+    t35 = extract local53, 0 : i32
+    store t35 -> local54
+    store local54 -> local55
+    call managed-void-target10 sp37 live=[] sig=void10 (i32) local-fn32(local55)
+    t36 = aggregate () : {}
+    t37 = extract local53, 1 : i64
+    store t37 -> local56
+    store local56 -> local57
+    call managed-void-target11 sp38 live=[] sig=void11 (i64) local-fn33(local57)
+    t38 = aggregate () : {}
+    store global3 -> local58
+    store local58 -> local59
+    call managed-void-target12 sp39 live=[local59:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn31(local59)
+    t39 = aggregate () : {}
+    store integer<Int>(0x0000003c) -> local60
+    store local60 -> local61
+    t40 = enum_wrap e0 v1 (local61) : enum0
+    t41 = aggregate (t40, integer<Long>(0x0000000000000046)) : {enum0, i64}
+    store t41 -> local62
+    store local62 -> local63
+    store local63 -> local156
+    call managed-indirect-target0 sp40 live=[] local157 = sig=indirect3 (sret {enum0, i64} size=24 align=8 scan=none, indirect<{enum0, i64} size=24 align=8 scan=none>) local-fn34(indirect local156)
+    store local157 -> local64
+    t42 = extract local64, 0 : enum0
+    store t42 -> local65
+    store local65 -> local66
+    store local66 -> local158
+    call no-gc-direct-target5 t43 = sig=direct5 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local158)
+    store t43 -> local67
+    store local67 -> local68
+    call managed-void-target13 sp41 live=[] sig=void13 (i32) local-fn32(local68)
+    t44 = aggregate () : {}
+    t45 = extract local64, 1 : i64
+    store t45 -> local69
+    store local69 -> local70
+    call managed-void-target14 sp42 live=[] sig=void14 (i64) local-fn33(local70)
+    t46 = aggregate () : {}
+    store global4 -> local71
+    store local71 -> local72
+    call managed-void-target15 sp43 live=[local72:ptr<managed>@0] sig=void15 (ptr<managed>) local-fn31(local72)
+    t47 = aggregate () : {}
+    t48 = aggregate (integer<Long>(0x000000000000000a), integer<Long>(0x0000000000000014), integer<Long>(0x000000000000001e), integer<Long>(0x0000000000000028)) : {i64, i64, i64, i64}
+    store t48 -> local73
+    store local73 -> local74
+    store local74 -> local159
+    call no-gc-direct-target6 t49 = sig=direct6 (indirect<{i64, i64, i64, i64} size=32 align=8 scan=none>) -> i64 local-fn25(indirect local159)
+    store t49 -> local75
+    store local75 -> local76
+    call managed-void-target16 sp44 live=[] sig=void16 (i64) local-fn33(local76)
+    t50 = aggregate () : {}
+    store global5 -> local77
+    store global6 -> local78
+    store local77 -> local79
+    store local78 -> local80
+    call managed-direct-target0 sp45 live=[local79:ptr<managed>@0, local80:ptr<managed>@0] t51 = sig=direct7 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn26(local79, local80)
+    store t51 -> local85
+    store global7 -> local81
+    store global8 -> local82
+    store local81 -> local83
+    store local82 -> local84
+    call managed-direct-target1 sp46 live=[local83:ptr<managed>@0, local84:ptr<managed>@0, local85:ptr<managed>@0] t52 = sig=direct8 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn26(local83, local84)
+    store t52 -> local142
+    t53 = aggregate (local142, integer<Long>(0x00000000000002bc)) : {ptr<managed>, i64}
+    store t53 -> local86
+    store local85 -> local87
+    store local86 -> local88
+    store local88 -> local160
+    call no-gc-indirect-target3 local161 = sig=indirect4 (sret struct12 size=24 align=8 scan=refs[0, 8], ptr<managed>, indirect<{ptr<managed>, i64} size=16 align=8 scan=refs[0]>) local-fn46(local87, indirect local160)
+    store local161 -> local89
+    store global9 -> local90
+    store local90 -> local91
+    call managed-void-target17 sp47 live=[local89:struct12@0+8, local91:ptr<managed>@0] sig=void17 (ptr<managed>) local-fn31(local91)
+    t54 = aggregate () : {}
+    store local89 -> local92
+    store local92 -> local93
+    store local93 -> local162
+    call managed-indirect-target1 sp48 live=[local89:struct12@0+8, local162:struct12@0+8] local163 = sig=indirect5 (sret struct12 size=24 align=8 scan=refs[0, 8], indirect<struct12 size=24 align=8 scan=refs[0, 8]>) local-fn27(indirect local162)
+    store local163 -> local94
+    t55 = extract local94, 0 : ptr<managed>
+    store t55 -> local95
+    store local95 -> local96
+    call managed-void-target18 sp49 live=[local89:struct12@0+8, local94:struct12@0+8, local96:ptr<managed>@0] sig=void18 (ptr<managed>) local-fn31(local96)
+    t56 = aggregate () : {}
+    t57 = extract local94, 1 : {ptr<managed>, i64}
+    t58 = extract t57, 0 : ptr<managed>
+    store t58 -> local97
+    store local97 -> local98
+    call managed-void-target19 sp50 live=[local89:struct12@0+8, local94:struct12@0+8, local98:ptr<managed>@0] sig=void19 (ptr<managed>) local-fn31(local98)
+    t59 = aggregate () : {}
+    t60 = extract local94, 1 : {ptr<managed>, i64}
+    t61 = extract t60, 1 : i64
+    store t61 -> local99
+    store local99 -> local100
+    call managed-void-target20 sp51 live=[local89:struct12@0+8] sig=void20 (i64) local-fn33(local100)
+    t62 = aggregate () : {}
+    store global10 -> local101
+    store local101 -> local102
+    call managed-void-target21 sp52 live=[local89:struct12@0+8, local102:ptr<managed>@0] sig=void21 (ptr<managed>) local-fn31(local102)
+    t63 = aggregate () : {}
+    br @try.body.8
+  block try.unwind.1
+    (t64, t65) = landingpad : (exception_record, ptr<raw>)
+    store t64 -> local164
+    store t65 -> local165
+    br @try.dispatch.2
+  block try.dispatch.2
+    t66 = begin_catch local165 : ptr<managed>
+    store t66 -> local166
+    call no-gc-direct-target7 t67 = sig=direct9 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local166, td6)
+    cbr t67 then @try.catch.10 else @try.next.11
+  block try.handler_pad.3
+    (t68, t69) = cleanup_pad : (exception_record, ptr<raw>)
+    store t68 -> local164
+    store t69 -> local165
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local164
+  block try.exit_pad.5
+    (t70, t71) = cleanup_pad : (exception_record, ptr<raw>)
+    store t70 -> local164
+    store t71 -> local165
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local164
+  block try.end.7
+    store global12 -> local117
+    store local117 -> local118
+    call managed-void-target22 sp53 live=[local89:struct12@0+8, local118:ptr<managed>@0] sig=void22 (ptr<managed>) local-fn31(local118)
+    t72 = aggregate () : {}
+    br @try.body.21
+  block try.body.8
+    store local89 -> local103
+    store false -> local104
+    store local103 -> local105
+    store local104 -> local106
+    store local105 -> local167
+    invoke managed-indirect-target2 sp54 roots=[local89:refs[0, 8]:normal+unwind, local167:refs[0, 8]:argument] local168 = sig=indirect6 (sret struct12 size=24 align=8 scan=refs[0, 8], indirect<struct12 size=24 align=8 scan=refs[0, 8]>, i1) local-fn28(indirect local167, local106) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.9
+    br @try.end.7
+  block try.catch.10
+    store local166 -> local114
+    br @scope.12
+  block try.next.11
+    invoke no-gc-void-target0 sig=void26 () runtime @scoop_rt_rethrow() normal @rethrow.normal.5 unwind @try.exit_pad.5
+    br @rethrow.normal.5
+  block scope.12
+    store global11 -> local115
+    store local115 -> local116
+    invoke managed-void-target26 sp58 roots=[local89:refs[0, 8]:normal, local116:argument] sig=void27 (ptr<managed>) local-fn31(local116) normal @invoke.normal.6 unwind @try.handler_pad.3
+    br @invoke.normal.6
+  block scope.13
+    end_catch
+    br @try.end.7
+  block try.unwind.14
+    (t82, t83) = landingpad : (exception_record, ptr<raw>)
+    store t82 -> local164
+    store t83 -> local165
+    br @try.dispatch.15
+  block try.dispatch.15
+    t84 = begin_catch local165 : ptr<managed>
+    store t84 -> local166
+    call no-gc-direct-target8 t85 = sig=direct10 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local166, td6)
+    cbr t85 then @try.catch.23 else @try.next.24
+  block try.handler_pad.16
+    (t86, t87) = cleanup_pad : (exception_record, ptr<raw>)
+    store t86 -> local164
+    store t87 -> local165
+    br @try.handler_cleanup.17
+  block try.handler_cleanup.17
+    end_catch
+    resume local164
+  block try.exit_pad.18
+    (t88, t89) = cleanup_pad : (exception_record, ptr<raw>)
+    store t88 -> local164
+    store t89 -> local165
+    br @try.exit_cleanup.19
+  block try.exit_cleanup.19
+    end_catch
+    resume local164
+  block try.end.20
+    store global15 -> local131
+    store local131 -> local132
+    call managed-void-target27 sp59 live=[local132:ptr<managed>@0] sig=void28 (ptr<managed>) local-fn31(local132)
+    t90 = aggregate () : {}
+    store integer<Long>(0x00000000000003e8) -> local133
+    call managed-direct-target2 sp60 live=[] t91 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(32)))
+    t92 = function_address @scoop.$lambda.0 : ptr
+    heap_store t91 +16 t92
+    heap_store t91 +24 local133
+    store t91 -> local134
+    store integer<Int>(0x00000009) -> local135
+    store local135 -> local136
+    t93 = enum_wrap e0 v1 (local136) : enum0
+    t94 = aggregate (t93, integer<Long>(0x000000000000005a)) : {enum0, i64}
+    store t94 -> local169
+    call managed-indirect-target3 sp61 live=[local134:ptr<managed>@0] local170 = sig=indirect7 (sret {i32, i64} size=16 align=8 scan=none, ptr<managed>, indirect<{enum0, i64} size=24 align=8 scan=none>) dispatch[Closure:2] local134(local134, indirect local169)
+    store local170 -> local137
+    t95 = extract local137, 0 : i32
+    store t95 -> local138
+    store local138 -> local139
+    call managed-void-target28 sp62 live=[] sig=void29 (i32) local-fn32(local139)
+    t96 = aggregate () : {}
+    t97 = extract local137, 1 : i64
+    store t97 -> local140
+    store local140 -> local141
+    call managed-void-target29 sp63 live=[] sig=void30 (i64) local-fn33(local141)
+    t98 = aggregate () : {}
+    ret
+  block try.body.21
+    store local89 -> local119
+    store true -> local120
+    store local119 -> local121
+    store local120 -> local122
+    store local121 -> local171
+    invoke managed-indirect-target4 sp64 roots=[local171:refs[0, 8]:argument] local172 = sig=indirect8 (sret struct12 size=24 align=8 scan=refs[0, 8], indirect<struct12 size=24 align=8 scan=refs[0, 8]>, i1) local-fn28(indirect local171, local122) normal @invoke.normal.7 unwind @try.unwind.14
+    br @invoke.normal.7
+  block scope.22
+    br @try.end.20
+  block try.catch.23
+    store local166 -> local128
+    br @scope.25
+  block try.next.24
+    invoke no-gc-void-target1 sig=void33 () runtime @scoop_rt_rethrow() normal @rethrow.normal.10 unwind @try.exit_pad.18
+    br @rethrow.normal.10
+  block scope.25
+    store global14 -> local129
+    store local129 -> local130
+    invoke managed-void-target32 sp67 roots=[local130:argument] sig=void34 (ptr<managed>) local-fn31(local130) normal @invoke.normal.11 unwind @try.handler_pad.16
+    br @invoke.normal.11
+  block scope.26
+    end_catch
+    br @try.end.20
+  block invoke.normal.1
+    store local168 -> local107
+    t73 = extract local107, 0 : ptr<managed>
+    store t73 -> local108
+    store local108 -> local109
+    invoke managed-void-target23 sp55 roots=[local89:refs[0, 8]:normal+unwind, local107:refs[0, 8]:normal, local109:argument] sig=void23 (ptr<managed>) local-fn31(local109) normal @invoke.normal.2 unwind @try.unwind.1
+    br @invoke.normal.2
+  block invoke.normal.2
+    t74 = aggregate () : {}
+    t75 = extract local107, 1 : {ptr<managed>, i64}
+    t76 = extract t75, 0 : ptr<managed>
+    store t76 -> local110
+    store local110 -> local111
+    invoke managed-void-target24 sp56 roots=[local89:refs[0, 8]:normal+unwind, local107:refs[0, 8]:normal, local111:argument] sig=void24 (ptr<managed>) local-fn31(local111) normal @invoke.normal.3 unwind @try.unwind.1
+    br @invoke.normal.3
+  block invoke.normal.3
+    t77 = aggregate () : {}
+    t78 = extract local107, 1 : {ptr<managed>, i64}
+    t79 = extract t78, 1 : i64
+    store t79 -> local112
+    store local112 -> local113
+    invoke managed-void-target25 sp57 roots=[local89:refs[0, 8]:normal+unwind] sig=void25 (i64) local-fn33(local113) normal @invoke.normal.4 unwind @try.unwind.1
+    br @invoke.normal.4
+  block invoke.normal.4
+    t80 = aggregate () : {}
+    br @scope.9
+  block rethrow.normal.5
+    unreachable
+  block invoke.normal.6
+    t81 = aggregate () : {}
+    br @scope.13
+  block invoke.normal.7
+    store local172 -> local123
+    t99 = extract local123, 0 : ptr<managed>
+    store t99 -> local124
+    store local124 -> local125
+    invoke managed-void-target30 sp65 roots=[local125:argument] sig=void31 (ptr<managed>) local-fn31(local125) normal @invoke.normal.8 unwind @try.unwind.14
+    br @invoke.normal.8
+  block invoke.normal.8
+    t100 = aggregate () : {}
+    store global13 -> local126
+    store local126 -> local127
+    invoke managed-void-target31 sp66 roots=[local127:argument] sig=void32 (ptr<managed>) local-fn31(local127) normal @invoke.normal.9 unwind @try.unwind.14
+    br @invoke.normal.9
+  block invoke.normal.9
+    t101 = aggregate () : {}
+    br @scope.22
+  block rethrow.normal.10
+    unreachable
+  block invoke.normal.11
+    t102 = aggregate () : {}
+    br @scope.26
+  fun @scoop.$lambda.0(ptr<managed>, indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<{i32, i64} size=16 align=8 scan=none>
+    local %0 $binding.projection.2: enum0
+    local %1 signal: enum0
+    local %2 $binding.projection.3: i64
+    local %3 number: i64
+    local %4 $argument.0: enum0
+    local %5 $parameter.value: enum0
+    local %6 $receiver: i64
+    local %7 $argument.0: i64
+    local %8 $parameter.other: i64
+    local %9 $call.1: i32
+    local %10 $sc.1: enum0
+  block entry
+    poll managed-void-target1 sp111 live=[param0:ptr<managed>@0]
+    t0 = extract param1, 0 : enum0
+    store t0 -> local0
+    store local0 -> local1
+    t1 = extract param1, 1 : i64
+    store t1 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp68 live=[param0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
+    t2 = aggregate () : {}
+    store local1 -> local4
+    store local4 -> local5
+    t3 = heap_load param0 +24 : i64
+    store t3 -> local6
+    store local3 -> local7
+    store local7 -> local8
+    store local5 -> local10
+    call no-gc-direct-target0 t4 = sig=direct0 (indirect<enum0 size=16 align=8 scan=none>) -> i32 local-fn22(indirect local10)
+    store t4 -> local9
+    t5 = integer_Add<Long> local6, local8 : i64
+    t6 = aggregate (local9, t5) : {i32, i64}
+    ret t6
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp112 live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp69 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn20(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp70 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global16 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp71 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I32(i32) -> void
+    local %0 $receiver: i32
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp113 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp72 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn4(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp73 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global17 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp74 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I64(i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp114 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp75 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn6(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp76 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global18 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp77 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.genericRoundTrip$TE6_SignalX_I64X(indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<{enum0, i64} size=24 align=8 scan=none>
+  block entry
+    poll managed-void-target0 sp115 live=[]
+    ret param0
+  fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp116 live=[]
+    ret
+  fun @scoop.init.Exception.$c1(ptr<managed>, enum2) -> void
+  block entry
+    poll managed-void-target1 sp117 live=[param0:ptr<managed>@0, param1:enum2@0]
+    call managed-void-target0 sp78 live=[param0:ptr<managed>@0, param1:enum2@0] sig=void0 (ptr<managed>) local-fn35(param0)
+    t0 = aggregate () : {}
+    heap_store param0 +16 param1
+    ret
+  fun @scoop.init.UnwrapException.$c2(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum2
+    local %3 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp118 live=[param0:ptr<managed>@0]
+    store global19 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e2 v0 (local1) : enum2
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp79 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn36(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum2
+    local %3 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp119 live=[param0:ptr<managed>@0]
+    store global20 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e2 v0 (local1) : enum2
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp80 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn36(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum2
+    local %3 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp120 live=[param0:ptr<managed>@0]
+    store global21 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e2 v0 (local1) : enum2
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp81 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn36(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $argument.0: enum2
+    local %3 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp121 live=[param0:ptr<managed>@0]
+    store global22 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e2 v0 (local1) : enum2
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp82 live=[param0:ptr<managed>@0, local3:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn36(param0, local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum2) -> void
+    local %0 $argument.0: enum2
+    local %1 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp122 live=[param0:ptr<managed>@0, param1:enum2@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp83 live=[param0:ptr<managed>@0, local1:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn36(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop.init.IllegalStateException.$c7(ptr<managed>) -> void
+    local %0 $argument.0: ptr<managed>
+    local %1 $parameter._1: ptr<managed>
+    local %2 $parameter.message: enum2
+  block entry
+    poll managed-void-target1 sp123 live=[param0:ptr<managed>@0]
+    store global23 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e2 v0 (local1) : enum2
+    store t0 -> local2
+    call managed-void-target0 sp84 live=[param0:ptr<managed>@0, local2:enum2@0] sig=void0 (ptr<managed>, enum2) local-fn41(param0, local2)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1, param2, param3, param4) : struct0
+    ret t0
+  fun @scoop.ctor.OriginalBundle.$c6(indirect<enum1 size=16 align=8 scan=none>, indirect<enum0 size=16 align=8 scan=none>, indirect<{enum0, enum1} size=32 align=8 scan=none>) -> sret<struct10 size=64 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1, param2) : struct10
+    ret t0
+  fun @scoop.ctor.Nested24Box.$c7(i32, indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<struct11 size=32 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct11
+    ret t0
+  fun @scoop.ctor.ManagedAggregate.$c8(ptr<managed>, indirect<{ptr<managed>, i64} size=16 align=8 scan=refs[0]>) -> sret<struct12 size=24 align=8 scan=refs[0, 8]> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct12
+    ret t0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 function$FTE6_SignalX_I64XRTI32_I64XX @scoop_td_function$FTE6_SignalX_I64XRTI32_I64XX type-id=4 size=0 parent=none vtable=[] itables=[]
+  td td3 Throwable @scoop_td_Throwable type-id=5 size=16 parent=none vtable=[] itables=[]
+  td td5 Exception @scoop_td_Exception type-id=6 size=24 parent=td3 vtable=[] itables=[]
+  td td6 UnwrapException @scoop_td_UnwrapException type-id=7 size=24 parent=td5 vtable=[] itables=[]
+  td td7 ClassCastException @scoop_td_ClassCastException type-id=8 size=24 parent=td5 vtable=[] itables=[]
+  td td8 ArithmeticException @scoop_td_ArithmeticException type-id=9 size=24 parent=td5 vtable=[] itables=[]
+  td td9 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=10 size=24 parent=td5 vtable=[] itables=[]
+  td td10 IllegalStateException @scoop_td_IllegalStateException type-id=11 size=24 parent=td5 vtable=[] itables=[]
+  td td11 $Closure$lambda0 @scoop_td_$Closure$lambda0 type-id=12 size=32 parent=td2 vtable=[] itables=[]
+  layout String size=24 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
+  layout OriginalBundle size=64 align=8 refs=[]
+  layout Nested24Box size=32 align=8 refs=[]
+  layout ManagedAggregate size=24 align=8 refs=[0, 8]
+  layout Signal size=16 align=8 enum-scan=none
+  layout Option$I32 size=16 align=8 enum-scan=none
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout $Closure$lambda0 size=32 align=8 refs=[]
+  layout (Signal, Option$I32<Int>) size=32 align=8 refs=[]
+  layout (Signal, Long) size=24 align=8 refs=[]
+  layout (String, Long) size=16 align=8 refs=[0]
+  layout (Int, Long) size=16 align=8 refs=[]
+  layout (Long, Long, Long, Long) size=32 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+original-nested-32
+3
+0
+4
+0
+nested-24-constructor
+3
+4
+55
+nested-24-nogc
+40
+55
+generic-specialization-24
+60
+70
+flat-32-control
+100
+managed-call
+alpha-live
+beta-live
+700
+managed-invoke-normal
+alpha-live
+beta-live
+700
+managed-invoke-throw
+caught-managed-invoke
+closure-hidden-receiver-24
+9
+1090

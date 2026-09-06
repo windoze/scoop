@@ -102,10 +102,10 @@ pub(super) fn insert_polls(function: &mut lir::Function, ids: &mut SafepointIds)
     let signature = function
         .call_targets
         .void_signatures
-        .alloc(lir::VoidCallSignature {
-            params: Vec::new(),
-            calling_convention: lir::CallingConvention::Cdecl,
-        });
+        .alloc(lir::VoidCallSignature::new(
+            Vec::new(),
+            lir::CallingConvention::Cdecl,
+        ));
     let poll_target = function
         .call_targets
         .managed_targets

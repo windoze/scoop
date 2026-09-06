@@ -2595,7 +2595,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.ValueMapper.map(struct10, i32) -> i32
+  fun @scoop.ValueMapper.map(indirect<struct10 size=4 align=4 scan=none>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -2803,9 +2803,10 @@ Module
     local %66 $new.9: ptr<managed>
     local %67 $sc.1: struct10
     local %68 $sc.2: struct10
-    local %69 $sc.3: exception_record
-    local %70 $sc.4: ptr<raw>
-    local %71 $sc.5: ptr<managed>
+    local %69 $sc.3: struct10
+    local %70 $sc.4: exception_record
+    local %71 $sc.5: ptr<raw>
+    local %72 $sc.6: ptr<managed>
   block entry
     poll managed-void-target22 sp137 live=[]
     call managed-direct-target0 sp27 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td21, machine<byte-size>(ByteSize(24)))
@@ -2869,7 +2870,7 @@ Module
     store t21 -> local15
     store integer<Int>(0x00000002) -> local16
     store local16 -> local17
-    call no-gc-indirect-target0 local67 = sig=indirect0 (sret struct10, i32) local-fn65(local17)
+    call no-gc-indirect-target0 local67 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn65(local17)
     store local67 -> local18
     call managed-direct-target11 sp43 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local7:ptr<managed>@0, local10:ptr<managed>@0, local11:ptr<managed>@0, local15:ptr<managed>@0] t23 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td27, machine<byte-size>(ByteSize(32)))
     t24 = function_address @scoop.$reference.6 : ptr
@@ -2878,7 +2879,7 @@ Module
     store t23 -> local19
     store integer<Int>(0x00000064) -> local20
     store local20 -> local21
-    call no-gc-indirect-target1 local68 = sig=indirect1 (sret struct10, i32) local-fn65(local21)
+    call no-gc-indirect-target1 local68 = sig=indirect1 (sret struct10 size=4 align=4 scan=none, i32) local-fn65(local21)
     store local68 -> local63
     store local63 -> local18
     call managed-direct-target12 sp44 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local7:ptr<managed>@0, local10:ptr<managed>@0, local11:ptr<managed>@0, local15:ptr<managed>@0, local19:ptr<managed>@0] t25 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(16)))
@@ -2958,7 +2959,8 @@ Module
     store local18 -> local44
     store integer<Int>(0x00000028) -> local45
     store local45 -> local46
-    call managed-direct-target26 sp70 live=[local22:ptr<managed>@0, local23:ptr<managed>@0, local24:ptr<managed>@0] t56 = sig=direct26 (struct10, i32) -> i32 local-fn19(local44, local46)
+    store local44 -> local69
+    call managed-direct-target26 sp70 live=[local22:ptr<managed>@0, local23:ptr<managed>@0, local24:ptr<managed>@0] t56 = sig=direct26 (indirect<struct10 size=4 align=4 scan=none>, i32) -> i32 local-fn19(indirect local69, local46)
     store t56 -> local47
     store local47 -> local48
     call managed-void-target17 sp71 live=[local22:ptr<managed>@0, local23:ptr<managed>@0, local24:ptr<managed>@0] sig=void17 (i32) local-fn35(local48)
@@ -2976,30 +2978,30 @@ Module
     br @try.body.8
   block try.unwind.1
     (t62, t63) = landingpad : (exception_record, ptr<raw>)
-    store t62 -> local69
-    store t63 -> local70
+    store t62 -> local70
+    store t63 -> local71
     br @try.dispatch.2
   block try.dispatch.2
-    t64 = begin_catch local70 : ptr<managed>
-    store t64 -> local71
-    call no-gc-direct-target0 t65 = sig=direct29 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local71, td18)
+    t64 = begin_catch local71 : ptr<managed>
+    store t64 -> local72
+    call no-gc-direct-target0 t65 = sig=direct29 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local72, td18)
     cbr t65 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
     (t66, t67) = cleanup_pad : (exception_record, ptr<raw>)
-    store t66 -> local69
-    store t67 -> local70
+    store t66 -> local70
+    store t67 -> local71
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
-    resume local69
+    resume local70
   block try.exit_pad.5
     (t68, t69) = cleanup_pad : (exception_record, ptr<raw>)
-    store t68 -> local69
-    store t69 -> local70
+    store t68 -> local70
+    store t69 -> local71
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local69
+    resume local70
   block try.end.7
     ret
   block try.body.8
@@ -3008,7 +3010,7 @@ Module
   block scope.9
     br @try.end.7
   block try.catch.10
-    store local71 -> local55
+    store local72 -> local55
     br @scope.12
   block try.next.11
     invoke no-gc-void-target0 sig=void21 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
@@ -3133,10 +3135,12 @@ Module
     ret local0
   fun @scoop.$reference.6(ptr<managed>, i32) -> i32
     local %0 $call.1: i32
+    local %1 $sc.1: struct10
   block entry
     poll managed-void-target0 sp148 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : struct10
-    call managed-direct-target0 sp91 live=[] t1 = sig=direct0 (struct10, i32) -> i32 local-fn19(t0, param1)
+    store t0 -> local1
+    call managed-direct-target0 sp91 live=[] t1 = sig=direct0 (indirect<struct10 size=4 align=4 scan=none>, i32) -> i32 local-fn19(indirect local1, param1)
     store t1 -> local0
     ret local0
   fun @scoop.$reference.7(ptr<managed>, ptr<managed>) -> ptr<managed>
@@ -3295,11 +3299,11 @@ Module
   block entry
     poll managed-void-target0 sp167 live=[]
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.ValueMapper.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.ValueMapper.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

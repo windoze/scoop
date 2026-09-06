@@ -1630,7 +1630,7 @@ Module
     poll managed-void-target2 sp58 live=[]
     store integer<Int>(0x00000001) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local10 = sig=indirect0 (sret struct10, i32) local-fn33(local1)
+    call no-gc-indirect-target0 local10 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn33(local1)
     store local10 -> local8
     store local8 -> local11
     t0 = local_address local11 : ptr
@@ -1769,11 +1769,11 @@ Module
     call managed-void-target0 sp35 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn30(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.S.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.S.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

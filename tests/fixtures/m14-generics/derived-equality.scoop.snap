@@ -1978,6 +1978,10 @@ Module
     local %36 $sc.2: struct10
     local %37 $sc.3: struct10
     local %38 $sc.4: struct10
+    local %39 $sc.5: struct10
+    local %40 $sc.6: struct10
+    local %41 $sc.7: struct10
+    local %42 $sc.8: struct10
   block entry
     poll managed-void-target4 sp63 live=[]
     store integer<Int>(0x00000001) -> local0
@@ -1988,11 +1992,13 @@ Module
     store integer<Int>(0x00000002) -> local5
     store local4 -> local6
     store local5 -> local7
-    call no-gc-indirect-target0 local35 = sig=indirect0 (sret struct10, i32, i32) local-fn35(local2, local3)
+    call no-gc-indirect-target0 local35 = sig=indirect0 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn35(local2, local3)
     store local35 -> local30
-    call no-gc-indirect-target1 local36 = sig=indirect1 (sret struct10, i32, i32) local-fn35(local6, local7)
+    call no-gc-indirect-target1 local36 = sig=indirect1 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn35(local6, local7)
     store local36 -> local31
-    call managed-direct-target0 sp22 live=[] t0 = sig=direct0 (struct10, struct10) -> i1 local-fn24(local30, local31)
+    store local30 -> local37
+    store local31 -> local38
+    call managed-direct-target0 sp22 live=[] t0 = sig=direct0 (indirect<struct10 size=8 align=4 scan=none>, indirect<struct10 size=8 align=4 scan=none>) -> i1 local-fn24(indirect local37, indirect local38)
     store t0 -> local8
     store local8 -> local9
     call managed-void-target0 sp23 live=[] sig=void0 (i1) local-fn23(local9)
@@ -2005,11 +2011,13 @@ Module
     store integer<Int>(0x00000003) -> local15
     store local14 -> local16
     store local15 -> local17
-    call no-gc-indirect-target2 local37 = sig=indirect2 (sret struct10, i32, i32) local-fn35(local12, local13)
-    store local37 -> local32
-    call no-gc-indirect-target3 local38 = sig=indirect3 (sret struct10, i32, i32) local-fn35(local16, local17)
-    store local38 -> local33
-    call managed-direct-target1 sp24 live=[] t2 = sig=direct1 (struct10, struct10) -> i1 local-fn24(local32, local33)
+    call no-gc-indirect-target2 local39 = sig=indirect2 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn35(local12, local13)
+    store local39 -> local32
+    call no-gc-indirect-target3 local40 = sig=indirect3 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn35(local16, local17)
+    store local40 -> local33
+    store local32 -> local41
+    store local33 -> local42
+    call managed-direct-target1 sp24 live=[] t2 = sig=direct1 (indirect<struct10 size=8 align=4 scan=none>, indirect<struct10 size=8 align=4 scan=none>) -> i1 local-fn24(indirect local41, indirect local42)
     store t2 -> local34
     t3 = Not local34 : i1
     store t3 -> local18
@@ -2056,7 +2064,7 @@ Module
     call native-borrowed-void-target1 sp32 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Pair.equals$I32(struct10, struct10) -> i1
+  fun @scoop.Pair.equals$I32(indirect<struct10 size=8 align=4 scan=none>, indirect<struct10 size=8 align=4 scan=none>) -> i1
     local %0 $logic.1: i1
   block entry
     poll managed-void-target0 sp65 live=[]
@@ -2216,11 +2224,11 @@ Module
     call managed-void-target0 sp40 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Pair$I32.$c6(i32, i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Pair$I32.$c6(i32, i32) -> sret<struct10 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

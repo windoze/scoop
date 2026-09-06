@@ -14,14 +14,23 @@ pub(crate) fn declare_function<'ctx>(
     profile: TargetProfile,
     function: &Function,
 ) -> Result<(), CodegenError> {
-    let fn_ty = fn_type_of(
+    let managed_address_space = profile.managed_address_space_contract();
+    let fn_ty = abi::function_type(
         context,
         structs,
         enums,
-        profile.managed_address_space_contract(),
-        function,
+        managed_address_space,
+        &function.signature,
     )?;
     let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
+    abi::apply_function_attributes(
+        context,
+        structs,
+        enums,
+        managed_address_space,
+        llvm_function,
+        &function.signature,
+    )?;
     statepoint::configure_function(context, llvm_function, function.gc_effect, profile);
     Ok(())
 }

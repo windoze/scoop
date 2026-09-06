@@ -2164,8 +2164,10 @@ Module
     local %21 $parameter.tail: ptr<managed>
     local %22 $call.1: struct10
     local %23 $call.2: struct10
-    local %24 $sc.1: struct10
+    local %24 $sc.1: enum0
     local %25 $sc.2: struct10
+    local %26 $sc.3: enum0
+    local %27 $sc.4: struct10
   block entry
     poll managed-void-target0 sp74 live=[]
     store global0 -> local0
@@ -2195,10 +2197,12 @@ Module
     store local11 -> local19
     store local18 -> local20
     store local19 -> local21
-    call no-gc-indirect-target0 local24 = sig=indirect0 (sret struct10, enum0, ptr<managed>) local-fn35(local16, local17)
-    store local24 -> local22
-    call no-gc-indirect-target1 local25 = sig=indirect1 (sret struct10, enum0, ptr<managed>) local-fn35(local20, local21)
-    store local25 -> local23
+    store local16 -> local24
+    call no-gc-indirect-target0 local25 = sig=indirect0 (sret struct10 size=32 align=8 scan=refs[16, 24], indirect<enum0 size=24 align=8 scan=refs[16]>, ptr<managed>) local-fn35(indirect local24, local17)
+    store local25 -> local22
+    store local20 -> local26
+    call no-gc-indirect-target1 local27 = sig=indirect1 (sret struct10 size=32 align=8 scan=refs[16, 24], indirect<enum0 size=24 align=8 scan=refs[16]>, ptr<managed>) local-fn35(indirect local26, local21)
+    store local27 -> local23
     t5 = array_alloc array0 (local22, local23) sp25 live local22:struct10@16+24, local23:struct10@16+24 : ptr<managed>
     ret t5
   fun @scoop_main() -> void
@@ -2509,11 +2513,11 @@ Module
     call managed-void-target0 sp51 live=[param0:ptr<managed>@0, local2:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Item.$c6(enum0, ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.Item.$c6(indirect<enum0 size=24 align=8 scan=refs[16]>, ptr<managed>) -> sret<struct10 size=32 align=8 scan=refs[16, 24]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

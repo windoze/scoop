@@ -1763,11 +1763,11 @@ Module
     store integer<Int>(0x00000029) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local18 = sig=indirect0 (sret struct0, enum0, i32) local-fn33(local2, local3)
+    call no-gc-indirect-target0 local18 = sig=indirect0 (sret struct0 size=16 align=8 scan=none, enum0, i32) local-fn33(local2, local3)
     store local18 -> local4
     store local4 -> local5
     store local5 -> local19
-    call native-safe-indirect-target0 sp22 roots=[] local20 = sig=indirect1 (sret struct0, ptr<raw>) extern10(c-arg-address(local19))
+    call native-safe-indirect-target0 sp22 roots=[] local20 = sig=indirect1 (c-storage-pointer struct0 size=16 align=8 scan=none, ptr<raw>) extern10(c-arg-address(local19))
     store local20 -> local6
     t1 = extract local6, 1 : i32
     store t1 -> local7
@@ -1937,11 +1937,11 @@ Module
     call managed-void-target0 sp38 live=[param0:ptr<managed>@0, local2:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn31(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.Node.$c6(enum0, i32) -> struct0 <no-gc>
+  fun @scoop.ctor.Node.$c6(enum0, i32) -> sret<struct0 size=16 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct1 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct1 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct1
     ret t0

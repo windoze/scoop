@@ -5564,11 +5564,11 @@ Module
     poll managed-void-target0 sp293 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.StructHost.$c6() -> struct10 <no-gc>
+  fun @scoop.ctor.StructHost.$c6() -> elided-zst<struct10 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct10
     ret t0

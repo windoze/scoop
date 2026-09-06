@@ -1746,7 +1746,7 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Counter.next(ptr<managed>) -> enum1
+  fun @scoop.Counter.next(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -1804,7 +1804,7 @@ Module
   block while.cond.1
     poll managed-void-target3 sp61 live=[local2:ptr<managed>@0]
     store local2 -> local4
-    call managed-indirect-target0 sp24 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] local15 = sig=indirect0 (sret enum1, ptr<managed>) local-fn22(local4)
+    call managed-indirect-target0 sp24 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] local15 = sig=indirect0 (sret enum1 size=16 align=8 scan=none, ptr<managed>) local-fn22(local4)
     store local15 -> local5
     t2 = variant_test e1 v0 local5 : i1
     cbr t2 then @if.then.2 else @if.else.3
@@ -1953,7 +1953,7 @@ Module
     poll managed-void-target0 sp71 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

@@ -68,6 +68,7 @@ pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
     module: &'a mir::Module,
     function: &'a mir::Function,
+    signature: &'a lir::ScoopAbiSignature,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
@@ -78,6 +79,8 @@ pub(super) fn lower_function<'a>(
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
 ) -> lir::Function {
@@ -85,18 +88,27 @@ pub(super) fn lower_function<'a>(
     // Address-taken parameters are copied once into a method-local slot.
     let address_taken = locals::address_taken(function);
     let mut local_map = HashMap::new();
-    let params: Vec<lir::LirType> = function
+    assert_eq!(
+        function.params.len(),
+        signature.logical_argument_count(),
+        "preclassified function signature preserves logical arity"
+    );
+    for (index, (param, abi_argument)) in function
         .params
         .iter()
+        .zip(signature.arguments())
         .enumerate()
-        .map(|(index, param)| {
-            record_layout_types(&param.ty, layout_types);
-            if !address_taken.contains(&param.local) {
-                local_map.insert(param.local, LocalSlot::Param(index as u32));
-            }
-            lir_type(&param.ty)
-        })
-        .collect();
+    {
+        record_layout_types(&param.ty, layout_types);
+        assert_eq!(
+            &lir_type(&param.ty),
+            abi_argument.logical_storage_type(),
+            "preclassified function parameter preserves its LIR storage type"
+        );
+        if !address_taken.contains(&param.local) {
+            local_map.insert(param.local, LocalSlot::Param(index as u32));
+        }
+    }
 
     // One LIR stack slot per non-parameter MIR local, in declaration
     // order.
@@ -115,12 +127,15 @@ pub(super) fn lower_function<'a>(
 
     // Unit-returning functions are void at the LLVM level (DESIGN 2.4).
     record_layout_types(&function.return_ty, layout_types);
-    let returns_void = function.return_ty == mir::Type::Unit;
-    let return_ty = if returns_void {
-        lir::LirType::Void
-    } else {
-        lir_type(&function.return_ty)
-    };
+    let returns_void = matches!(signature.result(), lir::AbiReturn::UnitVoid);
+    assert_eq!(returns_void, function.return_ty == mir::Type::Unit);
+    if let Some(storage_type) = signature.result().logical_storage_type() {
+        assert_eq!(
+            storage_type,
+            &lir_type(&function.return_ty),
+            "preclassified function result preserves its LIR storage type"
+        );
+    }
 
     let mut blocks = Arena::new();
     let mut block_map = HashMap::new();
@@ -147,6 +162,8 @@ pub(super) fn lower_function<'a>(
         array_types,
         type_descriptors,
         local_function_map,
+        function_signatures,
+        extern_functions,
         extern_function_refs,
         safepoint_ids,
         local_map,
@@ -192,8 +209,7 @@ pub(super) fn lower_function<'a>(
             mir::GcEffect::NoGc => lir::GcEffect::NoGc,
         },
         symbol: function.symbol.clone(),
-        params,
-        return_ty,
+        signature: signature.clone(),
         call_targets: lowerer.call_targets,
         locals: lowerer.locals,
         temps: lowerer.temps,
@@ -241,6 +257,8 @@ struct FunctionLowerer<'a> {
     /// Complete typed TypeDescriptor graph built before body lowering.
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
     local_map: HashMap<mir::LocalId, LocalSlot>,

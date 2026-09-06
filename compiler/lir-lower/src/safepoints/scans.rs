@@ -129,7 +129,9 @@ pub(crate) fn root_scan(
 
 pub(super) fn live_value_ty(value: LiveValue, function: &lir::Function) -> &lir::LirType {
     match value {
-        LiveValue::Param(index) => &function.params[index as usize],
+        LiveValue::Param(index) => {
+            function.signature.arguments()[index as usize].logical_storage_type()
+        }
         LiveValue::Local(id) => &function.locals[id].ty,
         LiveValue::Temp(id) => &function.temps[id].ty,
     }
@@ -237,7 +239,10 @@ pub(super) fn exceptional_root_set(
     include_managed_operands(
         context,
         &mut roots,
-        site.call.args().iter().copied(),
+        site.call
+            .args()
+            .iter()
+            .map(|argument| argument.logical_value()),
         function,
         structs,
         enums,

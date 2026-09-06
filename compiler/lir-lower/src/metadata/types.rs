@@ -344,20 +344,3 @@ pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
         mir::Type::Enum(id, _) => lir::LirType::Enum(enum_def_id(*id)),
     }
 }
-
-pub(crate) fn uses_indirect_result(enums: &lir::EnumDefs, ty: &lir::LirType) -> bool {
-    match ty {
-        lir::LirType::Aggregate(_) | lir::LirType::Struct(_) | lir::LirType::ExceptionRecord => {
-            true
-        }
-        lir::LirType::Enum(id) => matches!(enums[*id].repr, lir::EnumRepr::Tagged { .. }),
-        lir::LirType::Void
-        | lir::LirType::I1
-        | lir::LirType::I8
-        | lir::LirType::I16
-        | lir::LirType::I32
-        | lir::LirType::I64
-        | lir::LirType::MachineScalar(_)
-        | lir::LirType::Ptr(_) => false,
-    }
-}

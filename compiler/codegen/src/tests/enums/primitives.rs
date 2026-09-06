@@ -52,6 +52,12 @@ fn append_variant_projection_function(
             value: Some(Value::Temp(projected)),
         },
     };
+    let signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![operand_ty],
+        result_ty.clone(),
+    );
     let fallback = match result_ty {
         LirType::Ptr(kind) => Value::NullPointer(kind),
         LirType::I1 => Value::BoolConst(false),
@@ -69,8 +75,7 @@ fn append_variant_projection_function(
     module.functions.push(Function {
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
-        params: vec![operand_ty],
-        return_ty: result_ty,
+        signature,
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps,
@@ -87,6 +92,12 @@ fn append_variant_test_function(
     variant: scoop_lir::LirVariantRef,
     result_ty: LirType,
 ) -> usize {
+    let signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![operand_ty],
+        LirType::I1,
+    );
     let mut temps = Arena::default();
     let tested = temps.alloc(Temp { ty: result_ty });
     let mut blocks = Arena::default();
@@ -105,8 +116,7 @@ fn append_variant_test_function(
     module.functions.push(Function {
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
-        params: vec![operand_ty],
-        return_ty: LirType::I1,
+        signature,
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps,
@@ -517,8 +527,7 @@ fn redefining_a_tested_temp_invalidates_variant_dominance_fact() {
     module.functions.push(Function {
         gc_effect: GcEffect::NoGc,
         symbol: "scoop.variant.redefined_temp".to_string(),
-        params: Vec::new(),
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(Vec::new(), LirType::I64),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps,

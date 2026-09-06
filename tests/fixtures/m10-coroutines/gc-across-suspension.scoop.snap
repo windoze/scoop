@@ -4456,7 +4456,7 @@ Module
     t1 = enum_wrap e0 v0 (local1) : enum0
     heap_store t0 +16 t1
     ret
-  fun @scoop.GcTask.run$suspend(ptr<managed>, ptr<managed>) -> enum3
+  fun @scoop.GcTask.run$suspend(ptr<managed>, ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
     local %2 $sc.1: enum3
@@ -4480,7 +4480,7 @@ Module
     heap_store local0 +112 t6
     t7 = enum_wrap e10 v0 () : enum10
     heap_store local0 +128 t7
-    call managed-indirect-target0 sp26 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn49(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
+    call managed-indirect-target0 sp26 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn49(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
   fun @scoop.RecordingCompletion.resume(ptr<managed>, i32) -> void
@@ -4503,7 +4503,7 @@ Module
     call managed-void-target0 sp28 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn31(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.deepest$suspend(ptr<managed>, ptr<managed>) -> enum3
+  fun @scoop.deepest$suspend(ptr<managed>, ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
     local %2 $sc.1: enum3
@@ -4519,10 +4519,10 @@ Module
     heap_store local0 +40 t2
     t3 = enum_wrap e10 v0 () : enum10
     heap_store local0 +56 t3
-    call managed-indirect-target0 sp30 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn52(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
+    call managed-indirect-target0 sp30 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn52(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
-  fun @scoop.middle$suspend(ptr<managed>, enum2, ptr<managed>) -> enum3
+  fun @scoop.middle$suspend(ptr<managed>, indirect<enum2 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
     local %2 $sc.1: enum3
@@ -4542,7 +4542,7 @@ Module
     heap_store local0 +80 t4
     t5 = enum_wrap e10 v0 () : enum10
     heap_store local0 +96 t5
-    call managed-indirect-target0 sp32 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn55(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
+    call managed-indirect-target0 sp32 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn55(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
   fun @scoop.makeGarbage() -> void
@@ -4814,11 +4814,11 @@ Module
   block entry
     poll managed-void-target0 sp185 live=[]
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Bundle.$c6(ptr<managed>, ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.Bundle.$c6(ptr<managed>, ptr<managed>) -> sret<struct10 size=16 align=8 scan=refs[0, 8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0
@@ -4858,14 +4858,14 @@ Module
     poll managed-void-target2 sp186 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t11 = heap_load param0 +0 : ptr<metadata>
     call no-gc-direct-target2 t12 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td4)
-    invoke managed-indirect-target0 sp65 roots=[param0:argument, param1:normal+unwind] local5 = sig=indirect0 (sret enum3, ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp65 roots=[param0:argument, param1:normal+unwind] local5 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invoke.normal.1
     store local5 -> local0
     t13 = enum_tag e3 local0 : machine<enum-tag>
     t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended
-  fun @scoop.GcTask.run$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> enum3
+  fun @scoop.GcTask.run$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 this: ptr<managed>
     local %1 $receiver: ptr<managed>
     local %2 $argument.0: ptr<managed>
@@ -4921,7 +4921,8 @@ Module
     local %52 $completed_frame_claim.1: machine<coroutine-frame-state>
     local %53 $protocol_error: ptr<managed>
     local %54 $sc.1: struct10
-    local %55 $sc.2: enum3
+    local %55 $sc.2: enum2
+    local %56 $sc.3: enum3
   block entry
     store global0 -> local1
     store global1 -> local2
@@ -4947,7 +4948,7 @@ Module
     store local10 -> local15
     store local14 -> local16
     store local15 -> local17
-    call no-gc-indirect-target0 local54 = sig=indirect0 (sret struct10, ptr<managed>, ptr<managed>) local-fn47(local16, local17)
+    call no-gc-indirect-target0 local54 = sig=indirect0 (sret struct10 size=16 align=8 scan=refs[0, 8], ptr<managed>, ptr<managed>) local-fn47(local16, local17)
     store local54 -> local18
     store local18 -> local19
     store local19 -> local20
@@ -4971,8 +4972,9 @@ Module
     store t11 -> local48
     heap_store local48 +16 param0
     machine_heap_store coroutine-adapter-state local48 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
-    call managed-indirect-target0 sp72 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local10:ptr<managed>@0, local18:struct10@0+8, local21:enum2@8+16, local24:ptr<managed>@0, local25:enum2@8+16, local48:ptr<managed>@0] local55 = sig=indirect1 (sret enum3, ptr<managed>, enum2, ptr<managed>) local-fn28(local24, local25, local48)
-    store local55 -> local49
+    store local25 -> local55
+    call managed-indirect-target0 sp72 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local10:ptr<managed>@0, local18:struct10@0+8, local21:enum2@8+16, local24:ptr<managed>@0, local48:ptr<managed>@0, local55:enum2@8+16] local56 = sig=indirect1 (sret enum3 size=16 align=8 scan=none, ptr<managed>, indirect<enum2 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) local-fn28(local24, indirect local55, local48)
+    store local56 -> local49
     t12 = enum_tag e3 local49 : machine<enum-tag>
     t13 = MachineEq(EnumTag) t12, machine<enum-tag>(EnumTag(0)) : i1
     cbr t13 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
@@ -5168,7 +5170,7 @@ Module
     heap_store t19 +112 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp88 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn49(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp88 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn49(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
@@ -5246,7 +5248,7 @@ Module
     heap_store t19 +128 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp94 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn49(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp94 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn49(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
@@ -5268,7 +5270,7 @@ Module
     t22 = enum_tag e3 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.deepest$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> enum3
+  fun @scoop.deepest$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 gate: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.gate: ptr<managed>
@@ -5502,7 +5504,7 @@ Module
     heap_store t19 +40 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp109 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn52(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp109 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn52(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
@@ -5590,7 +5592,7 @@ Module
     heap_store t19 +56 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp115 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn52(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp115 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn52(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
@@ -5622,7 +5624,7 @@ Module
     t22 = enum_tag e3 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.middle$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> enum3
+  fun @scoop.middle$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 gate: ptr<managed>
     local %1 payload: enum2
     local %2 $receiver: ptr<managed>
@@ -5672,7 +5674,7 @@ Module
     store t3 -> local25
     heap_store local25 +16 param0
     machine_heap_store coroutine-adapter-state local25 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
-    call managed-indirect-target0 sp118 live=[param0:ptr<managed>@0, local1:enum2@8+16, local5:ptr<managed>@0, local7:ptr<managed>@0, local25:ptr<managed>@0] local31 = sig=indirect0 (sret enum3, ptr<managed>, ptr<managed>) local-fn27(local7, local25)
+    call managed-indirect-target0 sp118 live=[param0:ptr<managed>@0, local1:enum2@8+16, local5:ptr<managed>@0, local7:ptr<managed>@0, local25:ptr<managed>@0] local31 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) local-fn27(local7, local25)
     store local31 -> local26
     t4 = enum_tag e3 local26 : machine<enum-tag>
     t5 = MachineEq(EnumTag) t4, machine<enum-tag>(EnumTag(0)) : i1
@@ -5850,7 +5852,7 @@ Module
     heap_store t19 +80 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp132 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn55(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp132 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn55(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
@@ -5928,7 +5930,7 @@ Module
     heap_store t19 +96 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
-    invoke managed-indirect-target0 sp138 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3, ptr<managed>, machine<coroutine-frame-state>) local-fn55(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp138 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum3 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn55(t21, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))

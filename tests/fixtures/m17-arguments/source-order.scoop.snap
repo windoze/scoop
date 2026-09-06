@@ -3047,7 +3047,7 @@ Module
     store t16 -> local63
     store local63 -> local64
     store local62 -> local65
-    call no-gc-indirect-target0 local122 = sig=indirect0 (sret struct10, i32, i32) local-fn41(local64, local65)
+    call no-gc-indirect-target0 local122 = sig=indirect0 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn41(local64, local65)
     store local122 -> local66
     t17 = extract local66, 0 : i32
     store t17 -> local67
@@ -3287,11 +3287,11 @@ Module
     heap_store param0 +16 param1
     heap_store param0 +20 param2
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Coordinate.$c6(i32, i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Coordinate.$c6(i32, i32) -> sret<struct10 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

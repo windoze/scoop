@@ -18,7 +18,7 @@ fn barrier_module() -> Module {
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // alloc result
     let mut call_targets = CallTargets::default();
-    let alloc_site = direct_site(
+    let mut alloc_site = direct_site(
         &mut call_targets,
         TestCallProtocol::Managed {
             safepoint: 1,
@@ -35,10 +35,18 @@ fn barrier_module() -> Module {
             Value::MachineScalar(MachineScalarValue::ByteSize(24)),
         ],
     );
-    let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature {
-        params: Vec::new(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let live_array = || {
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Param(1),
+            MANAGED_PTR,
+            &[0],
+        )])
+    };
+    set_managed_live(&mut alloc_site, live_array());
+    let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature::new(
+        Vec::new(),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     let poll_target = call_targets
         .managed_targets
         .void
@@ -76,7 +84,7 @@ fn barrier_module() -> Module {
                 site: scoop_lir::ManagedPollSite {
                     target: poll_target,
                     safepoint: test_safepoint(2),
-                    live: scoop_lir::StatepointLiveSet::default(),
+                    live: live_array(),
                 },
             },
             Instruction::Call { site: alloc_site },
@@ -128,8 +136,7 @@ fn barrier_module() -> Module {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![METADATA_PTR, MANAGED_PTR],
-            return_ty: LirType::Void,
+            signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], LirType::Void),
             call_targets,
             locals: Arena::default(),
             temps,

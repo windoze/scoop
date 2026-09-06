@@ -754,6 +754,16 @@ impl EnumDefs {
         self.definitions.iter()
     }
 
+    /// Returns the definition for a possibly untrusted arena identity.
+    ///
+    /// Complete LIR normally carries ids minted by this store, but boundary
+    /// validation must be able to reject a malformed module without indexing
+    /// the arena first.
+    pub fn get(&self, id: EnumDefId) -> Option<&EnumDef> {
+        let index = id.into_raw().into_u32() as usize;
+        (index < self.definitions.len()).then(|| &self.definitions[id])
+    }
+
     pub fn len(&self) -> usize {
         self.definitions.len()
     }

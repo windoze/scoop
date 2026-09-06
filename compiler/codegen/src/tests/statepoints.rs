@@ -125,13 +125,15 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
 #[test]
 fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let mut module = exceptions_module();
-    module.functions[1].params.push(LirType::I64);
+    module.functions[1].signature = plain_scoop_signature(vec![LirType::I64], LirType::I64);
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("the local declaration and typed call target disagree");
     assert!(
-        error.0.contains("does not match the parameters"),
+        error
+            .0
+            .contains("signature or physical convention does not match"),
         "unexpected error: {error}"
     );
 }
@@ -177,10 +179,7 @@ fn native_calls_publish_roots_transition_and_reload() {
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
         gc_effect: GcEffect::Managed,
-        signature: scoop_lir::LirFunctionType {
-            params: vec![MANAGED_PTR],
-            return_type: scoop_lir::LirReturnType::Value(Box::new(MANAGED_PTR)),
-        },
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
     });
 
     let mut safe_targets = CallTargets::default();
@@ -211,8 +210,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let safe = Function {
         gc_effect: GcEffect::Managed,
         symbol: "safe_root".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: safe_targets,
         locals: Arena::default(),
         temps: Arena::default(),
@@ -262,8 +260,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let borrowed_function = Function {
         gc_effect: GcEffect::Managed,
         symbol: "borrowed_result".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: borrowed_targets,
         locals: borrowed_locals,
         temps: borrowed_temps,
@@ -375,8 +372,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "continuation_atomics".to_string(),
-            params: vec![MANAGED_PTR],
-            return_ty: state_ty,
+            signature: plain_scoop_signature(vec![MANAGED_PTR], state_ty),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps,

@@ -151,7 +151,7 @@ pub(super) fn annotate_root_plans(
                         include_managed_operands(
                             context,
                             &mut roots,
-                            site.args().iter().copied(),
+                            site.args().iter().map(|argument| argument.logical_value()),
                             function,
                             structs,
                             enums,
@@ -169,7 +169,7 @@ pub(super) fn annotate_root_plans(
                     lir::CallSite::NativeBorrowed(site) => {
                         let mut borrowed_live = live.clone();
                         for argument in site.call.args() {
-                            if let Some(value) = LiveValue::from_value(*argument)
+                            if let Some(value) = LiveValue::from_value(argument.logical_value())
                                 && root_scan(
                                     context,
                                     live_value_ty(value, function),

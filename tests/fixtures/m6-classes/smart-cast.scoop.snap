@@ -1891,11 +1891,13 @@ Module
     local %15 $call.2: i1
     local %16 $sc.1: struct10
     local %17 $sc.2: struct10
+    local %18 $sc.3: enum1
+    local %19 $sc.4: enum1
   block entry
     poll managed-void-target4 sp67 live=[]
     store integer<Int>(0x00000009) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local16 = sig=indirect0 (sret struct10, i32) local-fn37(local1)
+    call no-gc-indirect-target0 local16 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn37(local1)
     store local16 -> local14
     store local14 -> local17
     t0 = local_address local17 : ptr
@@ -1942,7 +1944,9 @@ Module
     br @if.merge.8
   block if.merge.8
     t13 = enum_wrap e1 v1 () : enum1
-    call managed-direct-target1 sp26 live=[] t14 = sig=direct4 (enum1, enum1) -> i1 local-fn27(local13, t13)
+    store local13 -> local18
+    store t13 -> local19
+    call managed-direct-target1 sp26 live=[] t14 = sig=direct4 (indirect<enum1 size=16 align=8 scan=none>, indirect<enum1 size=16 align=8 scan=none>) -> i1 local-fn27(indirect local18, indirect local19)
     store t14 -> local15
     t15 = Not local15 : i1
     store t15 -> local9
@@ -2007,14 +2011,14 @@ Module
     call native-borrowed-void-target1 sp36 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.S.equals(struct10, struct10) -> i1
+  fun @scoop.S.equals(indirect<struct10 size=4 align=4 scan=none>, indirect<struct10 size=4 align=4 scan=none>) -> i1
   block entry
     poll managed-void-target0 sp71 live=[]
     t0 = extract param0, 0 : i32
     t1 = extract param1, 0 : i32
     t2 = integer_compare_Equal<Int> t0, t1 : i1
     ret t2
-  fun @scoop.Option.equals$D1_SX(enum1, enum1) -> i1
+  fun @scoop.Option.equals$D1_SX(indirect<enum1 size=16 align=8 scan=none>, indirect<enum1 size=16 align=8 scan=none>) -> i1
     local %0 $left.0.0: struct10
     local %1 $right.0.0: struct10
     local %2 $when.1: enum1
@@ -2025,6 +2029,8 @@ Module
     local %7 $when.6: enum1
     local %8 $pattern.subject.7: enum1
     local %9 $call.1: i1
+    local %10 $sc.1: struct10
+    local %11 $sc.2: struct10
   block entry
     poll managed-void-target0 sp72 live=[]
     store param0 -> local2
@@ -2045,7 +2051,9 @@ Module
   block pattern.pass.4
     t4 = variant_payload_project e1 v0 f0 local5 : struct10
     store t4 -> local1
-    call managed-direct-target0 sp37 live=[] t5 = sig=direct0 (struct10, struct10) -> i1 local-fn26(local0, local1)
+    store local0 -> local10
+    store local1 -> local11
+    call managed-direct-target0 sp37 live=[] t5 = sig=direct0 (indirect<struct10 size=4 align=4 scan=none>, indirect<struct10 size=4 align=4 scan=none>) -> i1 local-fn26(indirect local10, indirect local11)
     store t5 -> local9
     ret local9
   block pattern.else.5
@@ -2155,11 +2163,11 @@ Module
     call managed-void-target0 sp44 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn34(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.S.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.S.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

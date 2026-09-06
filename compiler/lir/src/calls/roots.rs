@@ -159,7 +159,7 @@ pub enum CallSite {
 }
 
 impl CallSite {
-    pub fn args(&self) -> &[Value] {
+    pub fn args(&self) -> &[AbiCallArgument] {
         match self {
             Self::Managed(site) => site.call.args(),
             Self::NoGc(site) => site.call.args(),
@@ -174,6 +174,15 @@ impl CallSite {
             Self::NoGc(site) => site.call.direct_out(),
             Self::NativeSafe(site) => site.call.direct_out(),
             Self::NativeBorrowed(site) => site.call.direct_out(),
+        }
+    }
+
+    pub fn result_temp(&self) -> Option<TempId> {
+        match self {
+            Self::Managed(site) => site.call.result_temp(),
+            Self::NoGc(site) => site.call.result_temp(),
+            Self::NativeSafe(site) => site.call.result_temp(),
+            Self::NativeBorrowed(site) => site.call.result_temp(),
         }
     }
 
@@ -237,7 +246,7 @@ pub enum InvokeSite {
 }
 
 impl InvokeSite {
-    pub fn args(&self) -> &[Value] {
+    pub fn args(&self) -> &[AbiCallArgument] {
         match self {
             Self::Managed(site) => site.call.args(),
             Self::NoGc(site) => site.call.args(),
@@ -248,6 +257,13 @@ impl InvokeSite {
         match self {
             Self::Managed(site) => site.call.direct_out(),
             Self::NoGc(site) => site.call.direct_out(),
+        }
+    }
+
+    pub fn result_temp(&self) -> Option<TempId> {
+        match self {
+            Self::Managed(site) => site.call.result_temp(),
+            Self::NoGc(site) => site.call.result_temp(),
         }
     }
 

@@ -1,16 +1,35 @@
 use super::{
-    CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
+    AbiArgument, AbiCallArgument, AbiNonZeroLayout, AbiReturn, AbiValue, AbiZeroSizedLayout,
+    AbiZst, CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
     CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr, EnumVariantRepr,
-    ExternFunctionIdentity, ExternFunctions, ForeignCallbackFailureResult, ForeignCallbackModes,
-    ForeignCallbackStates, ForeignCallbackStatus, GcEffect, InitializationOutcome,
-    InternalPointerCarrier, LirFunctionType, LirReturnType, LirTargetProfile, LirType,
-    LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
-    ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
-    NativeBorrowedResultRoot, NativeSafeCallDestination, NichePointerKind, NonEmptyRefScan,
-    PointerKind, PointerNullEncoding, RefScan, ResultStorage, ScoopExternFunction,
-    ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallView, Value, VoidCallSignature,
+    DirectCallSignature, ElidedZstCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr,
+    EnumVariantRepr, ExternFunctionIdentity, ExternFunctions, ForeignCallbackFailureResult,
+    ForeignCallbackModes, ForeignCallbackStates, ForeignCallbackStatus, GcEffect,
+    IndirectResultCallSignature, IndirectResultConvention, InitializationOutcome,
+    InternalPointerCarrier, LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind,
+    MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
+    NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
+    NativeSafeCallDestination, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
+    RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
+    TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
+
+fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue {
+    AbiValue::new(
+        ty,
+        AbiNonZeroLayout::new(size, alignment).expect("test ABI layout must be valid"),
+        scan,
+    )
+    .expect("test ABI value must be valid")
+}
+
+fn abi_zst(ty: LirType, alignment: u64) -> AbiZst {
+    AbiZst::new(
+        ty,
+        AbiZeroSizedLayout::new(alignment).expect("test ZST layout must be valid"),
+    )
+    .expect("test ABI ZST must be valid")
+}
 
 #[test]
 fn darwin_aarch64_profile_fixes_every_backend_scalar_layout() {
@@ -283,10 +302,9 @@ fn local_function_registry_produces_effect_refined_identities() {
 #[test]
 fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
     let mut targets = CallTargets::default();
-    let void_signature = targets.void_signatures.alloc(VoidCallSignature {
-        params: Vec::new(),
-        calling_convention: CallingConvention::Cdecl,
-    });
+    let void_signature = targets
+        .void_signatures
+        .alloc(VoidCallSignature::new(Vec::new(), CallingConvention::Cdecl));
     let void_target = targets.managed_targets.void.alloc(CallTarget {
         destination: ManagedCallDestination::runtime(ManagedRuntimeFunction::GcCollect),
         signature: void_signature,
@@ -296,12 +314,12 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
         args: Vec::new(),
     };
 
-    let direct_signature = targets.direct_signatures.alloc(DirectCallSignature {
-        params: vec![LirType::I64],
-        result: LirType::I64,
-        result_scan: RefScan::None,
-        calling_convention: CallingConvention::Cdecl,
-    });
+    let i64_value = abi_value(LirType::I64, 8, 8, RefScan::None);
+    let direct_signature = targets.direct_signatures.alloc(DirectCallSignature::new(
+        vec![AbiArgument::Direct(i64_value.clone())],
+        i64_value,
+        CallingConvention::Cdecl,
+    ));
     let mut local_functions = LocalFunctionIdentities::default();
     let local_function = (0..=7)
         .map(|_| local_functions.alloc_managed())
@@ -314,7 +332,28 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
     let direct_call = TypedCall::Direct {
         target: direct_target,
         out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
-        args: vec![Value::IntegerConst(super::LirIntegerConstant::Signed64(1))],
+        args: vec![AbiCallArgument::Direct(Value::IntegerConst(
+            super::LirIntegerConstant::Signed64(1),
+        ))],
+    };
+
+    let zst = abi_zst(LirType::Aggregate(Vec::new()), 1);
+    let elided_signature = targets
+        .elided_zst_signatures
+        .alloc(ElidedZstCallSignature::new(
+            Vec::new(),
+            zst,
+            CallingConvention::Cdecl,
+        ));
+    let elided_target = targets.managed_targets.elided_zst.alloc(CallTarget {
+        destination: ManagedCallDestination::local(local_function),
+        signature: elided_signature,
+    });
+    let elided_out = super::TempId::from_raw(la_arena::RawIdx::from_u32(1));
+    let elided_call = TypedCall::ElidedZst {
+        target: elided_target,
+        out: elided_out,
+        args: Vec::new(),
     };
 
     let void_view = targets.typed_call_view(
@@ -327,53 +366,74 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
         &targets.managed_targets,
         ManagedCallDestination::view,
     );
+    let elided_view = targets.typed_call_view(
+        &elided_call,
+        &targets.managed_targets,
+        ManagedCallDestination::view,
+    );
 
-    assert!(matches!(
-        void_view,
-        TypedCallView::Void {
-            destination: CallDestination::Runtime(_),
-            signature: VoidCallSignature { params, .. },
-            ..
-        } if params.is_empty()
-    ));
-    assert!(matches!(
-        direct_view,
-        TypedCallView::Direct {
-            destination: CallDestination::Local(_),
-            signature: DirectCallSignature { params, result: LirType::I64, .. },
-            ..
-        } if params == &[LirType::I64]
-    ));
+    let TypedCallView::Void {
+        destination,
+        signature,
+        ..
+    } = void_view
+    else {
+        panic!("void target must preserve its return arm");
+    };
+    assert!(matches!(destination, CallDestination::Runtime(_)));
+    assert!(signature.arguments().is_empty());
+
+    let TypedCallView::Direct {
+        destination,
+        signature,
+        ..
+    } = direct_view
+    else {
+        panic!("direct target must preserve its return arm");
+    };
+    assert!(matches!(destination, CallDestination::Local(_)));
+    assert!(matches!(signature.arguments(), [AbiArgument::Direct(_)]));
+    assert_eq!(signature.result().storage_type(), &LirType::I64);
+
+    assert_eq!(elided_view.result(), TypedCallResult::ElidedZst(elided_out));
+    let TypedCallView::ElidedZst { signature, .. } = elided_view else {
+        panic!("non-Unit ZST must not collapse into the void arm");
+    };
+    assert_eq!(
+        signature.result().storage_type(),
+        &LirType::Aggregate(Vec::new())
+    );
 }
 
 #[test]
 fn native_borrowed_result_publication_is_sealed_with_return_convention() {
     let mut functions = ExternFunctions::default();
-    let function = functions.alloc_scoop(ScoopExternFunction {
+    let result_scan = RefScan::References(vec![0]);
+    let direct_result = abi_value(super::MANAGED_PTR, 8, 8, result_scan.clone());
+    let direct_function = functions.alloc_scoop(ScoopExternFunction {
         identity: ExternFunctionIdentity {
-            source_name: "borrowed".to_string(),
-            native_symbol: "native_borrowed".to_string(),
+            source_name: "borrowed_direct".to_string(),
+            native_symbol: "native_borrowed_direct".to_string(),
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
         gc_effect: GcEffect::Managed,
-        signature: LirFunctionType {
-            params: Vec::new(),
-            return_type: LirReturnType::Value(Box::new(super::MANAGED_PTR)),
-        },
+        signature: ScoopAbiSignature::new(
+            Vec::new(),
+            AbiReturn::Direct(direct_result.clone()),
+            CallingConvention::Cdecl,
+        ),
     });
-    let destination = NativeBorrowedCallDestination::extern_function(function);
+    let direct_destination = NativeBorrowedCallDestination::extern_function(direct_function);
     let mut targets = CallTargets::default();
-    let result_scan = RefScan::References(vec![0]);
 
-    let direct_signature = targets.direct_signatures.alloc(DirectCallSignature {
-        params: Vec::new(),
-        result: super::MANAGED_PTR,
-        result_scan: result_scan.clone(),
-        calling_convention: CallingConvention::Cdecl,
-    });
+    let direct_signature = targets.direct_signatures.alloc(DirectCallSignature::new(
+        Vec::new(),
+        direct_result,
+        CallingConvention::Cdecl,
+    ));
     let direct_target = targets.native_borrowed_targets.direct.alloc(CallTarget {
-        destination,
+        destination: direct_destination,
         signature: direct_signature,
     });
     let direct_storage = super::LocalId::from_raw(la_arena::RawIdx::from_u32(0));
@@ -395,23 +455,80 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
             if storage == direct_storage && scan.as_ref_scan() == &result_scan
     ));
 
+    let zst_result = abi_zst(LirType::Aggregate(Vec::new()), 8);
+    let elided_function = functions.alloc_scoop(ScoopExternFunction {
+        identity: ExternFunctionIdentity {
+            source_name: "borrowed_zst".to_string(),
+            native_symbol: "native_borrowed_zst".to_string(),
+            library: "test".to_string(),
+            calling_convention: CallingConvention::Cdecl,
+        },
+        gc_effect: GcEffect::Managed,
+        signature: ScoopAbiSignature::new(
+            Vec::new(),
+            AbiReturn::ElidedZst(zst_result.clone()),
+            CallingConvention::Cdecl,
+        ),
+    });
+    let elided_signature = targets
+        .elided_zst_signatures
+        .alloc(ElidedZstCallSignature::new(
+            Vec::new(),
+            zst_result,
+            CallingConvention::Cdecl,
+        ));
+    let elided_target = targets
+        .native_borrowed_targets
+        .elided_zst
+        .alloc(CallTarget {
+            destination: NativeBorrowedCallDestination::extern_function(elided_function),
+            signature: elided_signature,
+        });
+    let elided_out = super::TempId::from_raw(la_arena::RawIdx::from_u32(1));
+    let elided = targets.bind_native_borrowed_call(
+        TypedCall::ElidedZst {
+            target: elided_target,
+            out: elided_out,
+            args: Vec::new(),
+        },
+        NativeBorrowedResultRoot::GcFree,
+    );
+    let elided = elided.view(&targets);
+    assert_eq!(elided.call.result(), TypedCallResult::ElidedZst(elided_out));
+    assert!(matches!(
+        elided.result,
+        NativeBorrowedResultPublication::ElidedZst
+    ));
+
     let indirect_storage = super::LocalId::from_raw(la_arena::RawIdx::from_u32(1));
+    let indirect_result = abi_value(super::MANAGED_PTR, 8, 8, result_scan.clone());
+    let indirect_function = functions.alloc_scoop(ScoopExternFunction {
+        identity: ExternFunctionIdentity {
+            source_name: "borrowed_indirect".to_string(),
+            native_symbol: "native_borrowed_indirect".to_string(),
+            library: "test".to_string(),
+            calling_convention: CallingConvention::Cdecl,
+        },
+        gc_effect: GcEffect::Managed,
+        signature: ScoopAbiSignature::new(
+            Vec::new(),
+            AbiReturn::Indirect(indirect_result.clone()),
+            CallingConvention::Cdecl,
+        ),
+    });
     let indirect_signature =
         targets
             .indirect_result_signatures
-            .alloc(super::IndirectResultCallSignature {
-                params: Vec::new(),
-                result: ResultStorage {
-                    ty: super::MANAGED_PTR,
-                    scan: result_scan.clone(),
-                },
-                calling_convention: CallingConvention::Cdecl,
-            });
+            .alloc(IndirectResultCallSignature::scoop_sret(
+                Vec::new(),
+                indirect_result,
+                CallingConvention::Cdecl,
+            ));
     let indirect_target = targets
         .native_borrowed_targets
         .indirect_result
         .alloc(CallTarget {
-            destination,
+            destination: NativeBorrowedCallDestination::extern_function(indirect_function),
             signature: indirect_signature,
         });
     let indirect = targets.bind_native_borrowed_call(
@@ -425,11 +542,78 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
         },
     );
     let indirect = indirect.view(&targets);
+    let TypedCallView::IndirectResult { signature, .. } = indirect.call else {
+        panic!("indirect target must preserve its return arm");
+    };
+    assert_eq!(signature.convention(), IndirectResultConvention::ScoopSret);
     assert!(matches!(
         indirect.result,
         NativeBorrowedResultPublication::IndirectResultRooted { storage, scan }
             if storage == indirect_storage && scan.as_ref_scan() == &result_scan
     ));
+}
+
+#[test]
+fn indirect_result_signatures_keep_scoop_and_c_pointer_conventions_distinct() {
+    let result = abi_value(
+        LirType::Aggregate(vec![LirType::I64, LirType::I64]),
+        16,
+        8,
+        RefScan::None,
+    );
+    let scoop = IndirectResultCallSignature::scoop_sret(
+        Vec::new(),
+        result.clone(),
+        CallingConvention::Cdecl,
+    );
+    let c_bridge = IndirectResultCallSignature::c_storage_pointer(
+        Vec::new(),
+        result,
+        CallingConvention::Cdecl,
+    );
+
+    assert_eq!(scoop.convention(), IndirectResultConvention::ScoopSret);
+    assert_eq!(
+        c_bridge.convention(),
+        IndirectResultConvention::CStoragePointer
+    );
+    assert_eq!(scoop.result(), c_bridge.result());
+}
+
+#[test]
+fn function_parameters_keep_logical_types_across_abi_conventions() {
+    let zst_ty = LirType::Aggregate(Vec::new());
+    let indirect_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
+    let signature = ScoopAbiSignature::new(
+        vec![
+            AbiArgument::ElidedZst(abi_zst(zst_ty.clone(), 1)),
+            AbiArgument::Direct(abi_value(LirType::I64, 8, 8, RefScan::None)),
+            AbiArgument::Indirect(abi_value(indirect_ty.clone(), 16, 8, RefScan::None)),
+        ],
+        AbiReturn::UnitVoid,
+        CallingConvention::Cdecl,
+    );
+    let mut blocks = la_arena::Arena::new();
+    let entry = blocks.alloc(super::BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: super::Terminator::Return { value: None },
+    });
+    let function = super::Function {
+        gc_effect: GcEffect::NoGc,
+        symbol: "logical_params".to_string(),
+        signature,
+        call_targets: CallTargets::default(),
+        locals: la_arena::Arena::new(),
+        temps: la_arena::Arena::new(),
+        blocks,
+        entry,
+    };
+    let globals = la_arena::Arena::new();
+
+    assert_eq!(function.value_ty(&globals, Value::Param(0)), zst_ty);
+    assert_eq!(function.value_ty(&globals, Value::Param(1)), LirType::I64);
+    assert_eq!(function.value_ty(&globals, Value::Param(2)), indirect_ty);
 }
 
 #[test]
@@ -456,10 +640,11 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
             calling_convention: CallingConvention::Cdecl,
         },
         gc_effect: GcEffect::Managed,
-        signature: LirFunctionType {
-            params: Vec::new(),
-            return_type: LirReturnType::Void,
-        },
+        signature: ScoopAbiSignature::new(
+            Vec::new(),
+            AbiReturn::UnitVoid,
+            CallingConvention::Cdecl,
+        ),
     });
 
     let c = c_ref.declaration();

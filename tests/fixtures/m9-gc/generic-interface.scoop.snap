@@ -2009,7 +2009,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.IntValue.get(struct10) -> i32
+  fun @scoop.IntValue.get(indirect<struct10 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp88 live=[]
     t0 = extract param0, 0 : i32
@@ -2118,8 +2118,10 @@ Module
     local %35 $new.6: ptr<managed>
     local %36 $new.7: ptr<managed>
     local %37 $sc.1: struct10
-    local %38 $sc.2: struct11
-    local %39 $sc.3: i32
+    local %38 $sc.2: struct10
+    local %39 $sc.3: struct11
+    local %40 $sc.4: struct11
+    local %41 $sc.5: i32
   block entry
     poll managed-void-target13 sp96 live=[]
     call managed-direct-target0 sp26 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(16)))
@@ -2165,18 +2167,20 @@ Module
     t17 = aggregate () : {}
     store integer<Int>(0x00000008) -> local11
     store local11 -> local12
-    call no-gc-indirect-target0 local37 = sig=indirect0 (sret struct10, i32) local-fn48(local12)
+    call no-gc-indirect-target0 local37 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn48(local12)
     store local37 -> local13
-    call managed-direct-target6 sp39 live=[] t18 = sig=direct8 (struct10) -> i32 local-fn19(local13)
+    store local13 -> local38
+    call managed-direct-target6 sp39 live=[] t18 = sig=direct8 (indirect<struct10 size=4 align=4 scan=none>) -> i32 local-fn19(indirect local38)
     store t18 -> local14
     store local14 -> local15
     call managed-void-target7 sp40 live=[] sig=void7 (i32) local-fn29(local15)
     t19 = aggregate () : {}
     store integer<Int>(0x0000000a) -> local16
     store local16 -> local17
-    call no-gc-indirect-target1 local38 = sig=indirect1 (sret struct11, i32) local-fn49(local17)
-    store local38 -> local18
-    call managed-direct-target7 sp41 live=[] t20 = sig=direct9 (struct11) -> i32 local-fn32(local18)
+    call no-gc-indirect-target1 local39 = sig=indirect1 (sret struct11 size=4 align=4 scan=none, i32) local-fn49(local17)
+    store local39 -> local18
+    store local18 -> local40
+    call managed-direct-target7 sp41 live=[] t20 = sig=direct9 (indirect<struct11 size=4 align=4 scan=none>) -> i32 local-fn32(indirect local40)
     store t20 -> local19
     store local19 -> local20
     call managed-void-target8 sp42 live=[] sig=void8 (i32) local-fn29(local20)
@@ -2186,8 +2190,8 @@ Module
     call managed-void-target9 sp44 live=[local35:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn46(local35)
     t23 = aggregate () : {}
     store local35 -> local21
-    store integer<Int>(0x00000009) -> local39
-    t24 = local_address local39 : ptr
+    store integer<Int>(0x00000009) -> local41
+    t24 = local_address local41 : ptr
     call managed-direct-target9 sp45 live=[local21:ptr<managed>@0] t25 = sig=direct11 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td13, t24, machine<byte-size>(ByteSize(4)), root-scan0)
     store t25 -> local22
     store local22 -> local23
@@ -2275,7 +2279,7 @@ Module
     call native-borrowed-void-target1 sp60 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Value.get$I32(struct11) -> i32
+  fun @scoop.Value.get$I32(indirect<struct11 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp101 live=[]
     t0 = extract param0, 0 : i32
@@ -2405,15 +2409,15 @@ Module
   block entry
     poll managed-void-target0 sp115 live=[]
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.IntValue.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.IntValue.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
-  fun @scoop.ctor.Value$I32.$c7(i32) -> struct11 <no-gc>
+  fun @scoop.ctor.Value$I32.$c7(i32) -> sret<struct11 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct11
     ret t0

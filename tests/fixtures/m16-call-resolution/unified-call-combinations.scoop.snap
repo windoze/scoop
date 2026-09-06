@@ -1933,7 +1933,7 @@ Module
     call managed-direct-target2 sp26 live=[] t3 = sig=direct2 (i32) -> i32 local-fn26(local4)
     store t3 -> local5
     store local5 -> local6
-    call no-gc-indirect-target0 local31 = sig=indirect0 (sret struct10, i32) local-fn38(local6)
+    call no-gc-indirect-target0 local31 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn38(local6)
     store local31 -> local7
     t4 = extract local7, 0 : i32
     store t4 -> local8
@@ -2136,11 +2136,11 @@ Module
     call managed-void-target0 sp47 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn35(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Box$I32.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Box$I32.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

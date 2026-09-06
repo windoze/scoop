@@ -25,8 +25,7 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
     Function {
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
-        params: Vec::new(),
-        return_ty: constant.scalar_type(),
+        signature: plain_scoop_signature(Vec::new(), constant.scalar_type()),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -54,8 +53,7 @@ fn instruction_module(
     module_with_functions(vec![Function {
         gc_effect: GcEffect::NoGc,
         symbol: "integer_test".to_string(),
-        params,
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(params, LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps,

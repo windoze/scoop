@@ -2045,6 +2045,8 @@ Module
     local %28 $new.2: ptr<managed>
     local %29 $new.3: ptr<managed>
     local %30 $sc.1: struct10
+    local %31 $sc.2: enum1
+    local %32 $sc.3: enum1
   block entry
     poll managed-void-target9 sp77 live=[]
     store integer<Int>(0x0000002a) -> local0
@@ -2064,7 +2066,7 @@ Module
     store global1 -> local7
     store local6 -> local8
     store local7 -> local9
-    call no-gc-indirect-target0 local30 = sig=indirect0 (sret struct10, ptr<managed>, ptr<managed>) local-fn43(local8, local9)
+    call no-gc-indirect-target0 local30 = sig=indirect0 (sret struct10 size=16 align=8 scan=refs[0, 8], ptr<managed>, ptr<managed>) local-fn43(local8, local9)
     store local30 -> local10
     t4 = extract local10, 0 : ptr<managed>
     store t4 -> local11
@@ -2079,7 +2081,9 @@ Module
     t8 = enum_wrap e1 v0 () : enum1
     store t8 -> local15
     t9 = enum_wrap e1 v0 () : enum1
-    call managed-direct-target2 sp29 live=[] t10 = sig=direct2 (enum1, enum1) -> i1 local-fn28(local15, t9)
+    store local15 -> local31
+    store t9 -> local32
+    call managed-direct-target2 sp29 live=[] t10 = sig=direct2 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 local-fn28(indirect local31, indirect local32)
     store t10 -> local16
     store local16 -> local17
     call managed-void-target4 sp30 live=[] sig=void4 (i1) local-fn26(local17)
@@ -2170,7 +2174,7 @@ Module
     poll managed-void-target0 sp81 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop.Outer.Flag.equals(enum1, enum1) -> i1
+  fun @scoop.Outer.Flag.equals(indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1
     local %0 $when.1: enum1
     local %1 $pattern.subject.2: enum1
     local %2 $when.3: enum1
@@ -2324,11 +2328,11 @@ Module
     poll managed-void-target0 sp95 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Outer.Pair$S.$c6(ptr<managed>, ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.Outer.Pair$S.$c6(ptr<managed>, ptr<managed>) -> sret<struct10 size=16 align=8 scan=refs[0, 8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

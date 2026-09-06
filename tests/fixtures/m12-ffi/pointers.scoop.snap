@@ -2341,7 +2341,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Slot.rewriteThis(struct10) -> i32 <no-gc>
+  fun @scoop.Slot.rewriteThis(indirect<struct10 size=4 align=4 scan=none>) -> i32 <no-gc>
     local %0 this: struct10
     local %1 $argument.0: struct10
     local %2 $parameter.value: struct10
@@ -2361,7 +2361,7 @@ Module
     store local3 -> local6
     store integer<Int>(0x0000000d) -> local4
     store local4 -> local5
-    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct10, i32) local-fn36(local5)
+    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn36(local5)
     store local9 -> local7
     store local7 -> local8
     raw_store local6 local8 align 4
@@ -2513,9 +2513,10 @@ Module
     local %81 $pattern.subject.2: enum2
     local %82 $pattern.subject.3: enum2
     local %83 $sc.1: struct10
-    local %84 $sc.2: i64
-    local %85 $sc.3: ptr<raw>
+    local %84 $sc.2: struct10
+    local %85 $sc.3: i64
     local %86 $sc.4: ptr<raw>
+    local %87 $sc.5: ptr<raw>
   block entry
     poll managed-void-target10 sp66 live=[]
     store integer<ULong>(0x0000000000000004) -> local0
@@ -2605,18 +2606,19 @@ Module
     t22 = aggregate () : {}
     store integer<Int>(0x00000000) -> local53
     store local53 -> local54
-    call no-gc-indirect-target0 local83 = sig=indirect0 (sret struct10, i32) local-fn36(local54)
+    call no-gc-indirect-target0 local83 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn36(local54)
     store local83 -> local55
-    call no-gc-direct-target1 t23 = sig=direct1 (struct10) -> i32 local-fn19(local55)
+    store local55 -> local84
+    call no-gc-direct-target1 t23 = sig=direct1 (indirect<struct10 size=4 align=4 scan=none>) -> i32 local-fn19(indirect local84)
     store t23 -> local56
     store local56 -> local57
     call managed-void-target6 sp28 live=[] sig=void6 (i32) local-fn26(local57)
     t24 = aggregate () : {}
     store integer<ULong>(0x0000000000000004) -> local58
     store local58 -> local59
-    store local59 -> local84
-    call native-safe-indirect-target0 sp29 roots=[] local85 = sig=indirect1 (sret ptr<raw>, ptr<raw>) extern10(c-arg-address(local84))
-    store local85 -> local60
+    store local59 -> local85
+    call native-safe-indirect-target0 sp29 roots=[] local86 = sig=indirect1 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern10(c-arg-address(local85))
+    store local86 -> local60
     store local60 -> local61
     store local61 -> local62
     store integer<Int>(0x0000000e) -> local63
@@ -2632,8 +2634,8 @@ Module
     store local61 -> local68
     store local68 -> local69
     store local69 -> local70
-    store local70 -> local86
-    call native-safe-void-target0 sp31 roots=[] sig=void8 (ptr<raw>) extern11(c-arg-address(local86))
+    store local70 -> local87
+    call native-safe-void-target0 sp31 roots=[] sig=void8 (ptr<raw>) extern11(c-arg-address(local87))
     t28 = aggregate () : {}
     store local8 -> local71
     store local71 -> local72
@@ -2782,11 +2784,11 @@ Module
     call managed-void-target0 sp43 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn33(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Slot.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Slot.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

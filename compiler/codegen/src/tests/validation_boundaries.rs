@@ -31,6 +31,34 @@ fn module_with_invalid_invoke_unwind() -> Module {
     module
 }
 
+fn module_with_nonterminal_invoke_and_invalid_edges() -> Module {
+    let mut module = exceptions_module();
+    let invalid = scoop_lir::BlockId::from_raw(99.into());
+    let mut corrupted = false;
+    'functions: for function in &mut module.functions {
+        for (_, block) in function.blocks.iter_mut() {
+            let Some(Instruction::Invoke { site }) = block.instructions.last_mut() else {
+                continue;
+            };
+            match site {
+                scoop_lir::InvokeSite::Managed(site) => {
+                    site.normal = invalid;
+                    site.unwind = invalid;
+                }
+                scoop_lir::InvokeSite::NoGc(site) => {
+                    site.normal = invalid;
+                    site.unwind = invalid;
+                }
+            }
+            block.instructions.push(Instruction::EndCatch);
+            corrupted = true;
+            break 'functions;
+        }
+    }
+    assert!(corrupted, "EH fixture must have an invoke");
+    module
+}
+
 fn assert_validation_error<T>(
     outcome: std::thread::Result<Result<T, CodegenError>>,
     expected: &str,
@@ -92,6 +120,16 @@ fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
     );
 }
 
+#[test]
+fn root_plan_validation_rejects_nonterminal_invoke_before_indexing_its_edges() {
+    let module = module_with_nonterminal_invoke_and_invalid_edges();
+    assert_public_entries_reject(
+        &module,
+        "invoke @scoop.eh_test: must be the last instruction of block entry",
+        "nonterminal_invoke",
+    );
+}
+
 fn invalid_temp() -> scoop_lir::TempId {
     scoop_lir::TempId::from_raw(99.into())
 }
@@ -111,9 +149,15 @@ fn module_with_invalid_callback_state_output() -> Module {
     let mut module = values_module();
     let family = super::c_layout::foreign_callback_family(&mut module);
     let callback = module.foreign_callback_families[family].callback;
+    let signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![LirType::Struct(callback)],
+        LirType::Void,
+    );
     let function = &mut module.functions[0];
-    let parameter = function.params.len() as u32;
-    function.params.push(LirType::Struct(callback));
+    let parameter = function.signature.logical_argument_count() as u32;
+    function.signature = signature;
     function.blocks[function.entry]
         .instructions
         .push(Instruction::ForeignCallbackOperation(
@@ -142,8 +186,10 @@ fn callback_adapter(symbol: &str) -> Function {
     Function {
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),
-        params: vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
-        return_ty: LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        signature: plain_scoop_signature(
+            vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
+            LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        ),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -182,9 +228,10 @@ fn malformed_callback_registration(corruption: CallbackRegistrationCorruption) -
             context_index: 0,
             mode,
         });
+    let signature = plain_scoop_signature(vec![MANAGED_PTR], LirType::Void);
     let function = &mut module.functions[0];
-    let closure_parameter = function.params.len() as u32;
-    function.params.push(MANAGED_PTR);
+    let closure_parameter = function.signature.logical_argument_count() as u32;
+    function.signature = signature;
     let valid_out = function.temps.alloc(Temp {
         ty: LirType::Struct(callback),
     });
@@ -224,9 +271,15 @@ fn malformed_callback_operation(corruption: CallbackOperationCorruption) -> Modu
     let family = super::c_layout::foreign_callback_family(&mut module);
     let callback_struct = module.foreign_callback_families[family].callback;
     let state = module.foreign_callback_families[family].states.definition();
+    let signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![LirType::Struct(callback_struct)],
+        LirType::Void,
+    );
     let function = &mut module.functions[0];
-    let callback_parameter = function.params.len() as u32;
-    function.params.push(LirType::Struct(callback_struct));
+    let callback_parameter = function.signature.logical_argument_count() as u32;
+    function.signature = signature;
     let valid_out = function.temps.alloc(Temp {
         ty: LirType::Enum(state),
     });
@@ -428,4 +481,276 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
         let module = malformed_callback_operation(corruption);
         assert_module_validation_error(&module, expected);
     }
+}
+
+fn root_plan_test_module(
+    functions: Vec<Function>,
+    extern_functions: scoop_lir::ExternFunctions,
+    entry_symbol: &str,
+) -> Module {
+    Module {
+        globals: Arena::new(),
+        initialization_units: Arena::new(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
+        extern_functions,
+        native_globals: Arena::new(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        functions,
+        entry_symbol: entry_symbol.to_string(),
+        meta: string_metadata(),
+    }
+}
+
+fn managed_indirect_argument_root_module() -> Module {
+    let aggregate = LirType::Aggregate(vec![MANAGED_PTR, LirType::I64, LirType::I64]);
+    let abi_value = abi_value_with_layout(aggregate.clone(), 24, 8, RefScan::References(vec![0]));
+    let callee_signature = scoop_lir::ScoopAbiSignature::new(
+        vec![scoop_lir::AbiArgument::Indirect(abi_value.clone())],
+        scoop_lir::AbiReturn::UnitVoid,
+        scoop_lir::CallingConvention::Cdecl,
+    );
+    let mut callee_blocks = Arena::new();
+    let callee_entry = callee_blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    let callee = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.root_plan_indirect_callee".to_string(),
+        signature: callee_signature,
+        call_targets: CallTargets::default(),
+        locals: Arena::new(),
+        temps: Arena::new(),
+        blocks: callee_blocks,
+        entry: callee_entry,
+    };
+
+    let mut locals = Arena::new();
+    let argument = locals.alloc(Local {
+        name: "indirect_argument".to_string(),
+        ty: aggregate.clone(),
+    });
+    let mut temps = Arena::new();
+    let value = temps.alloc(Temp {
+        ty: aggregate.clone(),
+    });
+    let mut targets = CallTargets::default();
+    let signature = targets.void_signatures.alloc(VoidCallSignature::new(
+        vec![scoop_lir::AbiArgument::Indirect(abi_value.clone())],
+        scoop_lir::CallingConvention::Cdecl,
+    ));
+    let storage = scoop_lir::AbiArgumentStorage::new(argument, &locals[argument].ty, &abi_value)
+        .expect("test indirect argument has exact storage");
+    let site = protocol_site(
+        &mut targets,
+        TestCallProtocol::Managed {
+            safepoint: 700,
+            destination: managed_local(0),
+        },
+        TestTypedCall::Void {
+            signature,
+            args: vec![scoop_lir::AbiCallArgument::Indirect(storage)],
+        },
+    );
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![
+            Instruction::MakeAggregate {
+                out: value,
+                elements: vec![Value::Param(0), signed64(1), signed64(2)],
+            },
+            Instruction::Store {
+                local: argument,
+                value: Value::Temp(value),
+            },
+            Instruction::Call { site },
+        ],
+        terminator: Terminator::Return { value: None },
+    });
+    let caller = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.root_plan_indirect_caller".to_string(),
+        signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
+        call_targets: targets,
+        locals,
+        temps,
+        blocks,
+        entry,
+    };
+    root_plan_test_module(
+        vec![callee, caller],
+        scoop_lir::ExternFunctions::default(),
+        "scoop.root_plan_indirect_caller",
+    )
+}
+
+fn native_borrowed_root_module(scan: RefScan) -> Module {
+    let mut extern_functions = scoop_lir::ExternFunctions::default();
+    let external = extern_functions.alloc_scoop(scoop_lir::ScoopExternFunction {
+        identity: scoop_lir::ExternFunctionIdentity {
+            source_name: "rootPlanBorrowed".to_string(),
+            native_symbol: "root_plan_borrowed".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+        },
+        gc_effect: GcEffect::Managed,
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+    });
+    let mut targets = CallTargets::default();
+    let mut site = void_site(
+        &mut targets,
+        TestCallProtocol::NativeBorrowed {
+            safepoint: 701,
+            destination: scoop_lir::NativeBorrowedCallDestination::extern_function(external),
+            result: NativeBorrowedResultRoot::GcFree,
+        },
+        Vec::new(),
+        Vec::new(),
+    );
+    let CallSite::NativeBorrowed(native_site) = &mut site else {
+        unreachable!("test constructs a native-borrowed call")
+    };
+    native_site.roots = scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
+        source: scoop_lir::CallerRootSource::Param(0),
+        scan: scoop_lir::NonEmptyRefScan::new(scan).expect("test root scan is non-empty"),
+    }]);
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Call { site }],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let caller = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.root_plan_borrowed_caller".to_string(),
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
+        call_targets: targets,
+        locals: Arena::new(),
+        temps: Arena::new(),
+        blocks,
+        entry,
+    };
+    root_plan_test_module(
+        vec![caller],
+        extern_functions,
+        "scoop.root_plan_borrowed_caller",
+    )
+}
+
+fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
+    let mut callee_blocks = Arena::new();
+    let callee_entry = callee_blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    let callee = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.root_plan_invoke_callee".to_string(),
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+        call_targets: CallTargets::default(),
+        locals: Arena::new(),
+        temps: Arena::new(),
+        blocks: callee_blocks,
+        entry: callee_entry,
+    };
+
+    let mut targets = CallTargets::default();
+    let call = void_site(
+        &mut targets,
+        TestCallProtocol::Managed {
+            safepoint: 702,
+            destination: managed_local(0),
+        },
+        Vec::new(),
+        Vec::new(),
+    );
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Unreachable,
+    });
+    let normal = blocks.alloc(BasicBlock {
+        name: "normal".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let unwind = blocks.alloc(BasicBlock {
+        name: "unwind".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let mut invoke = managed_invoke(call, normal, unwind);
+    let scoop_lir::InvokeSite::Managed(site) = &mut invoke else {
+        unreachable!("test constructs a managed invoke")
+    };
+    site.roots = scoop_lir::ExceptionalRootSet::new(vec![scoop_lir::ExceptionalRoot {
+        root: scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Param(0),
+            scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0]))
+                .expect("managed pointer has one root"),
+        },
+        normal_live,
+        unwind_live,
+    }]);
+    blocks[entry] = BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Invoke { site: invoke }],
+        terminator: Terminator::Br(normal),
+    };
+    let caller = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.root_plan_invoke_caller".to_string(),
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
+        call_targets: targets,
+        locals: Arena::new(),
+        temps: Arena::new(),
+        blocks,
+        entry,
+    };
+    root_plan_test_module(
+        vec![callee, caller],
+        scoop_lir::ExternFunctions::default(),
+        "scoop.root_plan_invoke_caller",
+    )
+}
+
+#[test]
+fn root_plan_validation_rejects_omitted_indirect_argument_root() {
+    let module = managed_indirect_argument_root_module();
+    assert_module_validation_error(
+        &module,
+        "root plan has 0 entries, expected 1 complete entries",
+    );
+}
+
+#[test]
+fn root_plan_validation_rejects_noncanonical_caller_scan() {
+    let module = native_borrowed_root_module(RefScan::References(vec![8]));
+    assert_module_validation_error(
+        &module,
+        "root param0 has scan refs[8], expected canonical refs[0]",
+    );
+}
+
+#[test]
+fn root_plan_validation_rejects_incorrect_invoke_edge_flags() {
+    let module = managed_invoke_root_module(true, false);
+    assert_module_validation_error(
+        &module,
+        "root param0 has edge flags normal_live=true/unwind_live=false, expected true/true",
+    );
 }

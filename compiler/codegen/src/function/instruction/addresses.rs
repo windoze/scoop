@@ -303,7 +303,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     *safepoint,
                 )?;
                 self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
+                self.finish_native_transition(
+                    transition,
+                    NativeTransitionKind::Safe,
+                    roots.as_slice(),
+                )?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
                     .map_err(|error| CodegenError(format!("native global load: {error}")))?;
@@ -353,7 +357,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     *safepoint,
                 )?;
                 self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
+                self.finish_native_transition(
+                    transition,
+                    NativeTransitionKind::Safe,
+                    roots.as_slice(),
+                )?;
             }
             Instruction::NativeGlobalAddress {
                 out,
@@ -384,7 +392,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     *safepoint,
                 )?;
                 self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
+                self.finish_native_transition(
+                    transition,
+                    NativeTransitionKind::Safe,
+                    roots.as_slice(),
+                )?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
                     .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;

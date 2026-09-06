@@ -1985,7 +1985,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Tag.name(struct10) -> ptr<managed>
+  fun @scoop.Tag.name(indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp84 live=[param0:struct10@0]
     t0 = extract param0, 0 : ptr<managed>
@@ -2170,7 +2170,7 @@ Module
     t18 = aggregate () : {}
     store global3 -> local15
     store local15 -> local16
-    call no-gc-indirect-target0 local32 = sig=indirect0 (sret struct10, ptr<managed>) local-fn45(local16)
+    call no-gc-indirect-target0 local32 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>) local-fn45(local16)
     store local32 -> local30
     store local30 -> local33
     t19 = local_address local33 : ptr
@@ -2178,7 +2178,7 @@ Module
     store t20 -> local17
     store global4 -> local18
     store local18 -> local19
-    call no-gc-indirect-target1 local34 = sig=indirect1 (sret struct10, ptr<managed>) local-fn45(local19)
+    call no-gc-indirect-target1 local34 = sig=indirect1 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>) local-fn45(local19)
     store local34 -> local31
     store local31 -> local35
     t21 = local_address local35 : ptr
@@ -2349,20 +2349,22 @@ Module
   block entry
     poll managed-void-target0 sp108 live=[]
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Tag.$c6(ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.Tag.$c6(ptr<managed>) -> sret<struct10 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
   fun @scoop.thunk.D3_TagX.Named.name(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
+    local %1 $sc.1: struct10
   block entry
     poll managed-void-target0 sp109 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : struct10
-    call managed-direct-target0 sp64 live=[t0:struct10@0] t1 = sig=direct0 (struct10) -> ptr<managed> local-fn19(t0)
+    store t0 -> local1
+    call managed-direct-target0 sp64 live=[local1:struct10@0] t1 = sig=direct0 (indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed> local-fn19(indirect local1)
     store t1 -> local0
     ret local0
   td td0 Named @scoop_td_Named type-id=2 size=0 parent=none vtable=[] itables=[]

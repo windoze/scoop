@@ -60,16 +60,13 @@ impl<'a> FunctionLowerer<'a> {
                         let destination = NativeCallDestination::Borrowed(
                             lir::NativeBorrowedCallDestination::extern_function(function),
                         );
-                        let parameter_types = parameter_types
-                            .iter()
-                            .map(|ty| self.value_type(ty))
-                            .collect();
-                        let result_type = if returns_unit {
-                            lir::LirType::Void
-                        } else {
-                            self.value_type(result_ty)
+                        let signature = match &self.extern_functions[function.declaration()].kind {
+                            lir::ExternFunctionKind::Scoop { signature, .. } => signature.clone(),
+                            lir::ExternFunctionKind::C { .. } => {
+                                unreachable!("Scoop extern reference names a Scoop declaration")
+                            }
                         };
-                        self.emit_native_call(destination, parameter_types, result_type, args)
+                        self.emit_native_call_with_signature(destination, &signature, args)
                     }
                 }
             }
@@ -102,13 +99,20 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let destination =
                     self.managed_dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
-                self.finish_indirect(
-                    destination,
-                    args,
-                    parameter_types,
-                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
-                    result_ty,
-                )
+                let returns_unit =
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit;
+                let call_signature = abi::classify_mir_signature(
+                    self.context,
+                    parameter_types.iter(),
+                    if returns_unit {
+                        &mir::Type::Unit
+                    } else {
+                        result_ty
+                    },
+                    self.structs,
+                    self.enums,
+                );
+                self.finish_indirect(destination, args, &call_signature)
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
@@ -148,10 +152,12 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];
-                let param_types: Vec<mir::Type> =
-                    callee.params.iter().map(|param| param.ty.clone()).collect();
-                let returns_unit = callee.return_ty == mir::Type::Unit;
-                assert_eq!(call.args.len(), param_types.len(), "user call arity");
+                let signature = self.function_signatures[&id].clone();
+                assert_eq!(
+                    call.args.len(),
+                    signature.logical_argument_count(),
+                    "user call arity"
+                );
                 // Arguments are evaluated left to right, before the call.
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
@@ -159,7 +165,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::CallKind::Direct => {
                         let destination =
                             LoweredCallDestination::local(self.local_function_map[&id]);
-                        self.finish_call(destination, args, param_types, returns_unit, result_ty)
+                        self.finish_call(destination, args, &signature)
                     }
                     // vtable dispatch (impl spec 2.9): the receiver's
                     // object header holds the TypeDescriptor, whose
@@ -181,13 +187,7 @@ impl<'a> FunctionLowerer<'a> {
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(
-                            destination,
-                            args,
-                            param_types,
-                            returns_unit,
-                            result_ty,
-                        )
+                        self.finish_indirect(destination, args, &signature)
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
@@ -213,13 +213,7 @@ impl<'a> FunctionLowerer<'a> {
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(
-                            destination,
-                            args,
-                            param_types,
-                            returns_unit,
-                            result_ty,
-                        )
+                        self.finish_indirect(destination, args, &signature)
                     }
                     mir::CallKind::Closure { .. } => {
                         unreachable!("closure calls have no statically selected user callee")
@@ -421,20 +415,9 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
-        parameter_types: Vec<mir::Type>,
-        returns_unit: bool,
-        result_ty: &mir::Type,
+        signature: &lir::ScoopAbiSignature,
     ) -> lir::Value {
-        let parameter_types = parameter_types
-            .iter()
-            .map(|ty| self.value_type(ty))
-            .collect();
-        let result_type = if returns_unit {
-            lir::LirType::Void
-        } else {
-            self.value_type(result_ty)
-        };
-        self.emit_non_native_call(destination, parameter_types, result_type, args)
+        self.emit_non_native_call_with_signature(destination, signature, args)
     }
 
     /// An indirect call through a function table (vtable / itable
@@ -444,11 +427,9 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
-        parameter_types: Vec<mir::Type>,
-        returns_unit: bool,
-        result_ty: &mir::Type,
+        signature: &lir::ScoopAbiSignature,
     ) -> lir::Value {
-        self.finish_call(destination, args, parameter_types, returns_unit, result_ty)
+        self.finish_call(destination, args, signature)
     }
 
     /// A managed closure call through the code pointer already loaded from
@@ -467,6 +448,17 @@ impl<'a> FunctionLowerer<'a> {
             lir::DispatchKind::Closure,
             self.context.closure_invoke_dispatch_slot(),
         );
-        self.finish_indirect(destination, args, parameter_types, returns_unit, result_ty)
+        let signature = abi::classify_mir_signature(
+            self.context,
+            parameter_types.iter(),
+            if returns_unit {
+                &mir::Type::Unit
+            } else {
+                result_ty
+            },
+            self.structs,
+            self.enums,
+        );
+        self.finish_indirect(destination, args, &signature)
     }
 }

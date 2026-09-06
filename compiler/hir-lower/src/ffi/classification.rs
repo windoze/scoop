@@ -280,29 +280,34 @@ impl Lowerer {
         allow_unit: bool,
         path: Vec<String>,
     ) -> Result<(), CAbiError> {
+        if self.type_contains_param(ty) {
+            return Err(CAbiError {
+                path,
+                reason: "an extern signature must be fully concrete".to_string(),
+            });
+        }
         match self.types[ty].clone() {
             hir::Type::Unit if allow_unit => Ok(()),
             hir::Type::Unit => Err(CAbiError {
                 path,
                 reason: "`Unit` is only allowed as a Scoop ABI return type".to_string(),
             }),
-            hir::Type::String
-            | hir::Type::Class(..)
-            | hir::Type::Interface(_)
-            | hir::Type::Any
-            | hir::Type::Function(_) => Ok(()),
             hir::Type::Param(_) => Err(CAbiError {
                 path,
                 reason: "an extern signature must be fully concrete".to_string(),
             }),
-            _ if self.is_gc_free(ty) => Ok(()),
-            _ => Err(CAbiError {
-                path,
-                reason: format!(
-                    "value aggregate `{}` contains a managed reference and has no M12 native-root layout",
-                    self.type_name(ty)
-                ),
-            }),
+            hir::Type::Integer(_)
+            | hir::Type::Boolean
+            | hir::Type::String
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
+            | hir::Type::Any
+            | hir::Type::Function(_)
+            | hir::Type::Ptr(_)
+            | hir::Type::FunPtr(_)
+            | hir::Type::Struct(_)
+            | hir::Type::Enum(_)
+            | hir::Type::Tuple(_) => Ok(()),
         }
     }
 }

@@ -117,8 +117,11 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     let function = lir::Function {
         gc_effect: lir::GcEffect::NoGc,
         symbol: "null_provenance".to_string(),
-        params: Vec::new(),
-        return_ty: lir::LirType::Void,
+        signature: lir::ScoopAbiSignature::new(
+            Vec::new(),
+            lir::AbiReturn::UnitVoid,
+            lir::CallingConvention::Cdecl,
+        ),
         call_targets: lir::CallTargets::default(),
         locals: Arena::new(),
         temps: Arena::new(),

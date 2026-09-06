@@ -388,8 +388,7 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
     module.functions.push(Function {
         gc_effect: GcEffect::Managed,
         symbol: "machine_adapter".to_string(),
-        params: vec![],
-        return_ty: machine_result,
+        signature: plain_scoop_signature(vec![], machine_result),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -485,10 +484,10 @@ fn scoop_extern_rejects_machine_scalar_artifact_abi() {
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
             gc_effect: GcEffect::NoGc,
-            signature: scoop_lir::LirFunctionType {
-                params: vec![LirType::MachineScalar(MachineScalarKind::EnumTag)],
-                return_type: scoop_lir::LirReturnType::Value(Box::new(LirType::I64)),
-            },
+            signature: plain_scoop_signature(
+                vec![LirType::MachineScalar(MachineScalarKind::EnumTag)],
+                LirType::I64,
+            ),
         });
 
     let machine = host_target_machine().expect("target machine");
@@ -582,8 +581,10 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
     module.functions.push(Function {
         gc_effect: GcEffect::Managed,
         symbol: "machine_dispatch_adapter".to_string(),
-        params: vec![],
-        return_ty: LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        signature: plain_scoop_signature(
+            vec![],
+            LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        ),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -673,7 +674,10 @@ fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("machine scalars cannot be forged into address-space-1 roots");
     assert!(
-        error.0.contains("statepoint 99") && error.0.contains("machine scalar"),
+        error.0.contains("managed call root plan")
+            && error
+                .0
+                .contains("has 1 entries, expected 0 complete entries"),
         "unexpected error: {error}"
     );
 }

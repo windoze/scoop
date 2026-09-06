@@ -6,7 +6,7 @@ use scoop_lir::{
     DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect,
     Global, GlobalInit, IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta,
     Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot, PointerKind,
-    RAW_PTR, ResultStorage, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall,
+    RAW_PTR, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall,
     VoidCallSignature, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
@@ -38,6 +38,7 @@ mod initialization;
 mod moving_gc;
 mod objects;
 mod platform;
+mod scoop_abi;
 mod smoke;
 mod statepoints;
 mod validation_boundaries;

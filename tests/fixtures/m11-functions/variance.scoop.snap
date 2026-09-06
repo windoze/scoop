@@ -3091,7 +3091,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Label.describe(struct10) -> ptr<managed>
+  fun @scoop.Label.describe(indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp183 live=[param0:struct10@0]
     t0 = extract param0, 0 : ptr<managed>
@@ -3134,7 +3134,7 @@ Module
   block entry
     poll managed-void-target0 sp188 live=[]
     ret global0
-  fun @scoop.acceptAnyLabel(ptr<managed>) -> struct10
+  fun @scoop.acceptAnyLabel(ptr<managed>) -> sret<struct10 size=8 align=8 scan=refs[0]>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.text: ptr<managed>
     local %2 $call.1: struct10
@@ -3143,7 +3143,7 @@ Module
     poll managed-void-target0 sp189 live=[]
     store global1 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct10, ptr<managed>) local-fn54(local1)
+    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>) local-fn54(local1)
     store local3 -> local2
     ret local2
   fun @scoop.acceptAnimal(ptr<managed>) -> ptr<managed>
@@ -3757,12 +3757,12 @@ Module
     call managed-direct-target0 sp109 live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn24(param1)
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.5(ptr<managed>, ptr<managed>) -> struct10
+  fun @scoop.$reference.5(ptr<managed>, ptr<managed>) -> sret<struct10 size=8 align=8 scan=refs[0]>
     local %0 $call.1: struct10
     local %1 $sc.1: struct10
   block entry
     poll managed-void-target0 sp205 live=[param1:ptr<managed>@0]
-    call managed-indirect-target0 sp110 live=[param1:ptr<managed>@0] local1 = sig=indirect0 (sret struct10, ptr<managed>) local-fn25(param1)
+    call managed-indirect-target0 sp110 live=[param1:ptr<managed>@0] local1 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>) local-fn25(param1)
     store local1 -> local0
     ret local0
   fun @scoop.$reference.6(ptr<managed>, ptr<managed>) -> ptr<managed>
@@ -3876,11 +3876,11 @@ Module
     call managed-void-target0 sp119 live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn51(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Label.$c6(ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.Label.$c6(ptr<managed>) -> sret<struct10 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
@@ -3919,7 +3919,7 @@ Module
     store param1 -> local1
     t1 = local_address local1 : ptr
     call managed-direct-target0 sp124 live=[t0:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td16, t1, machine<byte-size>(ByteSize(4)), root-scan0)
-    call managed-indirect-target0 sp125 live=[t0:ptr<managed>@0, t2:ptr<managed>@0] local2 = sig=indirect0 (sret struct10, ptr<managed>, ptr<managed>) dispatch[Closure:2] t0(t0, t2)
+    call managed-indirect-target0 sp125 live=[t0:ptr<managed>@0, t2:ptr<managed>@0] local2 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>, ptr<managed>) dispatch[Closure:2] t0(t0, t2)
     store local2 -> local0
     store local0 -> local3
     t3 = local_address local3 : ptr
@@ -4001,10 +4001,12 @@ Module
     ret local0
   fun @scoop.thunk.D5_LabelX.Describable.describe(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
+    local %1 $sc.1: struct10
   block entry
     poll managed-void-target0 sp227 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : struct10
-    call managed-direct-target0 sp136 live=[t0:struct10@0] t1 = sig=direct0 (struct10) -> ptr<managed> local-fn19(t0)
+    store t0 -> local1
+    call managed-direct-target0 sp136 live=[local1:struct10@0] t1 = sig=direct0 (indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed> local-fn19(indirect local1)
     store t1 -> local0
     ret local0
   fun @scoop.function_bridge.$Closure$reference0.FI32RAnyX(ptr<managed>, i32) -> ptr<managed>
@@ -4073,7 +4075,7 @@ Module
     store param1 -> local1
     t0 = local_address local1 : ptr
     call managed-direct-target0 sp148 live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td16, t0, machine<byte-size>(ByteSize(4)), root-scan0)
-    call managed-indirect-target0 sp149 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] local2 = sig=indirect0 (sret struct10, ptr<managed>, ptr<managed>) dispatch[Closure:2] param0(param0, t1)
+    call managed-indirect-target0 sp149 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] local2 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>, ptr<managed>) dispatch[Closure:2] param0(param0, t1)
     store local2 -> local0
     store local0 -> local3
     t2 = local_address local3 : ptr
@@ -4089,7 +4091,7 @@ Module
     store param1 -> local1
     t0 = local_address local1 : ptr
     call managed-direct-target0 sp151 live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td16, t0, machine<byte-size>(ByteSize(4)), root-scan0)
-    call managed-indirect-target0 sp152 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] local2 = sig=indirect0 (sret struct10, ptr<managed>, ptr<managed>) dispatch[Closure:2] param0(param0, t1)
+    call managed-indirect-target0 sp152 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] local2 = sig=indirect0 (sret struct10 size=8 align=8 scan=refs[0], ptr<managed>, ptr<managed>) dispatch[Closure:2] param0(param0, t1)
     store local2 -> local0
     store local0 -> local3
     t2 = local_address local3 : ptr

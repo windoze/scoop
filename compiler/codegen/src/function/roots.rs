@@ -33,11 +33,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         source: scoop_lir::CallerRootSource,
     ) -> Result<&LirType, CodegenError> {
         match source {
-            scoop_lir::CallerRootSource::Param(index) => {
-                self.function.params.get(index as usize).ok_or_else(|| {
-                    CodegenError(format!("statepoint param {index} is out of range"))
-                })
-            }
+            scoop_lir::CallerRootSource::Param(index) => self
+                .function
+                .signature
+                .arguments()
+                .get(index as usize)
+                .map(scoop_lir::AbiArgument::logical_storage_type)
+                .ok_or_else(|| CodegenError(format!("statepoint param {index} is out of range"))),
             scoop_lir::CallerRootSource::Local(id) => Ok(&self.function.locals[id].ty),
             scoop_lir::CallerRootSource::Temp(id) => Ok(&self.function.temps[id].ty),
         }
@@ -261,25 +263,105 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.managed_address_space,
                 &lir_type,
             )?;
-            let pointer = self.entry_alloca(ty, "managed_root_storage")?;
-            let initial = match source {
-                scoop_lir::CallerRootSource::Param(index) => self
-                    .llvm_function
-                    .get_nth_param(index + self.param_offset)
-                    .ok_or_else(|| CodegenError(format!("rooted param {index} is out of range")))?,
-                scoop_lir::CallerRootSource::Temp(_) => ty.const_zero(),
-                scoop_lir::CallerRootSource::Local(_) => unreachable!(),
+            let storage = match source {
+                scoop_lir::CallerRootSource::Param(index) => {
+                    let logical_index = index as usize;
+                    let argument = self
+                        .function
+                        .signature
+                        .arguments()
+                        .get(logical_index)
+                        .ok_or_else(|| {
+                            CodegenError(format!("rooted param {index} is out of range"))
+                        })?;
+                    let location = self
+                        .function
+                        .signature
+                        .argument_location(logical_index)
+                        .expect("an existing ABI argument has a location");
+                    match (argument, location) {
+                        (
+                            scoop_lir::AbiArgument::Direct(_),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for rooted param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            let initial = self
+                                .llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for rooted param {index} is out of range"
+                                    ))
+                                })?;
+                            let pointer = self.entry_alloca(ty, "managed_root_storage")?;
+                            self.builder
+                                .build_store(pointer, initial)
+                                .map_err(|error| {
+                                    CodegenError(format!(
+                                        "initialize managed root storage: {error}"
+                                    ))
+                                })?;
+                            RootStorage { pointer, ty }
+                        }
+                        (
+                            scoop_lir::AbiArgument::Indirect(_),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for rooted param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            let parameter = self
+                                .llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for rooted param {index} is out of range"
+                                    ))
+                                })?;
+                            let BasicValueEnum::PointerValue(pointer) = parameter else {
+                                return Err(CodegenError(format!(
+                                    "indirect rooted param {index} does not use pointer storage"
+                                )));
+                            };
+                            RootStorage { pointer, ty }
+                        }
+                        (
+                            scoop_lir::AbiArgument::ElidedZst(_),
+                            scoop_lir::AbiArgumentLocation::Elided,
+                        ) => {
+                            return Err(CodegenError(format!(
+                                "elided param {index} appears in a root plan despite its empty scan"
+                            )));
+                        }
+                        _ => {
+                            return Err(CodegenError(format!(
+                                "rooted param {index} has an inconsistent Scoop ABI location"
+                            )));
+                        }
+                    }
+                }
+                scoop_lir::CallerRootSource::Temp(_) => {
+                    let pointer = self.entry_alloca(ty, "managed_root_storage")?;
+                    self.builder
+                        .build_store(pointer, ty.const_zero())
+                        .map_err(|error| {
+                            CodegenError(format!("initialize managed root storage: {error}"))
+                        })?;
+                    RootStorage { pointer, ty }
+                }
+                scoop_lir::CallerRootSource::Local(_) => {
+                    return Err(CodegenError(
+                        "local root storage must reuse its ordinary alloca".to_string(),
+                    ));
+                }
             };
-            self.builder
-                .build_store(pointer, initial)
-                .map_err(|error| {
-                    CodegenError(format!("initialize managed root storage: {error}"))
-                })?;
-            if self
-                .root_storage
-                .insert(source, RootStorage { pointer, ty })
-                .is_some()
-            {
+            if self.root_storage.insert(source, storage).is_some() {
                 return Err(CodegenError(
                     "complete root plans repeat one canonical source".to_string(),
                 ));
@@ -398,6 +480,49 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
+    /// Establish post-call values while the corresponding runtime root frame
+    /// is still published. The matching volatile stores happen immediately
+    /// after the NoGC pop, making every continuation value explicitly depend
+    /// on the collector-updated storage rather than on a pre-call SSA copy.
+    pub(super) fn reload_published_roots(
+        &self,
+        sources: impl IntoIterator<Item = scoop_lir::CallerRootSource>,
+    ) -> Result<Vec<ReloadedRoot<'ctx>>, CodegenError> {
+        let mut reloaded = Vec::new();
+        for source in sources {
+            let storage = self.root_source_storage(source)?;
+            let value = self
+                .builder
+                .build_load(storage.ty, storage.pointer, "published_root_reload")
+                .map_err(|error| CodegenError(format!("reload published root: {error}")))?;
+            value
+                .as_instruction_value()
+                .expect("a root reload is an instruction")
+                .set_volatile(true)
+                .map_err(|error| {
+                    CodegenError(format!("make published root reload volatile: {error}"))
+                })?;
+            reloaded.push(ReloadedRoot { storage, value });
+        }
+        Ok(reloaded)
+    }
+
+    pub(super) fn restore_reloaded_roots(
+        &self,
+        roots: Vec<ReloadedRoot<'ctx>>,
+    ) -> Result<(), CodegenError> {
+        for root in roots {
+            let store = self
+                .builder
+                .build_store(root.storage.pointer, root.value)
+                .map_err(|error| CodegenError(format!("restore reloaded root: {error}")))?;
+            store.set_volatile(true).map_err(|error| {
+                CodegenError(format!("make reloaded root store volatile: {error}"))
+            })?;
+        }
+        Ok(())
+    }
+
     pub(super) fn pop_compiler_roots(
         &self,
         frame: CompilerRootFrame<'ctx>,
@@ -423,7 +548,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .get(&self.current_block)
             .cloned()
             .unwrap_or_default();
-        self.validate_compiler_root_sources(sources)?;
+        self.validate_compiler_root_sources(sources.iter().copied())?;
+        let reloaded = self.reload_published_roots(sources)?;
         let pop = self.gc_leaf_fn(
             "scoop_rt_pop_top_compiler_roots",
             self.context.void_type().fn_type(&[], false),
@@ -431,6 +557,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.builder
             .build_call(pop, &[], "pop_unwind_compiler_roots")
             .map_err(|error| CodegenError(format!("pop unwind compiler roots: {error}")))?;
+        self.restore_reloaded_roots(reloaded)?;
         Ok(())
     }
 }

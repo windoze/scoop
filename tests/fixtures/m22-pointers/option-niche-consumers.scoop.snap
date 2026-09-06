@@ -1846,7 +1846,7 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.taggedOr(enum1, i32) -> i32
+  fun @scoop.taggedOr(indirect<enum1 size=16 align=8 scan=none>, i32) -> i32
     local %0 $opt.0: enum1
     local %1 $res.1: i32
   block entry
@@ -1941,6 +1941,7 @@ Module
     local %13 $parameter.fallback: ptr<managed>
     local %14 $argument.0: ptr<managed>
     local %15 $parameter.value: ptr<managed>
+    local %16 $sc.1: enum1
   block entry
     poll managed-void-target2 sp69 live=[]
     store integer<Int>(0x00000029) -> local0
@@ -1950,7 +1951,8 @@ Module
     store integer<Int>(0x00000000) -> local3
     store local2 -> local4
     store local3 -> local5
-    call managed-direct-target0 sp26 live=[] t1 = sig=direct0 (enum1, i32) -> i32 local-fn22(local4, local5)
+    store local4 -> local16
+    call managed-direct-target0 sp26 live=[] t1 = sig=direct0 (indirect<enum1 size=16 align=8 scan=none>, i32) -> i32 local-fn22(indirect local16, local5)
     store t1 -> local6
     store local6 -> local7
     call managed-void-target0 sp27 live=[] sig=void0 (i32) local-fn27(local7)
@@ -2100,7 +2102,7 @@ Module
     call managed-void-target0 sp42 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn35(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

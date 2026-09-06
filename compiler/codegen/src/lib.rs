@@ -73,6 +73,7 @@ impl std::fmt::Display for CodegenError {
 
 impl std::error::Error for CodegenError {}
 
+mod abi;
 mod artifact;
 mod c_bridge;
 mod declarations;

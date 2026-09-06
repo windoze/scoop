@@ -17,6 +17,206 @@ pub(super) fn host_managed_address_space() -> ManagedAddressSpace {
     host_profile().managed_address_space_contract()
 }
 
+fn abi_sequence(parts: impl IntoIterator<Item = RefScan>) -> RefScan {
+    fn collect(scan: RefScan, references: &mut Vec<u64>) {
+        match scan {
+            RefScan::None => {}
+            RefScan::References(offsets) => references.extend(offsets),
+            RefScan::Sequence(parts) => {
+                for part in parts {
+                    collect(part, references);
+                }
+            }
+        }
+    }
+
+    let mut references = Vec::new();
+    for part in parts {
+        collect(part, &mut references);
+    }
+    if references.is_empty() {
+        RefScan::None
+    } else {
+        RefScan::References(references)
+    }
+}
+
+fn shifted_scan(scan: &RefScan, base: u64) -> RefScan {
+    match scan {
+        RefScan::None => RefScan::None,
+        RefScan::References(offsets) => {
+            RefScan::References(offsets.iter().map(|offset| base + offset).collect())
+        }
+        RefScan::Sequence(parts) => abi_sequence(parts.iter().map(|part| shifted_scan(part, base))),
+    }
+}
+
+fn abi_layout(
+    structs: &scoop_lir::StructDefs,
+    enums: &scoop_lir::EnumDefs,
+    ty: &LirType,
+) -> (u64, u64) {
+    let scalar = |kind| {
+        let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.scalar_layout(kind);
+        (layout.size_bytes(), layout.alignment_bytes())
+    };
+    match ty {
+        LirType::Void => (0, 1),
+        LirType::I1 => scalar(scoop_lir::BackendScalarKind::I1),
+        LirType::I8 => scalar(scoop_lir::BackendScalarKind::I8),
+        LirType::I16 => scalar(scoop_lir::BackendScalarKind::I16),
+        LirType::I32 => scalar(scoop_lir::BackendScalarKind::I32),
+        LirType::I64 | LirType::MachineScalar(_) => scalar(scoop_lir::BackendScalarKind::I64),
+        LirType::Ptr(kind) => {
+            let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(*kind);
+            (layout.size_bytes(), layout.alignment_bytes())
+        }
+        LirType::ExceptionRecord => (16, 8),
+        LirType::Aggregate(fields) => {
+            let mut size = 0u64;
+            let mut align = 1u64;
+            for field in fields {
+                let (field_size, field_align) = abi_layout(structs, enums, field);
+                size = size.next_multiple_of(field_align) + field_size;
+                align = align.max(field_align);
+            }
+            (size.next_multiple_of(align), align)
+        }
+        LirType::Struct(id) => (structs[*id].size, structs[*id].align),
+        LirType::Enum(id) => match &enums[*id].repr {
+            EnumRepr::Niche { kind, .. } => {
+                let layout =
+                    scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(kind.pointer_kind());
+                (layout.size_bytes(), layout.alignment_bytes())
+            }
+            EnumRepr::Tagged { size, align, .. } => (*size, *align),
+        },
+    }
+}
+
+fn abi_scan(
+    structs: &scoop_lir::StructDefs,
+    enums: &scoop_lir::EnumDefs,
+    ty: &LirType,
+    base: u64,
+) -> RefScan {
+    match ty {
+        LirType::Ptr(PointerKind::Managed) => RefScan::References(vec![base]),
+        LirType::Aggregate(fields) => {
+            let mut offset = 0u64;
+            abi_sequence(fields.iter().map(|field| {
+                let (field_size, field_align) = abi_layout(structs, enums, field);
+                offset = offset.next_multiple_of(field_align);
+                let scan = abi_scan(structs, enums, field, base + offset);
+                offset += field_size;
+                scan
+            }))
+        }
+        LirType::Struct(id) => {
+            let definition = &structs[*id];
+            abi_sequence((0..definition.field_count()).map(|index| {
+                let field = definition
+                    .field_storage_type(index)
+                    .expect("test struct field index is in range");
+                let offset = definition
+                    .field_layout(index)
+                    .expect("test struct field index is in range")
+                    .offset;
+                abi_scan(structs, enums, &field, base + offset)
+            }))
+        }
+        LirType::Enum(id) => shifted_scan(&enums[*id].scan, base),
+        LirType::Void
+        | LirType::I1
+        | LirType::I8
+        | LirType::I16
+        | LirType::I32
+        | LirType::I64
+        | LirType::MachineScalar(_)
+        | LirType::Ptr(_)
+        | LirType::ExceptionRecord => RefScan::None,
+    }
+}
+
+pub(super) fn abi_value_with_layout(
+    ty: LirType,
+    size: u64,
+    align: u64,
+    scan: RefScan,
+) -> scoop_lir::AbiValue {
+    scoop_lir::AbiValue::new(
+        ty,
+        scoop_lir::AbiNonZeroLayout::new(size, align)
+            .expect("test ABI value has a non-zero valid layout"),
+        scan,
+    )
+    .expect("test ABI value has a storable type")
+}
+
+fn abi_argument(
+    structs: &scoop_lir::StructDefs,
+    enums: &scoop_lir::EnumDefs,
+    ty: LirType,
+) -> scoop_lir::AbiArgument {
+    let (size, align) = abi_layout(structs, enums, &ty);
+    if size == 0 {
+        return scoop_lir::AbiArgument::ElidedZst(
+            scoop_lir::AbiZst::new(
+                ty,
+                scoop_lir::AbiZeroSizedLayout::new(align)
+                    .expect("test ABI ZST has a valid alignment"),
+            )
+            .expect("test ABI ZST has a storable type"),
+        );
+    }
+    let scan = abi_scan(structs, enums, &ty, 0);
+    let value = abi_value_with_layout(ty, size, align, scan);
+    match scoop_lir::classify_non_zero_scoop_abi_value(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        enums,
+        value.storage_type(),
+    )
+    .expect("test ABI helper only classifies valid non-void value types")
+    {
+        scoop_lir::ScoopAbiPassing::Direct => scoop_lir::AbiArgument::Direct(value),
+        scoop_lir::ScoopAbiPassing::Indirect => scoop_lir::AbiArgument::Indirect(value),
+    }
+}
+
+pub(super) fn scoop_signature(
+    structs: &scoop_lir::StructDefs,
+    enums: &scoop_lir::EnumDefs,
+    params: Vec<LirType>,
+    return_ty: LirType,
+) -> scoop_lir::ScoopAbiSignature {
+    let arguments = params
+        .into_iter()
+        .map(|ty| abi_argument(structs, enums, ty))
+        .collect();
+    let result = if return_ty == LirType::Void {
+        scoop_lir::AbiReturn::UnitVoid
+    } else {
+        match abi_argument(structs, enums, return_ty) {
+            scoop_lir::AbiArgument::ElidedZst(value) => scoop_lir::AbiReturn::ElidedZst(value),
+            scoop_lir::AbiArgument::Direct(value) => scoop_lir::AbiReturn::Direct(value),
+            scoop_lir::AbiArgument::Indirect(value) => scoop_lir::AbiReturn::Indirect(value),
+        }
+    };
+    scoop_lir::ScoopAbiSignature::new(arguments, result, scoop_lir::CallingConvention::Cdecl)
+}
+
+pub(super) fn plain_scoop_signature(
+    params: Vec<LirType>,
+    return_ty: LirType,
+) -> scoop_lir::ScoopAbiSignature {
+    scoop_signature(
+        &scoop_lir::StructDefs::default(),
+        &scoop_lir::EnumDefs::default(),
+        params,
+        return_ty,
+    )
+}
+
 pub(super) fn string_metadata() -> LirMeta {
     let mut layouts = Arena::new();
     let string_layout = layouts.alloc(Layout {
@@ -260,8 +460,7 @@ pub(super) fn values_module() -> Module {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![],
-            return_ty: LirType::Void,
+            signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets,
             locals,
             temps,

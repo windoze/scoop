@@ -2268,9 +2268,11 @@ Module
     local %41 $sc.4: ptr<raw>
     local %42 $sc.5: ptr<raw>
     local %43 $sc.6: i32
-    local %44 $sc.7: exception_record
-    local %45 $sc.8: ptr<raw>
-    local %46 $sc.9: ptr<managed>
+    local %44 $sc.7: enum2
+    local %45 $sc.8: enum2
+    local %46 $sc.9: exception_record
+    local %47 $sc.10: ptr<raw>
+    local %48 $sc.11: ptr<managed>
   block entry
     poll managed-void-target5 sp75 live=[]
     call managed-direct-target0 sp22 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
@@ -2300,12 +2302,12 @@ Module
     store local13 -> local38
     store local14 -> local39
     store local15 -> local40
-    call native-safe-indirect-target0 sp23 roots=[] local41 = sig=indirect0 (sret ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) extern10(c-arg-address(local38), c-arg-address(local39), c-arg-address(local40))
+    call native-safe-indirect-target0 sp23 roots=[] local41 = sig=indirect0 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern10(c-arg-address(local38), c-arg-address(local39), c-arg-address(local40))
     store local41 -> local16
     store local16 -> local17
     store local17 -> local18
     store local18 -> local42
-    call native-safe-indirect-target1 sp24 roots=[] local43 = sig=indirect1 (sret i32, ptr<raw>) extern11(c-arg-address(local42))
+    call native-safe-indirect-target1 sp24 roots=[] local43 = sig=indirect1 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern11(c-arg-address(local42))
     store local43 -> local19
     store local19 -> local20
     call managed-void-target0 sp25 live=[] sig=void0 (i32) local-fn24(local20)
@@ -2314,7 +2316,9 @@ Module
     store local21 -> local22
     t8 = foreign_callback_State family0 local22 : enum2
     t9 = enum_wrap e2 v3 () : enum2
-    call managed-direct-target1 sp26 live=[] t10 = sig=direct1 (enum2, enum2) -> i1 local-fn27(t8, t9)
+    store t8 -> local44
+    store t9 -> local45
+    call managed-direct-target1 sp26 live=[] t10 = sig=direct1 (indirect<enum2 size=8 align=8 scan=none>, indirect<enum2 size=8 align=8 scan=none>) -> i1 local-fn27(indirect local44, indirect local45)
     store t10 -> local23
     store local23 -> local24
     call managed-void-target1 sp27 live=[] sig=void1 (i1) local-fn25(local24)
@@ -2346,18 +2350,18 @@ Module
     br @try.body.11
   block try.unwind.4
     (t19, t20) = landingpad : (exception_record, ptr<raw>)
-    store t19 -> local44
-    store t20 -> local45
+    store t19 -> local46
+    store t20 -> local47
     br @try.dispatch.5
   block try.dispatch.5
-    t21 = begin_catch local45 : ptr<managed>
-    store t21 -> local46
-    call no-gc-direct-target1 t22 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, td12)
+    t21 = begin_catch local47 : ptr<managed>
+    store t21 -> local48
+    call no-gc-direct-target1 t22 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local48, td12)
     cbr t22 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t23, t24) = cleanup_pad : (exception_record, ptr<raw>)
-    store t23 -> local44
-    store t24 -> local45
+    store t23 -> local46
+    store t24 -> local47
     br @try.handler_cleanup.7
   block try.handler_cleanup.7
     end_catch
@@ -2365,22 +2369,22 @@ Module
     store local33 -> local34
     foreign_callback_Release family0 local34
     t25 = aggregate () : {}
-    resume local44
+    resume local46
   block try.exit_pad.8
     (t26, t27) = cleanup_pad : (exception_record, ptr<raw>)
-    store t26 -> local44
-    store t27 -> local45
+    store t26 -> local46
+    store t27 -> local47
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local44
+    resume local46
   block try.end.10
     ret
   block try.body.11
     invoke no-gc-void-target0 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local27) normal @throw.normal.1 unwind @try.unwind.4
     br @throw.normal.1
   block try.catch.12
-    store local46 -> local30
+    store local48 -> local30
     br @scope.14
   block try.next.13
     store local9 -> local33
@@ -2480,7 +2484,7 @@ Module
     call native-borrowed-void-target1 sp42 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.ForeignCallbackState.equals(enum2, enum2) -> i1
+  fun @scoop.ForeignCallbackState.equals(indirect<enum2 size=8 align=8 scan=none>, indirect<enum2 size=8 align=8 scan=none>) -> i1
     local %0 $when.1: enum2
     local %1 $pattern.subject.2: enum2
     local %2 $when.3: enum2
@@ -2660,11 +2664,11 @@ Module
     t1 = aggregate () : {}
     heap_store param0 +24 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.ForeignCallback$FI32_PUXRI32X.$c2(ptr<code>, ptr<raw>) -> struct10 <no-gc>
+  fun @scoop.ctor.ForeignCallback$FI32_PUXRI32X.$c2(ptr<code>, ptr<raw>) -> sret<struct10 size=16 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0

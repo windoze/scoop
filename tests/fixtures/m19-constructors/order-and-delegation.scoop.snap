@@ -2404,7 +2404,7 @@ Module
     store local10 -> local11
     call managed-void-target6 sp37 live=[] sig=void6 (i32) local-fn20(local11)
     t13 = aggregate () : {}
-    call managed-indirect-target0 sp38 live=[] local17 = sig=indirect0 (sret struct10, ) local-fn43()
+    call managed-indirect-target0 sp38 live=[] local17 = sig=indirect0 (sret struct10 size=4 align=4 scan=none) local-fn43()
     store local17 -> local12
     t14 = extract local12, 0 : i32
     store t14 -> local13
@@ -2749,15 +2749,15 @@ Module
     call managed-void-target1 sp72 live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn21(local7)
     t2 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Count.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Count.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
-  fun @scoop.ctor.Count.$c7() -> struct10
+  fun @scoop.ctor.Count.$c7() -> sret<struct10 size=4 align=4 scan=none>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -2779,7 +2779,7 @@ Module
     call managed-direct-target0 sp73 live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 local-fn19(local2, local3)
     store t0 -> local4
     store local4 -> local5
-    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct10, i32) local-fn42(local5)
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn42(local5)
     store local11 -> local6
     t1 = extract local6, 0 : i32
     store t1 -> local7

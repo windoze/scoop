@@ -11,6 +11,10 @@ pub(crate) struct ManagedInvoke<'a, 'ctx> {
     pub(crate) normal: BasicBlock<'ctx>,
     pub(crate) unwind: BasicBlock<'ctx>,
     pub(crate) result_type: Option<BasicTypeEnum<'ctx>>,
+    pub(crate) abi_signature: Option<&'a scoop_lir::ScoopAbiSignature>,
+    pub(crate) structs: &'a scoop_lir::StructDefs,
+    pub(crate) enums: &'a scoop_lir::EnumDefs,
+    pub(crate) managed_address_space: ManagedAddressSpace,
 }
 
 pub(crate) struct ZeroLiveCall<'a, 'ctx> {
@@ -82,6 +86,10 @@ pub(crate) fn build_managed_invoke<'ctx>(
         normal,
         unwind,
         result_type,
+        abi_signature,
+        structs,
+        enums,
+        managed_address_space,
     } = invoke;
     let statepoint = intrinsic_declaration(module, "llvm.experimental.gc.statepoint", &[callee])?;
     let mut arguments = zero_live_arguments(context, callee, call_args, safepoint)?;
@@ -110,6 +118,16 @@ pub(crate) fn build_managed_invoke<'ctx>(
     // Opaque pointers require the actual callee signature on operand 2.
     let statepoint_call = unsafe { CallSiteValue::new(token) };
     configure_statepoint_call(context, statepoint_call, callee_type);
+    if let Some(signature) = abi_signature {
+        crate::abi::apply_statepoint_attributes(
+            context,
+            structs,
+            enums,
+            managed_address_space,
+            statepoint_call,
+            signature,
+        )?;
+    }
 
     builder.position_at_end(normal);
     build_gc_result(module, builder, token, result_type, "invoke_result")

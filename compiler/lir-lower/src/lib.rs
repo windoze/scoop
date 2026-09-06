@@ -160,7 +160,25 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums);
-    let (extern_functions, extern_function_refs) = lower_extern_functions(module, &structs, &enums);
+    // Classify every final MIR function before any body is lowered. Callee
+    // definitions and all statically selected call sites reuse these exact
+    // signatures rather than independently rebuilding a physical ABI.
+    let function_signatures = module
+        .functions
+        .iter()
+        .map(|(id, function)| {
+            let signature = abi::classify_mir_signature(
+                &context,
+                function.params.iter().map(|parameter| &parameter.ty),
+                &function.return_ty,
+                &structs,
+                &enums,
+            );
+            (id, signature)
+        })
+        .collect::<HashMap<_, _>>();
+    let (extern_functions, extern_function_refs) =
+        lower_extern_functions(&context, module, &structs, &enums);
     let (storage_globals, native_globals, native_global_bridges) = lower_globals(
         &context,
         module,
@@ -208,6 +226,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
                 &context,
                 module,
                 &module.functions[id],
+                &function_signatures[&id],
                 &string_global_map,
                 &storage_globals,
                 &mut globals,
@@ -218,6 +237,8 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
                 &array_type_map,
                 &type_descriptor_refs,
                 &local_function_map,
+                &function_signatures,
+                &extern_functions,
                 &extern_function_refs,
                 &mut safepoint_ids,
             )
@@ -254,6 +275,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     }
 }
 
+mod abi;
 mod callbacks;
 mod externs;
 mod globals;

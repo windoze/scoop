@@ -185,8 +185,12 @@ fn enum_module_with(
     let tagged = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.tagged".to_string(),
-        params: vec![shape_ty.clone(), MANAGED_PTR],
-        return_ty: LirType::I64,
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![shape_ty.clone(), MANAGED_PTR],
+            LirType::I64,
+        ),
         call_targets: CallTargets::default(),
         locals: tagged_locals,
         temps: tagged_temps,
@@ -268,8 +272,12 @@ fn enum_module_with(
     let niche = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.niche".to_string(),
-        params: vec![option_ty.clone()],
-        return_ty: enum_tag_ty.clone(),
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![option_ty.clone()],
+            enum_tag_ty.clone(),
+        ),
         call_targets: CallTargets::default(),
         locals: niche_locals,
         temps: niche_temps,
@@ -297,8 +305,7 @@ fn enum_module_with(
     let trap_on_none = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.trap_on_none".to_string(),
-        params: vec![],
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets: trap_targets,
         locals: Arena::default(),
         temps: Arena::default(),
@@ -328,8 +335,12 @@ fn enum_module_with(
     let produce = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.produce_shape".to_string(),
-        params: vec![],
-        return_ty: shape_ty.clone(),
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![],
+            shape_ty.clone(),
+        ),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: produce_temps,
@@ -346,14 +357,14 @@ fn enum_module_with(
         ty: enum_tag_ty.clone(),
     });
     let mut consume_targets = CallTargets::default();
-    let produce_site = indirect_result_site(
+    let produce_site = indirect_result_site_with_layout(
         &mut consume_targets,
         TestCallProtocol::Managed {
             safepoint: 1,
             destination: managed_local(3),
         },
         Vec::new(),
-        (shape_ty.clone(), RefScan::References(vec![24])),
+        (shape_ty.clone(), 32, 8, RefScan::References(vec![24])),
         received,
         Vec::new(),
     );
@@ -375,8 +386,7 @@ fn enum_module_with(
     let consume = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape".to_string(),
-        params: vec![],
-        return_ty: enum_tag_ty.clone(),
+        signature: plain_scoop_signature(vec![], enum_tag_ty.clone()),
         call_targets: consume_targets,
         locals: consume_locals,
         temps: consume_temps,
@@ -394,14 +404,14 @@ fn enum_module_with(
     });
     let mut indirect_targets = CallTargets::default();
     let dispatch = dispatch_destination(&mut indirect_targets, Value::Param(0), 0);
-    let indirect_site = indirect_result_site(
+    let indirect_site = indirect_result_site_with_layout(
         &mut indirect_targets,
         TestCallProtocol::Managed {
             safepoint: 2,
             destination: dispatch,
         },
         Vec::new(),
-        (shape_ty.clone(), RefScan::References(vec![24])),
+        (shape_ty.clone(), 32, 8, RefScan::References(vec![24])),
         indirect_received,
         Vec::new(),
     );
@@ -425,8 +435,7 @@ fn enum_module_with(
     let consume_indirect = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape_indirect".to_string(),
-        params: vec![METADATA_PTR],
-        return_ty: enum_tag_ty,
+        signature: plain_scoop_signature(vec![METADATA_PTR], enum_tag_ty),
         call_targets: indirect_targets,
         locals: indirect_locals,
         temps: indirect_temps,
@@ -582,6 +591,13 @@ fn enum_wrap_validator_rejects_wrong_result_arity_and_invalid_ref() {
 #[test]
 fn enum_field_rejects_i64_as_machine_scalar_result() {
     let mut module = enum_module();
+    let shape = module.enums.iter().next().expect("tagged enum").0;
+    let replacement_signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![LirType::Enum(shape), MANAGED_PTR],
+        LirType::MachineScalar(MachineScalarKind::EnumTag),
+    );
     let function = &mut module.functions[0];
     let out = match &function.blocks[function.entry].instructions[3] {
         Instruction::EnumField { out, .. } => *out,
@@ -592,7 +608,7 @@ fn enum_field_rejects_i64_as_machine_scalar_result() {
     function.blocks[function.entry].terminator = Terminator::Return {
         value: Some(Value::Temp(out)),
     };
-    function.return_ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
+    function.signature = replacement_signature;
 
     let error = enum_codegen_error(&module);
     assert!(

@@ -174,9 +174,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(NativeTransition { frame, transition })
     }
 
-    pub(in crate::function) fn finish_native_transition(
+    pub(in crate::function) fn leave_native_transition(
         &mut self,
-        native: NativeTransition<'ctx>,
+        native: &NativeTransition<'ctx>,
         kind: NativeTransitionKind,
     ) -> Result<(), CodegenError> {
         let context = self.context;
@@ -193,6 +193,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_call(leave, &[native.transition.into()], "leave_native")
             .map_err(|error| CodegenError(format!("leave native transition: {error}")))?;
 
+        Ok(())
+    }
+
+    pub(in crate::function) fn pop_native_roots(
+        &mut self,
+        native: NativeTransition<'ctx>,
+    ) -> Result<(), CodegenError> {
+        let context = self.context;
+        let ptr = ptr_ty(context);
         let pop = self.native_boundary_fn(
             "scoop_rt_pop_caller_roots",
             context.void_type().fn_type(&[ptr.into()], false),
@@ -201,5 +210,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_call(pop, &[native.frame.into()], "pop_caller_roots")
             .map_err(|error| CodegenError(format!("pop caller roots: {error}")))?;
         Ok(())
+    }
+
+    pub(in crate::function) fn finish_native_transition(
+        &mut self,
+        native: NativeTransition<'ctx>,
+        kind: NativeTransitionKind,
+        roots: &[scoop_lir::CallerRoot],
+    ) -> Result<(), CodegenError> {
+        self.leave_native_transition(&native, kind)?;
+        let reloaded = self.reload_published_roots(roots.iter().map(|root| root.source))?;
+        self.pop_native_roots(native)?;
+        self.restore_reloaded_roots(reloaded)
     }
 }

@@ -455,6 +455,12 @@ SourceFile
   fun nativeWrite(message: String)
     @Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
   fun nativeRootRoundTrip(message: String): String
+  struct ManagedAggregate
+    field value: String
+    field left: Long
+    field right: Long
+    @Extern(lib = "fixture_native", name = "native_aggregate_round_trip", abi = "scoop")
+  fun nativeAggregateRoundTrip(value: ManagedAggregate): ManagedAggregate
   fun stringify<T : ToString>(value: T): String
     =
       MethodCall toString
@@ -466,6 +472,23 @@ SourceFile
       Call nativeRootRoundTrip
         Call stringify
           IntLiteral 42
+    val aggregate
+      Call nativeAggregateRoundTrip
+        Call ManagedAggregate
+          Binary Add
+            StringLiteral "agg"
+            StringLiteral "regate"
+          IntLiteral 10
+          IntLiteral 20
+    Call println
+      FieldAccess value
+        Var aggregate
+    Call println
+      FieldAccess left
+        Var aggregate
+    Call println
+      FieldAccess right
+        Var aggregate
 
 == hir ==
 Module
@@ -483,13 +506,20 @@ Module
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field0 registration: (Continuation<T0>) -> Unit
     property1 val registration: (Continuation<T0>) -> Unit getter1=storage <stored struct1-field0>
+  struct ManagedAggregate
+    field0 value: String
+    field1 left: Long
+    field2 right: Long
+    property11 val value: String getter11=storage <stored struct17-field0>
+    property12 val left: Long getter12=storage <stored struct17-field1>
+    property13 val right: Long getter13=storage <stored struct17-field2>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property14: Option<String>
+    property14 val message: Option<String> getter14=storage <stored field0 init=parameter14>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -625,6 +655,7 @@ Module
   fun coreStringHash(arg1: String): Long <extern9 abi=scoop symbol=scoop_rt_string_hash>
   fun nativeWrite(arg1: String): Unit <extern10 abi=scoop symbol=scoop_rt_write>
   fun nativeRootRoundTrip(arg1: String): String <extern11 abi=scoop symbol=native_root_round_trip lib=fixture_native>
+  fun nativeAggregateRoundTrip(arg1: ManagedAggregate): ManagedAggregate <extern12 abi=scoop symbol=native_aggregate_round_trip lib=fixture_native>
   fun stringify<T : ToString>(value: T0): String
     val local1
       Local value : T0
@@ -654,11 +685,63 @@ Module
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
+    val local8
+      StringLiteral "agg" : String
+    val local9
+      StringLiteral "regate" : String
+    val local10
+      Local $argument.0 : String
+    val local11
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local12
+      IntegerLiteral 10 : Long
+    val local13
+      IntegerLiteral 20 : Long
+    val local14
+      Local $argument.0 : String
+    val local15
+      Local $argument.1 : Long
+    val local16
+      Local $argument.2 : Long
+    val local17
+      StructInit ManagedAggregate : ManagedAggregate
+        Local $parameter.value : String
+        Local $parameter.left : Long
+        Local $parameter.right : Long
+    val local18
+      Local $argument.0 : ManagedAggregate
+    val local19
+      Call nativeAggregateRoundTrip : ManagedAggregate
+        Local $parameter.value : ManagedAggregate
+    val local20
+      FieldAccess field 0 : String
+        Local aggregate : ManagedAggregate
+    val local21
+      Local $argument.0 : String
+    Call println<String> : Unit
+      Local $parameter.value : String
+    val local22
+      FieldAccess field 1 : Long
+        Local aggregate : ManagedAggregate
+    val local23
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
+    val local24
+      FieldAccess field 2 : Long
+        Local aggregate : ManagedAggregate
+    val local25
+      Local $argument.0 : Long
+    Call println<Long> : Unit
+      Local $parameter.value : Long
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance stringify<Int>
   instance println<String>
+  instance println<Long>
 
 == mir ==
 Module mangling=compact-v2
@@ -674,6 +757,8 @@ Module mangling=compact-v2
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   extern ef10 nativeWrite @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef11 nativeRootRoundTrip @native_root_round_trip(String) -> String <abi=scoop managed lib=fixture_native>
+  extern ef12 nativeAggregateRoundTrip @native_aggregate_round_trip(ManagedAggregate) -> ManagedAggregate <abi=scoop managed lib=fixture_native>
+  struct ManagedAggregate (value: String, left: Long, right: Long)
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   enum Option$S
     Some(_1: String)
@@ -1094,6 +1179,81 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
+      val $receiver: String
+        Type String
+        StringConst @scoop.str.1
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.2
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.left: Long
+        Type Long
+        Local $argument.1
+      val $parameter.right: Long
+        Type Long
+        Local $argument.2
+      call $argument.0: ManagedAggregate = @scoop.ctor.ManagedAggregate.$c6 direct
+        Type String
+        Local $parameter.value
+        Type Long
+        Local $parameter.left
+        Type Long
+        Local $parameter.right
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      call aggregate: ManagedAggregate = extern12 @native_aggregate_round_trip direct
+        Type ManagedAggregate
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local aggregate
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type ManagedAggregate
+          Local aggregate
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type ManagedAggregate
+          Local aggregate
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call @scoop.println$I64 direct
+        Type Long
+        Local $parameter.value
       return
   fun stringify @scoop.stringify$I32(value: Int) -> String
     bb0 entry
@@ -1122,7 +1282,31 @@ Module mangling=compact-v2
         Local $parameter.message
       val $argument.0: String
         Type String
-        StringConst @scoop.str.1
+        StringConst @scoop.str.3
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      return
+  fun println @scoop.println$I64(value: Long) -> Unit
+    bb0 entry
+      val $receiver: Long
+        Type Long
+        Local value
+      call $argument.0: String = @scoop.Long.toString direct
+        Type Long
+        Local $receiver
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.4
       val $parameter.message: String
         Type String
         Local $argument.0
@@ -1150,7 +1334,7 @@ Module mangling=compact-v2
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.2
+        StringConst @scoop.str.5
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -1174,7 +1358,7 @@ Module mangling=compact-v2
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.3
+        StringConst @scoop.str.6
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -1198,7 +1382,7 @@ Module mangling=compact-v2
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.4
+        StringConst @scoop.str.7
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -1222,7 +1406,7 @@ Module mangling=compact-v2
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.5
+        StringConst @scoop.str.8
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -1262,7 +1446,7 @@ Module mangling=compact-v2
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.6
+        StringConst @scoop.str.9
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -1277,6 +1461,17 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
+  fun ctor.ManagedAggregate.$c6 @scoop.ctor.ManagedAggregate.$c6(value: String, left: Long, right: Long) -> ManagedAggregate <no-gc>
+    bb0 entry
+      return
+        Type ManagedAggregate
+        StructInit ManagedAggregate
+          Type String
+          Local value
+          Type Long
+          Local left
+          Type Long
+          Local right
   fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
       return
@@ -1294,24 +1489,31 @@ Module mangling=compact-v2
           Local typeName
   instance @scoop.stringify$I32 <- stringify
   instance @scoop.println$S <- println
+  instance @scoop.println$I64 <- println
   str @scoop.str.0 "direct managed ref"
-  str @scoop.str.1 "\n"
-  str @scoop.str.2 "unwrap on None"
-  str @scoop.str.3 "invalid cast"
-  str @scoop.str.4 "arithmetic error"
-  str @scoop.str.5 "array index out of bounds"
-  str @scoop.str.6 "illegal state"
+  str @scoop.str.1 "agg"
+  str @scoop.str.2 "regate"
+  str @scoop.str.3 "\n"
+  str @scoop.str.4 "\n"
+  str @scoop.str.5 "unwrap on None"
+  str @scoop.str.6 "invalid cast"
+  str @scoop.str.7 "arithmetic error"
+  str @scoop.str.8 "array index out of bounds"
+  str @scoop.str.9 "illegal state"
   entry @scoop_main
 
 == lir ==
 Module
   global @scoop.str.0 = "direct managed ref"
-  global @scoop.str.1 = "\n"
-  global @scoop.str.2 = "unwrap on None"
-  global @scoop.str.3 = "invalid cast"
-  global @scoop.str.4 = "arithmetic error"
-  global @scoop.str.5 = "array index out of bounds"
-  global @scoop.str.6 = "illegal state"
+  global @scoop.str.1 = "agg"
+  global @scoop.str.2 = "regate"
+  global @scoop.str.3 = "\n"
+  global @scoop.str.4 = "\n"
+  global @scoop.str.5 = "unwrap on None"
+  global @scoop.str.6 = "invalid cast"
+  global @scoop.str.7 = "arithmetic error"
+  global @scoop.str.8 = "array index out of bounds"
+  global @scoop.str.9 = "illegal state"
   enum Option$S niche(kind=managed,payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
@@ -1325,6 +1527,7 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
   extern ef10 nativeWrite @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef11 nativeRootRoundTrip @native_root_round_trip(ptr<managed>) -> ptr<managed> <scoop managed nounwind lib=fixture_native>
+  extern ef12 nativeAggregateRoundTrip @native_aggregate_round_trip(indirect<struct0 size=24 align=8 scan=refs[0]>) -> sret<struct0 size=24 align=8 scan=refs[0]> <scoop managed nounwind lib=fixture_native>
   fun @scoop.Int8.toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64
@@ -1332,7 +1535,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp37 live=[]
+    poll managed-void-target0 sp45 live=[]
     store param0 -> local0
     t0 = integer_convert<Int8->Long> local0 : i64
     store t0 -> local1
@@ -1346,7 +1549,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp38 live=[]
+    poll managed-void-target0 sp46 live=[]
     store param0 -> local0
     t0 = integer_convert<Int8->Long> local0 : i64
     store t0 -> local1
@@ -1361,7 +1564,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp39 live=[]
+    poll managed-void-target0 sp47 live=[]
     store param0 -> local0
     t0 = integer_convert<Int16->Long> local0 : i64
     store t0 -> local1
@@ -1375,7 +1578,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp40 live=[]
+    poll managed-void-target0 sp48 live=[]
     store param0 -> local0
     t0 = integer_convert<Int16->Long> local0 : i64
     store t0 -> local1
@@ -1390,7 +1593,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp41 live=[]
+    poll managed-void-target0 sp49 live=[]
     store param0 -> local0
     t0 = integer_convert<Int->Long> local0 : i64
     store t0 -> local1
@@ -1404,7 +1607,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp42 live=[]
+    poll managed-void-target0 sp50 live=[]
     store param0 -> local0
     t0 = integer_convert<Int->Long> local0 : i64
     store t0 -> local1
@@ -1418,7 +1621,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp43 live=[]
+    poll managed-void-target0 sp51 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp7 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern3(local1)
@@ -1429,7 +1632,7 @@ Module
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp44 live=[]
+    poll managed-void-target0 sp52 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp8 roots=[] t0 = sig=direct0 (i64) -> i64 extern6(local1)
@@ -1442,7 +1645,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp45 live=[]
+    poll managed-void-target0 sp53 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt8->ULong> local0 : i64
     store t0 -> local1
@@ -1456,7 +1659,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp46 live=[]
+    poll managed-void-target0 sp54 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt8->ULong> local0 : i64
     store t0 -> local1
@@ -1471,7 +1674,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp47 live=[]
+    poll managed-void-target0 sp55 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt16->ULong> local0 : i64
     store t0 -> local1
@@ -1485,7 +1688,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp48 live=[]
+    poll managed-void-target0 sp56 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt16->ULong> local0 : i64
     store t0 -> local1
@@ -1500,7 +1703,7 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp49 live=[]
+    poll managed-void-target0 sp57 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt->ULong> local0 : i64
     store t0 -> local1
@@ -1514,7 +1717,7 @@ Module
     local %2 $parameter.value: i64
     local %3 $call.1: i64
   block entry
-    poll managed-void-target0 sp50 live=[]
+    poll managed-void-target0 sp58 live=[]
     store param0 -> local0
     t0 = integer_convert<UInt->ULong> local0 : i64
     store t0 -> local1
@@ -1528,7 +1731,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp51 live=[]
+    poll managed-void-target0 sp59 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp15 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern4(local1)
@@ -1539,7 +1742,7 @@ Module
     local %1 $parameter.value: i64
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp52 live=[]
+    poll managed-void-target0 sp60 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp16 roots=[] t0 = sig=direct0 (i64) -> i64 extern7(local1)
@@ -1552,7 +1755,7 @@ Module
     local %3 $parameter.right: i1
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp53 live=[]
+    poll managed-void-target0 sp61 live=[]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -1566,7 +1769,7 @@ Module
     local %2 $call.1: ptr<managed>
     local %3 $sc.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp54 live=[]
+    poll managed-void-target0 sp62 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp18 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern5(local1)
@@ -1577,7 +1780,7 @@ Module
     local %1 $parameter.value: i1
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp55 live=[]
+    poll managed-void-target0 sp63 live=[]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
@@ -1590,7 +1793,7 @@ Module
     local %3 $parameter.right: ptr<managed>
     local %4 $call.1: i1
   block entry
-    poll managed-void-target0 sp56 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target0 sp64 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local0
     store param1 -> local1
     store local0 -> local2
@@ -1600,14 +1803,14 @@ Module
     ret local4
   fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp57 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp65 live=[param0:ptr<managed>@0]
     ret param0
   fun @scoop.String.hash(ptr<managed>) -> i64
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $call.1: i64
   block entry
-    poll managed-void-target0 sp58 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp66 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
@@ -1622,9 +1825,30 @@ Module
     local %5 $parameter.message: ptr<managed>
     local %6 $argument.0: ptr<managed>
     local %7 $parameter.value: ptr<managed>
-    local %8 $sc.1: ptr<managed>
+    local %8 $receiver: ptr<managed>
+    local %9 $argument.0: ptr<managed>
+    local %10 $parameter.other: ptr<managed>
+    local %11 $argument.0: ptr<managed>
+    local %12 $argument.1: i64
+    local %13 $argument.2: i64
+    local %14 $parameter.value: ptr<managed>
+    local %15 $parameter.left: i64
+    local %16 $parameter.right: i64
+    local %17 $argument.0: struct0
+    local %18 $parameter.value: struct0
+    local %19 aggregate: struct0
+    local %20 $argument.0: ptr<managed>
+    local %21 $parameter.value: ptr<managed>
+    local %22 $argument.0: i64
+    local %23 $parameter.value: i64
+    local %24 $argument.0: i64
+    local %25 $parameter.value: i64
+    local %26 $sc.1: ptr<managed>
+    local %27 $sc.2: struct0
+    local %28 $sc.3: struct0
+    local %29 $sc.4: struct0
   block entry
-    poll managed-void-target1 sp59 live=[]
+    poll managed-void-target4 sp67 live=[]
     store global0 -> local0
     store local0 -> local1
     call native-borrowed-void-target0 sp22 roots=[local1] sig=void0 (ptr<managed>) extern10(local1)
@@ -1634,19 +1858,50 @@ Module
     call managed-direct-target0 sp23 live=[] t1 = sig=direct0 (i32) -> ptr<managed> local-fn23(local3)
     store t1 -> local4
     store local4 -> local5
-    call native-borrowed-direct-target0 sp24 roots=[local5] result-root=local8:refs[0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> extern11(local5)
+    call native-borrowed-direct-target0 sp24 roots=[local5] result-root=local26:refs[0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> extern11(local5)
     store t2 -> local6
     store local6 -> local7
     call managed-void-target0 sp25 live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn24(local7)
     t3 = aggregate () : {}
+    store global1 -> local8
+    store global2 -> local9
+    store local9 -> local10
+    call managed-direct-target1 sp26 live=[local8:ptr<managed>@0, local10:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local8, local10)
+    store t4 -> local11
+    store integer<Long>(0x000000000000000a) -> local12
+    store integer<Long>(0x0000000000000014) -> local13
+    store local11 -> local14
+    store local12 -> local15
+    store local13 -> local16
+    call no-gc-indirect-target0 local27 = sig=indirect0 (sret struct0 size=24 align=8 scan=refs[0], ptr<managed>, i64, i64) local-fn34(local14, local15, local16)
+    store local27 -> local17
+    store local17 -> local18
+    store local18 -> local28
+    call native-borrowed-indirect-target0 sp27 roots=[local28] result-root=local29:refs[0] local29 = sig=indirect1 (sret struct0 size=24 align=8 scan=refs[0], indirect<struct0 size=24 align=8 scan=refs[0]>) extern12(indirect local28)
+    store local29 -> local19
+    t5 = extract local19, 0 : ptr<managed>
+    store t5 -> local20
+    store local20 -> local21
+    call managed-void-target1 sp28 live=[local19:struct0@0, local21:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn24(local21)
+    t6 = aggregate () : {}
+    t7 = extract local19, 1 : i64
+    store t7 -> local22
+    store local22 -> local23
+    call managed-void-target2 sp29 live=[local19:struct0@0] sig=void3 (i64) local-fn25(local23)
+    t8 = aggregate () : {}
+    t9 = extract local19, 2 : i64
+    store t9 -> local24
+    store local24 -> local25
+    call managed-void-target3 sp30 live=[] sig=void4 (i64) local-fn25(local25)
+    t10 = aggregate () : {}
     ret
   fun @scoop.stringify$I32(i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp60 live=[]
+    poll managed-void-target0 sp68 live=[]
     store param0 -> local0
-    call managed-direct-target0 sp26 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn4(local0)
+    call managed-direct-target0 sp31 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn4(local0)
     store t0 -> local1
     ret local1
   fun @scoop.println$S(ptr<managed>) -> void
@@ -1656,26 +1911,45 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.message: ptr<managed>
   block entry
-    poll managed-void-target0 sp61 live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp69 live=[param0:ptr<managed>@0]
     store param0 -> local0
-    call managed-direct-target0 sp27 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn20(local0)
+    call managed-direct-target0 sp32 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn20(local0)
     store t0 -> local1
     store local1 -> local2
-    call native-borrowed-void-target0 sp28 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    call native-borrowed-void-target0 sp33 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
     t1 = aggregate () : {}
-    store global1 -> local3
+    store global3 -> local3
     store local3 -> local4
-    call native-borrowed-void-target1 sp29 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    call native-borrowed-void-target1 sp34 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I64(i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.message: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.message: ptr<managed>
+  block entry
+    poll managed-void-target0 sp70 live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp35 live=[] t0 = sig=direct0 (i64) -> ptr<managed> local-fn6(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call native-borrowed-void-target0 sp36 roots=[local2] sig=void0 (ptr<managed>) extern0(local2)
+    t1 = aggregate () : {}
+    store global4 -> local3
+    store local3 -> local4
+    call native-borrowed-void-target1 sp37 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp62 live=[]
+    poll managed-void-target0 sp71 live=[]
     ret
   fun @scoop.init.Exception.$c1(ptr<managed>, enum0) -> void
   block entry
-    poll managed-void-target1 sp63 live=[param0:ptr<managed>@0, param1:enum0@0]
-    call managed-void-target0 sp30 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn25(param0)
+    poll managed-void-target1 sp72 live=[param0:ptr<managed>@0, param1:enum0@0]
+    call managed-void-target0 sp38 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn26(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
@@ -1685,13 +1959,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp64 live=[param0:ptr<managed>@0]
-    store global2 -> local0
+    poll managed-void-target1 sp73 live=[param0:ptr<managed>@0]
+    store global5 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp31 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn26(param0, local3)
+    call managed-void-target0 sp39 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.ClassCastException.$c3(ptr<managed>) -> void
@@ -1700,13 +1974,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp65 live=[param0:ptr<managed>@0]
-    store global3 -> local0
+    poll managed-void-target1 sp74 live=[param0:ptr<managed>@0]
+    store global6 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp32 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn26(param0, local3)
+    call managed-void-target0 sp40 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.ArithmeticException.$c4(ptr<managed>) -> void
@@ -1715,13 +1989,13 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp66 live=[param0:ptr<managed>@0]
-    store global4 -> local0
+    poll managed-void-target1 sp75 live=[param0:ptr<managed>@0]
+    store global7 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp33 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn26(param0, local3)
+    call managed-void-target0 sp41 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.IndexOutOfBoundsException.$c5(ptr<managed>) -> void
@@ -1730,23 +2004,23 @@ Module
     local %2 $argument.0: enum0
     local %3 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp67 live=[param0:ptr<managed>@0]
-    store global5 -> local0
+    poll managed-void-target1 sp76 live=[param0:ptr<managed>@0]
+    store global8 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
     store local2 -> local3
-    call managed-void-target0 sp34 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn26(param0, local3)
+    call managed-void-target0 sp42 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local3)
     t1 = aggregate () : {}
     ret
   fun @scoop.init.IllegalStateException.$c6(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp68 live=[param0:ptr<managed>@0, param1:enum0@0]
+    poll managed-void-target1 sp77 live=[param0:ptr<managed>@0, param1:enum0@0]
     store param1 -> local0
     store local0 -> local1
-    call managed-void-target0 sp35 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn26(param0, local1)
+    call managed-void-target0 sp43 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn27(param0, local1)
     t0 = aggregate () : {}
     ret
   fun @scoop.init.IllegalStateException.$c7(ptr<managed>) -> void
@@ -1754,17 +2028,21 @@ Module
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
   block entry
-    poll managed-void-target1 sp69 live=[param0:ptr<managed>@0]
-    store global6 -> local0
+    poll managed-void-target1 sp78 live=[param0:ptr<managed>@0]
+    store global9 -> local0
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
-    call managed-void-target0 sp36 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn31(param0, local2)
+    call managed-void-target0 sp44 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn32(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.ManagedAggregate.$c6(ptr<managed>, i64, i64) -> sret<struct0 size=24 align=8 scan=refs[0]> <no-gc>
   block entry
-    t0 = aggregate (param0, param1, param2, param3, param4) : struct0
+    t0 = aggregate (param0, param1, param2) : struct0
+    ret t0
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct1 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1, param2, param3, param4) : struct1
     ret t0
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
@@ -1785,6 +2063,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout ManagedAggregate size=24 align=8 refs=[0]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
@@ -1798,3 +2077,6 @@ Module
 
 == run ==
 direct managed ref42
+aggregate
+11
+22

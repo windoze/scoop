@@ -2966,7 +2966,7 @@ Module
     store local10 -> local12
     call managed-direct-target2 sp32 live=[local11:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>, i32) -> i32 local-fn24(local11, local12)
     store t3 -> local13
-    call no-gc-indirect-target0 local102 = sig=indirect0 (sret struct10, i32) local-fn51(local13)
+    call no-gc-indirect-target0 local102 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn51(local13)
     store local102 -> local94
     t4 = extract local94, 0 : i32
     store t4 -> local14
@@ -2975,7 +2975,7 @@ Module
     t5 = aggregate () : {}
     store integer<Int>(0x0000000b) -> local16
     store local16 -> local17
-    call no-gc-indirect-target1 local103 = sig=indirect1 (sret struct10, i32) local-fn51(local17)
+    call no-gc-indirect-target1 local103 = sig=indirect1 (sret struct10 size=4 align=4 scan=none, i32) local-fn51(local17)
     store local103 -> local95
     t6 = extract local95, 0 : i32
     store t6 -> local18
@@ -3377,11 +3377,11 @@ Module
     poll managed-void-target0 sp139 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Settings.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Settings.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0

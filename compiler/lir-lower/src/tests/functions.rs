@@ -43,8 +43,19 @@ fn function_signatures_params_and_calls() {
     // Parameters are SSA values (`Value::Param`), not stack slots;
     // the add body has no locals at all.
     let add_fn = &module.functions[0];
-    assert_eq!(add_fn.params, [lir::LirType::I32, lir::LirType::I32]);
-    assert_eq!(add_fn.return_ty, lir::LirType::I32);
+    assert_eq!(
+        add_fn
+            .signature
+            .arguments()
+            .iter()
+            .map(lir::AbiArgument::logical_storage_type)
+            .collect::<Vec<_>>(),
+        [&lir::LirType::I32, &lir::LirType::I32]
+    );
+    assert_eq!(
+        add_fn.signature.result().logical_storage_type(),
+        Some(&lir::LirType::I32)
+    );
     assert_eq!(add_fn.locals.len(), 0);
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
@@ -114,9 +125,9 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
         .expect("C extern uses the native-safe protocol");
     assert_eq!(
         arguments,
-        [lir::Value::CArgumentStorage(
+        [lir::AbiCallArgument::Direct(lir::Value::CArgumentStorage(
             lir::CArgumentStorage::address_of(local)
-        )]
+        ))]
     );
     assert_eq!(function.locals[local].ty, lir::LirType::I8);
     assert!(lir::dump(&module).contains("extern0(c-arg-address(local0))"));

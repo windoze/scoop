@@ -32,9 +32,90 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             CodegenError(format!("load rooted param {index}: {error}"))
                         })?
                 } else {
-                    self.llvm_function
-                        .get_nth_param(index + self.param_offset)
-                        .ok_or_else(|| CodegenError(format!("param {index} out of range")))?
+                    let logical_index = index as usize;
+                    let argument = self
+                        .function
+                        .signature
+                        .arguments()
+                        .get(logical_index)
+                        .ok_or_else(|| CodegenError(format!("param {index} out of range")))?;
+                    let location = self
+                        .function
+                        .signature
+                        .argument_location(logical_index)
+                        .expect("an existing ABI argument has a location");
+                    match (argument, location) {
+                        (
+                            scoop_lir::AbiArgument::ElidedZst(value),
+                            scoop_lir::AbiArgumentLocation::Elided,
+                        ) => basic_ty(
+                            context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            value.storage_type(),
+                        )?
+                        .const_zero(),
+                        (
+                            scoop_lir::AbiArgument::Direct(_),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for logical param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            self.llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for logical param {index} is out of range"
+                                    ))
+                                })?
+                        }
+                        (
+                            scoop_lir::AbiArgument::Indirect(value),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for logical param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            let storage = self
+                                .llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for logical param {index} is out of range"
+                                    ))
+                                })?;
+                            let BasicValueEnum::PointerValue(storage) = storage else {
+                                return Err(CodegenError(format!(
+                                    "indirect logical param {index} does not use pointer storage"
+                                )));
+                            };
+                            let ty = basic_ty(
+                                context,
+                                self.structs,
+                                self.enums,
+                                self.managed_address_space,
+                                value.storage_type(),
+                            )?;
+                            self.builder
+                                .build_load(ty, storage, "indirect_param")
+                                .map_err(|error| {
+                                    CodegenError(format!(
+                                        "load indirect logical param {index}: {error}"
+                                    ))
+                                })?
+                        }
+                        _ => {
+                            return Err(CodegenError(format!(
+                                "logical param {index} has an inconsistent Scoop ABI location"
+                            )));
+                        }
+                    }
                 }
             }
             Value::Temp(id) => {

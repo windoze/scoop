@@ -19,9 +19,9 @@ pub struct Function {
     /// instructions with their own typed root plans.
     pub gc_effect: GcEffect,
     pub symbol: String,
-    /// Parameter types; arguments are SSA values (`Value::Param`).
-    pub params: Vec<LirType>,
-    pub return_ty: LirType,
+    /// The sole logical and physical Scoop ABI signature for this definition.
+    /// Arguments remain addressable by logical source index (`Value::Param`).
+    pub signature: ScoopAbiSignature,
     /// Function-local call entities. Targets may contain local SSA operands
     /// (for dispatch tables), so their ids are scoped to this function.
     pub call_targets: CallTargets,
@@ -38,7 +38,9 @@ impl Function {
         match value {
             Value::Local(id) => self.locals[id].ty.clone(),
             Value::Temp(id) => self.temps[id].ty.clone(),
-            Value::Param(index) => self.params[index as usize].clone(),
+            Value::Param(index) => self.signature.arguments()[index as usize]
+                .logical_storage_type()
+                .clone(),
             Value::IntegerConst(value) => value.scalar_type(),
             Value::MachineScalar(value) => LirType::MachineScalar(value.kind()),
             Value::BoolConst(_) => LirType::I1,

@@ -10,10 +10,10 @@ fn stackmap_qualification_module() -> Module {
         return_value: Option<Value>,
     ) -> Function {
         let mut call_targets = CallTargets::default();
-        let signature = call_targets.void_signatures.alloc(VoidCallSignature {
-            params: Vec::new(),
-            calling_convention: scoop_lir::CallingConvention::Cdecl,
-        });
+        let signature = call_targets.void_signatures.alloc(VoidCallSignature::new(
+            Vec::new(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
         let target = call_targets
             .managed_targets
             .void
@@ -40,8 +40,7 @@ fn stackmap_qualification_module() -> Module {
         Function {
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
-            params,
-            return_ty,
+            signature: plain_scoop_signature(params, return_ty),
             call_targets,
             locals: Arena::default(),
             temps: Arena::default(),

@@ -430,25 +430,6 @@ pub(crate) fn struct_ty<'ctx>(
     Ok(context.struct_type(&[anchor, payload.into()], false))
 }
 
-/// Aggregate values cannot be returned directly from a statepoint call:
-/// LLVM's statepoint rewrite lowers such results incompletely on the
-/// supported native targets. Keep LIR's value-returning contract, but use
-/// an explicit caller-provided result slot in the physical LLVM ABI.
-pub(crate) fn uses_return_slot(enums: &EnumDefs, ty: &LirType) -> bool {
-    match ty {
-        LirType::Aggregate(_) | LirType::Struct(_) | LirType::ExceptionRecord => true,
-        LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
-        LirType::Void
-        | LirType::I1
-        | LirType::I8
-        | LirType::I16
-        | LirType::I32
-        | LirType::I64
-        | LirType::MachineScalar(_)
-        | LirType::Ptr(_) => false,
-    }
-}
-
 /// Physical storage for a tagged enum. Non-reference payload remains opaque,
 /// but every fixed GC slot is an AS1 pointer field so SROA cannot turn a
 /// managed reference into integer/byte fragments.
@@ -577,29 +558,4 @@ pub(crate) fn pointer_ty(
         | scoop_lir::PointerKind::Code
         | scoop_lir::PointerKind::Metadata => ptr_ty(context),
     }
-}
-
-/// Translate one LIR function. Signature (parameters and return type)
-/// comes from LIR; parameters are SSA values (`Value::Param`).
-pub(crate) fn fn_type_of<'ctx>(
-    context: &'ctx Context,
-    structs: &StructDefs,
-    enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
-    function: &Function,
-) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
-    let mut param_tys: Vec<BasicMetadataTypeEnum> = function
-        .params
-        .iter()
-        .map(|ty| basic_ty(context, structs, enums, managed_address_space, ty).map(Into::into))
-        .collect::<Result<_, _>>()?;
-    if uses_return_slot(enums, &function.return_ty) {
-        param_tys.insert(0, ptr_ty(context).into());
-        return Ok(context.void_type().fn_type(&param_tys, false));
-    }
-    Ok(match &function.return_ty {
-        LirType::Void => context.void_type().fn_type(&param_tys, false),
-        return_ty => basic_ty(context, structs, enums, managed_address_space, return_ty)?
-            .fn_type(&param_tys, false),
-    })
 }

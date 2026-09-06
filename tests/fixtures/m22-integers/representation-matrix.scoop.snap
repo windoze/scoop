@@ -5937,7 +5937,7 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.renderWidth(enum1) -> ptr<managed>
+  fun @scoop.renderWidth(indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed>
     local %0 number: i8
     local %1 $receiver: i8
     local %2 number: i16
@@ -6489,6 +6489,14 @@ Module
     local %397 $sc.7: i16
     local %398 $sc.8: i32
     local %399 $sc.9: i64
+    local %400 $sc.10: enum1
+    local %401 $sc.11: enum1
+    local %402 $sc.12: enum1
+    local %403 $sc.13: enum1
+    local %404 $sc.14: enum1
+    local %405 $sc.15: enum1
+    local %406 $sc.16: enum1
+    local %407 $sc.17: enum1
   block entry
     poll managed-void-target98 sp276 live=[]
     store integer<ULong>(0x0000000000000001) -> local0
@@ -6571,7 +6579,7 @@ Module
     store local37 -> local45
     store local38 -> local46
     store local39 -> local47
-    call no-gc-indirect-target0 local391 = sig=indirect0 (sret struct10, i8, i16, i32, i64, i8, i16, i32, i64) local-fn67(local40, local41, local42, local43, local44, local45, local46, local47)
+    call no-gc-indirect-target0 local391 = sig=indirect0 (sret struct10 size=32 align=8 scan=none, i8, i16, i32, i64, i8, i16, i32, i64) local-fn67(local40, local41, local42, local43, local44, local45, local46, local47)
     store local391 -> local48
     t16 = extract local48, 0 : i8
     store t16 -> local49
@@ -7325,7 +7333,8 @@ Module
     t251 = enum_wrap e1 v0 (local288) : enum1
     store t251 -> local289
     store local289 -> local290
-    call managed-direct-target48 sp176 live=[] t252 = sig=direct56 (enum1) -> ptr<managed> local-fn22(local290)
+    store local290 -> local400
+    call managed-direct-target48 sp176 live=[] t252 = sig=direct56 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local400)
     store t252 -> local291
     store local291 -> local292
     call managed-void-target90 sp177 live=[local292:ptr<managed>@0] sig=void90 (ptr<managed>) local-fn41(local292)
@@ -7335,7 +7344,8 @@ Module
     t254 = enum_wrap e1 v1 (local294) : enum1
     store t254 -> local295
     store local295 -> local296
-    call managed-direct-target49 sp178 live=[] t255 = sig=direct57 (enum1) -> ptr<managed> local-fn22(local296)
+    store local296 -> local401
+    call managed-direct-target49 sp178 live=[] t255 = sig=direct57 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local401)
     store t255 -> local297
     store local297 -> local298
     call managed-void-target91 sp179 live=[local298:ptr<managed>@0] sig=void91 (ptr<managed>) local-fn41(local298)
@@ -7345,7 +7355,8 @@ Module
     t257 = enum_wrap e1 v2 (local300) : enum1
     store t257 -> local301
     store local301 -> local302
-    call managed-direct-target50 sp180 live=[] t258 = sig=direct58 (enum1) -> ptr<managed> local-fn22(local302)
+    store local302 -> local402
+    call managed-direct-target50 sp180 live=[] t258 = sig=direct58 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local402)
     store t258 -> local303
     store local303 -> local304
     call managed-void-target92 sp181 live=[local304:ptr<managed>@0] sig=void92 (ptr<managed>) local-fn41(local304)
@@ -7355,7 +7366,8 @@ Module
     t260 = enum_wrap e1 v3 (local306) : enum1
     store t260 -> local307
     store local307 -> local308
-    call managed-direct-target51 sp182 live=[] t261 = sig=direct59 (enum1) -> ptr<managed> local-fn22(local308)
+    store local308 -> local403
+    call managed-direct-target51 sp182 live=[] t261 = sig=direct59 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local403)
     store t261 -> local309
     store local309 -> local310
     call managed-void-target93 sp183 live=[local310:ptr<managed>@0] sig=void93 (ptr<managed>) local-fn41(local310)
@@ -7365,7 +7377,8 @@ Module
     t263 = enum_wrap e1 v4 (local312) : enum1
     store t263 -> local313
     store local313 -> local314
-    call managed-direct-target52 sp184 live=[] t264 = sig=direct60 (enum1) -> ptr<managed> local-fn22(local314)
+    store local314 -> local404
+    call managed-direct-target52 sp184 live=[] t264 = sig=direct60 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local404)
     store t264 -> local315
     store local315 -> local316
     call managed-void-target94 sp185 live=[local316:ptr<managed>@0] sig=void94 (ptr<managed>) local-fn41(local316)
@@ -7375,7 +7388,8 @@ Module
     t266 = enum_wrap e1 v5 (local318) : enum1
     store t266 -> local319
     store local319 -> local320
-    call managed-direct-target53 sp186 live=[] t267 = sig=direct61 (enum1) -> ptr<managed> local-fn22(local320)
+    store local320 -> local405
+    call managed-direct-target53 sp186 live=[] t267 = sig=direct61 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local405)
     store t267 -> local321
     store local321 -> local322
     call managed-void-target95 sp187 live=[local322:ptr<managed>@0] sig=void95 (ptr<managed>) local-fn41(local322)
@@ -7385,7 +7399,8 @@ Module
     t269 = enum_wrap e1 v6 (local324) : enum1
     store t269 -> local325
     store local325 -> local326
-    call managed-direct-target54 sp188 live=[] t270 = sig=direct62 (enum1) -> ptr<managed> local-fn22(local326)
+    store local326 -> local406
+    call managed-direct-target54 sp188 live=[] t270 = sig=direct62 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local406)
     store t270 -> local327
     store local327 -> local328
     call managed-void-target96 sp189 live=[local328:ptr<managed>@0] sig=void96 (ptr<managed>) local-fn41(local328)
@@ -7395,7 +7410,8 @@ Module
     t272 = enum_wrap e1 v7 (local330) : enum1
     store t272 -> local331
     store local331 -> local332
-    call managed-direct-target55 sp190 live=[] t273 = sig=direct63 (enum1) -> ptr<managed> local-fn22(local332)
+    store local332 -> local407
+    call managed-direct-target55 sp190 live=[] t273 = sig=direct63 (indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed> local-fn22(indirect local407)
     store t273 -> local333
     store local333 -> local334
     call managed-void-target97 sp191 live=[local334:ptr<managed>@0] sig=void97 (ptr<managed>) local-fn41(local334)
@@ -7909,11 +7925,11 @@ Module
     call managed-void-target0 sp252 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn64(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Widths.$c6(i8, i16, i32, i64, i8, i16, i32, i64) -> struct10 <no-gc>
+  fun @scoop.ctor.Widths.$c6(i8, i16, i32, i64, i8, i16, i32, i64) -> sret<struct10 size=32 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4, param5, param6, param7) : struct10
     ret t0

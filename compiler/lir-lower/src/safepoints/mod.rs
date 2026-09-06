@@ -21,13 +21,11 @@ mod scans;
 use cfg::*;
 use dataflow::*;
 use plans::*;
-#[cfg(test)]
-pub(crate) use scans::lir_size_align;
-pub(super) use scans::root_scan;
 use scans::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
     statepoint_live_set,
 };
+pub(crate) use scans::{lir_size_align, root_scan};
 
 #[derive(Debug)]
 pub(super) struct SafepointIds {

@@ -2508,7 +2508,7 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.preserveThroughCalls(ptr<managed>, struct10, ptr<managed>) -> ptr<managed>
+  fun @scoop.preserveThroughCalls(ptr<managed>, indirect<struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48]>, ptr<managed>) -> ptr<managed>
     local %0 current: ptr<managed>
     local %1 index: i64
     local %2 $receiver: i64
@@ -2703,7 +2703,7 @@ Module
     t41 = integer_Add<Long> local32, local34 : i64
     store t41 -> local1
     br @while.cond.1
-  fun @scoop.passThroughMiddle(struct10, ptr<managed>) -> ptr<managed>
+  fun @scoop.passThroughMiddle(indirect<struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48]>, ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: struct10
     local %2 $argument.2: ptr<managed>
@@ -2711,6 +2711,7 @@ Module
     local %4 $parameter.bundle: struct10
     local %5 $parameter.source: ptr<managed>
     local %6 $call.1: ptr<managed>
+    local %7 $sc.1: struct10
   block entry
     poll managed-void-target0 sp84 live=[param0:struct10@0+8+16+32+40+48, param1:ptr<managed>@0]
     t0 = extract param0, 0 : ptr<managed>
@@ -2720,7 +2721,8 @@ Module
     store local0 -> local3
     store local1 -> local4
     store local2 -> local5
-    call managed-direct-target0 sp37 live=[local3:ptr<managed>@0, local4:struct10@0+8+16+32+40+48, local5:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, struct10, ptr<managed>) -> ptr<managed> local-fn23(local3, local4, local5)
+    store local4 -> local7
+    call managed-direct-target0 sp37 live=[local3:ptr<managed>@0, local5:ptr<managed>@0, local7:struct10@0+8+16+32+40+48] t1 = sig=direct0 (ptr<managed>, indirect<struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48]>, ptr<managed>) -> ptr<managed> local-fn23(local3, indirect local7, local5)
     store t1 -> local6
     ret local6
   fun @scoop_main() -> void
@@ -2771,7 +2773,10 @@ Module
     local %44 $argument.0: ptr<managed>
     local %45 $parameter.value: ptr<managed>
     local %46 $new.1: ptr<managed>
-    local %47 $sc.1: struct10
+    local %47 $sc.1: {ptr<managed>, ptr<managed>}
+    local %48 $sc.2: enum0
+    local %49 $sc.3: struct10
+    local %50 $sc.4: struct10
   block entry
     poll managed-void-target2 sp85 live=[]
     store global1 -> local0
@@ -2825,14 +2830,17 @@ Module
     store local31 -> local35
     store local32 -> local36
     store local33 -> local37
-    call no-gc-indirect-target0 local47 = sig=indirect0 (sret struct10, ptr<managed>, {ptr<managed>, ptr<managed>}, enum0, ptr<managed>) local-fn37(local34, local35, local36, local37)
-    store local47 -> local38
+    store local35 -> local47
+    store local36 -> local48
+    call no-gc-indirect-target0 local49 = sig=indirect0 (sret struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48], ptr<managed>, indirect<{ptr<managed>, ptr<managed>} size=16 align=8 scan=refs[0, 8]>, indirect<enum0 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) local-fn37(local34, indirect local47, indirect local48, local37)
+    store local49 -> local38
     store local13 -> local39
     store local38 -> local40
     store local39 -> local41
     store local40 -> local42
     store local41 -> local43
-    call managed-direct-target7 sp47 live=[local42:struct10@0+8+16+32+40+48, local43:ptr<managed>@0] t11 = sig=direct7 (struct10, ptr<managed>) -> ptr<managed> local-fn24(local42, local43)
+    store local42 -> local50
+    call managed-direct-target7 sp47 live=[local43:ptr<managed>@0, local50:struct10@0+8+16+32+40+48] t11 = sig=direct7 (indirect<struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48]>, ptr<managed>) -> ptr<managed> local-fn24(indirect local50, local43)
     store t11 -> local44
     store local44 -> local45
     call managed-void-target1 sp48 live=[local45:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn26(local45)
@@ -2956,11 +2964,11 @@ Module
     call managed-void-target0 sp58 live=[param0:ptr<managed>@0, local2:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn34(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.MovingBundle.$c6(ptr<managed>, {ptr<managed>, ptr<managed>}, enum0, ptr<managed>) -> struct10 <no-gc>
+  fun @scoop.ctor.MovingBundle.$c6(ptr<managed>, indirect<{ptr<managed>, ptr<managed>} size=16 align=8 scan=refs[0, 8]>, indirect<enum0 size=24 align=8 scan=refs[8, 16]>, ptr<managed>) -> sret<struct10 size=56 align=8 scan=refs[0, 8, 16, 32, 40, 48]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3) : struct10
     ret t0

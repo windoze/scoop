@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,21 @@ typedef struct NativeNode {
     struct NativeNode *left;
     struct NativeNode *right;
 } NativeNode;
+
+typedef struct ManagedAggregate {
+    const ScoopString *value;
+    int64_t left;
+    int64_t right;
+} ManagedAggregate;
+
+_Static_assert(sizeof(ManagedAggregate) == 24,
+               "Scoop aggregate fixture size must stay exact");
+_Static_assert(_Alignof(ManagedAggregate) == 8,
+               "Scoop aggregate fixture alignment must stay exact");
+_Static_assert(offsetof(ManagedAggregate, value) == 0 &&
+                   offsetof(ManagedAggregate, left) == 8 &&
+                   offsetof(ManagedAggregate, right) == 16,
+               "Scoop aggregate fixture offsets must stay exact");
 
 static const uint64_t node_refs[] = {2, 16, 24};
 static const ScoopTypeDescriptor node_td = {
@@ -63,6 +79,60 @@ static bool exact_bytes_are_poisoned(const void *object, size_t size) {
     }
     return true;
 }
+
+/*
+ * The Scoop ABI entry below is deliberately not expressed as a C
+ * struct-by-value function. On Darwin/AArch64 Scoop passes an indirect result
+ * in x8 and materializes this 24-byte byval argument at the incoming stack
+ * pointer; the assembly shim maps those storage locations onto this ordinary C
+ * helper's x0/x1 parameters. This keeps the fixture independent of Clang's C
+ * aggregate classifier.
+ */
+void native_aggregate_round_trip_storage(ManagedAggregate *result,
+                                         ManagedAggregate *value) {
+    uintptr_t old_value_address = (uintptr_t)value->value;
+    int64_t left = value->left;
+    int64_t right = value->right;
+    void *root = (void *)value->value;
+    void **slots[] = {&root};
+    ScoopNativeRootFrame frame;
+
+    /* Decompose the value completely before the first GC and retain only its
+     * managed leaf in a DirectSlots frame. The aggregate place itself does not
+     * cross the GC, so a RecursiveRegion frame is neither required nor used. */
+    scoop_rt_push_native_roots(&frame, slots, 1);
+    scoop_runtime_gc_collect();
+    const ScoopString *reloaded = root;
+    bool valid = reloaded != NULL && (uintptr_t)reloaded != old_value_address &&
+                 reloaded->len == 9 &&
+                 memcmp(reloaded->data, "aggregate", 9) == 0;
+
+    result->value = reloaded;
+    result->left = left + 1;
+    result->right = right + 2;
+    uintptr_t old_result_value_address = (uintptr_t)result->value;
+    scoop_runtime_gc_collect();
+    reloaded = root;
+    valid = valid && reloaded != NULL &&
+            (uintptr_t)reloaded != old_result_value_address &&
+            result->value == reloaded && reloaded->len == 9 &&
+            memcmp(reloaded->data, "aggregate", 9) == 0;
+    scoop_rt_pop_native_roots(&frame);
+
+    if (!valid) {
+        result->left = -1;
+        result->right = -1;
+    }
+}
+
+__asm__(
+    ".text\n"
+    ".globl _native_aggregate_round_trip\n"
+    ".p2align 2\n"
+    "_native_aggregate_round_trip:\n"
+    "mov x1, sp\n"
+    "mov x0, x8\n"
+    "b _native_aggregate_round_trip_storage\n");
 
 const ScoopString *native_root_round_trip(const ScoopString *message) {
     void *root = (void *)message;

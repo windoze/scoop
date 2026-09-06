@@ -148,13 +148,18 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, extern_) in module.extern_functions.iter() {
-        let (parameter_types, return_type, kind) = match &extern_.kind {
+        let (params, return_type, kind) = match &extern_.kind {
             ExternFunctionKind::C {
                 bridge_symbol,
                 signature,
             } => (
-                signature.storage_params(),
-                signature.storage_return_type(),
+                signature
+                    .storage_params()
+                    .iter()
+                    .map(LirType::dump)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                signature.storage_return_type().dump(),
                 format!(
                     "c exact={} bridge=@{bridge_symbol} gc-leaf nounwind",
                     signature.dump()
@@ -164,8 +169,13 @@ pub fn dump(module: &Module) -> String {
                 gc_effect,
                 signature,
             } => (
-                signature.params.clone(),
-                signature.storage_return_type(),
+                signature
+                    .arguments()
+                    .iter()
+                    .map(abi_argument_name)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                abi_return_name(signature.result()),
                 format!(
                     "scoop {} nounwind",
                     if *gc_effect == GcEffect::NoGc {
@@ -176,11 +186,6 @@ pub fn dump(module: &Module) -> String {
                 ),
             ),
         };
-        let params = parameter_types
-            .iter()
-            .map(LirType::dump)
-            .collect::<Vec<_>>()
-            .join(", ");
         let library = if extern_.library.is_empty() {
             String::new()
         } else {
@@ -192,7 +197,7 @@ pub fn dump(module: &Module) -> String {
             extern_.source_name,
             extern_.native_symbol,
             params,
-            return_type.dump(),
+            return_type,
             kind,
             library
         ));
@@ -256,12 +261,17 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for function in &module.functions {
-        let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
+        let params = function
+            .signature
+            .arguments()
+            .iter()
+            .map(abi_argument_name)
+            .collect::<Vec<_>>();
         out.push_str(&format!(
             "  fun @{}({}) -> {}{}\n",
             function.symbol,
             params.join(", "),
-            function.return_ty.dump(),
+            abi_return_name(function.signature.result()),
             if function.gc_effect == GcEffect::NoGc {
                 " <no-gc>"
             } else {

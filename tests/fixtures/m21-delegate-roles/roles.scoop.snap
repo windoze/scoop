@@ -1589,17 +1589,17 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.MutableDelegate.getValue(ptr<managed>, {}) -> i32
+  fun @scoop.MutableDelegate.getValue(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
   block entry
     poll managed-void-target0 sp55 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop.MutableDelegate.setValue(ptr<managed>, {}, i32) -> void
+  fun @scoop.MutableDelegate.setValue(ptr<managed>, elided-zst<{} size=0 align=1>, i32) -> void
   block entry
     poll managed-void-target0 sp56 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param2
     ret
-  fun @scoop.Ordinary.getValue(ptr<managed>, {}) -> i32
+  fun @scoop.Ordinary.getValue(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
   block entry
     poll managed-void-target0 sp57 live=[]
     ret integer<Int>(0x00000000)
@@ -1735,7 +1735,7 @@ Module
   block entry
     poll managed-void-target0 sp69 live=[]
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

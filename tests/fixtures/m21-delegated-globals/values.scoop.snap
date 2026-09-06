@@ -2379,7 +2379,7 @@ Module
     call managed-void-target0 sp1 live=[param0:ptr<managed>@0, local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn46(local1)
     t0 = aggregate () : {}
     ret param0
-  fun @scoop.UnitDelegate.getValue(ptr<managed>, {}) -> ptr<managed>
+  fun @scoop.UnitDelegate.getValue(ptr<managed>, elided-zst<{} size=0 align=1>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
@@ -2390,7 +2390,7 @@ Module
     t0 = aggregate () : {}
     t1 = heap_load param0 +16 : ptr<managed>
     ret t1
-  fun @scoop.UnitDelegate.setValue(ptr<managed>, {}, ptr<managed>) -> void
+  fun @scoop.UnitDelegate.setValue(ptr<managed>, elided-zst<{} size=0 align=1>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
@@ -2401,12 +2401,12 @@ Module
     t0 = aggregate () : {}
     heap_store param0 +16 param2
     ret
-  fun @scoop.EffectiveDelegate.getValue(ptr<managed>, {}) -> i32
+  fun @scoop.EffectiveDelegate.getValue(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
   block entry
     poll managed-void-target0 sp119 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop.EffectiveDelegate.setValue(ptr<managed>, {}, i32) -> void
+  fun @scoop.EffectiveDelegate.setValue(ptr<managed>, elided-zst<{} size=0 align=1>, i32) -> void
   block entry
     poll managed-void-target0 sp120 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param2
@@ -3122,7 +3122,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global20 : ptr<managed>
     t2 = aggregate () : {}
-    call managed-direct-target0 sp84 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, {}) -> ptr<managed> local-fn1(t1, t2)
+    call managed-direct-target0 sp84 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> ptr<managed> local-fn1(t1, elided-zst t2)
     store t3 -> local0
     ret local0
   fun @scoop.$set$message(ptr<managed>) -> void
@@ -3132,7 +3132,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global20 : ptr<managed>
     t2 = aggregate () : {}
-    call managed-void-target1 sp86 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] sig=void1 (ptr<managed>, {}, ptr<managed>) local-fn2(t1, t2, param0)
+    call managed-void-target1 sp86 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<{} size=0 align=1>, ptr<managed>) local-fn2(t1, elided-zst t2, param0)
     t3 = aggregate () : {}
     ret
   fun @scoop.$init$body$2() -> void
@@ -3260,7 +3260,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global21 : ptr<managed>
     t2 = aggregate () : {}
-    call managed-direct-target0 sp100 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, {}) -> i32 local-fn3(t1, t2)
+    call managed-direct-target0 sp100 live=[t1:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 local-fn3(t1, elided-zst t2)
     store t3 -> local0
     ret local0
   fun @scoop.$set$provided(i32) -> void
@@ -3270,7 +3270,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global21 : ptr<managed>
     t2 = aggregate () : {}
-    call managed-void-target1 sp102 live=[t1:ptr<managed>@0] sig=void1 (ptr<managed>, {}, i32) local-fn4(t1, t2, param0)
+    call managed-void-target1 sp102 live=[t1:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<{} size=0 align=1>, i32) local-fn4(t1, elided-zst t2, param0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void
@@ -3425,7 +3425,7 @@ Module
     poll managed-void-target0 sp175 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

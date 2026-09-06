@@ -16,8 +16,10 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
     Function {
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),
-        params: vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
-        return_ty: LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        signature: plain_scoop_signature(
+            vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
+            LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
+        ),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -423,8 +425,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![],
-            return_ty: LirType::Void,
+            signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps,
@@ -697,7 +698,7 @@ fn c_extern_call_binds_each_argument_to_its_exact_c_storage_type() {
     assert!(
         error
             .0
-            .contains("argument 0 storage local3 has type i64, expected exact C storage i8"),
+            .contains("argument 0 storage local3 has type i64, expected exact i8"),
         "unexpected error: {error}"
     );
 }
@@ -1550,8 +1551,14 @@ fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
     let family = foreign_callback_family(&mut module);
     let callback = module.foreign_callback_families[family].callback;
     let states = module.foreign_callback_families[family].states;
+    let signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![LirType::Struct(callback)],
+        LirType::Void,
+    );
     let function = &mut module.functions[0];
-    function.params.push(LirType::Struct(callback));
+    function.signature = signature;
     let out = function.temps.alloc(Temp {
         ty: LirType::Enum(states.definition()),
     });

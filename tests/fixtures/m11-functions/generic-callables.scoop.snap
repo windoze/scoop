@@ -2872,7 +2872,7 @@ Module
     poll managed-void-target0 sp137 live=[]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct10, i32) local-fn70(local1)
+    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn70(local1)
     store local3 -> local2
     call managed-direct-target0 sp79 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.2$I32 : ptr
@@ -2888,7 +2888,7 @@ Module
     poll managed-void-target0 sp138 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct11, ptr<managed>) local-fn71(local1)
+    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct11 size=8 align=8 scan=refs[0], ptr<managed>) local-fn71(local1)
     store local3 -> local2
     call managed-direct-target0 sp80 live=[local2:struct11@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(32)))
     t1 = function_address @scoop.$lambda.2$S : ptr
@@ -3157,15 +3157,15 @@ Module
     call managed-void-target0 sp101 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn67(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.GenericBox$I32.$c6(i32) -> struct10 <no-gc>
+  fun @scoop.ctor.GenericBox$I32.$c6(i32) -> sret<struct10 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct10
     ret t0
-  fun @scoop.ctor.GenericBox$S.$c6(ptr<managed>) -> struct11 <no-gc>
+  fun @scoop.ctor.GenericBox$S.$c6(ptr<managed>) -> sret<struct11 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct11
     ret t0

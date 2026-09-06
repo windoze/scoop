@@ -2543,28 +2543,29 @@ Module
     call native-borrowed-direct-target0 sp21 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Reporter.bodyLocation(ptr<managed>) -> struct0
+  fun @scoop.Reporter.bodyLocation(ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
   block entry
     poll managed-void-target0 sp95 live=[]
     t0 = aggregate (global0, integer<Long>(0x0000000000000015), integer<Long>(0x0000000000000030), global1, global2) : struct0
     ret t0
-  fun @scoop.Reporter.defaultLocation(ptr<managed>, struct0) -> struct0
+  fun @scoop.Reporter.defaultLocation(ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
   block entry
     poll managed-void-target0 sp96 live=[param1:struct0@0+24+32]
     ret param1
-  fun @scoop.LocationTask.run$suspend(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop.LocationTask.run$suspend(ptr<managed>, ptr<managed>) -> sret<enum1 size=48 align=8 scan=refs[8, 32, 40]>
   block entry
     poll managed-void-target0 sp97 live=[]
     t0 = aggregate (global3, integer<Long>(0x000000000000001d), integer<Long>(0x000000000000003f), global4, global5) : struct0
     t1 = enum_wrap e1 v0 (t0) : enum1
     ret t1
-  fun @scoop.LocationCompletion.resume(ptr<managed>, struct0) -> void
+  fun @scoop.LocationCompletion.resume(ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: struct0
     local %2 $argument.2: ptr<managed>
     local %3 $parameter.label: ptr<managed>
     local %4 $parameter.location: struct0
     local %5 $parameter.expectedFile: ptr<managed>
+    local %6 $sc.1: struct0
   block entry
     poll managed-void-target1 sp98 live=[param0:ptr<managed>@0, param1:struct0@0+24+32]
     store global6 -> local0
@@ -2574,7 +2575,8 @@ Module
     store local0 -> local3
     store local1 -> local4
     store local2 -> local5
-    call managed-void-target0 sp22 live=[local3:ptr<managed>@0, local4:struct0@0+24+32, local5:ptr<managed>@0] sig=void0 (ptr<managed>, struct0, ptr<managed>) local-fn27(local3, local4, local5)
+    store local4 -> local6
+    call managed-void-target0 sp22 live=[local3:ptr<managed>@0, local5:ptr<managed>@0, local6:struct0@0+24+32] sig=void0 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local3, indirect local6, local5)
     t1 = aggregate () : {}
     ret
   fun @scoop.LocationCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
@@ -2587,7 +2589,7 @@ Module
     call managed-void-target0 sp23 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn32(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.printLocation(ptr<managed>, struct0, ptr<managed>) -> void
+  fun @scoop.printLocation(ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $argument.0: i1
@@ -2633,33 +2635,37 @@ Module
     call managed-void-target5 sp30 live=[local11:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn32(local11)
     t11 = aggregate () : {}
     ret
-  fun @scoop.trace(struct0) -> struct0
+  fun @scoop.trace(indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
   block entry
     poll managed-void-target0 sp101 live=[param0:struct0@0+24+32]
     ret param0
-  fun @scoop.warn(struct0) -> struct0
+  fun @scoop.warn(indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
     local %0 $argument.0: struct0
     local %1 $parameter.location: struct0
     local %2 $call.1: struct0
     local %3 $sc.1: struct0
+    local %4 $sc.2: struct0
   block entry
     poll managed-void-target0 sp102 live=[param0:struct0@0+24+32]
     store param0 -> local0
     store local0 -> local1
-    call managed-indirect-target0 sp31 live=[local1:struct0@0+24+32] local3 = sig=indirect0 (sret struct0, struct0) local-fn28(local1)
-    store local3 -> local2
+    store local1 -> local3
+    call managed-indirect-target0 sp31 live=[local3:struct0@0+24+32] local4 = sig=indirect0 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn28(indirect local3)
+    store local4 -> local2
     ret local2
-  fun @scoop.relay(struct0) -> struct0
+  fun @scoop.relay(indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
     local %0 $argument.0: struct0
     local %1 $parameter.location: struct0
     local %2 $call.1: struct0
     local %3 $sc.1: struct0
+    local %4 $sc.2: struct0
   block entry
     poll managed-void-target0 sp103 live=[param0:struct0@0+24+32]
     store param0 -> local0
     store local0 -> local1
-    call managed-indirect-target0 sp32 live=[local1:struct0@0+24+32] local3 = sig=indirect0 (sret struct0, struct0) local-fn29(local1)
-    store local3 -> local2
+    store local1 -> local3
+    call managed-indirect-target0 sp32 live=[local3:struct0@0+24+32] local4 = sig=indirect0 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn29(indirect local3)
+    store local4 -> local2
     ret local2
   fun @scoop_main() -> void
     local %0 direct: struct0
@@ -2730,6 +2736,17 @@ Module
     local %65 $sc.4: struct0
     local %66 $sc.5: struct0
     local %67 $sc.6: struct0
+    local %68 $sc.7: struct0
+    local %69 $sc.8: struct0
+    local %70 $sc.9: struct0
+    local %71 $sc.10: struct0
+    local %72 $sc.11: struct0
+    local %73 $sc.12: struct0
+    local %74 $sc.13: struct0
+    local %75 $sc.14: struct0
+    local %76 $sc.15: struct0
+    local %77 $sc.16: struct0
+    local %78 $sc.17: struct0
   block entry
     poll managed-void-target11 sp104 live=[]
     t0 = aggregate (global8, integer<Long>(0x000000000000002b), integer<Long>(0x0000000000000012), global9, global10) : struct0
@@ -2741,55 +2758,63 @@ Module
     store local1 -> local4
     store local2 -> local5
     store local3 -> local6
-    call managed-void-target0 sp33 live=[local0:struct0@0+24+32, local4:ptr<managed>@0, local5:struct0@0+24+32, local6:ptr<managed>@0] sig=void0 (ptr<managed>, struct0, ptr<managed>) local-fn27(local4, local5, local6)
+    store local5 -> local62
+    call managed-void-target0 sp33 live=[local0:struct0@0+24+32, local4:ptr<managed>@0, local6:ptr<managed>@0, local62:struct0@0+24+32] sig=void0 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local4, indirect local62, local6)
     t2 = aggregate () : {}
     store global12 -> local8
     t3 = aggregate (global13, integer<Long>(0x000000000000002d), integer<Long>(0x000000000000001e), global14, global15) : struct0
     store t3 -> local7
-    call managed-indirect-target0 sp34 live=[local0:struct0@0+24+32, local7:struct0@0+24+32, local8:ptr<managed>@0] local62 = sig=indirect0 (sret struct0, struct0) local-fn28(local7)
-    store local62 -> local9
+    store local7 -> local63
+    call managed-indirect-target0 sp34 live=[local0:struct0@0+24+32, local8:ptr<managed>@0, local63:struct0@0+24+32] local64 = sig=indirect0 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn28(indirect local63)
+    store local64 -> local9
     t4 = extract local0, 0 : ptr<managed>
     store t4 -> local10
     store local8 -> local11
     store local9 -> local12
     store local10 -> local13
-    call managed-void-target1 sp35 live=[local0:struct0@0+24+32, local11:ptr<managed>@0, local12:struct0@0+24+32, local13:ptr<managed>@0] sig=void1 (ptr<managed>, struct0, ptr<managed>) local-fn27(local11, local12, local13)
+    store local12 -> local65
+    call managed-void-target1 sp35 live=[local0:struct0@0+24+32, local11:ptr<managed>@0, local13:ptr<managed>@0, local65:struct0@0+24+32] sig=void1 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local11, indirect local65, local13)
     t5 = aggregate () : {}
     store global16 -> local16
     store local0 -> local14
     store local14 -> local15
-    call managed-indirect-target1 sp36 live=[local0:struct0@0+24+32, local15:struct0@0+24+32, local16:ptr<managed>@0] local63 = sig=indirect1 (sret struct0, struct0) local-fn28(local15)
-    store local63 -> local17
+    store local15 -> local66
+    call managed-indirect-target1 sp36 live=[local0:struct0@0+24+32, local16:ptr<managed>@0, local66:struct0@0+24+32] local67 = sig=indirect1 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn28(indirect local66)
+    store local67 -> local17
     t6 = extract local0, 0 : ptr<managed>
     store t6 -> local18
     store local16 -> local19
     store local17 -> local20
     store local18 -> local21
-    call managed-void-target2 sp37 live=[local0:struct0@0+24+32, local19:ptr<managed>@0, local20:struct0@0+24+32, local21:ptr<managed>@0] sig=void2 (ptr<managed>, struct0, ptr<managed>) local-fn27(local19, local20, local21)
+    store local20 -> local68
+    call managed-void-target2 sp37 live=[local0:struct0@0+24+32, local19:ptr<managed>@0, local21:ptr<managed>@0, local68:struct0@0+24+32] sig=void2 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local19, indirect local68, local21)
     t7 = aggregate () : {}
     store global17 -> local23
     t8 = aggregate (global18, integer<Long>(0x000000000000002f), integer<Long>(0x0000000000000020), global19, global20) : struct0
     store t8 -> local22
-    call managed-indirect-target2 sp38 live=[local0:struct0@0+24+32, local22:struct0@0+24+32, local23:ptr<managed>@0] local64 = sig=indirect2 (sret struct0, struct0) local-fn30(local22)
-    store local64 -> local24
+    store local22 -> local69
+    call managed-indirect-target2 sp38 live=[local0:struct0@0+24+32, local23:ptr<managed>@0, local69:struct0@0+24+32] local70 = sig=indirect2 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn30(indirect local69)
+    store local70 -> local24
     t9 = extract local0, 0 : ptr<managed>
     store t9 -> local25
     store local23 -> local26
     store local24 -> local27
     store local25 -> local28
-    call managed-void-target3 sp39 live=[local0:struct0@0+24+32, local26:ptr<managed>@0, local27:struct0@0+24+32, local28:ptr<managed>@0] sig=void3 (ptr<managed>, struct0, ptr<managed>) local-fn27(local26, local27, local28)
+    store local27 -> local71
+    call managed-void-target3 sp39 live=[local0:struct0@0+24+32, local26:ptr<managed>@0, local28:ptr<managed>@0, local71:struct0@0+24+32] sig=void3 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local26, indirect local71, local28)
     t10 = aggregate () : {}
     store global21 -> local31
     store integer<Int>(0x00000001) -> local29
     store local29 -> local30
-    call managed-indirect-target3 sp40 live=[local0:struct0@0+24+32, local31:ptr<managed>@0] local65 = sig=indirect3 (sret struct0, i32) local-fn35(local30)
-    store local65 -> local32
+    call managed-indirect-target3 sp40 live=[local0:struct0@0+24+32, local31:ptr<managed>@0] local72 = sig=indirect3 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], i32) local-fn35(local30)
+    store local72 -> local32
     t11 = extract local0, 0 : ptr<managed>
     store t11 -> local33
     store local31 -> local34
     store local32 -> local35
     store local33 -> local36
-    call managed-void-target4 sp41 live=[local0:struct0@0+24+32, local34:ptr<managed>@0, local35:struct0@0+24+32, local36:ptr<managed>@0] sig=void4 (ptr<managed>, struct0, ptr<managed>) local-fn27(local34, local35, local36)
+    store local35 -> local73
+    call managed-void-target4 sp41 live=[local0:struct0@0+24+32, local34:ptr<managed>@0, local36:ptr<managed>@0, local73:struct0@0+24+32] sig=void4 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local34, indirect local73, local36)
     t12 = aggregate () : {}
     call managed-direct-target0 sp42 live=[local0:struct0@0+24+32] t13 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(16)))
     store t13 -> local59
@@ -2798,27 +2823,30 @@ Module
     store local59 -> local37
     store global22 -> local39
     store local37 -> local38
-    call managed-indirect-target4 sp44 live=[local0:struct0@0+24+32, local37:ptr<managed>@0, local38:ptr<managed>@0, local39:ptr<managed>@0] local66 = sig=indirect4 (sret struct0, ptr<managed>) local-fn22(local38)
-    store local66 -> local40
+    call managed-indirect-target4 sp44 live=[local0:struct0@0+24+32, local37:ptr<managed>@0, local38:ptr<managed>@0, local39:ptr<managed>@0] local74 = sig=indirect4 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], ptr<managed>) local-fn22(local38)
+    store local74 -> local40
     t15 = extract local0, 0 : ptr<managed>
     store t15 -> local41
     store local39 -> local42
     store local40 -> local43
     store local41 -> local44
-    call managed-void-target6 sp45 live=[local0:struct0@0+24+32, local37:ptr<managed>@0, local42:ptr<managed>@0, local43:struct0@0+24+32, local44:ptr<managed>@0] sig=void6 (ptr<managed>, struct0, ptr<managed>) local-fn27(local42, local43, local44)
+    store local43 -> local75
+    call managed-void-target6 sp45 live=[local0:struct0@0+24+32, local37:ptr<managed>@0, local42:ptr<managed>@0, local44:ptr<managed>@0, local75:struct0@0+24+32] sig=void6 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local42, indirect local75, local44)
     t16 = aggregate () : {}
     store global23 -> local47
     store local37 -> local45
     t17 = aggregate (global24, integer<Long>(0x0000000000000034), integer<Long>(0x0000000000000025), global25, global26) : struct0
     store t17 -> local46
-    call managed-indirect-target5 sp46 live=[local0:struct0@0+24+32, local45:ptr<managed>@0, local46:struct0@0+24+32, local47:ptr<managed>@0] local67 = sig=indirect5 (sret struct0, ptr<managed>, struct0) local-fn23(local45, local46)
-    store local67 -> local48
+    store local46 -> local76
+    call managed-indirect-target5 sp46 live=[local0:struct0@0+24+32, local45:ptr<managed>@0, local47:ptr<managed>@0, local76:struct0@0+24+32] local77 = sig=indirect5 (sret struct0 size=40 align=8 scan=refs[0, 24, 32], ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) local-fn23(local45, indirect local76)
+    store local77 -> local48
     t18 = extract local0, 0 : ptr<managed>
     store t18 -> local49
     store local47 -> local50
     store local48 -> local51
     store local49 -> local52
-    call managed-void-target7 sp47 live=[local0:struct0@0+24+32, local50:ptr<managed>@0, local51:struct0@0+24+32, local52:ptr<managed>@0] sig=void7 (ptr<managed>, struct0, ptr<managed>) local-fn27(local50, local51, local52)
+    store local51 -> local78
+    call managed-void-target7 sp47 live=[local0:struct0@0+24+32, local50:ptr<managed>@0, local52:ptr<managed>@0, local78:struct0@0+24+32] sig=void7 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>, ptr<managed>) local-fn27(local50, indirect local78, local52)
     t19 = aggregate () : {}
     call managed-direct-target1 sp48 live=[local0:struct0@0+24+32] t20 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(16)))
     store t20 -> local60
@@ -2895,7 +2923,7 @@ Module
     call native-borrowed-void-target1 sp61 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.genericBody$I32(i32) -> struct0
+  fun @scoop.genericBody$I32(i32) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
   block entry
     poll managed-void-target0 sp108 live=[]
     t0 = aggregate (global30, integer<Long>(0x0000000000000012), integer<Long>(0x0000000000000031), global31, global32) : struct0
@@ -3007,24 +3035,26 @@ Module
     poll managed-void-target0 sp119 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
   fun @scoop.coroutine.start$D14_SourceLocationX(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
-    local %2 $sc.1: exception_record
-    local %3 $sc.2: ptr<raw>
-    local %4 $sc.3: ptr<managed>
-    local %5 $sc.4: enum1
+    local %2 $sc.1: struct0
+    local %3 $sc.2: exception_record
+    local %4 $sc.3: ptr<raw>
+    local %5 $sc.4: ptr<managed>
+    local %6 $sc.5: enum1
   block suspended
     ret
   block completed
     t0 = enum_field e1 v0 f0 local0 : struct0
     t1 = heap_load param1 +0 : ptr<metadata>
     call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td3)
-    call managed-void-target0 sp69 live=[param1:ptr<managed>@0, t0:struct0@0+24+32] sig=void0 (ptr<managed>, struct0) dispatch[Interface:0] t2(param1, t0)
+    store t0 -> local2
+    call managed-void-target0 sp69 live=[param1:ptr<managed>@0, local2:struct0@0+24+32] sig=void0 (ptr<managed>, indirect<struct0 size=40 align=8 scan=refs[0, 24, 32]>) dispatch[Interface:0] t2(param1, indirect local2)
     t3 = aggregate () : {}
     ret
   block failed
@@ -3035,11 +3065,11 @@ Module
     ret
   block body_failure
     (t7, t8) = landingpad : (exception_record, ptr<raw>)
-    store t7 -> local2
-    store t8 -> local3
-    t9 = begin_catch local3 : ptr<managed>
-    store t9 -> local4
-    call managed-direct-target0 sp71 live=[param1:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local4)
+    store t7 -> local3
+    store t8 -> local4
+    t9 = begin_catch local4 : ptr<managed>
+    store t9 -> local5
+    call managed-direct-target0 sp71 live=[param1:ptr<managed>@0, local5:ptr<managed>@0] t10 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local5)
     store t10 -> local1
     end_catch
     br @failed
@@ -3047,10 +3077,10 @@ Module
     poll managed-void-target2 sp120 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t11 = heap_load param0 +0 : ptr<metadata>
     call no-gc-direct-target2 t12 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td2)
-    invoke managed-indirect-target0 sp72 roots=[param0:argument, param1:normal+unwind] local5 = sig=indirect0 (sret enum1, ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
+    invoke managed-indirect-target0 sp72 roots=[param0:argument, param1:normal+unwind] local6 = sig=indirect0 (sret enum1 size=48 align=8 scan=refs[8, 32, 40], ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invoke.normal.1
-    store local5 -> local0
+    store local6 -> local0
     t13 = enum_tag e1 local0 : machine<enum-tag>
     t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended

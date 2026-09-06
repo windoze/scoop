@@ -130,7 +130,7 @@ Module
   global @scoop.str.0 = "unwrap on None (function f)"
   global @scoop.cstr.0 = c"unwrap on None (function f)"
   enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop.f(enum0) -> i32
+  fun @scoop.f(indirect<enum0 size=16 align=8 scan=none>) -> i32
     local %0 $uw.1: i32
     local %1 $uw.2: i32
   block entry

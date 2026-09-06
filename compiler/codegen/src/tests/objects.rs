@@ -18,8 +18,7 @@ fn classes_module() -> Module {
         Function {
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
-            params: vec![MANAGED_PTR],
-            return_ty: MANAGED_PTR,
+            signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps: Arena::default(),
@@ -86,8 +85,7 @@ fn classes_module() -> Module {
     let main = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
-        params: vec![METADATA_PTR, MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
         call_targets,
         locals: Arena::default(),
         temps,
@@ -206,8 +204,7 @@ pub(super) fn heap_module() -> Module {
     let describe = Function {
         gc_effect: GcEffect::Managed,
         symbol: "Point.describe".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -374,8 +371,7 @@ pub(super) fn heap_module() -> Module {
     let main = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
-        params: vec![],
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets,
         locals,
         temps,
@@ -398,6 +394,37 @@ pub(super) fn heap_module() -> Module {
         entry_symbol: "scoop_main".to_string(),
         meta,
     }
+}
+
+fn keep_heap_object_live_for_appended_access(function: &mut Function, object: TempId) {
+    let mut object_defined = false;
+    for instruction in &mut function.blocks[function.entry].instructions {
+        let Instruction::Call { site } = instruction else {
+            continue;
+        };
+        if site.result() == scoop_lir::TypedCallResult::Direct(object) {
+            object_defined = true;
+            continue;
+        }
+        let CallSite::Managed(site) = site else {
+            continue;
+        };
+        if !object_defined {
+            continue;
+        }
+
+        let mut live = vec![statepoint_value(
+            scoop_lir::CallerRootSource::Temp(object),
+            MANAGED_PTR,
+            &[0],
+        )];
+        live.extend_from_slice(site.live.as_slice());
+        site.live = statepoint_live(live);
+    }
+    assert!(
+        object_defined,
+        "heap fixture must define its object by a call"
+    );
 }
 
 #[test]
@@ -459,6 +486,7 @@ fn emits_typed_machine_heap_state_access() {
             offset: 16,
         },
     ]);
+    keep_heap_object_live_for_appended_access(function, object);
 
     let ir = ir_of(&module);
     assert!(
@@ -488,6 +516,7 @@ fn machine_heap_store_rejects_cross_domain_state() {
                 CoroutineAdapterState::Waiting,
             )),
         });
+    keep_heap_object_live_for_appended_access(function, object);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -513,6 +542,7 @@ fn generic_heap_store_rejects_machine_scalar() {
                 scoop_lir::CoroutineFrameState::Initial,
             )),
         });
+    keep_heap_object_live_for_appended_access(function, object);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -539,6 +569,7 @@ fn generic_heap_load_rejects_machine_scalar_result() {
             object: Value::Temp(object),
             offset: 16,
         });
+    keep_heap_object_live_for_appended_access(function, object);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();

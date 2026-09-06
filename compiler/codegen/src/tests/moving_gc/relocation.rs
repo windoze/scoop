@@ -12,10 +12,10 @@ fn managed_live_plan_produces_as1_relocation() {
     }])
     .unwrap();
     let mut targets = CallTargets::default();
-    let signature = targets.void_signatures.alloc(VoidCallSignature {
-        params: Vec::new(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let signature = targets.void_signatures.alloc(VoidCallSignature::new(
+        Vec::new(),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     let target = targets.managed_targets.void.alloc(scoop_lir::CallTarget {
         destination: scoop_lir::ManagedCallDestination::runtime(
             scoop_lir::ManagedRuntimeFunction::Safepoint,
@@ -53,8 +53,7 @@ fn managed_live_plan_produces_as1_relocation() {
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop.live_root".to_string(),
-            params: vec![MANAGED_PTR],
-            return_ty: MANAGED_PTR,
+            signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
             call_targets: targets,
             locals: Arena::default(),
             temps: Arena::default(),
@@ -88,8 +87,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let callee = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.invoke_target".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -105,12 +103,13 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let raw = temps.alloc(Temp { ty: RAW_PTR });
     let caught = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut targets = CallTargets::default();
-    let signature = targets.direct_signatures.alloc(DirectCallSignature {
-        params: vec![MANAGED_PTR],
-        result: MANAGED_PTR,
-        result_scan: RefScan::References(vec![0]),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
+        plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR)
+            .arguments()
+            .to_vec(),
+        abi_value_with_layout(MANAGED_PTR, 8, 8, RefScan::References(vec![0])),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     let target = targets.managed_targets.direct.alloc(scoop_lir::CallTarget {
         destination: managed_local(0),
         signature,
@@ -133,7 +132,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
                 call: TypedCall::Direct {
                     target,
                     out: result,
-                    args: vec![Value::Param(0)],
+                    args: vec![scoop_lir::AbiCallArgument::Direct(Value::Param(0))],
                 },
                 safepoint: test_safepoint(1),
                 roots: scoop_lir::ExceptionalRootSet::new(vec![scoop_lir::ExceptionalRoot {
@@ -142,7 +141,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
                         scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0]))
                             .unwrap(),
                     },
-                    normal_live: false,
+                    normal_live: true,
                     unwind_live: true,
                 }]),
                 normal,
@@ -155,7 +154,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         name: "normal".to_string(),
         instructions: Vec::new(),
         terminator: Terminator::Return {
-            value: Some(Value::Temp(result)),
+            value: Some(Value::Param(0)),
         },
     };
     blocks[unwind] = BasicBlock {
@@ -175,8 +174,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let caller = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.invoke_caller".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::default(),
         temps,
@@ -214,4 +212,35 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
             && ir.contains("@scoop_rt_pop_top_compiler_roots"),
         "normal and unwind edges do not clean the compiler root frame:\n{ir}"
     );
+
+    let assert_reload_pop_restore = |body: &str, pop: &str, edge: &str| {
+        let reload = body
+            .find("load volatile ptr addrspace(1), ptr %managed_root_storage")
+            .unwrap_or_else(|| panic!("{edge} edge does not reload its published root:\n{body}"));
+        let pop = body
+            .find(pop)
+            .unwrap_or_else(|| panic!("{edge} edge does not pop its compiler-root frame:\n{body}"));
+        let restore = body
+            .find("store volatile ptr addrspace(1) %published_root_reload")
+            .unwrap_or_else(|| panic!("{edge} edge does not restore its reloaded root:\n{body}"));
+        assert!(
+            reload < pop && pop < restore,
+            "{edge} edge must reload before pop and restore after pop:\n{body}"
+        );
+    };
+
+    let normal_cleanup = ir
+        .split_once("invoke.normal.cleanup.0:")
+        .expect("managed invoke has a normal cleanup block")
+        .1;
+    assert_reload_pop_restore(normal_cleanup, "@scoop_rt_pop_compiler_roots", "normal");
+
+    let unwind_cleanup = ir
+        .split_once("unwind:")
+        .expect("managed invoke has an unwind landing block")
+        .1
+        .split_once("invoke.normal.cleanup.0:")
+        .expect("unwind landing block precedes the normal cleanup block")
+        .0;
+    assert_reload_pop_restore(unwind_cleanup, "@scoop_rt_pop_top_compiler_roots", "unwind");
 }

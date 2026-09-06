@@ -3328,7 +3328,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<UInt16> local0, local2 : i16
     ret t0
-  fun @scoop.roundTripWidths(struct0) -> struct0 <no-gc>
+  fun @scoop.roundTripWidths(indirect<struct0 size=32 align=8 scan=none>) -> sret<struct0 size=32 align=8 scan=none> <no-gc>
   block entry
     ret param0
   fun @scoop_main() -> void
@@ -3508,7 +3508,7 @@ Module
     store integer<Int8>(0x80) -> local0
     store local0 -> local1
     store local1 -> local145
-    call native-safe-indirect-target0 sp22 roots=[] local146 = sig=indirect0 (sret i8, ptr<raw>) extern10(c-arg-address(local145))
+    call native-safe-indirect-target0 sp22 roots=[] local146 = sig=indirect0 (c-storage-pointer i8 size=1 align=1 scan=none, ptr<raw>) extern10(c-arg-address(local145))
     store local146 -> local2
     store local2 -> local3
     call managed-void-target0 sp23 live=[] sig=void0 (i8) local-fn25(local3)
@@ -3516,7 +3516,7 @@ Module
     store integer<Int16>(0x8000) -> local4
     store local4 -> local5
     store local5 -> local147
-    call native-safe-indirect-target1 sp24 roots=[] local148 = sig=indirect1 (sret i16, ptr<raw>) extern11(c-arg-address(local147))
+    call native-safe-indirect-target1 sp24 roots=[] local148 = sig=indirect1 (c-storage-pointer i16 size=2 align=2 scan=none, ptr<raw>) extern11(c-arg-address(local147))
     store local148 -> local6
     store local6 -> local7
     call managed-void-target1 sp25 live=[] sig=void1 (i16) local-fn26(local7)
@@ -3524,7 +3524,7 @@ Module
     store integer<Int>(0x80000000) -> local8
     store local8 -> local9
     store local9 -> local149
-    call native-safe-indirect-target2 sp26 roots=[] local150 = sig=indirect2 (sret i32, ptr<raw>) extern12(c-arg-address(local149))
+    call native-safe-indirect-target2 sp26 roots=[] local150 = sig=indirect2 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern12(c-arg-address(local149))
     store local150 -> local10
     store local10 -> local11
     call managed-void-target2 sp27 live=[] sig=void2 (i32) local-fn27(local11)
@@ -3532,7 +3532,7 @@ Module
     store integer<Long>(0x8000000000000000) -> local12
     store local12 -> local13
     store local13 -> local151
-    call native-safe-indirect-target3 sp28 roots=[] local152 = sig=indirect3 (sret i64, ptr<raw>) extern13(c-arg-address(local151))
+    call native-safe-indirect-target3 sp28 roots=[] local152 = sig=indirect3 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern13(c-arg-address(local151))
     store local152 -> local14
     store local14 -> local15
     call managed-void-target3 sp29 live=[] sig=void3 (i64) local-fn28(local15)
@@ -3540,7 +3540,7 @@ Module
     store integer<UInt8>(0xff) -> local16
     store local16 -> local17
     store local17 -> local153
-    call native-safe-indirect-target4 sp30 roots=[] local154 = sig=indirect4 (sret i8, ptr<raw>) extern14(c-arg-address(local153))
+    call native-safe-indirect-target4 sp30 roots=[] local154 = sig=indirect4 (c-storage-pointer i8 size=1 align=1 scan=none, ptr<raw>) extern14(c-arg-address(local153))
     store local154 -> local18
     store local18 -> local19
     call managed-void-target4 sp31 live=[] sig=void4 (i8) local-fn29(local19)
@@ -3548,7 +3548,7 @@ Module
     store integer<UInt16>(0xffff) -> local20
     store local20 -> local21
     store local21 -> local155
-    call native-safe-indirect-target5 sp32 roots=[] local156 = sig=indirect5 (sret i16, ptr<raw>) extern15(c-arg-address(local155))
+    call native-safe-indirect-target5 sp32 roots=[] local156 = sig=indirect5 (c-storage-pointer i16 size=2 align=2 scan=none, ptr<raw>) extern15(c-arg-address(local155))
     store local156 -> local22
     store local22 -> local23
     call managed-void-target5 sp33 live=[] sig=void5 (i16) local-fn30(local23)
@@ -3556,7 +3556,7 @@ Module
     store integer<UInt>(0xffffffff) -> local24
     store local24 -> local25
     store local25 -> local157
-    call native-safe-indirect-target6 sp34 roots=[] local158 = sig=indirect6 (sret i32, ptr<raw>) extern16(c-arg-address(local157))
+    call native-safe-indirect-target6 sp34 roots=[] local158 = sig=indirect6 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern16(c-arg-address(local157))
     store local158 -> local26
     store local26 -> local27
     call managed-void-target6 sp35 live=[] sig=void6 (i32) local-fn31(local27)
@@ -3564,7 +3564,7 @@ Module
     store integer<ULong>(0xffffffffffffffff) -> local28
     store local28 -> local29
     store local29 -> local159
-    call native-safe-indirect-target7 sp36 roots=[] local160 = sig=indirect7 (sret i64, ptr<raw>) extern17(c-arg-address(local159))
+    call native-safe-indirect-target7 sp36 roots=[] local160 = sig=indirect7 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern17(c-arg-address(local159))
     store local160 -> local30
     store local30 -> local31
     call managed-void-target7 sp37 live=[] sig=void7 (i64) local-fn32(local31)
@@ -3705,7 +3705,7 @@ Module
     store local78 -> local79
     call managed-void-target31 sp101 live=[] sig=void31 (i64) local-fn32(local79)
     t55 = aggregate () : {}
-    call native-safe-indirect-target8 sp102 roots=[] local161 = sig=indirect8 (sret i8, ) extern19()
+    call native-safe-indirect-target8 sp102 roots=[] local161 = sig=indirect8 (c-storage-pointer i8 size=1 align=1 scan=none) extern19()
     store local161 -> local80
     store local80 -> local81
     call managed-void-target32 sp103 live=[] sig=void32 (i8) local-fn29(local81)
@@ -3750,7 +3750,7 @@ Module
     store local96 -> local97
     call managed-void-target40 sp119 live=[] sig=void40 (i64) local-fn32(local97)
     t72 = aggregate () : {}
-    call native-safe-indirect-target9 sp120 roots=[] local162 = sig=indirect9 (sret i8, ) extern20()
+    call native-safe-indirect-target9 sp120 roots=[] local162 = sig=indirect9 (c-storage-pointer i8 size=1 align=1 scan=none) extern20()
     store local162 -> local98
     store local98 -> local99
     call managed-void-target41 sp121 live=[] sig=void41 (i8) local-fn29(local99)
@@ -3762,7 +3762,7 @@ Module
     store local101 -> local103
     store local102 -> local163
     store local103 -> local164
-    call native-safe-indirect-target10 sp122 roots=[] local165 = sig=indirect10 (sret i16, ptr<raw>, ptr<raw>) extern21(c-arg-address(local163), c-arg-address(local164))
+    call native-safe-indirect-target10 sp122 roots=[] local165 = sig=indirect10 (c-storage-pointer i16 size=2 align=2 scan=none, ptr<raw>, ptr<raw>) extern21(c-arg-address(local163), c-arg-address(local164))
     store local165 -> local104
     store local104 -> local105
     call managed-void-target42 sp123 live=[] sig=void42 (i16) local-fn30(local105)
@@ -3771,7 +3771,7 @@ Module
     store t76 -> local106
     store local106 -> local107
     store local107 -> local166
-    call native-safe-indirect-target11 sp124 roots=[] local167 = sig=indirect11 (sret i8, ptr<raw>) extern22(c-arg-address(local166))
+    call native-safe-indirect-target11 sp124 roots=[] local167 = sig=indirect11 (c-storage-pointer i8 size=1 align=1 scan=none, ptr<raw>) extern22(c-arg-address(local166))
     store local167 -> local108
     store local108 -> local109
     call managed-void-target43 sp125 live=[] sig=void43 (i8) local-fn29(local109)
@@ -3792,11 +3792,11 @@ Module
     store local115 -> local123
     store local116 -> local124
     store local117 -> local125
-    call no-gc-indirect-target0 local168 = sig=indirect12 (sret struct0, i8, i16, i32, i64, i8, i16, i32, i64) local-fn41(local118, local119, local120, local121, local122, local123, local124, local125)
+    call no-gc-indirect-target0 local168 = sig=indirect12 (sret struct0 size=32 align=8 scan=none, i8, i16, i32, i64, i8, i16, i32, i64) local-fn41(local118, local119, local120, local121, local122, local123, local124, local125)
     store local168 -> local126
     store local126 -> local127
     store local127 -> local169
-    call native-safe-indirect-target12 sp126 roots=[] local170 = sig=indirect13 (sret struct0, ptr<raw>) extern18(c-arg-address(local169))
+    call native-safe-indirect-target12 sp126 roots=[] local170 = sig=indirect13 (c-storage-pointer struct0 size=32 align=8 scan=none, ptr<raw>) extern18(c-arg-address(local169))
     store local170 -> local128
     t78 = extract local128, 0 : i8
     store t78 -> local129
@@ -4085,11 +4085,11 @@ Module
     call managed-void-target0 sp165 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn39(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.ctor.FixedWidths.$c6(i8, i16, i32, i64, i8, i16, i32, i64) -> struct0 <no-gc>
+  fun @scoop.ctor.FixedWidths.$c6(i8, i16, i32, i64, i8, i16, i32, i64) -> sret<struct0 size=32 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4, param5, param6, param7) : struct0
     ret t0
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct1 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct1 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct1
     ret t0
@@ -4105,10 +4105,12 @@ Module
   fun @scoop_callback_bridge_1(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: struct0
     local %1 $sc.1: struct0
+    local %2 $sc.2: struct0
   block entry
     t0 = raw_load param1 align 8 : struct0
-    call no-gc-indirect-target0 local1 = sig=indirect0 (sret struct0, struct0) local-fn23(t0)
-    store local1 -> local0
+    store t0 -> local1
+    call no-gc-indirect-target0 local2 = sig=indirect0 (sret struct0 size=32 align=8 scan=none, indirect<struct0 size=32 align=8 scan=none>) local-fn23(indirect local1)
+    store local2 -> local0
     raw_store param0 local0 align 8
     t1 = aggregate () : {}
     ret

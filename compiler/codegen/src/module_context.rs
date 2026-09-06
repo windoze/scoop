@@ -118,8 +118,8 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::EnumField { out, .. }
         | Instruction::VariantTest { out, .. }
         | Instruction::VariantPayloadProject { out, .. } => Some(*out),
-        Instruction::Call { site } => site.direct_out(),
-        Instruction::Invoke { site } => site.direct_out(),
+        Instruction::Call { site } => site.result_temp(),
+        Instruction::Invoke { site } => site.result_temp(),
         Instruction::LandingPad { record, .. } | Instruction::CleanupPad { record, .. } => {
             Some(*record)
         }

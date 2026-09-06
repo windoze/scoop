@@ -2624,7 +2624,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Pair.$get$sum(struct10) -> i32
+  fun @scoop.Pair.$get$sum(indirect<struct10 size=8 align=4 scan=none>) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -2637,7 +2637,7 @@ Module
     store local1 -> local2
     t2 = integer_Add<Int> local0, local2 : i32
     ret t2
-  fun @scoop.Marker.$get$code(enum2) -> i32
+  fun @scoop.Marker.$get$code(indirect<enum2 size=8 align=8 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp110 live=[]
     ret integer<Int>(0x00000007)
@@ -2847,6 +2847,10 @@ Module
     local %69 $new.6: ptr<managed>
     local %70 $new.7: ptr<managed>
     local %71 $sc.1: struct10
+    local %72 $sc.2: struct10
+    local %73 $sc.3: enum2
+    local %74 $sc.4: enum0
+    local %75 $sc.5: enum0
   block entry
     poll managed-void-target21 sp126 live=[]
     call managed-direct-target0 sp28 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
@@ -2950,15 +2954,17 @@ Module
     store integer<Int>(0x00000004) -> local37
     store local36 -> local38
     store local37 -> local39
-    call no-gc-indirect-target0 local71 = sig=indirect0 (sret struct10, i32, i32) local-fn60(local38, local39)
+    call no-gc-indirect-target0 local71 = sig=indirect0 (sret struct10 size=8 align=4 scan=none, i32, i32) local-fn60(local38, local39)
     store local71 -> local68
-    call managed-direct-target11 sp50 live=[] t30 = sig=direct11 (struct10) -> i32 local-fn19(local68)
+    store local68 -> local72
+    call managed-direct-target11 sp50 live=[] t30 = sig=direct11 (indirect<struct10 size=8 align=4 scan=none>) -> i32 local-fn19(indirect local72)
     store t30 -> local40
     store local40 -> local41
     call managed-void-target11 sp51 live=[] sig=void11 (i32) local-fn41(local41)
     t31 = aggregate () : {}
     t32 = enum_wrap e2 v0 () : enum2
-    call managed-direct-target12 sp52 live=[] t33 = sig=direct12 (enum2) -> i32 local-fn20(t32)
+    store t32 -> local73
+    call managed-direct-target12 sp52 live=[] t33 = sig=direct12 (indirect<enum2 size=8 align=8 scan=none>) -> i32 local-fn20(indirect local73)
     store t33 -> local42
     store local42 -> local43
     call managed-void-target12 sp53 live=[] sig=void12 (i32) local-fn41(local43)
@@ -2991,7 +2997,9 @@ Module
     store local69 -> local53
     t45 = heap_load local53 +16 : enum0
     t46 = enum_wrap e0 v1 () : enum0
-    call managed-direct-target18 sp64 live=[local53:ptr<managed>@0] t47 = sig=direct18 (enum0, enum0) -> i1 local-fn44(t45, t46)
+    store t45 -> local74
+    store t46 -> local75
+    call managed-direct-target18 sp64 live=[local53:ptr<managed>@0] t47 = sig=direct18 (indirect<enum0 size=16 align=8 scan=none>, indirect<enum0 size=16 align=8 scan=none>) -> i1 local-fn44(indirect local74, indirect local75)
     store t47 -> local54
     store local54 -> local55
     call managed-void-target18 sp65 live=[local53:ptr<managed>@0] sig=void18 (i1) local-fn43(local55)
@@ -3105,7 +3113,7 @@ Module
     call native-borrowed-void-target1 sp80 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Option.equals$I32(enum0, enum0) -> i1
+  fun @scoop.Option.equals$I32(indirect<enum0 size=16 align=8 scan=none>, indirect<enum0 size=16 align=8 scan=none>) -> i1
     local %0 $left.0.0: i32
     local %1 $right.0.0: i32
     local %2 $when.1: enum0
@@ -3276,11 +3284,11 @@ Module
     t0 = enum_wrap e0 v1 () : enum0
     heap_store param0 +16 t0
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> struct0 <no-gc>
+  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  fun @scoop.ctor.Pair.$c6(i32, i32) -> struct10 <no-gc>
+  fun @scoop.ctor.Pair.$c6(i32, i32) -> sret<struct10 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct10
     ret t0
