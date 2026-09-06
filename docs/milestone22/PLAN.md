@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.61
+版本：0.62
 
 最后更新：2026-09-07
 
@@ -43,9 +43,9 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 完成待提交 | 4.5 提交 `8ba3320b`；4.6 spec-first 提交 `fc381075`，实现、定向门、分段一次遍历的 full fixture refresh 与 snapshot 审计均已通过 |
+| Iterator / Iterable、`for` 与四种 range | 已完成 | 4.5 提交 `8ba3320b`；4.6 spec-first 提交 `fc381075`，range 实现、测试与 golden 提交 `ff97a505` |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
-| M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
+| M22 全量组合验收 | 静态收口中 | 所有主线切片已完成；跨特性 ordinary/moving-GC 组合已由 4.6 fixture 门覆盖，正核对最终搜索清单并规划不重复 fixture 的 workspace 门 |
 
 ## 4. 剩余执行顺序
 
@@ -192,7 +192,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.6 四种 range 与整数循环组合
 
-当前执行状态：完成待提交。spec-first 修订已提交为 `fc381075`；普通 core、parser/HIR 定向测试、fixture/codegen 验收三批均已落地并完成三路静态交叉审查。格式化、受影响 crate clippy、parser/HIR 3 项定向门与 codegen overflow-flag 门均已通过；full fixture refresh 在首段暴露组合 fixture 的 visibility 问题后，仅从失败路径继续到末尾，两段合起来对排序后的 fixture 集合完成一次逻辑遍历且全绿。临时路径筛选已立即撤除；新 range、M22 组合链与既有 snapshot 漂移审计均无 blocker，不重复 replay。
+当前执行状态：已完成（`ff97a505`）。spec-first 修订为 `fc381075`；普通 core、parser/HIR 定向测试、fixture/codegen 验收三批均已落地并完成三路静态交叉审查。格式化、受影响 crate clippy、parser/HIR 3 项定向门与 codegen overflow-flag 门均已通过；full fixture refresh 在首段暴露组合 fixture 的 visibility 问题后，仅从失败路径继续到末尾，两段合起来对排序后的 fixture 集合完成一次逻辑遍历且全绿。临时路径筛选已立即撤除；新 range、M22 组合链与既有 snapshot 漂移审计均无 blocker，不重复 replay。
 
 1. 在 core 源码中加入独立 nominal `IntRange`、`UIntRange`、`LongRange`、`ULongRange` 及对应 iterator。
 2. 补齐 closed / open / `until` / `downTo` / `step` / `contains`，计数器始终使用 element exact integer kind。
@@ -210,6 +210,8 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 14. `IllegalArgumentException` 是普通 public `Exception` 子类且不进入 `CompilerExceptionCore`；32 个 owner member 必须写回八个 nominal struct，窄 owner 在 body 内显式 `toInt32()` / `toUInt32()`，不能用 extension、隐式转换或 generic numeric 抽象替代。
 
 ### 4.7 M22 收口
+
+当前执行状态：进行中。所有功能切片已经提交；最终跨特性组合 fixture、ordinary / moving-GC 输出与 full fixture snapshot refresh 已在 4.6 完成门覆盖。当前先按 DESIGN 第 8、9 章与三份 spec 做静态缺口清单，清单归零后才执行一次全 workspace clippy，并把 workspace tests 拆成“不含 `scoopc` fixture”的等价目标集合；不重跑已经完整遍历且审计通过的 full fixture。
 
 - 运行 DESIGN 第 8、9 章要求的全部 negative、warning、stage golden、C/Scoop ABI artifact 与 moving-GC stress 组合。
 - 增加至少一个串联 fixed-width range → for destructuring → recursive when → struct copy update → try/finally continue/break → suspend/moving-GC 的组合 fixture。
@@ -304,3 +306,5 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：修正 visibility 后，单文件定向门全部通过：组合 fixture 编译成功，ordinary 与 `SCOOP_GC_STRESS_MOVE=1` 均退出 0 且输出一致；range semantics 单文件编译/运行成功，完整域序列、粘滞耗尽与非法 step 输出符合预期；negative 单文件精确产生 18 条预期诊断，constructor 四条均只因 internal visibility 失败。现在只重跑失败的 full fixture refresh 门，不重跑任何已通过门。
 - 2026-09-07：full fixture 失败门采用排序路径续跑而非重放前缀：首段 393.83 秒已覆盖起点至 `m22-iteration/combined.scoop` 前，修复后的续段从该失败 fixture 到 `m9-gc/generic-struct.scoop` 全部通过（fixture harness 4/4，177.28 秒）。两段合起来对完整排序集合只做一次逻辑遍历，失败项仅在修复后补跑；用于续跑的临时 `fixtures.retain` 已立即删除并确认 runner 零 diff。现在并行审计 range semantics、M22 组合链、18 条 negative 与既有 snapshot 的结构性漂移；不会再次运行 full fixture suite。
 - 2026-09-07：4.6 snapshot 与最终树审计完成，无 correctness blocker。新 semantics golden 从 AST 到 LIR 锁定四个 nominal range、八 owner × 四 API、窄类型 widening、exact signedness/width、开闭/升降/step/contains、fresh identity/iterator、sticky exhaustion、全域 MIN/MAX 安全终止与 8 种非法 step；LIR 无 `nsw`/`nuw`/poison 或 range intrinsic/runtime ABI。组合 golden 锁定 fixed-width range → 自定义 Iterable 解构 → recursive when → **struct-only** copy update → try/finally continue/break → suspend/moving-GC，ordinary/stress 输出与 snapshot 逐字一致。186 份既有运行/陷阱 snapshot 全部刷新：185 份输出逐字不变，唯一预期变化为组合 fixture；移除新增 core 声明并归一化实体 ID 后，未改源码 fixture 的 AST/HIR 与基线一致，注入的 32 API、12 range 方法、4 `next`、4 Option 特化及 8 个类型/布局/descriptor 完整一致。negative golden 为精确 18 条诊断。最终 `cargo fmt --all -- --check`、`git diff --check`、无 `.snap.new`、无新增占位实现、临时 runner 零 diff；格式检查只修正一处 Rust 测试排版，不重跑已通过测试。下一步提交 4.6，再按 4.7 静态清单执行唯一一次 workspace 收口门，不重跑 full fixture。
+- 2026-09-07：完成并提交 4.6 四种 typed integer range：`ff97a505`。四个 nominal range/iterator、八 owner × 四 API、`IllegalArgumentException`、parser/HIR/codegen 定向回归、range semantics/negative、M22 suspend-moving-GC 组合及 188 份 golden 同一功能提交落地。下一步进入 4.7：先完成最终静态清单，再只运行未被 4.6 fixture 门覆盖的 workspace 收口验证，不重跑 full fixture。
+- 2026-09-07：开始 4.7 最终收口。先并行核对 DESIGN 8/9、ROADMAP M22、三份 spec 与历史完成证据，并静态搜索旧 64 位 `Int`/`UInt`、Option 裸 variant 特判、return-only cleanup、按名/ordinal identity、source iteration plan 泄漏、enum/class copy update 与漏 poll 回边。4.6 已完成的 full fixture 逻辑遍历与 ordinary/moving-GC 组合视为最终 fixture 证据；除非静态审计发现真实行为 blocker，否则不再次 replay。最终测试将排除 `scoopc` 的 slow fixture target，只补齐其余 workspace target 与 driver 非 fixture tests。
