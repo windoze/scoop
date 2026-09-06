@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.5
+版本：0.6
 
 最后更新：2026-09-06
 
@@ -40,7 +40,7 @@
 | compiler-owned enum producer identity | 已完成 | `9706b4b` |
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
-| 共享 `IrrefutableBindingPlan` | 进行中 | 4.2a val / var tuple / struct planner 已由 `0049933` 完成；下一步为 class component、lambda、effect 与恢复语义 |
+| 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.4 的 downstream-first 顺序落地，parser 最后开放语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
 | Scoop aggregate 参数 ABI classification | 待修复 | 已确认是一般 LIR caller / callee 分类缺口而非固定 32 字节特例；按 4.3 在 `for` / range 前修复 |
@@ -83,7 +83,7 @@
    - 失败时整体回滚；成功后展开为普通 `ValDecl` 和 `FieldAccess`。
    - 端到端 golden 已锁定显式 subject / projection / bind 序列及逆声明序的 named-field 源码求值顺序；旧 composite val pattern 不再跨 Export HIR 边界。
    - 完成验证：格式检查、全 workspace clippy、HIR lowering 671/671、strict fixture 4/4、全 workspace tests、`git diff --check`、无 `.snap.new`；独立审查未发现 correctness blocker。
-2. class component、lambda、effect 与恢复语义（进行中）
+2. class component、lambda、effect 与恢复语义（已完成：`dde7063`）
    - 删除仅服务 val 的 `lower_class_destructuring` 特判及“扫描 component 索引推断总元数”的逻辑。
    - class pattern 禁止 rest；源码写出 N 个位置就精确解析 `component1..N`，每次结果先进入独立 immutable hidden local，再递归处理子模式。
    - `Component` action 接入前必须结构化校验 subject、index、exact typed winner、call receiver / result 与 setup 的一致性；不得保留忽略 `source` 的未验证展开路径。
@@ -92,6 +92,14 @@
    - component throw 保留此前外部副作用并跳过后续 action。
    - suspend 正常恢复后保存本次结果继续；异常恢复等价于原 call 点 throw；subject 与已完成 temporary 不重跑。
    - moving-GC fixture 锁定跨挂起存活的 subject / temporary root 与 relocation。
+
+   完成证据：
+
+   - 删除旧 val-only class 特判与全局 component 索引扫描；class rest 在任何 component resolution 前拒绝，源码 N 个位置只解析 `component1..N`，action 与递归子模式按源码序 depth-first 展开，`_` 也执行对应 component。
+   - `Component` action 保存 exact typed winner、source、index、setup、result 与 call；构造期校验 member / extension call 形状，并覆盖同型、class → base、class → interface receiver 适配。
+   - composite lambda 只建立一个 logical source、FunctionType 参数与 ABI 参数，直接从 `$arg.N` 展开 plan；整个 lambda header、body、capture 与生成实体共享一个 owner transaction，失败不泄漏 local、binding 或 counter。
+   - ordinary suspend-context negative、throw 短路、正常恢复、异常恢复及 moving-GC stress fixture 均通过；挂起后 subject 与已完成 temporary 不重复求值，并在 relocation 后继续使用。
+   - 验证通过：格式检查、全 workspace clippy、HIR lowering 679/679、strict 全 workspace tests（端到端 fixture 4/4，324.84 秒）、snapshot refresh、手工 baseline / moving-GC 输出一致、`git diff --check`、无 `.snap.new`；三路独立审查最终均无 blocker。
 
 每个切片均需独立 HIR / MIR / LIR golden、正向组合 fixture 和稳定 negative fixture，完成后单独提交并更新第 3 节状态。第二个切片只有在普通、throw、suspend 恢复与 moving-GC 路径全部通过时才能提交，不把 effect 或恢复正确性留给后续补丁。
 
@@ -174,3 +182,4 @@
 - 2026-09-06：提交 `487244a`，明确 `IrrefutableBindingPlan` 由 Export HIR crate 拥有；val / lambda 在 Export HIR 前消费，generic source `for` 持久保存并在 LocalConcrete HIR 结束前展开。同步明确单一根 binding 的 storage coalescing 与 coroutine ordinary liveness 边界；4.2a 开始实现。
 - 2026-09-06：完成 4.2a val / var tuple / struct planner，提交 `0049933`。plan 的 declaration-order shape 与 source-order depth-first actions 分离，subject / projection 为 immutable hidden local，`var` 只影响用户叶，struct field 保留 exact application identity；val / var 在 Export HIR 前展开为 binding-only statement。验证通过：格式检查；全 workspace clippy（`-D warnings`）；HIR lowering 671/671；snapshot refresh 后 strict fixture 4/4；全 workspace tests；`git diff --check`；无 `.snap.new`。独立审查未发现 correctness blocker。该切片不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。
 - 2026-09-06：根据独立 loop / ABI 审计更新后续顺序。aggregate 问题改名为一般 Scoop ABI classification 缺口并前移到 4.3；loop 采用 outcome → typed target / cleanup → coroutine / explicit header poll → parser 开放的 downstream-first 顺序。记录 `Component` action 接入前校验与 binding plan 持久化前封闭构造为后续硬门。
+- 2026-09-06：完成 4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC，提交 `dde7063`。最终审查发现并修复 extension component receiver 被合法拓宽为父类 / 接口后错误要求 exact type 的断言，并补两类正向回归。验证通过：`cargo fmt --all -- --check`；`cargo clippy --workspace --all-targets -- -D warnings`；`cargo test -p scoop-hir-lower`（679/679）；snapshot refresh；`INSTA_UPDATE=no cargo test --workspace`（端到端 fixture 4/4，324.84 秒，全部 doctest 通过）；手工 baseline 与 `SCOOP_GC_STRESS_MOVE=1` 输出一致；`git diff --check`；无 `.snap.new` 或新增 `TODO` / `unimplemented!`。三路独立审查最终均无 correctness blocker。该切片只复用既有 typed call、EH、coroutine frame 与 moving-GC root / relocation 契约，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。下一执行切片为 4.3 Scoop aggregate 参数 ABI classification。
