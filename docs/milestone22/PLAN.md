@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.9
+版本：0.10
 
 最后更新：2026-09-06
 
@@ -44,7 +44,7 @@
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.4 的 downstream-first 顺序落地，parser 最后开放语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
-| Scoop aggregate 参数 ABI classification | 进行中 | `dde7063` / `20820cf` 后进入 4.3；正在并行复现 shape matrix，并审计 LIR classifier、callee / direct / indirect caller 与 codegen artifact |
+| Scoop aggregate 参数 ABI classification | 进行中 | 具体 target mapping 已先行写入权威规范并提交为 `f40f728`；实现、validator、artifact、native shim 与 fixture 正在合并审查，之后统一做定向验证 |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
 ## 4. 剩余执行顺序
@@ -201,3 +201,4 @@
 - 2026-09-06：完成 4.3 的 LIR ownership 与 codegen / root 只读审计收敛。确认 ABI ownership 在 MIR → LIR，签名使用单一 `ScoopAbiSignature` / Abi sum，参数物理顺序由 logical entry 机械派生；首版所有非空 aggregate 间接传递，声明与 callsite 发射 typed `byval / sret / align`，显式 statepoint 使用 `5 + physical_index`。记录 indirect storage 在 ordinary / invoke / native-borrowed 中的 root / relocation 硬门，并把 definition 与 caller 一致性定为不可拆分的行为提交边界。
 - 2026-09-06：复现矩阵进一步定位 physical mismatch。原始 32-byte 嵌套 tuple 构造参数期望 `3/0/4/0`、实际 `3/0/0/1`；24-byte `(Signal, Long)` 构造参数期望 `3/4/55`、实际 `3/4/4294967296`，同 shape 经 NoGC 自由函数与 generic specialization 也失败，而 flat 32-byte 对照通过。LLVM IR 两端都写 raw by-value aggregate，但 AArch64 caller 与 callee 对溢出 stack 叶的拆分 offset 不一致；这直接验证了 exact indirect storage 的修复方向。
 - 2026-09-06：补充验证效率纪律。开发期先合并同一切片的全部实现、测试与审查修复，只跑定向检查；专项完整 suite、全 workspace 与全 fixture 分别留到稳定完成门一次执行，避免用反复全量回归发现可由静态审计或定向用例提前确定的缺口。
+- 2026-09-06：提交 `f40f728`，先在语言与实现规范冻结 Darwin / AArch64 profile 的 aggregate Scoop ABI mapping：非空 aggregate 统一 indirect，caller / callee 共享 exact physical signature，LLVM adapter 一致发射 `byval` / `sret` / alignment 与 statepoint 参数属性。runtime function、对象模型与 GC 协议未变化，因此 runtime spec 无需修改。实现审查同时发现 native shim 必须从 incoming stack 取得 24-byte `byval` storage，且 moving-GC fixture 不能使用 immortal String；两项均在首次定向验证前集中修正。
