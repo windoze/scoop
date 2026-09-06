@@ -125,7 +125,7 @@ foreign callback同属该封闭producer集合。HIR core-contract验证必须一
 
 compiler-generated `CoroutineStep<R>`与frame `CoroutineSlot<T>` metadata分别保存完整的`Completed` payload field/`Suspended` variant和`Value` payload field/`Empty` variant typed identity；所有生成expression从metadata accessor取得ref。为迁移兼容保留的coroutine `EnumTag`/`EnumField` reader仍是表示相关内部读取，但其ordinal只能由上述typed metadata accessor导出，producer不能写死`0`/`1`，也不能据名称或默认顺序重建identity。这个兼容reader不改变`VariantPayloadProject`必须由同stable value/variant test真边支配的验证规则。
 
-M22的range core合同包含四个独立nominal identity：`IntRange`、`UIntRange`、`LongRange`与`ULongRange`，后两者不得作为前两者的transparent alias。`Int8`/`Int16`/`Int`的range操作形成`IntRange`，`Long`形成`LongRange`；unsigned对应分别形成`UIntRange`与`ULongRange`。每个range/iterator计数器使用其element exact integer type，HIR不能在`Int`降为i32后仍把64位endpoint投影到`IntRange`。
+M22的普通range core源码surface包含四个独立nominal identity：`IntRange`、`UIntRange`、`LongRange`与`ULongRange`，后两者不得作为前两者的transparent alias。`Int8`/`Int16`/`Int`的range操作形成`IntRange`，`Long`形成`LongRange`；unsigned对应分别形成`UIntRange`与`ULongRange`。每个range/iterator计数器使用其element exact integer type，HIR不能在`Int`降为i32后仍把64位endpoint投影到`IntRange`。这些声明不建立compiler `RangeCore`、专用HIR/MIR/LIR节点或按type name分支；它们只经普通源码member、class、Iterator conformance与异常路径进入既有pipeline。
 
 此外归属 HIR 的语义工作：
 

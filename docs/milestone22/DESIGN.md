@@ -244,6 +244,15 @@ core提供普通`public final class IntRange : Iterable<Int>`、`UIntRange : Ite
 | `UInt8`、`UInt16`、`UInt` | `UIntRange : Iterable<UInt>` |
 | `ULong` | `ULongRange : Iterable<ULong>` |
 
+对表中每个owner令`O`为其exact type、`R`为对应结果type；普通core源码必须逐一提供以下ordinary、非generic、非suspend member。参数名`endpoint`是named argument可观察的public API，不得在各owner间漂移：
+
+```text
+public operator fun rangeTo(endpoint: O): R
+public operator fun rangeUntil(endpoint: O): R
+public infix fun until(endpoint: O): R
+public infix fun downTo(endpoint: O): R
+```
+
 以下是精确签名schema而非可直接编译的class body；实际普通core方法必须各自提供实现，不能因省略body而变成intrinsic或abstract：
 
 ```text
@@ -297,9 +306,9 @@ ULongRange
 
 窄signed operand在选中的core函数体内显式扩为`Int`，窄unsigned扩为`UInt`，因此两个已定型为`Int8`的endpoint形成的range元素类型是`Int`；这不是语言级隐式conversion，也不允许混宽operand。`Long`/`ULong` endpoint始终形成对应64位range，不先缩窄。literal可按1.2直接提交到另一个operand的type。
 
-`range step k`返回相同range type并保留方向与端点；四个range的step与contains参数分别为自己的元素type，step要求`k > 0`，否则在求值时抛新增core `IllegalArgumentException`。默认step为对应type的1。`contains`仅在值位于端点范围并与first的步长对齐时返回true；差值与步长判断必须使用不会发生源码整数overflow的比较/余数结构。
+range及其表示属性不可变。每次成功调用`rangeTo`、`rangeUntil`、`until`、`downTo`或`step`都分配fresh range对象；`step`结果与receiver不是同一引用，并保留first、方向与开/闭端点语义。连续`step`只替换绝对步长，不与旧值相乘。四个range的step与contains参数分别为自己的元素type，step要求`k > 0`，否则在求值时抛新增core `IllegalArgumentException`，即使receiver为空也先执行该检查。默认step为对应type的1。`contains`仅在值位于端点范围并与first的步长对齐时返回true；差值与步长判断必须使用不会发生源码整数overflow的比较/余数结构。
 
-iterator必须以显式“是否还有下一个元素”状态结束：产出当前端点后，先判断下一步是否会越过边界或溢出，再决定结束或更新current；不能依赖wrapping后恰好命中sentinel。四种range分别覆盖完整32/64位端点；从signed数学最小值到最大值的range、endpoint等于`2^64 - 1`的`ULongRange`单元素range以及最大端点上的`downTo`都不会死循环或漏掉最后一个值。M22不借此引入`MIN`/`MAX` companion常量。
+每次`iterator()`都创建一个从first开始的新internal cursor；同一range产生的多个cursor进度彼此独立。iterator必须以显式“是否还有下一个元素”状态结束：产出当前端点后，先判断下一步是否会越过边界或溢出，再决定结束或更新current；不能依赖wrapping后恰好命中sentinel，且耗尽后每次`next()`都固定返回`None`。四种range分别覆盖完整32/64位端点；从signed数学最小值到最大值的range、endpoint等于`2^64 - 1`的`ULongRange`单元素range以及最大端点上的`downTo`都不会死循环或漏掉最后一个值。M22不借此引入`MIN`/`MAX` companion常量。
 
 `Array<T>`与`MutableArray<T>`在M22补上普通public `Iterable<T>` conformance及`public override operator fun iterator(): Iterator<T>`；既有array `size`、`get`/`set` index与iterator index从旧canonical `Int`迁名为canonical `Long`，逻辑长度上限继续为`INT64_MAX`，按既有bounds与moving-GC规则访问。range/array iterator、`until`、`downTo`、`step`与`contains`都来自core源码和普通operator/infix/member决议，不增加编译器按类型名识别的语法能力。
 

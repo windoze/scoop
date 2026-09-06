@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.47
+版本：0.52
 
 最后更新：2026-09-07
 
@@ -43,7 +43,7 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 待开始 | 4.5 提交 `8ba3320b`；格式、受影响 crate clippy、parser 11/11、HIR 32/32 及唯一 full fixture 4/4（371.80 秒）通过；6 份新 snapshot 与 186 份既有 snapshot 审计无 blocker，四种 range 留给 4.6 |
+| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 进行中 | 4.5 提交 `8ba3320b`；4.6 正并行冻结规范、实现接点与测试矩阵，审计收敛前不写实现、不跑测试 |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
@@ -192,10 +192,22 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.6 四种 range 与整数循环组合
 
+当前执行状态：进行中。三路只读审计已全部收口；先提交 spec-first 修订，再一次性落地普通 core 实现与完整测试批。range、iterator 与 `IllegalArgumentException` 全部由普通 core 源码实现，不增加 runtime ABI、compiler `RangeCore`、LIR 专用指令或按 type name 分支；runtime spec 无需修改。实现只改 `types.scoop`、新增 `ranges.scoop`、补 `throwable.scoop`，其余 production compiler 不变。
+
 1. 在 core 源码中加入独立 nominal `IntRange`、`UIntRange`、`LongRange`、`ULongRange` 及对应 iterator。
 2. 补齐 closed / open / `until` / `downTo` / `step` / `contains`，计数器始终使用 element exact integer kind。
 3. 空区间、单元素、方向、alignment、非法 step、MIN / MAX 端点均不得溢出或死循环。
 4. HIR / MIR / LIR golden 锁定 32 / 64 位宽与 signedness；LLVM 验收继续禁止 wrapping 路径的 `nsw` / `nuw` 和未守卫 poison。
+5. 八种 integer owner 的 API 固定为普通、非 generic member：`public operator fun rangeTo(endpoint: O): R`、`public operator fun rangeUntil(endpoint: O): R`、`public infix fun until(endpoint: O): R`、`public infix fun downTo(endpoint: O): R`；命名参数统一为 `endpoint`。
+6. `step` 在空 range 上也先验证参数；零与 signed 负值抛 `IllegalArgumentException`。每次成功的四种构造 member 与 `step` 都返回 fresh range；`step` 只替换绝对步长，不修改 receiver、不乘旧步长、不反转方向；每次 `iterator()` 创建独立 cursor。
+7. 完整 signed/unsigned 全域差值使用不溢出的 ordinary core 表达，iterator 在更新 current 前判断边界/溢出；不得保存可能溢出的元素总数，也不得依赖 wrapping sentinel。
+8. 验证批固定为：静态清单归零后一次 `cargo fmt --all`；受影响 crate 一次 all-target clippy；parser 若无生产修改则不重跑；HIR/core 定向测试只运行一批；全部稳定后只运行一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures`。任何失败只集中修复并重跑失败门，不重跑已通过门；本切片不运行 workspace suite。
+9. parser 只补一个 `for` header + `..<` / `until` / `downTo` + `step` / membership 的组合 AST 用例；HIR 用两个表驱动用例一次锁定四种 nominal surface、八种 owner 映射、窄整数扩展及 exact target；MIR/LIR 不增加 range 专用节点或重复 synthetic 单测。
+10. codegen 只把既有 wrapping `add/sub/mul` 无 `nsw` / `nuw` 断言扩到 s32/u32/s64/u64；signed/unsigned compare、safe remainder 与 integer conversion 复用现有覆盖。
+11. full-pipeline 使用一个独立 `m22-ranges/semantics.scoop` 覆盖四类 range 的普通语义、完整端点与非法 step；一个汇总 negative fixture 锁定 constructor visibility、nominal 不可互换、mixed endpoint 与错误 step/contains exact type。suspend + moving-GC 直接扩已有 stress 白名单中的 `m22-iteration/combined.scoop`，不增加第二个慢 stress 程序。
+12. 唯一验证命令批为：`cargo fmt --all`；`cargo clippy -p scoop-parser -p scoop-hir-lower -p scoop-codegen --all-targets -- -D warnings`；`cargo test -p scoop-parser -p scoop-hir-lower m22_range`；既有 codegen overflow-flag 用例；最后一次 fixture snapshot refresh。新/改 snapshot 完整审计，其余 snapshot 只做 core 插入与 ID 顺延归一化审计；不再 replay fixture、不运行 workspace clippy/test。
+13. `ranges.scoop` 的四个 range 保存 exact `first/bound/stride` 与 `descending/inclusive`，四个 iterator 保存 exact `current/bound/stride`、方向/开闭与 `hasNext`；不做 endpoint±1、不保存长度。signed distance 先把有序端点 bit-preserving 转为同宽 unsigned，再以方向对应的 unsigned subtraction 与 remainder 判断；只有 `stride <= distance`（闭）或 `stride < distance`（开）时才更新 current。
+14. `IllegalArgumentException` 是普通 public `Exception` 子类且不进入 `CompilerExceptionCore`；32 个 owner member 必须写回八个 nominal struct，窄 owner 在 body 内显式 `toInt32()` / `toUInt32()`，不能用 extension、隐式转换或 generic numeric 抽象替代。
 
 ### 4.7 M22 收口
 
@@ -278,3 +290,8 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.5 唯一 full fixture 完成门已通过：`INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4，371.80 秒。新 `m22-iteration` 正向与 5 个 negative snapshot 均已生成；core 新增声明使 186 份既有 snapshot 系统性刷新。不会再跑完整 fixture；当前并行审计新 fixture 语义、既有 snapshot 漂移与最终树卫生，只对真实 blocker 做定向处理。
 - 2026-09-07：4.5 snapshot 与最终树审计完成，无 correctness blocker。新正向 golden 锁定 Array/MutableArray、Iterable 静态视图、ZST iterator boxing、递归解构/fresh capture、typed jump/finally、suspend/header poll 与 moving-GC roots；5 份 negative 的位置和消息完整。186 份既有 snapshot 中，185 份 AST/HIR 归一化后只含新增 iteration core 与实体 ID 顺延，175 个 run 和 10 个 trap 输出逐字不变；45 份 MIR/37 份 LIR 的额外 CFG 规范化全部可归因于已提交的 typed cleanup 路由 `b42ce94f`。唯一 diagnostics 变化是用户测试类型 `Iterator` → `Cursor` 的预期避名。提交前把 iteration default-instantiation 原样拆为 255 行子模块，使父文件从 1018 降到 767 行；只重跑格式化与 `scoop-hir-lower` all-target clippy并通过。`git diff --check`、无 `.snap.new`、无新增占位实现等卫生门均通过。本切片只复用既有 runtime/GC/coroutine/ABI 合同，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec；下一步提交 4.5，随后进入 4.6 range。
 - 2026-09-07：完成并提交 4.5 Iterator / Iterable 与 source `for`：`8ba3320b`。实现、reader validation、default/concretization、core、定向与 full-pipeline/moving-GC fixture及全部 golden 同一功能提交落地；未运行 workspace suite。下一切片为 4.6 四种 range 与整数循环组合，继续先做静态 inventory，再成批实现与定向验证。
+- 2026-09-07：开始 4.6 四种 range 与整数循环组合。三路只读审计并行覆盖权威规范与跨文档一致性、现有 parser/operator/core/integer lowering 接点，以及四种 nominal/窄整数/方向/step/contains/MIN-MAX/poison/header-poll 的最小测试矩阵。审计清单冻结前不写实现、不运行测试；后续把实现与测试一次攒齐，再执行单一分层验证批。
+- 2026-09-07：4.6 规范审计收口：四种 range 只需普通 core 源码，不增加 runtime ABI、compiler `RangeCore` 或 LIR 指令；先用独立 spec-first 提交冻结八种 owner 的完整成员声明、统一命名参数，以及 range / `step` 不可变、fresh independent iterator 与永久耗尽语义。完整实现和测试继续等待另外两路静态审计一次收齐；验证固定为单批 fmt、受影响 clippy、定向测试与最终唯一一次 full fixture refresh，失败只重跑对应门。
+- 2026-09-07：4.6 测试审计收口：只补 1 个 parser 组合 AST、2 个 HIR 表驱动测试，并扩既有 codegen 无 overflow-flag 断言；range 不穿越为专用 MIR/LIR 节点，因此不造重复 synthetic suite。端到端新增一个 semantics 与一个汇总 negative，suspend/moving-GC 复用现有 `m22-iteration/combined.scoop`。fixture harness 没有路径过滤，故必须等实现、测试与静态审查全部稳定后才运行唯一一次完整 refresh；本切片不运行 workspace suite。
+- 2026-09-07：4.6 实现接点审计收口，无 compiler production blocker。实现面严格收敛为 `types.scoop` 的八 owner × 四 member、新 `ranges.scoop` 的四 range / 四 iterator，以及 `throwable.scoop` 的普通异常。signed 全域统一以同宽 unsigned distance 做 contains/终止，open range 不做 endpoint−1，更新 current 前先证明 stride 未越界。三路清单现已冻结；先完成独立 spec-first 提交，随后才并行写实现与测试，期间不运行验证。
+- 2026-09-07：4.6 spec-first 最终复核无 blocker；补充冻结五种成功构造路径均产生 fresh range identity（含空 range 与 `step`，结果不与 receiver 同一引用）。语言、实现、设计与既有 runtime 条款现一致；提交前只执行文档 diff / whitespace 门，不运行代码 suite。

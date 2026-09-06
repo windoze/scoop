@@ -1174,9 +1174,16 @@ while (true) {
 
 integer range有四个canonical nominal type：`public final class IntRange : Iterable<Int>`、`public final class LongRange : Iterable<Long>`、`public final class UIntRange : Iterable<UInt>`与`public final class ULongRange : Iterable<ULong>`。四者是不同的nominal type，`LongRange`/`ULongRange`不再是alias。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。`CharRange`等到Char进入已实现子集后另行定义。
 
-`Int8`/`Int16`/`Int`的四个range member返回`IntRange`，`Long`的四个成员返回`LongRange`；`UInt8`/`UInt16`/`UInt`返回`UIntRange`，`ULong`返回`ULongRange`。这四个成员是`rangeTo`、`rangeUntil`、`until`与`downTo`，各实际声明的endpoint参数使用owner自己的exact type，不是generic API。
+`Int8`/`Int16`/`Int`的四个range member返回`IntRange`，`Long`的四个成员返回`LongRange`；`UInt8`/`UInt16`/`UInt`返回`UIntRange`，`ULong`返回`ULongRange`。对这八个canonical integer owner分别令`O`为owner自己的exact type、`R`为上述结果type；每个owner必须按以下schema逐一声明四个普通、非generic、非suspend member，参数名`endpoint`属于可被named argument观察的public API：
 
-每个range type `R` 都精确提供`public override operator fun iterator(): Iterator<E>`、`public infix fun step(value: E): R`与`public operator fun contains(value: E): Boolean`：`IntRange`的`E`/`R`为`Int`/`IntRange`，`LongRange`为`Long`/`LongRange`，`UIntRange`为`UInt`/`UIntRange`，`ULongRange`为`ULong`/`ULongRange`。它们都是member而非extension。Array/MutableArray同样以`public override operator fun iterator(): Iterator<T>`实现Iterable；internal array iterator的index固定为`Long`，`next`以显式`public override`满足slot，其effective domain仍受owner限制。
+```text
+public operator fun rangeTo(endpoint: O): R
+public operator fun rangeUntil(endpoint: O): R
+public infix fun until(endpoint: O): R
+public infix fun downTo(endpoint: O): R
+```
+
+每个range type `R` 都精确提供`public override operator fun iterator(): Iterator<E>`、`public infix fun step(value: E): R`与`public operator fun contains(value: E): Boolean`：`IntRange`的`E`/`R`为`Int`/`IntRange`，`LongRange`为`Long`/`LongRange`，`UIntRange`为`UInt`/`UIntRange`，`ULongRange`为`ULong`/`ULongRange`。它们都是member而非extension。range对象及其表示属性不可变；每次成功调用`rangeTo`、`rangeUntil`、`until`、`downTo`或`step`都构造fresh range对象，所以`step`结果与receiver不是同一引用。`step`结果保留first、方向与开/闭端点语义。每次`iterator()`都返回一个从first开始的全新cursor，不同cursor的进度彼此独立；cursor一旦耗尽，之后每次`next()`都返回`None`。Array/MutableArray同样以`public override operator fun iterator(): Iterator<T>`实现Iterable；internal array iterator的index固定为`Long`，`next`以显式`public override`满足slot，其effective domain仍受owner限制。
 
 `Int8`/`Int16`的endpoint在已选core函数体内显式、无损扩展为`Int`，`UInt8`/`UInt16`同理扩展为`UInt`，所以窄range元素分别是`Int`/`UInt`。`Long`/`ULong`端点不截断且分别保留在`LongRange`/`ULongRange`中。这不建立一般隐式conversion，两个已定型且类型不同的endpoint仍不能混用。
 
