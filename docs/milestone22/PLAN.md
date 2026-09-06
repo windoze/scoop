@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.6
+版本：0.7
 
 最后更新：2026-09-06
 
@@ -43,7 +43,7 @@
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.4 的 downstream-first 顺序落地，parser 最后开放语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
-| Scoop aggregate 参数 ABI classification | 待修复 | 已确认是一般 LIR caller / callee 分类缺口而非固定 32 字节特例；按 4.3 在 `for` / range 前修复 |
+| Scoop aggregate 参数 ABI classification | 进行中 | `dde7063` / `20820cf` 后进入 4.3；正在并行复现 shape matrix，并审计 LIR classifier、callee / direct / indirect caller 与 codegen artifact |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
 ## 4. 剩余执行顺序
@@ -103,7 +103,7 @@
 
 每个切片均需独立 HIR / MIR / LIR golden、正向组合 fixture 和稳定 negative fixture，完成后单独提交并更新第 3 节状态。第二个切片只有在普通、throw、suspend 恢复与 moving-GC 路径全部通过时才能提交，不把 effect 或恢复正确性留给后续补丁。
 
-### 4.3 Scoop aggregate 参数 ABI classification
+### 4.3 Scoop aggregate 参数 ABI classification（进行中）
 
 该问题已从单个“32 字节 tuple”风险归因为一般 Scoop typed ABI 缺口，必须在 `for` / range 扩大 aggregate 传参组合前独立修复：
 
@@ -112,6 +112,8 @@
 3. `Indirect` storage、含 managed ref aggregate 的 caller-root publication、relocation 后 reload、closure / suspend hidden 参数必须保持 exact type、layout、scan 与 pointer provenance；不能通过禁用 statepoint 或绕开 aggregate 传参掩盖问题。
 4. 加入边界尺寸、平坦/嵌套 aggregate、caller/callee 分离、generic materialization、普通/managed call 及 C/Scoop ABI 隔离回归，并单独提交。
 5. 完成门包括专项 HIR / MIR / LIR golden、LLVM function/call attribute artifact、端到端输出、`cargo test --workspace`、全 workspace clippy、`git diff --check` 与无 `.snap.new`。
+
+当前审计基线：LIR function、typed call 与 Scoop extern signature 仍只保存 logical `LirType`；codegen 分别从 definition 和 call site 的类型列表构造 LLVM 参数，并仅以 `uses_return_slot` 闭合 aggregate return。4.3 不接受按单个 size / shape 打补丁；第一实现切片必须先让 target-owned typed classifier 成为 definition、direct / dispatch call 与 Scoop extern 的共同物理签名来源，再迁移 storage、root 与 artifact 验证。
 
 ### 4.4 typed loop target 与 abrupt cleanup
 
@@ -183,3 +185,4 @@
 - 2026-09-06：完成 4.2a val / var tuple / struct planner，提交 `0049933`。plan 的 declaration-order shape 与 source-order depth-first actions 分离，subject / projection 为 immutable hidden local，`var` 只影响用户叶，struct field 保留 exact application identity；val / var 在 Export HIR 前展开为 binding-only statement。验证通过：格式检查；全 workspace clippy（`-D warnings`）；HIR lowering 671/671；snapshot refresh 后 strict fixture 4/4；全 workspace tests；`git diff --check`；无 `.snap.new`。独立审查未发现 correctness blocker。该切片不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。
 - 2026-09-06：根据独立 loop / ABI 审计更新后续顺序。aggregate 问题改名为一般 Scoop ABI classification 缺口并前移到 4.3；loop 采用 outcome → typed target / cleanup → coroutine / explicit header poll → parser 开放的 downstream-first 顺序。记录 `Component` action 接入前校验与 binding plan 持久化前封闭构造为后续硬门。
 - 2026-09-06：完成 4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC，提交 `dde7063`。最终审查发现并修复 extension component receiver 被合法拓宽为父类 / 接口后错误要求 exact type 的断言，并补两类正向回归。验证通过：`cargo fmt --all -- --check`；`cargo clippy --workspace --all-targets -- -D warnings`；`cargo test -p scoop-hir-lower`（679/679）；snapshot refresh；`INSTA_UPDATE=no cargo test --workspace`（端到端 fixture 4/4，324.84 秒，全部 doctest 通过）；手工 baseline 与 `SCOOP_GC_STRESS_MOVE=1` 输出一致；`git diff --check`；无 `.snap.new` 或新增 `TODO` / `unimplemented!`。三路独立审查最终均无 correctness blocker。该切片只复用既有 typed call、EH、coroutine frame 与 moving-GC root / relocation 契约，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。下一执行切片为 4.3 Scoop aggregate 参数 ABI classification。
+- 2026-09-06：4.3 开始。并行审计三条路径：LIR logical / physical signature ownership，32 / 24 字节及平坦 / 嵌套 aggregate 的 full-pipeline 复现矩阵，Darwin/AArch64 codegen definition / direct / dispatch / statepoint / Scoop extern artifact。当前已确认 `Function.params`、call signature 与 `LirFunctionType` 尚无参数 classification sum，codegen仍从各自的 `LirType`列表构造物理参数；先闭合共同 target classifier，再改 storage/root，不做单 shape 阈值补丁。
