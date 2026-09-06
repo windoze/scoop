@@ -120,6 +120,85 @@ fn generic_identity_infers_type_arguments() {
 }
 
 #[test]
+fn generic_unit_return_preserves_call_before_bare_return() {
+    let output = lower_user_output(file(vec![
+        fun_expr(
+            "identity",
+            vec!["T"],
+            vec![("value", ty_named("T"))],
+            Some(ty_named("T")),
+            var("value"),
+        ),
+        fun_expr(
+            "forward",
+            vec!["T"],
+            vec![("value", ty_named("T"))],
+            Some(ty_named("T")),
+            call("identity", vec![var("value")]),
+        ),
+        fun(
+            "main",
+            vec![
+                stmt(call("forward", vec![unit_lit()])),
+                val("number", call("forward", vec![int_lit(7)])),
+            ],
+        ),
+    ]))
+    .expect("generic returns may specialize to Unit");
+
+    let forward = |return_ty| {
+        output
+            .local
+            .functions
+            .iter()
+            .find_map(|(_, function)| {
+                (function.name == "forward" && function.return_ty == return_ty).then_some(function)
+            })
+            .unwrap_or_else(|| panic!("missing forward specialization for {return_ty:?}"))
+    };
+
+    let unit = forward(output.local.unit);
+    let hir::concrete::FunctionKind::User(unit_body) = &unit.kind else {
+        panic!("forward<Unit> has a user body")
+    };
+    let (return_, before_return) = unit_body
+        .statements
+        .split_last()
+        .expect("forward<Unit> has a return");
+    let evaluate = before_return
+        .last()
+        .expect("forward<Unit> evaluates its result before returning");
+    let hir::concrete::StatementKind::Expr(value) = &evaluate.kind else {
+        panic!("the Unit-valued producer remains an expression statement")
+    };
+    assert_eq!(value.ty, output.local.unit);
+    let hir::concrete::ExprKind::Call { callee, .. } = &value.kind else {
+        panic!("the Unit-valued generic call is preserved")
+    };
+    assert_eq!(
+        output.local.functions[output.local.callable_function(*callee)].name,
+        "identity"
+    );
+    assert!(matches!(
+        &return_.kind,
+        hir::concrete::StatementKind::Return { value: None }
+    ));
+    assert!(unit_body.statements.iter().all(|statement| !matches!(
+        &statement.kind,
+        hir::concrete::StatementKind::Return { value: Some(_) }
+    )));
+
+    let int = forward(concrete_int_type(&output.local));
+    let hir::concrete::FunctionKind::User(int_body) = &int.kind else {
+        panic!("forward<Int> has a user body")
+    };
+    assert!(matches!(
+        int_body.statements.last().map(|statement| &statement.kind),
+        Some(hir::concrete::StatementKind::Return { value: Some(_) })
+    ));
+}
+
+#[test]
 fn generic_inference_is_independent_of_argument_order() {
     let file = file(vec![
         fun_expr(

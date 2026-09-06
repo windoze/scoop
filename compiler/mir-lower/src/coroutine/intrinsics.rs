@@ -322,6 +322,8 @@ pub(super) fn rewrite_intrinsic_site(
         },
         unwind,
     });
+    body.loop_header_polls
+        .push(mir::LoopHeaderPollTarget::new(completion_wait));
     body.blocks[completion_spin].terminator = mir::Terminator::Goto(completion_wait);
     let register_return = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.register_return.{}", site.state),
@@ -457,6 +459,8 @@ pub(super) fn rewrite_intrinsic_site(
         },
         unwind,
     });
+    body.loop_header_polls
+        .push(mir::LoopHeaderPollTarget::new(registration_wait));
     body.blocks[registration_spin].terminator = mir::Terminator::Goto(registration_wait);
     let registration_failure = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registration_failure.{}", site.state),

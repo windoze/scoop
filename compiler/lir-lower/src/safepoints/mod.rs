@@ -1,7 +1,7 @@
 //! Explicit safepoint placement and complete root-plan construction.
 //!
 //! This pass runs after one function's CFG and physical LIR types are final.
-//! It inserts managed entry/back-edge polls, computes backward liveness once,
+//! It inserts managed entry/explicit-loop-header polls, computes backward liveness once,
 //! and fills every protocol-specific root plan. Codegen consumes these plans;
 //! it never rediscovers CFG safepoints or source liveness.
 
@@ -11,6 +11,7 @@ use la_arena::{Arena, Idx};
 use scoop_lir as lir;
 
 use super::LoweringContext;
+use super::function::{LoweredFunction, MappedLoopHeaderPollTarget};
 use super::metadata::{repr_shape, sequence};
 
 mod cfg;
@@ -92,15 +93,15 @@ impl LiveValue {
 
 pub(super) fn complete_function(
     context: &LoweringContext,
-    function: &mut lir::Function,
+    lowered: &mut LoweredFunction,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     ids: &mut SafepointIds,
 ) {
-    fold_constant_branches(function);
-    prune_unreachable_blocks(function);
-    insert_polls(function, ids);
-    annotate_root_plans(context, function, structs, enums);
+    fold_constant_branches(&mut lowered.function);
+    prune_unreachable_blocks(lowered);
+    insert_polls(&mut lowered.function, &lowered.loop_header_polls, ids);
+    annotate_root_plans(context, &mut lowered.function, structs, enums);
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {

@@ -3214,7 +3214,7 @@ Module mangling=compact-v2
       unreachable
     bb9 pattern.merge.9
       goto bb6
-    bb10 while.cond.10
+    bb10 while.cond.10 <loop-header-poll>
       val $argument.0: BooleanGate
         Type BooleanGate
         FieldAccess 5
@@ -3290,7 +3290,28 @@ Module mangling=compact-v2
             Local $step.6
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb11 while.body.11
+    bb11 while.exit.11
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.2
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.4: Boolean = @scoop.markedBoolean direct
+        Type String
+        Local $parameter.label
+        Type Boolean
+        Local $parameter.value
+      branch bb13 bb14
+        Type Boolean
+        Local $call.4
+    bb12 while.body.12
       val $receiver: Int
         Type Int
         Local loopTotal
@@ -3369,27 +3390,6 @@ Module mangling=compact-v2
             Local $step.7
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb12 while.exit.12
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.2
-      val $argument.1: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.label: String
-        Type String
-        Local $argument.0
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.1
-      call $call.4: Boolean = @scoop.markedBoolean direct
-        Type String
-        Local $parameter.label
-        Type Boolean
-        Local $parameter.value
-      branch bb13 bb14
-        Type Boolean
-        Local $call.4
     bb13 if.then.13
       val $argument.0: BooleanGate
         Type BooleanGate
@@ -4127,7 +4127,7 @@ Module mangling=compact-v2
             Type CoroutineFrame$scoop_ControlTask_run_suspend
             Local $frame
     bb49 coroutine.post.6
-      branch bb11 bb12
+      branch bb12 bb11
         Type Boolean
         Local $call.3
     bb50 coroutine.completed.6
@@ -7676,7 +7676,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -7760,7 +7760,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -8360,7 +8360,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -8444,7 +8444,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -9044,7 +9044,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -9128,7 +9128,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -11010,6 +11010,7 @@ Module
   block pattern.merge.9
     br @pattern.merge.6
   block while.cond.10
+    poll managed-void-target10 sp367 live=[param0:ptr<managed>@0, local0:ptr<managed>@0]
     t30 = heap_load local0 +56 : ptr<managed>
     store t30 -> local35
     store local35 -> local36
@@ -11033,39 +11034,39 @@ Module
     t37 = enum_tag e6 local102 : machine<enum-tag>
     t38 = MachineEq(EnumTag) t37, machine<enum-tag>(EnumTag(0)) : i1
     cbr t38 then @coroutine.completed_claim_adapter.6 else @coroutine.suspended.6
-  block while.body.11
-    store local34 -> local39
-    t39 = heap_load local0 +64 : ptr<managed>
-    store t39 -> local37
-    store local37 -> local38
-    t40 = enum_wrap e8 v1 (local0) : enum8
-    heap_store param0 +32 t40
-    t41 = enum_wrap e9 v1 (local17) : enum9
-    heap_store param0 +72 t41
-    t42 = enum_wrap e9 v1 (local23) : enum9
-    heap_store param0 +88 t42
-    t43 = enum_wrap e9 v1 (local33) : enum9
-    heap_store param0 +136 t43
-    t44 = enum_wrap e9 v1 (local39) : enum9
-    heap_store param0 +168 t44
-    atomic_store release coroutine-frame-state param0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(7))))
-    call managed-direct-target6 sp107 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local38:ptr<managed>@0] t45 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(32)))
-    store t45 -> local96
-    heap_store local96 +16 param0
-    machine_heap_store coroutine-adapter-state local96 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
-    call managed-indirect-target5 sp108 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local38:ptr<managed>@0, local96:ptr<managed>@0] local137 = sig=indirect5 (sret enum5 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) local-fn31(local38, local96)
-    store local137 -> local97
-    t46 = enum_tag e5 local97 : machine<enum-tag>
-    t47 = MachineEq(EnumTag) t46, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t47 then @coroutine.completed_claim_adapter.7 else @coroutine.suspended.7
-  block while.exit.12
+  block while.exit.11
     store global2 -> local42
     store true -> local43
     store local42 -> local44
     store local43 -> local45
-    call managed-direct-target7 sp109 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local44:ptr<managed>@0] t48 = sig=direct7 (ptr<managed>, i1) -> i1 local-fn35(local44, local45)
-    store t48 -> local83
+    call managed-direct-target6 sp107 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local44:ptr<managed>@0] t39 = sig=direct6 (ptr<managed>, i1) -> i1 local-fn35(local44, local45)
+    store t39 -> local83
     cbr local83 then @if.then.13 else @if.else.14
+  block while.body.12
+    store local34 -> local39
+    t40 = heap_load local0 +64 : ptr<managed>
+    store t40 -> local37
+    store local37 -> local38
+    t41 = enum_wrap e8 v1 (local0) : enum8
+    heap_store param0 +32 t41
+    t42 = enum_wrap e9 v1 (local17) : enum9
+    heap_store param0 +72 t42
+    t43 = enum_wrap e9 v1 (local23) : enum9
+    heap_store param0 +88 t43
+    t44 = enum_wrap e9 v1 (local33) : enum9
+    heap_store param0 +136 t44
+    t45 = enum_wrap e9 v1 (local39) : enum9
+    heap_store param0 +168 t45
+    atomic_store release coroutine-frame-state param0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(7))))
+    call managed-direct-target7 sp108 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local38:ptr<managed>@0] t46 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(32)))
+    store t46 -> local96
+    heap_store local96 +16 param0
+    machine_heap_store coroutine-adapter-state local96 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
+    call managed-indirect-target5 sp109 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local38:ptr<managed>@0, local96:ptr<managed>@0] local137 = sig=indirect5 (sret enum5 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) local-fn31(local38, local96)
+    store local137 -> local97
+    t47 = enum_tag e5 local97 : machine<enum-tag>
+    t48 = MachineEq(EnumTag) t47, machine<enum-tag>(EnumTag(0)) : i1
+    cbr t48 then @coroutine.completed_claim_adapter.7 else @coroutine.suspended.7
   block if.then.13
     t49 = heap_load local0 +72 : ptr<managed>
     store t49 -> local46
@@ -11373,7 +11374,7 @@ Module
     throw t170
     unreachable
   block coroutine.post.6
-    cbr local82 then @while.body.11 else @while.exit.12
+    cbr local82 then @while.body.12 else @while.exit.11
   block coroutine.completed.6
     t171 = enum_field e6 v0 f0 local102 : i1
     store t171 -> local82
@@ -11797,7 +11798,7 @@ Module
     t346 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(9)))) : i1
     cbr t346 then @coroutine.failure.9 else @coroutine.dispatch.resume_failure.8
   block coroutine.dispatch.initial
-    poll managed-void-target10 sp367 live=[param0:ptr<managed>@0]
+    poll managed-void-target10 sp368 live=[param0:ptr<managed>@0]
     t347 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t347 then @coroutine.initial else @coroutine.dispatch.resume_failure.9
   fun @scoop.ControlTask.run$suspend$resume$9(ptr<managed>, i1) -> void
@@ -11868,7 +11869,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(9)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp368 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp369 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -11946,7 +11947,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(9)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp369 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp370 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12024,7 +12025,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(8)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp370 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp371 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12102,7 +12103,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(8)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp371 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp372 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12180,7 +12181,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(7)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp372 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp373 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12258,7 +12259,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(7)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp373 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp374 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12336,7 +12337,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(6)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp374 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp375 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12414,7 +12415,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(6)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp375 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp376 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12492,7 +12493,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(5)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp376 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp377 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12570,7 +12571,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(5)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp377 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp378 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12648,7 +12649,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(4)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp378 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp379 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12726,7 +12727,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(4)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp379 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp380 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12804,7 +12805,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(3)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp380 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp381 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12882,7 +12883,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(3)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp381 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp382 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -12960,7 +12961,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(2)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp382 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp383 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -13038,7 +13039,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(2)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp383 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp384 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -13116,7 +13117,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp384 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp385 live=[param0:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -13194,7 +13195,7 @@ Module
     t26 = MachineEq(CoroutineFrameState) local2, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
     cbr t26 then @valid else @invalid_frame
   block claim_waiting
-    poll managed-void-target3 sp385 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp386 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t27 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t27 -> local1
     t28 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : i1
@@ -13297,7 +13298,7 @@ Module
     t25 = MachineEq(CoroutineAdapterState) t24, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t25 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
-    poll managed-void-target4 sp386 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp387 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t26 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t27 = MachineEq(CoroutineAdapterState) t26, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t27 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
@@ -13329,7 +13330,7 @@ Module
     t35 = MachineEq(CoroutineAdapterState) t34, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t35 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
-    poll managed-void-target4 sp387 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp388 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t36 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t37 = MachineEq(CoroutineAdapterState) t36, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t37 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
@@ -13376,7 +13377,7 @@ Module
     t53 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))) : i1
     cbr t53 then @coroutine.failure.1 else @coroutine.dispatch.suspended.1
   block coroutine.dispatch.initial
-    poll managed-void-target4 sp388 live=[param0:ptr<managed>@0]
+    poll managed-void-target4 sp389 live=[param0:ptr<managed>@0]
     t54 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t54 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
   block invoke.normal.1
@@ -13460,7 +13461,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedSuccess))
     ret
   block entry
-    poll managed-void-target3 sp389 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp390 live=[param0:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
@@ -13548,7 +13549,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedFailure))
     ret
   block entry
-    poll managed-void-target3 sp390 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp391 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
@@ -13651,7 +13652,7 @@ Module
     t25 = MachineEq(CoroutineAdapterState) t24, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t25 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
-    poll managed-void-target4 sp391 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp392 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t26 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t27 = MachineEq(CoroutineAdapterState) t26, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t27 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
@@ -13683,7 +13684,7 @@ Module
     t35 = MachineEq(CoroutineAdapterState) t34, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t35 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
-    poll managed-void-target4 sp392 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp393 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t36 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t37 = MachineEq(CoroutineAdapterState) t36, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t37 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
@@ -13730,7 +13731,7 @@ Module
     t53 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))) : i1
     cbr t53 then @coroutine.failure.1 else @coroutine.dispatch.suspended.1
   block coroutine.dispatch.initial
-    poll managed-void-target4 sp393 live=[param0:ptr<managed>@0]
+    poll managed-void-target4 sp394 live=[param0:ptr<managed>@0]
     t54 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t54 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
   block invoke.normal.1
@@ -13814,7 +13815,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedSuccess))
     ret
   block entry
-    poll managed-void-target3 sp394 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp395 live=[param0:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
@@ -13902,7 +13903,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedFailure))
     ret
   block entry
-    poll managed-void-target3 sp395 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp396 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
@@ -14005,7 +14006,7 @@ Module
     t25 = MachineEq(CoroutineAdapterState) t24, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t25 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
-    poll managed-void-target4 sp396 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp397 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t26 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t27 = MachineEq(CoroutineAdapterState) t26, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t27 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
@@ -14037,7 +14038,7 @@ Module
     t35 = MachineEq(CoroutineAdapterState) t34, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
     cbr t35 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
-    poll managed-void-target4 sp397 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
+    poll managed-void-target4 sp398 live=[param0:ptr<managed>@0, local8:ptr<managed>@0]
     t36 = atomic_load acquire coroutine-adapter-state local8 +24 : machine<coroutine-adapter-state>
     t37 = MachineEq(CoroutineAdapterState) t36, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
     cbr t37 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
@@ -14084,7 +14085,7 @@ Module
     t53 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))) : i1
     cbr t53 then @coroutine.failure.1 else @coroutine.dispatch.suspended.1
   block coroutine.dispatch.initial
-    poll managed-void-target4 sp398 live=[param0:ptr<managed>@0]
+    poll managed-void-target4 sp399 live=[param0:ptr<managed>@0]
     t54 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t54 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
   block invoke.normal.1
@@ -14170,7 +14171,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedSuccess))
     ret
   block entry
-    poll managed-void-target3 sp399 live=[param0:ptr<managed>@0]
+    poll managed-void-target3 sp400 live=[param0:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
@@ -14260,7 +14261,7 @@ Module
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedFailure))
     ret
   block entry
-    poll managed-void-target3 sp400 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    poll managed-void-target3 sp401 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t30 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state param0 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : machine<coroutine-adapter-state>
     store t30 -> local1
     t31 = MachineEq(CoroutineAdapterState) local1, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1

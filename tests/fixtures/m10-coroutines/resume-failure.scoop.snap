@@ -2029,7 +2029,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb24 coroutine.completion_wait.1 unwind bb1
+    bb24 coroutine.completion_wait.1 <loop-header-poll> unwind bb1
       branch bb22 bb23
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -2113,7 +2113,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb32 coroutine.registration_wait.1 unwind bb1
+    bb32 coroutine.registration_wait.1 <loop-header-poll> unwind bb1
       branch bb30 bb31
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -2718,7 +2718,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -2802,7 +2802,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)

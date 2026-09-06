@@ -1329,7 +1329,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance IllegalStateException
           Type Any
@@ -1376,19 +1376,17 @@ Module mangling=compact-v2
         Local $receiver
         Type Int
         Local $parameter.value
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       val $argument.0: String
         Type String
         StringConst @scoop.str.0
@@ -1398,8 +1396,6 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb16
-    bb16 scope.16
       end_catch
       goto bb10
   fun Holder.resumeInvalidated @scoop.Holder.resumeInvalidated(this: Holder, value: Int) -> Unit
@@ -1441,7 +1437,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance IllegalStateException
           Type Any
@@ -1475,19 +1471,17 @@ Module mangling=compact-v2
         Local $receiver
         Type Int
         Local $parameter.value
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       val $argument.0: String
         Type String
         StringConst @scoop.str.1
@@ -1497,8 +1491,6 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb16
-    bb16 scope.16
       end_catch
       goto bb10
   fun Holder.failThenResume @scoop.Holder.failThenResume(this: Holder, value: Int) -> Unit
@@ -1560,7 +1552,7 @@ Module mangling=compact-v2
       goto bb5
     bb5 try.dispatch.5
       begin_catch
-      branch bb13 bb14
+      branch bb12 bb13
         Type Boolean
         IsInstance IllegalStateException
           Type Any
@@ -1594,19 +1586,17 @@ Module mangling=compact-v2
         Local $receiver
         Type Int
         Local $parameter.value
-      goto bb12
-    bb12 scope.12
       goto bb10
-    bb13 try.catch.13
+    bb12 try.catch.12
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb15
-    bb14 try.next.14
+      goto bb14
+    bb13 try.next.13
       rethrow unwind bb8
-    bb15 scope.15 unwind bb6
+    bb14 scope.14 unwind bb6
       val $argument.0: String
         Type String
         StringConst @scoop.str.2
@@ -1616,8 +1606,6 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb16
-    bb16 scope.16
       end_catch
       goto bb10
   fun SavingRegistration.register @scoop.SavingRegistration.register(this: SavingRegistration, continuation: Continuation$I32) -> Unit
@@ -2667,7 +2655,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -2751,7 +2739,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -3408,7 +3396,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb24 coroutine.completion_wait.1 unwind bb1
+    bb24 coroutine.completion_wait.1 <loop-header-poll> unwind bb1
       branch bb22 bb23
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -3492,7 +3480,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb32 coroutine.registration_wait.1 unwind bb1
+    bb32 coroutine.registration_wait.1 <loop-header-poll> unwind bb1
       branch bb30 bb31
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -4159,7 +4147,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb24 coroutine.completion_wait.1 unwind bb1
+    bb24 coroutine.completion_wait.1 <loop-header-poll> unwind bb1
       branch bb22 bb23
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -4243,7 +4231,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb32 coroutine.registration_wait.1 unwind bb1
+    bb32 coroutine.registration_wait.1 <loop-header-poll> unwind bb1
       branch bb30 bb31
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -4900,7 +4888,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb24 coroutine.completion_wait.1 unwind bb1
+    bb24 coroutine.completion_wait.1 <loop-header-poll> unwind bb1
       branch bb22 bb23
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -4984,7 +4972,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb32 coroutine.registration_wait.1 unwind bb1
+    bb32 coroutine.registration_wait.1 <loop-header-poll> unwind bb1
       branch bb30 bb31
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -5825,7 +5813,7 @@ Module
     t10 = begin_catch local17 : ptr<managed>
     store t10 -> local18
     call no-gc-direct-target1 t11 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local18, td30)
-    cbr t11 then @try.catch.13 else @try.next.14
+    cbr t11 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t12, t13) = cleanup_pad : (exception_record, ptr<raw>)
     store t12 -> local16
@@ -5856,30 +5844,26 @@ Module
     call no-gc-direct-target2 t18 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t17, td2)
     invoke managed-void-target2 sp25 roots=[local7:argument] sig=void2 (ptr<managed>, i32) dispatch[Interface:0] t18(local7, local9) normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local18 -> local10
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void3 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     store global0 -> local11
     store local11 -> local12
     invoke managed-void-target3 sp26 roots=[local12:argument] sig=void4 (ptr<managed>) local-fn37(local12) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
-  block scope.16
-    end_catch
-    br @try.end.10
   block invoke.normal.1
     t19 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
     t20 = aggregate () : {}
-    br @scope.16
+    end_catch
+    br @try.end.10
   fun @scoop.Holder.resumeInvalidated(ptr<managed>, i32) -> void
     local %0 continuation: ptr<managed>
     local %1 $receiver: ptr<managed>
@@ -5923,7 +5907,7 @@ Module
     t7 = begin_catch local11 : ptr<managed>
     store t7 -> local12
     call no-gc-direct-target0 t8 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local12, td30)
-    cbr t8 then @try.catch.13 else @try.next.14
+    cbr t8 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
     store t9 -> local10
@@ -5950,30 +5934,26 @@ Module
     call no-gc-direct-target1 t14 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t13, td2)
     invoke managed-void-target1 sp29 roots=[local1:argument] sig=void1 (ptr<managed>, i32) dispatch[Interface:0] t14(local1, local3) normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local12 -> local4
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     store global1 -> local5
     store local5 -> local6
     invoke managed-void-target2 sp30 roots=[local6:argument] sig=void3 (ptr<managed>) local-fn37(local6) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
-  block scope.16
-    end_catch
-    br @try.end.10
   block invoke.normal.1
     t15 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
     t16 = aggregate () : {}
-    br @scope.16
+    end_catch
+    br @try.end.10
   fun @scoop.Holder.failThenResume(ptr<managed>, i32) -> void
     local %0 continuation: ptr<managed>
     local %1 $receiver: ptr<managed>
@@ -6032,7 +6012,7 @@ Module
     t12 = begin_catch local15 : ptr<managed>
     store t12 -> local16
     call no-gc-direct-target1 t13 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local16, td30)
-    cbr t13 then @try.catch.13 else @try.next.14
+    cbr t13 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t14, t15) = cleanup_pad : (exception_record, ptr<raw>)
     store t14 -> local14
@@ -6059,30 +6039,26 @@ Module
     call no-gc-direct-target2 t19 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t18, td2)
     invoke managed-void-target3 sp36 roots=[local4:argument] sig=void3 (ptr<managed>, i32) dispatch[Interface:0] t19(local4, local6) normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
-  block scope.12
-    br @try.end.10
-  block try.catch.13
+  block try.catch.12
     store local16 -> local7
-    br @scope.15
-  block try.next.14
+    br @scope.14
+  block try.next.13
     invoke no-gc-void-target0 sig=void4 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
-  block scope.15
+  block scope.14
     store global2 -> local8
     store local8 -> local9
     invoke managed-void-target4 sp37 roots=[local9:argument] sig=void5 (ptr<managed>) local-fn37(local9) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
-  block scope.16
-    end_catch
-    br @try.end.10
   block invoke.normal.1
     t20 = aggregate () : {}
-    br @scope.12
+    br @try.end.10
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
     t21 = aggregate () : {}
-    br @scope.16
+    end_catch
+    br @try.end.10
   fun @scoop.SavingRegistration.register(ptr<managed>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>

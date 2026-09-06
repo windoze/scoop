@@ -1961,7 +1961,7 @@ Module mangling=compact-v2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Int
         Type Int
         Local index
@@ -1971,7 +1971,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1982,7 +1982,9 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
       val $receiver: String
         Type String
         StringConst @scoop.str.13
@@ -2028,8 +2030,6 @@ Module mangling=compact-v2
           Type Int
           Local $parameter.other
       goto bb1
-    bb3 while.exit.3
-      return
   fun collectAndMove @scoop.collectAndMove() -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -3869,7 +3869,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -3953,7 +3953,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -5131,8 +5131,10 @@ Module
     store local2 -> local3
     t0 = integer_compare_to<Int> local1, local3 : i64
     t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
-    cbr t1 then @while.body.2 else @while.exit.3
-  block while.body.2
+    cbr t1 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret
+  block while.body.3
     store global13 -> local4
     store global14 -> local5
     store local5 -> local6
@@ -5150,8 +5152,6 @@ Module
     t5 = integer_Add<Int> local10, local12 : i32
     store t5 -> local0
     br @while.cond.1
-  block while.exit.3
-    ret
   fun @scoop.collectAndMove() -> void
   block entry
     poll managed-void-target3 sp213 live=[]

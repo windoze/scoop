@@ -1206,7 +1206,7 @@ Module mangling=compact-v2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Int
         Type Int
         Local count
@@ -1216,7 +1216,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1227,7 +1227,9 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
       val $argument.0: String
         Type String
         FieldAccess 0
@@ -1256,8 +1258,6 @@ Module mangling=compact-v2
           Type Int
           Local $parameter.other
       goto bb1
-    bb3 while.exit.3
-      return
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
@@ -1947,8 +1947,10 @@ Module
     store local16 -> local17
     t7 = integer_compare_to<Int> local15, local17 : i64
     t8 = integer_compare_Less<Long> t7, integer<Long>(0x0000000000000000) : i1
-    cbr t8 then @while.body.2 else @while.exit.3
-  block while.body.2
+    cbr t8 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret
+  block while.body.3
     t9 = extract local4, 0 : ptr<managed>
     store t9 -> local18
     store local18 -> local19
@@ -1960,8 +1962,6 @@ Module
     t11 = integer_Add<Int> local20, local22 : i32
     store t11 -> local14
     br @while.cond.1
-  block while.exit.3
-    ret
   fun @scoop.println$B(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>

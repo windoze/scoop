@@ -61,6 +61,27 @@ pub struct Body {
     pub locals: Arena<Local>,
     pub blocks: Arena<BasicBlock>,
     pub entry: BlockId,
+    /// Normalized loop headers that require a managed safepoint poll when
+    /// entered. The typed target is body-local and survives CFG rewrites that
+    /// add alternate coroutine resume entries.
+    pub loop_header_polls: Vec<LoopHeaderPollTarget>,
+}
+
+/// A body-local, explicitly marked loop header. Consumers must not rediscover
+/// this fact from block names, dominance, or back edges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LoopHeaderPollTarget {
+    header: BlockId,
+}
+
+impl LoopHeaderPollTarget {
+    pub fn new(header: BlockId) -> Self {
+        Self { header }
+    }
+
+    pub fn header(self) -> BlockId {
+        self.header
+    }
 }
 
 impl Body {
@@ -79,6 +100,7 @@ impl Body {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         }
     }
 }

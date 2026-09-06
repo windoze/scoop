@@ -97,6 +97,13 @@ fn validate_function(module: &Module, function: &Function) -> Result<(), Codegen
                 live.remove(&definition);
             }
             match instruction {
+                Instruction::ManagedPoll { site } => validate_statepoint_roots(
+                    module,
+                    function,
+                    &site_owner(function, block_id, instruction_index, "managed poll"),
+                    site.live.as_slice(),
+                    &live,
+                )?,
                 Instruction::Call { site } => {
                     validate_call_plan(module, function, block_id, instruction_index, site, &live)?
                 }

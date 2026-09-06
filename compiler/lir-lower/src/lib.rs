@@ -218,7 +218,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
     let mut safepoint_ids = safepoints::SafepointIds::default();
-    let mut functions: Vec<lir::Function> = module
+    let mut lowered_functions = module
         .top_level
         .iter()
         .map(|&id| {
@@ -243,10 +243,14 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
                 &mut safepoint_ids,
             )
         })
-        .collect();
-    for function in &mut functions {
+        .collect::<Vec<_>>();
+    for function in &mut lowered_functions {
         safepoints::complete_function(&context, function, &structs, &enums, &mut safepoint_ids);
     }
+    let functions = lowered_functions
+        .into_iter()
+        .map(|function| function.function)
+        .collect();
 
     let (layouts, well_known_layouts) = layouts(&context, module, &enums, &layout_types);
     lir::Module {

@@ -186,6 +186,7 @@ fn return_inside_a_branch_seals_its_block() {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let _ = f;

@@ -153,6 +153,8 @@ impl<'a> CfgLowerer<'a> {
             "one structured loop identity has one active CFG target"
         );
         let cleanup_depth = self.cleanup_depth();
+        self.loop_header_polls
+            .push(mir::LoopHeaderPollTarget::new(header));
         self.loop_targets.push(LoopTarget {
             source,
             exit: LoopExitTarget {

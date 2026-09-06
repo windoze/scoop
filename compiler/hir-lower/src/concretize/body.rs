@@ -44,7 +44,8 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
-    ) -> Option<concrete::Statement> {
+        out: &mut Vec<concrete::Statement>,
+    ) {
         let kind = match &source.kind {
             export::StatementKind::Expr(expr) => {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
@@ -62,12 +63,28 @@ impl Concretizer<'_> {
             }
             // This marker has no runtime semantics. Concrete local-function
             // entities are requested by direct calls/references instead.
-            export::StatementKind::LocalFunction(_) => return None,
-            export::StatementKind::Return { value } => concrete::StatementKind::Return {
-                value: value
+            export::StatementKind::LocalFunction(_) => return,
+            export::StatementKind::Return { value } => {
+                let value = value
                     .as_ref()
-                    .map(|value| self.lower_expr(value, substitution, locals)),
-            },
+                    .map(|value| self.lower_expr(value, substitution, locals));
+                let value = match value {
+                    Some(value)
+                        if matches!(self.types[value.ty].kind, concrete::TypeKind::Unit) =>
+                    {
+                        // A checked generic return may become Unit only after
+                        // substitution. Preserve its evaluation before restoring
+                        // the LocalConcrete HIR bare-Unit-return invariant.
+                        out.push(concrete::Statement {
+                            kind: concrete::StatementKind::Expr(value),
+                            span: source.span,
+                        });
+                        None
+                    }
+                    value => value,
+                };
+                concrete::StatementKind::Return { value }
+            }
             export::StatementKind::ValDecl { pattern, init } => {
                 let init = self.lower_expr(init, substitution, locals);
                 let pattern = self.lower_pattern(pattern, init.ty, substitution, locals);
@@ -138,10 +155,10 @@ impl Concretizer<'_> {
                 concrete::StatementKind::Throw(self.lower_expr(expr, substitution, locals))
             }
         };
-        Some(concrete::Statement {
+        out.push(concrete::Statement {
             kind,
             span: source.span,
-        })
+        });
     }
 
     pub(super) fn lower_statements(
@@ -151,10 +168,11 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
     ) -> Vec<concrete::Statement> {
-        source
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, locals, loops))
-            .collect()
+        let mut out = Vec::with_capacity(source.len());
+        for statement in source {
+            self.lower_statement(statement, substitution, locals, loops, &mut out);
+        }
+        out
     }
 
     pub(super) fn lower_statement_region(

@@ -16,6 +16,9 @@ pub enum StatementKind {
     },
     LocalFunction(LocalFunctionId),
     Return {
+        /// Absent in `Unit` functions (bare `return`). If substitution makes
+        /// a generic return expression exactly `Unit`, concretization emits
+        /// that expression as a preceding statement to preserve evaluation.
         value: Option<Expr>,
     },
     ValDecl {

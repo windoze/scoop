@@ -437,6 +437,7 @@ impl CoroutineRegistry {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         top_level.push(function);

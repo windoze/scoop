@@ -1,5 +1,19 @@
 use super::*;
 
+fn managed_poll_block_names(function: &lir::Function) -> Vec<&str> {
+    function
+        .blocks
+        .values()
+        .filter(|block| {
+            block
+                .instructions
+                .iter()
+                .any(|instruction| matches!(instruction, lir::Instruction::ManagedPoll { .. }))
+        })
+        .map(|block| block.name.as_str())
+        .collect()
+}
+
 #[test]
 fn if_else_becomes_basic_blocks() {
     let mut b = Builder::new();
@@ -57,6 +71,7 @@ fn if_else_becomes_basic_blocks() {
             locals: Arena::new(),
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let module = lower(&b.finish(main));
@@ -155,6 +170,7 @@ fn while_becomes_basic_blocks() {
             locals,
             blocks,
             entry,
+            loop_header_polls: vec![mir::LoopHeaderPollTarget::new(cond)],
         },
     );
     let module = lower(&b.finish(main));
@@ -260,6 +276,7 @@ fn and_short_circuits_through_blocks() {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let module = lower(&b.finish(main));
@@ -361,6 +378,7 @@ fn or_short_circuits_through_blocks() {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let module = lower(&b.finish(main));
@@ -396,4 +414,281 @@ Module
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
+}
+
+#[test]
+fn explicit_loop_header_poll_survives_coroutine_like_multi_entry_cfg_and_pruning() {
+    let mut b = Builder::new();
+    let mut locals = Arena::new();
+    let choice = locals.alloc(local("choice", mir::Type::Boolean));
+    let params = vec![mir::Param {
+        name: "choice".to_string(),
+        ty: mir::Type::Boolean,
+        local: choice,
+    }];
+    let mut blocks = Arena::new();
+    let entry = cfg_block(&mut blocks, "entry");
+    let detached = cfg_block(&mut blocks, "detached");
+    let dispatch = cfg_block(&mut blocks, "coroutine.dispatch");
+    let header = cfg_block(&mut blocks, "while.cond");
+    let body = cfg_block(&mut blocks, "while.body");
+    let resume = cfg_block(&mut blocks, "coroutine.resume");
+    let post = cfg_block(&mut blocks, "coroutine.post");
+    let exit = cfg_block(&mut blocks, "while.exit");
+    set_cfg_block(
+        &mut blocks,
+        entry,
+        Vec::new(),
+        mir::Terminator::Goto(dispatch),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        dispatch,
+        Vec::new(),
+        mir::Terminator::Branch {
+            cond: local_expr(choice, mir::Type::Boolean),
+            then_block: header,
+            else_block: resume,
+        },
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        header,
+        Vec::new(),
+        mir::Terminator::Goto(body),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        body,
+        Vec::new(),
+        mir::Terminator::Goto(post),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        resume,
+        Vec::new(),
+        mir::Terminator::Goto(post),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        post,
+        Vec::new(),
+        mir::Terminator::Branch {
+            cond: local_expr(choice, mir::Type::Boolean),
+            then_block: header,
+            else_block: exit,
+        },
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        exit,
+        Vec::new(),
+        mir::Terminator::Return { value: None },
+        None,
+    );
+    let main = b.user_fn_body(
+        "main",
+        mir::ENTRY_SYMBOL,
+        params,
+        mir::Type::Unit,
+        mir::Body {
+            locals,
+            blocks,
+            entry,
+            loop_header_polls: vec![
+                mir::LoopHeaderPollTarget::new(entry),
+                mir::LoopHeaderPollTarget::new(detached),
+                mir::LoopHeaderPollTarget::new(header),
+            ],
+        },
+    );
+
+    let module = lower(&b.finish(main));
+    assert_eq!(
+        managed_poll_block_names(&module.functions[0]),
+        vec!["entry", "while.cond"]
+    );
+}
+
+#[test]
+fn loop_header_poll_carries_live_managed_root() {
+    let mut b = Builder::new();
+    let mut locals = Arena::new();
+    let keep_looping = locals.alloc(local("keepLooping", mir::Type::Boolean));
+    let root = locals.alloc(local("root", mir::Type::String));
+    let params = vec![
+        mir::Param {
+            name: "keepLooping".to_string(),
+            ty: mir::Type::Boolean,
+            local: keep_looping,
+        },
+        mir::Param {
+            name: "root".to_string(),
+            ty: mir::Type::String,
+            local: root,
+        },
+    ];
+    let mut blocks = Arena::new();
+    let entry = cfg_block(&mut blocks, "entry");
+    let header = cfg_block(&mut blocks, "while.cond");
+    let body = cfg_block(&mut blocks, "while.body");
+    let exit = cfg_block(&mut blocks, "while.exit");
+    set_cfg_block(
+        &mut blocks,
+        entry,
+        Vec::new(),
+        mir::Terminator::Goto(header),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        header,
+        Vec::new(),
+        mir::Terminator::Branch {
+            cond: local_expr(keep_looping, mir::Type::Boolean),
+            then_block: body,
+            else_block: exit,
+        },
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        body,
+        Vec::new(),
+        mir::Terminator::Goto(header),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        exit,
+        Vec::new(),
+        mir::Terminator::Return {
+            value: Some(local_expr(root, mir::Type::String)),
+        },
+        None,
+    );
+    let function = b.user_fn_body(
+        "loopLiveRoot",
+        "scoop.loopLiveRoot",
+        params,
+        mir::Type::String,
+        mir::Body {
+            locals,
+            blocks,
+            entry,
+            loop_header_polls: vec![mir::LoopHeaderPollTarget::new(header)],
+        },
+    );
+
+    let module = lower(&b.finish(function));
+    let function = module
+        .functions
+        .iter()
+        .find(|function| function.symbol == "scoop.loopLiveRoot")
+        .expect("loop-root test function");
+    let header = function
+        .blocks
+        .values()
+        .find(|block| block.name == "while.cond")
+        .expect("loop header");
+    let site = header
+        .instructions
+        .iter()
+        .find_map(|instruction| match instruction {
+            lir::Instruction::ManagedPoll { site } => Some(site),
+            _ => None,
+        })
+        .expect("loop header poll");
+    let live = site.live.as_slice();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].source, lir::CallerRootSource::Param(1));
+    assert_eq!(live[0].ty, lir::MANAGED_PTR);
+    assert_eq!(
+        live[0].leaves.as_slice(),
+        &[lir::ManagedLeafPath { byte_offset: 0 }]
+    );
+}
+
+#[test]
+fn unmarked_cycle_does_not_synthesize_a_loop_header_poll() {
+    let mut b = Builder::new();
+    let mut blocks = Arena::new();
+    let entry = cfg_block(&mut blocks, "entry");
+    let cycle = cfg_block(&mut blocks, "cycle");
+    set_cfg_block(
+        &mut blocks,
+        entry,
+        Vec::new(),
+        mir::Terminator::Goto(cycle),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        cycle,
+        Vec::new(),
+        mir::Terminator::Goto(cycle),
+        None,
+    );
+    let main = b.user_fn_body(
+        "main",
+        mir::ENTRY_SYMBOL,
+        Vec::new(),
+        mir::Type::Unit,
+        mir::Body {
+            locals: Arena::new(),
+            blocks,
+            entry,
+            loop_header_polls: Vec::new(),
+        },
+    );
+
+    let module = lower(&b.finish(main));
+    assert_eq!(
+        managed_poll_block_names(&module.functions[0]),
+        vec!["entry"]
+    );
+}
+
+#[test]
+fn no_gc_function_ignores_explicit_loop_header_poll_targets() {
+    let mut b = Builder::new();
+    let mut blocks = Arena::new();
+    let entry = cfg_block(&mut blocks, "entry");
+    let cycle = cfg_block(&mut blocks, "cycle");
+    set_cfg_block(
+        &mut blocks,
+        entry,
+        Vec::new(),
+        mir::Terminator::Goto(cycle),
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        cycle,
+        Vec::new(),
+        mir::Terminator::Goto(cycle),
+        None,
+    );
+    let main = b.user_fn_body(
+        "main",
+        mir::ENTRY_SYMBOL,
+        Vec::new(),
+        mir::Type::Unit,
+        mir::Body {
+            locals: Arena::new(),
+            blocks,
+            entry,
+            loop_header_polls: vec![mir::LoopHeaderPollTarget::new(cycle)],
+        },
+    );
+    b.functions[main].gc_effect = mir::GcEffect::NoGc;
+
+    let module = lower(&b.finish(main));
+    assert!(managed_poll_block_names(&module.functions[0]).is_empty());
 }

@@ -174,6 +174,7 @@ fn return_inside_try_runs_finally_before_returning() {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let _ = f;

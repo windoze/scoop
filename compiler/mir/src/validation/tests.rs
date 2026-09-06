@@ -134,6 +134,7 @@ fn guarded_body(
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
         projected,
     )
@@ -183,7 +184,60 @@ fn set_return_expression(module: &mut Module, expression: Expr) {
         locals: Arena::new(),
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     };
+}
+
+#[test]
+fn loop_header_poll_target_must_belong_to_its_body() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let invalid = la_arena::Idx::from_raw(1.into());
+    module.functions[module.entry].body.loop_header_polls =
+        vec![LoopHeaderPollTarget::new(invalid)];
+
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::FunctionBlock { block, .. },
+            kind: MirValidationErrorKind::InvalidLoopHeaderPollTarget,
+        }) if block == invalid
+    ));
+}
+
+#[test]
+fn loop_header_poll_target_must_be_unique_within_its_body() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let entry = module.functions[module.entry].body.entry;
+    module.functions[module.entry].body.loop_header_polls = vec![
+        LoopHeaderPollTarget::new(entry),
+        LoopHeaderPollTarget::new(entry),
+    ];
+
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::FunctionBlock { block, .. },
+            kind: MirValidationErrorKind::DuplicateLoopHeaderPollTarget,
+        }) if block == entry
+    ));
+}
+
+#[test]
+fn loop_header_poll_target_may_be_detached_and_noncyclic() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let detached = module.functions[module.entry]
+        .body
+        .blocks
+        .alloc(BasicBlock {
+            name: "detached".to_string(),
+            statements: Vec::new(),
+            terminator: Terminator::Unreachable,
+            unwind: None,
+        });
+    module.functions[module.entry].body.loop_header_polls =
+        vec![LoopHeaderPollTarget::new(detached)];
+
+    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -833,6 +887,7 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     };
     assert!(matches!(
         module.validate(),

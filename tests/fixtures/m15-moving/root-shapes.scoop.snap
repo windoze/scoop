@@ -1431,7 +1431,7 @@ Module mangling=compact-v2
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Long
         Type Long
         Local index
@@ -1441,7 +1441,7 @@ Module mangling=compact-v2
       val $parameter.other: Long
         Type Long
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1452,7 +1452,11 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
+    bb2 while.exit.2
+      return
+        Type String
+        Local current
+    bb3 while.body.3
       call @scoop_rt_gc_collect direct
       val $argument.0: String
         Type String
@@ -1515,10 +1519,6 @@ Module mangling=compact-v2
         VariantTest MovingChoice v0
           Type MovingChoice
           Local $pattern.subject.2
-    bb3 while.exit.3
-      return
-        Type String
-        Local current
     bb4 pattern.pass.4
       val node: MovingTextNode
         Type MovingTextNode
@@ -2567,8 +2567,10 @@ Module
     store local3 -> local4
     t0 = integer_compare_to<Long> local2, local4 : i64
     t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
-    cbr t1 then @while.body.2 else @while.exit.3
-  block while.body.2
+    cbr t1 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret local0
+  block while.body.3
     call managed-void-target0 sp22 live=[param1:struct10@0+8+16+32+40+48, param2:ptr<managed>@0, local0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t2 = aggregate () : {}
     store local0 -> local5
@@ -2598,8 +2600,6 @@ Module
     store local35 -> local36
     t14 = variant_test e0 v0 local36 : i1
     cbr t14 then @pattern.pass.4 else @pattern.else.5
-  block while.exit.3
-    ret local0
   block pattern.pass.4
     t15 = variant_payload_project e0 v0 f0 local36 : ptr<managed>
     store t15 -> local13

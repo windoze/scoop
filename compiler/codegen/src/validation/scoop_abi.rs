@@ -789,12 +789,61 @@ pub(super) fn validate_scoop_abi(module: &Module) -> Result<(), CodegenError> {
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
                 match instruction {
+                    Instruction::ManagedPoll { site } => validate_managed_poll(function, site)?,
                     Instruction::Call { site } => validate_call_site(module, function, site)?,
                     Instruction::Invoke { site } => validate_invoke_site(module, function, site)?,
                     _ => {}
                 }
             }
         }
+    }
+    Ok(())
+}
+
+fn validate_managed_poll(
+    function: &Function,
+    site: &scoop_lir::ManagedPollSite,
+) -> Result<(), CodegenError> {
+    if function.gc_effect != scoop_lir::GcEffect::Managed {
+        return Err(managed_poll_error(
+            function,
+            "is only valid in a managed function",
+        ));
+    }
+
+    let targets = &function.call_targets;
+    let target_index = arena_index(site.target);
+    if target_index >= targets.managed_targets.void.len() {
+        return Err(managed_poll_error(
+            function,
+            format!("references invalid managed-void target {target_index}"),
+        ));
+    }
+    let target = &targets.managed_targets.void[site.target];
+    if target.destination
+        != scoop_lir::ManagedCallDestination::runtime(scoop_lir::ManagedRuntimeFunction::Safepoint)
+    {
+        return Err(managed_poll_error(
+            function,
+            "target is not the managed safepoint runtime function",
+        ));
+    }
+
+    let signature_index = arena_index(target.signature);
+    if signature_index >= targets.void_signatures.len() {
+        return Err(managed_poll_error(
+            function,
+            format!("target references invalid void signature {signature_index}"),
+        ));
+    }
+    let signature = &targets.void_signatures[target.signature];
+    if !signature.arguments().is_empty()
+        || signature.calling_convention() != scoop_lir::CallingConvention::Cdecl
+    {
+        return Err(managed_poll_error(
+            function,
+            "target must use the exact `cdecl () -> void` safepoint ABI",
+        ));
     }
     Ok(())
 }
@@ -1641,6 +1690,10 @@ const fn argument_convention(argument: &scoop_lir::AbiArgument) -> &'static str 
 
 fn call_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
     CodegenError(format!("typed call @{}: {detail}", function.symbol))
+}
+
+fn managed_poll_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
+    CodegenError(format!("managed poll @{}: {detail}", function.symbol))
 }
 
 #[cfg(test)]

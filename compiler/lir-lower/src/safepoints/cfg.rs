@@ -24,7 +24,11 @@ pub(super) fn fold_constant_branches(function: &mut lir::Function) {
 /// control-flow simplification. LLVM is allowed to delete those blocks, so
 /// retaining them would make the supposedly exact LIR statepoint manifest
 /// describe code that cannot occur in the emitted image.
-pub(super) fn prune_unreachable_blocks(function: &mut lir::Function) {
+pub(super) fn prune_unreachable_blocks(lowered: &mut LoweredFunction) {
+    let LoweredFunction {
+        function,
+        loop_header_polls,
+    } = lowered;
     let mut reachable = vec![false; function.blocks.len()];
     let mut worklist = vec![function.entry];
     while let Some(block_id) = worklist.pop() {
@@ -54,6 +58,12 @@ pub(super) fn prune_unreachable_blocks(function: &mut lir::Function) {
     for block in new_blocks.values_mut() {
         remap_block_targets(block, &block_map);
     }
+    *loop_header_polls = loop_header_polls
+        .iter()
+        .filter_map(|target| {
+            block_map[arena_index(target.block())].map(MappedLoopHeaderPollTarget::new)
+        })
+        .collect();
     function.blocks = new_blocks;
 }
 
@@ -94,11 +104,19 @@ pub(super) fn remap_block_targets(block: &mut lir::BasicBlock, block_map: &[Opti
     }
 }
 
-pub(super) fn insert_polls(function: &mut lir::Function, ids: &mut SafepointIds) {
+pub(super) fn insert_polls(
+    function: &mut lir::Function,
+    loop_header_polls: &[MappedLoopHeaderPollTarget],
+    ids: &mut SafepointIds,
+) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
     }
-    let headers = loop_headers(function);
+    let mut poll_blocks = vec![false; function.blocks.len()];
+    poll_blocks[arena_index(function.entry)] = true;
+    for target in loop_header_polls {
+        poll_blocks[arena_index(target.block())] = true;
+    }
     let signature = function
         .call_targets
         .void_signatures
@@ -117,7 +135,7 @@ pub(super) fn insert_polls(function: &mut lir::Function, ids: &mut SafepointIds)
             signature,
         });
     for (block_id, block) in function.blocks.iter_mut() {
-        if block_id != function.entry && !headers[arena_index(block_id)] {
+        if !poll_blocks[arena_index(block_id)] {
             continue;
         }
         let insertion = usize::from(matches!(
@@ -135,76 +153,4 @@ pub(super) fn insert_polls(function: &mut lir::Function, ids: &mut SafepointIds)
             },
         );
     }
-}
-
-pub(super) fn loop_headers(function: &lir::Function) -> Vec<bool> {
-    let len = function.blocks.len();
-    let mut successors = vec![Vec::new(); len];
-    for (id, block) in function.blocks.iter() {
-        let from = arena_index(id);
-        match block.terminator {
-            lir::Terminator::Br(target) => successors[from].push(arena_index(target)),
-            lir::Terminator::CondBr {
-                then_block,
-                else_block,
-                ..
-            } => {
-                successors[from].push(arena_index(then_block));
-                successors[from].push(arena_index(else_block));
-            }
-            lir::Terminator::Return { .. }
-            | lir::Terminator::Resume { .. }
-            | lir::Terminator::Unreachable => {}
-        }
-        if let Some(lir::Instruction::Invoke { site }) = block.instructions.last() {
-            successors[from].push(arena_index(site.unwind()));
-        }
-    }
-
-    let mut predecessors = vec![Vec::new(); len];
-    for (from, targets) in successors.iter().enumerate() {
-        for &to in targets {
-            predecessors[to].push(from);
-        }
-    }
-
-    let entry = arena_index(function.entry);
-    let mut dominators: Vec<HashSet<usize>> = vec![(0..len).collect(); len];
-    dominators[entry] = [entry].into_iter().collect();
-    loop {
-        let mut changed = false;
-        for block in 0..len {
-            if block == entry {
-                continue;
-            }
-            let mut next: HashSet<usize> = match predecessors[block].as_slice() {
-                [] => [block].into_iter().collect(),
-                [first, rest @ ..] => {
-                    let mut set = dominators[*first].clone();
-                    for predecessor in rest {
-                        set.retain(|candidate| dominators[*predecessor].contains(candidate));
-                    }
-                    set
-                }
-            };
-            next.insert(block);
-            if next != dominators[block] {
-                dominators[block] = next;
-                changed = true;
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
-
-    let mut headers = vec![false; len];
-    for (from, targets) in successors.iter().enumerate() {
-        for &to in targets {
-            if dominators[from].contains(&to) {
-                headers[to] = true;
-            }
-        }
-    }
-    headers
 }

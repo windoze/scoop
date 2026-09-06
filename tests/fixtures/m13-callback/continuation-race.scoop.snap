@@ -1721,7 +1721,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb6 pattern.merge.6
-      goto bb3
+      unreachable
     bb7 pattern.pass.7
       val $when.6: ForeignCallbackState
         Type ForeignCallbackState
@@ -1744,7 +1744,7 @@ Module mangling=compact-v2
           Type ForeignCallbackState
           Local $pattern.subject.8
     bb9 pattern.merge.9
-      goto bb3
+      unreachable
     bb10 pattern.pass.10
       return
         Type Boolean
@@ -1754,7 +1754,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb12 pattern.merge.12
-      goto bb9
+      unreachable
     bb13 pattern.pass.13
       val $when.9: ForeignCallbackState
         Type ForeignCallbackState
@@ -1777,7 +1777,7 @@ Module mangling=compact-v2
           Type ForeignCallbackState
           Local $pattern.subject.11
     bb15 pattern.merge.15
-      goto bb9
+      unreachable
     bb16 pattern.pass.16
       return
         Type Boolean
@@ -1787,7 +1787,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb18 pattern.merge.18
-      goto bb15
+      unreachable
     bb19 pattern.pass.19
       val $when.12: ForeignCallbackState
         Type ForeignCallbackState
@@ -1803,7 +1803,7 @@ Module mangling=compact-v2
     bb20 pattern.else.20
       unreachable
     bb21 pattern.merge.21
-      goto bb15
+      unreachable
     bb22 pattern.pass.22
       return
         Type Boolean
@@ -1813,7 +1813,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb24 pattern.merge.24
-      goto bb21
+      unreachable
   fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
     bb0 entry
       return
@@ -2275,7 +2275,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -2359,7 +2359,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)

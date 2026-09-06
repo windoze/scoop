@@ -189,6 +189,7 @@ impl BodyLowerer<'_> {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(bridge_function);
@@ -417,6 +418,7 @@ impl BodyLowerer<'_> {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(function);

@@ -258,14 +258,25 @@ pub fn dump(module: &Module) -> String {
             }
         ));
         for (block_id, block) in function.body.blocks.iter() {
+            let loop_header_poll = if function
+                .body
+                .loop_header_polls
+                .iter()
+                .any(|target| target.header() == block_id)
+            {
+                " <loop-header-poll>"
+            } else {
+                ""
+            };
             let unwind = block
                 .unwind
                 .map(|target| format!(" unwind bb{}", block_number(target)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "    bb{} {}{}\n",
+                "    bb{} {}{}{}\n",
                 block_number(block_id),
                 block.name,
+                loop_header_poll,
                 unwind
             ));
             dump_statements(

@@ -134,6 +134,7 @@ pub(crate) fn lower(
         unwind_scope_count: 0,
         normal_cleanups: Vec::new(),
         loop_targets: Vec::new(),
+        loop_header_polls: Vec::new(),
         enums,
     };
     lowerer.lower_statements(&statements);
@@ -155,6 +156,7 @@ pub(crate) fn lower(
         locals: lowerer.locals,
         blocks: lowerer.blocks,
         entry: lowerer.entry,
+        loop_header_polls: lowerer.loop_header_polls,
     }
 }
 
@@ -171,6 +173,7 @@ struct CfgLowerer<'a> {
     unwind_scope_count: u32,
     normal_cleanups: Vec<NormalCleanup<'a>>,
     loop_targets: Vec<LoopTarget>,
+    loop_header_polls: Vec<mir::LoopHeaderPollTarget>,
     enums: &'a Arena<mir::EnumDef>,
 }
 

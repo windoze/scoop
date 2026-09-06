@@ -1129,7 +1129,7 @@ Module mangling=compact-v2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Int
         Type Int
         Local n
@@ -1139,7 +1139,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1150,7 +1150,18 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
+    bb2 while.exit.2
+      val $argument.0: Int
+        Type Int
+        Local sum
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @scoop.println$I32 direct
+        Type Int
+        Local $parameter.value
+      return
+    bb3 while.body.3
       val $receiver: Int
         Type Int
         Local n
@@ -1189,17 +1200,6 @@ Module mangling=compact-v2
           Local $div.2
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
-    bb3 while.exit.3
-      val $argument.0: Int
-        Type Int
-        Local sum
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
-      call @scoop.println$I32 direct
-        Type Int
-        Local $parameter.value
-      return
     bb4 if.then.4
       assign $new.1
         Type ArithmeticException
@@ -1851,26 +1851,26 @@ Module
     store local3 -> local4
     t0 = integer_compare_to<Int> local2, local4 : i64
     t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
-    cbr t1 then @while.body.2 else @while.exit.3
-  block while.body.2
+    cbr t1 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    store local1 -> local20
+    store local20 -> local21
+    call managed-void-target0 sp22 live=[] sig=void0 (i32) local-fn23(local21)
+    t2 = aggregate () : {}
+    ret
+  block while.body.3
     store local0 -> local5
     store integer<Int>(0x00000001) -> local6
     store local6 -> local7
-    t2 = integer_Add<Int> local5, local7 : i32
-    store t2 -> local0
+    t3 = integer_Add<Int> local5, local7 : i32
+    store t3 -> local0
     store local0 -> local8
     store integer<Int>(0x00000002) -> local9
     store local9 -> local10
     store local8 -> local22
     store local10 -> local23
-    t3 = integer_compare_Equal<Int> local23, integer<Int>(0x00000000) : i1
-    cbr t3 then @if.then.4 else @if.merge.5
-  block while.exit.3
-    store local1 -> local20
-    store local20 -> local21
-    call managed-void-target0 sp22 live=[] sig=void0 (i32) local-fn23(local21)
-    t4 = aggregate () : {}
-    ret
+    t4 = integer_compare_Equal<Int> local23, integer<Int>(0x00000000) : i1
+    cbr t4 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target0 sp23 live=[] t5 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
     store t5 -> local25

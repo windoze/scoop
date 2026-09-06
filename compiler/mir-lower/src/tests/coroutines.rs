@@ -93,6 +93,50 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
 }
 
 #[test]
+fn generic_unit_return_in_suspend_function_completes_unit() {
+    let mut h = Harness::new();
+    let unit = h.unit;
+    let leaf = identity_fn(&mut h, "genericLeaf");
+    h.functions[leaf].is_suspend = true;
+    h.instantiate(leaf, vec![unit]);
+    let main = empty_main(&mut h);
+
+    let module = lower(&h.finish_coroutines(main));
+    assert_eq!(module.validate(), Ok(()));
+    let (_, coroutine) = module
+        .meta
+        .coroutine_functions
+        .iter()
+        .find(|(_, coroutine)| module.functions[coroutine.function].name == "genericLeaf")
+        .expect("genericLeaf<Unit> has coroutine metadata");
+    assert_eq!(coroutine.source_return, mir::Type::Unit);
+    assert!(matches!(
+        &coroutine.lowering,
+        mir::CoroutineLowering::Immediate
+    ));
+
+    let step = &module.meta.coroutine_steps[coroutine.step];
+    assert_eq!(step.result(), &mir::Type::Unit);
+    let function = &module.functions[coroutine.function];
+    let mir::Terminator::Return { value: Some(value) } =
+        &function.body.blocks[function.body.entry].terminator
+    else {
+        panic!("the immediate Unit coroutine returns Completed(Unit)")
+    };
+    assert!(matches!(
+        &value.kind,
+        mir::ExprKind::VariantConstruct {
+            variant,
+            fields,
+            ..
+        } if *variant == step.completed()
+            && matches!(fields.as_slice(), [field]
+                if field.ty == mir::Type::Unit
+                    && matches!(field.kind, mir::ExprKind::UnitLiteral))
+    ));
+}
+
+#[test]
 fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let mut h = Harness::new();
     let int = h.int;
@@ -281,7 +325,88 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
 }
 
 #[test]
-fn suspend_intrinsic_keeps_frame_and_adapter_protocols_in_distinct_machine_kinds() {
+fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let unit = h.unit;
+    let condition = h.user_fn_full(
+        "condition",
+        Vec::new(),
+        Vec::new(),
+        boolean,
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(bool_lit(&h, false)),
+            })],
+        },
+    );
+    h.functions[condition].is_suspend = true;
+    let mut locals = Arena::new();
+    let condition_value = locals.alloc(local("condition", boolean));
+    let caller = h.user_fn_full(
+        "loopingCaller",
+        Vec::new(),
+        Vec::new(),
+        unit,
+        hir::Body {
+            locals,
+            statements: vec![stmt(hir::StatementKind::While {
+                target: hir::LoopId::from_raw(0),
+                condition_setup: vec![val_decl(
+                    condition_value,
+                    call_typed(condition, Vec::new(), boolean),
+                )],
+                cond: local_ref(condition_value, boolean),
+                body: Vec::new(),
+            })],
+        },
+    );
+    h.functions[caller].is_suspend = true;
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+
+    let module = lower(&h.finish_coroutines(main));
+    let (_, coroutine) = module
+        .meta
+        .coroutine_functions
+        .iter()
+        .find(|(_, coroutine)| module.functions[coroutine.function].name == "loopingCaller")
+        .expect("looping caller coroutine metadata");
+    let mir::CoroutineLowering::StateMachine { driver, .. } = &coroutine.lowering else {
+        panic!("the suspending loop requires a state machine")
+    };
+    let body = &module.functions[*driver].body;
+    let source_headers = body
+        .loop_header_polls
+        .iter()
+        .map(|target| target.header())
+        .filter(|target| body.blocks[*target].name.starts_with("while.cond"))
+        .collect::<Vec<_>>();
+    assert_eq!(source_headers.len(), 1);
+    assert!(
+        body.blocks
+            .iter()
+            .any(|(_, block)| block.name.starts_with("coroutine.resume."))
+    );
+    assert!(
+        body.blocks
+            .iter()
+            .any(|(_, block)| block.name.starts_with("coroutine.post."))
+    );
+    assert!(body.loop_header_polls.iter().all(|target| {
+        let name = &body.blocks[target.header()].name;
+        !name.starts_with("coroutine.resume.") && !name.starts_with("coroutine.post.")
+    }));
+}
+
+#[test]
+fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinct() {
     let mut h = Harness::new();
     let main = empty_main(&mut h);
     let mut source = h.finish_coroutines(main);
@@ -372,6 +497,17 @@ fn suspend_intrinsic_keeps_frame_and_adapter_protocols_in_distinct_machine_kinds
             );
         }
     }
+    assert_eq!(driver.body.loop_header_polls.len(), 2);
+    assert!(driver.body.loop_header_polls.iter().any(|target| {
+        driver.body.blocks[target.header()]
+            .name
+            .starts_with("coroutine.completion_wait.")
+    }));
+    assert!(driver.body.loop_header_polls.iter().any(|target| {
+        driver.body.blocks[target.header()]
+            .name
+            .starts_with("coroutine.registration_wait.")
+    }));
 
     let dump = mir::dump(&module);
     assert!(dump.contains("AtomicLoadAcquire kind=coroutine-adapter-state"));

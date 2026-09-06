@@ -6,6 +6,26 @@ mod statements;
 
 use call::LoweredCallDestination;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct MappedLoopHeaderPollTarget {
+    block: lir::BlockId,
+}
+
+impl MappedLoopHeaderPollTarget {
+    pub(super) fn new(block: lir::BlockId) -> Self {
+        Self { block }
+    }
+
+    pub(super) fn block(self) -> lir::BlockId {
+        self.block
+    }
+}
+
+pub(super) struct LoweredFunction {
+    pub(super) function: lir::Function,
+    pub(super) loop_header_polls: Vec<MappedLoopHeaderPollTarget>,
+}
+
 /// Map a primitive MIR binary operator onto its LIR opcode. Operand and result
 /// types come exclusively from the typed MIR expressions.
 fn binary_op(op: mir::BinOp) -> lir::BinOp {
@@ -83,7 +103,7 @@ pub(super) fn lower_function<'a>(
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
-) -> lir::Function {
+) -> LoweredFunction {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
     let address_taken = locals::address_taken(function);
@@ -148,6 +168,12 @@ pub(super) fn lower_function<'a>(
         block_map.insert(mir_id, lir_id);
     }
     let entry = block_map[&function.body.entry];
+    let loop_header_polls = function
+        .body
+        .loop_header_polls
+        .iter()
+        .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
+        .collect();
     let mut lowerer = FunctionLowerer {
         context,
         module,
@@ -203,18 +229,21 @@ pub(super) fn lower_function<'a>(
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
-    lir::Function {
-        gc_effect: match function.gc_effect {
-            mir::GcEffect::Managed => lir::GcEffect::Managed,
-            mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+    LoweredFunction {
+        function: lir::Function {
+            gc_effect: match function.gc_effect {
+                mir::GcEffect::Managed => lir::GcEffect::Managed,
+                mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+            },
+            symbol: function.symbol.clone(),
+            signature: signature.clone(),
+            call_targets: lowerer.call_targets,
+            locals: lowerer.locals,
+            temps: lowerer.temps,
+            blocks: lowerer.blocks,
+            entry,
         },
-        symbol: function.symbol.clone(),
-        signature: signature.clone(),
-        call_targets: lowerer.call_targets,
-        locals: lowerer.locals,
-        temps: lowerer.temps,
-        blocks: lowerer.blocks,
-        entry,
+        loop_header_polls,
     }
 }
 

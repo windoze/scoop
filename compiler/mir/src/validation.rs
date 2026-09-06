@@ -27,6 +27,8 @@ impl MirVariantOperation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirValidationErrorKind {
+    InvalidLoopHeaderPollTarget,
+    DuplicateLoopHeaderPollTarget,
     InvalidOptionCore,
     InvalidCoroutineStep,
     InvalidCoroutineSlot,
@@ -187,6 +189,12 @@ impl std::fmt::Display for MirValidationError {
             )?,
         }
         match &self.kind {
+            MirValidationErrorKind::InvalidLoopHeaderPollTarget => {
+                formatter.write_str("loop-header poll target is outside the function body")
+            }
+            MirValidationErrorKind::DuplicateLoopHeaderPollTarget => {
+                formatter.write_str("loop-header poll target is registered more than once")
+            }
             MirValidationErrorKind::InvalidOptionCore => {
                 formatter.write_str("stored Some/None identities no longer match the enum")
             }
@@ -378,8 +386,8 @@ impl Module {
     }
 }
 
-/// Validate representation-independent enum primitives and compiler-only raw
-/// aggregate construction in every body.
+/// Validate body-local control-flow metadata, representation-independent enum
+/// primitives, and compiler-only raw aggregate construction in every body.
 ///
 /// A matching dominance proof is deliberately tied to an immutable local id,
 /// not to printed or structural expression equality. Producers must materialize
@@ -399,6 +407,24 @@ fn validate_body(
     function: FunctionId,
     body: &Body,
 ) -> Result<(), MirValidationError> {
+    let mut loop_header_polls = vec![false; body.blocks.len()];
+    for target in &body.loop_header_polls {
+        let block = target.header();
+        let index = block.into_raw().into_u32() as usize;
+        let Some(seen) = loop_header_polls.get_mut(index) else {
+            return Err(MirValidationError {
+                location: MirValidationLocation::FunctionBlock { function, block },
+                kind: MirValidationErrorKind::InvalidLoopHeaderPollTarget,
+            });
+        };
+        if std::mem::replace(seen, true) {
+            return Err(MirValidationError {
+                location: MirValidationLocation::FunctionBlock { function, block },
+                kind: MirValidationErrorKind::DuplicateLoopHeaderPollTarget,
+            });
+        }
+    }
+
     for (block, definition) in body.blocks.iter() {
         try_visit_block_exprs(definition, &mut |expr| {
             validate_expression_shape(module, expr).map_err(|kind| MirValidationError {

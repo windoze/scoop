@@ -254,6 +254,7 @@ pub(super) fn body_with_terminator(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 
@@ -426,6 +427,7 @@ pub(super) fn single_catch_body(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 

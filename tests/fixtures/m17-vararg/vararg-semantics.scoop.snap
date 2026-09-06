@@ -1988,7 +1988,7 @@ Module mangling=compact-v2
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Long
         Type Long
         Local index
@@ -2000,7 +2000,7 @@ Module mangling=compact-v2
       val $parameter.other: Long
         Type Long
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -2011,7 +2011,9 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
       val $receiver: Array<Int>
         Type Array<Int>
         Local values
@@ -2034,8 +2036,6 @@ Module mangling=compact-v2
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb3 while.exit.3
-      return
     bb4 logic.rhs.4
       assign $logic.1
         Type Boolean
@@ -3718,8 +3718,10 @@ Module
     store local4 -> local5
     t3 = integer_compare_to<Long> local3, local5 : i64
     t4 = integer_compare_Less<Long> t3, integer<Long>(0x0000000000000000) : i1
-    cbr t4 then @while.body.2 else @while.exit.3
-  block while.body.2
+    cbr t4 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret
+  block while.body.3
     store param0 -> local6
     store local2 -> local7
     store local7 -> local8
@@ -3727,8 +3729,6 @@ Module
     store local8 -> local15
     t5 = integer_compare_Less<Long> local15, integer<Long>(0x0000000000000000) : i1
     cbr t5 then @logic.short.5 else @logic.rhs.4
-  block while.exit.3
-    ret
   block logic.rhs.4
     t6 = array_len array0 local14 : i64
     t7 = integer_compare_GreaterOrEqual<Long> local15, t6 : i1

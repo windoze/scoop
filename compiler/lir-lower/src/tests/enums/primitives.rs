@@ -84,6 +84,7 @@ fn lower_variant_primitives(
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     lower(&builder.finish(main))
@@ -241,6 +242,7 @@ fn typed_variant_primitives_lower_through_niche_layout() {
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     );
     let module = lower(&builder.finish(main));

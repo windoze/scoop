@@ -3023,7 +3023,7 @@ Module mangling=compact-v2
       end_catch
       goto bb2
     bb2 try.dispatch.2
-      branch bb10 bb11
+      branch bb9 bb10
         Type Boolean
         IsInstance OperatorFailure
           Type Throwable
@@ -3097,7 +3097,7 @@ Module mangling=compact-v2
         Local $parameter.other
         Type CoroutineAdapter$scoop_OperatorTask_run_suspend$1
         Local $adapter.1
-      branch bb18 bb19
+      branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -3106,27 +3106,23 @@ Module mangling=compact-v2
             Local $step.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb9 scope.9
-      goto bb7
-    bb10 try.catch.10
+    bb9 try.catch.9
       val error: OperatorFailure
         Type OperatorFailure
         Retype OperatorFailure
           Type Throwable
           Local $coroutine_exception
-      goto bb12
-    bb11 try.next.11
+      goto bb11
+    bb10 try.next.10
       throw unwind bb5
         Type Throwable
         Local $coroutine_exception
-    bb12 scope.12 unwind bb3
+    bb11 scope.11 unwind bb3
       assign $result.0
         Type String
         StringConst @scoop.str.0
-      goto bb13
-    bb13 scope.13
       goto bb7
-    bb14 coroutine.post.1 unwind bb1
+    bb12 coroutine.post.1 unwind bb1
       val $argument.0: Payload
         Type Payload
         FieldAccess 1
@@ -3185,15 +3181,15 @@ Module mangling=compact-v2
       assign $result.0
         Type String
         Local $call.2
-      goto bb9
-    bb15 coroutine.completed.1 unwind bb1
+      goto bb7
+    bb13 coroutine.completed.1 unwind bb1
       val total: AsyncNumber$C7_PayloadX
         Type AsyncNumber$C7_PayloadX
         EnumField v0 f0
           Type CoroutineStep$C23_AsyncNumber$C7_PayloadXX
           Local $step.1
-      goto bb14
-    bb16 coroutine.protocol_error unwind bb1
+      goto bb12
+    bb14 coroutine.protocol_error unwind bb1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
@@ -3203,7 +3199,7 @@ Module mangling=compact-v2
       throw unwind bb1
         Type IllegalStateException
         Local $protocol_error
-    bb17 coroutine.completed_claim_frame.1 unwind bb1
+    bb15 coroutine.completed_claim_frame.1 unwind bb1
       val $completed_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -3213,14 +3209,14 @@ Module mangling=compact-v2
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb15 bb16
+      branch bb13 bb14
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $completed_frame_claim.1
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb18 coroutine.completed_claim_adapter.1 unwind bb1
+    bb16 coroutine.completed_claim_adapter.1 unwind bb1
       val $completed_adapter_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -3230,18 +3226,18 @@ Module mangling=compact-v2
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Consumed)
-      branch bb17 bb16
+      branch bb15 bb14
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           Local $completed_adapter_claim.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-    bb19 coroutine.suspended.1
+    bb17 coroutine.suspended.1
       return
         Type CoroutineStep$S
         VariantConstruct CoroutineStep$S v1
-    bb20 coroutine.resume.1 unwind bb1
+    bb18 coroutine.resume.1 unwind bb1
       assign total
         Type AsyncNumber$C7_PayloadX
         EnumField v1 f0
@@ -3249,8 +3245,8 @@ Module mangling=compact-v2
           FieldAccess 3
             Type CoroutineFrame$scoop_OperatorTask_run_suspend
             Local $frame
-      goto bb14
-    bb21 coroutine.failure.1 unwind bb1
+      goto bb12
+    bb19 coroutine.failure.1 unwind bb1
       throw unwind bb1
         Type Throwable
         EnumField v1 f0
@@ -3258,7 +3254,7 @@ Module mangling=compact-v2
           FieldAccess 4
             Type CoroutineFrame$scoop_OperatorTask_run_suspend
             Local $frame
-    bb22 coroutine.initial
+    bb20 coroutine.initial
       assign this
         Type OperatorTask
         EnumField v1 f0
@@ -3272,7 +3268,7 @@ Module mangling=compact-v2
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
       goto bb0
-    bb23 coroutine.protocol_error
+    bb21 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
@@ -3282,24 +3278,24 @@ Module mangling=compact-v2
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb24 coroutine.dispatch.suspended.1
-      branch bb20 bb23
+    bb22 coroutine.dispatch.suspended.1
+      branch bb18 bb21
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb25 coroutine.dispatch.resume_failure.1
-      branch bb21 bb24
+    bb23 coroutine.dispatch.resume_failure.1
+      branch bb19 bb22
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-    bb26 coroutine.dispatch.initial
-      branch bb22 bb25
+    bb24 coroutine.dispatch.initial
+      branch bb20 bb23
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
@@ -3746,7 +3742,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb13 coroutine.completion_wait.1
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
       branch bb11 bb12
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -3830,7 +3826,7 @@ Module mangling=compact-v2
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-    bb21 coroutine.registration_wait.1
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
       branch bb19 bb20
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
@@ -5638,7 +5634,7 @@ Module
     br @try.dispatch.2
   block try.dispatch.2
     call no-gc-direct-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local20, td33)
-    cbr t4 then @try.catch.10 else @try.next.11
+    cbr t4 then @try.catch.9 else @try.next.10
   block try.exit_pad.5
     (t9, t10) = landingpad : (exception_record, ptr<raw>)
     store t9 -> local27
@@ -5668,18 +5664,14 @@ Module
     machine_heap_store coroutine-adapter-state local21 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
     invoke managed-direct-target4 sp111 roots=[param0:normal, local2:argument, local4:argument, local21:normal] t17 = sig=direct5 (ptr<managed>, ptr<managed>, ptr<managed>) -> enum3 local-fn24(local2, local4, local21) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
-  block scope.9
-    br @try.end.7
-  block try.catch.10
+  block try.catch.9
     store local20 -> local1
-    br @scope.12
-  block try.next.11
+    br @scope.11
+  block try.next.10
     invoke no-gc-void-target0 sig=void0 (ptr<managed>) runtime @scoop_rt_throw(local20) normal @throw.normal.2 unwind @try.exit_pad.5
     br @throw.normal.2
-  block scope.12
+  block scope.11
     store global0 -> local16
-    br @scope.13
-  block scope.13
     br @try.end.7
   block coroutine.post.1
     t20 = heap_load local5 +24 : ptr<managed>
@@ -5784,7 +5776,7 @@ Module
   block invoke.normal.7
     store t30 -> local18
     store local18 -> local16
-    br @scope.9
+    br @try.end.7
   block invoke.normal.8
     t33 = aggregate () : {}
     invoke no-gc-void-target1 sig=void5 (ptr<managed>) runtime @scoop_rt_throw(local23) normal @throw.normal.9 unwind @try.unwind.1

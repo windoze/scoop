@@ -505,6 +505,50 @@ fn root_plan_test_module(
     }
 }
 
+fn managed_poll_test_module() -> Module {
+    let mut call_targets = CallTargets::default();
+    let signature = call_targets.void_signatures.alloc(VoidCallSignature::new(
+        Vec::new(),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
+    let target = call_targets
+        .managed_targets
+        .void
+        .alloc(scoop_lir::CallTarget {
+            destination: scoop_lir::ManagedCallDestination::runtime(
+                scoop_lir::ManagedRuntimeFunction::Safepoint,
+            ),
+            signature,
+        });
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::ManagedPoll {
+            site: scoop_lir::ManagedPollSite {
+                target,
+                safepoint: test_safepoint(703),
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        }],
+        terminator: Terminator::Return { value: None },
+    });
+    let function = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.managed_poll_validation".to_string(),
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+        call_targets,
+        locals: Arena::new(),
+        temps: Arena::new(),
+        blocks,
+        entry,
+    };
+    root_plan_test_module(
+        vec![function],
+        scoop_lir::ExternFunctions::default(),
+        "scoop.managed_poll_validation",
+    )
+}
+
 fn managed_indirect_argument_root_module() -> Module {
     let aggregate = LirType::Aggregate(vec![MANAGED_PTR, LirType::I64, LirType::I64]);
     let abi_value = abi_value_with_layout(aggregate.clone(), 24, 8, RefScan::References(vec![0]));
@@ -752,5 +796,90 @@ fn root_plan_validation_rejects_incorrect_invoke_edge_flags() {
     assert_module_validation_error(
         &module,
         "root param0 has edge flags normal_live=true/unwind_live=false, expected true/true",
+    );
+}
+
+#[test]
+fn root_plan_validation_rejects_omitted_managed_poll_root() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    function.signature = plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR);
+    function.blocks[function.entry].terminator = Terminator::Return {
+        value: Some(Value::Param(0)),
+    };
+
+    assert_module_validation_error(
+        &module,
+        "managed poll root plan in @scoop.managed_poll_validation block0 instruction 0 root plan has 0 entries, expected 1 complete entries",
+    );
+}
+
+#[test]
+fn scoop_abi_validation_rejects_invalid_managed_poll_target() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let Instruction::ManagedPoll { site } = &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("managed poll fixture starts with a poll")
+    };
+    site.target = scoop_lir::ManagedVoidTargetId::from_raw(99.into());
+
+    assert_module_validation_error(
+        &module,
+        "managed poll @scoop.managed_poll_validation: references invalid managed-void target 99",
+    );
+}
+
+#[test]
+fn scoop_abi_validation_rejects_non_safepoint_managed_poll_target() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let target = match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => site.target,
+        _ => panic!("managed poll fixture starts with a poll"),
+    };
+    function.call_targets.managed_targets.void[target].destination =
+        scoop_lir::ManagedCallDestination::runtime(scoop_lir::ManagedRuntimeFunction::GcCollect);
+
+    assert_module_validation_error(
+        &module,
+        "managed poll @scoop.managed_poll_validation: target is not the managed safepoint runtime function",
+    );
+}
+
+#[test]
+fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let target = match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => site.target,
+        _ => panic!("managed poll fixture starts with a poll"),
+    };
+    let arguments = plain_scoop_signature(vec![MANAGED_PTR], LirType::Void)
+        .arguments()
+        .to_vec();
+    let signature = function
+        .call_targets
+        .void_signatures
+        .alloc(VoidCallSignature::new(
+            arguments,
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    function.call_targets.managed_targets.void[target].signature = signature;
+
+    assert_module_validation_error(
+        &module,
+        "managed poll @scoop.managed_poll_validation: target must use the exact `cdecl () -> void` safepoint ABI",
+    );
+}
+
+#[test]
+fn scoop_abi_validation_rejects_managed_poll_in_no_gc_function() {
+    let mut module = managed_poll_test_module();
+    module.functions[0].gc_effect = GcEffect::NoGc;
+
+    assert_module_validation_error(
+        &module,
+        "managed poll @scoop.managed_poll_validation: is only valid in a managed function",
     );
 }

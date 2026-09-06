@@ -213,6 +213,7 @@ pub(super) fn generate_failure_method(
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     });
     lowerer.top_level.push(function);

@@ -115,6 +115,7 @@ pub(super) fn wrapper_body(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 

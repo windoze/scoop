@@ -19,6 +19,13 @@ fn block_contains_int(block: &mir::BasicBlock, value: u32) -> bool {
     })
 }
 
+fn loop_header_poll_blocks(body: &mir::Body) -> Vec<mir::BlockId> {
+    body.loop_header_polls
+        .iter()
+        .map(|target| target.header())
+        .collect()
+}
+
 #[test]
 fn try_and_throw_become_explicit_cfg() {
     // try { throw MyError() } catch (e: MyError) { 1 } finally { 2 }
@@ -238,7 +245,7 @@ fn field_access_uses_zero_based_indices() {
 }
 
 #[test]
-fn control_flow_becomes_cfg() {
+fn control_flow_becomes_cfg_and_marks_the_loop_header_poll() {
     let mut h = Harness::new();
     let println = h.println_string();
     let main = h.user_fn(
@@ -274,10 +281,19 @@ fn control_flow_becomes_cfg() {
         mir::Terminator::Branch { .. }
     ));
     assert!(block_named(body, "while.body").statements.is_empty());
+    assert_eq!(
+        loop_header_poll_blocks(body),
+        vec![block_id_named(body, "while.cond")]
+    );
+    assert!(
+        mir::dump(&module)
+            .lines()
+            .any(|line| { line.contains("while.cond") && line.contains("<loop-header-poll>") })
+    );
 }
 
 #[test]
-fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
+fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
     let mut h = Harness::new();
     let condition = h.user_fn_full(
         "condition",
@@ -350,6 +366,7 @@ fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
         body.blocks[loop_body].terminator,
         mir::Terminator::Goto(target) if target == header
     ));
+    assert_eq!(loop_header_poll_blocks(body), vec![header]);
     assert!(
         body.locals
             .iter()
@@ -375,7 +392,7 @@ fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
 }
 
 #[test]
-fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
+fn terminating_while_still_marks_its_loop_header_poll() {
     let mut h = Harness::new();
     let println = h.println_string();
     let main = h.user_fn(
@@ -407,7 +424,8 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
         "the typed loop keeps its complete exit target"
     );
     assert!(entry_statements(body).is_empty());
-    let header = block_named(body, "while.cond");
+    let header_id = block_id_named(body, "while.cond");
+    let header = &body.blocks[header_id];
     assert!(header.statements.is_empty());
     assert!(matches!(
         header.terminator,
@@ -422,6 +440,7 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
     let exit = block_named(body, "while.exit");
     assert!(exit.statements.is_empty());
     assert!(matches!(exit.terminator, mir::Terminator::Unreachable));
+    assert_eq!(loop_header_poll_blocks(body), vec![header_id]);
     assert!(
         body.blocks
             .iter()
@@ -432,7 +451,7 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
 }
 
 #[test]
-fn direct_break_in_while_setup_reaches_the_complete_exit_target() {
+fn direct_setup_break_preserves_the_loop_header_poll_and_exit_target() {
     let mut h = Harness::new();
     let target = hir::LoopId::from_raw(0);
     let main = h.user_fn(
@@ -456,6 +475,8 @@ fn direct_break_in_while_setup_reaches_the_complete_exit_target() {
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
 
+    assert_eq!(loop_header_poll_blocks(body), vec![header]);
+
     assert!(matches!(
         body.blocks[header].terminator,
         mir::Terminator::Goto(target) if target == exit
@@ -476,7 +497,7 @@ fn direct_break_in_while_setup_reaches_the_complete_exit_target() {
 }
 
 #[test]
-fn loop_body_break_and_continue_target_exit_and_header_without_merge_fallthrough() {
+fn loop_body_transfers_keep_one_loop_header_poll_target_without_merge_fallthrough() {
     let mut h = Harness::new();
     let target = hir::LoopId::from_raw(0);
     let main = h.user_fn(
@@ -509,6 +530,8 @@ fn loop_body_break_and_continue_target_exit_and_header_without_merge_fallthrough
     let then_block = block_named(body, "if.then");
     let else_block = block_named(body, "if.else");
     let merge = block_named(body, "if.merge");
+
+    assert_eq!(loop_header_poll_blocks(body), vec![header]);
 
     assert!(matches!(
         then_block.terminator,
@@ -634,6 +657,106 @@ fn non_unit_return_is_saved_before_finally_and_resumed_after_it() {
                 ..
             })
         } if *local == return_slot
+    ));
+}
+
+#[test]
+fn generic_unit_return_runs_finally_before_bare_return() {
+    let mut h = Harness::new();
+    let unit = h.unit;
+    let producer = identity_fn(&mut h, "produce");
+    let type_param = h
+        .types
+        .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+    let producer_for_type_param = h.instantiate(producer, vec![type_param]);
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", type_param));
+    let function = h.user_fn_full(
+        "throughFinally",
+        vec!["T".to_string()],
+        vec![param("value", type_param, value)],
+        type_param,
+        hir::Body {
+            locals,
+            statements: vec![stmt(hir::StatementKind::Try(hir::Try {
+                body: vec![stmt(hir::StatementKind::Return {
+                    value: Some(generic_call(
+                        producer_for_type_param,
+                        vec![local_ref(value, type_param)],
+                        type_param,
+                    )),
+                })],
+                catches: Vec::new(),
+                finally_body: Some(vec![expr_stmt(int_lit(&h, 41))]),
+            }))],
+        },
+    );
+    let unit_instance = h.instantiate(function, vec![unit]);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![expr_stmt(generic_call(
+                unit_instance,
+                vec![expr(hir::ExprKind::UnitLiteral, unit)],
+                unit,
+            ))],
+        },
+    );
+
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let function = module
+        .functions
+        .iter()
+        .find_map(|(_, function)| {
+            (function.name == "throughFinally" && function.return_ty == mir::Type::Unit)
+                .then_some(function)
+        })
+        .expect("throughFinally<Unit> is lowered");
+    assert!(
+        function
+            .body
+            .locals
+            .iter()
+            .all(|(_, local)| !local.name.starts_with("$return.")),
+        "a Unit return needs no payload slot"
+    );
+
+    let try_body = block_named(&function.body, "try.body");
+    let call_statement = try_body
+        .statements
+        .iter()
+        .find(|statement| matches!(&statement.kind, mir::StatementKind::Call(_)))
+        .expect("the Unit-valued generic producer call is evaluated");
+    let (call, destination) = statement_call(call_statement);
+    assert!(
+        destination.is_none(),
+        "the specialized producer returns Unit"
+    );
+    let producer = module
+        .functions
+        .iter()
+        .find_map(|(id, function)| {
+            (function.name == "produce" && function.return_ty == mir::Type::Unit).then_some(id)
+        })
+        .expect("produce<Unit> is lowered");
+    assert_eq!(
+        call.target.callee,
+        mir::Callee::Monomorphized(instance_id(&module, producer))
+    );
+    assert!(
+        try_body.unwind.is_some(),
+        "a producer failure still enters the exceptional finally path"
+    );
+    let mir::Terminator::Goto(finally_block) = &try_body.terminator else {
+        panic!("the Unit return enters finally after evaluating its payload")
+    };
+    let finally_block = &function.body.blocks[*finally_block];
+    assert!(block_contains_int(finally_block, 41));
+    assert!(matches!(
+        &finally_block.terminator,
+        mir::Terminator::Return { value: None }
     ));
 }
 
@@ -864,7 +987,7 @@ fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
 }
 
 #[test]
-fn inner_finally_loop_consumes_its_break_then_resumes_the_pending_outer_break() {
+fn nested_finally_loops_mark_every_loop_header_poll_target() {
     let mut h = Harness::new();
     let outer = hir::LoopId::from_raw(0);
     let inner = hir::LoopId::from_raw(1);
@@ -897,6 +1020,17 @@ fn inner_finally_loop_consumes_its_break_then_resumes_the_pending_outer_break() 
     let body = &module.functions[module.entry].body;
     let outer_exit = block_id_named(body, "while.exit");
     let inner_body = block_id_named(body, "while.body");
+    let concrete_headers = body
+        .blocks
+        .iter()
+        .filter_map(|(id, block)| block.name.starts_with("while.cond").then_some(id))
+        .collect::<Vec<_>>();
+    assert_eq!(body.loop_header_polls.len(), concrete_headers.len());
+    assert!(
+        body.loop_header_polls
+            .iter()
+            .all(|target| concrete_headers.contains(&target.header()))
+    );
     let mir::Terminator::Goto(inner_exit) = &body.blocks[inner_body].terminator else {
         panic!("the inner break targets its own exit")
     };

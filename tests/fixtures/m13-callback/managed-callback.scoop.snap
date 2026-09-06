@@ -2249,7 +2249,7 @@ Module mangling=compact-v2
         Type String
         StringConst @scoop.str.4
       goto bb1
-    bb1 while.cond.1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Int
         Type Int
         Local index
@@ -2259,7 +2259,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      branch bb2 bb3
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -2270,42 +2270,7 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 while.body.2
-      val $receiver: String
-        Type String
-        Local text
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.5
-      val $parameter.other: String
-        Type String
-        Local $argument.0
-      call $call.1: String = @scoop_rt_string_concat direct
-        Type String
-        Local $receiver
-        Type String
-        Local $parameter.other
-      assign text
-        Type String
-        Local $call.1
-      val $receiver: Int
-        Type Int
-        Local index
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $parameter.other: Int
-        Type Int
-        Local $argument.0
-      assign index
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $receiver
-          Type Int
-          Local $parameter.other
-      goto bb1
-    bb3 while.exit.3
+    bb2 while.exit.2
       val $argument.0: String
         Type String
         Local text
@@ -2345,6 +2310,41 @@ Module mangling=compact-v2
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 while.body.3
+      val $receiver: String
+        Type String
+        Local text
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.5
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      assign text
+        Type String
+        Local $call.1
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      goto bb1
     bb4 logic.rhs.4
       assign $logic.2
         Type Boolean
@@ -2603,7 +2603,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb6 pattern.merge.6
-      goto bb3
+      unreachable
     bb7 pattern.pass.7
       val $when.6: ForeignCallbackState
         Type ForeignCallbackState
@@ -2626,7 +2626,7 @@ Module mangling=compact-v2
           Type ForeignCallbackState
           Local $pattern.subject.8
     bb9 pattern.merge.9
-      goto bb3
+      unreachable
     bb10 pattern.pass.10
       return
         Type Boolean
@@ -2636,7 +2636,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb12 pattern.merge.12
-      goto bb9
+      unreachable
     bb13 pattern.pass.13
       val $when.9: ForeignCallbackState
         Type ForeignCallbackState
@@ -2659,7 +2659,7 @@ Module mangling=compact-v2
           Type ForeignCallbackState
           Local $pattern.subject.11
     bb15 pattern.merge.15
-      goto bb9
+      unreachable
     bb16 pattern.pass.16
       return
         Type Boolean
@@ -2669,7 +2669,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb18 pattern.merge.18
-      goto bb15
+      unreachable
     bb19 pattern.pass.19
       val $when.12: ForeignCallbackState
         Type ForeignCallbackState
@@ -2685,7 +2685,7 @@ Module mangling=compact-v2
     bb20 pattern.else.20
       unreachable
     bb21 pattern.merge.21
-      goto bb15
+      unreachable
     bb22 pattern.pass.22
       return
         Type Boolean
@@ -2695,7 +2695,7 @@ Module mangling=compact-v2
         Type Boolean
         BoolLiteral false
     bb24 pattern.merge.24
-      goto bb21
+      unreachable
   fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
     bb0 entry
       return
@@ -3856,38 +3856,38 @@ Module
     store local3 -> local4
     t0 = integer_compare_to<Int> local2, local4 : i64
     t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
-    cbr t1 then @while.body.2 else @while.exit.3
-  block while.body.2
-    store local1 -> local5
-    store global5 -> local6
-    store local6 -> local7
-    call managed-direct-target0 sp56 live=[local5:ptr<managed>@0, local7:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local5, local7)
-    store t2 -> local25
-    store local25 -> local1
-    store local0 -> local8
-    store integer<Int>(0x00000001) -> local9
-    store local9 -> local10
-    t3 = integer_Add<Int> local8, local10 : i32
-    store t3 -> local0
-    br @while.cond.1
-  block while.exit.3
+    cbr t1 then @while.body.3 else @while.exit.2
+  block while.exit.2
     store local1 -> local11
     store local11 -> local12
-    t4 = enum_wrap e0 v0 (local12) : enum0
-    t5 = enum_wrap e0 v1 () : enum0
-    t6 = array_alloc array0 (t4, t5) sp57 live local1:ptr<managed>@0, t4:enum0@0, t5:enum0@0 : ptr<managed>
-    store t6 -> local13
-    call native-safe-void-target0 sp58 roots=[local1, local13] sig=void0 () extern14()
-    t7 = aggregate () : {}
-    call managed-void-target0 sp59 live=[local1:ptr<managed>@0, local13:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
-    t8 = aggregate () : {}
+    t2 = enum_wrap e0 v0 (local12) : enum0
+    t3 = enum_wrap e0 v1 () : enum0
+    t4 = array_alloc array0 (t2, t3) sp56 live local1:ptr<managed>@0, t2:enum0@0, t3:enum0@0 : ptr<managed>
+    store t4 -> local13
+    call native-safe-void-target0 sp57 roots=[local1, local13] sig=void0 () extern14()
+    t5 = aggregate () : {}
+    call managed-void-target0 sp58 live=[local1:ptr<managed>@0, local13:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
+    t6 = aggregate () : {}
     store local13 -> local14
     store integer<Long>(0x0000000000000000) -> local15
     store local15 -> local16
     store local14 -> local20
     store local16 -> local21
-    t9 = integer_compare_Less<Long> local21, integer<Long>(0x0000000000000000) : i1
-    cbr t9 then @logic.short.5 else @logic.rhs.4
+    t7 = integer_compare_Less<Long> local21, integer<Long>(0x0000000000000000) : i1
+    cbr t7 then @logic.short.5 else @logic.rhs.4
+  block while.body.3
+    store local1 -> local5
+    store global5 -> local6
+    store local6 -> local7
+    call managed-direct-target0 sp59 live=[local5:ptr<managed>@0, local7:ptr<managed>@0] t8 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local5, local7)
+    store t8 -> local25
+    store local25 -> local1
+    store local0 -> local8
+    store integer<Int>(0x00000001) -> local9
+    store local9 -> local10
+    t9 = integer_Add<Int> local8, local10 : i32
+    store t9 -> local0
+    br @while.cond.1
   block logic.rhs.4
     t10 = array_len array0 local20 : i64
     t11 = integer_compare_GreaterOrEqual<Long> local21, t10 : i1

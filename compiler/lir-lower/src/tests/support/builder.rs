@@ -331,6 +331,7 @@ impl Builder {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(id);
