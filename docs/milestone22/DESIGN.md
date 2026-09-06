@@ -465,7 +465,7 @@ PendingTransfer<R> = Fallthrough(ResumeTargetId)
 
 每个离开active catch的正常edge恰好执行一次M25 `EndCatch`；每个跨越finally的edge恰好进入一次对应cleanup。target仍在同一scope内时不得误执行外层cleanup。执行finally期间保留旧pending transfer与“已进入cleanup”的cursor：内部被处理完的throw或只指向该finally内部loop的break/continue不替换旧值；只有实际离开当前finally的abrupt transfer才替换它，并从cursor之后继续路由，不能重新进入同一个finally。
 
-closure conversion后再做coroutine transform的既有顺序不变。pending break/continue若跨可挂起finally，以tagged frame字段保存typed resume target；挂起本身不退出scope或触发cleanup。M10在suspend handler中已把native exception物化并结束catch后，frame使用扩展的`SuspendedPendingTransfer = PendingTransfer | Throw(ManagedThrowable)`；这不是普通throw/rethrow的替代路径。恢复后finally正常结束再分派原transfer，不能保存native block address、原生EH状态或未初始化payload。
+closure conversion后再做coroutine transform的既有顺序不变。`CoroutineFrameState`是跨挂起控制流的唯一运行期discriminator；每个物理suspend occurrence在CFG→coroutine边界保留outer→inner pending context，完整的success/failure state分别唯一绑定一条静态非空typed continuation chain，末项固定为`Fallthrough(post)`/`Throw(ManagedThrowable)`。fallthrough、loop exit、loop header和unwind target使用不同typed ref，state不能跨pending context复用，driver只从checked chain metadata生成dispatch。target、cleanup cursor和chain均为GC-free编译期metadata，不另存入frame；frame只保存state及动态payload的exact typed slot。跨挂起的`Return(Unit)`没有动态payload，其他`Return(T)`正规化为owner frame内已初始化的`CoroutineSlot<T>`引用；M10在suspend handler中已物化并结束native catch的异常才可作为`CoroutineSlot<Throwable>`进入managed Throw末项，这不是普通throw/rethrow的替代路径。恢复后finally正常结束再分派原transfer，不能保存native block address、原生EH状态、`Any`/opaque或未初始化payload。
 
 最终MIR只有普通CFG branch/goto/throw、typed integer operation、表示无关的`VariantTest`/`VariantPayloadProject`与literal test、aggregate projection/construction及call；不含source loop、pattern matrix或copy update。integer div/rem已经展开为除零throw、signed边界结果与安全primitive operation；shift count已经mask并在窄操作数上显式转换为后端要求的宽度。decision plan的`Impossible` edge只能来自HIR proof。
 
@@ -473,7 +473,7 @@ MIR的typed variant reference由stage-local enum id与该定义构造时已经�
 
 M22同时封闭所有compiler-owned enum producer，而不只封闭上述consumer primitive。Export HIR中的variant constructor/default owner、需要exact generic application的`VariantConstruct`及unit-enum constant image都保存经对应definition store检查的variant/field ref；LocalConcrete与MIR逐stage重建自己的checked ref，不能平行携带enum id与裸ordinal。MIR enum definition非可选地保存该单态实例的canonical type arguments，`OptionCore`原子保存Some payload field与None variant；module validation据此检查construct result的完整enum application、payload arity/逐字段exact type，以及global constant image每个递归leaf的owner与payloadless约束。
 
-compiler生成的callback与coroutine metadata也遵守同一规则。callback family原子保存mode、state与`Option<Throwable>` failure的全部typed role，bridge只保存属于该family的mode ref；`CoroutineStep<R>`与`CoroutineSlot<T>`分别保存Completed/Value payload field和Suspended/Empty variant。兼容保留的协程`EnumTag`/`EnumField` reader可以读取layout ordinal，但ordinal只能由这些metadata accessor导出，producer不得写死或按名称重建。
+compiler生成的callback与coroutine metadata也遵守同一规则。callback family原子保存mode、state与`Option<Throwable>` failure的全部typed role，bridge只保存属于该family的mode ref；`CoroutineStep<R>`与`CoroutineSlot<T>`分别保存Completed/Value payload field和Suspended/Empty variant。每个`CoroutineResumeState`还原子绑定owner frame、唯一state、非空typed continuation chain及其saved-slot角色；validator重新核对owner、target、success/failure末项、payload exact type和state唯一性，dispatch不得从另一份表恢复这些关系。兼容保留的协程`EnumTag`/`EnumField` reader可以读取layout ordinal，但ordinal只能由这些metadata accessor导出，producer不得写死或按名称重建。
 
 ### 5.4 LIR / codegen / FFI
 

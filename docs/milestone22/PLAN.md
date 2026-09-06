@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.24
+版本：0.26
 
 最后更新：2026-09-07
 
@@ -42,7 +42,7 @@
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
-| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09` 已完成；下一切片为 4.4c2 coroutine pending-transfer chain；parser 继续拒绝新语法 |
+| typed loop target、cleanup 与 suspend 控制转移 | 进行中 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09` 已完成；4.4c2 审计确认只需 state tag + exact payload slot + 静态 typed chain，正在先修规范；parser 继续拒绝新语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
@@ -153,7 +153,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 4.4c 分成两个各自 correctness-closed 的行为提交，避免让独立的 safepoint blocker 被 frame schema 扩张拖成半成品：
 
 1. 4.4c1（已完成：`dd753c09`）显式 loop-header poll：`scoop-mir::Body` 持有 body-local typed marker；source loop 与 coroutine intrinsic 的两个 compiler-generated wait cycle 在构造时登记。coroutine transform 原样保留 source marker；MIR validator 检查 target 有效且不重复。MIR → LIR 使用私有映射随 unreachable-block prune 重映射，LIR 只根据函数入口与 surviving marker 插入 poll，删除 dominance/back-edge 推断。codegen 边界重新计算并核对 `ManagedPoll.live`，checked 验证 poll target 必须是 managed `cdecl () -> void` safepoint，避免错误 root plan 或非法 target 被 emitter 信任。定向测试锁定 coroutine `dispatch → resume → post` 造成 header 不再支配回边源时仍有 header poll、unreachable marker prune/remap、跨 header managed root，以及 resume/post 不重复 poll、NoGc 不插入、未标记 cycle 不被猜测。格式化、四个受影响 crate 的 clippy 与 23 项 `poll` 定向测试已一次通过。33 个静态筛出的相关 fixture 分成“中止前已执行 14 个”和“修复后只继续 19 个”各执行一次，未重复已完成部分；泛型 `T -> Unit` 回归在 Export → LocalConcrete HIR 具体化边界正规化为保留求值的 `Expr` + bare `Return`，ordinary / finally / suspend 三项定向回归及真实 `FunctionSuspendTask<Unit>` fixture 均通过。两路最终代码 / snapshot 审查无 blocker；34 个新 MIR header marker 各对应恰好一个 LIR poll，roots/live 未漂移。
-2. 4.4c2 coroutine pending-transfer chain：既有 `CoroutineFrameState` 作为唯一物理 tag，每个 success/failure state 非可选地对应一条静态非空 typed chain；chain 由 outer → inner 的 parent cleanup transfers 与必填的 site `Fallthrough(post)` / `Throw(ManagedThrowable)` 组成。Return 与 managed Throw payload 必须引用该 frame 已验证的 saved-local/slot；fallthrough、loop exit、loop header与unwind target使用不同类型。一个 suspension state 不得跨 pending context 复用，driver dispatch 只从 typed resume-state metadata生成，不能再维护平行 `state → BlockId` vector。普通 suspend 与 `suspendCoroutine`、nested pending、catch/EndCatch、failure 被内部 catch 消费、finally outward override 均在同一批闭合。
+2. 4.4c2（进行中：规范修订）coroutine pending-transfer chain：审计确认不新增运行期 pending-transfer enum、cleanup cursor 或 target 字段。既有 `CoroutineFrameState` 是唯一物理 discriminator；每个 success/failure state 非可选地对应一条 GC-free 静态非空 typed chain，frame 只保存该 state 与动态 payload 的 exact `CoroutineSlot<T>`。chain 由 outer → inner 的 parent cleanup transfers 与必填的 site `Fallthrough(post)` / `Throw(ManagedThrowable)` 组成；Return 与 managed Throw payload 必须引用该 frame 已验证的 saved-local/slot，fallthrough、loop exit、loop header与unwind target使用不同类型。一个 suspension state 不得跨 pending context 复用，driver dispatch 只从 typed resume-state metadata生成，不能再维护平行 `state → BlockId` vector。普通 suspend 与 `suspendCoroutine`、nested pending、catch/EndCatch、failure 被内部 catch 消费、finally outward override均在同一批闭合。先把 IMPL / RUNTIME 与 DESIGN 中“额外 tagged frame target 字段”的冲突措辞修成上述静态 metadata 编码，再一次性实现 IR、validator、transform、dump 与 tests；最终只跑受影响 crate 的定向门。
 
 本阶段始终不开放 parser；每个子批都先完成 IR、validator、dump、transform与测试矩阵，再统一格式化和定向验证。
 
@@ -244,3 +244,5 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.4c1 首轮统一验证完成：`cargo fmt --all`；四个受影响 crate 的 clippy（`-D warnings`）；MIR 3 项、MIR lowering 8 项、LIR lowering 4 项、codegen 8 项 `poll` 定向测试全部通过。随后对静态筛出的 33 个相关 fixture 只启动一次 snapshot refresh；前 14 个更新已逐份审查，无语义回归。执行到 `m11-functions/suspend-values` 时暴露 4.4b 回归：Export HIR 的泛型 `Return(Some(T expr))` 在 `T` 具体化为精确 `Unit` 后仍带 payload，撞上 CFG 的 bare-Unit invariant。当前一次性审计普通、finally 与 suspend 同类路径并补齐回归矩阵；修复后仅刷新尚未执行的 19 个 fixture，不重跑已完成的 14 个，也不运行 workspace/full fixture suite。
 - 2026-09-07：泛型 `T -> Unit` 回归修复及 artifact 续跑完成。根据 HIR 已有“Unit return payload 必须为空”不变量，在 Export → LocalConcrete 具体化时保留原表达式求值并发射 bare `Return`，不放宽 MIR CFG 断言；一次补齐 ordinary effectful call、normal/unwind finally 与 immediate suspend `Completed(Unit)` 三类测试。受影响三 crate clippy 通过；`generic_unit_return` 3/3 通过。随后只继续此前未执行的 19 个 fixture，42.14 秒内全部 refresh 通过；临时过滤钩子已移除，未重跑前 14 个、poll 定向测试或 workspace/full fixture suite。当前仅做 snapshot 语义复核、格式与 diff 卫生检查后提交 4.4c1。
 - 2026-09-07：完成并提交 4.4c1 explicit loop-header poll `dd753c09`。最终格式、diff、`.snap.new` 与临时 runner 卫生检查通过；代码复核确认 MIR producer/validator、coroutine preservation、LIR prune/remap、marker-only poll、codegen ABI/root checked validation 和泛型 Unit 正规化均无 blocker。33 份相关 snapshot 审查确认 34 个新 header marker 各恰有一个 LIR poll，roots/live 无语义变化。按效率纪律没有重跑已通过的 poll 测试、前 14 个 fixture、workspace 或 full fixture suite。下一切片为 4.4c2 coroutine pending-transfer chain。
+- 2026-09-07：开始 4.4c2 coroutine pending-transfer chain。三路只读审计并行覆盖：structured cleanup router → suspension-site split → frame/dispatch metadata 的现有链路；语言/实现/runtime spec 与 GC saved-payload 契约；nested finally、outer Return/Break、failure/catch/EndCatch、finally override 与 moving-GC 的最小测试矩阵。审计收敛前不改实现、不运行测试；实现与测试整批齐备后再统一格式化、定向 clippy/测试，不运行 workspace/full fixture suite。
+- 2026-09-07：4.4c2 spec / GC 审计确认运行期不需要第二套 pending-transfer tag 或 target 字段：frame state 已唯一标识物理挂起上下文，动态 Return / managed Throw payload进入 exact typed `CoroutineSlot<T>`，cleanup cursor、typed target与continuation chain只存在于 GC-free 静态 MIR metadata。下一步先修 IMPL / RUNTIME / DESIGN 中要求额外 tagged frame target 字段的冲突措辞；随后整批实现，不提前运行测试。

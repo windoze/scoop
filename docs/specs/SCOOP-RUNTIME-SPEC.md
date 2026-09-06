@@ -315,7 +315,7 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 
 ### 5.4 跨控制边界的异常物化
 
-- M10 的suspend handler不允许把`scoop_rt_begin_catch`建立的native catch状态跨挂起点保存。选中catch或进入可能挂起的finally前，生成代码调用`scoop_rt_materialize_exception(caught)`：按caught payload的TypeDescriptor分配managed对象，保留新对象已初始化的`td` / `gc_word`，只复制对象头之后的payload。复制期间exception payload仍登记为stable external root；复制完成后立即`scoop_rt_end_catch()`，catch local / pending exception改指向managed副本。
+- M10 的suspend handler不允许把`scoop_rt_begin_catch`建立的native catch状态跨挂起点保存。选中catch或进入可能挂起的finally前，生成代码调用`scoop_rt_materialize_exception(caught)`：按caught payload的TypeDescriptor分配managed对象，保留新对象已初始化的`td` / `gc_word`，只复制对象头之后的payload。复制期间exception payload仍登记为stable external root；复制完成后立即`scoop_rt_end_catch()`，catch local / pending exception改指向managed副本；若该managed副本跨挂起保存，还必须满足第8章的exact slot、发布与扫描契约。
 - 恢复失败或物化后的继续传播从该managed对象重新调用`scoop_rt_throw`，因而创建新的native record。Scoop的throw-by-value语义不承诺两个native record相同；同一次未物化rethrow则按5.3保持原record/payload identity。
 - M21 initializer failure也必须在离开winner线程的catch、写入共享Failed状态之前调用同一物化入口；coordinator只保存已登记为global root的managed `Throwable`，绝不保存`_Unwind_Exception`、catch payload地址或active catch状态。物化、`scoop_rt_init_fail`与重新抛出的顺序遵守4.6。
 
@@ -350,6 +350,7 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 `suspend` 的状态机变换、`CoroutineStep<T>`、frame 与各挂起点的 `Continuation<T>` adapter 全部由编译器生成（spec 8.2、11.9；impl spec 2.3）。这些实体都是普通 managed 对象/值：
 
 - frame 与 continuation adapter 必须有普通 TypeDescriptor 和完备的递归引用扫描描述；frame 链由 GC 自然保活，不登记额外的 runtime root；
+- `CoroutineFrameState`是pending控制流的唯一物理discriminator；runtime frame不另存target、cleanup cursor、continuation chain或第二套pending tag，这些都是编译器的GC-free静态metadata。frame只保存state和实际动态payload的exact `CoroutineSlot<T>`；所有slot从`Empty`/canonical zero初始化，对应live/pending payload必须在使其恢复/dispatch edge可消费之前写完，恢复方只在规定的acquire/claim成功后读取。frame TypeDescriptor必须递归扫描每个可能活动slot，包括含managed ref的aggregate；`Return(Unit)`不占动态payload slot，其他`Return(T)`保持exact `T`，异常slot只能保存5.4已经物化并`EndCatch`后的managed `Throwable`，不得保存`Any`、opaque bytes、native exception record或EH状态；
 - continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10–M12 的最小实现是单线程协议；M13 把adapter claim/完成与frame `running/suspended/completed`转换升级为64位对齐原子状态机：winner以acq_rel CAS取得完成/驱动权，先写payload再release发布终态，读取方以acquire消费；等待短暂`Completing`状态的循环必须包含safepoint/backoff。该状态机的64位字段是compiler/runtime共享的独立typed atomic state carrier，不是源码`Long`属性，不得经普通integer operation读写。已attach线程可安全恢复既有continuation，重复完成仍抛`IllegalStateException`。调度器、队列和恢复后在哪个线程继续执行仍由后续标准库规定；
 - hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥，以及挂起函数声明引用不能在 `FunPtr` 上下文中解析为原生地址，由 HIR 保证（spec 8.2、13.4、13.10）；
 - runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
