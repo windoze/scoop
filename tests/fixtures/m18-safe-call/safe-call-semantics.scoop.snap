@@ -3993,6 +3993,8 @@ Module
   layout $Closure$lambda0 size=24 align=8 refs=[]
   entry @scoop_main
 
+== warnings ==
+m18-safe-call/safe-call-semantics.scoop:68:14: warning: `inner` is a catch-all binding because `Option<String>` has no variant named `inner`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all
 == run ==
 safe-argument
 send-body

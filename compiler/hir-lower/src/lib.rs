@@ -149,10 +149,13 @@ use scope::{LocalFunctionScopes, Scopes};
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
     if files.is_empty() {
-        return Lowerer::new().run(files).map(|export| hir::Output {
-            local: concretize::lower(&export),
-            export,
-        });
+        return Lowerer::new()
+            .run(files)
+            .map(|(export, warnings)| hir::Output {
+                local: concretize::lower(&export),
+                export,
+                warnings,
+            });
     }
     let core_provider = hir::IntrinsicProviderId::from_raw(0);
     let user_provider = hir::IntrinsicProviderId::from_raw(1);
@@ -227,11 +230,15 @@ pub fn lower_compilation_unit(
         name: unit.user.name.to_string(),
         source: unit.user.source_text.to_string(),
     });
-    let export = Lowerer::new()
+    let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
     let local = concretize::lower(&export);
-    Ok(hir::Output { export, local })
+    Ok(hir::Output {
+        export,
+        local,
+        warnings,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -550,7 +557,10 @@ pub(crate) struct Lowerer {
     pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
+    /// Fatal semantic diagnostics. Candidate transactions use this vector's
+    /// length as their error baseline; warnings must remain separate.
     pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) warnings: Vec<Diagnostic>,
 }
 
 #[derive(Clone)]

@@ -59,13 +59,27 @@ impl Lowerer {
                 // A bare identifier that names a unit variant of the
                 // matched enum is a variant pattern (spec 5.1);
                 // anything else binds (spec 5 "binding priority").
-                if let Type::Enum(application) = self.types[matched_ty] {
+                let unmatched_enum = if let Type::Enum(application) = self.types[matched_ty] {
                     let enum_id = self.enum_applications[application].template;
                     if let Some(variant) = self.find_variant(enum_id, &name.text) {
                         return self.bare_variant_pattern(name, application, variant, ctx);
                     }
-                }
+                    Some(self.type_name(matched_ty))
+                } else {
+                    None
+                };
                 let local = self.bind_local(name, matched_ty, ctx.mutable)?;
+                if ctx.in_when
+                    && let Some(enum_name) = unmatched_enum
+                {
+                    self.warning(
+                        name.span,
+                        format!(
+                            "`{}` is a catch-all binding because `{enum_name}` has no variant named `{}`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+                            name.text, name.text
+                        ),
+                    );
+                }
                 Some(hir::Pattern::Binding { local })
             }
             ast::Pattern::Wildcard { .. } => Some(hir::Pattern::Wildcard),

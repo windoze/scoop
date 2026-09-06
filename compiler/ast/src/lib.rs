@@ -15,6 +15,6 @@ pub use declarations::*;
 pub use dump::{dump, dump_pattern};
 pub use expressions::*;
 pub use integer::*;
-pub use source::{Diagnostic, Span};
+pub use source::{Diagnostic, DiagnosticSeverity, Span};
 pub use statements::*;
 pub use types::*;

@@ -35,6 +35,7 @@ mod m22_integer_diagnostics;
 mod m22_integer_exhaustiveness;
 mod m22_integers;
 mod m22_joint_integer_inference;
+mod m22_pattern_warnings;
 mod m22_recursive_named_fields;
 mod m3;
 mod m4;

@@ -1,9 +1,13 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn run(mut self, files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
+    pub(crate) fn run(
+        mut self,
+        files: &[ast::SourceFile],
+    ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic {
+                severity: ast::DiagnosticSeverity::Error,
                 file: 0,
                 span: None,
                 message: "no source files to compile".to_string(),
@@ -457,9 +461,18 @@ impl Lowerer {
             }
         };
 
+        self.warnings.sort_by_key(|diagnostic| {
+            let span = diagnostic.span.unwrap_or(Span {
+                start: u32::MAX,
+                end: u32::MAX,
+            });
+            (diagnostic.file, span.start, span.end)
+        });
         if !self.diagnostics.is_empty() {
+            self.diagnostics.extend(self.warnings);
             return Err(self.diagnostics);
         }
+        let warnings = std::mem::take(&mut self.warnings);
         // Invariant: empty diagnostics implies `main` was found and the
         // core `Option<T>` validated above.
         let entry = entry.expect("missing `main` is always diagnosed");
@@ -475,7 +488,7 @@ impl Lowerer {
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
         let public_surface = self.public_semantic_surface();
-        Ok(hir::Module {
+        let module = hir::Module {
             public_surface,
             source_files: self
                 .intrinsic_sources
@@ -550,6 +563,7 @@ impl Lowerer {
             source_location_core,
             entry,
             instantiations: self.instantiations,
-        })
+        };
+        Ok((module, warnings))
     }
 }

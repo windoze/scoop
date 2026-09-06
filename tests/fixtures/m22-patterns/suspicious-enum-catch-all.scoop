@@ -1,0 +1,18 @@
+// EXPECT-COMPILE
+
+enum Signal {
+    Ready,
+    Failed
+}
+
+fun consume(value: Signal): Int = 2
+
+fun describe(value: Signal): Int = when (value) {
+    Ready -> 1
+    Raedy -> consume(Raedy)
+}
+
+fun main() {
+    println(describe(Signal.Ready))
+    println(describe(Signal.Failed))
+}

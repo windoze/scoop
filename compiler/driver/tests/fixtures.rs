@@ -161,6 +161,20 @@ fn required_compilation_outcome(
         })
 }
 
+fn render_fixture_diagnostics(
+    diagnostics: &[scoop_ast::Diagnostic],
+    compile_path: &Path,
+    relative: &str,
+    source: &str,
+) -> String {
+    let mut inputs = scoopc::load_inputs(compile_path).unwrap_or_default();
+    if let Some(user) = inputs.last_mut() {
+        user.name = relative.to_string();
+        user.source = source.to_string();
+    }
+    scoopc::render_diagnostics(diagnostics, &inputs, relative, source)
+}
+
 #[test]
 #[should_panic(expected = "new.scoop: new fixture has no accepted snapshot")]
 fn new_fixtures_must_declare_their_expected_outcome() {
@@ -366,6 +380,17 @@ fn fixtures() {
 
         let snapshot = match compilation {
             Ok(success) => {
+                let warning_section = if success.warnings.is_empty() {
+                    String::new()
+                } else {
+                    let rendered = render_fixture_diagnostics(
+                        &success.warnings,
+                        &compile_path,
+                        &relative,
+                        &source,
+                    );
+                    format!("== warnings ==\n{rendered}\n")
+                };
                 if relative == "m15-moving/handle-pin.scoop" {
                     verify_linked_stackmap_fixups(&success.binary, &relative);
                 }
@@ -415,21 +440,13 @@ fn fixtures() {
                     )
                 };
                 format!(
-                    "== ast ==\n{}\n== hir ==\n{}\n== mir ==\n{}\n== lir ==\n{}\n{run_section}\n{output}",
+                    "== ast ==\n{}\n== hir ==\n{}\n== mir ==\n{}\n== lir ==\n{}\n{warning_section}{run_section}\n{output}",
                     success.dumps.ast, success.dumps.hir, success.dumps.mir, success.dumps.lir,
                 )
             }
             Err(diagnostics) => {
-                // Diagnostics carry the index of their input file (core
-                // files first, the user fixture last). Name the fixture
-                // relative to `tests/fixtures` so snapshots stay portable.
-                let mut inputs = scoopc::load_inputs(&compile_path).unwrap_or_default();
-                if let Some(user) = inputs.last_mut() {
-                    user.name = relative.clone();
-                    user.source = source.clone();
-                }
                 let rendered =
-                    scoopc::render_diagnostics(&diagnostics, &inputs, &relative, &source);
+                    render_fixture_diagnostics(&diagnostics, &compile_path, &relative, &source);
                 format!("== diagnostics ==\n{rendered}\n")
             }
         };
