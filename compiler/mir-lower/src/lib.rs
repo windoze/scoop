@@ -25,8 +25,9 @@
 //! (the subject is evaluated once into a hidden local; each arm is a
 //! tag comparison, then the field bindings, then the guard nested so a
 //! failed guard falls through to the next arm). The HIR Option nodes
-//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
-//! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
+//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic enum
+//! construction plus representation-independent checked variant tests and
+//! payload projections; a trapping `Unwrap` (`!!`) becomes an if/else whose
 //! else branch throws `UnwrapException` (M8).
 //!
 //! M8: exceptions (docs/milestone8/DESIGN.md section 3.3). `try` /

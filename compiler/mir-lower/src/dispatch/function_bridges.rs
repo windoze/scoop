@@ -118,6 +118,7 @@ impl Lowerer {
         let body = cfg::lower(
             smir::Body { locals, statements },
             target_signature.return_type.clone(),
+            &self.enums.defs,
         );
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,

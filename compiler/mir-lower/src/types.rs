@@ -171,6 +171,25 @@ pub(super) struct EnumRegistry {
 }
 
 impl EnumRegistry {
+    /// Build one semantic variant identity only after checking it against the
+    /// fully transposed MIR enum definition.  Body lowering uses this store
+    /// boundary instead of pairing enum ids and raw indices at expression
+    /// sites.
+    pub(super) fn variant_ref(&self, enum_id: mir::EnumId, variant: u32) -> mir::MirVariantRef {
+        mir::MirVariantRef::new(&self.defs, enum_id, variant)
+            .expect("local-concrete HIR variant identities are valid in the MIR enum store")
+    }
+
+    /// Bind a payload field to an already checked semantic variant.
+    pub(super) fn variant_field_ref(
+        &self,
+        variant: mir::MirVariantRef,
+        field: u32,
+    ) -> mir::MirVariantFieldRef {
+        mir::MirVariantFieldRef::new(&self.defs, variant, field)
+            .expect("local-concrete HIR payload identities are valid in the MIR enum store")
+    }
+
     pub(super) fn get_or_create(
         &mut self,
         types: &Types,

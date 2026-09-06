@@ -1167,17 +1167,13 @@ Module mangling=compact-v2
           Local error
       branch bb13 bb14
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$S<String>
-            Local $opt.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$S v0
+          Type Option$S<String>
+          Local $opt.1
     bb13 if.then.13 unwind bb3
       val $uw.2: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject Option$S v0 f0
           Type Option$S<String>
           Local $opt.1
       goto bb15
@@ -1824,12 +1820,12 @@ Module
     invoke managed-void-target1 sp26 roots=[local0:normal, local2:argument] sig=void2 (ptr<managed>) local-fn24(local2) normal @invoke.normal.3 unwind @try.handler_pad.3
     br @invoke.normal.3
   block if.then.13
-    t14 = enum_field e0 v0 f0 local5 : ptr<managed>
-    store t14 -> local6
+    t13 = variant_payload_project e0 v0 f0 local5 : ptr<managed>
+    store t13 -> local6
     br @if.merge.15
   block if.else.14
-    call managed-direct-target0 sp27 live=[] t15 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t15 -> local7
+    call managed-direct-target0 sp27 live=[] t14 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    store t14 -> local7
     invoke managed-void-target2 sp28 roots=[local7:normal] sig=void3 (ptr<managed>) local-fn27(local7) normal @invoke.normal.4 unwind @try.handler_pad.3
     br @invoke.normal.4
   block if.merge.15
@@ -1849,17 +1845,16 @@ Module
     t10 = aggregate () : {}
     t11 = heap_load local0 +16 : enum0
     store t11 -> local5
-    t12 = enum_tag e0 local5 : machine<enum-tag>
-    t13 = MachineEq(EnumTag) t12, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t13 then @if.then.13 else @if.else.14
+    t12 = variant_test e0 v0 local5 : i1
+    cbr t12 then @if.then.13 else @if.else.14
   block invoke.normal.4
-    t16 = aggregate () : {}
+    t15 = aggregate () : {}
     invoke no-gc-void-target1 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local7) normal @throw.normal.5 unwind @try.handler_pad.3
     br @throw.normal.5
   block throw.normal.5
     unreachable
   block invoke.normal.6
-    t17 = aggregate () : {}
+    t16 = aggregate () : {}
     br @scope.16
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>

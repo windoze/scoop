@@ -1356,17 +1356,13 @@ Module mangling=compact-v2
         Local optional
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$C7_CounterX<Counter>
-            Local $opt.5
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$C7_CounterX v0
+          Type Option$C7_CounterX<Counter>
+          Local $opt.5
     bb1 if.then.1
       val $receiver: Counter
         Type Counter
-        EnumField v0 f0
+        VariantPayloadProject Option$C7_CounterX v0 f0
           Type Option$C7_CounterX<Counter>
           Local $opt.5
       call $call.2: Int = @scoop.$extension.$get$current direct
@@ -1389,17 +1385,13 @@ Module mangling=compact-v2
         Local $res.6
       branch bb4 bb5
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.1
     bb4 if.then.4
       val $uw.2: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.1
       goto bb6
@@ -2081,42 +2073,40 @@ Module
     t17 = enum_wrap e1 v0 (local30) : enum1
     store t17 -> local31
     store local31 -> local32
-    t18 = enum_tag e1 local32 : machine<enum-tag>
-    t19 = MachineEq(EnumTag) t18, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t19 then @if.then.1 else @if.else.2
+    t18 = variant_test e1 v0 local32 : i1
+    cbr t18 then @if.then.1 else @if.else.2
   block if.then.1
-    t20 = enum_field e1 v0 f0 local32 : ptr<managed>
-    store t20 -> local33
-    call managed-direct-target7 sp37 live=[local33:ptr<managed>@0] t21 = sig=direct7 (ptr<managed>) -> i32 local-fn24(local33)
-    store t21 -> local40
-    t22 = enum_wrap e2 v0 (local40) : enum2
-    store t22 -> local34
+    t19 = variant_payload_project e1 v0 f0 local32 : ptr<managed>
+    store t19 -> local33
+    call managed-direct-target7 sp37 live=[local33:ptr<managed>@0] t20 = sig=direct7 (ptr<managed>) -> i32 local-fn24(local33)
+    store t20 -> local40
+    t21 = enum_wrap e2 v0 (local40) : enum2
+    store t21 -> local34
     br @if.merge.3
   block if.else.2
-    t23 = enum_wrap e2 v1 () : enum2
-    store t23 -> local34
+    t22 = enum_wrap e2 v1 () : enum2
+    store t22 -> local34
     br @if.merge.3
   block if.merge.3
     store local34 -> local37
-    t24 = enum_tag e2 local37 : machine<enum-tag>
-    t25 = MachineEq(EnumTag) t24, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t25 then @if.then.4 else @if.else.5
+    t23 = variant_test e2 v0 local37 : i1
+    cbr t23 then @if.then.4 else @if.else.5
   block if.then.4
-    t26 = enum_field e2 v0 f0 local37 : i32
-    store t26 -> local38
+    t24 = variant_payload_project e2 v0 f0 local37 : i32
+    store t24 -> local38
     br @if.merge.6
   block if.else.5
-    call managed-direct-target8 sp38 live=[] t27 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t27 -> local41
+    call managed-direct-target8 sp38 live=[] t25 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
+    store t25 -> local41
     call managed-void-target8 sp39 live=[local41:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn30(local41)
-    t28 = aggregate () : {}
+    t26 = aggregate () : {}
     throw local41
     unreachable
   block if.merge.6
     store local38 -> local35
     store local35 -> local36
     call managed-void-target9 sp40 live=[] sig=void9 (i32) local-fn27(local36)
-    t29 = aggregate () : {}
+    t27 = aggregate () : {}
     ret
   fun @scoop.$extension.$get$current(ptr<managed>) -> i32
   block entry

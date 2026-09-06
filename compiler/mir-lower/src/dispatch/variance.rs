@@ -163,6 +163,7 @@ impl Lowerer {
         self.functions[function].body = cfg::lower(
             smir::Body { locals, statements },
             target_signature.return_type.clone(),
+            &self.enums.defs,
         );
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {

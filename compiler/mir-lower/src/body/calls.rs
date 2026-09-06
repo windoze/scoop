@@ -1,6 +1,24 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    /// Option tests and guarded payload projections are tied to one immutable
+    /// local identity by the MIR contract. HIR safe-call/Elvis desugaring
+    /// supplies that shared hidden local; a standalone compiler-generated test
+    /// is stabilized here without evaluating its operand twice.
+    pub(super) fn lower_stable_option_operand(&mut self, operand: &hir::Expr) -> smir::Expr {
+        let value = self.lower_expr(operand);
+        if let smir::ExprKind::Local(local) = value.kind
+            && !self.locals[local].mutable
+        {
+            return value;
+        }
+        let ty = value.ty.clone();
+        let local = self.new_hidden("opt", ty.clone(), false);
+        self.prelude
+            .push(smir::StatementKind::ValDecl { local, init: value });
+        smir::Expr::local(local, ty)
+    }
+
     pub(super) fn lower_direct_super_method_call(
         &mut self,
         receiver: &hir::Expr,
@@ -31,7 +49,8 @@ impl BodyLowerer<'_> {
     }
 
     /// `x!!`: the operand is evaluated once into a hidden local, then
-    /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
+    /// `if (VariantTest(Some)) { val $uw = VariantPayloadProject(Some._1) }
+    /// else { throw UnwrapException() }`.
     /// The if/else is queued in `prelude` — it must precede the
     /// statement this expression belongs to — and the expression
     /// itself becomes the result local. The exception is an ordinary
@@ -41,7 +60,7 @@ impl BodyLowerer<'_> {
         operand: &hir::Expr,
         result_ty: hir::TypeId,
         span: Span,
-        some: u32,
+        some: OptionSomeRefs,
     ) -> smir::Expr {
         let option_ty = self.lower_type(operand.ty);
         let payload_ty = self.lower_type(result_ty);
@@ -53,22 +72,25 @@ impl BodyLowerer<'_> {
             local: slot,
             init: value,
         });
+        let payload = smir::Expr::variant_payload_project(
+            &self.enums.defs,
+            smir::Expr::local(slot, option_ty.clone()),
+            some.payload,
+        );
+        assert_eq!(
+            payload.ty, payload_ty,
+            "the checked Option payload is the HIR unwrap result type"
+        );
         self.prelude.push(smir::StatementKind::If {
-            cond: smir::Expr::machine_eq(
-                smir::Expr::enum_tag(smir::Expr::local(slot, option_ty.clone())),
-                mir::MachineScalarValue::EnumTag(some),
+            cond: smir::Expr::variant_test(
+                &self.enums.defs,
+                smir::Expr::local(slot, option_ty.clone()),
+                some.variant,
             ),
             then_body: vec![smir::Statement {
                 kind: smir::StatementKind::ValDecl {
                     local: result,
-                    init: smir::Expr::new(
-                        payload_ty.clone(),
-                        smir::ExprKind::EnumField {
-                            operand: Box::new(smir::Expr::local(slot, option_ty)),
-                            variant: some,
-                            index: 0,
-                        },
-                    ),
+                    init: payload,
                 },
                 span,
             }],

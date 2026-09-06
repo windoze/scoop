@@ -1177,17 +1177,13 @@ Module mangling=compact-v2
         Local a
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$E10_Option$I32X<Option$I32<Int>>
-            Local $opt.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$E10_Option$I32X v0
+          Type Option$E10_Option$I32X<Option$I32<Int>>
+          Local $opt.1
     bb1 if.then.1
       val $uw.2: Option$I32<Int>
         Type Option$I32<Int>
-        EnumField v0 f0
+        VariantPayloadProject Option$E10_Option$I32X v0 f0
           Type Option$E10_Option$I32X<Option$I32<Int>>
           Local $opt.1
       goto bb3
@@ -1207,17 +1203,13 @@ Module mangling=compact-v2
         Local $uw.2
       branch bb4 bb5
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.0
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.0
     bb4 if.then.4
       val $res.1: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.0
       goto bb6
@@ -1241,17 +1233,13 @@ Module mangling=compact-v2
         Local b
       branch bb7 bb8
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$E10_Option$I32X<Option$I32<Int>>
-            Local $opt.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$E10_Option$I32X v0
+          Type Option$E10_Option$I32X<Option$I32<Int>>
+          Local $opt.3
     bb7 if.then.7
       val $uw.4: Option$I32<Int>
         Type Option$I32<Int>
-        EnumField v0 f0
+        VariantPayloadProject Option$E10_Option$I32X v0 f0
           Type Option$E10_Option$I32X<Option$I32<Int>>
           Local $opt.3
       goto bb9
@@ -1271,17 +1259,13 @@ Module mangling=compact-v2
         Local $uw.4
       branch bb10 bb11
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.2
     bb10 if.then.10
       val $res.3: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.2
       goto bb12
@@ -1305,17 +1289,13 @@ Module mangling=compact-v2
         Local c
       branch bb13 bb14
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$E10_Option$I32X<Option$I32<Int>>
-            Local $opt.4
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$E10_Option$I32X v0
+          Type Option$E10_Option$I32X<Option$I32<Int>>
+          Local $opt.4
     bb13 if.then.13
       val $res.5: Option$I32<Int>
         Type Option$I32<Int>
-        EnumField v0 f0
+        VariantPayloadProject Option$E10_Option$I32X v0 f0
           Type Option$E10_Option$I32X<Option$I32<Int>>
           Local $opt.4
       goto bb15
@@ -1338,17 +1318,13 @@ Module mangling=compact-v2
         Local $res.5
       branch bb16 bb17
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.6
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.6
     bb16 if.then.16
       val $res.7: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.6
       goto bb18
@@ -1921,28 +1897,26 @@ Module
     t4 = enum_wrap e2 v1 () : enum2
     store t4 -> local8
     store local4 -> local25
-    t5 = enum_tag e2 local25 : machine<enum-tag>
-    t6 = MachineEq(EnumTag) t5, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t6 then @if.then.1 else @if.else.2
+    t5 = variant_test e2 v0 local25 : i1
+    cbr t5 then @if.then.1 else @if.else.2
   block if.then.1
-    t7 = enum_field e2 v0 f0 local25 : enum1
-    store t7 -> local26
+    t6 = variant_payload_project e2 v0 f0 local25 : enum1
+    store t6 -> local26
     br @if.merge.3
   block if.else.2
-    call managed-direct-target0 sp22 live=[] t8 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t8 -> local29
+    call managed-direct-target0 sp22 live=[] t7 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    store t7 -> local29
     call managed-void-target0 sp23 live=[local29:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn26(local29)
-    t9 = aggregate () : {}
+    t8 = aggregate () : {}
     throw local29
     unreachable
   block if.merge.3
     store local26 -> local9
-    t10 = enum_tag e1 local9 : machine<enum-tag>
-    t11 = MachineEq(EnumTag) t10, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t11 then @if.then.4 else @if.else.5
+    t9 = variant_test e1 v0 local9 : i1
+    cbr t9 then @if.then.4 else @if.else.5
   block if.then.4
-    t12 = enum_field e1 v0 f0 local9 : i32
-    store t12 -> local10
+    t10 = variant_payload_project e1 v0 f0 local9 : i32
+    store t10 -> local10
     br @if.merge.6
   block if.else.5
     store integer<Int>(0x00000000) -> local10
@@ -1951,30 +1925,28 @@ Module
     store local10 -> local11
     store local11 -> local12
     call managed-void-target1 sp24 live=[] sig=void1 (i32) local-fn23(local12)
-    t13 = aggregate () : {}
+    t11 = aggregate () : {}
     store local7 -> local27
-    t14 = enum_tag e2 local27 : machine<enum-tag>
-    t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t15 then @if.then.7 else @if.else.8
+    t12 = variant_test e2 v0 local27 : i1
+    cbr t12 then @if.then.7 else @if.else.8
   block if.then.7
-    t16 = enum_field e2 v0 f0 local27 : enum1
-    store t16 -> local28
+    t13 = variant_payload_project e2 v0 f0 local27 : enum1
+    store t13 -> local28
     br @if.merge.9
   block if.else.8
-    call managed-direct-target1 sp25 live=[] t17 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t17 -> local30
+    call managed-direct-target1 sp25 live=[] t14 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    store t14 -> local30
     call managed-void-target2 sp26 live=[local30:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn26(local30)
-    t18 = aggregate () : {}
+    t15 = aggregate () : {}
     throw local30
     unreachable
   block if.merge.9
     store local28 -> local13
-    t19 = enum_tag e1 local13 : machine<enum-tag>
-    t20 = MachineEq(EnumTag) t19, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t20 then @if.then.10 else @if.else.11
+    t16 = variant_test e1 v0 local13 : i1
+    cbr t16 then @if.then.10 else @if.else.11
   block if.then.10
-    t21 = enum_field e1 v0 f0 local13 : i32
-    store t21 -> local14
+    t17 = variant_payload_project e1 v0 f0 local13 : i32
+    store t17 -> local14
     br @if.merge.12
   block if.else.11
     store integer<Int>(0x00000000) -> local14
@@ -1983,29 +1955,27 @@ Module
     store local14 -> local15
     store local15 -> local16
     call managed-void-target3 sp27 live=[] sig=void3 (i32) local-fn23(local16)
-    t22 = aggregate () : {}
+    t18 = aggregate () : {}
     store local8 -> local19
-    t23 = enum_tag e2 local19 : machine<enum-tag>
-    t24 = MachineEq(EnumTag) t23, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t24 then @if.then.13 else @if.else.14
+    t19 = variant_test e2 v0 local19 : i1
+    cbr t19 then @if.then.13 else @if.else.14
   block if.then.13
-    t25 = enum_field e2 v0 f0 local19 : enum1
-    store t25 -> local20
+    t20 = variant_payload_project e2 v0 f0 local19 : enum1
+    store t20 -> local20
     br @if.merge.15
   block if.else.14
     store integer<Int>(0x00000003) -> local17
     store local17 -> local18
-    t26 = enum_wrap e1 v0 (local18) : enum1
-    store t26 -> local20
+    t21 = enum_wrap e1 v0 (local18) : enum1
+    store t21 -> local20
     br @if.merge.15
   block if.merge.15
     store local20 -> local21
-    t27 = enum_tag e1 local21 : machine<enum-tag>
-    t28 = MachineEq(EnumTag) t27, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t28 then @if.then.16 else @if.else.17
+    t22 = variant_test e1 v0 local21 : i1
+    cbr t22 then @if.then.16 else @if.else.17
   block if.then.16
-    t29 = enum_field e1 v0 f0 local21 : i32
-    store t29 -> local22
+    t23 = variant_payload_project e1 v0 f0 local21 : i32
+    store t23 -> local22
     br @if.merge.18
   block if.else.17
     store integer<Int>(0x00000000) -> local22
@@ -2014,7 +1984,7 @@ Module
     store local22 -> local23
     store local23 -> local24
     call managed-void-target4 sp28 live=[] sig=void4 (i32) local-fn23(local24)
-    t30 = aggregate () : {}
+    t24 = aggregate () : {}
     ret
   fun @scoop.println$I32(i32) -> void
     local %0 $receiver: i32

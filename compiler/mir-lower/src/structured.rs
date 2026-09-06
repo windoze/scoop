@@ -244,6 +244,50 @@ impl Expr {
         )
     }
 
+    pub(crate) fn variant_test(
+        enums: &Arena<mir::EnumDef>,
+        operand: Self,
+        variant: mir::MirVariantRef,
+    ) -> Self {
+        variant
+            .definition(enums)
+            .expect("structured MIR carries a checked variant reference");
+        assert!(
+            matches!(&operand.ty, mir::Type::Enum(enum_id, _) if *enum_id == variant.enum_id()),
+            "VariantTest operand uses the checked enum identity"
+        );
+        Self::new(
+            mir::Type::Boolean,
+            ExprKind::VariantTest {
+                operand: Box::new(operand),
+                variant,
+            },
+        )
+    }
+
+    pub(crate) fn variant_payload_project(
+        enums: &Arena<mir::EnumDef>,
+        operand: Self,
+        field: mir::MirVariantFieldRef,
+    ) -> Self {
+        let ty = field
+            .definition(enums)
+            .expect("structured MIR carries a checked variant payload field")
+            .ty
+            .clone();
+        assert!(
+            matches!(&operand.ty, mir::Type::Enum(enum_id, _) if *enum_id == field.variant().enum_id()),
+            "VariantPayloadProject operand uses the checked enum identity"
+        );
+        Self::new(
+            ty,
+            ExprKind::VariantPayloadProject {
+                operand: Box::new(operand),
+                field,
+            },
+        )
+    }
+
     pub(crate) fn bool(value: bool) -> Self {
         Self::new(mir::Type::Boolean, ExprKind::BoolLiteral(value))
     }
@@ -422,6 +466,14 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
         variant: u32,
         index: u32,
+    },
+    VariantTest {
+        operand: Box<Expr>,
+        variant: mir::MirVariantRef,
+    },
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: mir::MirVariantFieldRef,
     },
 }
 

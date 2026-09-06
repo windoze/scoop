@@ -24,7 +24,11 @@ enum ReturnCleanup<'a> {
     },
 }
 
-pub(crate) fn lower(body: smir::Body, return_ty: mir::Type) -> mir::Body {
+pub(crate) fn lower(
+    body: smir::Body,
+    return_ty: mir::Type,
+    enums: &Arena<mir::EnumDef>,
+) -> mir::Body {
     let smir::Body { locals, statements } = body;
     let mut blocks = Arena::new();
     let entry = blocks.alloc(mir::BasicBlock {
@@ -44,6 +48,7 @@ pub(crate) fn lower(body: smir::Body, return_ty: mir::Type) -> mir::Body {
         return_ty,
         try_stack: Vec::new(),
         return_cleanups: Vec::new(),
+        enums,
     };
     lowerer.lower_statements(&statements);
     if !lowerer.current_sealed {
@@ -72,6 +77,7 @@ struct CfgLowerer<'a> {
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
     return_cleanups: Vec<ReturnCleanup<'a>>,
+    enums: &'a Arena<mir::EnumDef>,
 }
 
 mod control;

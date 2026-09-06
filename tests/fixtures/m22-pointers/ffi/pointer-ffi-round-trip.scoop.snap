@@ -4131,17 +4131,13 @@ Module mangling=compact-v2
         GlobalRead globalOptionalOpaque
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PUX<Ptr<Unit>>
-            Local $opt.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$PUX v0
+          Type Option$PUX<Ptr<Unit>>
+          Local $opt.1
     bb1 if.then.1
       val $uw.2: Ptr<Unit>
         Type Ptr<Unit>
-        EnumField v0 f0
+        VariantPayloadProject Option$PUX v0 f0
           Type Option$PUX<Ptr<Unit>>
           Local $opt.1
       goto bb3
@@ -4181,17 +4177,13 @@ Module mangling=compact-v2
         GlobalRead globalOptionalOpaque
       branch bb4 bb5
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PUX<Ptr<Unit>>
-            Local $opt.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$PUX v0
+          Type Option$PUX<Ptr<Unit>>
+          Local $opt.3
     bb4 if.then.4
       val $uw.4: Ptr<Unit>
         Type Ptr<Unit>
-        EnumField v0 f0
+        VariantPayloadProject Option$PUX v0 f0
           Type Option$PUX<Ptr<Unit>>
           Local $opt.3
       goto bb6
@@ -4229,17 +4221,13 @@ Module mangling=compact-v2
         GlobalRead globalOptionalCell
       branch bb7 bb8
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-            Local $opt.5
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$PD10_NativeCellXX v0
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $opt.5
     bb7 if.then.7
       val $uw.6: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        EnumField v0 f0
+        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
           Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
           Local $opt.5
       goto bb9
@@ -4279,17 +4267,13 @@ Module mangling=compact-v2
         GlobalRead globalOptionalCell
       branch bb10 bb11
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-            Local $opt.7
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$PD10_NativeCellXX v0
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $opt.7
     bb10 if.then.10
       val $uw.8: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        EnumField v0 f0
+        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
           Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
           Local $opt.7
       goto bb12
@@ -6491,43 +6475,41 @@ Module
     store t130 -> local260
     t131 = native_global_load ng2 sp121 roots=[] : enum0
     store t131 -> local380
-    t132 = enum_tag e0 local380 : machine<enum-tag>
-    t133 = MachineEq(EnumTag) t132, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t133 then @if.then.1 else @if.else.2
+    t132 = variant_test e0 v0 local380 : i1
+    cbr t132 then @if.then.1 else @if.else.2
   block if.then.1
-    t134 = enum_field e0 v0 f0 local380 : ptr<raw>
-    store t134 -> local381
+    t133 = variant_payload_project e0 v0 f0 local380 : ptr<raw>
+    store t133 -> local381
     br @if.merge.3
   block if.else.2
-    call managed-direct-target22 sp122 live=[] t135 = sig=direct22 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t135 -> local388
+    call managed-direct-target22 sp122 live=[] t134 = sig=direct22 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t134 -> local388
     call managed-void-target40 sp123 live=[local388:ptr<managed>@0] sig=void41 (ptr<managed>) local-fn34(local388)
-    t136 = aggregate () : {}
+    t135 = aggregate () : {}
     throw local388
     unreachable
   block if.merge.3
     store local381 -> local261
     store local260 -> local262
     store local261 -> local263
-    call managed-direct-target23 sp124 live=[] t137 = sig=direct23 (enum0, ptr<raw>) -> i1 local-fn23(local262, local263)
-    store t137 -> local264
+    call managed-direct-target23 sp124 live=[] t136 = sig=direct23 (enum0, ptr<raw>) -> i1 local-fn23(local262, local263)
+    store t136 -> local264
     store local264 -> local265
     call managed-void-target41 sp125 live=[] sig=void42 (i1) local-fn30(local265)
-    t138 = aggregate () : {}
-    t139 = native_global_load ng2 sp126 roots=[] : enum0
-    store t139 -> local382
-    t140 = enum_tag e0 local382 : machine<enum-tag>
-    t141 = MachineEq(EnumTag) t140, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t141 then @if.then.4 else @if.else.5
+    t137 = aggregate () : {}
+    t138 = native_global_load ng2 sp126 roots=[] : enum0
+    store t138 -> local382
+    t139 = variant_test e0 v0 local382 : i1
+    cbr t139 then @if.then.4 else @if.else.5
   block if.then.4
-    t142 = enum_field e0 v0 f0 local382 : ptr<raw>
-    store t142 -> local383
+    t140 = variant_payload_project e0 v0 f0 local382 : ptr<raw>
+    store t140 -> local383
     br @if.merge.6
   block if.else.5
-    call managed-direct-target24 sp127 live=[] t143 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t143 -> local389
+    call managed-direct-target24 sp127 live=[] t141 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t141 -> local389
     call managed-void-target42 sp128 live=[local389:ptr<managed>@0] sig=void43 (ptr<managed>) local-fn34(local389)
-    t144 = aggregate () : {}
+    t142 = aggregate () : {}
     throw local389
     unreachable
   block if.merge.6
@@ -6538,61 +6520,59 @@ Module
     store local451 -> local268
     store local268 -> local269
     call managed-void-target43 sp130 live=[] sig=void44 (i32) local-fn31(local269)
-    t145 = aggregate () : {}
-    t146 = native_global_load ng3 sp131 roots=[] : enum1
-    store t146 -> local270
-    t147 = native_global_load ng3 sp132 roots=[] : enum1
-    store t147 -> local384
-    t148 = enum_tag e1 local384 : machine<enum-tag>
-    t149 = MachineEq(EnumTag) t148, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t149 then @if.then.7 else @if.else.8
+    t143 = aggregate () : {}
+    t144 = native_global_load ng3 sp131 roots=[] : enum1
+    store t144 -> local270
+    t145 = native_global_load ng3 sp132 roots=[] : enum1
+    store t145 -> local384
+    t146 = variant_test e1 v0 local384 : i1
+    cbr t146 then @if.then.7 else @if.else.8
   block if.then.7
-    t150 = enum_field e1 v0 f0 local384 : ptr<raw>
-    store t150 -> local385
+    t147 = variant_payload_project e1 v0 f0 local384 : ptr<raw>
+    store t147 -> local385
     br @if.merge.9
   block if.else.8
-    call managed-direct-target25 sp133 live=[] t151 = sig=direct25 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t151 -> local390
+    call managed-direct-target25 sp133 live=[] t148 = sig=direct25 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t148 -> local390
     call managed-void-target44 sp134 live=[local390:ptr<managed>@0] sig=void45 (ptr<managed>) local-fn34(local390)
-    t152 = aggregate () : {}
+    t149 = aggregate () : {}
     throw local390
     unreachable
   block if.merge.9
     store local385 -> local271
     store local270 -> local272
     store local271 -> local273
-    call managed-direct-target26 sp135 live=[] t153 = sig=direct26 (enum1, ptr<raw>) -> i1 local-fn24(local272, local273)
-    store t153 -> local274
+    call managed-direct-target26 sp135 live=[] t150 = sig=direct26 (enum1, ptr<raw>) -> i1 local-fn24(local272, local273)
+    store t150 -> local274
     store local274 -> local275
     call managed-void-target45 sp136 live=[] sig=void46 (i1) local-fn30(local275)
-    t154 = aggregate () : {}
-    t155 = native_global_load ng3 sp137 roots=[] : enum1
-    store t155 -> local386
-    t156 = enum_tag e1 local386 : machine<enum-tag>
-    t157 = MachineEq(EnumTag) t156, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t157 then @if.then.10 else @if.else.11
+    t151 = aggregate () : {}
+    t152 = native_global_load ng3 sp137 roots=[] : enum1
+    store t152 -> local386
+    t153 = variant_test e1 v0 local386 : i1
+    cbr t153 then @if.then.10 else @if.else.11
   block if.then.10
-    t158 = enum_field e1 v0 f0 local386 : ptr<raw>
-    store t158 -> local387
+    t154 = variant_payload_project e1 v0 f0 local386 : ptr<raw>
+    store t154 -> local387
     br @if.merge.12
   block if.else.11
-    call managed-direct-target27 sp138 live=[] t159 = sig=direct27 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t159 -> local391
+    call managed-direct-target27 sp138 live=[] t155 = sig=direct27 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t155 -> local391
     call managed-void-target46 sp139 live=[local391:ptr<managed>@0] sig=void47 (ptr<managed>) local-fn34(local391)
-    t160 = aggregate () : {}
+    t156 = aggregate () : {}
     throw local391
     unreachable
   block if.merge.12
     store local387 -> local276
-    t161 = raw_load local276 align 4 : struct0
-    t162 = extract t161, 0 : i32
-    store t162 -> local277
+    t157 = raw_load local276 align 4 : struct0
+    t158 = extract t157, 0 : i32
+    store t158 -> local277
     store local277 -> local278
     call managed-void-target47 sp140 live=[] sig=void48 (i32) local-fn31(local278)
-    t163 = aggregate () : {}
+    t159 = aggregate () : {}
     store integer<Int>(0x00000006) -> local279
-    t164 = native_global_load ng4 sp141 roots=[] : ptr<code>
-    store t164 -> local280
+    t160 = native_global_load ng4 sp141 roots=[] : ptr<code>
+    store t160 -> local280
     store local279 -> local281
     store local280 -> local282
     store local281 -> local452
@@ -6601,47 +6581,47 @@ Module
     store local454 -> local283
     store local283 -> local284
     call managed-void-target48 sp143 live=[] sig=void49 (i32) local-fn31(local284)
-    t165 = aggregate () : {}
-    t166 = native_global_load ng5 sp144 roots=[] : enum2
-    store t166 -> local285
+    t161 = aggregate () : {}
+    t162 = native_global_load ng5 sp144 roots=[] : enum2
+    store t162 -> local285
     store integer<Int>(0x00000007) -> local286
     store local285 -> local287
     store local286 -> local288
-    call managed-direct-target28 sp145 live=[] t167 = sig=direct28 (enum2, i32) -> i32 local-fn27(local287, local288)
-    store t167 -> local289
+    call managed-direct-target28 sp145 live=[] t163 = sig=direct28 (enum2, i32) -> i32 local-fn27(local287, local288)
+    store t163 -> local289
     store local289 -> local290
     call managed-void-target49 sp146 live=[] sig=void50 (i32) local-fn31(local290)
-    t168 = aggregate () : {}
+    t164 = aggregate () : {}
     native_global_store ng0, local2 sp147 roots=[]
     native_global_store ng1, local10 sp148 roots=[]
     store local2 -> local291
     store local291 -> local292
-    t169 = enum_wrap e0 v0 (local292) : enum0
-    native_global_store ng2, t169 sp149 roots=[]
+    t165 = enum_wrap e0 v0 (local292) : enum0
+    native_global_store ng2, t165 sp149 roots=[]
     store local10 -> local293
     store local293 -> local294
-    t170 = enum_wrap e1 v0 (local294) : enum1
-    native_global_store ng3, t170 sp150 roots=[]
+    t166 = enum_wrap e1 v0 (local294) : enum1
+    native_global_store ng3, t166 sp150 roots=[]
     native_global_store ng4, local16 sp151 roots=[]
     store local16 -> local295
     store local295 -> local296
-    t171 = enum_wrap e2 v0 (local296) : enum2
-    native_global_store ng5, t171 sp152 roots=[]
+    t167 = enum_wrap e2 v0 (local296) : enum2
+    native_global_store ng5, t167 sp152 roots=[]
     store local2 -> local303
     store local10 -> local304
     store local2 -> local297
     store local297 -> local298
-    t172 = enum_wrap e0 v0 (local298) : enum0
-    store t172 -> local305
+    t168 = enum_wrap e0 v0 (local298) : enum0
+    store t168 -> local305
     store local10 -> local299
     store local299 -> local300
-    t173 = enum_wrap e1 v0 (local300) : enum1
-    store t173 -> local306
+    t169 = enum_wrap e1 v0 (local300) : enum1
+    store t169 -> local306
     store local16 -> local307
     store local16 -> local301
     store local301 -> local302
-    t174 = enum_wrap e2 v0 (local302) : enum2
-    store t174 -> local308
+    t170 = enum_wrap e2 v0 (local302) : enum2
+    store t170 -> local308
     store local303 -> local309
     store local304 -> local310
     store local305 -> local311
@@ -6658,50 +6638,50 @@ Module
     store local461 -> local315
     store local315 -> local316
     call managed-void-target50 sp154 live=[] sig=void51 (i1) local-fn30(local316)
-    t175 = aggregate () : {}
-    t176 = native_global_load ng0 sp155 roots=[] : ptr<raw>
-    store t176 -> local317
+    t171 = aggregate () : {}
+    t172 = native_global_load ng0 sp155 roots=[] : ptr<raw>
+    store t172 -> local317
     store local2 -> local318
-    t177 = ptr_to_ulong local317 : i64
-    t178 = ptr_to_ulong local318 : i64
-    t179 = integer_compare_Equal<ULong> t177, t178 : i1
-    store t179 -> local319
+    t173 = ptr_to_ulong local317 : i64
+    t174 = ptr_to_ulong local318 : i64
+    t175 = integer_compare_Equal<ULong> t173, t174 : i1
+    store t175 -> local319
     store local319 -> local320
     call managed-void-target51 sp156 live=[] sig=void52 (i1) local-fn30(local320)
-    t180 = aggregate () : {}
-    t181 = native_global_load ng1 sp157 roots=[] : ptr<raw>
-    store t181 -> local321
+    t176 = aggregate () : {}
+    t177 = native_global_load ng1 sp157 roots=[] : ptr<raw>
+    store t177 -> local321
     store local10 -> local322
-    t182 = ptr_to_ulong local321 : i64
-    t183 = ptr_to_ulong local322 : i64
-    t184 = integer_compare_Equal<ULong> t182, t183 : i1
-    store t184 -> local323
+    t178 = ptr_to_ulong local321 : i64
+    t179 = ptr_to_ulong local322 : i64
+    t180 = integer_compare_Equal<ULong> t178, t179 : i1
+    store t180 -> local323
     store local323 -> local324
     call managed-void-target52 sp158 live=[] sig=void53 (i1) local-fn30(local324)
-    t185 = aggregate () : {}
-    t186 = native_global_load ng2 sp159 roots=[] : enum0
-    store t186 -> local325
+    t181 = aggregate () : {}
+    t182 = native_global_load ng2 sp159 roots=[] : enum0
+    store t182 -> local325
     store local2 -> local326
     store local325 -> local327
     store local326 -> local328
-    call managed-direct-target29 sp160 live=[] t187 = sig=direct29 (enum0, ptr<raw>) -> i1 local-fn23(local327, local328)
-    store t187 -> local329
+    call managed-direct-target29 sp160 live=[] t183 = sig=direct29 (enum0, ptr<raw>) -> i1 local-fn23(local327, local328)
+    store t183 -> local329
     store local329 -> local330
     call managed-void-target53 sp161 live=[] sig=void54 (i1) local-fn30(local330)
-    t188 = aggregate () : {}
-    t189 = native_global_load ng3 sp162 roots=[] : enum1
-    store t189 -> local331
+    t184 = aggregate () : {}
+    t185 = native_global_load ng3 sp162 roots=[] : enum1
+    store t185 -> local331
     store local10 -> local332
     store local331 -> local333
     store local332 -> local334
-    call managed-direct-target30 sp163 live=[] t190 = sig=direct30 (enum1, ptr<raw>) -> i1 local-fn24(local333, local334)
-    store t190 -> local335
+    call managed-direct-target30 sp163 live=[] t186 = sig=direct30 (enum1, ptr<raw>) -> i1 local-fn24(local333, local334)
+    store t186 -> local335
     store local335 -> local336
     call managed-void-target54 sp164 live=[] sig=void55 (i1) local-fn30(local336)
-    t191 = aggregate () : {}
+    t187 = aggregate () : {}
     store integer<Int>(0x0000002c) -> local337
-    t192 = native_global_load ng4 sp165 roots=[] : ptr<code>
-    store t192 -> local338
+    t188 = native_global_load ng4 sp165 roots=[] : ptr<code>
+    store t188 -> local338
     store local337 -> local339
     store local338 -> local340
     store local339 -> local462
@@ -6710,32 +6690,32 @@ Module
     store local464 -> local341
     store local341 -> local342
     call managed-void-target55 sp167 live=[] sig=void56 (i32) local-fn31(local342)
-    t193 = aggregate () : {}
-    t194 = native_global_load ng5 sp168 roots=[] : enum2
-    store t194 -> local343
+    t189 = aggregate () : {}
+    t190 = native_global_load ng5 sp168 roots=[] : enum2
+    store t190 -> local343
     store integer<Int>(0x0000002d) -> local344
     store local343 -> local345
     store local344 -> local346
-    call managed-direct-target31 sp169 live=[] t195 = sig=direct31 (enum2, i32) -> i32 local-fn27(local345, local346)
-    store t195 -> local347
+    call managed-direct-target31 sp169 live=[] t191 = sig=direct31 (enum2, i32) -> i32 local-fn27(local345, local346)
+    store t191 -> local347
     store local347 -> local348
     call managed-void-target56 sp170 live=[] sig=void57 (i32) local-fn31(local348)
-    t196 = aggregate () : {}
-    t197 = enum_wrap e0 v1 () : enum0
-    native_global_store ng2, t197 sp171 roots=[]
-    t198 = enum_wrap e1 v1 () : enum1
-    native_global_store ng3, t198 sp172 roots=[]
-    t199 = enum_wrap e2 v1 () : enum2
-    native_global_store ng5, t199 sp173 roots=[]
+    t192 = aggregate () : {}
+    t193 = enum_wrap e0 v1 () : enum0
+    native_global_store ng2, t193 sp171 roots=[]
+    t194 = enum_wrap e1 v1 () : enum1
+    native_global_store ng3, t194 sp172 roots=[]
+    t195 = enum_wrap e2 v1 () : enum2
+    native_global_store ng5, t195 sp173 roots=[]
     store local2 -> local349
     store local10 -> local350
-    t200 = enum_wrap e0 v1 () : enum0
-    store t200 -> local351
-    t201 = enum_wrap e1 v1 () : enum1
-    store t201 -> local352
+    t196 = enum_wrap e0 v1 () : enum0
+    store t196 -> local351
+    t197 = enum_wrap e1 v1 () : enum1
+    store t197 -> local352
     store local16 -> local353
-    t202 = enum_wrap e2 v1 () : enum2
-    store t202 -> local354
+    t198 = enum_wrap e2 v1 () : enum2
+    store t198 -> local354
     store local349 -> local355
     store local350 -> local356
     store local351 -> local357
@@ -6752,44 +6732,44 @@ Module
     store local471 -> local361
     store local361 -> local362
     call managed-void-target57 sp175 live=[] sig=void58 (i1) local-fn30(local362)
-    t203 = aggregate () : {}
-    t204 = native_global_load ng2 sp176 roots=[] : enum0
-    store t204 -> local363
+    t199 = aggregate () : {}
+    t200 = native_global_load ng2 sp176 roots=[] : enum0
+    store t200 -> local363
     store local363 -> local364
-    call managed-direct-target32 sp177 live=[] t205 = sig=direct32 (enum0) -> i1 local-fn25(local364)
-    store t205 -> local365
+    call managed-direct-target32 sp177 live=[] t201 = sig=direct32 (enum0) -> i1 local-fn25(local364)
+    store t201 -> local365
     store local365 -> local366
     call managed-void-target58 sp178 live=[] sig=void59 (i1) local-fn30(local366)
-    t206 = aggregate () : {}
-    t207 = native_global_load ng3 sp179 roots=[] : enum1
-    store t207 -> local367
+    t202 = aggregate () : {}
+    t203 = native_global_load ng3 sp179 roots=[] : enum1
+    store t203 -> local367
     store local367 -> local368
-    call managed-direct-target33 sp180 live=[] t208 = sig=direct33 (enum1) -> i1 local-fn26(local368)
-    store t208 -> local369
+    call managed-direct-target33 sp180 live=[] t204 = sig=direct33 (enum1) -> i1 local-fn26(local368)
+    store t204 -> local369
     store local369 -> local370
     call managed-void-target59 sp181 live=[] sig=void60 (i1) local-fn30(local370)
-    t209 = aggregate () : {}
-    t210 = native_global_load ng5 sp182 roots=[] : enum2
-    store t210 -> local371
+    t205 = aggregate () : {}
+    t206 = native_global_load ng5 sp182 roots=[] : enum2
+    store t206 -> local371
     store local371 -> local372
-    call managed-direct-target34 sp183 live=[] t211 = sig=direct34 (enum2) -> i1 local-fn28(local372)
-    store t211 -> local373
+    call managed-direct-target34 sp183 live=[] t207 = sig=direct34 (enum2) -> i1 local-fn28(local372)
+    store t207 -> local373
     store local373 -> local374
     call managed-void-target60 sp184 live=[] sig=void61 (i1) local-fn30(local374)
-    t212 = aggregate () : {}
+    t208 = aggregate () : {}
     call native-safe-void-target1 sp185 roots=[] sig=void62 () extern29()
-    t213 = aggregate () : {}
+    t209 = aggregate () : {}
     store local10 -> local375
     store local375 -> local376
     store local376 -> local377
     store local377 -> local472
     call native-safe-void-target2 sp186 roots=[] sig=void63 (ptr<raw>) extern11(c-arg-address(local472))
-    t214 = aggregate () : {}
+    t210 = aggregate () : {}
     store local2 -> local378
     store local378 -> local379
     store local379 -> local473
     call native-safe-void-target3 sp187 roots=[] sig=void64 (ptr<raw>) extern11(c-arg-address(local473))
-    t215 = aggregate () : {}
+    t211 = aggregate () : {}
     ret
   fun @scoop.println$B(i1) -> void
     local %0 $receiver: i1

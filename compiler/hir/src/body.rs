@@ -410,7 +410,8 @@ pub enum ExprKind {
     },
     // The following are produced by hir-lower's Option desugaring
     // (`?.` / `?:` / `!!`), not directly by surface syntax. MIR turns
-    // them into generic enum operations (spec 7.3).
+    // them into generic enum construction and representation-independent
+    // checked variant operations (spec 7.3).
     /// `Some(value)`.
     SomeWrap(Box<Expr>),
     /// The `None` literal; its type is `Expr::ty` (an `Option<T>`).

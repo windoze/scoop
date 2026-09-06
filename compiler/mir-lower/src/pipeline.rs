@@ -140,7 +140,7 @@ impl Lowerer {
             } else {
                 self.lower_user_function(module, hir_id)
             };
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
                     function: mir_id,
@@ -155,7 +155,7 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in ctor_functions {
             let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -163,7 +163,7 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in struct_ctor_functions {
             let (params, return_ty, body) = self.lower_struct_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;

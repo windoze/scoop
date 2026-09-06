@@ -244,6 +244,7 @@ impl Lowerer {
             let body = cfg::lower(
                 smir::Body { locals, statements },
                 signature.return_type.clone(),
+                &self.enums.defs,
             );
             self.functions[function].params = params;
             self.functions[function].body = body;

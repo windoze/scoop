@@ -1694,17 +1694,13 @@ Module mangling=compact-v2
           Local $idx.11
       branch bb29 bb30
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.0
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.0
     bb29 if.then.29
       val $res.1: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.0
       goto bb31
@@ -1785,17 +1781,13 @@ Module mangling=compact-v2
           Local $idx.13
       branch bb37 bb38
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $opt.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $opt.2
     bb37 if.then.37
       val $res.3: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $opt.2
       goto bb39
@@ -2629,12 +2621,11 @@ Module
   block if.merge.28
     t47 = array_get array4 local60 local61 : enum1
     store t47 -> local40
-    t48 = enum_tag e1 local40 : machine<enum-tag>
-    t49 = MachineEq(EnumTag) t48, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t49 then @if.then.29 else @if.else.30
+    t48 = variant_test e1 v0 local40 : i1
+    cbr t48 then @if.then.29 else @if.else.30
   block if.then.29
-    t50 = enum_field e1 v0 f0 local40 : i32
-    store t50 -> local41
+    t49 = variant_payload_project e1 v0 f0 local40 : i32
+    store t49 -> local41
     br @if.merge.31
   block if.else.30
     store integer<Int>(0x00000009) -> local41
@@ -2643,18 +2634,18 @@ Module
     store local41 -> local42
     store local42 -> local43
     call managed-void-target9 sp42 live=[local36:ptr<managed>@0] sig=void9 (i32) local-fn23(local43)
-    t51 = aggregate () : {}
+    t50 = aggregate () : {}
     store local36 -> local44
     store integer<Long>(0x0000000000000001) -> local45
     store local45 -> local46
     store local44 -> local62
     store local46 -> local63
-    t52 = integer_compare_Less<Long> local63, integer<Long>(0x0000000000000000) : i1
-    cbr t52 then @logic.short.33 else @logic.rhs.32
+    t51 = integer_compare_Less<Long> local63, integer<Long>(0x0000000000000000) : i1
+    cbr t51 then @logic.short.33 else @logic.rhs.32
   block logic.rhs.32
-    t53 = array_len array4 local62 : i64
-    t54 = integer_compare_GreaterOrEqual<Long> local63, t53 : i1
-    store t54 -> local76
+    t52 = array_len array4 local62 : i64
+    t53 = integer_compare_GreaterOrEqual<Long> local63, t52 : i1
+    store t53 -> local76
     br @logic.merge.34
   block logic.short.33
     store true -> local76
@@ -2662,21 +2653,20 @@ Module
   block logic.merge.34
     cbr local76 then @if.then.35 else @if.merge.36
   block if.then.35
-    call managed-direct-target5 sp43 live=[] t55 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(24)))
-    store t55 -> local77
+    call managed-direct-target5 sp43 live=[] t54 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(24)))
+    store t54 -> local77
     call managed-void-target10 sp44 live=[local77:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn30(local77)
-    t56 = aggregate () : {}
+    t55 = aggregate () : {}
     throw local77
     unreachable
   block if.merge.36
-    t57 = array_get array4 local62 local63 : enum1
-    store t57 -> local47
-    t58 = enum_tag e1 local47 : machine<enum-tag>
-    t59 = MachineEq(EnumTag) t58, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t59 then @if.then.37 else @if.else.38
+    t56 = array_get array4 local62 local63 : enum1
+    store t56 -> local47
+    t57 = variant_test e1 v0 local47 : i1
+    cbr t57 then @if.then.37 else @if.else.38
   block if.then.37
-    t60 = enum_field e1 v0 f0 local47 : i32
-    store t60 -> local48
+    t58 = variant_payload_project e1 v0 f0 local47 : i32
+    store t58 -> local48
     br @if.merge.39
   block if.else.38
     store integer<Int>(0x00000008) -> local48
@@ -2685,7 +2675,7 @@ Module
     store local48 -> local49
     store local49 -> local50
     call managed-void-target11 sp45 live=[] sig=void11 (i32) local-fn23(local50)
-    t61 = aggregate () : {}
+    t59 = aggregate () : {}
     ret
   fun @scoop.println$I32(i32) -> void
     local %0 $receiver: i32

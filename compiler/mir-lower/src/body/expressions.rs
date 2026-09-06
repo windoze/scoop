@@ -607,8 +607,8 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::Unary { op, operand }
             }
             // The Option nodes (hir-lower's `?.` / `?:` / `!!`
-            // desugars) become generic enum operations on core's
-            // `Option` enum (DESIGN 3.3).
+            // desugars) become generic construction and checked semantic
+            // variant operations on core's `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
                 let some = option_core_for_type(self.module, self.enums, &ty).some_variant();
                 smir::ExprKind::VariantConstruct {
@@ -625,30 +625,32 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::IsSome(operand) => {
                 let option_ty = self.lower_type(operand.ty);
-                let some = option_core_for_type(self.module, self.enums, &option_ty).some_variant();
-                let operand = self.lower_expr(operand);
-                return smir::Expr::machine_eq(
-                    smir::Expr::enum_tag(operand),
-                    mir::MachineScalarValue::EnumTag(some),
-                );
+                let some = option_some_refs_for_type(self.module, self.enums, &option_ty);
+                let operand = self.lower_stable_option_operand(operand);
+                return smir::Expr::variant_test(&self.enums.defs, operand, some.variant);
             }
             hir::ExprKind::Unwrap {
                 operand,
                 trap_on_none,
             } => {
                 let option_ty = self.lower_type(operand.ty);
-                let some = option_core_for_type(self.module, self.enums, &option_ty).some_variant();
+                let some = option_some_refs_for_type(self.module, self.enums, &option_ty);
                 if *trap_on_none {
                     return self.trapping_unwrap(operand, expr.ty, expr.span, some);
                 } else {
-                    // The surrounding control flow already guarantees
-                    // `Some` (`?.` / `?:` desugars, the equality
-                    // expansion).
-                    smir::ExprKind::EnumField {
-                        operand: Box::new(self.lower_expr(operand)),
-                        variant: some,
-                        index: 0,
-                    }
+                    // The surrounding `?.` / `?:` control flow already
+                    // guarantees `Some` on this exact stable local.
+                    let operand = self.lower_stable_option_operand(operand);
+                    let projection = smir::Expr::variant_payload_project(
+                        &self.enums.defs,
+                        operand,
+                        some.payload,
+                    );
+                    assert_eq!(
+                        projection.ty, ty,
+                        "the checked Option payload is the HIR unwrap result type"
+                    );
+                    return projection;
                 }
             }
         };

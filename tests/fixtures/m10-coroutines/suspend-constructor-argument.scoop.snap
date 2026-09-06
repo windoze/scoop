@@ -1175,17 +1175,13 @@ Module mangling=compact-v2
           Local this
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$J16_Continuation$I32X<Continuation$I32>
-            Local $opt.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
+        VariantTest Option$J16_Continuation$I32X v0
+          Type Option$J16_Continuation$I32X<Continuation$I32>
+          Local $opt.1
     bb1 if.then.1
       val $uw.2: Continuation$I32
         Type Continuation$I32
-        EnumField v0 f0
+        VariantPayloadProject Option$J16_Continuation$I32X v0 f0
           Type Option$J16_Continuation$I32X<Continuation$I32>
           Local $opt.1
       goto bb3
@@ -3236,31 +3232,30 @@ Module
     poll managed-void-target2 sp121 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : enum0
     store t0 -> local4
-    t1 = enum_tag e0 local4 : machine<enum-tag>
-    t2 = MachineEq(EnumTag) t1, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t2 then @if.then.1 else @if.else.2
+    t1 = variant_test e0 v0 local4 : i1
+    cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
-    t3 = enum_field e0 v0 f0 local4 : ptr<managed>
-    store t3 -> local5
+    t2 = variant_payload_project e0 v0 f0 local4 : ptr<managed>
+    store t2 -> local5
     br @if.merge.3
   block if.else.2
-    call managed-direct-target0 sp22 live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(24)))
-    store t4 -> local6
+    call managed-direct-target0 sp22 live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(24)))
+    store t3 -> local6
     call managed-void-target0 sp23 live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn33(local6)
-    t5 = aggregate () : {}
+    t4 = aggregate () : {}
     throw local6
     unreachable
   block if.merge.3
     store local5 -> local0
-    t6 = enum_wrap e0 v1 () : enum0
-    heap_store param0 +16 t6
+    t5 = enum_wrap e0 v1 () : enum0
+    heap_store param0 +16 t5
     store local0 -> local1
     store param1 -> local2
     store local2 -> local3
-    t7 = heap_load local1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t8 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t7, td2)
-    call managed-void-target1 sp24 live=[local1:ptr<managed>@0] sig=void1 (ptr<managed>, i32) dispatch[Interface:0] t8(local1, local3)
-    t9 = aggregate () : {}
+    t6 = heap_load local1 +0 : ptr<metadata>
+    call no-gc-direct-target0 t7 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t6, td2)
+    call managed-void-target1 sp24 live=[local1:ptr<managed>@0] sig=void1 (ptr<managed>, i32) dispatch[Interface:0] t7(local1, local3)
+    t8 = aggregate () : {}
     ret
   fun @scoop.Registration.register(ptr<managed>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
