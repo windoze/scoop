@@ -35,6 +35,8 @@ mod tests_m20;
 #[cfg(test)]
 mod tests_m21;
 #[cfg(test)]
+mod tests_m22_copy_update;
+#[cfg(test)]
 mod tests_m22_integer_literals;
 #[cfg(test)]
 mod tests_m22_type_aliases;

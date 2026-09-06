@@ -359,6 +359,11 @@ impl Lowerer {
             &pending_methods,
         );
         self.validate_signature_exposure();
+        // Exception declaration identities and the message constructor are
+        // required while export defaults and constructor bodies are lowered.
+        // Zero-source-argument adapters are finalized only after those
+        // defaults have been materialized.
+        let pending_exception_core = self.discover_exception_core(files);
         self.lower_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
@@ -373,7 +378,8 @@ impl Lowerer {
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
         // targets from names.
-        let exception_core = self.validate_exception_core(files);
+        let exception_core =
+            pending_exception_core.and_then(|pending| self.finalize_exception_core(pending));
         self.lower_runtime_top_level_initializers();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the

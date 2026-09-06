@@ -1,0 +1,11 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: `throw` is not allowed in `@NoGC` code
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: value of non-GC-free type IllegalStateException is not allowed in `@NoGC` code
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: class allocation is not allowed in `@NoGC` code
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: value of non-GC-free type Option<String> is not allowed in `@NoGC` code
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: value of non-GC-free type String is not allowed in `@NoGC` code
+m22-copy-update/errors/no-gc-enum.scoop:9:37: error: string literals are not allowed in `@NoGC` code

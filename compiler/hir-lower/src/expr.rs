@@ -4,8 +4,8 @@
 //! Every expression that survives this stage carries its type
 //! (`hir::Expr::ty`); calls resolve to a `FunctionId` (plus inferred
 //! type arguments for generic callees), struct constructions to a
-//! `StructId`, variant constructions to a `(EnumId, variant index)`
-//! pair, field accesses to a `FieldRef`.
+//! `StructId`, variant constructions to an application-bound checked
+//! variant reference, and field accesses to a checked `FieldRef`.
 //!
 //! Two cross-cutting mechanisms:
 //!
@@ -70,6 +70,7 @@ mod aggregates;
 mod analysis;
 mod captures;
 mod constructors;
+mod copy_updates;
 mod fields;
 mod members;
 mod names;
@@ -340,6 +341,9 @@ impl Lowerer {
                 self.lower_safe_field_access(access, sink)
             }
             ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
+            ast::Expr::CopyUpdate { base, fields, span } => {
+                self.lower_copy_update(base, fields, *span, sink, expected)
+            }
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
             ast::Expr::Invoke {
                 callee,

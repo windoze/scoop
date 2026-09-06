@@ -58,12 +58,21 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        ExprKind::VariantConstruct {
+        ExprKind::StructConstruct {
             application,
-            variant,
-            args,
+            fields,
         } => {
-            let application = &module.enum_applications[*application];
+            let application = &module.struct_applications[*application];
+            out.push_str(&format!(
+                "{pad}StructConstruct {} : {ty}\n",
+                type_name(module, application.canonical_type)
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
+        ExprKind::VariantConstruct { variant, args } => {
+            let application = &module.enum_applications[variant.application()];
             let decl = &module.enums[application.template];
             let type_args = if application.arguments.is_empty() {
                 String::new()
@@ -77,11 +86,35 @@ pub(super) fn dump_expr(
             };
             out.push_str(&format!(
                 "{pad}VariantConstruct {}.{}{type_args} : {ty}\n",
-                decl.name, decl.variants[*variant as usize].name
+                decl.name,
+                decl.variants[variant.local_index() as usize].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
+        }
+        ExprKind::VariantTest { operand, variant } => {
+            let application = &module.enum_applications[variant.application()];
+            let declaration = &module.enums[application.template];
+            out.push_str(&format!(
+                "{pad}VariantTest {}.{} : {ty}\n",
+                type_name(module, application.canonical_type),
+                declaration.variants[variant.local_index() as usize].name
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            let variant = field.variant();
+            let application = &module.enum_applications[variant.application()];
+            let declaration = &module.enums[application.template];
+            let payload = &declaration.variants[variant.local_index() as usize];
+            out.push_str(&format!(
+                "{pad}VariantPayloadProject {}.{}.{} : {ty}\n",
+                type_name(module, application.canonical_type),
+                payload.name,
+                payload.fields[field.local_index() as usize].name
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
@@ -285,7 +318,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
-                FieldRef::StructField { index, .. } => format!("field {index}"),
+                FieldRef::StructField(field) => format!("field {}", field.local_index()),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
                 FieldRef::ClassField { field, .. } => {
                     format!(

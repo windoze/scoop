@@ -642,9 +642,16 @@ impl Lowerer {
                     else {
                         unreachable!("struct storage access has a struct owner application")
                     };
+                    let field = hir::AppliedStructFieldRef::checked(
+                        &self.structs,
+                        &self.struct_applications,
+                        application,
+                        index,
+                    )
+                    .expect("a struct-backed property names its declaring field");
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
-                        field: hir::FieldRef::StructField { application, index },
+                        field: hir::FieldRef::StructField(field),
                     }
                 }
             },

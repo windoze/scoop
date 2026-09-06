@@ -76,6 +76,15 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
+        ExprKind::StructConstruct { struct_id, fields } => {
+            out.push_str(&format!(
+                "{pad}StructConstruct {}\n",
+                module.structs[*struct_id].name
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
         ExprKind::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
         ExprKind::GlobalRead(global) => out.push_str(&format!(
             "{pad}GlobalRead {}\n",

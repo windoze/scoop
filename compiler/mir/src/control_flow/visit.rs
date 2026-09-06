@@ -13,6 +13,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
     match &expr.kind {
         ExprKind::TupleLiteral(values)
         | ExprKind::StructInit { args: values, .. }
+        | ExprKind::StructConstruct { fields: values, .. }
         | ExprKind::ClosureAlloc {
             captures: values, ..
         }
@@ -148,6 +149,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
     match &mut expr.kind {
         ExprKind::TupleLiteral(values)
         | ExprKind::StructInit { args: values, .. }
+        | ExprKind::StructConstruct { fields: values, .. }
         | ExprKind::ClosureAlloc {
             captures: values, ..
         }

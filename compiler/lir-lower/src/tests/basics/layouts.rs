@@ -71,6 +71,48 @@ fn struct_values_keep_named_lir_identity() {
 }
 
 #[test]
+fn raw_struct_construction_lowers_fields_in_declaration_order() {
+    let mut builder = Builder::new();
+    let pair = builder.strukt("Pair", &[("first", INT), ("second", INT)]);
+    let pair_ty = mir::Type::Struct(pair);
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", pair_ty.clone()));
+    let main = builder.main(
+        locals,
+        vec![val_decl(
+            value,
+            expr(
+                pair_ty,
+                mir::ExprKind::StructConstruct {
+                    struct_id: pair,
+                    fields: vec![int_expr(20), int_expr(10)],
+                },
+            ),
+        )],
+    );
+
+    let module = lower(&builder.finish(main));
+    let function = &module.functions[0];
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::MakeAggregate { elements, .. } = instructions[0] else {
+        panic!("raw struct construction must lower to MakeAggregate")
+    };
+    assert_eq!(
+        elements,
+        &[
+            lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(20)),
+            lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(10)),
+        ]
+    );
+    assert!(
+        instructions
+            .iter()
+            .all(|instruction| !matches!(instruction, lir::Instruction::Call { .. })),
+        "raw reconstruction must not call a source constructor"
+    );
+}
+
+#[test]
 fn unit_is_the_empty_aggregate() {
     let mut b = Builder::new();
     let mut locals = Arena::new();

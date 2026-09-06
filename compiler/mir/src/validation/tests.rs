@@ -143,6 +143,163 @@ fn return_value_mut(module: &mut Module, block: BlockId) -> &mut Expr {
     value
 }
 
+fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let struct_id = module.structs.alloc(StructDef {
+        name: "Record".to_string(),
+        gc_free: true,
+        representation: StructRepresentation::Declared {
+            c_layout: None,
+            interior_mutable: false,
+            fields: fields
+                .into_iter()
+                .enumerate()
+                .map(|(index, ty)| Field {
+                    name: format!("f{index}"),
+                    ty,
+                })
+                .collect(),
+        },
+    });
+    (module, struct_id)
+}
+
+fn set_return_expression(module: &mut Module, expression: Expr) {
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        statements: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(expression),
+        },
+        unwind: None,
+    });
+    module.functions[module.entry].body = Body {
+        locals: Arena::new(),
+        blocks,
+        entry,
+    };
+}
+
+#[test]
+fn raw_struct_construction_validation_checks_identity_arity_and_field_types() {
+    let int = Type::Integer(IntegerKind::SIGNED_32);
+    let (mut module, struct_id) = module_with_declared_struct(vec![int.clone(), Type::Boolean]);
+    set_return_expression(
+        &mut module,
+        Expr::new(
+            Type::Struct(struct_id),
+            ExprKind::StructConstruct {
+                struct_id,
+                fields: vec![
+                    Expr::new(int.clone(), ExprKind::UnitLiteral),
+                    Expr::new(Type::Boolean, ExprKind::BoolLiteral(true)),
+                ],
+            },
+        ),
+    );
+    assert_eq!(module.validate(), Ok(()));
+
+    let entry = module.functions[module.entry].body.entry;
+    return_value_mut(&mut module, entry).ty = Type::Boolean;
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::RawStructConstructResultType {
+                struct_id: found,
+                actual: Type::Boolean,
+            },
+            ..
+        }) if found == struct_id
+    ));
+
+    {
+        let expression = return_value_mut(&mut module, entry);
+        expression.ty = Type::Struct(struct_id);
+        let ExprKind::StructConstruct { fields, .. } = &mut expression.kind else {
+            unreachable!()
+        };
+        fields.pop();
+    }
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::RawStructConstructArity {
+                expected: 2,
+                actual: 1,
+                ..
+            },
+            ..
+        })
+    ));
+
+    {
+        let expression = return_value_mut(&mut module, entry);
+        let ExprKind::StructConstruct { fields, .. } = &mut expression.kind else {
+            unreachable!()
+        };
+        fields.push(Expr::new(Type::Boolean, ExprKind::BoolLiteral(false)));
+        fields[0].ty = Type::Boolean;
+    }
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::RawStructConstructFieldType {
+                field: 0,
+                expected: Type::Integer(IntegerKind::SIGNED_32),
+                actual: Type::Boolean,
+                ..
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
+    let (mut module, struct_id) = module_with_declared_struct(Vec::new());
+    let unknown = StructId::from_raw(99.into());
+    set_return_expression(
+        &mut module,
+        Expr::new(
+            Type::Struct(unknown),
+            ExprKind::StructConstruct {
+                struct_id: unknown,
+                fields: Vec::new(),
+            },
+        ),
+    );
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidStructReference { struct_id: found },
+            ..
+        }) if found == unknown
+    ));
+
+    module.structs[struct_id].representation =
+        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Boolean);
+    set_return_expression(
+        &mut module,
+        Expr::new(
+            Type::Struct(struct_id),
+            ExprKind::StructConstruct {
+                struct_id,
+                fields: Vec::new(),
+            },
+        ),
+    );
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::RawStructConstructRequiresDeclared {
+                struct_id: found
+            },
+            ..
+        }) if found == struct_id
+    ));
+}
+
 #[test]
 fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     let (module, enum_id) = module_with_variants(vec![

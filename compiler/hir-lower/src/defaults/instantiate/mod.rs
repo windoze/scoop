@@ -392,6 +392,13 @@ impl Lowerer {
                 constructor: self.instantiate_default_struct_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::StructConstruct {
+                application,
+                fields,
+            } => hir::ExprKind::StructConstruct {
+                application: self.instantiate_default_struct_application(*application, context),
+                fields: self.instantiate_default_exprs(fields, context),
+            },
             hir::ExprKind::ClassInit { constructor, args } => hir::ExprKind::ClassInit {
                 constructor: self.instantiate_default_class_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
@@ -399,15 +406,20 @@ impl Lowerer {
             hir::ExprKind::ConstructorParam(parameter) => {
                 hir::ExprKind::ConstructorParam(*parameter)
             }
-            hir::ExprKind::VariantConstruct {
-                application,
-                variant,
-                args,
-            } => hir::ExprKind::VariantConstruct {
-                application: self.instantiate_default_enum_application(*application, context),
-                variant: *variant,
+            hir::ExprKind::VariantConstruct { variant, args } => hir::ExprKind::VariantConstruct {
+                variant: self.instantiate_default_applied_enum_variant(*variant, context),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+                variant: self.instantiate_default_applied_enum_variant(*variant, context),
+            },
+            hir::ExprKind::VariantPayloadProject { operand, field } => {
+                hir::ExprKind::VariantPayloadProject {
+                    operand: Box::new(self.instantiate_default_expr(operand, context)),
+                    field: self.instantiate_default_applied_enum_field(*field, context),
+                }
+            }
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),
             hir::ExprKind::GlobalRead(global) => hir::ExprKind::GlobalRead(*global),
             hir::ExprKind::SingletonValue(value) => hir::ExprKind::SingletonValue(*value),

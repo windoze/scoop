@@ -7,7 +7,7 @@
 
 use scoop_ast::{
     BinOp, CallArgument, CallArgumentName, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector,
-    Ident, InfixTarget, Navigation, NonEmptyVec, PlaceExpr, Span, SpreadSyntax, UnOp,
+    FieldUpdate, Ident, InfixTarget, Navigation, NonEmptyVec, PlaceExpr, Span, SpreadSyntax, UnOp,
     UpdateNotation, UpdateOp,
 };
 
@@ -236,10 +236,20 @@ impl Parser {
             match self.peek().kind {
                 TokenKind::Dot => {
                     self.bump();
-                    receiver = self.parse_field_access(receiver, false)?;
+                    receiver = if matches!(self.peek().kind, TokenKind::LBrace) {
+                        self.parse_copy_update(receiver)?
+                    } else {
+                        self.parse_field_access(receiver, false)?
+                    };
                 }
                 TokenKind::QuestionDot => {
-                    self.bump();
+                    let navigation = self.bump();
+                    if matches!(self.peek().kind, TokenKind::LBrace) {
+                        return Err(Diagnostic::at(
+                            navigation.span,
+                            "copy update does not support safe navigation; unwrap the Option with `when` first",
+                        ));
+                    }
                     receiver = self.parse_field_access(receiver, true)?;
                 }
                 TokenKind::DoubleColon => {
@@ -342,6 +352,79 @@ impl Parser {
             }
         }
         Ok(receiver)
+    }
+
+    /// `receiver.{ field: value, ... }`. The direct dot has already been
+    /// consumed and `{` is current. This list deliberately has its own
+    /// grammar so it cannot be mistaken for a lambda or statement block.
+    fn parse_copy_update(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
+        self.bump();
+        if matches!(self.peek().kind, TokenKind::RBrace) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "copy update field list must not be empty",
+            ));
+        }
+
+        let mut fields = Vec::new();
+        loop {
+            if matches!(self.peek().kind, TokenKind::DotDot) {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "copy update field list does not allow rest entries",
+                ));
+            }
+            let field = self.expect_ident("copy update field name")?;
+            if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "copy update fields must be direct names, not nested paths",
+                ));
+            }
+            self.expect("`:` after copy update field name", |kind| {
+                matches!(kind, TokenKind::Colon)
+            })?;
+            let statement_only = matches!(
+                self.peek().kind,
+                TokenKind::Val | TokenKind::Var | TokenKind::Return | TokenKind::While
+            ) || matches!(
+                &self.peek().kind,
+                TokenKind::Ident(text) if matches!(text.as_str(), "throw" | "break" | "continue")
+            );
+            if statement_only {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "copy update field values must be expressions, not statements",
+                ));
+            }
+            let value = self.parse_expr()?;
+            let span = Span::new(field.span.start, value.span().end);
+            fields.push(FieldUpdate { field, value, span });
+
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                break;
+            }
+            self.expect("`,` or `}` after copy update field", |kind| {
+                matches!(kind, TokenKind::Comma)
+            })?;
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "copy update field list does not allow a trailing comma",
+                ));
+            }
+        }
+        let close = self.expect("`}`", |kind| matches!(kind, TokenKind::RBrace))?;
+        let mut fields = fields.into_iter();
+        let first = fields
+            .next()
+            .expect("the parser rejected an empty copy-update list");
+        let fields = NonEmptyVec::new(first, fields.collect());
+        Ok(Expr::CopyUpdate {
+            span: Span::new(base.span().start, close.span.end),
+            base: Box::new(base),
+            fields,
+        })
     }
 
     /// `receiver[index]` — the `[` is the current token. A `:` after the

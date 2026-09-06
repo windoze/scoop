@@ -512,6 +512,11 @@ pub enum ExprKind {
         struct_id: StructId,
         args: Vec<Expr>,
     },
+    /// Compiler-only raw reconstruction in declaration field order.
+    StructConstruct {
+        struct_id: StructId,
+        fields: Vec<Expr>,
+    },
     /// Class instantiation; mir-lower generates a constructor
     /// function per class and this becomes a plain call to it.
     /// Allocate one exact class object with a zeroed complete payload.

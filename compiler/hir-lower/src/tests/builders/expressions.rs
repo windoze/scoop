@@ -171,6 +171,22 @@ pub(crate) fn field(receiver: Expr, name: &str) -> Expr {
     })
 }
 
+pub(crate) fn copy_update(base: Expr, fields: Vec<(&str, Expr)>) -> Expr {
+    let mut fields = fields.into_iter().map(|(name, value)| ast::FieldUpdate {
+        field: ident(name),
+        value,
+        span: sp(),
+    });
+    let first = fields
+        .next()
+        .expect("copy-update test builders require a non-empty field list");
+    Expr::CopyUpdate {
+        base: Box::new(base),
+        fields: ast::NonEmptyVec::new(first, fields.collect()),
+        span: sp(),
+    }
+}
+
 /// The `?.` safe field access.
 pub(crate) fn safe_field(receiver: Expr, name: &str) -> Expr {
     Expr::FieldAccess(FieldAccess {

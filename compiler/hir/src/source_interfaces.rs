@@ -207,10 +207,7 @@ pub struct ExportDefaultConstructorRef {
 pub enum ExportDefaultConstructorTarget {
     Struct(StructConstructorApplicationId),
     Class(ClassConstructorApplicationId),
-    Variant {
-        application: EnumApplicationId,
-        variant: u32,
-    },
+    Variant(AppliedEnumVariantRef),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

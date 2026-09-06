@@ -226,7 +226,10 @@ fn smart_cast_narrows_value_types_with_unbox() {
             let value = return_value(then_body);
             match &value.kind {
                 hir::ExprKind::FieldAccess { receiver, field } => {
-                    assert!(matches!(field, hir::FieldRef::StructField { index: 0, .. }));
+                    assert!(matches!(
+                        field,
+                        hir::FieldRef::StructField(field) if field.local_index() == 0
+                    ));
                     // The narrowed access unboxes the Any local.
                     assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
                 }

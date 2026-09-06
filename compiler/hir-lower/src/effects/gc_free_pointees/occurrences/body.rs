@@ -231,6 +231,19 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
+        ExprKind::StructConstruct {
+            application,
+            fields,
+        } => {
+            push_type_at_expression(
+                lowerer.struct_applications[*application].canonical_type,
+                expression,
+                out,
+            );
+            for field in fields {
+                collect_expr_type_occurrences(lowerer, field, out);
+            }
+        }
         ExprKind::ClassInit { constructor, args } => {
             let application = lowerer.class_constructor_applications[*constructor].owner;
             push_type_at_expression(
@@ -242,17 +255,31 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
-        ExprKind::VariantConstruct {
-            application, args, ..
-        } => {
+        ExprKind::VariantConstruct { variant, args } => {
             push_type_at_expression(
-                lowerer.enum_applications[*application].canonical_type,
+                lowerer.enum_applications[variant.application()].canonical_type,
                 expression,
                 out,
             );
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
+        }
+        ExprKind::VariantTest { operand, variant } => {
+            push_type_at_expression(
+                lowerer.enum_applications[variant.application()].canonical_type,
+                expression,
+                out,
+            );
+            collect_expr_type_occurrences(lowerer, operand, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            push_type_at_expression(
+                lowerer.enum_applications[field.variant().application()].canonical_type,
+                expression,
+                out,
+            );
+            collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::Lambda(lambda) => {
             for capture in &lowerer.lambdas[*lambda].captures {

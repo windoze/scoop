@@ -17,6 +17,27 @@ impl MirVariantOperation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirValidationErrorKind {
+    InvalidStructReference {
+        struct_id: StructId,
+    },
+    RawStructConstructRequiresDeclared {
+        struct_id: StructId,
+    },
+    RawStructConstructResultType {
+        struct_id: StructId,
+        actual: Type,
+    },
+    RawStructConstructArity {
+        struct_id: StructId,
+        expected: usize,
+        actual: usize,
+    },
+    RawStructConstructFieldType {
+        struct_id: StructId,
+        field: u32,
+        expected: Type,
+        actual: Type,
+    },
     InvalidVariantReference {
         operation: MirVariantOperation,
         error: MirVariantRefError,
@@ -62,6 +83,40 @@ impl std::fmt::Display for MirValidationError {
             "invalid MIR in function {function}, block {block}: "
         )?;
         match &self.kind {
+            MirValidationErrorKind::InvalidStructReference { struct_id } => write!(
+                formatter,
+                "StructConstruct references unknown MIR struct {}",
+                struct_id.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::RawStructConstructRequiresDeclared { struct_id } => write!(
+                formatter,
+                "StructConstruct for MIR struct {} requires a declared representation",
+                struct_id.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::RawStructConstructResultType { struct_id, actual } => write!(
+                formatter,
+                "StructConstruct for MIR struct {} must produce that exact struct type, got {actual:?}",
+                struct_id.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::RawStructConstructArity {
+                struct_id,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "StructConstruct for MIR struct {} requires {expected} fields, got {actual}",
+                struct_id.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::RawStructConstructFieldType {
+                struct_id,
+                field,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "StructConstruct for MIR struct {} field {field} must have type {expected:?}, got {actual:?}",
+                struct_id.into_raw().into_u32()
+            ),
             MirValidationErrorKind::InvalidVariantReference { operation, error } => {
                 write!(formatter, "{} carries {error}", operation.name())
             }
@@ -118,7 +173,8 @@ impl Module {
     }
 }
 
-/// Validate the representation-independent MIR enum primitives in every body.
+/// Validate representation-independent enum primitives and compiler-only raw
+/// aggregate construction in every body.
 ///
 /// A matching dominance proof is deliberately tied to an immutable local id,
 /// not to printed or structural expression equality. Producers must materialize
@@ -137,7 +193,7 @@ fn validate_body(
 ) -> Result<(), MirValidationError> {
     for (block, definition) in body.blocks.iter() {
         try_visit_block_exprs(definition, &mut |expr| {
-            validate_variant_shape(module, expr).map_err(|kind| MirValidationError {
+            validate_expression_shape(module, expr).map_err(|kind| MirValidationError {
                 function,
                 block,
                 kind,
@@ -178,8 +234,49 @@ fn validate_body(
     Ok(())
 }
 
-fn validate_variant_shape(module: &Module, expr: &Expr) -> Result<(), MirValidationErrorKind> {
+fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirValidationErrorKind> {
     match &expr.kind {
+        ExprKind::StructConstruct { struct_id, fields } => {
+            let index = struct_id.into_raw().into_u32() as usize;
+            if index >= module.structs.len() {
+                return Err(MirValidationErrorKind::InvalidStructReference {
+                    struct_id: *struct_id,
+                });
+            }
+            if expr.ty != Type::Struct(*struct_id) {
+                return Err(MirValidationErrorKind::RawStructConstructResultType {
+                    struct_id: *struct_id,
+                    actual: expr.ty.clone(),
+                });
+            }
+            let StructRepresentation::Declared {
+                fields: expected_fields,
+                ..
+            } = &module.structs[*struct_id].representation
+            else {
+                return Err(MirValidationErrorKind::RawStructConstructRequiresDeclared {
+                    struct_id: *struct_id,
+                });
+            };
+            if fields.len() != expected_fields.len() {
+                return Err(MirValidationErrorKind::RawStructConstructArity {
+                    struct_id: *struct_id,
+                    expected: expected_fields.len(),
+                    actual: fields.len(),
+                });
+            }
+            for (index, (field, expected)) in fields.iter().zip(expected_fields.iter()).enumerate()
+            {
+                if field.ty != expected.ty {
+                    return Err(MirValidationErrorKind::RawStructConstructFieldType {
+                        struct_id: *struct_id,
+                        field: index as u32,
+                        expected: expected.ty.clone(),
+                        actual: field.ty.clone(),
+                    });
+                }
+            }
+        }
         ExprKind::VariantTest { operand, variant } => {
             variant.definition(&module.enums).map_err(|error| {
                 MirValidationErrorKind::InvalidVariantReference {

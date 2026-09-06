@@ -1,0 +1,11 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-copy-update/errors/field-resolution.scoop:22:27: error: struct `Pair` has no field `missing`
+m22-copy-update/errors/field-resolution.scoop:27:36: error: copy update field `left` is specified more than once
+m22-copy-update/errors/field-resolution.scoop:32:33: error: copy update field `left` expects Int, found String
+m22-copy-update/errors/field-resolution.scoop:37:19: error: copy update of enum `Ambiguous` is ambiguous between variants `First`, `Second`; use `when` to rebuild the intended variant explicitly
+m22-copy-update/errors/field-resolution.scoop:42:19: error: enum `CrossVariant` has no named-payload variant containing all copy-update fields: `left`, `right`
+m22-copy-update/errors/field-resolution.scoop:47:19: error: enum `NoMatch` has no named-payload variant containing all copy-update fields: `absent`

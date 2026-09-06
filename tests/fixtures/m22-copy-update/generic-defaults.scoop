@@ -1,0 +1,61 @@
+// EXPECT-COMPILE
+
+struct Box<T>(val value: T, val label: String)
+
+enum Cell<T> {
+    Full { value: T, label: String },
+    Empty
+}
+
+typealias TextBox = Box<String>
+
+fun <T> replaceBox(box: Box<T>, value: T): Box<T> = box.{ value: value }
+
+fun <T> replaceCell(cell: Cell<T>, value: T): Cell<T> = cell.{ value: value }
+
+fun replaceAlias(box: TextBox): TextBox = box.{ value: "alias" }
+
+fun defaultCell(
+    cell: Cell<String> = Cell.Full(
+        value = "before-default",
+        label = "default-label"
+    ).{ value: "after-default" }
+): Cell<String> = cell
+
+fun printIntCell(cell: Cell<Int>) {
+    when (cell) {
+        Full { value, label } -> {
+            println(value)
+            println(label)
+        }
+        Empty -> println("empty")
+    }
+}
+
+fun printTextCell(cell: Cell<String>) {
+    when (cell) {
+        Full { value, label } -> {
+            println(value)
+            println(label)
+        }
+        Empty -> println("empty")
+    }
+}
+
+fun main() {
+    val intBox = replaceBox(Box(1, "int"), 2)
+    val textBox = replaceBox(Box("before", "text"), "after")
+    val aliasBox = replaceAlias(TextBox("before-alias", "alias-label"))
+    println(intBox.value)
+    println(intBox.label)
+    println(textBox.value)
+    println(textBox.label)
+    println(aliasBox.value)
+    println(aliasBox.label)
+
+    val intCell: Cell<Int> = Cell.Full(value = 3, label = "int-cell")
+    val textCell: Cell<String> = Cell.Full(value = "old", label = "text-cell")
+    printIntCell(replaceCell(intCell, 4))
+    printTextCell(replaceCell(textCell, "new"))
+    printTextCell(defaultCell())
+}

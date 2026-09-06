@@ -156,6 +156,13 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(element, target, target_captures);
             }
         }
+        hir::ExprKind::StructConstruct {
+            fields: elements, ..
+        } => {
+            for element in elements {
+                patch_local_function_call_expr(element, target, target_captures);
+            }
+        }
         hir::ExprKind::ArrayAssembly(assembly) => {
             for part in &mut assembly.parts {
                 match part {
@@ -167,6 +174,12 @@ fn patch_local_function_call_expr(
             }
         }
         hir::ExprKind::FieldAccess { receiver, .. }
+        | hir::ExprKind::VariantTest {
+            operand: receiver, ..
+        }
+        | hir::ExprKind::VariantPayloadProject {
+            operand: receiver, ..
+        }
         | hir::ExprKind::ForeignCallbackRegister {
             closure: receiver, ..
         }

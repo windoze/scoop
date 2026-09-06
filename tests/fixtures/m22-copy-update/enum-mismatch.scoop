@@ -1,0 +1,25 @@
+// EXPECT-COMPILE
+
+enum Event {
+    Data { code: Int, text: String },
+    Other { code: Int }
+}
+
+fun makeEvent(): Event {
+    println("mismatch-base")
+    return Event.Other(code = 7)
+}
+
+fun shouldNotRun(): String {
+    println("rhs-ran")
+    return "new"
+}
+
+fun main() {
+    try {
+        val changed = makeEvent().{ text: shouldNotRun() }
+        println("unexpected-success")
+    } catch (error: IllegalStateException) {
+        println(error.message!!)
+    }
+}

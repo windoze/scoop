@@ -175,6 +175,10 @@ pub enum ExprKind {
         struct_id: StructId,
         args: Vec<Expr>,
     },
+    StructConstruct {
+        struct_id: StructId,
+        fields: Vec<Expr>,
+    },
     StructConstructorCall {
         constructor: StructConstructorId,
         args: Vec<Expr>,
@@ -193,9 +197,16 @@ pub enum ExprKind {
     ConstructorReceiver,
     ConstructorParam(ConstructorParamId),
     VariantConstruct {
-        enum_id: EnumId,
-        variant: VariantId,
+        variant: EnumVariantRef,
         args: Vec<Expr>,
+    },
+    VariantTest {
+        operand: Box<Expr>,
+        variant: EnumVariantRef,
+    },
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: EnumVariantFieldRef,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
@@ -354,7 +365,7 @@ pub enum Place {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    StructField { struct_id: StructId, index: u32 },
+    StructField(StructFieldRef),
     TupleIndex(u32),
     ClassField { class_id: ClassId, index: u32 },
 }

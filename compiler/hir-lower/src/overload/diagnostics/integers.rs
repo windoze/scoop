@@ -163,6 +163,15 @@ fn collect_integer_literal_kinds(
                 collect_integer_literal_kinds(lowerer, argument, kinds);
             }
         }
+        hir::ExprKind::StructConstruct { fields, .. } => {
+            for field in fields {
+                collect_integer_literal_kinds(lowerer, field, kinds);
+            }
+        }
+        hir::ExprKind::VariantTest { operand, .. }
+        | hir::ExprKind::VariantPayloadProject { operand, .. } => {
+            collect_integer_literal_kinds(lowerer, operand, kinds);
+        }
         hir::ExprKind::MethodCall { receiver, args, .. } => {
             collect_integer_literal_kinds(lowerer, receiver, kinds);
             for argument in args {

@@ -214,6 +214,12 @@ pub enum ExprKind {
         constructor: StructConstructorApplicationId,
         args: Vec<Expr>,
     },
+    /// Compiler-only raw struct reconstruction in declaration field order.
+    /// Unlike `StructInit`, this never invokes a source constructor.
+    StructConstruct {
+        application: StructApplicationId,
+        fields: Vec<Expr>,
+    },
     /// Class instantiation `Point(1, 2)`: constructor properties in
     /// declaration order. Base-class delegation is part of the
     /// generated constructor (see mir-lower).
@@ -230,9 +236,16 @@ pub enum ExprKind {
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        application: EnumApplicationId,
-        variant: u32,
+        variant: AppliedEnumVariantRef,
         args: Vec<Expr>,
+    },
+    VariantTest {
+        operand: Box<Expr>,
+        variant: AppliedEnumVariantRef,
+    },
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: AppliedEnumVariantFieldRef,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
@@ -484,10 +497,7 @@ pub enum Place {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
     /// Field `index` of one complete struct application.
-    StructField {
-        application: StructApplicationId,
-        index: u32,
-    },
+    StructField(AppliedStructFieldRef),
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
     /// Source field of one complete declaring-class application. Layout is a

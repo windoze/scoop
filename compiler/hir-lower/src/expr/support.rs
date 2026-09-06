@@ -197,6 +197,7 @@ impl Lowerer {
                 ast::Expr::StructInit { args, .. } | ast::Expr::MethodCall { args, .. } => {
                     args.iter().map(|arg| &arg.expression).collect()
                 }
+                ast::Expr::CopyUpdate { base, .. } => vec![base],
                 _ => Vec::new(),
             };
             children.into_iter().filter_map(nested_rank).max()

@@ -172,6 +172,15 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
+            ExprKind::StructConstruct { fields, .. } => {
+                for field in fields {
+                    self.collect_no_gc_expr_violations(field, out, requirements);
+                }
+            }
+            ExprKind::VariantTest { operand, .. }
+            | ExprKind::VariantPayloadProject { operand, .. } => {
+                self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
             ExprKind::ClassInit { args, .. } => {
                 out.push((
                     expr.span,

@@ -507,13 +507,14 @@ impl Lowerer {
                         };
                         let ty = fields[index].ty;
                         let ty = self.instantiate_ty(ty, &application_value.arguments);
-                        Some((
-                            hir::FieldRef::StructField {
-                                application,
-                                index: index as u32,
-                            },
-                            ty,
-                        ))
+                        let field = hir::AppliedStructFieldRef::checked(
+                            &self.structs,
+                            &self.struct_applications,
+                            application,
+                            index as u32,
+                        )
+                        .expect("the selected semantic struct field is in range");
+                        Some((hir::FieldRef::StructField(field), ty))
                     }
                     ast::FieldSelector::Index(index, span) => {
                         self.error(

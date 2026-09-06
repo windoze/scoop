@@ -836,11 +836,8 @@ impl Lowerer {
                 let constructor = self.class_constructor_applications[application].constructor;
                 self.class_constructors[constructor].access.lookup.0.clone()
             }
-            hir::ExportDefaultConstructorTarget::Variant {
-                application,
-                variant: _,
-            } => {
-                let enumeration = self.enum_applications[application].template;
+            hir::ExportDefaultConstructorTarget::Variant(variant) => {
+                let enumeration = self.enum_applications[variant.application()].template;
                 self.enums[enumeration].access.lookup.0.clone()
             }
         }
@@ -854,8 +851,8 @@ impl Lowerer {
                 .lookup
                 .0
                 .clone(),
-            hir::FieldRef::StructField { application, .. } => {
-                let owner = self.struct_applications[application].template;
+            hir::FieldRef::StructField(field) => {
+                let owner = self.struct_applications[field.application()].template;
                 self.structs[owner].access.lookup.0.clone()
             }
             hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),

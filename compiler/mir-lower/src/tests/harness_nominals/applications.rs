@@ -50,6 +50,22 @@ impl Harness {
         application
     }
 
+    pub(in crate::tests) fn struct_field_ref(
+        &self,
+        application: hir::StructApplicationId,
+        index: u32,
+    ) -> hir::FieldRef {
+        hir::FieldRef::StructField(
+            hir::AppliedStructFieldRef::checked(
+                &self.structs,
+                &self.struct_applications,
+                application,
+                index,
+            )
+            .expect("test field index belongs to the applied declared struct"),
+        )
+    }
+
     pub(in crate::tests) fn enum_application_of(&self, ty: hir::TypeId) -> hir::EnumApplicationId {
         let hir::Type::Enum(application) = self.types[ty] else {
             panic!("expected an enum application type")

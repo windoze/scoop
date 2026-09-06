@@ -323,6 +323,10 @@ pub(crate) enum ExprKind {
         struct_id: mir::StructId,
         args: Vec<Expr>,
     },
+    StructConstruct {
+        struct_id: mir::StructId,
+        fields: Vec<Expr>,
+    },
     ClassNew {
         class_id: mir::ClassId,
         initializer: mir::FunctionId,

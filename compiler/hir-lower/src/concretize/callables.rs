@@ -417,13 +417,9 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
-            export::FieldRef::StructField { application, index } => {
-                let concrete_id = self.lower_struct_application(application, substitution);
-                concrete::FieldRef::StructField {
-                    struct_id: concrete_id,
-                    index,
-                }
-            }
+            export::FieldRef::StructField(field) => concrete::FieldRef::StructField(
+                self.lower_applied_struct_field_ref(field, substitution),
+            ),
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),
             export::FieldRef::ClassField { application, field } => {
                 let concrete_id = self.lower_class_application(application, substitution);
@@ -434,6 +430,37 @@ impl Concretizer<'_> {
                 }
             }
         }
+    }
+
+    pub(super) fn lower_applied_struct_field_ref(
+        &mut self,
+        source: export::AppliedStructFieldRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::StructFieldRef {
+        let structure = self.lower_struct_application(source.application(), substitution);
+        concrete::StructFieldRef::checked(&self.structs, structure, source.local_index())
+            .expect("a checked applied struct field concretizes to the same declared field")
+    }
+
+    pub(super) fn lower_applied_enum_variant_ref(
+        &mut self,
+        source: export::AppliedEnumVariantRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::EnumVariantRef {
+        let enumeration = self.lower_enum_application(source.application(), substitution);
+        let variant = concrete::VariantId::from_raw(source.local_index());
+        concrete::EnumVariantRef::checked(&self.enums, enumeration, variant)
+            .expect("a checked applied enum variant concretizes to the same variant")
+    }
+
+    pub(super) fn lower_applied_enum_variant_field_ref(
+        &mut self,
+        source: export::AppliedEnumVariantFieldRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::EnumVariantFieldRef {
+        let variant = self.lower_applied_enum_variant_ref(source.variant(), substitution);
+        concrete::EnumVariantFieldRef::checked(&self.enums, variant, source.local_index())
+            .expect("a checked applied enum field concretizes to the same payload field")
     }
 
     pub(super) fn source_class_field_layout_index(&self, field: export::ClassFieldId) -> u32 {

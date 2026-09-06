@@ -36,6 +36,16 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+            export::ExprKind::StructConstruct {
+                application,
+                fields,
+            } => concrete::ExprKind::StructConstruct {
+                struct_id: self.lower_struct_application(*application, substitution),
+                fields: fields
+                    .iter()
+                    .map(|field| self.lower_expr(field, substitution, locals))
+                    .collect(),
+            },
             export::ExprKind::ClassInit { constructor, args } => {
                 let constructor =
                     self.lower_class_constructor_application(*constructor, substitution);
@@ -50,19 +60,23 @@ impl Concretizer<'_> {
             export::ExprKind::ConstructorParam(parameter) => concrete::ExprKind::ConstructorParam(
                 concrete::ConstructorParamId::from_raw(parameter.into_raw()),
             ),
-            export::ExprKind::VariantConstruct {
-                application,
-                variant,
-                args,
-            } => {
-                let id = self.lower_enum_application(*application, substitution);
+            export::ExprKind::VariantConstruct { variant, args } => {
                 concrete::ExprKind::VariantConstruct {
-                    enum_id: id,
-                    variant: concrete::VariantId::from_raw(*variant),
+                    variant: self.lower_applied_enum_variant_ref(*variant, substitution),
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))
                         .collect(),
+                }
+            }
+            export::ExprKind::VariantTest { operand, variant } => concrete::ExprKind::VariantTest {
+                operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                variant: self.lower_applied_enum_variant_ref(*variant, substitution),
+            },
+            export::ExprKind::VariantPayloadProject { operand, field } => {
+                concrete::ExprKind::VariantPayloadProject {
+                    operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                    field: self.lower_applied_enum_variant_field_ref(*field, substitution),
                 }
             }
             export::ExprKind::Local(local) => {
@@ -214,6 +228,9 @@ impl Concretizer<'_> {
                     self.source.struct_applications[*application].canonical_type,
                     substitution,
                 );
+                let structure = self.lower_struct_application(*application, substitution);
+                let field = concrete::StructFieldRef::checked(&self.structs, structure, *index)
+                    .expect("an initializing struct field remains in range");
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
@@ -221,10 +238,7 @@ impl Concretizer<'_> {
                         span: source.span,
                         origin: source.origin.concrete(),
                     }),
-                    field: concrete::FieldRef::StructField {
-                        struct_id: self.lower_struct_application(*application, substitution),
-                        index: *index,
-                    },
+                    field: concrete::FieldRef::StructField(field),
                 }
             }
             export::ExprKind::MethodCall {

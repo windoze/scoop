@@ -29,7 +29,7 @@ fn qualified_variant_construction_in_method_call_shape() {
     let main = body_of(&module, "main");
     match &local_init(main, "s").kind {
         hir::ExprKind::VariantConstruct { variant, args, .. } => {
-            assert_eq!(*variant, 0);
+            assert_eq!(variant.local_index(), 0);
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].ty, int_type(&module));
             assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
@@ -41,9 +41,11 @@ fn qualified_variant_construction_in_method_call_shape() {
         .iter()
         .filter_map(|statement| match &statement.kind {
             hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-                hir::ExprKind::VariantConstruct {
-                    variant: 1, args, ..
-                } => Some(args),
+                hir::ExprKind::VariantConstruct { variant, args, .. }
+                    if variant.local_index() == 1 =>
+                {
+                    Some(args)
+                }
                 _ => None,
             },
             _ => None,
@@ -74,8 +76,8 @@ fn qualified_generic_variant_infers_type_arguments() {
     let module = lower_user(file).expect("generic variant construction must lower");
     let main = body_of(&module, "main");
     match &local_init(main, "b").kind {
-        hir::ExprKind::VariantConstruct { application, .. } => {
-            let arguments = &module.enum_applications[*application].arguments;
+        hir::ExprKind::VariantConstruct { variant, .. } => {
+            let arguments = &module.enum_applications[variant.application()].arguments;
             assert_eq!(arguments.len(), 1);
             assert_eq!(
                 module.types[arguments[0]],

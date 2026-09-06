@@ -1,0 +1,44 @@
+// EXPECT-DIAGNOSTICS
+
+class ReferenceValue(val value: Int)
+
+fun answer(): Int = 42
+
+fun classTarget() {
+    val value = ReferenceValue(1)
+    val invalid = value.{ value: 2 }
+}
+
+fun tupleTarget() {
+    val value = (1, 2)
+    val invalid = value.{ _1: 3 }
+}
+
+fun basicTarget() {
+    val invalid = 1.{ value: 2 }
+}
+
+fun arrayTarget() {
+    val value = [1, 2]
+    val invalid = value.{ size: 3 }
+}
+
+fun functionTarget() {
+    val value: () -> Int = ::answer
+    val invalid = value.{ result: 3 }
+}
+
+fun optionTarget() {
+    val value: Int? = Some(1)
+    val invalid = value.{ value: 2 }
+}
+
+fun pointerTarget(value: Ptr<Int>) {
+    val invalid = value.{ raw: 1uL }
+}
+
+fun functionPointerTarget(value: FunPtr<() -> Int>) {
+    val invalid = value.{ raw: 1uL }
+}
+
+fun main() {}

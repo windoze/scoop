@@ -163,6 +163,57 @@ fn formatting_helpers_are_ordinary_extern_calls() {
     );
 }
 
+#[test]
+fn raw_struct_construction_reaches_mir_without_a_constructor_call() {
+    let mut h = Harness::new();
+    let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
+    let point_ty = h.struct_ty(point);
+    let application = h.struct_application_of(point_ty);
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", point_ty));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![val_decl(
+                value,
+                expr(
+                    hir::ExprKind::StructConstruct {
+                        application,
+                        fields: vec![int_lit(&h, 20), int_lit(&h, 10)],
+                    },
+                    point_ty,
+                ),
+            )],
+        },
+    );
+
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let statements = entry_statements(&module.functions[module.entry].body);
+    assert!(matches!(
+        statements,
+        [mir::Statement {
+            kind: mir::StatementKind::ValDecl {
+                init: mir::Expr {
+                    kind: mir::ExprKind::StructConstruct { struct_id, fields },
+                    ..
+                },
+                ..
+            },
+            ..
+        }] if *struct_id == mir::StructId::from_raw(point.into_raw()) && fields.len() == 2
+    ));
+    assert!(
+        statements
+            .iter()
+            .all(|statement| !matches!(statement.kind, mir::StatementKind::Call(_))),
+        "raw reconstruction must not call a source constructor"
+    );
+    let dump = dump(&module);
+    assert!(dump.contains("StructConstruct Point"), "{dump}");
+}
+
 // ---- M9: GC intrinsics and generic structs ----
 
 /// The source-level bodies of `pin` / `unpin` / handle operations after
@@ -209,10 +260,7 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
                         vec![expr(
                             hir::ExprKind::FieldAccess {
                                 receiver: Box::new(local_ref(ph, pinned_ptr_s)),
-                                field: hir::FieldRef::StructField {
-                                    application: pinned_ptr_s_application,
-                                    index: 0,
-                                },
+                                field: h.struct_field_ref(pinned_ptr_s_application, 0),
                             },
                             ulong,
                         )],
@@ -234,10 +282,7 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
                         vec![expr(
                             hir::ExprKind::FieldAccess {
                                 receiver: Box::new(local_ref(gh, gc_handle_s)),
-                                field: hir::FieldRef::StructField {
-                                    application: gc_handle_s_application,
-                                    index: 0,
-                                },
+                                field: h.struct_field_ref(gc_handle_s_application, 0),
                             },
                             ulong,
                         )],

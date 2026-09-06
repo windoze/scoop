@@ -154,6 +154,15 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
+        ExprKind::StructConstruct {
+            application,
+            fields,
+        } => {
+            out.push(lowerer.struct_applications[*application].canonical_type);
+            for field in fields {
+                collect_expr_types(lowerer, field, out);
+            }
+        }
         ExprKind::ClassInit { constructor, args } => {
             let application = lowerer.class_constructor_applications[*constructor].owner;
             out.push(lowerer.class_applications[application].canonical_type);
@@ -161,13 +170,19 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::VariantConstruct {
-            application, args, ..
-        } => {
-            out.push(lowerer.enum_applications[*application].canonical_type);
+        ExprKind::VariantConstruct { variant, args } => {
+            out.push(lowerer.enum_applications[variant.application()].canonical_type);
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }
+        }
+        ExprKind::VariantTest { operand, variant } => {
+            out.push(lowerer.enum_applications[variant.application()].canonical_type);
+            collect_expr_types(lowerer, operand, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            out.push(lowerer.enum_applications[field.variant().application()].canonical_type);
+            collect_expr_types(lowerer, operand, out);
         }
         ExprKind::ArrayAssembly(assembly) => {
             out.push(assembly.element_type);
@@ -489,8 +504,8 @@ pub(in super::super) fn collect_field_ref_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     match field {
-        hir::FieldRef::StructField { application, .. } => {
-            out.push(lowerer.struct_applications[application].canonical_type);
+        hir::FieldRef::StructField(field) => {
+            out.push(lowerer.struct_applications[field.application()].canonical_type);
         }
         hir::FieldRef::ClassField { application, .. } => {
             out.push(lowerer.class_applications[application].canonical_type);

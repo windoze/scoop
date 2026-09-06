@@ -185,10 +185,7 @@ fn field_access_uses_zero_based_indices() {
                     expr(
                         hir::ExprKind::FieldAccess {
                             receiver: Box::new(local_ref(p, point_ty)),
-                            field: hir::FieldRef::StructField {
-                                application: point_application,
-                                index: 1,
-                            },
+                            field: h.struct_field_ref(point_application, 1),
                         },
                         h.int,
                     ),

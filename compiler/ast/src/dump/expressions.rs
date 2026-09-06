@@ -93,6 +93,15 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}FieldAccess {marker}{selector}\n"));
             dump_expr(&access.receiver, indent + 1, out);
         }
+        Expr::CopyUpdate { base, fields, .. } => {
+            out.push_str(&format!("{pad}CopyUpdate\n"));
+            out.push_str(&format!("{pad}  base\n"));
+            dump_expr(base, indent + 2, out);
+            for field in fields.iter() {
+                out.push_str(&format!("{pad}  field {}\n", field.field.text));
+                dump_expr(&field.value, indent + 2, out);
+            }
+        }
         Expr::Call(call) => {
             let type_args = dump_call_type_args(&call.type_args);
             out.push_str(&format!("{pad}Call {}{type_args}\n", call.callee.text));

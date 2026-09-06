@@ -328,6 +328,7 @@ impl Lowerer {
             }
             ast::Expr::Var(name) => self.bare_value_requires_expected(name),
             ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
+            ast::Expr::CopyUpdate { base, .. } => self.expr_requires_expected_type(base),
             ast::Expr::TupleLiteral { elements, .. } => {
                 elements.is_empty()
                     || elements
@@ -460,6 +461,7 @@ impl Lowerer {
             ast::Expr::StructInit { name, args, .. } => {
                 self.constructor_can_provide_default_seed(name, args)
             }
+            ast::Expr::CopyUpdate { base, .. } => self.expr_can_provide_default_seed(base),
             ast::Expr::MethodCall {
                 receiver,
                 name,

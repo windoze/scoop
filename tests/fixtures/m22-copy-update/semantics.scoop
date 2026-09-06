@@ -1,0 +1,98 @@
+// EXPECT-COMPILE
+
+fun traceInt(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun traceText(label: String, value: String): String {
+    println(label)
+    return value
+}
+
+struct Point(val x: Int, val y: Int)
+
+fun tracePoint(value: Point): Point {
+    println("base")
+    return value
+}
+
+fun defaultMarker(): String {
+    println("default-marker")
+    return "marker"
+}
+
+struct Stamped(val value: Int, val marker: String = defaultMarker())
+
+enum NamedEvent {
+    Data { code: Int, text: String },
+    Empty
+}
+
+enum ConstructorEvent {
+    Payload(val count: Int, val label: String),
+    Empty
+}
+
+class Token(val text: String)
+
+enum NicheEvent {
+    Present { token: Token },
+    Empty
+}
+
+fun printNamed(value: NamedEvent) {
+    when (value) {
+        Data { code, text } -> {
+            println(code)
+            println(text)
+        }
+        Empty -> println("empty")
+    }
+}
+
+fun printConstructor(value: ConstructorEvent) {
+    when (value) {
+        Payload(count, label) -> {
+            println(count)
+            println(label)
+        }
+        Empty -> println("empty")
+    }
+}
+
+fun main() {
+    val original = Point(1, 2)
+    val changed = tracePoint(original).{
+        y: traceInt("rhs-y", 20),
+        x: traceInt("rhs-x", 10)
+    }
+    println(original.x)
+    println(original.y)
+    println(changed.x)
+    println(changed.y)
+
+    val stamped = Stamped(3)
+    val restamped = stamped.{ value: 4 }
+    println(stamped.marker)
+    println(restamped.marker)
+
+    val named: NamedEvent = NamedEvent.Data(code = 5, text = "old")
+    val namedChanged = named.{ text: traceText("named-rhs", "new") }
+    printNamed(named)
+    printNamed(namedChanged)
+
+    val constructor: ConstructorEvent = ConstructorEvent.Payload(6, "before")
+    val constructorChanged = constructor.{
+        label: traceText("constructor-rhs", "after")
+    }
+    printConstructor(constructor)
+    printConstructor(constructorChanged)
+
+    val niche: NicheEvent = NicheEvent.Present(token = Token("niche-before"))
+    val nicheChanged = niche.{ token: Token("niche-after") }
+    when (nicheChanged) {
+        Present { token } -> println(token.text)
+        Empty -> println("empty")
+    }
+}

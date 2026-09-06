@@ -139,11 +139,7 @@ impl Lowerer {
             return None;
         }
 
-        let ExprKind::VariantConstruct {
-            application,
-            variant,
-            args,
-        } = &materialized_source(&mode, sink).kind
+        let ExprKind::VariantConstruct { variant, args } = &materialized_source(&mode, sink).kind
         else {
             self.error(
                 mode.span,
@@ -151,9 +147,9 @@ impl Lowerer {
             );
             return None;
         };
-        if self.enum_applications[*application].template != core.mode
+        if self.enum_applications[variant.application()].template != core.mode
             || !args.is_empty()
-            || *variant > 1
+            || variant.local_index() > 1
         {
             self.error(
                 mode.span,
@@ -161,7 +157,7 @@ impl Lowerer {
             );
             return None;
         }
-        let mode = if *variant == 0 {
+        let mode = if variant.local_index() == 0 {
             hir::ForeignCallbackMode::Reusable
         } else {
             hir::ForeignCallbackMode::OneShot

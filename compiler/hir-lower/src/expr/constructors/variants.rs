@@ -48,10 +48,12 @@ impl Lowerer {
             }
         };
         let application = self.enum_application_id(enum_id, type_args);
+        let variant =
+            hir::AppliedEnumVariantRef::checked(&self.enum_applications, application, target)
+                .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                application,
                 variant,
                 args: Vec::new(),
             },
@@ -154,10 +156,12 @@ impl Lowerer {
         );
 
         let application = self.enum_application_id(enum_id, type_args);
+        let variant =
+            hir::AppliedEnumVariantRef::checked(&self.enum_applications, application, target)
+                .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                application,
                 variant,
                 args: lowered,
             },

@@ -41,6 +41,13 @@ impl<'a> FunctionLowerer<'a> {
                 let args: Vec<lir::Value> = args.iter().map(|arg| self.lower_expr(arg)).collect();
                 self.make_aggregate(ty, args)
             }
+            mir::ExprKind::StructConstruct { struct_id, fields } => {
+                let field_count = self.module.structs[*struct_id].declared_fields().len();
+                assert_eq!(fields.len(), field_count, "raw struct construction arity");
+                let fields: Vec<lir::Value> =
+                    fields.iter().map(|field| self.lower_expr(field)).collect();
+                self.make_aggregate(ty, fields)
+            }
             // Exact class allocation. The allocator returns only after the
             // complete payload has been zeroed and registered for precise
             // scanning; typed initializer calls perform all field stores.

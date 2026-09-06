@@ -18,6 +18,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 elements: values, ..
             }
             | mir::ExprKind::StructInit { args: values, .. }
+            | mir::ExprKind::StructConstruct { fields: values, .. }
             | mir::ExprKind::ClosureAlloc {
                 captures: values, ..
             }

@@ -47,10 +47,15 @@ impl Lowerer {
                 let mut comparisons = Vec::with_capacity(fields.len());
                 for (index, field) in fields.into_iter().enumerate() {
                     let field_ty = self.instantiate_ty(field.ty, &value.arguments);
-                    let field_ref = hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    };
+                    let field_ref = hir::FieldRef::StructField(
+                        hir::AppliedStructFieldRef::checked(
+                            &self.structs,
+                            &self.struct_applications,
+                            application,
+                            index as u32,
+                        )
+                        .expect("a derived struct field is declared by its application"),
+                    );
                     let left = self.field_expr(this_expr.clone(), field_ref, field_ty, span);
                     let right = self.field_expr(other_expr.clone(), field_ref, field_ty, span);
                     let path = format!("{}.{}", self.structs[value.template].name, field.name);

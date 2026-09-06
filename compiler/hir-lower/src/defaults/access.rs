@@ -254,11 +254,15 @@ impl ReferenceCollector<'_> {
                 variant,
                 fields,
             } => {
+                let variant = hir::AppliedEnumVariantRef::checked_index(
+                    &self.lowerer.enums,
+                    &self.lowerer.enum_applications,
+                    *application,
+                    *variant,
+                )
+                .expect("a resolved pattern variant belongs to its exact application");
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Variant {
-                        application: *application,
-                        variant: *variant,
-                    },
+                    hir::ExportDefaultConstructorTarget::Variant(variant),
                     self.fallback_origin,
                 );
                 for (_, field) in fields {
@@ -305,6 +309,7 @@ impl ReferenceCollector<'_> {
                 );
                 self.expressions(args);
             }
+            hir::ExprKind::StructConstruct { fields, .. } => self.expressions(fields),
             hir::ExprKind::ClassInit { constructor, args } => {
                 self.constructor(
                     hir::ExportDefaultConstructorTarget::Class(*constructor),
@@ -312,20 +317,15 @@ impl ReferenceCollector<'_> {
                 );
                 self.expressions(args);
             }
-            hir::ExprKind::VariantConstruct {
-                application,
-                variant,
-                args,
-            } => {
+            hir::ExprKind::VariantConstruct { variant, args } => {
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Variant {
-                        application: *application,
-                        variant: *variant,
-                    },
+                    hir::ExportDefaultConstructorTarget::Variant(*variant),
                     origin,
                 );
                 self.expressions(args);
             }
+            hir::ExprKind::VariantTest { operand, .. }
+            | hir::ExprKind::VariantPayloadProject { operand, .. } => self.expression(operand),
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
             hir::ExprKind::SingletonValue(value) => self.singleton_value(*value, origin),
             hir::ExprKind::Lambda(lambda) => {

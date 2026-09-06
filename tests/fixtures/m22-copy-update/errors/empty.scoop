@@ -1,0 +1,8 @@
+// EXPECT-DIAGNOSTICS
+
+struct Value(val field: Int)
+
+fun main() {
+    val value = Value(1)
+    val invalid = value.{}
+}

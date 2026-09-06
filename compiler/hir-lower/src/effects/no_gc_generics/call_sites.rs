@@ -418,6 +418,15 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
+            ExprKind::StructConstruct { fields, .. } => {
+                for field in fields {
+                    self.collect_generic_calls_in_expr(field, out);
+                }
+            }
+            ExprKind::VariantTest { operand, .. }
+            | ExprKind::VariantPayloadProject { operand, .. } => {
+                self.collect_generic_calls_in_expr(operand, out);
+            }
             ExprKind::CallableReference(reference) => {
                 let reference = &self.callable_references[*reference];
                 match &reference.target {

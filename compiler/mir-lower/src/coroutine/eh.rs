@@ -148,6 +148,9 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
         mir::ExprKind::TupleLiteral(elements)
         | mir::ExprKind::ArrayLiteral { elements, .. }
         | mir::ExprKind::StructInit { args: elements, .. }
+        | mir::ExprKind::StructConstruct {
+            fields: elements, ..
+        }
         | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }

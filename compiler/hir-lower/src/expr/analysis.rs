@@ -103,6 +103,12 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
             .iter()
             .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
+        ast::Expr::CopyUpdate { base, fields, .. } => {
+            expr_contains_return(base)
+                || fields
+                    .iter()
+                    .any(|field| expr_contains_return(&field.value))
+        }
         ast::Expr::Call(call) => call
             .args
             .iter()

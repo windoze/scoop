@@ -249,6 +249,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         mir::ExprKind::TupleLiteral(elements)
         | mir::ExprKind::ArrayLiteral { elements, .. }
         | mir::ExprKind::StructInit { args: elements, .. }
+        | mir::ExprKind::StructConstruct {
+            fields: elements, ..
+        }
         | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }

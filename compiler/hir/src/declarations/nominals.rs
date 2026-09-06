@@ -173,6 +173,9 @@ pub struct EnumVariantRef {
 
 impl EnumVariantRef {
     pub fn checked(enums: &Arena<EnumDecl>, enumeration: EnumId, local_index: u32) -> Option<Self> {
+        if enumeration.into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
         enums[enumeration]
             .variants
             .get(local_index as usize)
@@ -184,6 +187,137 @@ impl EnumVariantRef {
 
     pub const fn enumeration(self) -> EnumId {
         self.enumeration
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
+}
+
+/// Exact export-side identity of one variant of one enum application.
+/// Keeping the application and its checked declaration-local variant in one
+/// value prevents generic applications from being paired with another
+/// template's variant index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AppliedEnumVariantRef {
+    application: EnumApplicationId,
+    declaration: EnumVariantRef,
+}
+
+impl AppliedEnumVariantRef {
+    pub fn checked(
+        applications: &Arena<EnumApplication>,
+        application: EnumApplicationId,
+        declaration: EnumVariantRef,
+    ) -> Option<Self> {
+        if application.into_raw().into_u32() as usize >= applications.len() {
+            return None;
+        }
+        (applications[application].template == declaration.enumeration()).then_some(Self {
+            application,
+            declaration,
+        })
+    }
+
+    pub fn checked_index(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        application: EnumApplicationId,
+        local_index: u32,
+    ) -> Option<Self> {
+        if application.into_raw().into_u32() as usize >= applications.len() {
+            return None;
+        }
+        let declaration =
+            EnumVariantRef::checked(enums, applications[application].template, local_index)?;
+        Self::checked(applications, application, declaration)
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.application
+    }
+
+    pub const fn declaration(self) -> EnumVariantRef {
+        self.declaration
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.declaration.local_index()
+    }
+}
+
+/// Exact export-side identity of one field of one applied enum variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AppliedEnumVariantFieldRef {
+    variant: AppliedEnumVariantRef,
+    local_index: u32,
+}
+
+impl AppliedEnumVariantFieldRef {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        variant: AppliedEnumVariantRef,
+        local_index: u32,
+    ) -> Option<Self> {
+        if variant.declaration().enumeration().into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        let declaration = variant.declaration();
+        let enumeration = &enums[declaration.enumeration()];
+        let declared_variant = enumeration
+            .variants
+            .get(declaration.local_index() as usize)?;
+        declared_variant
+            .fields
+            .get(local_index as usize)
+            .map(|_| Self {
+                variant,
+                local_index,
+            })
+    }
+
+    pub const fn variant(self) -> AppliedEnumVariantRef {
+        self.variant
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
+}
+
+/// Exact export-side identity of one source-visible field of one struct
+/// application. Intrinsic struct representations cannot construct this ref.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AppliedStructFieldRef {
+    application: StructApplicationId,
+    local_index: u32,
+}
+
+impl AppliedStructFieldRef {
+    pub fn checked(
+        structs: &Arena<StructDecl>,
+        applications: &Arena<StructApplication>,
+        application: StructApplicationId,
+        local_index: u32,
+    ) -> Option<Self> {
+        if application.into_raw().into_u32() as usize >= applications.len() {
+            return None;
+        }
+        let structure = applications[application].template;
+        if structure.into_raw().into_u32() as usize >= structs.len() {
+            return None;
+        }
+        structs[structure]
+            .semantic_fields()
+            .get(local_index as usize)
+            .map(|_| Self {
+                application,
+                local_index,
+            })
+    }
+
+    pub const fn application(self) -> StructApplicationId {
+        self.application
     }
 
     pub const fn local_index(self) -> u32 {
@@ -621,6 +755,53 @@ pub struct Field {
 mod tests {
     use super::*;
 
+    fn enum_declaration(
+        name: &str,
+        self_application: EnumApplicationId,
+        variants: Vec<Variant>,
+    ) -> EnumDecl {
+        EnumDecl {
+            name: name.to_string(),
+            owner: None,
+            access: NominalAccess::public(),
+            self_application,
+            type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
+            no_gc: false,
+            variants,
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            properties: Vec::new(),
+            derived_equality: None,
+            span: Span::new(0, 0),
+        }
+    }
+
+    fn struct_declaration(
+        name: &str,
+        self_application: StructApplicationId,
+        representation: StructRepresentation,
+    ) -> StructDecl {
+        StructDecl {
+            name: name.to_string(),
+            owner: None,
+            access: NominalAccess::public(),
+            self_application,
+            type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
+            attributes: StructAttributes::default(),
+            representation,
+            constructors: Vec::new(),
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            properties: Vec::new(),
+            derived_equality: None,
+            span: Span::new(0, 0),
+        }
+    }
+
     #[test]
     fn c_layout_accepts_only_canonical_long_values() {
         assert_eq!(
@@ -642,6 +823,175 @@ mod tests {
         assert_eq!(
             HirCLayoutValue::from_integer(HirIntegerConstant::Signed64(u64::MAX)),
             None
+        );
+    }
+
+    #[test]
+    fn applied_field_and_variant_refs_close_owner_and_index_relations() {
+        let mut types = Arena::new();
+        let int = types.alloc(Type::Integer(IntegerKind::SIGNED_32));
+        let string = types.alloc(Type::String);
+        let parameter = TypeParamId::from_raw(0);
+        let parameter_ty = types.alloc(Type::Param(parameter));
+        let mut enums = Arena::new();
+        let first_application = EnumApplicationId::from_raw(0.into());
+        let choice = enums.alloc(enum_declaration(
+            "Choice",
+            first_application,
+            vec![
+                Variant {
+                    name: "Data".to_string(),
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty: parameter_ty,
+                    }],
+                },
+                Variant {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+            ],
+        ));
+        enums[choice].type_params.push(TypeParamDecl {
+            id: parameter,
+            name: "T".to_string(),
+            bounds: TypeParamBounds::Unconstrained,
+            span: Span::new(0, 0),
+        });
+        let other_application = EnumApplicationId::from_raw(3.into());
+        let other = enums.alloc(enum_declaration(
+            "Other",
+            other_application,
+            vec![Variant {
+                name: "Data".to_string(),
+                fields: Vec::new(),
+            }],
+        ));
+        let mut applications = Arena::new();
+        let choice_self = applications.alloc(EnumApplication {
+            template: choice,
+            arguments: vec![parameter_ty],
+            canonical_type: parameter_ty,
+        });
+        assert_eq!(choice_self, first_application);
+        let choice_int = applications.alloc(EnumApplication {
+            template: choice,
+            arguments: vec![int],
+            canonical_type: int,
+        });
+        let choice_string = applications.alloc(EnumApplication {
+            template: choice,
+            arguments: vec![string],
+            canonical_type: string,
+        });
+        let other_application = applications.alloc(EnumApplication {
+            template: other,
+            arguments: Vec::new(),
+            canonical_type: int,
+        });
+
+        let data = EnumVariantRef::checked(&enums, choice, 0).unwrap();
+        let empty = EnumVariantRef::checked(&enums, choice, 1).unwrap();
+        assert!(EnumVariantRef::checked(&enums, choice, 2).is_none());
+        assert!(EnumVariantRef::checked(&enums, EnumId::from_raw(99.into()), 0).is_none());
+        let applied_int = AppliedEnumVariantRef::checked(&applications, choice_int, data).unwrap();
+        let applied_string =
+            AppliedEnumVariantRef::checked(&applications, choice_string, data).unwrap();
+        assert_ne!(applied_int, applied_string);
+        assert!(AppliedEnumVariantRef::checked(&applications, other_application, data).is_none());
+        assert!(
+            AppliedEnumVariantRef::checked_index(&enums, &applications, choice_int, 2).is_none()
+        );
+        assert!(
+            AppliedEnumVariantRef::checked(
+                &applications,
+                EnumApplicationId::from_raw(99.into()),
+                data
+            )
+            .is_none()
+        );
+        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_int, 0).is_some());
+        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_int, 1).is_none());
+        let applied_empty =
+            AppliedEnumVariantRef::checked(&applications, choice_int, empty).unwrap();
+        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_empty, 0).is_none());
+
+        let mut structs = Arena::new();
+        let declared_application = StructApplicationId::from_raw(0.into());
+        let declared = structs.alloc(struct_declaration(
+            "Record",
+            declared_application,
+            StructRepresentation::Declared(vec![Field {
+                name: "value".to_string(),
+                ty: parameter_ty,
+            }]),
+        ));
+        structs[declared].type_params.push(TypeParamDecl {
+            id: parameter,
+            name: "T".to_string(),
+            bounds: TypeParamBounds::Unconstrained,
+            span: Span::new(0, 0),
+        });
+        let intrinsic_application = StructApplicationId::from_raw(3.into());
+        let intrinsic = structs.alloc(struct_declaration(
+            "Intrinsic",
+            intrinsic_application,
+            StructRepresentation::Intrinsic(IntrinsicTypeDeclaration {
+                kind: IntrinsicTypeKind::Boolean,
+                provider: IntrinsicProviderId::from_raw(0),
+            }),
+        ));
+        let mut struct_applications = Arena::new();
+        let declared_self = struct_applications.alloc(StructApplication {
+            template: declared,
+            arguments: vec![parameter_ty],
+            canonical_type: parameter_ty,
+            representation: StructApplicationRepresentation::Declared,
+        });
+        assert_eq!(declared_self, declared_application);
+        let declared_int = struct_applications.alloc(StructApplication {
+            template: declared,
+            arguments: vec![int],
+            canonical_type: int,
+            representation: StructApplicationRepresentation::Declared,
+        });
+        let declared_string = struct_applications.alloc(StructApplication {
+            template: declared,
+            arguments: vec![string],
+            canonical_type: string,
+            representation: StructApplicationRepresentation::Declared,
+        });
+        let intrinsic_application = struct_applications.alloc(StructApplication {
+            template: intrinsic,
+            arguments: Vec::new(),
+            canonical_type: int,
+            representation: StructApplicationRepresentation::Intrinsic(
+                IntrinsicTypeRepresentation::Boolean,
+            ),
+        });
+        let int_field =
+            AppliedStructFieldRef::checked(&structs, &struct_applications, declared_int, 0)
+                .expect("Record<Int>.value exists");
+        let string_field =
+            AppliedStructFieldRef::checked(&structs, &struct_applications, declared_string, 0)
+                .expect("Record<String>.value exists");
+        assert_ne!(int_field, string_field);
+        assert!(
+            AppliedStructFieldRef::checked(&structs, &struct_applications, declared_int, 0)
+                .is_some()
+        );
+        assert!(
+            AppliedStructFieldRef::checked(&structs, &struct_applications, declared_int, 1)
+                .is_none()
+        );
+        assert!(
+            AppliedStructFieldRef::checked(
+                &structs,
+                &struct_applications,
+                intrinsic_application,
+                0
+            )
+            .is_none()
         );
     }
 }

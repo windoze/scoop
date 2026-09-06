@@ -54,6 +54,24 @@ impl BodyLowerer<'_> {
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
             }
+            hir::ExprKind::StructConstruct { struct_id, fields } => {
+                assert!(
+                    matches!(&ty, mir::Type::Struct(found) if *found == self.struct_map[struct_id])
+                );
+                let expected_fields = self.module.structs[*struct_id]
+                    .declared_fields()
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>();
+                assert_eq!(fields.len(), expected_fields.len());
+                for (field, expected) in fields.iter().zip(expected_fields) {
+                    assert_eq!(self.lower_type(field.ty), self.lower_type(expected));
+                }
+                smir::ExprKind::StructConstruct {
+                    struct_id: self.struct_map[struct_id],
+                    fields: fields.iter().map(|field| self.lower_expr(field)).collect(),
+                }
+            }
             hir::ExprKind::StructConstructorCall { constructor, args } => {
                 let ctor = self.struct_ctors[constructor];
                 smir::ExprKind::Call(smir::Call {
@@ -90,11 +108,55 @@ impl BodyLowerer<'_> {
                     return_ty: mir::Type::Unit,
                 })
             }
-            hir::ExprKind::VariantConstruct { variant, args, .. } => {
+            hir::ExprKind::VariantConstruct { variant, args } => {
+                let mir::Type::Enum(enum_id, _) = &ty else {
+                    unreachable!("a variant construction has an enum type")
+                };
+                assert_eq!(self.enums.hir_ids[enum_id], variant.enumeration());
+                let expected_fields = self.module.enums[variant.enumeration()].variants
+                    [variant.variant().into_raw() as usize]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>();
+                assert_eq!(args.len(), expected_fields.len());
+                for (argument, expected) in args.iter().zip(expected_fields) {
+                    assert_eq!(self.lower_type(argument.ty), self.lower_type(expected));
+                }
                 smir::ExprKind::VariantConstruct {
-                    variant: variant.into_raw(),
+                    variant: variant.variant().into_raw(),
                     fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
+            }
+            hir::ExprKind::VariantTest { operand, variant } => {
+                assert_eq!(ty, mir::Type::Boolean);
+                let operand = self.lower_expr(operand);
+                let mir::Type::Enum(enum_id, _) = &operand.ty else {
+                    unreachable!("a variant test has an enum operand")
+                };
+                assert_eq!(self.enums.hir_ids[enum_id], variant.enumeration());
+                let variant = self
+                    .enums
+                    .variant_ref(*enum_id, variant.variant().into_raw());
+                return smir::Expr::variant_test(&self.enums.defs, operand, variant);
+            }
+            hir::ExprKind::VariantPayloadProject { operand, field } => {
+                let operand = self.lower_expr(operand);
+                let mir::Type::Enum(enum_id, _) = &operand.ty else {
+                    unreachable!("a variant payload projection has an enum operand")
+                };
+                let source_variant = field.variant();
+                assert_eq!(self.enums.hir_ids[enum_id], source_variant.enumeration());
+                let expected = self.module.enums[source_variant.enumeration()].variants
+                    [source_variant.variant().into_raw() as usize]
+                    .fields[field.local_index() as usize]
+                    .ty;
+                assert_eq!(ty, self.lower_type(expected));
+                let variant = self
+                    .enums
+                    .variant_ref(*enum_id, source_variant.variant().into_raw());
+                let field = self.enums.variant_field_ref(variant, field.local_index());
+                return smir::Expr::variant_payload_project(&self.enums.defs, operand, field);
             }
             hir::ExprKind::Local(local) => {
                 let local = self.local_map[local];
@@ -497,9 +559,21 @@ impl BodyLowerer<'_> {
                 // follows the flattened base-prefix layout; LIR turns
                 // it into a heap object load).
                 let index = match field {
-                    hir::FieldRef::StructField { index, .. }
-                    | hir::FieldRef::ClassField { index, .. }
-                    | hir::FieldRef::TupleIndex(index) => *index,
+                    hir::FieldRef::StructField(field) => {
+                        let receiver_ty = self.lower_type(receiver.ty);
+                        assert_eq!(
+                            receiver_ty,
+                            mir::Type::Struct(self.struct_map[&field.structure()])
+                        );
+                        let expected = self.module.structs[field.structure()].declared_fields()
+                            [field.local_index() as usize]
+                            .ty;
+                        assert_eq!(ty, self.lower_type(expected));
+                        field.local_index()
+                    }
+                    hir::FieldRef::ClassField { index, .. } | hir::FieldRef::TupleIndex(index) => {
+                        *index
+                    }
                 };
                 smir::ExprKind::FieldAccess {
                     receiver: Box::new(self.lower_expr(receiver)),

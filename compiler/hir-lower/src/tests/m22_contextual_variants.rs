@@ -17,18 +17,14 @@ fn function_body<'module>(module: &'module hir::Module, name: &str) -> &'module 
 }
 
 fn assert_variant(module: &hir::Module, expression: &hir::Expr, owner: &str, name: &str) {
-    let hir::ExprKind::VariantConstruct {
-        application,
-        variant,
-        ..
-    } = expression.kind
-    else {
+    let hir::ExprKind::VariantConstruct { variant, .. } = &expression.kind else {
         panic!("expected a variant construction, found {expression:?}");
     };
+    let application = variant.application();
     let enumeration = module.enum_applications[application].template;
     assert_eq!(module.enums[enumeration].name, owner);
     assert_eq!(
-        module.enums[enumeration].variants[variant as usize].name,
+        module.enums[enumeration].variants[variant.local_index() as usize].name,
         name
     );
 }

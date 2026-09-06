@@ -22,6 +22,15 @@ impl<'a> CfgLowerer<'a> {
                 struct_id: *struct_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
+            smir::ExprKind::StructConstruct { struct_id, fields } => {
+                mir::ExprKind::StructConstruct {
+                    struct_id: *struct_id,
+                    fields: fields
+                        .iter()
+                        .map(|field| self.lower_expr(field, span))
+                        .collect(),
+                }
+            }
             smir::ExprKind::ClassNew {
                 class_id,
                 initializer,
