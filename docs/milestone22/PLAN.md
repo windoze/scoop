@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.46
+版本：0.47
 
 最后更新：2026-09-07
 
@@ -43,7 +43,7 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 4.5 完成待提交，4.6 待开始 | 4.5 格式、受影响 crate clippy、parser 11/11、HIR 32/32 及唯一 full fixture 4/4（371.80 秒）已通过；6 份新 snapshot 与 186 份既有 snapshot 审计无 blocker，四种 range 留给 4.6 |
+| Iterator / Iterable、`for` 与四种 range | 4.5 已完成，4.6 待开始 | 4.5 提交 `8ba3320b`；格式、受影响 crate clippy、parser 11/11、HIR 32/32 及唯一 full fixture 4/4（371.80 秒）通过；6 份新 snapshot 与 186 份既有 snapshot 审计无 blocker，四种 range 留给 4.6 |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
@@ -177,7 +177,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.5 Iterator / Iterable 与 source `for`
 
-当前执行状态：4.5 已完成实现与验证，待功能提交。schema 冻结为模块唯一 `IterationCore`、per-use `AppliedOptionCore`、raw-result → exact `Iterator<E>` conformance witness、specialized ordinary `next` 与完整 `ForIterationPlan`；所有 plan 字段私有，并由 Export-HIR reader boundary 统一验证 core canonical backref、winner/result closure、local/type/mutability、binding action dataflow 与 innermost loop target。parser/AST 已开放专用 token 的 `for` / `break` / `continue` 并继续拒绝 label、jump expression 与 `do-while`；core source已加入 Iterator/Iterable 及 Array/MutableArray iterator。definition reader 以同一套 typed outcome 处理 return/throw/typed break/continue、嵌套 while/for、when subject/guard、try/finally 与不可达区域，并把 mutable assignment-only merge local 纳入 plan ownership；不可达语法仍登记 identity，但不触发 future-read 或污染正常路径交集。格式化与受影响 crate all-target clippy 已通过；parser 定向测试 11/11、HIR 32/32 通过。source `For` 在 HIR concretization 已完全展开，LocalConcrete HIR/MIR 没有 `For` 分支且 MIR production 未改，因此 MIR 专项门经边界审计记为 N/A。唯一一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4 通过（371.80 秒）；6 份新 snapshot 和 186 份既有 snapshot 的 AST/HIR/MIR/LIR/run/trap/diagnostic 归一化审计均无 blocker，且无 `.snap.new`。workspace 全量保留给 M22 最终门。
+完成提交：`8ba3320b feat: add typed source iteration`。schema 冻结为模块唯一 `IterationCore`、per-use `AppliedOptionCore`、raw-result → exact `Iterator<E>` conformance witness、specialized ordinary `next` 与完整 `ForIterationPlan`；所有 plan 字段私有，并由 Export-HIR reader boundary 统一验证 core canonical backref、winner/result closure、local/type/mutability、binding action dataflow 与 innermost loop target。parser/AST 已开放专用 token 的 `for` / `break` / `continue` 并继续拒绝 label、jump expression 与 `do-while`；core source已加入 Iterator/Iterable 及 Array/MutableArray iterator。definition reader 以同一套 typed outcome 处理 return/throw/typed break/continue、嵌套 while/for、when subject/guard、try/finally 与不可达区域，并把 mutable assignment-only merge local 纳入 plan ownership；不可达语法仍登记 identity，但不触发 future-read 或污染正常路径交集。格式化与受影响 crate all-target clippy 已通过；parser 定向测试 11/11、HIR 32/32 通过。source `For` 在 HIR concretization 已完全展开，LocalConcrete HIR/MIR 没有 `For` 分支且 MIR production 未改，因此 MIR 专项门经边界审计记为 N/A。唯一一次 `INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4 通过（371.80 秒）；6 份新 snapshot 和 186 份既有 snapshot 的 AST/HIR/MIR/LIR/run/trap/diagnostic 归一化审计均无 blocker，且无 `.snap.new`。workspace 全量保留给 M22 最终门。
 
 1. AST / parser 同一原子切片开放 source `for` 及此前 4.4 已完成下游语义的无标签 `break` / `continue`；labels、`do-while` 与 jump expression 继续明确拒绝。一次验证的非可选 HIR `IterationCore` 与完整 HIR lowering 同时落地；`IterationCore` 固定 Iterator template、`next` exact slot 并复用模块唯一的 checked `OptionCore` 关系，不复制第二套 Some / None 身份。
 2. 每个 source `for` 保存完整 `ForIterationPlan`：source temporary、唯一 iterator winner/result、exact `Iterator<T>`、conformance/boxing witness、specialized next slot、exact `Option<T>` refs、element type、binding plan 和 `LoopId`。
@@ -277,3 +277,4 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.5 下游门审计确认 source `For` 在 Export → LocalConcrete HIR 具体化时已完整展开为 `ValDecl + While`，LocalConcrete HIR 与 MIR 均不存在 `For` variant；MIR production 未改，mir-lower 只为新增必填 `Module::iteration_core` 更新测试 harness，且已由 all-target clippy 编译覆盖。因此不为凑验证项重跑旧 MIR control-flow suite，直接由 HIR concrete-shape 测试和唯一一次 full-pipeline fixture 覆盖实际 MIR/LIR/codegen、suspend/header-poll/moving-GC 组合。
 - 2026-09-07：4.5 唯一 full fixture 完成门已通过：`INSTA_UPDATE=always cargo test -p scoopc --test fixtures` 4/4，371.80 秒。新 `m22-iteration` 正向与 5 个 negative snapshot 均已生成；core 新增声明使 186 份既有 snapshot 系统性刷新。不会再跑完整 fixture；当前并行审计新 fixture 语义、既有 snapshot 漂移与最终树卫生，只对真实 blocker 做定向处理。
 - 2026-09-07：4.5 snapshot 与最终树审计完成，无 correctness blocker。新正向 golden 锁定 Array/MutableArray、Iterable 静态视图、ZST iterator boxing、递归解构/fresh capture、typed jump/finally、suspend/header poll 与 moving-GC roots；5 份 negative 的位置和消息完整。186 份既有 snapshot 中，185 份 AST/HIR 归一化后只含新增 iteration core 与实体 ID 顺延，175 个 run 和 10 个 trap 输出逐字不变；45 份 MIR/37 份 LIR 的额外 CFG 规范化全部可归因于已提交的 typed cleanup 路由 `b42ce94f`。唯一 diagnostics 变化是用户测试类型 `Iterator` → `Cursor` 的预期避名。提交前把 iteration default-instantiation 原样拆为 255 行子模块，使父文件从 1018 降到 767 行；只重跑格式化与 `scoop-hir-lower` all-target clippy并通过。`git diff --check`、无 `.snap.new`、无新增占位实现等卫生门均通过。本切片只复用既有 runtime/GC/coroutine/ABI 合同，不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec；下一步提交 4.5，随后进入 4.6 range。
+- 2026-09-07：完成并提交 4.5 Iterator / Iterable 与 source `for`：`8ba3320b`。实现、reader validation、default/concretization、core、定向与 full-pipeline/moving-GC fixture及全部 golden 同一功能提交落地；未运行 workspace suite。下一切片为 4.6 四种 range 与整数循环组合，继续先做静态 inventory，再成批实现与定向验证。
