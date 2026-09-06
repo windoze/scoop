@@ -4034,12 +4034,39 @@ Module mangling=compact-v2
   coroutine_slot cl5 CoroutineSlot$I32 value=Int
   coroutine_slot cl6 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_slot cl7 CoroutineSlot$C4_GateX value=Gate
-  coroutine_frame cr0 CoroutineFrame$scoop_GcTask_run_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_deepest_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_middle_suspend owner=cf2
-  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_GcTask_run_suspend$1 resume=@scoop.GcTask.run$suspend$resume$1 failure=@scoop.GcTask.run$suspend$resume_exception$1
-  coroutine_resume cp1 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_deepest_suspend$1 resume=@scoop.deepest$suspend$resume$1 failure=@scoop.deepest$suspend$resume_exception$1
-  coroutine_resume cp2 state=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_middle_suspend$1 resume=@scoop.middle$suspend$resume$1 failure=@scoop.middle$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_GcTask_run_suspend field=2 slot=cl0 value=GcTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_GcTask_run_suspend field=3 slot=cl1 value=String
+  coroutine_saved cv2 class=CoroutineFrame$scoop_GcTask_run_suspend field=4 slot=cl2 value=Node
+  coroutine_saved cv3 class=CoroutineFrame$scoop_GcTask_run_suspend field=5 slot=cl3 value=Bundle
+  coroutine_saved cv4 class=CoroutineFrame$scoop_GcTask_run_suspend field=6 slot=cl4 value=Payload
+  coroutine_saved cv5 class=CoroutineFrame$scoop_GcTask_run_suspend field=7 slot=cl5 value=Int
+  coroutine_saved cv6 class=CoroutineFrame$scoop_deepest_suspend field=2 slot=cl7 value=Gate
+  coroutine_saved cv7 class=CoroutineFrame$scoop_deepest_suspend field=3 slot=cl5 value=Int
+  coroutine_saved cv8 class=CoroutineFrame$scoop_middle_suspend field=2 slot=cl7 value=Gate
+  coroutine_saved cv9 class=CoroutineFrame$scoop_middle_suspend field=3 slot=cl4 value=Payload
+  coroutine_saved cv10 class=CoroutineFrame$scoop_middle_suspend field=4 slot=cl1 value=String
+  coroutine_saved cv11 class=CoroutineFrame$scoop_middle_suspend field=5 slot=cl5 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_GcTask_run_suspend field=8 slot=cl6 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_deepest_suspend field=4 slot=cl6 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_middle_suspend field=6 slot=cl6 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_GcTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2,cv3,cv4,cv5] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_deepest_suspend owner=cf1 state=field0 completion=field1 saved=[cv6,cv7] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$scoop_middle_suspend owner=cf2 state=field0 completion=field1 saved=[cv8,cv9,cv10,cv11] failure=cx2
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_GcTask_run_suspend$1 resume=@scoop.GcTask.run$suspend$resume$1 failure=@scoop.GcTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb7)
+      entry=bb13
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb14
+  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_deepest_suspend$1 resume=@scoop.deepest$suspend$resume$1 failure=@scoop.deepest$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp2 site=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_middle_suspend$1 resume=@scoop.middle$suspend$resume$1 failure=@scoop.middle$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb7)
+      entry=bb13
+    failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
+      entry=bb14
   coroutine_fn cf0 @scoop.GcTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.GcTask.run$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop.deepest$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.deepest$suspend$drive resumes=[cp1]
   coroutine_fn cf2 @scoop.middle$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.middle$suspend$drive resumes=[cp2]

@@ -34,6 +34,8 @@ pub type CoroutineStepId = Idx<CoroutineStep>;
 pub type CoroutineSlotId = Idx<CoroutineSlot>;
 pub type CoroutineFrameId = Idx<CoroutineFrame>;
 pub type CoroutineResumePointId = Idx<CoroutineResumePoint>;
+pub type CoroutineSavedValueId = Idx<CoroutineSavedValue>;
+pub type CoroutineFailureValueId = Idx<CoroutineFailureValue>;
 
 /// Symbol-schema identity carried by MIR artifacts.
 ///

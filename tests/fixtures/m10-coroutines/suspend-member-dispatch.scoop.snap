@@ -7627,24 +7627,93 @@ Module mangling=compact-v2
   coroutine_slot cl6 CoroutineSlot$C15_AsyncWorkerImplX value=AsyncWorkerImpl
   coroutine_slot cl7 CoroutineSlot$C12_DispatchTaskX value=DispatchTask
   coroutine_slot cl8 CoroutineSlot$C4_GateX value=Gate
-  coroutine_frame cr0 CoroutineFrame$scoop_StructWorker_work_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_EnumWorker_work_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_DirectWorker_work_suspend owner=cf2
-  coroutine_frame cr3 CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend owner=cf4
-  coroutine_frame cr4 CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend owner=cf5
-  coroutine_frame cr5 CoroutineFrame$scoop_DispatchTask_run_suspend owner=cf6
-  coroutine_frame cr6 CoroutineFrame$scoop_waitFor_suspend owner=cf7
-  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_StructWorker_work_suspend$1 resume=@scoop.StructWorker.work$suspend$resume$1 failure=@scoop.StructWorker.work$suspend$resume_exception$1
-  coroutine_resume cp1 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_EnumWorker_work_suspend$1 resume=@scoop.EnumWorker.work$suspend$resume$1 failure=@scoop.EnumWorker.work$suspend$resume_exception$1
-  coroutine_resume cp2 state=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_DirectWorker_work_suspend$1 resume=@scoop.DirectWorker.work$suspend$resume$1 failure=@scoop.DirectWorker.work$suspend$resume_exception$1
-  coroutine_resume cp3 state=1 result=Int frame=cr3 adapter=CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 resume=@scoop.VirtualWorkerImpl.work$suspend$resume$1 failure=@scoop.VirtualWorkerImpl.work$suspend$resume_exception$1
-  coroutine_resume cp4 state=1 result=Int frame=cr4 adapter=CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 resume=@scoop.AsyncWorkerImpl.work$suspend$resume$1 failure=@scoop.AsyncWorkerImpl.work$suspend$resume_exception$1
-  coroutine_resume cp5 state=5 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$5 resume=@scoop.DispatchTask.run$suspend$resume$5 failure=@scoop.DispatchTask.run$suspend$resume_exception$5
-  coroutine_resume cp6 state=4 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$4 resume=@scoop.DispatchTask.run$suspend$resume$4 failure=@scoop.DispatchTask.run$suspend$resume_exception$4
-  coroutine_resume cp7 state=3 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$3 resume=@scoop.DispatchTask.run$suspend$resume$3 failure=@scoop.DispatchTask.run$suspend$resume_exception$3
-  coroutine_resume cp8 state=2 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$2 resume=@scoop.DispatchTask.run$suspend$resume$2 failure=@scoop.DispatchTask.run$suspend$resume_exception$2
-  coroutine_resume cp9 state=1 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$1 resume=@scoop.DispatchTask.run$suspend$resume$1 failure=@scoop.DispatchTask.run$suspend$resume_exception$1
-  coroutine_resume cp10 state=1 result=Int frame=cr6 adapter=CoroutineAdapter$scoop_waitFor_suspend$1 resume=@scoop.waitFor$suspend$resume$1 failure=@scoop.waitFor$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_StructWorker_work_suspend field=2 slot=cl0 value=StructWorker
+  coroutine_saved cv1 class=CoroutineFrame$scoop_StructWorker_work_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv2 class=CoroutineFrame$scoop_EnumWorker_work_suspend field=2 slot=cl3 value=EnumWorker
+  coroutine_saved cv3 class=CoroutineFrame$scoop_EnumWorker_work_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv4 class=CoroutineFrame$scoop_DirectWorker_work_suspend field=2 slot=cl4 value=DirectWorker
+  coroutine_saved cv5 class=CoroutineFrame$scoop_DirectWorker_work_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv6 class=CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend field=2 slot=cl5 value=VirtualWorkerImpl
+  coroutine_saved cv7 class=CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv8 class=CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend field=2 slot=cl6 value=AsyncWorkerImpl
+  coroutine_saved cv9 class=CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv10 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=2 slot=cl7 value=DispatchTask
+  coroutine_saved cv11 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv12 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=4 slot=cl1 value=Int
+  coroutine_saved cv13 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=5 slot=cl1 value=Int
+  coroutine_saved cv14 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=6 slot=cl1 value=Int
+  coroutine_saved cv15 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=7 slot=cl1 value=Int
+  coroutine_saved cv16 class=CoroutineFrame$scoop_waitFor_suspend field=2 slot=cl8 value=Gate
+  coroutine_saved cv17 class=CoroutineFrame$scoop_waitFor_suspend field=3 slot=cl1 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_StructWorker_work_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_EnumWorker_work_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_DirectWorker_work_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx3 class=CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx4 class=CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx5 class=CoroutineFrame$scoop_DispatchTask_run_suspend field=8 slot=cl2 throwable=Throwable
+  coroutine_failure cx6 class=CoroutineFrame$scoop_waitFor_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_StructWorker_work_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_EnumWorker_work_suspend owner=cf1 state=field0 completion=field1 saved=[cv2,cv3] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$scoop_DirectWorker_work_suspend owner=cf2 state=field0 completion=field1 saved=[cv4,cv5] failure=cx2
+  coroutine_frame cr3 CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend owner=cf4 state=field0 completion=field1 saved=[cv6,cv7] failure=cx3
+  coroutine_frame cr4 CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend owner=cf5 state=field0 completion=field1 saved=[cv8,cv9] failure=cx4
+  coroutine_frame cr5 CoroutineFrame$scoop_DispatchTask_run_suspend owner=cf6 state=field0 completion=field1 saved=[cv10,cv11,cv12,cv13,cv14,cv15] failure=cx5
+  coroutine_frame cr6 CoroutineFrame$scoop_waitFor_suspend owner=cf7 state=field0 completion=field1 saved=[cv16,cv17] failure=cx6
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_StructWorker_work_suspend$1 resume=@scoop.StructWorker.work$suspend$resume$1 failure=@scoop.StructWorker.work$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_EnumWorker_work_suspend$1 resume=@scoop.EnumWorker.work$suspend$resume$1 failure=@scoop.EnumWorker.work$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb4)
+      entry=bb10
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb11
+  coroutine_resume cp2 site=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_DirectWorker_work_suspend$1 resume=@scoop.DirectWorker.work$suspend$resume$1 failure=@scoop.DirectWorker.work$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp3 site=1 result=Int frame=cr3 adapter=CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 resume=@scoop.VirtualWorkerImpl.work$suspend$resume$1 failure=@scoop.VirtualWorkerImpl.work$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx3, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp4 site=1 result=Int frame=cr4 adapter=CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 resume=@scoop.AsyncWorkerImpl.work$suspend$resume$1 failure=@scoop.AsyncWorkerImpl.work$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp5 site=5 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$5 resume=@scoop.DispatchTask.run$suspend$resume$5 failure=@scoop.DispatchTask.run$suspend$resume_exception$5
+    success suspended.5 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.5 -> ManagedThrow(cx5, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp6 site=4 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$4 resume=@scoop.DispatchTask.run$suspend$resume$4 failure=@scoop.DispatchTask.run$suspend$resume_exception$4
+    success suspended.4 -> Fallthrough(bb9)
+      entry=bb15
+    failure resume_failure.4 -> ManagedThrow(cx5, unwind=propagate)
+      entry=bb16
+  coroutine_resume cp7 site=3 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$3 resume=@scoop.DispatchTask.run$suspend$resume$3 failure=@scoop.DispatchTask.run$suspend$resume_exception$3
+    success suspended.3 -> Fallthrough(bb17)
+      entry=bb23
+    failure resume_failure.3 -> ManagedThrow(cx5, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp8 site=2 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$2 resume=@scoop.DispatchTask.run$suspend$resume$2 failure=@scoop.DispatchTask.run$suspend$resume_exception$2
+    success suspended.2 -> Fallthrough(bb25)
+      entry=bb31
+    failure resume_failure.2 -> ManagedThrow(cx5, unwind=propagate)
+      entry=bb32
+  coroutine_resume cp9 site=1 result=Int frame=cr5 adapter=CoroutineAdapter$scoop_DispatchTask_run_suspend$1 resume=@scoop.DispatchTask.run$suspend$resume$1 failure=@scoop.DispatchTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb33)
+      entry=bb39
+    failure resume_failure.1 -> ManagedThrow(cx5, unwind=propagate)
+      entry=bb40
+  coroutine_resume cp10 site=1 result=Int frame=cr6 adapter=CoroutineAdapter$scoop_waitFor_suspend$1 resume=@scoop.waitFor$suspend$resume$1 failure=@scoop.waitFor$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx6, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.StructWorker.work$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.StructWorker.work$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop.EnumWorker.work$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.EnumWorker.work$suspend$drive resumes=[cp1]
   coroutine_fn cf2 @scoop.DirectWorker.work$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.DirectWorker.work$suspend$drive resumes=[cp2]

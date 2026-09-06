@@ -9,12 +9,29 @@ use crate::structured as smir;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct UnwindScopeId(u32);
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct UnwindTarget {
     owner: UnwindScopeId,
     pad: mir::BlockId,
     continuation: mir::BlockId,
     handles_in_function: bool,
+    context: CoroutinePendingContext,
+    managed_exception: Option<mir::LocalId>,
+}
+
+#[derive(Clone, Default)]
+struct CoroutinePendingContext(Vec<mir::CoroutinePendingSourceTransfer>);
+
+impl CoroutinePendingContext {
+    fn with_transfer(&self, transfer: mir::CoroutinePendingSourceTransfer) -> Self {
+        let mut chain = self.0.clone();
+        chain.push(transfer);
+        Self(chain)
+    }
+
+    fn to_mir(&self) -> mir::CoroutinePendingContext {
+        mir::CoroutinePendingContext::from_transfers(self.0.clone()).unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -59,25 +76,28 @@ enum NormalCleanup<'a> {
     },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct ResumeTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
+    context: CoroutinePendingContext,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct LoopExitTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
+    context: CoroutinePendingContext,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct LoopHeaderTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
+    context: CoroutinePendingContext,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct LoopTarget {
     source: smir::LoopId,
     exit: LoopExitTarget,
@@ -85,9 +105,17 @@ struct LoopTarget {
     break_reachable: bool,
 }
 
+#[derive(Clone)]
 enum ReturnPayload {
     Unit,
     Value(mir::Expr),
+}
+
+#[derive(Clone)]
+struct ManagedThrowPayload {
+    exception: mir::Expr,
+    unwind: Option<UnwindTarget>,
+    cleanup_depth: CleanupDepth,
 }
 
 enum PendingTransfer {
@@ -95,6 +123,7 @@ enum PendingTransfer {
     Return(ReturnPayload),
     Break(LoopExitTarget),
     Continue(LoopHeaderTarget),
+    ManagedThrow(ManagedThrowPayload),
 }
 
 impl PendingTransfer {
@@ -104,6 +133,55 @@ impl PendingTransfer {
             Self::Return(_) => CleanupDepth::ROOT,
             Self::Break(target) => target.cleanup_depth,
             Self::Continue(target) => target.cleanup_depth,
+            Self::ManagedThrow(transfer) => transfer.cleanup_depth,
+        }
+    }
+
+    fn destination_context(&self) -> CoroutinePendingContext {
+        match self {
+            Self::Fallthrough(target) => target.context.clone(),
+            Self::Return(_) => CoroutinePendingContext::default(),
+            Self::Break(target) => target.context.clone(),
+            Self::Continue(target) => target.context.clone(),
+            Self::ManagedThrow(transfer) => transfer
+                .unwind
+                .as_ref()
+                .map_or_else(CoroutinePendingContext::default, |target| {
+                    target.context.clone()
+                }),
+        }
+    }
+
+    fn source_transfer(&self) -> mir::CoroutinePendingSourceTransfer {
+        match self {
+            Self::Fallthrough(target) => mir::CoroutinePendingSourceTransfer::Fallthrough(
+                mir::CoroutineCleanupFallthroughTarget::new(target.block),
+            ),
+            Self::Return(ReturnPayload::Unit) => {
+                mir::CoroutinePendingSourceTransfer::Return(mir::CoroutinePendingSourceReturn::Unit)
+            }
+            Self::Return(ReturnPayload::Value(value)) => {
+                mir::CoroutinePendingSourceTransfer::Return(
+                    mir::CoroutinePendingSourceReturn::value(value.clone())
+                        .expect("a pending return payload is an immutable stable local"),
+                )
+            }
+            Self::Break(target) => mir::CoroutinePendingSourceTransfer::Break(
+                mir::CoroutineLoopExitTarget::new(target.block),
+            ),
+            Self::Continue(target) => mir::CoroutinePendingSourceTransfer::Continue(
+                mir::CoroutineLoopHeaderTarget::new(target.block),
+            ),
+            Self::ManagedThrow(transfer) => mir::CoroutinePendingSourceTransfer::ManagedThrow(
+                mir::CoroutinePendingSourceManagedThrow::checked(
+                    transfer.exception.clone(),
+                    transfer
+                        .unwind
+                        .as_ref()
+                        .map(|target| mir::CoroutineUnwindTarget::new(target.pad)),
+                )
+                .expect("a pending managed exception is an exact stable local"),
+            ),
         }
     }
 }
@@ -113,7 +191,11 @@ pub(crate) fn lower(
     return_ty: mir::Type,
     enums: &Arena<mir::EnumDef>,
 ) -> mir::Body {
-    let smir::Body { locals, statements } = body;
+    let smir::Body {
+        locals,
+        statements,
+        coroutine_eh,
+    } = body;
     let mut blocks = Arena::new();
     let entry = blocks.alloc(mir::BasicBlock {
         name: "entry".to_string(),
@@ -135,6 +217,8 @@ pub(crate) fn lower(
         normal_cleanups: Vec::new(),
         loop_targets: Vec::new(),
         loop_header_polls: Vec::new(),
+        active_pending: CoroutinePendingContext::default(),
+        coroutine_eh,
         enums,
     };
     lowerer.lower_statements(&statements);
@@ -149,7 +233,8 @@ pub(crate) fn lower(
     assert!(
         lowerer.try_stack.is_empty()
             && lowerer.normal_cleanups.is_empty()
-            && lowerer.loop_targets.is_empty(),
+            && lowerer.loop_targets.is_empty()
+            && lowerer.active_pending.0.is_empty(),
         "structured control scopes are balanced before MIR CFG construction completes"
     );
     mir::Body {
@@ -174,6 +259,8 @@ struct CfgLowerer<'a> {
     normal_cleanups: Vec<NormalCleanup<'a>>,
     loop_targets: Vec<LoopTarget>,
     loop_header_polls: Vec<mir::LoopHeaderPollTarget>,
+    active_pending: CoroutinePendingContext,
+    coroutine_eh: Option<smir::CoroutineEhMode>,
     enums: &'a Arena<mir::EnumDef>,
 }
 

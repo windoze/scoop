@@ -35,6 +35,7 @@ fn function_signatures_params_and_calls() {
                     callee: mir::Callee::User(add),
                 },
                 args: vec![int_expr(40), int_expr(2)],
+                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );

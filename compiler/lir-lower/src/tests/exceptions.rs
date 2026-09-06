@@ -160,6 +160,7 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
             local_expr(live_on_both_edges, reference_ty.clone()),
             local_expr(argument_only, reference_ty.clone()),
         ],
+        pending: mir::CoroutinePendingContext::Root,
     };
     let body = single_catch_body(
         locals,

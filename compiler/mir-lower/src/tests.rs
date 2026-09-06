@@ -5,6 +5,7 @@ use scoop_hir as hir;
 mod basic_lowering;
 mod callbacks;
 mod control_flow;
+mod coroutine_pending;
 mod coroutines;
 mod generics;
 mod harness_core;

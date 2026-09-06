@@ -100,6 +100,7 @@ pub(super) fn wrapper_body(
                     mir::Expr::local(frame, mir::Type::Class(frame_class)),
                     frame_state(STATE_INITIAL),
                 ],
+                pending: mir::CoroutinePendingContext::Root,
             },
         },
     )));
@@ -173,6 +174,7 @@ pub(super) fn protocol_error_block(
                     callee: mir::Callee::User(lowerer.ctors[&constructor]),
                 },
                 args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
+                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Throw {

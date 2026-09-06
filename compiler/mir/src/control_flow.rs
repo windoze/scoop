@@ -84,6 +84,89 @@ impl LoopHeaderPollTarget {
     }
 }
 
+/// Body-local destination reached after one generated cleanup body has
+/// completed normally.  It is intentionally incompatible with source loop,
+/// resume-entry, and exception targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineCleanupFallthroughTarget {
+    block: BlockId,
+}
+
+impl CoroutineCleanupFallthroughTarget {
+    pub const fn new(block: BlockId) -> Self {
+        Self { block }
+    }
+
+    pub const fn block(self) -> BlockId {
+        self.block
+    }
+}
+
+/// Body-local destination of a pending `break` after its cleanup suffix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineLoopExitTarget {
+    block: BlockId,
+}
+
+impl CoroutineLoopExitTarget {
+    pub const fn new(block: BlockId) -> Self {
+        Self { block }
+    }
+
+    pub const fn block(self) -> BlockId {
+        self.block
+    }
+}
+
+/// Body-local destination of a pending `continue` after its cleanup suffix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineLoopHeaderTarget {
+    block: BlockId,
+}
+
+impl CoroutineLoopHeaderTarget {
+    pub const fn new(block: BlockId) -> Self {
+        Self { block }
+    }
+
+    pub const fn block(self) -> BlockId {
+        self.block
+    }
+}
+
+/// Body-local managed-exception successor.  Propagation out of the function
+/// is represented by `None`, rather than by a forged block id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineUnwindTarget {
+    block: BlockId,
+}
+
+impl CoroutineUnwindTarget {
+    pub const fn new(block: BlockId) -> Self {
+        Self { block }
+    }
+
+    pub const fn block(self) -> BlockId {
+        self.block
+    }
+}
+
+/// Body-local entry selected by the coroutine driver's state dispatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineResumeEntryTarget {
+    block: BlockId,
+}
+
+impl CoroutineResumeEntryTarget {
+    pub const fn new(block: BlockId) -> Self {
+        Self { block }
+    }
+
+    pub const fn block(self) -> BlockId {
+        self.block
+    }
+}
+
 impl Body {
     /// A valid body for signature-only function shells. It contains one
     /// unreachable entry block so downstream code never handles a missing

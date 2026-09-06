@@ -226,6 +226,7 @@ impl Lowerer {
                     kind,
                     span: signature.span,
                 }],
+                coroutine_eh: None,
             },
             return_ty.clone(),
             &self.enums.defs,

@@ -2237,8 +2237,14 @@ Module mangling=compact-v2
   coroutine_slot cl0 CoroutineSlot$C8_UnitTaskX value=UnitTask
   coroutine_slot cl1 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_slot cl2 CoroutineSlot$U value=Unit
-  coroutine_frame cr0 CoroutineFrame$scoop_UnitTask_run_suspend owner=cf0
-  coroutine_resume cp0 state=1 result=Unit frame=cr0 adapter=CoroutineAdapter$scoop_UnitTask_run_suspend$1 resume=@scoop.UnitTask.run$suspend$resume$1 failure=@scoop.UnitTask.run$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_UnitTask_run_suspend field=2 slot=cl0 value=UnitTask
+  coroutine_failure cx0 class=CoroutineFrame$scoop_UnitTask_run_suspend field=3 slot=cl1 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_UnitTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0] failure=cx0
+  coroutine_resume cp0 site=1 result=Unit frame=cr0 adapter=CoroutineAdapter$scoop_UnitTask_run_suspend$1 resume=@scoop.UnitTask.run$suspend$resume$1 failure=@scoop.UnitTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.UnitTask.run$suspend source_return=Unit step=cs0 frame=cr0 driver=@scoop.UnitTask.run$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop.SuspendTask.run$U$suspend source_return=Unit step=cs0 immediate
   instance @scoop.println$S <- println

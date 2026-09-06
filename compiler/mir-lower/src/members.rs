@@ -292,6 +292,7 @@ impl Lowerer {
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
+            contains_suspend_call: false,
         };
         let receiver_ty = mir::Type::Class(mir_class);
         let receiver = lowerer.locals.alloc(mir::Local {
@@ -327,9 +328,11 @@ impl Lowerer {
             lowerer.active_loops.is_empty(),
             "class-constructor loop remapping is balanced"
         );
+        let coroutine_eh = lowerer.coroutine_eh_mode();
         let body = smir::Body {
             locals: lowerer.locals,
             statements,
+            coroutine_eh,
         };
         (params, mir::Type::Unit, body)
     }
@@ -394,6 +397,7 @@ impl Lowerer {
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
+            contains_suspend_call: false,
         };
         let return_ty = mir::Type::Struct(lowerer.struct_map[&structure]);
         let mut params = Vec::new();
@@ -480,12 +484,14 @@ impl Lowerer {
             lowerer.active_loops.is_empty(),
             "struct-constructor loop remapping is balanced"
         );
+        let coroutine_eh = lowerer.coroutine_eh_mode();
         (
             params,
             return_ty,
             smir::Body {
                 locals: lowerer.locals,
                 statements,
+                coroutine_eh,
             },
         )
     }

@@ -4396,14 +4396,47 @@ Module mangling=compact-v2
   coroutine_slot cl2 CoroutineSlot$I32 value=Int
   coroutine_slot cl3 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_slot cl4 CoroutineSlot$C12_ExplicitTaskX value=ExplicitTask
-  coroutine_frame cr0 CoroutineFrame$scoop_DefaultTask_run_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_ExplicitTask_run_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_awaitDefault_suspend owner=cf2
-  coroutine_resume cp0 state=2 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_DefaultTask_run_suspend$2 resume=@scoop.DefaultTask.run$suspend$resume$2 failure=@scoop.DefaultTask.run$suspend$resume_exception$2
-  coroutine_resume cp1 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_DefaultTask_run_suspend$1 resume=@scoop.DefaultTask.run$suspend$resume$1 failure=@scoop.DefaultTask.run$suspend$resume_exception$1
-  coroutine_resume cp2 state=2 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_ExplicitTask_run_suspend$2 resume=@scoop.ExplicitTask.run$suspend$resume$2 failure=@scoop.ExplicitTask.run$suspend$resume_exception$2
-  coroutine_resume cp3 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_ExplicitTask_run_suspend$1 resume=@scoop.ExplicitTask.run$suspend$resume$1 failure=@scoop.ExplicitTask.run$suspend$resume_exception$1
-  coroutine_resume cp4 state=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_awaitDefault_suspend$1 resume=@scoop.awaitDefault$suspend$resume$1 failure=@scoop.awaitDefault$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_DefaultTask_run_suspend field=2 slot=cl0 value=DefaultTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_DefaultTask_run_suspend field=3 slot=cl1 value=DefaultGate
+  coroutine_saved cv2 class=CoroutineFrame$scoop_DefaultTask_run_suspend field=4 slot=cl2 value=Int
+  coroutine_saved cv3 class=CoroutineFrame$scoop_DefaultTask_run_suspend field=5 slot=cl2 value=Int
+  coroutine_saved cv4 class=CoroutineFrame$scoop_ExplicitTask_run_suspend field=2 slot=cl4 value=ExplicitTask
+  coroutine_saved cv5 class=CoroutineFrame$scoop_ExplicitTask_run_suspend field=3 slot=cl1 value=DefaultGate
+  coroutine_saved cv6 class=CoroutineFrame$scoop_ExplicitTask_run_suspend field=4 slot=cl2 value=Int
+  coroutine_saved cv7 class=CoroutineFrame$scoop_ExplicitTask_run_suspend field=5 slot=cl2 value=Int
+  coroutine_saved cv8 class=CoroutineFrame$scoop_awaitDefault_suspend field=2 slot=cl1 value=DefaultGate
+  coroutine_saved cv9 class=CoroutineFrame$scoop_awaitDefault_suspend field=3 slot=cl2 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_DefaultTask_run_suspend field=6 slot=cl3 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_ExplicitTask_run_suspend field=6 slot=cl3 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_awaitDefault_suspend field=4 slot=cl3 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_DefaultTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2,cv3] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_ExplicitTask_run_suspend owner=cf1 state=field0 completion=field1 saved=[cv4,cv5,cv6,cv7] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$scoop_awaitDefault_suspend owner=cf2 state=field0 completion=field1 saved=[cv8,cv9] failure=cx2
+  coroutine_resume cp0 site=2 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_DefaultTask_run_suspend$2 resume=@scoop.DefaultTask.run$suspend$resume$2 failure=@scoop.DefaultTask.run$suspend$resume_exception$2
+    success suspended.2 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.2 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp1 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_DefaultTask_run_suspend$1 resume=@scoop.DefaultTask.run$suspend$resume$1 failure=@scoop.DefaultTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb9)
+      entry=bb15
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb16
+  coroutine_resume cp2 site=2 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_ExplicitTask_run_suspend$2 resume=@scoop.ExplicitTask.run$suspend$resume$2 failure=@scoop.ExplicitTask.run$suspend$resume_exception$2
+    success suspended.2 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.2 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp3 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_ExplicitTask_run_suspend$1 resume=@scoop.ExplicitTask.run$suspend$resume$1 failure=@scoop.ExplicitTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb9)
+      entry=bb15
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb16
+  coroutine_resume cp4 site=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_awaitDefault_suspend$1 resume=@scoop.awaitDefault$suspend$resume$1 failure=@scoop.awaitDefault$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.DefaultTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.DefaultTask.run$suspend$drive resumes=[cp1,cp0]
   coroutine_fn cf1 @scoop.ExplicitTask.run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.ExplicitTask.run$suspend$drive resumes=[cp3,cp2]
   coroutine_fn cf2 @scoop.awaitDefault$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.awaitDefault$suspend$drive resumes=[cp4]

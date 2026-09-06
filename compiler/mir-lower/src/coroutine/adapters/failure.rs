@@ -8,6 +8,7 @@ pub(super) fn generate_failure_method(
     module: &hir::Module,
     adapter: mir::ClassId,
     frame_class: mir::ClassId,
+    frame_layout: FrameLayout,
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
@@ -16,7 +17,6 @@ pub(super) fn generate_failure_method(
     driver: mir::FunctionId,
     source_symbol: &str,
     state: mir::CoroutineSuspendStateId,
-    failure_state: mir::CoroutineFrameState,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
     let completed = lowerer
@@ -47,6 +47,7 @@ pub(super) fn generate_failure_method(
         step,
         adapter,
         frame_class,
+        frame_layout,
         outer_step,
         outer_continuation,
         outer_resume,
@@ -77,8 +78,9 @@ pub(super) fn generate_failure_method(
                     },
                     args: vec![
                         adapter_frame(this, adapter, frame_class),
-                        frame_state(failure_state),
+                        frame_state(failure_state(state)),
                     ],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
         ],
@@ -105,7 +107,7 @@ pub(super) fn generate_failure_method(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 adapter_frame(this, adapter, frame_class),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(state)),
                 frame_state_value(STATE_RUNNING),
             ),

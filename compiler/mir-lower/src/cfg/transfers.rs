@@ -16,11 +16,18 @@ impl<'a> CfgLowerer<'a> {
             .unwind_scope_count
             .checked_add(1)
             .expect("one callable cannot contain u32::MAX unwind scopes");
+        let throwable = self
+            .coroutine_eh
+            .as_ref()
+            .map(|mode| mode.throwable.clone());
+        let managed_exception = throwable.map(|ty| self.new_hidden("coroutine_exception", ty));
         UnwindTarget {
             owner,
             pad,
             continuation,
             handles_in_function,
+            context: self.active_pending.clone(),
+            managed_exception,
         }
     }
 
@@ -62,12 +69,21 @@ impl<'a> CfgLowerer<'a> {
     /// transfer at the next outer cleanup.
     pub(super) fn route_transfer(&mut self, transfer: PendingTransfer) -> bool {
         let stop = transfer.cleanup_depth();
+        let enters_cleanup = stop.0 < self.normal_cleanups.len();
+        let pending = if enters_cleanup {
+            transfer
+                .destination_context()
+                .with_transfer(transfer.source_transfer())
+        } else {
+            self.active_pending.clone()
+        };
         let all = std::mem::take(&mut self.normal_cleanups);
         assert!(
             stop.0 <= all.len(),
             "a normal transfer target keeps a prefix of the active cleanup stack"
         );
         let saved_try_stack = self.try_stack.clone();
+        let saved_pending = std::mem::replace(&mut self.active_pending, pending);
         self.normal_cleanups = all.clone();
         let mut cursor = CleanupCursor::new(CleanupDepth(all.len()), stop);
 
@@ -100,11 +116,13 @@ impl<'a> CfgLowerer<'a> {
         let reached_target = if self.current_sealed {
             false
         } else {
+            self.ensure_unwind_context();
             self.emit_transfer(transfer);
             true
         };
         self.normal_cleanups = all;
         self.try_stack = saved_try_stack;
+        self.active_pending = saved_pending;
         reached_target
     }
 
@@ -136,6 +154,10 @@ impl<'a> CfgLowerer<'a> {
             }
             PendingTransfer::Break(target) => mir::Terminator::Goto(target.block),
             PendingTransfer::Continue(target) => mir::Terminator::Goto(target.block),
+            PendingTransfer::ManagedThrow(transfer) => mir::Terminator::Throw {
+                exception: transfer.exception,
+                unwind: transfer.unwind.map(|target| target.pad),
+            },
         };
         self.seal(terminator);
     }
@@ -160,10 +182,12 @@ impl<'a> CfgLowerer<'a> {
             exit: LoopExitTarget {
                 block: exit,
                 cleanup_depth,
+                context: self.active_pending.clone(),
             },
             header: LoopHeaderTarget {
                 block: header,
                 cleanup_depth,
+                context: self.active_pending.clone(),
             },
             break_reachable: false,
         });
@@ -191,7 +215,7 @@ impl<'a> CfgLowerer<'a> {
             self.loop_targets[index].source, source,
             "unlabelled structured break targets the lexical innermost loop"
         );
-        let target = self.loop_targets[index].exit;
+        let target = self.loop_targets[index].exit.clone();
         if self.route_transfer(PendingTransfer::Break(target)) {
             self.loop_targets[index].break_reachable = true;
         }
@@ -206,7 +230,15 @@ impl<'a> CfgLowerer<'a> {
             target.source, source,
             "unlabelled structured continue targets the lexical innermost loop"
         );
-        let target = target.header;
+        let target = target.header.clone();
         self.route_transfer(PendingTransfer::Continue(target));
+    }
+
+    pub(super) fn call_pending_context(&self) -> mir::CoroutinePendingContext {
+        if self.coroutine_eh.is_some() {
+            self.active_pending.to_mir()
+        } else {
+            mir::CoroutinePendingContext::Root
+        }
     }
 }

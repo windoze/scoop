@@ -116,7 +116,11 @@ impl Lowerer {
             .expect("function bridge targets are source-level MIR types");
         let name = format!("function_bridge.{source_name}.{target_name}");
         let body = cfg::lower(
-            smir::Body { locals, statements },
+            smir::Body {
+                locals,
+                statements,
+                coroutine_eh: None,
+            },
             target_signature.return_type.clone(),
             &self.enums.defs,
         );

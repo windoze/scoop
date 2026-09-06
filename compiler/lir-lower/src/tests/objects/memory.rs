@@ -106,6 +106,7 @@ fn class_allocation_and_initializer_store_fields() {
                     int_expr(1),
                     string_expr(str_x),
                 ],
+                pending: mir::CoroutinePendingContext::Root,
             }),
         ],
     );

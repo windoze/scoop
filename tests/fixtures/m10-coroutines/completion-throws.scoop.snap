@@ -1495,7 +1495,7 @@ Module mangling=compact-v2
       end_catch
       resume
     bb7 try.end.7
-      goto bb19
+      goto bb20
     bb8 try.body.8 unwind bb1
       assign $new.1
         Type ImmediateTask
@@ -1547,30 +1547,32 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       end_catch
+      goto bb12
+    bb12 scope.12
       goto bb7
-    bb12 try.unwind.12
+    bb13 try.unwind.13
       landing_pad cleanup=false
-      goto bb13
-    bb13 try.dispatch.13
+      goto bb14
+    bb14 try.dispatch.14
       begin_catch
-      branch bb20 bb21
+      branch bb21 bb22
         Type Boolean
         IsInstance IllegalStateException
           Type Any
           CaughtException
-    bb14 try.handler_pad.14
+    bb15 try.handler_pad.15
       landing_pad cleanup=true
-      goto bb15
-    bb15 try.handler_cleanup.15
+      goto bb16
+    bb16 try.handler_cleanup.16
       end_catch
       resume
-    bb16 try.exit_pad.16
+    bb17 try.exit_pad.17
       landing_pad cleanup=true
-      goto bb17
-    bb17 try.exit_cleanup.17
+      goto bb18
+    bb18 try.exit_cleanup.18
       end_catch
       resume
-    bb18 try.end.18
+    bb19 try.end.19
       val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
         Type Option$J16_Continuation$I32X<Continuation$I32>
         VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
@@ -1625,8 +1627,8 @@ Module mangling=compact-v2
         Local $parameter.task
         Type Continuation$I32
         Local $parameter.completion
-      goto bb30
-    bb19 try.body.19 unwind bb12
+      goto bb32
+    bb20 try.body.20 unwind bb13
       assign $new.3
         Type ImmediateFailureTask
         ClassAlloc ImmediateFailureTask
@@ -1656,17 +1658,17 @@ Module mangling=compact-v2
         Local $parameter.task
         Type Continuation$I32
         Local $parameter.completion
-      goto bb18
-    bb20 try.catch.20
+      goto bb19
+    bb21 try.catch.21
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb22
-    bb21 try.next.21
-      rethrow unwind bb16
-    bb22 scope.22 unwind bb14
+      goto bb23
+    bb22 try.next.22
+      rethrow unwind bb17
+    bb23 scope.23 unwind bb15
       val $argument.0: String
         Type String
         StringConst @scoop.str.1
@@ -1677,30 +1679,32 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       end_catch
-      goto bb18
-    bb23 try.unwind.23
-      landing_pad cleanup=false
       goto bb24
-    bb24 try.dispatch.24
+    bb24 scope.24
+      goto bb19
+    bb25 try.unwind.25
+      landing_pad cleanup=false
+      goto bb26
+    bb26 try.dispatch.26
       begin_catch
-      branch bb31 bb32
+      branch bb33 bb34
         Type Boolean
         IsInstance IllegalStateException
           Type Any
           CaughtException
-    bb25 try.handler_pad.25
-      landing_pad cleanup=true
-      goto bb26
-    bb26 try.handler_cleanup.26
-      end_catch
-      resume
-    bb27 try.exit_pad.27
+    bb27 try.handler_pad.27
       landing_pad cleanup=true
       goto bb28
-    bb28 try.exit_cleanup.28
+    bb28 try.handler_cleanup.28
       end_catch
       resume
-    bb29 try.end.29
+    bb29 try.exit_pad.29
+      landing_pad cleanup=true
+      goto bb30
+    bb30 try.exit_cleanup.30
+      end_catch
+      resume
+    bb31 try.end.31
       val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
         Type Option$J16_Continuation$I32X<Continuation$I32>
         VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
@@ -1755,8 +1759,8 @@ Module mangling=compact-v2
         Local $parameter.task
         Type Continuation$I32
         Local $parameter.completion
-      goto bb41
-    bb30 try.body.30 unwind bb23
+      goto bb44
+    bb32 try.body.32 unwind bb25
       val $receiver: Gate
         Type Gate
         Local success
@@ -1771,17 +1775,17 @@ Module mangling=compact-v2
         Local $receiver
         Type Int
         Local $parameter.value
-      goto bb29
-    bb31 try.catch.31
+      goto bb31
+    bb33 try.catch.33
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb33
-    bb32 try.next.32
-      rethrow unwind bb27
-    bb33 scope.33 unwind bb25
+      goto bb35
+    bb34 try.next.34
+      rethrow unwind bb29
+    bb35 scope.35 unwind bb27
       val $argument.0: String
         Type String
         StringConst @scoop.str.2
@@ -1792,49 +1796,51 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       end_catch
-      goto bb29
-    bb34 try.unwind.34
+      goto bb36
+    bb36 scope.36
+      goto bb31
+    bb37 try.unwind.37
       landing_pad cleanup=false
-      goto bb35
-    bb35 try.dispatch.35
+      goto bb38
+    bb38 try.dispatch.38
       begin_catch
-      branch bb42 bb43
+      branch bb45 bb46
         Type Boolean
         IsInstance IllegalStateException
           Type Any
           CaughtException
-    bb36 try.handler_pad.36
+    bb39 try.handler_pad.39
       landing_pad cleanup=true
-      goto bb37
-    bb37 try.handler_cleanup.37
+      goto bb40
+    bb40 try.handler_cleanup.40
       end_catch
       resume
-    bb38 try.exit_pad.38
+    bb41 try.exit_pad.41
       landing_pad cleanup=true
-      goto bb39
-    bb39 try.exit_cleanup.39
+      goto bb42
+    bb42 try.exit_cleanup.42
       end_catch
       resume
-    bb40 try.end.40
+    bb43 try.end.43
       return
-    bb41 try.body.41 unwind bb34
+    bb44 try.body.44 unwind bb37
       val $receiver: Gate
         Type Gate
         Local failure
       call @scoop.Gate.fail direct
         Type Gate
         Local $receiver
-      goto bb40
-    bb42 try.catch.42
+      goto bb43
+    bb45 try.catch.45
       val exception: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
           CaughtException
-      goto bb44
-    bb43 try.next.43
-      rethrow unwind bb38
-    bb44 scope.44 unwind bb36
+      goto bb47
+    bb46 try.next.46
+      rethrow unwind bb41
+    bb47 scope.47 unwind bb39
       val $argument.0: String
         Type String
         StringConst @scoop.str.3
@@ -1845,7 +1851,9 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       end_catch
-      goto bb40
+      goto bb48
+    bb48 scope.48
+      goto bb43
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       val $receiver: String
@@ -2800,8 +2808,15 @@ Module mangling=compact-v2
   coroutine_slot cl0 CoroutineSlot$C11_WaitingTaskX value=WaitingTask
   coroutine_slot cl1 CoroutineSlot$I32 value=Int
   coroutine_slot cl2 CoroutineSlot$C9_ThrowableX value=Throwable
-  coroutine_frame cr0 CoroutineFrame$scoop_WaitingTask_run_suspend owner=cf2
-  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_WaitingTask_run_suspend$1 resume=@scoop.WaitingTask.run$suspend$resume$1 failure=@scoop.WaitingTask.run$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_WaitingTask_run_suspend field=2 slot=cl0 value=WaitingTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_WaitingTask_run_suspend field=3 slot=cl1 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_WaitingTask_run_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_WaitingTask_run_suspend owner=cf2 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_WaitingTask_run_suspend$1 resume=@scoop.WaitingTask.run$suspend$resume$1 failure=@scoop.WaitingTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.ImmediateTask.run$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf1 @scoop.ImmediateFailureTask.run$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf2 @scoop.WaitingTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.WaitingTask.run$suspend$drive resumes=[cp0]
@@ -3383,7 +3398,7 @@ Module
     end_catch
     resume local52
   block try.end.7
-    br @try.body.19
+    br @try.body.20
   block try.body.8
     call managed-direct-target0 sp39 live=[] t8 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(16)))
     store t8 -> local42
@@ -3400,33 +3415,35 @@ Module
     store local5 -> local6
     invoke managed-void-target3 sp44 roots=[local6:argument] sig=void4 (ptr<managed>) local-fn32(local6) normal @invoke.normal.5 unwind @try.handler_pad.3
     br @invoke.normal.5
-  block try.unwind.12
+  block scope.12
+    br @try.end.7
+  block try.unwind.13
     (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local52
     store t15 -> local53
-    br @try.dispatch.13
-  block try.dispatch.13
+    br @try.dispatch.14
+  block try.dispatch.14
     t16 = begin_catch local53 : ptr<managed>
     store t16 -> local54
     call no-gc-direct-target1 t17 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local54, td20)
-    cbr t17 then @try.catch.20 else @try.next.21
-  block try.handler_pad.14
+    cbr t17 then @try.catch.21 else @try.next.22
+  block try.handler_pad.15
     (t18, t19) = cleanup_pad : (exception_record, ptr<raw>)
     store t18 -> local52
     store t19 -> local53
-    br @try.handler_cleanup.15
-  block try.handler_cleanup.15
+    br @try.handler_cleanup.16
+  block try.handler_cleanup.16
     end_catch
     resume local52
-  block try.exit_pad.16
+  block try.exit_pad.17
     (t20, t21) = cleanup_pad : (exception_record, ptr<raw>)
     store t20 -> local52
     store t21 -> local53
-    br @try.exit_cleanup.17
-  block try.exit_cleanup.17
+    br @try.exit_cleanup.18
+  block try.exit_cleanup.18
     end_catch
     resume local52
-  block try.end.18
+  block try.end.19
     t22 = enum_wrap e0 v1 () : enum0
     store t22 -> local14
     store local14 -> local15
@@ -3451,50 +3468,52 @@ Module
     store local20 -> local22
     call managed-void-target7 sp51 live=[local16:ptr<managed>@0, local21:ptr<managed>@0, local22:ptr<managed>@0] sig=void8 (ptr<managed>, ptr<managed>) local-fn30(local21, local22)
     t29 = aggregate () : {}
-    br @try.body.30
-  block try.body.19
+    br @try.body.32
+  block try.body.20
     call managed-direct-target5 sp52 live=[] t30 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(16)))
     store t30 -> local44
-    invoke managed-void-target8 sp53 roots=[local44:normal] sig=void9 (ptr<managed>) local-fn44(local44) normal @invoke.normal.6 unwind @try.unwind.12
+    invoke managed-void-target8 sp53 roots=[local44:normal] sig=void9 (ptr<managed>) local-fn44(local44) normal @invoke.normal.6 unwind @try.unwind.13
     br @invoke.normal.6
-  block try.catch.20
+  block try.catch.21
     store local54 -> local11
-    br @scope.22
-  block try.next.21
-    invoke no-gc-void-target1 sig=void12 () runtime @scoop_rt_rethrow() normal @rethrow.normal.9 unwind @try.exit_pad.16
+    br @scope.23
+  block try.next.22
+    invoke no-gc-void-target1 sig=void12 () runtime @scoop_rt_rethrow() normal @rethrow.normal.9 unwind @try.exit_pad.17
     br @rethrow.normal.9
-  block scope.22
+  block scope.23
     store global1 -> local12
     store local12 -> local13
-    invoke managed-void-target11 sp57 roots=[local13:argument] sig=void13 (ptr<managed>) local-fn32(local13) normal @invoke.normal.10 unwind @try.handler_pad.14
+    invoke managed-void-target11 sp57 roots=[local13:argument] sig=void13 (ptr<managed>) local-fn32(local13) normal @invoke.normal.10 unwind @try.handler_pad.15
     br @invoke.normal.10
-  block try.unwind.23
+  block scope.24
+    br @try.end.19
+  block try.unwind.25
     (t36, t37) = landingpad : (exception_record, ptr<raw>)
     store t36 -> local52
     store t37 -> local53
-    br @try.dispatch.24
-  block try.dispatch.24
+    br @try.dispatch.26
+  block try.dispatch.26
     t38 = begin_catch local53 : ptr<managed>
     store t38 -> local54
     call no-gc-direct-target2 t39 = sig=direct9 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local54, td20)
-    cbr t39 then @try.catch.31 else @try.next.32
-  block try.handler_pad.25
+    cbr t39 then @try.catch.33 else @try.next.34
+  block try.handler_pad.27
     (t40, t41) = cleanup_pad : (exception_record, ptr<raw>)
     store t40 -> local52
     store t41 -> local53
-    br @try.handler_cleanup.26
-  block try.handler_cleanup.26
+    br @try.handler_cleanup.28
+  block try.handler_cleanup.28
     end_catch
     resume local52
-  block try.exit_pad.27
+  block try.exit_pad.29
     (t42, t43) = cleanup_pad : (exception_record, ptr<raw>)
     store t42 -> local52
     store t43 -> local53
-    br @try.exit_cleanup.28
-  block try.exit_cleanup.28
+    br @try.exit_cleanup.30
+  block try.exit_cleanup.30
     end_catch
     resume local52
-  block try.end.29
+  block try.end.31
     t44 = enum_wrap e0 v1 () : enum0
     store t44 -> local29
     store local29 -> local30
@@ -3519,67 +3538,71 @@ Module
     store local35 -> local37
     call managed-void-target15 sp64 live=[local31:ptr<managed>@0, local36:ptr<managed>@0, local37:ptr<managed>@0] sig=void17 (ptr<managed>, ptr<managed>) local-fn30(local36, local37)
     t51 = aggregate () : {}
-    br @try.body.41
-  block try.body.30
+    br @try.body.44
+  block try.body.32
     store local16 -> local23
     store integer<Int>(0x00000001) -> local24
     store local24 -> local25
-    invoke managed-void-target16 sp65 roots=[local23:argument] sig=void18 (ptr<managed>, i32) local-fn22(local23, local25) normal @invoke.normal.11 unwind @try.unwind.23
+    invoke managed-void-target16 sp65 roots=[local23:argument] sig=void18 (ptr<managed>, i32) local-fn22(local23, local25) normal @invoke.normal.11 unwind @try.unwind.25
     br @invoke.normal.11
-  block try.catch.31
+  block try.catch.33
     store local54 -> local26
-    br @scope.33
-  block try.next.32
-    invoke no-gc-void-target2 sig=void19 () runtime @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.27
+    br @scope.35
+  block try.next.34
+    invoke no-gc-void-target2 sig=void19 () runtime @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.29
     br @rethrow.normal.12
-  block scope.33
+  block scope.35
     store global2 -> local27
     store local27 -> local28
-    invoke managed-void-target17 sp66 roots=[local28:argument] sig=void20 (ptr<managed>) local-fn32(local28) normal @invoke.normal.13 unwind @try.handler_pad.25
+    invoke managed-void-target17 sp66 roots=[local28:argument] sig=void20 (ptr<managed>) local-fn32(local28) normal @invoke.normal.13 unwind @try.handler_pad.27
     br @invoke.normal.13
-  block try.unwind.34
+  block scope.36
+    br @try.end.31
+  block try.unwind.37
     (t54, t55) = landingpad : (exception_record, ptr<raw>)
     store t54 -> local52
     store t55 -> local53
-    br @try.dispatch.35
-  block try.dispatch.35
+    br @try.dispatch.38
+  block try.dispatch.38
     t56 = begin_catch local53 : ptr<managed>
     store t56 -> local54
     call no-gc-direct-target3 t57 = sig=direct13 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local54, td20)
-    cbr t57 then @try.catch.42 else @try.next.43
-  block try.handler_pad.36
+    cbr t57 then @try.catch.45 else @try.next.46
+  block try.handler_pad.39
     (t58, t59) = cleanup_pad : (exception_record, ptr<raw>)
     store t58 -> local52
     store t59 -> local53
-    br @try.handler_cleanup.37
-  block try.handler_cleanup.37
+    br @try.handler_cleanup.40
+  block try.handler_cleanup.40
     end_catch
     resume local52
-  block try.exit_pad.38
+  block try.exit_pad.41
     (t60, t61) = cleanup_pad : (exception_record, ptr<raw>)
     store t60 -> local52
     store t61 -> local53
-    br @try.exit_cleanup.39
-  block try.exit_cleanup.39
+    br @try.exit_cleanup.42
+  block try.exit_cleanup.42
     end_catch
     resume local52
-  block try.end.40
+  block try.end.43
     ret
-  block try.body.41
+  block try.body.44
     store local31 -> local38
-    invoke managed-void-target18 sp67 roots=[local38:argument] sig=void21 (ptr<managed>) local-fn23(local38) normal @invoke.normal.14 unwind @try.unwind.34
+    invoke managed-void-target18 sp67 roots=[local38:argument] sig=void21 (ptr<managed>) local-fn23(local38) normal @invoke.normal.14 unwind @try.unwind.37
     br @invoke.normal.14
-  block try.catch.42
+  block try.catch.45
     store local54 -> local39
-    br @scope.44
-  block try.next.43
-    invoke no-gc-void-target3 sig=void22 () runtime @scoop_rt_rethrow() normal @rethrow.normal.15 unwind @try.exit_pad.38
+    br @scope.47
+  block try.next.46
+    invoke no-gc-void-target3 sig=void22 () runtime @scoop_rt_rethrow() normal @rethrow.normal.15 unwind @try.exit_pad.41
     br @rethrow.normal.15
-  block scope.44
+  block scope.47
     store global3 -> local40
     store local40 -> local41
-    invoke managed-void-target19 sp68 roots=[local41:argument] sig=void23 (ptr<managed>) local-fn32(local41) normal @invoke.normal.16 unwind @try.handler_pad.36
+    invoke managed-void-target19 sp68 roots=[local41:argument] sig=void23 (ptr<managed>) local-fn32(local41) normal @invoke.normal.16 unwind @try.handler_pad.39
     br @invoke.normal.16
+  block scope.48
+    br @try.end.43
   block invoke.normal.1
     t9 = aggregate () : {}
     store local42 -> local0
@@ -3602,48 +3625,48 @@ Module
   block invoke.normal.5
     t13 = aggregate () : {}
     end_catch
-    br @try.end.7
+    br @scope.12
   block invoke.normal.6
     t31 = aggregate () : {}
     store local44 -> local7
     call managed-direct-target6 sp54 live=[local7:ptr<managed>@0] t32 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(16)))
     store t32 -> local45
-    invoke managed-void-target9 sp55 roots=[local7:normal, local45:normal] sig=void10 (ptr<managed>) local-fn46(local45) normal @invoke.normal.7 unwind @try.unwind.12
+    invoke managed-void-target9 sp55 roots=[local7:normal, local45:normal] sig=void10 (ptr<managed>) local-fn46(local45) normal @invoke.normal.7 unwind @try.unwind.13
     br @invoke.normal.7
   block invoke.normal.7
     t33 = aggregate () : {}
     store local45 -> local8
     store local7 -> local9
     store local8 -> local10
-    invoke managed-void-target10 sp56 roots=[local9:argument, local10:argument] sig=void11 (ptr<managed>, ptr<managed>) local-fn30(local9, local10) normal @invoke.normal.8 unwind @try.unwind.12
+    invoke managed-void-target10 sp56 roots=[local9:argument, local10:argument] sig=void11 (ptr<managed>, ptr<managed>) local-fn30(local9, local10) normal @invoke.normal.8 unwind @try.unwind.13
     br @invoke.normal.8
   block invoke.normal.8
     t34 = aggregate () : {}
-    br @try.end.18
+    br @try.end.19
   block rethrow.normal.9
     unreachable
   block invoke.normal.10
     t35 = aggregate () : {}
     end_catch
-    br @try.end.18
+    br @scope.24
   block invoke.normal.11
     t52 = aggregate () : {}
-    br @try.end.29
+    br @try.end.31
   block rethrow.normal.12
     unreachable
   block invoke.normal.13
     t53 = aggregate () : {}
     end_catch
-    br @try.end.29
+    br @scope.36
   block invoke.normal.14
     t62 = aggregate () : {}
-    br @try.end.40
+    br @try.end.43
   block rethrow.normal.15
     unreachable
   block invoke.normal.16
     t63 = aggregate () : {}
     end_catch
-    br @try.end.40
+    br @scope.48
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>

@@ -6,6 +6,153 @@ use super::*;
 pub struct Call {
     pub target: CallTarget,
     pub args: Vec<Expr>,
+    /// Transient structured-cleanup context. Coroutine conversion consumes
+    /// this value and every final MIR call must carry
+    /// [`CoroutinePendingContext::Root`].
+    pub pending: CoroutinePendingContext,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum CoroutinePendingContext {
+    /// The call is not executing a cleanup on behalf of an outer transfer.
+    #[default]
+    Root,
+    /// Outer-to-inner transfers whose cleanup bodies contain this call.
+    Chain(NonEmptyCoroutinePendingChain),
+}
+
+impl CoroutinePendingContext {
+    pub const fn is_root(&self) -> bool {
+        matches!(self, Self::Root)
+    }
+
+    pub fn from_transfers(transfers: Vec<CoroutinePendingSourceTransfer>) -> Option<Self> {
+        NonEmptyCoroutinePendingChain::from_vec(transfers).map(Self::Chain)
+    }
+}
+
+/// A structurally non-empty, outer-to-inner pending-transfer chain retained
+/// only until coroutine conversion has generated final saved-slot metadata.
+#[derive(Debug, Clone)]
+pub struct NonEmptyCoroutinePendingChain {
+    first: CoroutinePendingSourceTransfer,
+    rest: Vec<CoroutinePendingSourceTransfer>,
+}
+
+impl NonEmptyCoroutinePendingChain {
+    pub fn new(
+        first: CoroutinePendingSourceTransfer,
+        rest: Vec<CoroutinePendingSourceTransfer>,
+    ) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn from_vec(mut transfers: Vec<CoroutinePendingSourceTransfer>) -> Option<Self> {
+        if transfers.is_empty() {
+            return None;
+        }
+        let rest = transfers.split_off(1);
+        let first = transfers
+            .pop()
+            .expect("the non-empty chain has a first item");
+        Some(Self { first, rest })
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &CoroutinePendingSourceTransfer> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+
+    pub fn into_vec(self) -> Vec<CoroutinePendingSourceTransfer> {
+        std::iter::once(self.first).chain(self.rest).collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum CoroutinePendingSourceTransfer {
+    Fallthrough(CoroutineCleanupFallthroughTarget),
+    Return(CoroutinePendingSourceReturn),
+    Break(CoroutineLoopExitTarget),
+    Continue(CoroutineLoopHeaderTarget),
+    ManagedThrow(CoroutinePendingSourceManagedThrow),
+}
+
+#[derive(Debug, Clone)]
+pub enum CoroutinePendingSourceReturn {
+    Unit,
+    Value(CoroutinePendingSourceValue),
+}
+
+impl CoroutinePendingSourceReturn {
+    pub fn value(expression: Expr) -> Option<Self> {
+        CoroutinePendingSourceValue::checked(expression).map(Self::Value)
+    }
+
+    pub const fn expression(&self) -> Option<&Expr> {
+        match self {
+            Self::Unit => None,
+            Self::Value(value) => Some(value.expression()),
+        }
+    }
+}
+
+/// A pending dynamic payload materialized into an immutable CFG local before
+/// entering cleanup.  This closed wrapper prevents later coroutine analysis
+/// from trying to identify an arbitrary expression structurally.
+#[derive(Debug, Clone)]
+pub struct CoroutinePendingSourceValue {
+    expression: Expr,
+}
+
+impl CoroutinePendingSourceValue {
+    pub fn checked(expression: Expr) -> Option<Self> {
+        matches!(&expression.kind, ExprKind::Local(_)).then_some(Self { expression })
+    }
+
+    pub const fn expression(&self) -> &Expr {
+        &self.expression
+    }
+
+    pub fn local(&self) -> LocalId {
+        let ExprKind::Local(local) = &self.expression.kind else {
+            unreachable!()
+        };
+        *local
+    }
+
+    pub fn into_expression(self) -> Expr {
+        self.expression
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CoroutinePendingSourceManagedThrow {
+    exception: Expr,
+    unwind: Option<CoroutineUnwindTarget>,
+}
+
+impl CoroutinePendingSourceManagedThrow {
+    pub fn checked(exception: Expr, unwind: Option<CoroutineUnwindTarget>) -> Option<Self> {
+        matches!(&exception.kind, ExprKind::Local(_)).then_some(Self { exception, unwind })
+    }
+
+    pub const fn exception(&self) -> &Expr {
+        &self.exception
+    }
+
+    pub fn exception_local(&self) -> LocalId {
+        let ExprKind::Local(local) = &self.exception.kind else {
+            unreachable!()
+        };
+        *local
+    }
+
+    pub const fn unwind(&self) -> Option<CoroutineUnwindTarget> {
+        self.unwind
+    }
+
+    pub fn into_parts(self) -> (Expr, Option<CoroutineUnwindTarget>) {
+        (self.exception, self.unwind)
+    }
 }
 
 #[derive(Debug, Clone)]

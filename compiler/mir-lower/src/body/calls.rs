@@ -1,6 +1,10 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    pub(super) fn record_suspend_function_call(&mut self, function: hir::FunctionId) {
+        self.contains_suspend_call |= self.module.functions[function].is_suspend;
+    }
+
     /// Option tests and guarded payload projections are tied to one immutable
     /// local identity by the MIR contract. HIR safe-call/Elvis desugaring
     /// supplies that shared hidden local; a standalone compiler-generated test
@@ -27,6 +31,7 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
+        self.record_suspend_function_call(function);
         let callee = self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),
             mir::Callee::Monomorphized,
@@ -106,6 +111,7 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
+        self.record_suspend_function_call(function);
         if let Some(protocol) = self
             .module
             .coroutine_protocol_for_function(function)
@@ -307,6 +313,7 @@ impl BodyLowerer<'_> {
     ) -> smir::Expr {
         let module = self.module;
         let function = module.callable_function(callable);
+        self.record_suspend_function_call(function);
         let f = &module.functions[function];
         let callee = self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),

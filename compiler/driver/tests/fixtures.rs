@@ -229,6 +229,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m8-exceptions/custom-exception.scoop"
             | "m10-coroutines/gc-across-suspension.scoop"
             | "m10-coroutines/catch-finally-suspension.scoop"
+            | "m10-coroutines/pending-transfer-chain.scoop"
             | "m11-functions/captures.scoop"
             | "m11-functions/variance.scoop"
             | "m12-extern-scoop/extern-scoop.scoop"

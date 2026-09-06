@@ -2851,8 +2851,15 @@ Module mangling=compact-v2
   coroutine_slot cl0 CoroutineSlot$C11_ForeignTaskX value=ForeignTask
   coroutine_slot cl1 CoroutineSlot$I32 value=Int
   coroutine_slot cl2 CoroutineSlot$C9_ThrowableX value=Throwable
-  coroutine_frame cr0 CoroutineFrame$scoop_ForeignTask_run_suspend owner=cf0
-  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ForeignTask_run_suspend$1 resume=@scoop.ForeignTask.run$suspend$resume$1 failure=@scoop.ForeignTask.run$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_ForeignTask_run_suspend field=2 slot=cl0 value=ForeignTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_ForeignTask_run_suspend field=3 slot=cl1 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_ForeignTask_run_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_ForeignTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ForeignTask_run_suspend$1 resume=@scoop.ForeignTask.run$suspend$resume$1 failure=@scoop.ForeignTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.ForeignTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.ForeignTask.run$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop.SuspendTask.run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.println$S <- println

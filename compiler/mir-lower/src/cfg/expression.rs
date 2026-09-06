@@ -427,7 +427,11 @@ impl<'a> CfgLowerer<'a> {
         destination: Option<mir::LocalId>,
         span: Span,
     ) -> mir::Expr {
-        let normalized = mir::Call { target, args };
+        let normalized = mir::Call {
+            target,
+            args,
+            pending: self.call_pending_context(),
+        };
         if return_ty == mir::Type::Unit {
             assert!(
                 destination.is_none(),

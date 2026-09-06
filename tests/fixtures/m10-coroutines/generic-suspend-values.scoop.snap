@@ -7186,19 +7186,72 @@ Module mangling=compact-v2
   coroutine_slot cl8 CoroutineSlot$J28_SuspendRegistration$D4_PairXX value=SuspendRegistration$D4_PairX
   coroutine_slot cl9 CoroutineSlot$J21_SuspendRegistration$BX value=SuspendRegistration$B
   coroutine_slot cl10 CoroutineSlot$J30_SuspendRegistration$E6_ChoiceXX value=SuspendRegistration$E6_ChoiceX
-  coroutine_frame cr0 CoroutineFrame$scoop_GenericTask_run_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_awaitTop_I32_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_awaitTop_D4_PairX_suspend owner=cf2
-  coroutine_frame cr3 CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend owner=cf3
-  coroutine_frame cr4 CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend owner=cf4
-  coroutine_resume cp0 state=4 result=Choice frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$4 resume=@scoop.GenericTask.run$suspend$resume$4 failure=@scoop.GenericTask.run$suspend$resume_exception$4
-  coroutine_resume cp1 state=3 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$3 resume=@scoop.GenericTask.run$suspend$resume$3 failure=@scoop.GenericTask.run$suspend$resume_exception$3
-  coroutine_resume cp2 state=2 result=Pair frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$2 resume=@scoop.GenericTask.run$suspend$resume$2 failure=@scoop.GenericTask.run$suspend$resume_exception$2
-  coroutine_resume cp3 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$1 resume=@scoop.GenericTask.run$suspend$resume$1 failure=@scoop.GenericTask.run$suspend$resume_exception$1
-  coroutine_resume cp4 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_awaitTop_I32_suspend$1 resume=@scoop.awaitTop$I32$suspend$resume$1 failure=@scoop.awaitTop$I32$suspend$resume_exception$1
-  coroutine_resume cp5 state=1 result=Pair frame=cr2 adapter=CoroutineAdapter$scoop_awaitTop_D4_PairX_suspend$1 resume=@scoop.awaitTop$D4_PairX$suspend$resume$1 failure=@scoop.awaitTop$D4_PairX$suspend$resume_exception$1
-  coroutine_resume cp6 state=1 result=Boolean frame=cr3 adapter=CoroutineAdapter$scoop_Awaiter_awaitMember_B_suspend$1 resume=@scoop.Awaiter.awaitMember$B$suspend$resume$1 failure=@scoop.Awaiter.awaitMember$B$suspend$resume_exception$1
-  coroutine_resume cp7 state=1 result=Choice frame=cr4 adapter=CoroutineAdapter$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend$1 resume=@scoop.Awaiter.awaitMember$E6_ChoiceX$suspend$resume$1 failure=@scoop.Awaiter.awaitMember$E6_ChoiceX$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_GenericTask_run_suspend field=2 slot=cl0 value=GenericTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_GenericTask_run_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv2 class=CoroutineFrame$scoop_GenericTask_run_suspend field=4 slot=cl2 value=Pair
+  coroutine_saved cv3 class=CoroutineFrame$scoop_GenericTask_run_suspend field=5 slot=cl3 value=Awaiter
+  coroutine_saved cv4 class=CoroutineFrame$scoop_GenericTask_run_suspend field=6 slot=cl4 value=Boolean
+  coroutine_saved cv5 class=CoroutineFrame$scoop_GenericTask_run_suspend field=7 slot=cl5 value=Choice
+  coroutine_saved cv6 class=CoroutineFrame$scoop_awaitTop_I32_suspend field=2 slot=cl7 value=SuspendRegistration$I32
+  coroutine_saved cv7 class=CoroutineFrame$scoop_awaitTop_I32_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv8 class=CoroutineFrame$scoop_awaitTop_D4_PairX_suspend field=2 slot=cl8 value=SuspendRegistration$D4_PairX
+  coroutine_saved cv9 class=CoroutineFrame$scoop_awaitTop_D4_PairX_suspend field=3 slot=cl2 value=Pair
+  coroutine_saved cv10 class=CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend field=2 slot=cl3 value=Awaiter
+  coroutine_saved cv11 class=CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend field=3 slot=cl9 value=SuspendRegistration$B
+  coroutine_saved cv12 class=CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend field=4 slot=cl4 value=Boolean
+  coroutine_saved cv13 class=CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend field=2 slot=cl3 value=Awaiter
+  coroutine_saved cv14 class=CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend field=3 slot=cl10 value=SuspendRegistration$E6_ChoiceX
+  coroutine_saved cv15 class=CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend field=4 slot=cl5 value=Choice
+  coroutine_failure cx0 class=CoroutineFrame$scoop_GenericTask_run_suspend field=8 slot=cl6 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_awaitTop_I32_suspend field=4 slot=cl6 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_awaitTop_D4_PairX_suspend field=4 slot=cl6 throwable=Throwable
+  coroutine_failure cx3 class=CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend field=5 slot=cl6 throwable=Throwable
+  coroutine_failure cx4 class=CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend field=5 slot=cl6 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_GenericTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2,cv3,cv4,cv5] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_awaitTop_I32_suspend owner=cf1 state=field0 completion=field1 saved=[cv6,cv7] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$scoop_awaitTop_D4_PairX_suspend owner=cf2 state=field0 completion=field1 saved=[cv8,cv9] failure=cx2
+  coroutine_frame cr3 CoroutineFrame$scoop_Awaiter_awaitMember_B_suspend owner=cf3 state=field0 completion=field1 saved=[cv10,cv11,cv12] failure=cx3
+  coroutine_frame cr4 CoroutineFrame$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend owner=cf4 state=field0 completion=field1 saved=[cv13,cv14,cv15] failure=cx4
+  coroutine_resume cp0 site=4 result=Choice frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$4 resume=@scoop.GenericTask.run$suspend$resume$4 failure=@scoop.GenericTask.run$suspend$resume_exception$4
+    success suspended.4 -> Fallthrough(bb10)
+      entry=bb16
+    failure resume_failure.4 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb17
+  coroutine_resume cp1 site=3 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$3 resume=@scoop.GenericTask.run$suspend$resume$3 failure=@scoop.GenericTask.run$suspend$resume_exception$3
+    success suspended.3 -> Fallthrough(bb18)
+      entry=bb24
+    failure resume_failure.3 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb25
+  coroutine_resume cp2 site=2 result=Pair frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$2 resume=@scoop.GenericTask.run$suspend$resume$2 failure=@scoop.GenericTask.run$suspend$resume_exception$2
+    success suspended.2 -> Fallthrough(bb26)
+      entry=bb32
+    failure resume_failure.2 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb33
+  coroutine_resume cp3 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_GenericTask_run_suspend$1 resume=@scoop.GenericTask.run$suspend$resume$1 failure=@scoop.GenericTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb34)
+      entry=bb40
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb41
+  coroutine_resume cp4 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_awaitTop_I32_suspend$1 resume=@scoop.awaitTop$I32$suspend$resume$1 failure=@scoop.awaitTop$I32$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp5 site=1 result=Pair frame=cr2 adapter=CoroutineAdapter$scoop_awaitTop_D4_PairX_suspend$1 resume=@scoop.awaitTop$D4_PairX$suspend$resume$1 failure=@scoop.awaitTop$D4_PairX$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp6 site=1 result=Boolean frame=cr3 adapter=CoroutineAdapter$scoop_Awaiter_awaitMember_B_suspend$1 resume=@scoop.Awaiter.awaitMember$B$suspend$resume$1 failure=@scoop.Awaiter.awaitMember$B$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx3, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp7 site=1 result=Choice frame=cr4 adapter=CoroutineAdapter$scoop_Awaiter_awaitMember_E6_ChoiceX_suspend$1 resume=@scoop.Awaiter.awaitMember$E6_ChoiceX$suspend$resume$1 failure=@scoop.Awaiter.awaitMember$E6_ChoiceX$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.GenericTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.GenericTask.run$suspend$drive resumes=[cp3,cp2,cp1,cp0]
   coroutine_fn cf1 @scoop.awaitTop$I32$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.awaitTop$I32$suspend$drive resumes=[cp4]
   coroutine_fn cf2 @scoop.awaitTop$D4_PairX$suspend source_return=Pair step=cs1 frame=cr2 driver=@scoop.awaitTop$D4_PairX$suspend$drive resumes=[cp5]

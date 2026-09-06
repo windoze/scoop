@@ -196,6 +196,7 @@ pub(super) fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mi
             callee: mir::Callee::Runtime(function),
         },
         args,
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -206,6 +207,7 @@ pub(super) fn extern_call(function: mir::ExternFunctionId, args: Vec<mir::Expr>)
             callee: mir::Callee::Extern(function),
         },
         args,
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -216,6 +218,7 @@ pub(super) fn user_call(function: mir::FunctionId) -> mir::Call {
             callee: mir::Callee::User(function),
         },
         args: Vec::new(),
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 

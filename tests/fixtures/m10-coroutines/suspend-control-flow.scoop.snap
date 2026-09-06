@@ -9565,22 +9565,98 @@ Module mangling=compact-v2
   coroutine_slot cl5 CoroutineSlot$C7_IntGateX value=IntGate
   coroutine_slot cl6 CoroutineSlot$C11_BooleanGateX value=BooleanGate
   coroutine_slot cl7 CoroutineSlot$C10_ChoiceGateX value=ChoiceGate
-  coroutine_frame cr0 CoroutineFrame$scoop_ControlTask_run_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_waitForInt_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_waitForBoolean_suspend owner=cf2
-  coroutine_frame cr3 CoroutineFrame$scoop_waitForChoice_suspend owner=cf3
-  coroutine_resume cp0 state=9 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$9 resume=@scoop.ControlTask.run$suspend$resume$9 failure=@scoop.ControlTask.run$suspend$resume_exception$9
-  coroutine_resume cp1 state=8 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$8 resume=@scoop.ControlTask.run$suspend$resume$8 failure=@scoop.ControlTask.run$suspend$resume_exception$8
-  coroutine_resume cp2 state=7 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$7 resume=@scoop.ControlTask.run$suspend$resume$7 failure=@scoop.ControlTask.run$suspend$resume_exception$7
-  coroutine_resume cp3 state=6 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$6 resume=@scoop.ControlTask.run$suspend$resume$6 failure=@scoop.ControlTask.run$suspend$resume_exception$6
-  coroutine_resume cp4 state=5 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$5 resume=@scoop.ControlTask.run$suspend$resume$5 failure=@scoop.ControlTask.run$suspend$resume_exception$5
-  coroutine_resume cp5 state=4 result=Choice frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$4 resume=@scoop.ControlTask.run$suspend$resume$4 failure=@scoop.ControlTask.run$suspend$resume_exception$4
-  coroutine_resume cp6 state=3 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$3 resume=@scoop.ControlTask.run$suspend$resume$3 failure=@scoop.ControlTask.run$suspend$resume_exception$3
-  coroutine_resume cp7 state=2 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$2 resume=@scoop.ControlTask.run$suspend$resume$2 failure=@scoop.ControlTask.run$suspend$resume_exception$2
-  coroutine_resume cp8 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$1 resume=@scoop.ControlTask.run$suspend$resume$1 failure=@scoop.ControlTask.run$suspend$resume_exception$1
-  coroutine_resume cp9 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_waitForInt_suspend$1 resume=@scoop.waitForInt$suspend$resume$1 failure=@scoop.waitForInt$suspend$resume_exception$1
-  coroutine_resume cp10 state=1 result=Boolean frame=cr2 adapter=CoroutineAdapter$scoop_waitForBoolean_suspend$1 resume=@scoop.waitForBoolean$suspend$resume$1 failure=@scoop.waitForBoolean$suspend$resume_exception$1
-  coroutine_resume cp11 state=1 result=Choice frame=cr3 adapter=CoroutineAdapter$scoop_waitForChoice_suspend$1 resume=@scoop.waitForChoice$suspend$resume$1 failure=@scoop.waitForChoice$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_ControlTask_run_suspend field=2 slot=cl0 value=ControlTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_ControlTask_run_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv2 class=CoroutineFrame$scoop_ControlTask_run_suspend field=4 slot=cl1 value=Int
+  coroutine_saved cv3 class=CoroutineFrame$scoop_ControlTask_run_suspend field=5 slot=cl1 value=Int
+  coroutine_saved cv4 class=CoroutineFrame$scoop_ControlTask_run_suspend field=6 slot=cl1 value=Int
+  coroutine_saved cv5 class=CoroutineFrame$scoop_ControlTask_run_suspend field=7 slot=cl1 value=Int
+  coroutine_saved cv6 class=CoroutineFrame$scoop_ControlTask_run_suspend field=8 slot=cl1 value=Int
+  coroutine_saved cv7 class=CoroutineFrame$scoop_ControlTask_run_suspend field=9 slot=cl1 value=Int
+  coroutine_saved cv8 class=CoroutineFrame$scoop_ControlTask_run_suspend field=10 slot=cl1 value=Int
+  coroutine_saved cv9 class=CoroutineFrame$scoop_ControlTask_run_suspend field=11 slot=cl1 value=Int
+  coroutine_saved cv10 class=CoroutineFrame$scoop_ControlTask_run_suspend field=12 slot=cl1 value=Int
+  coroutine_saved cv11 class=CoroutineFrame$scoop_ControlTask_run_suspend field=13 slot=cl2 value=Boolean
+  coroutine_saved cv12 class=CoroutineFrame$scoop_ControlTask_run_suspend field=14 slot=cl2 value=Boolean
+  coroutine_saved cv13 class=CoroutineFrame$scoop_ControlTask_run_suspend field=15 slot=cl2 value=Boolean
+  coroutine_saved cv14 class=CoroutineFrame$scoop_ControlTask_run_suspend field=16 slot=cl3 value=Choice
+  coroutine_saved cv15 class=CoroutineFrame$scoop_ControlTask_run_suspend field=17 slot=cl2 value=Boolean
+  coroutine_saved cv16 class=CoroutineFrame$scoop_ControlTask_run_suspend field=18 slot=cl1 value=Int
+  coroutine_saved cv17 class=CoroutineFrame$scoop_ControlTask_run_suspend field=19 slot=cl2 value=Boolean
+  coroutine_saved cv18 class=CoroutineFrame$scoop_waitForInt_suspend field=2 slot=cl5 value=IntGate
+  coroutine_saved cv19 class=CoroutineFrame$scoop_waitForInt_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv20 class=CoroutineFrame$scoop_waitForBoolean_suspend field=2 slot=cl6 value=BooleanGate
+  coroutine_saved cv21 class=CoroutineFrame$scoop_waitForBoolean_suspend field=3 slot=cl2 value=Boolean
+  coroutine_saved cv22 class=CoroutineFrame$scoop_waitForChoice_suspend field=2 slot=cl7 value=ChoiceGate
+  coroutine_saved cv23 class=CoroutineFrame$scoop_waitForChoice_suspend field=3 slot=cl3 value=Choice
+  coroutine_failure cx0 class=CoroutineFrame$scoop_ControlTask_run_suspend field=20 slot=cl4 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_waitForInt_suspend field=4 slot=cl4 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_waitForBoolean_suspend field=4 slot=cl4 throwable=Throwable
+  coroutine_failure cx3 class=CoroutineFrame$scoop_waitForChoice_suspend field=4 slot=cl4 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_ControlTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2,cv3,cv4,cv5,cv6,cv7,cv8,cv9,cv10,cv11,cv12,cv13,cv14,cv15,cv16,cv17] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_waitForInt_suspend owner=cf1 state=field0 completion=field1 saved=[cv18,cv19] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$scoop_waitForBoolean_suspend owner=cf2 state=field0 completion=field1 saved=[cv20,cv21] failure=cx2
+  coroutine_frame cr3 CoroutineFrame$scoop_waitForChoice_suspend owner=cf3 state=field0 completion=field1 saved=[cv22,cv23] failure=cx3
+  coroutine_resume cp0 site=9 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$9 resume=@scoop.ControlTask.run$suspend$resume$9 failure=@scoop.ControlTask.run$suspend$resume_exception$9
+    success suspended.9 -> Fallthrough(bb25)
+      entry=bb31
+    failure resume_failure.9 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb32
+  coroutine_resume cp1 site=8 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$8 resume=@scoop.ControlTask.run$suspend$resume$8 failure=@scoop.ControlTask.run$suspend$resume_exception$8
+    success suspended.8 -> Fallthrough(bb33)
+      entry=bb39
+    failure resume_failure.8 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb40
+  coroutine_resume cp2 site=7 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$7 resume=@scoop.ControlTask.run$suspend$resume$7 failure=@scoop.ControlTask.run$suspend$resume_exception$7
+    success suspended.7 -> Fallthrough(bb41)
+      entry=bb47
+    failure resume_failure.7 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb48
+  coroutine_resume cp3 site=6 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$6 resume=@scoop.ControlTask.run$suspend$resume$6 failure=@scoop.ControlTask.run$suspend$resume_exception$6
+    success suspended.6 -> Fallthrough(bb49)
+      entry=bb55
+    failure resume_failure.6 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb56
+  coroutine_resume cp4 site=5 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$5 resume=@scoop.ControlTask.run$suspend$resume$5 failure=@scoop.ControlTask.run$suspend$resume_exception$5
+    success suspended.5 -> Fallthrough(bb57)
+      entry=bb63
+    failure resume_failure.5 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb64
+  coroutine_resume cp5 site=4 result=Choice frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$4 resume=@scoop.ControlTask.run$suspend$resume$4 failure=@scoop.ControlTask.run$suspend$resume_exception$4
+    success suspended.4 -> Fallthrough(bb65)
+      entry=bb71
+    failure resume_failure.4 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb72
+  coroutine_resume cp6 site=3 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$3 resume=@scoop.ControlTask.run$suspend$resume$3 failure=@scoop.ControlTask.run$suspend$resume_exception$3
+    success suspended.3 -> Fallthrough(bb73)
+      entry=bb79
+    failure resume_failure.3 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb80
+  coroutine_resume cp7 site=2 result=Boolean frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$2 resume=@scoop.ControlTask.run$suspend$resume$2 failure=@scoop.ControlTask.run$suspend$resume_exception$2
+    success suspended.2 -> Fallthrough(bb81)
+      entry=bb87
+    failure resume_failure.2 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb88
+  coroutine_resume cp8 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_ControlTask_run_suspend$1 resume=@scoop.ControlTask.run$suspend$resume$1 failure=@scoop.ControlTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb89)
+      entry=bb95
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb96
+  coroutine_resume cp9 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_waitForInt_suspend$1 resume=@scoop.waitForInt$suspend$resume$1 failure=@scoop.waitForInt$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp10 site=1 result=Boolean frame=cr2 adapter=CoroutineAdapter$scoop_waitForBoolean_suspend$1 resume=@scoop.waitForBoolean$suspend$resume$1 failure=@scoop.waitForBoolean$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
+      entry=bb24
+  coroutine_resume cp11 site=1 result=Choice frame=cr3 adapter=CoroutineAdapter$scoop_waitForChoice_suspend$1 resume=@scoop.waitForChoice$suspend$resume$1 failure=@scoop.waitForChoice$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx3, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.ControlTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.ControlTask.run$suspend$drive resumes=[cp8,cp7,cp6,cp5,cp4,cp3,cp2,cp1,cp0]
   coroutine_fn cf1 @scoop.waitForInt$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.waitForInt$suspend$drive resumes=[cp9]
   coroutine_fn cf2 @scoop.waitForBoolean$suspend source_return=Boolean step=cs1 frame=cr2 driver=@scoop.waitForBoolean$suspend$drive resumes=[cp10]

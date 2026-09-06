@@ -8,6 +8,7 @@ pub(super) fn generate_resume_method(
     module: &hir::Module,
     adapter: mir::ClassId,
     frame_class: mir::ClassId,
+    frame_layout: FrameLayout,
     destination: Option<FrameSlot>,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
@@ -46,6 +47,7 @@ pub(super) fn generate_resume_method(
         step,
         adapter,
         frame_class,
+        frame_layout,
         outer_step,
         outer_continuation,
         outer_resume,
@@ -79,6 +81,7 @@ pub(super) fn generate_resume_method(
                             adapter_frame(this, adapter, frame_class),
                             frame_state(suspended_state(state)),
                         ],
+                        pending: mir::CoroutinePendingContext::Root,
                     },
                 },
             )));
@@ -107,7 +110,7 @@ pub(super) fn generate_resume_method(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 adapter_frame(this, adapter, frame_class),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(state)),
                 frame_state_value(STATE_RUNNING),
             ),

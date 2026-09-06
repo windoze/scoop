@@ -189,6 +189,7 @@ impl Lowerer {
             smir::Body {
                 locals,
                 statements: vec![enter, dispatch],
+                coroutine_eh: None,
             },
         )
     }

@@ -2871,10 +2871,24 @@ Module mangling=compact-v2
   coroutine_slot cl2 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_slot cl3 CoroutineSlot$C4_GateX value=Gate
   coroutine_slot cl4 CoroutineSlot$I32 value=Int
-  coroutine_frame cr0 CoroutineFrame$scoop_BoxTask_run_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_buildBox_suspend owner=cf1
-  coroutine_resume cp0 state=1 result=Box frame=cr0 adapter=CoroutineAdapter$scoop_BoxTask_run_suspend$1 resume=@scoop.BoxTask.run$suspend$resume$1 failure=@scoop.BoxTask.run$suspend$resume_exception$1
-  coroutine_resume cp1 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_buildBox_suspend$1 resume=@scoop.buildBox$suspend$resume$1 failure=@scoop.buildBox$suspend$resume_exception$1
+  coroutine_saved cv0 class=CoroutineFrame$scoop_BoxTask_run_suspend field=2 slot=cl0 value=BoxTask
+  coroutine_saved cv1 class=CoroutineFrame$scoop_BoxTask_run_suspend field=3 slot=cl1 value=Box
+  coroutine_saved cv2 class=CoroutineFrame$scoop_buildBox_suspend field=2 slot=cl3 value=Gate
+  coroutine_saved cv3 class=CoroutineFrame$scoop_buildBox_suspend field=3 slot=cl4 value=Int
+  coroutine_failure cx0 class=CoroutineFrame$scoop_BoxTask_run_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame$scoop_buildBox_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_BoxTask_run_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$scoop_buildBox_suspend owner=cf1 state=field0 completion=field1 saved=[cv2,cv3] failure=cx1
+  coroutine_resume cp0 site=1 result=Box frame=cr0 adapter=CoroutineAdapter$scoop_BoxTask_run_suspend$1 resume=@scoop.BoxTask.run$suspend$resume$1 failure=@scoop.BoxTask.run$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_buildBox_suspend$1 resume=@scoop.buildBox$suspend$resume$1 failure=@scoop.buildBox$suspend$resume_exception$1
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb24
   coroutine_fn cf0 @scoop.BoxTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.BoxTask.run$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop.buildBox$suspend source_return=Box step=cs1 frame=cr1 driver=@scoop.buildBox$suspend$drive resumes=[cp1]
   coroutine_fn cf2 @scoop.SuspendTask.run$I32$suspend source_return=Int step=cs0 immediate

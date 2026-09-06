@@ -2,6 +2,7 @@ use super::*;
 
 mod callbacks;
 mod constants;
+mod coroutines;
 mod metadata;
 
 fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {

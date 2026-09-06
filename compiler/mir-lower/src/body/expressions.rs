@@ -636,6 +636,8 @@ impl BodyLowerer<'_> {
                 args,
                 ..
             } => {
+                let function = self.module.callable_function(*callee);
+                self.record_suspend_function_call(function);
                 let callee = self.lower_user_callee(*callee);
                 let call_args: Vec<_> = captures.iter().chain(args).collect();
                 let return_ty = self.lower_type(expr.ty);
@@ -646,6 +648,7 @@ impl BodyLowerer<'_> {
                 function_type,
                 args,
             } => {
+                self.contains_suspend_call |= self.module.function_types[*function_type].is_suspend;
                 let function_type = self.lower_function_type_id(*function_type);
                 let mut call_args = Vec::with_capacity(args.len() + 1);
                 call_args.push(self.lower_expr(callee));

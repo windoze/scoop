@@ -10,7 +10,8 @@ use resume::generate_resume_method;
 
 pub(super) struct GeneratedAdapter {
     pub(super) class: mir::ClassId,
-    pub(super) point: mir::CoroutineResumePointId,
+    pub(super) resume: mir::FunctionId,
+    pub(super) resume_with_exception: mir::FunctionId,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -18,7 +19,7 @@ pub(super) fn generate_adapter(
     lowerer: &mut Lowerer,
     module: &hir::Module,
     frame_class: mir::ClassId,
-    frame: mir::CoroutineFrameId,
+    frame_layout: FrameLayout,
     destination: Option<FrameSlot>,
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
@@ -28,7 +29,6 @@ pub(super) fn generate_adapter(
     source_symbol: &str,
     driver: mir::FunctionId,
     state: mir::CoroutineSuspendStateId,
-    failure_state: mir::CoroutineFrameState,
     result: &mir::Type,
     safe_latches: Option<(FrameSlot, FrameSlot)>,
 ) -> GeneratedAdapter {
@@ -61,6 +61,7 @@ pub(super) fn generate_adapter(
         module,
         class,
         frame_class,
+        frame_layout,
         destination,
         outer_step,
         outer_continuation,
@@ -77,6 +78,7 @@ pub(super) fn generate_adapter(
         module,
         class,
         frame_class,
+        frame_layout,
         failure_slot,
         outer_step,
         outer_continuation,
@@ -85,7 +87,6 @@ pub(super) fn generate_adapter(
         driver,
         source_symbol,
         state,
-        failure_state,
         safe_latches.as_ref().map(|(_, failure)| failure.clone()),
     );
     lowerer.classes[class].itables = vec![mir::ItableRecord {
@@ -95,16 +96,9 @@ pub(super) fn generate_adapter(
             mir::TableSlot::Function(failure),
         ],
     }];
-    let point = lowerer
-        .coroutines
-        .resume_points
-        .alloc(mir::CoroutineResumePoint {
-            frame,
-            state,
-            result: result.clone(),
-            adapter: class,
-            resume,
-            resume_with_exception: failure,
-        });
-    GeneratedAdapter { class, point }
+    GeneratedAdapter {
+        class,
+        resume,
+        resume_with_exception: failure,
+    }
 }

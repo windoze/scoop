@@ -132,6 +132,7 @@ impl BodyLowerer<'_> {
                 callee: mir::Callee::User(source),
             },
             args,
+            pending: mir::CoroutinePendingContext::Root,
         };
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {
@@ -318,6 +319,7 @@ impl BodyLowerer<'_> {
                 callee: mir::Callee::Closure(managed_signature),
             },
             args: call_args,
+            pending: mir::CoroutinePendingContext::Root,
         };
 
         let exception = locals.alloc(mir::Local {
@@ -342,6 +344,7 @@ impl BodyLowerer<'_> {
                             callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                         },
                         args: vec![mir::Expr::caught_exception()],
+                        pending: mir::CoroutinePendingContext::Root,
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),

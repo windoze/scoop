@@ -92,6 +92,11 @@ pub(super) struct BodyLowerer<'a> {
     /// Hidden by-value parameters of a lifted local function, keyed by the
     /// global lexical binding they carry.
     pub(super) current_local_capture_params: HashMap<hir::BindingId, hir::LocalId>,
+    /// Set by typed named/local/method/super/callable call lowering. This is
+    /// deliberately about calls present in this body, not whether the body is
+    /// declared `suspend`: a suspend declaration with no suspend call needs no
+    /// coroutine-specific EH materialization.
+    pub(super) contains_suspend_call: bool,
 }
 
 /// A step from a pattern subject down to a nested field.

@@ -8,8 +8,11 @@ pub(super) fn rewrite_site(
     frame_local: mir::LocalId,
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
+    frame_layout: FrameLayout,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    saved_values: &HashMap<mir::LocalId, mir::CoroutineSavedValueId>,
     failure_slot: FrameSlot,
+    failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -18,6 +21,7 @@ pub(super) fn rewrite_site(
     driver: mir::FunctionId,
     site: SuspendSite,
 ) -> GeneratedSite {
+    let parents = freeze_pending_context(site.pending.clone(), saved_values);
     let outer_suspended = lowerer
         .coroutines
         .step_metadata_for_type(outer_step)
@@ -53,8 +57,11 @@ pub(super) fn rewrite_site(
             frame_local,
             frame_class,
             frame,
+            frame_layout,
             frame_slots,
+            parents,
             failure_slot.clone(),
+            failure_value,
             outer_step,
             outer_continuation,
             outer_resume,
@@ -72,7 +79,7 @@ pub(super) fn rewrite_site(
         lowerer,
         module,
         frame_class,
-        frame,
+        frame_layout,
         destination.map(|local| frame_slots[&local].clone()),
         failure_slot.clone(),
         outer_step,
@@ -82,7 +89,6 @@ pub(super) fn rewrite_site(
         source_symbol,
         driver,
         site.state,
-        failure_state(site.state),
         &site.result,
         None,
     );
@@ -123,7 +129,7 @@ pub(super) fn rewrite_site(
     }
     block.statements.push(atomic_field_store(
         mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-        0,
+        frame_layout.state.field_index(),
         frame_state(suspended_state(site.state)),
     ));
     block.statements.extend(initialized_generated_class(
@@ -182,7 +188,7 @@ pub(super) fn rewrite_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(site.state)),
                 frame_state_value(STATE_RUNNING),
             ),
@@ -264,20 +270,22 @@ pub(super) fn rewrite_site(
         terminator: mir::Terminator::Goto(post),
         unwind,
     });
-    GeneratedSite {
-        state: suspended_state(site.state),
+    let failure_block =
+        failure_resume_block(body, frame_local, frame_slots, failure_slot, &site, unwind);
+    let point = register_resume_point(
+        lowerer,
+        frame,
+        site.state,
+        site.result,
+        &adapter,
+        parents,
+        post,
         resume_block,
-        failure_state: failure_state(site.state),
-        failure_block: failure_resume_block(
-            body,
-            frame_local,
-            frame_slots,
-            failure_slot,
-            &site,
-            unwind,
-        ),
-        point: adapter.point,
-    }
+        failure_block,
+        failure_value,
+        unwind,
+    );
+    GeneratedSite { point }
 }
 
 pub(super) fn failure_resume_block(

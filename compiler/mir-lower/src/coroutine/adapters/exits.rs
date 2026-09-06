@@ -18,6 +18,7 @@ pub(super) fn drive_exit_blocks(
     step: mir::LocalId,
     adapter: mir::ClassId,
     frame_class: mir::ClassId,
+    frame_layout: FrameLayout,
     step_ty: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -36,7 +37,7 @@ pub(super) fn drive_exit_blocks(
         statements: vec![
             atomic_field_store(
                 adapter_frame(this, adapter, frame_class),
-                0,
+                frame_layout.state.field_index(),
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
@@ -50,7 +51,7 @@ pub(super) fn drive_exit_blocks(
                 args: vec![
                     frame_field(
                         adapter_frame(this, adapter, frame_class),
-                        1,
+                        frame_layout.completion.field_index(),
                         completion_ty.clone(),
                     ),
                     mir::Expr::new(
@@ -62,6 +63,7 @@ pub(super) fn drive_exit_blocks(
                         },
                     ),
                 ],
+                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Return { value: None },
@@ -78,7 +80,7 @@ pub(super) fn drive_exit_blocks(
         statements: vec![
             atomic_field_store(
                 adapter_frame(this, adapter, frame_class),
-                0,
+                frame_layout.state.field_index(),
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
@@ -90,9 +92,14 @@ pub(super) fn drive_exit_blocks(
                     callee: mir::Callee::User(outer_failure),
                 },
                 args: vec![
-                    frame_field(adapter_frame(this, adapter, frame_class), 1, completion_ty),
+                    frame_field(
+                        adapter_frame(this, adapter, frame_class),
+                        frame_layout.completion.field_index(),
+                        completion_ty,
+                    ),
                     mir::Expr::local(exception, throwable.clone()),
                 ],
+                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Return { value: None },
@@ -113,6 +120,7 @@ pub(super) fn drive_exit_blocks(
                         callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                     },
                     args: vec![mir::Expr::caught_exception()],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),

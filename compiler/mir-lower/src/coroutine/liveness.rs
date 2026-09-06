@@ -50,7 +50,10 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
         let mut live = live_out[raw(block_id)].clone();
         live.extend(terminator_uses(&block.terminator));
         for (statement_index, statement) in block.statements.iter().enumerate().rev() {
-            if let Some((destination, result, kind)) = suspend_effect(lowerer, body, statement) {
+            if let Some((destination, result, kind, pending)) =
+                suspend_effect(lowerer, body, statement)
+            {
+                pending_uses(&pending, &mut live);
                 let mut live_after: Vec<_> = live.iter().copied().collect();
                 live_after.sort_by_key(|local| raw(*local));
                 sites.push(DiscoveredSuspendSite {
@@ -60,6 +63,7 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
                     result,
                     kind,
                     live_after,
+                    pending,
                 });
             }
             let (statement_uses, statement_defs) = statement_use_def(statement);
@@ -84,6 +88,7 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
                 result: site.result,
                 kind: site.kind,
                 live_after: site.live_after,
+                pending: site.pending,
                 state: mir::CoroutineSuspendStateId::new(
                     u32::try_from(one_based).expect("coroutine suspension-site count fits u32"),
                 )
@@ -97,7 +102,12 @@ fn suspend_effect(
     lowerer: &Lowerer,
     body: &mir::Body,
     statement: &mir::Statement,
-) -> Option<(Option<mir::LocalId>, mir::Type, SuspendKind)> {
+) -> Option<(
+    Option<mir::LocalId>,
+    mir::Type,
+    SuspendKind,
+    mir::CoroutinePendingContext,
+)> {
     let mir::StatementKind::Call(effect) = &statement.kind else {
         return None;
     };
@@ -109,7 +119,12 @@ fn suspend_effect(
         let result = destination
             .map(|local| body.locals[local].ty.clone())
             .unwrap_or(mir::Type::Unit);
-        return Some((destination, result, SuspendKind::Intrinsic { register }));
+        return Some((
+            destination,
+            result,
+            SuspendKind::Intrinsic { register },
+            call.pending.clone(),
+        ));
     }
     let function = match call.target.callee {
         mir::Callee::User(function) => function,
@@ -121,6 +136,7 @@ fn suspend_effect(
                     destination,
                     signature.return_type.clone(),
                     SuspendKind::Call,
+                    call.pending.clone(),
                 )
             });
         }
@@ -138,9 +154,32 @@ fn suspend_effect(
                     destination,
                     coroutine.source_return.clone(),
                     SuspendKind::Call,
+                    call.pending.clone(),
                 )
             })
         })
+}
+
+fn pending_uses(pending: &mir::CoroutinePendingContext, uses: &mut HashSet<mir::LocalId>) {
+    let mir::CoroutinePendingContext::Chain(chain) = pending else {
+        return;
+    };
+    for transfer in chain.iter() {
+        match transfer {
+            mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Value(value),
+            ) => expr_uses(value.expression(), uses),
+            mir::CoroutinePendingSourceTransfer::ManagedThrow(throw_) => {
+                expr_uses(throw_.exception(), uses);
+            }
+            mir::CoroutinePendingSourceTransfer::Fallthrough(_)
+            | mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Unit,
+            )
+            | mir::CoroutinePendingSourceTransfer::Break(_)
+            | mir::CoroutinePendingSourceTransfer::Continue(_) => {}
+        }
+    }
 }
 
 fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, HashSet<mir::LocalId>) {

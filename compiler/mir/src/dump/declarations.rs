@@ -311,24 +311,90 @@ pub fn dump(module: &Module) -> String {
             type_name(module, slot.value())
         ));
     }
+    for (id, value) in module.meta.coroutine_saved_values.iter() {
+        out.push_str(&format!(
+            "  coroutine_saved cv{} class={} field={} slot=cl{} value={}\n",
+            id.into_raw().into_u32(),
+            module.classes[value.field().class()].name,
+            value.field().field_index(),
+            value.slot().into_raw().into_u32(),
+            type_name(module, value.value())
+        ));
+    }
+    for (id, value) in module.meta.coroutine_failure_values.iter() {
+        out.push_str(&format!(
+            "  coroutine_failure cx{} class={} field={} slot=cl{} throwable={}\n",
+            id.into_raw().into_u32(),
+            module.classes[value.field().class()].name,
+            value.field().field_index(),
+            value.slot().into_raw().into_u32(),
+            module.classes[value.throwable()].name
+        ));
+    }
     for (id, frame) in module.meta.coroutine_frames.iter() {
         out.push_str(&format!(
-            "  coroutine_frame cr{} {} owner=cf{}\n",
+            "  coroutine_frame cr{} {} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
             id.into_raw().into_u32(),
-            module.classes[frame.class].name,
-            frame.owner.into_raw().into_u32()
+            module.classes[frame.class()].name,
+            frame.owner().into_raw().into_u32(),
+            frame.state().field_index(),
+            frame.completion().field_index(),
+            frame
+                .saved_values()
+                .iter()
+                .map(|value| format!("cv{}", value.into_raw().into_u32()))
+                .collect::<Vec<_>>()
+                .join(","),
+            frame.failure().into_raw().into_u32()
         ));
     }
     for (id, point) in module.meta.coroutine_resume_points.iter() {
+        let parents = point
+            .parents()
+            .iter()
+            .map(coroutine_transfer_name)
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        let parents = if parents.is_empty() {
+            String::new()
+        } else {
+            format!("{parents} -> ")
+        };
         out.push_str(&format!(
-            "  coroutine_resume cp{} state={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
+            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
             id.into_raw().into_u32(),
-            point.state.get(),
-            type_name(module, &point.result),
-            point.frame.into_raw().into_u32(),
-            module.classes[point.adapter].name,
-            module.functions[point.resume].symbol,
-            module.functions[point.resume_with_exception].symbol
+            point.site().get(),
+            type_name(module, point.result()),
+            point.frame().into_raw().into_u32(),
+            module.classes[point.adapter()].name,
+            module.functions[point.resume()].symbol,
+            module.functions[point.resume_with_exception()].symbol
+        ));
+        out.push_str(&format!(
+            "    success {} -> {}Fallthrough(bb{})\n",
+            point.success_state(),
+            parents,
+            block_number(point.success().post().block())
+        ));
+        out.push_str(&format!(
+            "      entry=bb{}\n",
+            block_number(point.success().entry().block())
+        ));
+        let failure = point.failure();
+        let unwind = failure
+            .unwind()
+            .map(|target| format!("bb{}", block_number(target.block())))
+            .unwrap_or_else(|| "propagate".to_string());
+        out.push_str(&format!(
+            "    failure {} -> {}ManagedThrow(cx{}, unwind={})\n",
+            point.failure_state(),
+            parents,
+            failure.exception().into_raw().into_u32(),
+            unwind
+        ));
+        out.push_str(&format!(
+            "      entry=bb{}\n",
+            block_number(failure.entry().block())
         ));
     }
     for (id, coroutine) in module.meta.coroutine_functions.iter() {
@@ -372,6 +438,36 @@ pub fn dump(module: &Module) -> String {
     }
     out.push_str(&format!("  entry @{ENTRY_SYMBOL}\n"));
     out
+}
+
+fn coroutine_transfer_name(transfer: &CoroutinePendingTransfer) -> String {
+    match transfer {
+        CoroutinePendingTransfer::Fallthrough(target) => {
+            format!("Fallthrough(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::Return(CoroutineReturnTransfer::Unit) => {
+            "Return(Unit)".to_string()
+        }
+        CoroutinePendingTransfer::Return(CoroutineReturnTransfer::Saved(value)) => {
+            format!("Return(cv{})", value.into_raw().into_u32())
+        }
+        CoroutinePendingTransfer::Break(target) => {
+            format!("Break(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::Continue(target) => {
+            format!("Continue(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::ManagedThrow(throw_) => {
+            let unwind = throw_
+                .unwind()
+                .map(|target| format!("bb{}", block_number(target.block())))
+                .unwrap_or_else(|| "propagate".to_string());
+            format!(
+                "ManagedThrow(cv{}, unwind={unwind})",
+                throw_.exception().into_raw().into_u32()
+            )
+        }
+    }
 }
 
 fn static_initial_state_name(module: &Module, state: &MirStaticInitialState) -> String {

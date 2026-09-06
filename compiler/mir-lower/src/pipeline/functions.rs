@@ -78,6 +78,7 @@ impl Lowerer {
             current_closure,
             current_closure_local: None,
             current_local_capture_params,
+            contains_suspend_call: false,
         }
         .lower_function(function, body)
     }

@@ -39,6 +39,7 @@ fn throw_outside_try_is_a_throw_instruction() {
                         callee: mir::Callee::User(make),
                     },
                     args: Vec::new(),
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             )],
             mir::Terminator::Throw {

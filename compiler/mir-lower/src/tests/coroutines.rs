@@ -202,7 +202,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     };
     assert_eq!(resume_points.len(), 1);
     let frame = &module.meta.coroutine_frames[*frame];
-    let fields = module.classes[frame.class].declared_fields();
+    let fields = module.classes[frame.class()].declared_fields();
     assert_eq!(fields[0].name, "state");
     assert_eq!(
         fields[0].ty,
@@ -281,13 +281,13 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     );
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
     assert_eq!(
-        point.result,
-        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+        point.result(),
+        &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
     );
-    assert_eq!(point.state.get(), 1);
-    assert_eq!(module.classes[point.adapter].interfaces.len(), 1);
+    assert_eq!(point.site().get(), 1);
+    assert_eq!(module.classes[point.adapter()].interfaces.len(), 1);
     assert_eq!(
-        module.classes[point.adapter].declared_fields()[1].ty,
+        module.classes[point.adapter()].declared_fields()[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
     );
 
@@ -476,9 +476,9 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     };
     assert_eq!(resume_points.len(), 1);
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
-    assert_eq!(point.state.get(), 1);
+    assert_eq!(point.site().get(), 1);
     assert_eq!(
-        module.classes[point.adapter].declared_fields()[1].ty,
+        module.classes[point.adapter()].declared_fields()[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
     );
 

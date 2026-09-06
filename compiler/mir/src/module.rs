@@ -1,5 +1,9 @@
 use super::*;
 
+fn arena_get<T>(arena: &Arena<T>, id: Idx<T>) -> Option<&T> {
+    ((id.into_raw().into_u32() as usize) < arena.len()).then(|| &arena[id])
+}
+
 #[derive(Debug)]
 pub struct Module {
     pub functions: Arena<Function>,
@@ -467,6 +471,10 @@ pub struct MirMeta {
     pub coroutine_steps: Arena<CoroutineStep>,
     /// Tagged frame slots, deduplicated by their carried value type.
     pub coroutine_slots: Arena<CoroutineSlot>,
+    /// Exact dynamic values retained by a pending return or managed throw.
+    pub coroutine_saved_values: Arena<CoroutineSavedValue>,
+    /// Exact managed throwable slot used by continuation failure injection.
+    pub coroutine_failure_values: Arena<CoroutineFailureValue>,
     /// Heap frame generated for each suspend callable that can really suspend.
     pub coroutine_frames: Arena<CoroutineFrame>,
     /// Per-call-site continuation adapters and their typed resume state.
@@ -615,20 +623,386 @@ impl CoroutineSlot {
     }
 }
 
+/// A field in one exact compiler-generated coroutine frame class.
+///
+/// Binding the class and index in one value prevents a field role belonging
+/// to one frame layout from being attached to another frame accidentally.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CoroutineFrameFieldRef {
+    class: ClassId,
+    field: u32,
+}
+
+impl CoroutineFrameFieldRef {
+    pub fn checked(classes: &Arena<ClassDef>, class: ClassId, field: u32) -> Option<Self> {
+        let definition = arena_get(classes, class)?;
+        let ClassRepresentation::Declared { fields, .. } = &definition.representation else {
+            return None;
+        };
+        fields.get(field as usize)?;
+        Some(Self { class, field })
+    }
+
+    pub const fn class(self) -> ClassId {
+        self.class
+    }
+
+    pub const fn field_index(self) -> u32 {
+        self.field
+    }
+
+    pub fn definition(self, classes: &Arena<ClassDef>) -> Option<&Field> {
+        let definition = arena_get(classes, self.class)?;
+        let ClassRepresentation::Declared { fields, .. } = &definition.representation else {
+            return None;
+        };
+        fields.get(self.field as usize)
+    }
+}
+
+/// One exact typed value slot owned by a coroutine frame.
+#[derive(Debug, Clone)]
+pub struct CoroutineSavedValue {
+    field: CoroutineFrameFieldRef,
+    slot: CoroutineSlotId,
+    value: Type,
+}
+
+impl CoroutineSavedValue {
+    pub fn checked(
+        classes: &Arena<ClassDef>,
+        slots: &Arena<CoroutineSlot>,
+        field: CoroutineFrameFieldRef,
+        slot: CoroutineSlotId,
+    ) -> Option<Self> {
+        let metadata = arena_get(slots, slot)?;
+        (field.definition(classes)?.ty == Type::Enum(metadata.enum_id(), Vec::new())).then(|| {
+            Self {
+                field,
+                slot,
+                value: metadata.value().clone(),
+            }
+        })
+    }
+
+    pub const fn field(&self) -> CoroutineFrameFieldRef {
+        self.field
+    }
+
+    pub const fn slot(&self) -> CoroutineSlotId {
+        self.slot
+    }
+
+    pub const fn value(&self) -> &Type {
+        &self.value
+    }
+}
+
+/// The exact `CoroutineSlot<Throwable>` consumed by failure resume entries.
+/// It has a distinct id family from ordinary saved values, so a pending outer
+/// throwable cannot alias the slot overwritten by an inner resume failure.
+#[derive(Debug, Clone)]
+pub struct CoroutineFailureValue {
+    field: CoroutineFrameFieldRef,
+    slot: CoroutineSlotId,
+    throwable: ClassId,
+}
+
+impl CoroutineFailureValue {
+    pub fn checked(
+        classes: &Arena<ClassDef>,
+        slots: &Arena<CoroutineSlot>,
+        field: CoroutineFrameFieldRef,
+        slot: CoroutineSlotId,
+        throwable: ClassId,
+    ) -> Option<Self> {
+        arena_get(classes, throwable)?;
+        let metadata = arena_get(slots, slot)?;
+        (metadata.value() == &Type::Class(throwable)
+            && field.definition(classes)?.ty == Type::Enum(metadata.enum_id(), Vec::new()))
+        .then_some(Self {
+            field,
+            slot,
+            throwable,
+        })
+    }
+
+    pub const fn field(&self) -> CoroutineFrameFieldRef {
+        self.field
+    }
+
+    pub const fn slot(&self) -> CoroutineSlotId {
+        self.slot
+    }
+
+    pub const fn throwable(&self) -> ClassId {
+        self.throwable
+    }
+}
+
 #[derive(Debug)]
 pub struct CoroutineFrame {
-    pub class: ClassId,
-    pub owner: CoroutineFunctionId,
+    class: ClassId,
+    owner: CoroutineFunctionId,
+    state: CoroutineFrameFieldRef,
+    completion: CoroutineFrameFieldRef,
+    saved_values: Vec<CoroutineSavedValueId>,
+    failure: CoroutineFailureValueId,
+}
+
+impl CoroutineFrame {
+    #[allow(clippy::too_many_arguments)]
+    pub fn checked(
+        classes: &Arena<ClassDef>,
+        saved: &Arena<CoroutineSavedValue>,
+        failures: &Arena<CoroutineFailureValue>,
+        class: ClassId,
+        owner: CoroutineFunctionId,
+        state: CoroutineFrameFieldRef,
+        completion: CoroutineFrameFieldRef,
+        saved_values: Vec<CoroutineSavedValueId>,
+        failure: CoroutineFailureValueId,
+    ) -> Option<Self> {
+        if state.class() != class
+            || completion.class() != class
+            || state.definition(classes)?.ty
+                != Type::MachineScalar(MachineScalarKind::CoroutineFrameState)
+        {
+            return None;
+        }
+        let failure_metadata = arena_get(failures, failure)?;
+        if failure_metadata.field().class() != class {
+            return None;
+        }
+        let mut fields = vec![state.field_index(), completion.field_index()];
+        for value in &saved_values {
+            let metadata = arena_get(saved, *value)?;
+            if metadata.field().class() != class {
+                return None;
+            }
+            fields.push(metadata.field().field_index());
+        }
+        fields.push(failure_metadata.field().field_index());
+        fields.sort_unstable();
+        if fields.windows(2).any(|pair| pair[0] == pair[1]) {
+            return None;
+        }
+        Some(Self {
+            class,
+            owner,
+            state,
+            completion,
+            saved_values,
+            failure,
+        })
+    }
+
+    pub const fn class(&self) -> ClassId {
+        self.class
+    }
+
+    pub const fn owner(&self) -> CoroutineFunctionId {
+        self.owner
+    }
+
+    pub const fn state(&self) -> CoroutineFrameFieldRef {
+        self.state
+    }
+
+    pub const fn completion(&self) -> CoroutineFrameFieldRef {
+        self.completion
+    }
+
+    pub fn saved_values(&self) -> &[CoroutineSavedValueId] {
+        &self.saved_values
+    }
+
+    pub const fn failure(&self) -> CoroutineFailureValueId {
+        self.failure
+    }
+
+    pub fn owns_saved_value(&self, value: CoroutineSavedValueId) -> bool {
+        self.saved_values.contains(&value)
+    }
+}
+
+/// One static parent transfer retained while an inner cleanup suspends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoroutinePendingTransfer {
+    Fallthrough(CoroutineCleanupFallthroughTarget),
+    Return(CoroutineReturnTransfer),
+    Break(CoroutineLoopExitTarget),
+    Continue(CoroutineLoopHeaderTarget),
+    ManagedThrow(CoroutineManagedThrowTransfer),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoroutineReturnTransfer {
+    Unit,
+    Saved(CoroutineSavedValueId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineManagedThrowTransfer {
+    exception: CoroutineSavedValueId,
+    unwind: Option<CoroutineUnwindTarget>,
+}
+
+impl CoroutineManagedThrowTransfer {
+    pub const fn new(
+        exception: CoroutineSavedValueId,
+        unwind: Option<CoroutineUnwindTarget>,
+    ) -> Self {
+        Self { exception, unwind }
+    }
+
+    pub const fn exception(self) -> CoroutineSavedValueId {
+        self.exception
+    }
+
+    pub const fn unwind(self) -> Option<CoroutineUnwindTarget> {
+        self.unwind
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineResumeSuccess {
+    entry: CoroutineResumeEntryTarget,
+    post: CoroutineCleanupFallthroughTarget,
+}
+
+impl CoroutineResumeSuccess {
+    pub const fn new(
+        entry: CoroutineResumeEntryTarget,
+        post: CoroutineCleanupFallthroughTarget,
+    ) -> Self {
+        Self { entry, post }
+    }
+
+    pub const fn entry(self) -> CoroutineResumeEntryTarget {
+        self.entry
+    }
+
+    pub const fn post(self) -> CoroutineCleanupFallthroughTarget {
+        self.post
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineResumeFailure {
+    entry: CoroutineResumeEntryTarget,
+    exception: CoroutineFailureValueId,
+    unwind: Option<CoroutineUnwindTarget>,
+}
+
+impl CoroutineResumeFailure {
+    pub const fn new(
+        entry: CoroutineResumeEntryTarget,
+        exception: CoroutineFailureValueId,
+        unwind: Option<CoroutineUnwindTarget>,
+    ) -> Self {
+        Self {
+            entry,
+            exception,
+            unwind,
+        }
+    }
+
+    pub const fn entry(self) -> CoroutineResumeEntryTarget {
+        self.entry
+    }
+
+    pub const fn exception(self) -> CoroutineFailureValueId {
+        self.exception
+    }
+
+    pub const fn unwind(self) -> Option<CoroutineUnwindTarget> {
+        self.unwind
+    }
 }
 
 #[derive(Debug)]
 pub struct CoroutineResumePoint {
-    pub frame: CoroutineFrameId,
-    pub state: CoroutineSuspendStateId,
-    pub result: Type,
-    pub adapter: ClassId,
-    pub resume: FunctionId,
-    pub resume_with_exception: FunctionId,
+    frame: CoroutineFrameId,
+    site: CoroutineSuspendStateId,
+    result: Type,
+    adapter: ClassId,
+    resume: FunctionId,
+    resume_with_exception: FunctionId,
+    parents: Vec<CoroutinePendingTransfer>,
+    success: CoroutineResumeSuccess,
+    failure: CoroutineResumeFailure,
+}
+
+impl CoroutineResumePoint {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        frame: CoroutineFrameId,
+        site: CoroutineSuspendStateId,
+        result: Type,
+        adapter: ClassId,
+        resume: FunctionId,
+        resume_with_exception: FunctionId,
+        parents: Vec<CoroutinePendingTransfer>,
+        success: CoroutineResumeSuccess,
+        failure: CoroutineResumeFailure,
+    ) -> Self {
+        Self {
+            frame,
+            site,
+            result,
+            adapter,
+            resume,
+            resume_with_exception,
+            parents,
+            success,
+            failure,
+        }
+    }
+
+    pub const fn frame(&self) -> CoroutineFrameId {
+        self.frame
+    }
+
+    pub const fn site(&self) -> CoroutineSuspendStateId {
+        self.site
+    }
+
+    pub const fn success_state(&self) -> CoroutineFrameState {
+        CoroutineFrameState::Suspended(self.site)
+    }
+
+    pub const fn failure_state(&self) -> CoroutineFrameState {
+        CoroutineFrameState::ResumeFailure(self.site)
+    }
+
+    pub const fn result(&self) -> &Type {
+        &self.result
+    }
+
+    pub const fn adapter(&self) -> ClassId {
+        self.adapter
+    }
+
+    pub const fn resume(&self) -> FunctionId {
+        self.resume
+    }
+
+    pub const fn resume_with_exception(&self) -> FunctionId {
+        self.resume_with_exception
+    }
+
+    pub fn parents(&self) -> &[CoroutinePendingTransfer] {
+        &self.parents
+    }
+
+    pub const fn success(&self) -> CoroutineResumeSuccess {
+        self.success
+    }
+
+    pub const fn failure(&self) -> CoroutineResumeFailure {
+        self.failure
+    }
 }
 
 /// Display metadata for one generic free-function declaration. Identity is

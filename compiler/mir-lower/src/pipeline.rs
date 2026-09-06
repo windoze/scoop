@@ -243,6 +243,8 @@ impl Lowerer {
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,
                 coroutine_slots: self.coroutines.slots,
+                coroutine_saved_values: self.coroutines.saved_values,
+                coroutine_failure_values: self.coroutines.failure_values,
                 coroutine_frames: self.coroutines.frames,
                 coroutine_resume_points: self.coroutines.resume_points,
                 closure_adapters: self.closure_adapters,

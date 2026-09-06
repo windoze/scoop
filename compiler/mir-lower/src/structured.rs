@@ -19,6 +19,17 @@ impl LoopId {
 pub(crate) struct Body {
     pub(crate) locals: Arena<mir::Local>,
     pub(crate) statements: Vec<Statement>,
+    /// Present only when this concrete body actually contains a typed suspend
+    /// call. Such a body must eliminate native catch state before any source
+    /// catch/finally code can become a coroutine suspension context.
+    pub(crate) coroutine_eh: Option<CoroutineEhMode>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CoroutineEhMode {
+    /// The exact local-concrete `Throwable` class type. Managed exception
+    /// locals and pending throws never erase this payload to `Any`.
+    pub(crate) throwable: mir::Type,
 }
 
 #[derive(Debug)]

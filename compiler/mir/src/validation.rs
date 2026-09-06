@@ -7,6 +7,8 @@ mod callbacks;
 use callbacks::validate_foreign_callback_metadata;
 mod metadata;
 use metadata::validate_enum_metadata;
+mod coroutines;
+use coroutines::validate_coroutine_metadata;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirVariantOperation {
@@ -32,6 +34,10 @@ pub enum MirValidationErrorKind {
     InvalidOptionCore,
     InvalidCoroutineStep,
     InvalidCoroutineSlot,
+    InvalidCoroutineMetadata {
+        reason: &'static str,
+    },
+    NonRootCoroutinePendingContext,
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
@@ -127,6 +133,21 @@ pub enum MirValidationLocation {
     CoroutineSlot {
         slot: CoroutineSlotId,
     },
+    CoroutineSavedValue {
+        value: CoroutineSavedValueId,
+    },
+    CoroutineFailureValue {
+        value: CoroutineFailureValueId,
+    },
+    CoroutineFrame {
+        frame: CoroutineFrameId,
+    },
+    CoroutineResumePoint {
+        point: CoroutineResumePointId,
+    },
+    CoroutineFunction {
+        coroutine: CoroutineFunctionId,
+    },
     ForeignCallbackFamily {
         family: ForeignCallbackFamilyId,
     },
@@ -166,6 +187,31 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR CoroutineSlot metadata {}: ",
                 slot.into_raw().into_u32()
             )?,
+            MirValidationLocation::CoroutineSavedValue { value } => write!(
+                formatter,
+                "invalid MIR coroutine saved-value metadata {}: ",
+                value.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineFailureValue { value } => write!(
+                formatter,
+                "invalid MIR coroutine failure-value metadata {}: ",
+                value.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineFrame { frame } => write!(
+                formatter,
+                "invalid MIR coroutine frame metadata {}: ",
+                frame.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineResumePoint { point } => write!(
+                formatter,
+                "invalid MIR coroutine resume-point metadata {}: ",
+                point.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineFunction { coroutine } => write!(
+                formatter,
+                "invalid MIR coroutine function metadata {}: ",
+                coroutine.into_raw().into_u32()
+            )?,
             MirValidationLocation::ForeignCallbackFamily { family } => write!(
                 formatter,
                 "invalid MIR foreign callback family {}: ",
@@ -203,6 +249,12 @@ impl std::fmt::Display for MirValidationError {
             ),
             MirValidationErrorKind::InvalidCoroutineSlot => formatter
                 .write_str("stored Value/Empty identities no longer match the coroutine-slot enum"),
+            MirValidationErrorKind::InvalidCoroutineMetadata { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::NonRootCoroutinePendingContext => formatter.write_str(
+                "transient coroutine pending context remains after state-machine conversion",
+            ),
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason } => {
@@ -394,6 +446,7 @@ impl Module {
 /// a tested enum value into such a local before testing and projecting it.
 pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_enum_metadata(module)?;
+    validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
@@ -426,6 +479,19 @@ fn validate_body(
     }
 
     for (block, definition) in body.blocks.iter() {
+        for statement in &definition.statements {
+            let call = match &statement.kind {
+                StatementKind::Call(CallEffect::Unit(call))
+                | StatementKind::Call(CallEffect::Value { call, .. }) => Some(call),
+                _ => None,
+            };
+            if call.is_some_and(|call| !call.pending.is_root()) {
+                return Err(MirValidationError {
+                    location: MirValidationLocation::FunctionBlock { function, block },
+                    kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
+                });
+            }
+        }
         try_visit_block_exprs(definition, &mut |expr| {
             validate_expression_shape(module, expr).map_err(|kind| MirValidationError {
                 location: MirValidationLocation::FunctionBlock { function, block },

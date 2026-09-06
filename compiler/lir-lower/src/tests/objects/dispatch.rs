@@ -31,6 +31,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
                     callee: mir::Callee::User(m),
                 },
                 args: vec![local_expr(p, mir::Type::Class(c))],
+                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );
@@ -101,6 +102,7 @@ fn interface_calls_look_up_the_itable() {
                     callee: mir::Callee::User(label),
                 },
                 args: vec![local_expr(i, mir::Type::Interface(iface))],
+                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );

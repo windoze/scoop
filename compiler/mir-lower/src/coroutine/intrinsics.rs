@@ -8,8 +8,11 @@ pub(super) fn rewrite_intrinsic_site(
     frame_local: mir::LocalId,
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
+    frame_layout: FrameLayout,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    parents: Vec<mir::CoroutinePendingTransfer>,
     failure_slot: FrameSlot,
+    failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -39,11 +42,13 @@ pub(super) fn rewrite_intrinsic_site(
     );
     let result_latch = FrameSlot::new(
         2,
+        result_latch_id,
         result_latch_ty,
         &lowerer.coroutines.slots[result_latch_id],
     );
     let failure_latch = FrameSlot::new(
         3,
+        failure_latch_id,
         failure_latch_ty,
         &lowerer.coroutines.slots[failure_latch_id],
     );
@@ -55,7 +60,7 @@ pub(super) fn rewrite_intrinsic_site(
         lowerer,
         module,
         frame_class,
-        frame,
+        frame_layout,
         site.destination.map(|local| frame_slots[&local].clone()),
         failure_slot.clone(),
         outer_step,
@@ -65,7 +70,6 @@ pub(super) fn rewrite_intrinsic_site(
         source_symbol,
         driver,
         site.state,
-        failure_state(site.state),
         &site.result,
         Some((result_latch.clone(), failure_latch.clone())),
     );
@@ -103,7 +107,7 @@ pub(super) fn rewrite_intrinsic_site(
     }
     current.statements.push(atomic_field_store(
         mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-        0,
+        frame_layout.state.field_index(),
         frame_state(suspended_state(site.state)),
     ));
     current.statements.extend(initialized_generated_class(
@@ -206,7 +210,7 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(site.state)),
                 frame_state_value(STATE_RUNNING),
             ),
@@ -230,7 +234,7 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(site.state)),
                 frame_state_value(STATE_RUNNING),
             ),
@@ -364,7 +368,7 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(site.state)),
                 frame_state_value(STATE_RUNNING),
             ),
@@ -398,7 +402,7 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
+                frame_layout.state.field_index(),
                 frame_state_value(suspended_state(site.state)),
                 frame_state_value(STATE_RUNNING),
             ),
@@ -477,6 +481,7 @@ pub(super) fn rewrite_intrinsic_site(
                         callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                     },
                     args: vec![mir::Expr::caught_exception()],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -532,18 +537,20 @@ pub(super) fn rewrite_intrinsic_site(
         terminator: mir::Terminator::Goto(post),
         unwind,
     });
-    GeneratedSite {
-        state: suspended_state(site.state),
+    let failure_block =
+        failure_resume_block(body, frame_local, frame_slots, failure_slot, &site, unwind);
+    let point = register_resume_point(
+        lowerer,
+        frame,
+        site.state,
+        site.result,
+        &adapter,
+        parents,
+        post,
         resume_block,
-        failure_state: failure_state(site.state),
-        failure_block: failure_resume_block(
-            body,
-            frame_local,
-            frame_slots,
-            failure_slot,
-            &site,
-            unwind,
-        ),
-        point: adapter.point,
-    }
+        failure_block,
+        failure_value,
+        unwind,
+    );
+    GeneratedSite { point }
 }
