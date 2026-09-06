@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.32
+版本：0.33
 
 最后更新：2026-09-07
 
@@ -43,7 +43,7 @@
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
-| Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
+| Iterator / Iterable、`for` 与四种 range | 进行中 | 4.5 Iterator / Iterable 与 source `for` 正在做 spec / pipeline / core-test 三路只读审计；审计收敛前不改实现、不跑测试 |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
@@ -259,3 +259,4 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.4c2 实现与测试矩阵已在首次验证前整批静态收口。MIR schema / checked constructor / validator / dump、CFG pending context、per-unwind-scope managed EH、coroutine liveness / frame / point / dispatch transform、三个 producer case和单一 full-pipeline fixture均已齐；静态 API 扫描另补齐 compiler-generated callback call 的最终 `Root` context，并给新 fixture 增加显式 compile outcome 与 moving-GC stress 路由。当前只做跨模块最终整合审查；审查修复合并后才统一执行一次 `cargo fmt --all`、受影响 crate clippy、MIR validator / MIR-lower pending 定向测试及静态筛出的 coroutine snapshot batch，不运行 workspace/full fixture suite。
 - 2026-09-07：4.4c2 首次验证前最终整合审查完成。审查集中修复两项确定 blocker：非空 chain 的 iterator 不再错误承诺 `ExactSizeIterator`；所有 managed exception materialization 固定生成可执行 `BeginCatch` 的 `LandingPad(cleanup=false)`，并由 producer 测试遍历每个 scope 锁定。其余 API、借用、枚举穷尽、pending prefix、liveness、saved/failure 分槽、resume leaves 与 metadata-derived dispatch 静态复核无 blocker。现在才开始唯一验证批：先 `cargo fmt --all`；再对 `scoop-mir`、`scoop-mir-lower`、`scoop-lir-lower`、`scoopc` 执行一次 clippy；用单一 `coroutine` filter 执行 MIR / MIR-lower 定向测试；最后一次性刷新并审查静态筛出的 26 个既有 coroutine fixture与1个新 fixture，不运行 workspace/full fixture suite。
 - 2026-09-07：完成并提交 4.4c2 coroutine pending-transfer chain `6402e115`。首次 clippy 一次性暴露新代码误用 `la_arena::Arena::get` 的 24 处同类编译错误，统一改为 checked typed arena lookup 后只重跑该门，四个受影响 crate all-target clippy 通过；MIR / MIR-lower `coroutine` 定向测试各 9/9。fixture 验证按静态清单续跑：首轮已完成 7 份既有 snapshot 后，新 fixture 因公开函数签名引用 internal `Node` 被编译器正确拒绝；修正源码可见性后只运行新 fixture 与剩余 19 份，没有重跑前 7 份，20 份在 43.93 秒内通过，且新 fixture ordinary / moving-GC stress 输出一致。26 份既有 snapshot 的 AST/HIR/run 均与 `HEAD` 字节一致；三路独立审查覆盖全部 27 份相关 snapshot，确认 typed parents/leaves、per-scope EH、exact saved/failure slots、metadata-derived dispatch 及 GC frame refs 均无 blocker。`git diff --check` 通过，无 `.snap.new`、临时 fixture filter 或新增占位实现；按验证效率纪律未运行 workspace/full fixture suite。下一切片为 Iterator / Iterable、`for` 与四种 range。
+- 2026-09-07：开始 4.5 Iterator / Iterable 与 source `for`。三路只读审计并行覆盖：语言/实现/runtime spec 的 exact iteration contract 与跨文档一致性；parser → AST → Export HIR → LocalConcrete HIR → MIR 的现有 loop/binding/operator/conformance 链；普通 core、Array/MutableArray iterator、generic/suspend/capture/moving-GC 的最小 correctness-closed 测试矩阵。审计收敛并冻结完整 API/diagnostic/测试清单前不改实现、不运行测试；实现、validator、negative与fixture整批齐备后再统一验证。
