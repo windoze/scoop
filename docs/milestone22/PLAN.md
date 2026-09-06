@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.10
+版本：0.11
 
 最后更新：2026-09-06
 
@@ -44,7 +44,7 @@
 | 共享 `IrrefutableBindingPlan` | 已完成 | 4.2a val / var tuple / struct planner `0049933`；4.2b class component、lambda、effect / EH、suspend 恢复与 moving-GC `dde7063` |
 | typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.4 的 downstream-first 顺序落地，parser 最后开放语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
-| Scoop aggregate 参数 ABI classification | 进行中 | 具体 target mapping 已先行写入权威规范并提交为 `f40f728`；实现、validator、artifact、native shim 与 fixture 正在合并审查，之后统一做定向验证 |
+| Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
 ## 4. 剩余执行顺序
@@ -104,7 +104,7 @@
 
 每个切片均需独立 HIR / MIR / LIR golden、正向组合 fixture 和稳定 negative fixture，完成后单独提交并更新第 3 节状态。第二个切片只有在普通、throw、suspend 恢复与 moving-GC 路径全部通过时才能提交，不把 effect 或恢复正确性留给后续补丁。
 
-### 4.3 Scoop aggregate 参数 ABI classification（进行中）
+### 4.3 Scoop aggregate 参数 ABI classification（已完成：`9fbbd68`）
 
 该问题已从单个“32 字节 tuple”风险归因为一般 Scoop typed ABI 缺口，必须在 `for` / range 扩大 aggregate 传参组合前独立修复：
 
@@ -126,6 +126,15 @@
 - `UnitVoid` 与非 Unit `ElidedZst` 在 LIR 中保持不同 return / call arm；后者物理返回 void，但在正常边生成 exact logical ZST value。address-taken elided parameter 使用独立、满足对齐的 1-byte place token，不发射空 LLVM aggregate 参数。
 
 最小 correctness-closed 行为提交必须原子包含：LIR sum / checked classifier 与 validator；definition、direct / dispatch、call / invoke、Scoop extern 的共同物理签名；callee logical → physical parameter mapping、caller ABI storage 与 ZST elision；`sret / byval / align` 及显式 statepoint 属性；ordinary / exceptional / native root relocation；pre / post-RS4GC artifact 与 full-pipeline 复现。不会在 definition 与 caller 不一致时作为完成提交。
+
+完成证据：
+
+- LIR 现以 checked `AbiValue` / layout 与 `AbiArgument` / `AbiReturn` sum 结构化保存 classification；function、local / dispatch call 与 Scoop extern 共用同一 `ScoopAbiSignature`，物理参数只由该签名机械派生。callee、caller、invoke 与显式 statepoint 对 `byval`、`sret`、`align` 和 `5 + physical_index` 的发射一致。
+- indirect argument 使用 caller-owned fresh exact storage；indirect result 使用 caller-owned sret storage。ZST 保留 logical value 但消除物理槽；`UnitVoid` 与非 Unit ZST 分离。codegen 边界 validator 重新验证 target layout、scan、classification、call/definition/extern 一致性和完整 root plan，并在索引前拒绝非法 invoke shape。
+- managed / native 的 normal 与 unwind 路径均按 reload → pop → restore；含 managed leaf 的 indirect argument / result storage 使用 canonical recursive scan。Darwin / AArch64 native shim 明确消费入站 SP 的 24-byte byval 与 x8 sret，不借用 Clang C aggregate classifier；两次 moving GC 分别验证 DirectSlot reload 与 caller sret region 原地更新。
+- full-pipeline fixture 覆盖 24 / 32 / 64-byte、flat / nested、constructor、NoGC、generic specialization、managed call / invoke normal / throw、closure hidden receiver、Scoop extern 与 moving-GC stress。既有 `Pair(None, 8).value` 从错误的 `0` 恢复为源码期望的 `8`。
+- 验证通过：`cargo fmt --all -- --check`；全 workspace clippy（`-D warnings`）；定向 HIR lowering 680/680、LIR 25/25、LIR lowering 71/71、codegen 189/189；唯一一次 `INSTA_UPDATE=always cargo test --workspace` 全绿，fixture 4/4（333.23 秒，含 ordinary 与 stress）；`git diff --check`；无 `.snap.new` 或新增 `TODO` / `unimplemented!`。184 份既有 snapshot 的非 LIR 内容逐份复核，除两个有意源变更及上述 ABI 错值修复外无漂移；四路独立静态 / root / native / snapshot 审查最终均无 blocker。
+- 本切片复用既有 caller root、native transition、moving-GC relocation 与 runtime function contract，没有改变 runtime ABI、对象模型或 GC API，因此无需修改 runtime spec。
 
 ### 4.4 typed loop target 与 abrupt cleanup
 
@@ -202,3 +211,4 @@
 - 2026-09-06：复现矩阵进一步定位 physical mismatch。原始 32-byte 嵌套 tuple 构造参数期望 `3/0/4/0`、实际 `3/0/0/1`；24-byte `(Signal, Long)` 构造参数期望 `3/4/55`、实际 `3/4/4294967296`，同 shape 经 NoGC 自由函数与 generic specialization 也失败，而 flat 32-byte 对照通过。LLVM IR 两端都写 raw by-value aggregate，但 AArch64 caller 与 callee 对溢出 stack 叶的拆分 offset 不一致；这直接验证了 exact indirect storage 的修复方向。
 - 2026-09-06：补充验证效率纪律。开发期先合并同一切片的全部实现、测试与审查修复，只跑定向检查；专项完整 suite、全 workspace 与全 fixture 分别留到稳定完成门一次执行，避免用反复全量回归发现可由静态审计或定向用例提前确定的缺口。
 - 2026-09-06：提交 `f40f728`，先在语言与实现规范冻结 Darwin / AArch64 profile 的 aggregate Scoop ABI mapping：非空 aggregate 统一 indirect，caller / callee 共享 exact physical signature，LLVM adapter 一致发射 `byval` / `sret` / alignment 与 statepoint 参数属性。runtime function、对象模型与 GC 协议未变化，因此 runtime spec 无需修改。实现审查同时发现 native shim 必须从 incoming stack 取得 24-byte `byval` storage，且 moving-GC fixture 不能使用 immortal String；两项均在首次定向验证前集中修正。
+- 2026-09-06：完成 4.3 Scoop aggregate 参数 ABI classification，提交 `9fbbd68`。LIR classification、definition / call / extern 物理签名、indirect storage、ZST、statepoint attributes、root-plan validator、reload-before-pop、Darwin / AArch64 native shim 与 full-pipeline matrix 原子落地。先集中静态审计和定向修复，再只运行一次全 workspace / fixture 完成门；完整回归、ordinary / moving-GC stress 与 snapshot 审计全部通过。下一执行切片为 4.4 typed loop target 与 abrupt cleanup。
