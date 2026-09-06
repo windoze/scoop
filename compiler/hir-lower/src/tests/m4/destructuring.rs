@@ -140,53 +140,86 @@ fn destructuring_declarations() {
         IntegerLiteral 2 : Int
         IntegerLiteral 3 : Int
         IntegerLiteral 4 : Int
-    val (local1, _, _, local2)
+    val local1
       Local t : (Int, Int, Int, Int)
+    val local2
+      FieldAccess _1 : Int
+        Local $binding.subject.0 : (Int, Int, Int, Int)
     val local3
-      IntegerLiteral 1 : Int
+      Local $binding.projection.1 : Int
     val local4
-      IntegerLiteral 2 : Int
+      FieldAccess _4 : Int
+        Local $binding.subject.0 : (Int, Int, Int, Int)
     val local5
-      Local $argument.0 : Int
+      Local $binding.projection.2 : Int
     val local6
-      Local $argument.1 : Int
+      IntegerLiteral 1 : Int
     val local7
+      IntegerLiteral 2 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      Local $argument.1 : Int
+    val local10
       StructInit Point : Point
         Local $parameter.x : Int
         Local $parameter.y : Int
-    val struct(0: local8, 1: _)
+    val local11
       Local p : Point
-    val struct(0: local9, 1: _)
+    val local12
+      FieldAccess field 0 : Int
+        Local $binding.subject.3 : Point
+    val local13
+      Local $binding.projection.4 : Int
+    val local14
       Local p : Point
-    val local10
+    val local15
+      FieldAccess field 0 : Int
+        Local $binding.subject.5 : Point
+    val local16
+      Local $binding.projection.6 : Int
+    val local17
       TupleLiteral : ((Int, Int), String)
         TupleLiteral : (Int, Int)
           IntegerLiteral 1 : Int
           IntegerLiteral 2 : Int
         StringLiteral "s" : String
-    val ((local11, local12), _)
-      Local nested : ((Int, Int), String)
-    val local13
-      Local a : Int
-    val local14
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
-    val local15
-      Local b : Int
-    val local16
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
-    val local17
-      Local px : Int
     val local18
+      Local nested : ((Int, Int), String)
+    val local19
+      FieldAccess _1 : (Int, Int)
+        Local $binding.subject.7 : ((Int, Int), String)
+    val local20
+      FieldAccess _1 : Int
+        Local $binding.projection.8 : (Int, Int)
+    val local21
+      Local $binding.projection.9 : Int
+    val local22
+      FieldAccess _2 : Int
+        Local $binding.projection.8 : (Int, Int)
+    val local23
+      Local $binding.projection.10 : Int
+    val local24
+      Local a : Int
+    val local25
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local19
+    val local26
+      Local b : Int
+    val local27
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local28
+      Local px : Int
+    val local29
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local30
       Local m : Int
-    val local20
+    val local31
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int

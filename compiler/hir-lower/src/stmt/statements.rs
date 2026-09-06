@@ -284,42 +284,47 @@ impl Lowerer {
             },
         ) = (self.types[ty].clone(), &decl.target)
         {
-            let diagnostics_before = self.diagnostics.len();
-            let mut state = self.clone();
-            let mut planned = Vec::new();
-            let lowered = state.lower_class_destructuring(
-                elements,
-                *rest,
-                *span,
-                decl.mutable,
-                init,
-                sink,
-                &mut planned,
-            );
-            if lowered.is_some() && state.diagnostics.len() == diagnostics_before {
-                *self = state;
-                out.extend(planned);
-                return Some(());
-            }
-            self.diagnostics
-                .extend(state.diagnostics.into_iter().skip(diagnostics_before));
-            return None;
+            let planned = self.with_pattern_transaction(move |state| {
+                let mut planned = Vec::new();
+                state.lower_class_destructuring(
+                    elements,
+                    *rest,
+                    *span,
+                    decl.mutable,
+                    init,
+                    sink,
+                    &mut planned,
+                )?;
+                Some(planned)
+            })?;
+            out.extend(planned);
+            return Some(());
         }
-        // The pattern is lowered after the initializer, so bindings are
-        // not visible in their own initializer.
-        let pattern = self.lower_pattern(
-            &decl.target,
-            ty,
-            PatternCtx {
-                mutable: decl.mutable,
-                in_when: false,
-            },
-        )?;
-        out.extend(sink);
-        out.push(hir::Statement {
-            kind: hir::StatementKind::ValDecl { pattern, init },
-            span: decl.span,
-        });
+        // A trivial named declaration needs no separate subject/projection
+        // schedule. Composite and wildcard targets use the shared binding
+        // planner, which expands to binding-only HIR declarations in source
+        // runtime order. Planning happens after the initializer, so none of
+        // the new bindings are visible in their own initializer.
+        if matches!(&decl.target, ast::Pattern::Binding(_)) {
+            let pattern = self.lower_pattern(
+                &decl.target,
+                ty,
+                PatternCtx {
+                    mutable: decl.mutable,
+                    in_when: false,
+                },
+            )?;
+            out.extend(sink);
+            out.push(hir::Statement {
+                kind: hir::StatementKind::ValDecl { pattern, init },
+                span: decl.span,
+            });
+        } else {
+            let plan =
+                self.lower_irrefutable_binding_plan(&decl.target, init, decl.mutable, decl.span)?;
+            out.extend(sink);
+            out.extend(plan.into_statements());
+        }
         Some(())
     }
 

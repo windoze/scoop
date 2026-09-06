@@ -51,6 +51,9 @@ pub use declarations::*;
 mod body;
 pub use body::*;
 
+mod bindings;
+pub use bindings::*;
+
 mod intrinsics;
 pub use intrinsics::*;
 

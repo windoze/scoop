@@ -32,7 +32,7 @@ fun nestedBinding() {
     val bundle = Bundle(Some(3), Signal.Ready)
     val nested: (Signal, Int?) = (Signal.Payload(4), None)
     val (
-        { optional: None, signal: Ready },
+        { signal: Ready, optional: None },
         (Payload, NestedNone)
     ) = (bundle, nested)
     println(optionValue(None))

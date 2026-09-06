@@ -497,7 +497,7 @@ SourceFile
           Var Signal
           IntLiteral 4
         Var None
-    val ({optional: None, signal: Ready}, (Payload, NestedNone))
+    val ({signal: Ready, optional: None}, (Payload, NestedNone))
       TupleLiteral
         Var bundle
         Var nested
@@ -778,51 +778,77 @@ Module
         VariantConstruct Signal.Payload : Signal
           Local $parameter._1 : Int
         VariantConstruct Option.None<Int> : Option<Int>
-    val (struct(0: local10, 1: local11), (local12, local13))
+    val local10
       TupleLiteral : (Bundle, (Signal, Option<Int>))
         Local bundle : Bundle
         Local nested : (Signal, Option<Int>)
+    val local11
+      FieldAccess _1 : Bundle
+        Local $binding.subject.2 : (Bundle, (Signal, Option<Int>))
+    val local12
+      FieldAccess field 1 : Signal
+        Local $binding.projection.3 : Bundle
+    val local13
+      Local $binding.projection.4 : Signal
     val local14
-      Local None : Option<Int>
+      FieldAccess field 0 : Option<Int>
+        Local $binding.projection.3 : Bundle
     val local15
-      Local $argument.0 : Option<Int>
+      Local $binding.projection.5 : Option<Int>
     val local16
-      Call optionValue : Int
-        Local $parameter.value : Option<Int>
+      FieldAccess _2 : (Signal, Option<Int>)
+        Local $binding.subject.2 : (Bundle, (Signal, Option<Int>))
     val local17
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
+      FieldAccess _1 : Signal
+        Local $binding.projection.6 : (Signal, Option<Int>)
     val local18
-      Local Ready : Signal
+      Local $binding.projection.7 : Signal
     val local19
-      Local $argument.0 : Signal
+      FieldAccess _2 : Option<Int>
+        Local $binding.projection.6 : (Signal, Option<Int>)
     val local20
-      Call classify : Int
-        Local $parameter.value : Signal
+      Local $binding.projection.8 : Option<Int>
     val local21
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
+      Local None : Option<Int>
     val local22
-      Local Payload : Signal
-    val local23
-      Local $argument.0 : Signal
-    val local24
-      Call classify : Int
-        Local $parameter.value : Signal
-    val local25
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
-    val local26
-      Local NestedNone : Option<Int>
-    val local27
       Local $argument.0 : Option<Int>
-    val local28
+    val local23
       Call optionValue : Int
         Local $parameter.value : Option<Int>
+    val local24
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local25
+      Local Ready : Signal
+    val local26
+      Local $argument.0 : Signal
+    val local27
+      Call classify : Int
+        Local $parameter.value : Signal
+    val local28
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
     val local29
+      Local Payload : Signal
+    val local30
+      Local $argument.0 : Signal
+    val local31
+      Call classify : Int
+        Local $parameter.value : Signal
+    val local32
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local33
+      Local NestedNone : Option<Int>
+    val local34
+      Local $argument.0 : Option<Int>
+    val local35
+      Call optionValue : Int
+        Local $parameter.value : Option<Int>
+    val local36
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -845,9 +871,14 @@ Module
       UnitLiteral : Unit
     val local1
       Local $argument.0 : Unit
-    val struct(0: local2)
+    val local2
       StructInit UnitBox : UnitBox
         Local $parameter.Unit : Unit
+    val local3
+      FieldAccess field 0 : Unit
+        Local $binding.subject.9 : UnitBox
+    val local4
+      Local $binding.projection.10 : Unit
     Local value : Unit
     return
   fun main(): Unit
@@ -1439,41 +1470,55 @@ Module mangling=compact-v2
             Local $parameter._1
           Type Option$I32<Int>
           VariantConstruct Option$I32<Int> v1
-      val $bind.1: (Bundle, (Signal, Option$I32<Int>))
+      val $binding.subject.2: (Bundle, (Signal, Option$I32<Int>))
         Type (Bundle, (Signal, Option$I32<Int>))
         TupleLiteral
           Type Bundle
           Local bundle
           Type (Signal, Option$I32<Int>)
           Local nested
-      val None: Option$I32<Int>
-        Type Option$I32<Int>
+      val $binding.projection.3: Bundle
+        Type Bundle
         FieldAccess 0
+          Type (Bundle, (Signal, Option$I32<Int>))
+          Local $binding.subject.2
+      val $binding.projection.4: Signal
+        Type Signal
+        FieldAccess 1
           Type Bundle
-          FieldAccess 0
-            Type (Bundle, (Signal, Option$I32<Int>))
-            Local $bind.1
+          Local $binding.projection.3
       val Ready: Signal
         Type Signal
-        FieldAccess 1
+        Local $binding.projection.4
+      val $binding.projection.5: Option$I32<Int>
+        Type Option$I32<Int>
+        FieldAccess 0
           Type Bundle
-          FieldAccess 0
-            Type (Bundle, (Signal, Option$I32<Int>))
-            Local $bind.1
-      val Payload: Signal
+          Local $binding.projection.3
+      val None: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $binding.projection.5
+      val $binding.projection.6: (Signal, Option$I32<Int>)
+        Type (Signal, Option$I32<Int>)
+        FieldAccess 1
+          Type (Bundle, (Signal, Option$I32<Int>))
+          Local $binding.subject.2
+      val $binding.projection.7: Signal
         Type Signal
         FieldAccess 0
           Type (Signal, Option$I32<Int>)
-          FieldAccess 1
-            Type (Bundle, (Signal, Option$I32<Int>))
-            Local $bind.1
-      val NestedNone: Option$I32<Int>
+          Local $binding.projection.6
+      val Payload: Signal
+        Type Signal
+        Local $binding.projection.7
+      val $binding.projection.8: Option$I32<Int>
         Type Option$I32<Int>
         FieldAccess 1
           Type (Signal, Option$I32<Int>)
-          FieldAccess 1
-            Type (Bundle, (Signal, Option$I32<Int>))
-            Local $bind.1
+          Local $binding.projection.6
+      val NestedNone: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $binding.projection.8
       val $argument.0: Option$I32<Int>
         Type Option$I32<Int>
         Local None
@@ -1568,14 +1613,17 @@ Module mangling=compact-v2
       val $parameter.Unit: Unit
         Type Unit
         Local $argument.0
-      call $bind.1: UnitBox = @scoop.ctor.UnitBox.$c7 direct
+      call $binding.subject.9: UnitBox = @scoop.ctor.UnitBox.$c7 direct
         Type Unit
         Local $parameter.Unit
-      val value: Unit
+      val $binding.projection.10: Unit
         Type Unit
         FieldAccess 0
           Type UnitBox
-          Local $bind.1
+          Local $binding.subject.9
+      val value: Unit
+        Type Unit
+        Local $binding.projection.10
       Type Unit
       Local value
       return
@@ -2252,28 +2300,34 @@ Module
     local %7 $argument.0: i32
     local %8 $parameter._1: i32
     local %9 nested: {enum1, enum0}
-    local %10 None: enum0
-    local %11 Ready: enum1
-    local %12 Payload: enum1
-    local %13 NestedNone: enum0
-    local %14 $argument.0: enum0
-    local %15 $parameter.value: enum0
-    local %16 $argument.0: i32
-    local %17 $parameter.value: i32
-    local %18 $argument.0: enum1
-    local %19 $parameter.value: enum1
-    local %20 $argument.0: i32
-    local %21 $parameter.value: i32
-    local %22 $argument.0: enum1
-    local %23 $parameter.value: enum1
-    local %24 $argument.0: i32
-    local %25 $parameter.value: i32
-    local %26 $argument.0: enum0
-    local %27 $parameter.value: enum0
-    local %28 $argument.0: i32
-    local %29 $parameter.value: i32
-    local %30 $bind.1: {struct10, {enum1, enum0}}
-    local %31 $sc.1: struct10
+    local %10 $binding.subject.2: {struct10, {enum1, enum0}}
+    local %11 $binding.projection.3: struct10
+    local %12 $binding.projection.4: enum1
+    local %13 Ready: enum1
+    local %14 $binding.projection.5: enum0
+    local %15 None: enum0
+    local %16 $binding.projection.6: {enum1, enum0}
+    local %17 $binding.projection.7: enum1
+    local %18 Payload: enum1
+    local %19 $binding.projection.8: enum0
+    local %20 NestedNone: enum0
+    local %21 $argument.0: enum0
+    local %22 $parameter.value: enum0
+    local %23 $argument.0: i32
+    local %24 $parameter.value: i32
+    local %25 $argument.0: enum1
+    local %26 $parameter.value: enum1
+    local %27 $argument.0: i32
+    local %28 $parameter.value: i32
+    local %29 $argument.0: enum1
+    local %30 $parameter.value: enum1
+    local %31 $argument.0: i32
+    local %32 $parameter.value: i32
+    local %33 $argument.0: enum0
+    local %34 $parameter.value: enum0
+    local %35 $argument.0: i32
+    local %36 $parameter.value: i32
+    local %37 $sc.1: struct10
   block entry
     poll managed-void-target4 sp76 live=[]
     store integer<Int>(0x00000003) -> local0
@@ -2284,8 +2338,8 @@ Module
     store t1 -> local3
     store local2 -> local4
     store local3 -> local5
-    call no-gc-indirect-target0 local31 = sig=indirect0 (sret struct10, enum0, enum1) local-fn40(local4, local5)
-    store local31 -> local6
+    call no-gc-indirect-target0 local37 = sig=indirect0 (sret struct10, enum0, enum1) local-fn40(local4, local5)
+    store local37 -> local6
     store integer<Int>(0x00000004) -> local7
     store local7 -> local8
     t2 = enum_wrap e1 v1 (local8) : enum1
@@ -2293,47 +2347,51 @@ Module
     t4 = aggregate (t2, t3) : {enum1, enum0}
     store t4 -> local9
     t5 = aggregate (local6, local9) : {struct10, {enum1, enum0}}
-    store t5 -> local30
-    t6 = extract local30, 0 : struct10
-    t7 = extract t6, 0 : enum0
-    store t7 -> local10
-    t8 = extract local30, 0 : struct10
-    t9 = extract t8, 1 : enum1
-    store t9 -> local11
-    t10 = extract local30, 1 : {enum1, enum0}
-    t11 = extract t10, 0 : enum1
-    store t11 -> local12
-    t12 = extract local30, 1 : {enum1, enum0}
-    t13 = extract t12, 1 : enum0
-    store t13 -> local13
-    store local10 -> local14
+    store t5 -> local10
+    t6 = extract local10, 0 : struct10
+    store t6 -> local11
+    t7 = extract local11, 1 : enum1
+    store t7 -> local12
+    store local12 -> local13
+    t8 = extract local11, 0 : enum0
+    store t8 -> local14
     store local14 -> local15
-    call managed-direct-target0 sp23 live=[] t14 = sig=direct0 (enum0) -> i32 local-fn23(local15)
-    store t14 -> local16
-    store local16 -> local17
-    call managed-void-target0 sp24 live=[] sig=void0 (i32) local-fn30(local17)
+    t9 = extract local10, 1 : {enum1, enum0}
+    store t9 -> local16
+    t10 = extract local16, 0 : enum1
+    store t10 -> local17
+    store local17 -> local18
+    t11 = extract local16, 1 : enum0
+    store t11 -> local19
+    store local19 -> local20
+    store local15 -> local21
+    store local21 -> local22
+    call managed-direct-target0 sp23 live=[] t12 = sig=direct0 (enum0) -> i32 local-fn23(local22)
+    store t12 -> local23
+    store local23 -> local24
+    call managed-void-target0 sp24 live=[] sig=void0 (i32) local-fn30(local24)
+    t13 = aggregate () : {}
+    store local13 -> local25
+    store local25 -> local26
+    call managed-direct-target1 sp25 live=[] t14 = sig=direct1 (enum1) -> i32 local-fn22(local26)
+    store t14 -> local27
+    store local27 -> local28
+    call managed-void-target1 sp26 live=[] sig=void1 (i32) local-fn30(local28)
     t15 = aggregate () : {}
-    store local11 -> local18
-    store local18 -> local19
-    call managed-direct-target1 sp25 live=[] t16 = sig=direct1 (enum1) -> i32 local-fn22(local19)
-    store t16 -> local20
-    store local20 -> local21
-    call managed-void-target1 sp26 live=[] sig=void1 (i32) local-fn30(local21)
+    store local18 -> local29
+    store local29 -> local30
+    call managed-direct-target2 sp27 live=[] t16 = sig=direct2 (enum1) -> i32 local-fn22(local30)
+    store t16 -> local31
+    store local31 -> local32
+    call managed-void-target2 sp28 live=[] sig=void2 (i32) local-fn30(local32)
     t17 = aggregate () : {}
-    store local12 -> local22
-    store local22 -> local23
-    call managed-direct-target2 sp27 live=[] t18 = sig=direct2 (enum1) -> i32 local-fn22(local23)
-    store t18 -> local24
-    store local24 -> local25
-    call managed-void-target2 sp28 live=[] sig=void2 (i32) local-fn30(local25)
+    store local20 -> local33
+    store local33 -> local34
+    call managed-direct-target3 sp29 live=[] t18 = sig=direct3 (enum0) -> i32 local-fn23(local34)
+    store t18 -> local35
+    store local35 -> local36
+    call managed-void-target3 sp30 live=[] sig=void3 (i32) local-fn30(local36)
     t19 = aggregate () : {}
-    store local13 -> local26
-    store local26 -> local27
-    call managed-direct-target3 sp29 live=[] t20 = sig=direct3 (enum0) -> i32 local-fn23(local27)
-    store t20 -> local28
-    store local28 -> local29
-    call managed-void-target3 sp30 live=[] sig=void3 (i32) local-fn30(local29)
-    t21 = aggregate () : {}
     ret
   fun @scoop.lambdaBinding() -> i32
     local %0 unpack: ptr<managed>
@@ -2357,18 +2415,20 @@ Module
   fun @scoop.explicitUnitFieldBinding() -> void
     local %0 $argument.0: {}
     local %1 $parameter.Unit: {}
-    local %2 value: {}
-    local %3 $bind.1: struct11
-    local %4 $sc.1: struct11
+    local %2 $binding.subject.9: struct11
+    local %3 $binding.projection.10: {}
+    local %4 value: {}
+    local %5 $sc.1: struct11
   block entry
     poll managed-void-target0 sp78 live=[]
     t0 = aggregate () : {}
     store t0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local4 = sig=indirect0 (sret struct11, {}) local-fn41(local1)
-    store local4 -> local3
-    t1 = extract local3, 0 : {}
-    store t1 -> local2
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct11, {}) local-fn41(local1)
+    store local5 -> local2
+    t1 = extract local2, 0 : {}
+    store t1 -> local3
+    store local3 -> local4
     ret
   fun @scoop_main() -> void
     local %0 $argument.0: i32

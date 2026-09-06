@@ -31,6 +31,7 @@ use hir::{Type, TypeId};
 
 use crate::{Lowerer, VariantStyle};
 
+mod binding;
 mod exhaustiveness;
 mod structure;
 
@@ -54,24 +55,29 @@ impl Lowerer {
         matched_ty: TypeId,
         ctx: PatternCtx,
     ) -> Option<hir::Pattern> {
-        // A pattern is one semantic transaction. Recursive lowering allocates
-        // locals, emits match warnings, and updates the lexical scope as it
-        // walks, so a late error must discard every earlier leaf and warning
-        // instead of exposing a partial result. A full Lowerer clone also
-        // keeps nested callable/candidate-owned entities private.
+        self.with_pattern_transaction(|state| state.lower_pattern_inner(pattern, matched_ty, ctx))
+    }
+
+    /// Run one complete pattern or binding-plan owner against private lowering
+    /// state. Recursive helpers call their non-transactional inner forms, so
+    /// each owner clones at most once.
+    pub(super) fn with_pattern_transaction<T>(
+        &mut self,
+        build: impl FnOnce(&mut Lowerer) -> Option<T>,
+    ) -> Option<T> {
         let diagnostics_before = self.diagnostics.len();
         let mut state = self.clone();
-        let lowered = state.lower_pattern_inner(pattern, matched_ty, ctx);
-        if let Some(pattern) = lowered
+        let lowered = build(&mut state);
+        if let Some(value) = lowered
             && state.diagnostics.len() == diagnostics_before
         {
             *self = state;
-            return Some(pattern);
+            return Some(value);
         }
 
-        // A dependency such as a previously failed type alias may already
-        // own the only diagnostic. In that case recursive lowering can fail
-        // without appending another one; rollback is still required.
+        // A dependency such as a previously failed type alias may own the only
+        // Error. Failure without a new Error still rolls back; warnings stay
+        // private unless the whole owner commits successfully.
         self.diagnostics
             .extend(state.diagnostics.into_iter().skip(diagnostics_before));
         None

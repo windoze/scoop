@@ -394,12 +394,20 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
         .iter()
         .find_map(|statement| match &statement.kind {
             hir::StatementKind::ValDecl {
-                pattern: hir::Pattern::Struct { application, .. },
+                init:
+                    hir::Expr {
+                        kind:
+                            hir::ExprKind::FieldAccess {
+                                field: hir::FieldRef::StructField(field),
+                                ..
+                            },
+                        ..
+                    },
                 ..
-            } => Some(*application),
+            } => Some(field.application()),
             _ => None,
         })
-        .expect("alias-qualified struct pattern");
+        .expect("alias-qualified struct projection");
     assert_eq!(
         module.struct_applications[struct_application].arguments,
         vec![module.string]

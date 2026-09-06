@@ -110,6 +110,94 @@ fn bare_enum_variant_names_bind_at_nested_struct_and_tuple_depths() {
 }
 
 #[test]
+fn val_binding_plan_emits_source_order_projections_and_immutable_temporaries() {
+    let source = file(vec![
+        struct_decl(
+            "Record",
+            vec![
+                ("first", ty_named("Int")),
+                ("second", ty_named("Int")),
+                ("third", ty_named("Int")),
+            ],
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                true,
+                pat_named_subpatterns(
+                    &[],
+                    vec![
+                        ("third", pat_bind("thirdValue")),
+                        ("first", pat_bind("firstValue")),
+                        ("second", pat_wild()),
+                    ],
+                    None,
+                ),
+                None,
+                struct_init("Record", vec![int_lit(1), int_lit(2), int_lit(3)]),
+            )],
+        ),
+    ]);
+
+    let module = lower_user(source).expect("the val binding plan must lower");
+    let body = function_body(&module, "main");
+    let plan_start = body
+        .statements
+        .iter()
+        .position(|statement| {
+            let hir::StatementKind::ValDecl { pattern, .. } = &statement.kind else {
+                return false;
+            };
+            let hir::Pattern::Binding { local } = pattern else {
+                return false;
+            };
+            body.locals[*local].name.starts_with("$binding.subject.")
+        })
+        .expect("the plan has an immutable subject temporary");
+    let plan = &body.statements[plan_start..];
+    assert!(plan.iter().all(|statement| matches!(
+        &statement.kind,
+        hir::StatementKind::ValDecl {
+            pattern: hir::Pattern::Binding { .. },
+            ..
+        }
+    )));
+
+    let projection_indices = plan
+        .iter()
+        .filter_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            let hir::ExprKind::FieldAccess {
+                field: hir::FieldRef::StructField(field),
+                ..
+            } = &init.kind
+            else {
+                return None;
+            };
+            Some(field.local_index())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        projection_indices,
+        vec![2, 0],
+        "named projections follow source order and an explicit `_` is ignored",
+    );
+
+    for (_, local) in body.locals.iter() {
+        if local.name.starts_with("$binding.subject.")
+            || local.name.starts_with("$binding.projection.")
+        {
+            assert!(!local.mutable, "hidden binding temporaries stay immutable");
+        }
+        if matches!(local.name.as_str(), "thirdValue" | "firstValue") {
+            assert!(local.mutable, "only user-visible `var` leaves are mutable");
+        }
+    }
+}
+
+#[test]
 fn bare_enum_variant_names_bind_in_composite_lambda_parameters() {
     let operation = ast::Expr::Lambda {
         id: ast::LambdaId(0),

@@ -845,8 +845,16 @@ Module
         Local $parameter.marker : (Boolean, Int)
         Local $parameter.serial : Int
   fun bindingValue(): Int
-    val struct(0: _, 1: struct(0: local0, 1: _), 2: _, 3: _)
+    val local0
       Call makeEnvelope : Envelope<Leaf<Int>>
+    val local1
+      FieldAccess field 1 : Leaf<Int>
+        Local $binding.subject.1 : Envelope<Leaf<Int>>
+    val local2
+      FieldAccess field 0 : Int
+        Local $binding.projection.2 : Leaf<Int>
+    val local3
+      Local $binding.projection.3 : Int
     return
       Local value : Int
   fun main(): Unit
@@ -1830,14 +1838,20 @@ Module mangling=compact-v2
         Local $call.1
   fun bindingValue @scoop.bindingValue() -> Int
     bb0 entry
-      call $bind.1: Envelope$D8_Leaf$I32X = @scoop.makeEnvelope direct
-      val value: Int
+      call $binding.subject.1: Envelope$D8_Leaf$I32X = @scoop.makeEnvelope direct
+      val $binding.projection.2: Leaf$I32
+        Type Leaf$I32
+        FieldAccess 1
+          Type Envelope$D8_Leaf$I32X
+          Local $binding.subject.1
+      val $binding.projection.3: Int
         Type Int
         FieldAccess 0
           Type Leaf$I32
-          FieldAccess 1
-            Type Envelope$D8_Leaf$I32X
-            Local $bind.1
+          Local $binding.projection.2
+      val value: Int
+        Type Int
+        Local $binding.projection.3
       return
         Type Int
         Local value
@@ -2951,17 +2965,21 @@ Module
     store local16 -> local14
     ret local14
   fun @scoop.bindingValue() -> i32
-    local %0 value: i32
-    local %1 $bind.1: struct11
-    local %2 $sc.1: struct11
+    local %0 $binding.subject.1: struct11
+    local %1 $binding.projection.2: struct10
+    local %2 $binding.projection.3: i32
+    local %3 value: i32
+    local %4 $sc.1: struct11
   block entry
     poll managed-void-target0 sp83 live=[]
-    call managed-indirect-target0 sp32 live=[] local2 = sig=indirect0 (sret struct11, ) local-fn24()
-    store local2 -> local1
-    t0 = extract local1, 1 : struct10
-    t1 = extract t0, 0 : i32
-    store t1 -> local0
-    ret local0
+    call managed-indirect-target0 sp32 live=[] local4 = sig=indirect0 (sret struct11, ) local-fn24()
+    store local4 -> local0
+    t0 = extract local0, 1 : struct10
+    store t0 -> local1
+    t1 = extract local1, 0 : i32
+    store t1 -> local2
+    store local2 -> local3
+    ret local3
   fun @scoop_main() -> void
     local %0 $argument.0: i32
     local %1 $argument.1: i1
