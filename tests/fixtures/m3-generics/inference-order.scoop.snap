@@ -1329,11 +1329,20 @@ Module mangling=compact-v2
       val $when.1: Duo$I32<Int>
         Type Duo$I32<Int>
         Local duo
+      val $pattern.subject.2: Duo$I32<Int>
+        Type Duo$I32<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Duo$I32 v0
+          Type Duo$I32<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val value: Int
         Type Int
-        EnumField v0 f1
+        VariantPayloadProject Duo$I32 v0 f1
           Type Duo$I32<Int>
-          Local $when.1
+          Local $pattern.subject.2
       val $argument.0: Int
         Type Int
         Local value
@@ -1343,6 +1352,10 @@ Module mangling=compact-v2
       call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
       val $argument.0: Option$I32<Int>
         Type Option$I32<Int>
         VariantConstruct Option$I32<Int> v1
@@ -2043,7 +2056,8 @@ Module
     local %45 $argument.0: i32
     local %46 $parameter.value: i32
     local %47 $when.1: enum2
-    local %48 $sc.1: struct10
+    local %48 $pattern.subject.2: enum2
+    local %49 $sc.1: struct10
   block entry
     poll managed-void-target7 sp69 live=[]
     t0 = enum_wrap e0 v1 () : enum0
@@ -2061,8 +2075,8 @@ Module
     store integer<Int>(0x00000008) -> local7
     store local6 -> local8
     store local7 -> local9
-    call no-gc-indirect-target0 local48 = sig=indirect0 (sret struct10, enum0, i32) local-fn39(local8, local9)
-    store local48 -> local10
+    call no-gc-indirect-target0 local49 = sig=indirect0 (sret struct10, enum0, i32) local-fn39(local8, local9)
+    store local49 -> local10
     t4 = extract local10, 1 : i32
     store t4 -> local11
     store local11 -> local12
@@ -2076,56 +2090,64 @@ Module
     t7 = enum_wrap e2 v0 (local15, local16) : enum2
     store t7 -> local17
     store local17 -> local47
-    t8 = enum_field e2 v0 f1 local47 : i32
-    store t8 -> local18
+    store local47 -> local48
+    t8 = variant_test e2 v0 local48 : i1
+    cbr t8 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t9 = variant_payload_project e2 v0 f1 local48 : i32
+    store t9 -> local18
     store local18 -> local19
     store local19 -> local20
     call managed-void-target2 sp25 live=[] sig=void2 (i32) local-fn26(local20)
-    t9 = aggregate () : {}
-    t10 = enum_wrap e0 v1 () : enum0
-    store t10 -> local21
+    t10 = aggregate () : {}
+    br @pattern.merge.3
+  block pattern.else.2
+    unreachable
+  block pattern.merge.3
+    t11 = enum_wrap e0 v1 () : enum0
+    store t11 -> local21
     store integer<Int>(0x0000000a) -> local22
     store local21 -> local23
     store local22 -> local24
-    call managed-direct-target1 sp26 live=[] t11 = sig=direct1 (enum0, i32) -> i32 local-fn22(local23, local24)
-    store t11 -> local25
+    call managed-direct-target1 sp26 live=[] t12 = sig=direct1 (enum0, i32) -> i32 local-fn22(local23, local24)
+    store t12 -> local25
     store local25 -> local26
     call managed-void-target3 sp27 live=[] sig=void3 (i32) local-fn26(local26)
-    t12 = aggregate () : {}
-    t13 = enum_wrap e0 v1 () : enum0
-    store t13 -> local27
+    t13 = aggregate () : {}
+    t14 = enum_wrap e0 v1 () : enum0
+    store t14 -> local27
     store local27 -> local28
-    t14 = enum_wrap e3 v0 (local28) : enum3
-    store t14 -> local29
+    t15 = enum_wrap e3 v0 (local28) : enum3
+    store t15 -> local29
     store integer<Int>(0x0000000b) -> local30
     store local29 -> local31
     store local30 -> local32
-    call managed-direct-target2 sp28 live=[] t15 = sig=direct2 (enum3, i32) -> i32 local-fn27(local31, local32)
-    store t15 -> local33
+    call managed-direct-target2 sp28 live=[] t16 = sig=direct2 (enum3, i32) -> i32 local-fn27(local31, local32)
+    store t16 -> local33
     store local33 -> local34
     call managed-void-target4 sp29 live=[] sig=void4 (i32) local-fn26(local34)
-    t16 = aggregate () : {}
-    t17 = array_alloc array0 () sp30 live  : ptr<managed>
-    store t17 -> local35
+    t17 = aggregate () : {}
+    t18 = array_alloc array0 () sp30 live  : ptr<managed>
+    store t18 -> local35
     store integer<Int>(0x0000000c) -> local36
     store local35 -> local37
     store local36 -> local38
-    call managed-direct-target3 sp31 live=[local37:ptr<managed>@0] t18 = sig=direct3 (ptr<managed>, i32) -> i32 local-fn28(local37, local38)
-    store t18 -> local39
+    call managed-direct-target3 sp31 live=[local37:ptr<managed>@0] t19 = sig=direct3 (ptr<managed>, i32) -> i32 local-fn28(local37, local38)
+    store t19 -> local39
     store local39 -> local40
     call managed-void-target5 sp32 live=[] sig=void5 (i32) local-fn26(local40)
-    t19 = aggregate () : {}
-    t20 = enum_wrap e0 v1 () : enum0
-    t21 = aggregate (t20, integer<Int>(0x0000000d)) : {enum0, i32}
-    store t21 -> local41
+    t20 = aggregate () : {}
+    t21 = enum_wrap e0 v1 () : enum0
+    t22 = aggregate (t21, integer<Int>(0x0000000d)) : {enum0, i32}
+    store t22 -> local41
     store integer<Int>(0x0000000e) -> local42
     store local41 -> local43
     store local42 -> local44
-    call managed-direct-target4 sp33 live=[] t22 = sig=direct4 ({enum0, i32}, i32) -> i32 local-fn29(local43, local44)
-    store t22 -> local45
+    call managed-direct-target4 sp33 live=[] t23 = sig=direct4 ({enum0, i32}, i32) -> i32 local-fn29(local43, local44)
+    store t23 -> local45
     store local45 -> local46
     call managed-void-target6 sp34 live=[] sig=void6 (i32) local-fn26(local46)
-    t23 = aggregate () : {}
+    t24 = aggregate () : {}
     ret
   fun @scoop.choose$I32(enum0, i32) -> i32
   block entry

@@ -1138,21 +1138,20 @@ Module mangling=compact-v2
         FieldAccess 0
           Type Node
           Local result
+      val $pattern.subject.2: Option$PD4_NodeXX<Ptr<Node>>
+        Type Option$PD4_NodeXX<Ptr<Node>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PD4_NodeXX<Ptr<Node>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$PD4_NodeXX v0
+          Type Option$PD4_NodeXX<Ptr<Node>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: Ptr<Node>
         Type Ptr<Node>
-        EnumField v0 f0
+        VariantPayloadProject Option$PD4_NodeXX v0 f0
           Type Option$PD4_NodeXX<Ptr<Node>>
-          Local $when.1
+          Local $pattern.subject.2
       val $receiver: Ptr<Node>
         Type Ptr<Node>
         Local pointer
@@ -1168,7 +1167,18 @@ Module mangling=compact-v2
         Type ULong
         Local $parameter.value
       goto bb3
-    bb2 if.else.2
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$PD4_NodeXX<Ptr<Node>>
+        Type Option$PD4_NodeXX<Ptr<Node>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$PD4_NodeXX v1
+          Type Option$PD4_NodeXX<Ptr<Node>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -1178,9 +1188,11 @@ Module mangling=compact-v2
       call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
       goto bb3
-    bb3 if.merge.3
-      return
   fun println @scoop.println$I32(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -1739,9 +1751,11 @@ Module
     local %13 $argument.0: i32
     local %14 $parameter.value: i32
     local %15 $when.1: enum0
-    local %16 $sc.1: struct0
-    local %17 $sc.2: struct0
-    local %18 $sc.3: struct0
+    local %16 $pattern.subject.2: enum0
+    local %17 $pattern.subject.3: enum0
+    local %18 $sc.1: struct0
+    local %19 $sc.2: struct0
+    local %20 $sc.3: struct0
   block entry
     poll managed-void-target3 sp61 live=[]
     t0 = enum_wrap e0 v1 () : enum0
@@ -1749,12 +1763,12 @@ Module
     store integer<Int>(0x00000029) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local16 = sig=indirect0 (sret struct0, enum0, i32) local-fn33(local2, local3)
-    store local16 -> local4
+    call no-gc-indirect-target0 local18 = sig=indirect0 (sret struct0, enum0, i32) local-fn33(local2, local3)
+    store local18 -> local4
     store local4 -> local5
-    store local5 -> local17
-    call native-safe-indirect-target0 sp22 roots=[] local18 = sig=indirect1 (sret struct0, ptr<raw>) extern10(c-arg-address(local17))
-    store local18 -> local6
+    store local5 -> local19
+    call native-safe-indirect-target0 sp22 roots=[] local20 = sig=indirect1 (sret struct0, ptr<raw>) extern10(c-arg-address(local19))
+    store local20 -> local6
     t1 = extract local6, 1 : i32
     store t1 -> local7
     store local7 -> local8
@@ -1762,27 +1776,35 @@ Module
     t2 = aggregate () : {}
     t3 = extract local6, 0 : enum0
     store t3 -> local15
-    t4 = enum_tag e0 local15 : machine<enum-tag>
-    t5 = MachineEq(EnumTag) t4, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t5 then @if.then.1 else @if.else.2
-  block if.then.1
-    t6 = enum_field e0 v0 f0 local15 : ptr<raw>
-    store t6 -> local9
+    store local15 -> local16
+    t4 = variant_test e0 v0 local16 : i1
+    cbr t4 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t5 = variant_payload_project e0 v0 f0 local16 : ptr<raw>
+    store t5 -> local9
     store local9 -> local10
-    t7 = ptr_to_ulong local10 : i64
-    store t7 -> local11
+    t6 = ptr_to_ulong local10 : i64
+    store t6 -> local11
     store local11 -> local12
     call managed-void-target1 sp24 live=[] sig=void1 (i64) local-fn24(local12)
-    t8 = aggregate () : {}
-    br @if.merge.3
-  block if.else.2
+    t7 = aggregate () : {}
+    br @pattern.merge.3
+  block pattern.else.2
+    store local15 -> local17
+    t8 = variant_test e0 v1 local17 : i1
+    cbr t8 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret
+  block pattern.pass.4
     store integer<Int>(0x00000000) -> local13
     store local13 -> local14
     call managed-void-target2 sp25 live=[] sig=void2 (i32) local-fn23(local14)
     t9 = aggregate () : {}
-    br @if.merge.3
-  block if.merge.3
-    ret
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.println$I32(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>

@@ -324,18 +324,6 @@ impl<'a> CfgLowerer<'a> {
                         .collect(),
                 }
             }
-            smir::ExprKind::EnumTag(operand) => {
-                mir::ExprKind::EnumTag(Box::new(self.lower_expr(operand, span)))
-            }
-            smir::ExprKind::EnumField {
-                operand,
-                variant,
-                index,
-            } => mir::ExprKind::EnumField {
-                operand: Box::new(self.lower_expr(operand, span)),
-                variant: *variant,
-                index: *index,
-            },
             smir::ExprKind::VariantTest { operand, variant } => {
                 let operand = self.lower_expr(operand, span);
                 let lowered = mir::Expr::variant_test(self.enums, operand, *variant)

@@ -168,6 +168,9 @@ impl<'a> CfgLowerer<'a> {
                 then_body,
                 else_body,
             } => self.lower_if(cond, then_body, else_body.as_deref(), span),
+            smir::StatementKind::PatternDecision(decision) => {
+                self.lower_pattern_decision(decision, span)
+            }
             smir::StatementKind::While {
                 condition_setup,
                 cond,

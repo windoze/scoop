@@ -94,7 +94,14 @@ pub(super) struct BodyLowerer<'a> {
 #[derive(Clone, Copy)]
 enum Access {
     Field(u32),
-    EnumField { variant: u32, index: u32 },
+    VariantField(mir::MirVariantFieldRef),
+}
+
+/// A top-level variant needs a fresh stable root because a suspendable when
+/// subject can be restored with `Assign`. Nested variants already materialize
+/// their nonempty access path immediately before their own test.
+fn pattern_requires_stable_variant_subject(pattern: &hir::Pattern) -> bool {
+    matches!(pattern, hir::Pattern::Variant { .. })
 }
 
 /// Combine two conditions with `&&`; CFG normalization expands the short circuit.

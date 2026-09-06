@@ -82,6 +82,7 @@ struct CfgLowerer<'a> {
 
 mod control;
 mod expression;
+mod patterns;
 
 fn trap_message(expr: &smir::Expr) -> Option<mir::StringConstId> {
     let smir::ExprKind::Call(call) = &expr.kind else {

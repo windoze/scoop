@@ -1681,133 +1681,139 @@ Module mangling=compact-v2
       val $when.1: ForeignCallbackState
         Type ForeignCallbackState
         Local this
+      val $pattern.subject.2: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
-      val $when.2: ForeignCallbackState
-        Type ForeignCallbackState
-        Local other
-      branch bb4 bb5
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb2 if.else.2
-      branch bb7 bb8
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(1)
-    bb3 if.merge.3
-      unreachable
-    bb4 if.then.4
-      return
-        Type Boolean
-        BoolLiteral true
-    bb5 if.else.5
-      return
-        Type Boolean
-        BoolLiteral false
-    bb6 if.merge.6
-      goto bb3
-    bb7 if.then.7
+        VariantTest ForeignCallbackState v0
+          Type ForeignCallbackState
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val $when.3: ForeignCallbackState
         Type ForeignCallbackState
         Local other
+      val $pattern.subject.4: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest ForeignCallbackState v0
+          Type ForeignCallbackState
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest ForeignCallbackState v1
+          Type ForeignCallbackState
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      val $when.6: ForeignCallbackState
+        Type ForeignCallbackState
+        Local other
+      val $pattern.subject.7: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.6
       branch bb10 bb11
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(1)
-    bb8 if.else.8
+        VariantTest ForeignCallbackState v1
+          Type ForeignCallbackState
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.1
       branch bb13 bb14
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(2)
-    bb9 if.merge.9
+        VariantTest ForeignCallbackState v2
+          Type ForeignCallbackState
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
       goto bb3
-    bb10 if.then.10
+    bb10 pattern.pass.10
       return
         Type Boolean
         BoolLiteral true
-    bb11 if.else.11
+    bb11 pattern.else.11
       return
         Type Boolean
         BoolLiteral false
-    bb12 if.merge.12
+    bb12 pattern.merge.12
       goto bb9
-    bb13 if.then.13
-      val $when.4: ForeignCallbackState
+    bb13 pattern.pass.13
+      val $when.9: ForeignCallbackState
         Type ForeignCallbackState
         Local other
+      val $pattern.subject.10: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.9
       branch bb16 bb17
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.4
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(2)
-    bb14 if.else.14
-      val $when.5: ForeignCallbackState
+        VariantTest ForeignCallbackState v2
+          Type ForeignCallbackState
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      val $pattern.subject.11: ForeignCallbackState
         Type ForeignCallbackState
-        Local other
+        Local $when.1
       branch bb19 bb20
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.5
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(3)
-    bb15 if.merge.15
+        VariantTest ForeignCallbackState v3
+          Type ForeignCallbackState
+          Local $pattern.subject.11
+    bb15 pattern.merge.15
       goto bb9
-    bb16 if.then.16
+    bb16 pattern.pass.16
       return
         Type Boolean
         BoolLiteral true
-    bb17 if.else.17
+    bb17 pattern.else.17
       return
         Type Boolean
         BoolLiteral false
-    bb18 if.merge.18
+    bb18 pattern.merge.18
       goto bb15
-    bb19 if.then.19
+    bb19 pattern.pass.19
+      val $when.12: ForeignCallbackState
+        Type ForeignCallbackState
+        Local other
+      val $pattern.subject.13: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.12
+      branch bb22 bb23
+        Type Boolean
+        VariantTest ForeignCallbackState v3
+          Type ForeignCallbackState
+          Local $pattern.subject.13
+    bb20 pattern.else.20
+      unreachable
+    bb21 pattern.merge.21
+      goto bb15
+    bb22 pattern.pass.22
       return
         Type Boolean
         BoolLiteral true
-    bb20 if.else.20
+    bb23 pattern.else.23
       return
         Type Boolean
         BoolLiteral false
-    bb21 if.merge.21
-      goto bb15
+    bb24 pattern.merge.24
+      goto bb21
   fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
     bb0 entry
       return
@@ -3465,59 +3471,73 @@ Module
     ret
   fun @scoop.ForeignCallbackState.equals(enum4, enum4) -> i1
     local %0 $when.1: enum4
-    local %1 $when.2: enum4
+    local %1 $pattern.subject.2: enum4
     local %2 $when.3: enum4
-    local %3 $when.4: enum4
-    local %4 $when.5: enum4
+    local %3 $pattern.subject.4: enum4
+    local %4 $pattern.subject.5: enum4
+    local %5 $when.6: enum4
+    local %6 $pattern.subject.7: enum4
+    local %7 $pattern.subject.8: enum4
+    local %8 $when.9: enum4
+    local %9 $pattern.subject.10: enum4
+    local %10 $pattern.subject.11: enum4
+    local %11 $when.12: enum4
+    local %12 $pattern.subject.13: enum4
   block entry
     poll managed-void-target0 sp122 live=[]
     store param0 -> local0
-    t0 = enum_tag e4 local0 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    store param1 -> local1
-    t2 = enum_tag e4 local1 : machine<enum-tag>
-    t3 = MachineEq(EnumTag) t2, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t3 then @if.then.4 else @if.else.5
-  block if.else.2
-    t4 = enum_tag e4 local0 : machine<enum-tag>
-    t5 = MachineEq(EnumTag) t4, machine<enum-tag>(EnumTag(1)) : i1
-    cbr t5 then @if.then.7 else @if.else.8
-  block if.then.4
-    ret true
-  block if.else.5
-    ret false
-  block if.then.7
+    store local0 -> local1
+    t0 = variant_test e4 v0 local1 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
     store param1 -> local2
-    t6 = enum_tag e4 local2 : machine<enum-tag>
-    t7 = MachineEq(EnumTag) t6, machine<enum-tag>(EnumTag(1)) : i1
-    cbr t7 then @if.then.10 else @if.else.11
-  block if.else.8
-    t8 = enum_tag e4 local0 : machine<enum-tag>
-    t9 = MachineEq(EnumTag) t8, machine<enum-tag>(EnumTag(2)) : i1
-    cbr t9 then @if.then.13 else @if.else.14
-  block if.then.10
+    store local2 -> local3
+    t1 = variant_test e4 v0 local3 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.else.2
+    store local0 -> local4
+    t2 = variant_test e4 v1 local4 : i1
+    cbr t2 then @pattern.pass.7 else @pattern.else.8
+  block pattern.pass.4
     ret true
-  block if.else.11
+  block pattern.else.5
     ret false
-  block if.then.13
-    store param1 -> local3
-    t10 = enum_tag e4 local3 : machine<enum-tag>
-    t11 = MachineEq(EnumTag) t10, machine<enum-tag>(EnumTag(2)) : i1
-    cbr t11 then @if.then.16 else @if.else.17
-  block if.else.14
-    store param1 -> local4
-    t12 = enum_tag e4 local4 : machine<enum-tag>
-    t13 = MachineEq(EnumTag) t12, machine<enum-tag>(EnumTag(3)) : i1
-    cbr t13 then @if.then.19 else @if.else.20
-  block if.then.16
+  block pattern.pass.7
+    store param1 -> local5
+    store local5 -> local6
+    t3 = variant_test e4 v1 local6 : i1
+    cbr t3 then @pattern.pass.10 else @pattern.else.11
+  block pattern.else.8
+    store local0 -> local7
+    t4 = variant_test e4 v2 local7 : i1
+    cbr t4 then @pattern.pass.13 else @pattern.else.14
+  block pattern.pass.10
     ret true
-  block if.else.17
+  block pattern.else.11
     ret false
-  block if.then.19
+  block pattern.pass.13
+    store param1 -> local8
+    store local8 -> local9
+    t5 = variant_test e4 v2 local9 : i1
+    cbr t5 then @pattern.pass.16 else @pattern.else.17
+  block pattern.else.14
+    store local0 -> local10
+    t6 = variant_test e4 v3 local10 : i1
+    cbr t6 then @pattern.pass.19 else @pattern.else.20
+  block pattern.pass.16
     ret true
-  block if.else.20
+  block pattern.else.17
+    ret false
+  block pattern.pass.19
+    store param1 -> local11
+    store local11 -> local12
+    t7 = variant_test e4 v3 local12 : i1
+    cbr t7 then @pattern.pass.22 else @pattern.else.23
+  block pattern.else.20
+    unreachable
+  block pattern.pass.22
+    ret true
+  block pattern.else.23
     ret false
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry

@@ -1349,29 +1349,41 @@ Module mangling=compact-v2
       val $when.1: Option$J11_DescribableX<Describable>
         Type Option$J11_DescribableX<Describable>
         Local value
+      val $pattern.subject.2: Option$J11_DescribableX<Describable>
+        Type Option$J11_DescribableX<Describable>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$J11_DescribableX<Describable>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$J11_DescribableX v0
+          Type Option$J11_DescribableX<Describable>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       assign $result.0
         Type Boolean
         BoolLiteral true
       goto bb3
-    bb2 if.else.2
-      assign $result.0
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$J11_DescribableX<Describable>
+        Type Option$J11_DescribableX<Describable>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$J11_DescribableX v1
+          Type Option$J11_DescribableX<Describable>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
     bb0 entry
       return
@@ -2034,20 +2046,30 @@ Module
   fun @scoop.isPresent$J11_DescribableX(enum1) -> i1
     local %0 $result.0: i1
     local %1 $when.1: enum1
+    local %2 $pattern.subject.2: enum1
+    local %3 $pattern.subject.3: enum1
   block entry
     poll managed-void-target0 sp76 live=[param0:enum1@0]
     store param0 -> local1
-    t0 = enum_tag e1 local1 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
+    store local1 -> local2
+    t0 = variant_test e1 v0 local2 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
     store true -> local0
-    br @if.merge.3
-  block if.else.2
-    store false -> local0
-    br @if.merge.3
-  block if.merge.3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local1 -> local3
+    t1 = variant_test e1 v1 local3 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local0
+  block pattern.pass.4
+    store false -> local0
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp77 live=[]

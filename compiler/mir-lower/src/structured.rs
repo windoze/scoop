@@ -31,6 +31,23 @@ pub(crate) struct CatchClause {
     pub(crate) span: Span,
 }
 
+/// One source-pattern decision whose tests must remain separate CFG branches.
+///
+/// A nested enum value is materialized before its test so the test and every
+/// guarded payload projection can name the same immutable local.
+#[derive(Debug)]
+pub(crate) struct PatternDecision {
+    pub(crate) steps: Vec<PatternDecisionStep>,
+    pub(crate) then_body: Vec<Statement>,
+    pub(crate) else_body: Vec<Statement>,
+}
+
+#[derive(Debug)]
+pub(crate) enum PatternDecisionStep {
+    Materialize { local: mir::LocalId, init: Expr },
+    Test(Expr),
+}
+
 #[derive(Debug)]
 pub(crate) enum StatementKind {
     /// A typed upstream proof established that this control-flow edge has no
@@ -71,6 +88,7 @@ pub(crate) enum StatementKind {
         then_body: Vec<Statement>,
         else_body: Option<Vec<Statement>>,
     },
+    PatternDecision(PatternDecision),
     While {
         /// Statements evaluated at the start of every condition check. This
         /// is a first-class header region rather than a preheader/body copy.
@@ -237,13 +255,6 @@ impl Expr {
                 lhs: Box::new(lhs),
                 rhs: Box::new(Self::machine_scalar(rhs)),
             },
-        )
-    }
-
-    pub(crate) fn enum_tag(operand: Self) -> Self {
-        Self::new(
-            mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag),
-            ExprKind::EnumTag(Box::new(operand)),
         )
     }
 
@@ -463,12 +474,6 @@ pub(crate) enum ExprKind {
     VariantConstruct {
         variant: u32,
         fields: Vec<Expr>,
-    },
-    EnumTag(Box<Expr>),
-    EnumField {
-        operand: Box<Expr>,
-        variant: u32,
-        index: u32,
     },
     VariantTest {
         operand: Box<Expr>,

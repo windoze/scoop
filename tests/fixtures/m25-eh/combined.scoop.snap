@@ -1744,26 +1744,25 @@ Module mangling=compact-v2
         FieldAccess 3
           Type CombinedMovingError
           Local error
+      val $pattern.subject.2: TaggedPayload
+        Type TaggedPayload
+        Local $when.1
       branch bb13 bb14
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type TaggedPayload
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb13 if.then.13 unwind bb3
+        VariantTest TaggedPayload v0
+          Type TaggedPayload
+          Local $pattern.subject.2
+    bb13 pattern.pass.13 unwind bb3
       val first: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject TaggedPayload v0 f0
           Type TaggedPayload
-          Local $when.1
+          Local $pattern.subject.2
       val second: String
         Type String
-        EnumField v0 f1
+        VariantPayloadProject TaggedPayload v0 f1
           Type TaggedPayload
-          Local $when.1
+          Local $pattern.subject.2
       val $argument.0: String
         Type String
         Local first
@@ -1783,18 +1782,16 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       goto bb15
-    bb14 if.else.14 unwind bb3
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.18
-      val $parameter.value: String
-        Type String
-        Local $argument.0
-      call @scoop.println$S direct
-        Type String
-        Local $parameter.value
-      goto bb15
-    bb15 if.merge.15 unwind bb3
+    bb14 pattern.else.14 unwind bb3
+      val $pattern.subject.3: TaggedPayload
+        Type TaggedPayload
+        Local $when.1
+      branch bb16 bb17
+        Type Boolean
+        VariantTest TaggedPayload v1
+          Type TaggedPayload
+          Local $pattern.subject.3
+    bb15 pattern.merge.15 unwind bb3
       val $receiver: Array<String>
         Type Array<String>
         FieldAccess 4
@@ -1806,40 +1803,55 @@ Module mangling=compact-v2
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.2: Array<String>
+      val $arr.4: Array<String>
         Type Array<String>
         Local $receiver
-      val $idx.3: Long
+      val $idx.5: Long
         Type Long
         Local $parameter.index
-      branch bb17 bb16
+      branch bb20 bb19
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.3
+          Local $idx.5
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb16 logic.rhs.16 unwind bb3
+    bb16 pattern.pass.16 unwind bb3
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.18
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb18
+    bb17 pattern.else.17 unwind bb3
+      unreachable
+    bb18 pattern.merge.18 unwind bb3
+      goto bb15
+    bb19 logic.rhs.19 unwind bb3
       assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.3
+          Local $idx.5
           Type Long
           ArrayLen Array$S
             Type Array<String>
-            Local $arr.2
-      goto bb18
-    bb17 logic.short.17 unwind bb3
+            Local $arr.4
+      goto bb21
+    bb20 logic.short.20 unwind bb3
       assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb18
-    bb18 logic.merge.18 unwind bb3
-      branch bb19 bb20
+      goto bb21
+    bb21 logic.merge.21 unwind bb3
+      branch bb22 bb23
         Type Boolean
         Local $logic.1
-    bb19 if.then.19 unwind bb3
+    bb22 if.then.22 unwind bb3
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -1849,14 +1861,14 @@ Module mangling=compact-v2
       throw unwind bb3
         Type IndexOutOfBoundsException
         Local $new.2
-    bb20 if.merge.20 unwind bb3
+    bb23 if.merge.23 unwind bb3
       val $argument.0: String
         Type String
         ArrayGet Array$S
           Type Array<String>
-          Local $arr.2
+          Local $arr.4
           Type Long
-          Local $idx.3
+          Local $idx.5
       val $parameter.value: String
         Type String
         Local $argument.0
@@ -1874,40 +1886,40 @@ Module mangling=compact-v2
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.4: Array<String>
+      val $arr.6: Array<String>
         Type Array<String>
         Local $receiver
-      val $idx.5: Long
+      val $idx.7: Long
         Type Long
         Local $parameter.index
-      branch bb22 bb21
+      branch bb25 bb24
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.5
+          Local $idx.7
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb21 logic.rhs.21 unwind bb3
+    bb24 logic.rhs.24 unwind bb3
       assign $logic.3
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.5
+          Local $idx.7
           Type Long
           ArrayLen Array$S
             Type Array<String>
-            Local $arr.4
-      goto bb23
-    bb22 logic.short.22 unwind bb3
+            Local $arr.6
+      goto bb26
+    bb25 logic.short.25 unwind bb3
       assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb23
-    bb23 logic.merge.23 unwind bb3
-      branch bb24 bb25
+      goto bb26
+    bb26 logic.merge.26 unwind bb3
+      branch bb27 bb28
         Type Boolean
         Local $logic.3
-    bb24 if.then.24 unwind bb3
+    bb27 if.then.27 unwind bb3
       assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -1917,22 +1929,22 @@ Module mangling=compact-v2
       throw unwind bb3
         Type IndexOutOfBoundsException
         Local $new.4
-    bb25 if.merge.25 unwind bb3
+    bb28 if.merge.28 unwind bb3
       val $argument.0: String
         Type String
         ArrayGet Array$S
           Type Array<String>
-          Local $arr.4
+          Local $arr.6
           Type Long
-          Local $idx.5
+          Local $idx.7
       val $parameter.value: String
         Type String
         Local $argument.0
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb26
-    bb26 scope.26
+      goto bb29
+    bb29 scope.29
       end_catch
       goto bb7
   fun println @scoop.println$S(value: String) -> Unit
@@ -2783,46 +2795,48 @@ Module
     local %25 $argument.0: ptr<managed>
     local %26 $parameter.value: ptr<managed>
     local %27 $when.1: enum1
-    local %28 $arr.2: ptr<managed>
-    local %29 $idx.3: i64
+    local %28 $pattern.subject.2: enum1
+    local %29 $pattern.subject.3: enum1
     local %30 $arr.4: ptr<managed>
     local %31 $idx.5: i64
-    local %32 $logic.1: i1
-    local %33 $new.2: ptr<managed>
-    local %34 $logic.3: i1
-    local %35 $new.4: ptr<managed>
-    local %36 $sc.1: exception_record
-    local %37 $sc.2: ptr<raw>
-    local %38 $sc.3: ptr<managed>
+    local %32 $arr.6: ptr<managed>
+    local %33 $idx.7: i64
+    local %34 $logic.1: i1
+    local %35 $new.2: ptr<managed>
+    local %36 $logic.3: i1
+    local %37 $new.4: ptr<managed>
+    local %38 $sc.1: exception_record
+    local %39 $sc.2: ptr<raw>
+    local %40 $sc.3: ptr<managed>
   block entry
     poll managed-void-target13 sp87 live=[]
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
-    store t0 -> local36
-    store t1 -> local37
+    store t0 -> local38
+    store t1 -> local39
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local37 : ptr<managed>
-    store t2 -> local38
-    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local38, td12)
+    t2 = begin_catch local39 : ptr<managed>
+    store t2 -> local40
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local40, td12)
     cbr t3 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
-    store t4 -> local36
-    store t5 -> local37
+    store t4 -> local38
+    store t5 -> local39
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
-    resume local36
+    resume local38
   block try.exit_pad.5
     (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
-    store t6 -> local36
-    store t7 -> local37
+    store t6 -> local38
+    store t7 -> local39
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local36
+    resume local38
   block try.end.7
     ret
   block try.body.8
@@ -2831,7 +2845,7 @@ Module
   block scope.9
     br @try.end.7
   block try.catch.10
-    store local38 -> local0
+    store local40 -> local0
     br @scope.12
   block try.next.11
     invoke no-gc-void-target0 sig=void1 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.5
@@ -2844,72 +2858,80 @@ Module
     store local1 -> local2
     invoke managed-void-target2 sp39 roots=[local0:normal, local2:argument] sig=void3 (ptr<managed>) local-fn25(local2) normal @invoke.normal.3 unwind @try.handler_pad.3
     br @invoke.normal.3
-  block if.then.13
-    t26 = enum_field e1 v0 f0 local27 : ptr<managed>
-    store t26 -> local9
-    t27 = enum_field e1 v0 f1 local27 : ptr<managed>
-    store t27 -> local10
+  block pattern.pass.13
+    t25 = variant_payload_project e1 v0 f0 local28 : ptr<managed>
+    store t25 -> local9
+    t26 = variant_payload_project e1 v0 f1 local28 : ptr<managed>
+    store t26 -> local10
     store local9 -> local11
     store local11 -> local12
     invoke managed-void-target6 sp43 roots=[local0:normal, local10:normal, local12:argument] sig=void7 (ptr<managed>) local-fn25(local12) normal @invoke.normal.7 unwind @try.handler_pad.3
     br @invoke.normal.7
-  block if.else.14
+  block pattern.else.14
+    store local27 -> local29
+    t29 = variant_test e1 v1 local29 : i1
+    cbr t29 then @pattern.pass.16 else @pattern.else.17
+  block pattern.merge.15
+    t30 = heap_load local0 +80 : ptr<managed>
+    store t30 -> local17
+    store integer<Long>(0x0000000000000000) -> local18
+    store local18 -> local19
+    store local17 -> local30
+    store local19 -> local31
+    t31 = integer_compare_Less<Long> local31, integer<Long>(0x0000000000000000) : i1
+    cbr t31 then @logic.short.20 else @logic.rhs.19
+  block pattern.pass.16
     store global18 -> local15
     store local15 -> local16
     invoke managed-void-target8 sp45 roots=[local0:normal, local16:argument] sig=void9 (ptr<managed>) local-fn25(local16) normal @invoke.normal.9 unwind @try.handler_pad.3
     br @invoke.normal.9
-  block if.merge.15
-    t31 = heap_load local0 +80 : ptr<managed>
-    store t31 -> local17
-    store integer<Long>(0x0000000000000000) -> local18
-    store local18 -> local19
-    store local17 -> local28
-    store local19 -> local29
-    t32 = integer_compare_Less<Long> local29, integer<Long>(0x0000000000000000) : i1
-    cbr t32 then @logic.short.17 else @logic.rhs.16
-  block logic.rhs.16
-    t33 = array_len array0 local28 : i64
-    t34 = integer_compare_GreaterOrEqual<Long> local29, t33 : i1
-    store t34 -> local32
-    br @logic.merge.18
-  block logic.short.17
-    store true -> local32
-    br @logic.merge.18
-  block logic.merge.18
-    cbr local32 then @if.then.19 else @if.merge.20
-  block if.then.19
+  block pattern.else.17
+    unreachable
+  block pattern.merge.18
+    br @pattern.merge.15
+  block logic.rhs.19
+    t33 = array_len array0 local30 : i64
+    t34 = integer_compare_GreaterOrEqual<Long> local31, t33 : i1
+    store t34 -> local34
+    br @logic.merge.21
+  block logic.short.20
+    store true -> local34
+    br @logic.merge.21
+  block logic.merge.21
+    cbr local34 then @if.then.22 else @if.merge.23
+  block if.then.22
     call managed-direct-target0 sp46 live=[] t35 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
-    store t35 -> local33
-    invoke managed-void-target9 sp47 roots=[local33:normal] sig=void10 (ptr<managed>) local-fn31(local33) normal @invoke.normal.10 unwind @try.handler_pad.3
+    store t35 -> local35
+    invoke managed-void-target9 sp47 roots=[local35:normal] sig=void10 (ptr<managed>) local-fn31(local35) normal @invoke.normal.10 unwind @try.handler_pad.3
     br @invoke.normal.10
-  block if.merge.20
-    t37 = array_get array0 local28 local29 : ptr<managed>
+  block if.merge.23
+    t37 = array_get array0 local30 local31 : ptr<managed>
     store t37 -> local20
     store local20 -> local21
     invoke managed-void-target10 sp48 roots=[local0:normal, local21:argument] sig=void12 (ptr<managed>) local-fn25(local21) normal @invoke.normal.12 unwind @try.handler_pad.3
     br @invoke.normal.12
-  block logic.rhs.21
-    t41 = array_len array0 local30 : i64
-    t42 = integer_compare_GreaterOrEqual<Long> local31, t41 : i1
-    store t42 -> local34
-    br @logic.merge.23
-  block logic.short.22
-    store true -> local34
-    br @logic.merge.23
-  block logic.merge.23
-    cbr local34 then @if.then.24 else @if.merge.25
-  block if.then.24
+  block logic.rhs.24
+    t41 = array_len array0 local32 : i64
+    t42 = integer_compare_GreaterOrEqual<Long> local33, t41 : i1
+    store t42 -> local36
+    br @logic.merge.26
+  block logic.short.25
+    store true -> local36
+    br @logic.merge.26
+  block logic.merge.26
+    cbr local36 then @if.then.27 else @if.merge.28
+  block if.then.27
     call managed-direct-target1 sp49 live=[] t43 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
-    store t43 -> local35
-    invoke managed-void-target11 sp50 roots=[local35:normal] sig=void13 (ptr<managed>) local-fn31(local35) normal @invoke.normal.13 unwind @try.handler_pad.3
+    store t43 -> local37
+    invoke managed-void-target11 sp50 roots=[local37:normal] sig=void13 (ptr<managed>) local-fn31(local37) normal @invoke.normal.13 unwind @try.handler_pad.3
     br @invoke.normal.13
-  block if.merge.25
-    t45 = array_get array0 local30 local31 : ptr<managed>
+  block if.merge.28
+    t45 = array_get array0 local32 local33 : ptr<managed>
     store t45 -> local25
     store local25 -> local26
     invoke managed-void-target12 sp51 roots=[local26:argument] sig=void15 (ptr<managed>) local-fn25(local26) normal @invoke.normal.15 unwind @try.handler_pad.3
     br @invoke.normal.15
-  block scope.26
+  block scope.29
     end_catch
     br @try.end.7
   block invoke.normal.1
@@ -2947,24 +2969,24 @@ Module
     t22 = aggregate () : {}
     t23 = heap_load local0 +56 : enum1
     store t23 -> local27
-    t24 = enum_tag e1 local27 : machine<enum-tag>
-    t25 = MachineEq(EnumTag) t24, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t25 then @if.then.13 else @if.else.14
+    store local27 -> local28
+    t24 = variant_test e1 v0 local28 : i1
+    cbr t24 then @pattern.pass.13 else @pattern.else.14
   block invoke.normal.7
-    t28 = aggregate () : {}
+    t27 = aggregate () : {}
     store local10 -> local13
     store local13 -> local14
     invoke managed-void-target7 sp44 roots=[local0:normal, local14:argument] sig=void8 (ptr<managed>) local-fn25(local14) normal @invoke.normal.8 unwind @try.handler_pad.3
     br @invoke.normal.8
   block invoke.normal.8
-    t29 = aggregate () : {}
-    br @if.merge.15
+    t28 = aggregate () : {}
+    br @pattern.merge.15
   block invoke.normal.9
-    t30 = aggregate () : {}
-    br @if.merge.15
+    t32 = aggregate () : {}
+    br @pattern.merge.18
   block invoke.normal.10
     t36 = aggregate () : {}
-    invoke no-gc-void-target1 sig=void11 (ptr<managed>) runtime @scoop_rt_throw(local33) normal @throw.normal.11 unwind @try.handler_pad.3
+    invoke no-gc-void-target1 sig=void11 (ptr<managed>) runtime @scoop_rt_throw(local35) normal @throw.normal.11 unwind @try.handler_pad.3
     br @throw.normal.11
   block throw.normal.11
     unreachable
@@ -2974,19 +2996,19 @@ Module
     store t39 -> local22
     store integer<Long>(0x0000000000000001) -> local23
     store local23 -> local24
-    store local22 -> local30
-    store local24 -> local31
-    t40 = integer_compare_Less<Long> local31, integer<Long>(0x0000000000000000) : i1
-    cbr t40 then @logic.short.22 else @logic.rhs.21
+    store local22 -> local32
+    store local24 -> local33
+    t40 = integer_compare_Less<Long> local33, integer<Long>(0x0000000000000000) : i1
+    cbr t40 then @logic.short.25 else @logic.rhs.24
   block invoke.normal.13
     t44 = aggregate () : {}
-    invoke no-gc-void-target2 sig=void14 (ptr<managed>) runtime @scoop_rt_throw(local35) normal @throw.normal.14 unwind @try.handler_pad.3
+    invoke no-gc-void-target2 sig=void14 (ptr<managed>) runtime @scoop_rt_throw(local37) normal @throw.normal.14 unwind @try.handler_pad.3
     br @throw.normal.14
   block throw.normal.14
     unreachable
   block invoke.normal.15
     t46 = aggregate () : {}
-    br @scope.26
+    br @scope.29
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>

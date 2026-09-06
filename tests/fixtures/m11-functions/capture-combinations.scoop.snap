@@ -1484,31 +1484,34 @@ Module mangling=compact-v2
         ClosureCapture cc0 0
           Type () -> String
           Local $closure
+      val $pattern.subject.2: CapturedChoice
+        Type CapturedChoice
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CapturedChoice
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest CapturedChoice v0
+          Type CapturedChoice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val value: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject CapturedChoice v0 f0
           Type CapturedChoice
-          Local $when.1
+          Local $pattern.subject.2
       assign $result.0
         Type String
         Local value
       goto bb3
-    bb2 if.else.2
-      assign $result.0
-        Type String
-        StringConst @scoop.str.2
-      goto bb3
-    bb3 if.merge.3
+    bb2 pattern.else.2
+      val $pattern.subject.3: CapturedChoice
+        Type CapturedChoice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest CapturedChoice v1
+          Type CapturedChoice
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       val prefix: String
         Type String
         Local $result.0
@@ -1544,6 +1547,15 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
+    bb4 pattern.pass.4
+      assign $result.0
+        Type String
+        StringConst @scoop.str.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun $lambda.1 @scoop.$lambda.1($closure: () -> Int) -> Int
     bb0 entry
       val $receiver: Int
@@ -2324,23 +2336,26 @@ Module
     local %7 $argument.0: ptr<managed>
     local %8 $parameter.other: ptr<managed>
     local %9 $when.1: enum1
-    local %10 $call.1: ptr<managed>
+    local %10 $pattern.subject.2: enum1
+    local %11 $pattern.subject.3: enum1
+    local %12 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp86 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : enum1
     store t0 -> local9
-    t1 = enum_tag e1 local9 : machine<enum-tag>
-    t2 = MachineEq(EnumTag) t1, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t2 then @if.then.1 else @if.else.2
-  block if.then.1
-    t3 = enum_field e1 v0 f0 local9 : ptr<managed>
-    store t3 -> local0
+    store local9 -> local10
+    t1 = variant_test e1 v0 local10 : i1
+    cbr t1 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t2 = variant_payload_project e1 v0 f0 local10 : ptr<managed>
+    store t2 -> local0
     store local0 -> local1
-    br @if.merge.3
-  block if.else.2
-    store global2 -> local1
-    br @if.merge.3
-  block if.merge.3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local9 -> local11
+    t3 = variant_test e1 v1 local11 : i1
+    cbr t3 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     store local1 -> local2
     store local2 -> local3
     store global3 -> local4
@@ -2352,8 +2367,15 @@ Module
     store t6 -> local7
     store local7 -> local8
     call managed-direct-target1 sp45 live=[local6:ptr<managed>@0, local8:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local6, local8)
-    store t7 -> local10
-    ret local10
+    store t7 -> local12
+    ret local12
+  block pattern.pass.4
+    store global2 -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.$lambda.1(ptr<managed>) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32

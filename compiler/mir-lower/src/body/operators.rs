@@ -351,13 +351,13 @@ impl BodyLowerer<'_> {
         logic(op, lhs, rhs)
     }
 
-    /// Produce a pattern subject's nested value. Variant field extractions are
-    /// guarded by the decision sequence that proved the active tag.
+    /// Produce a pattern subject's nested value. Variant payload projections
+    /// are guarded by the decision sequence that proved the active variant.
     pub(super) fn accessed(&mut self, root: mir::LocalId, path: &[Access]) -> smir::Expr {
         let mut current_ty = self.locals[root].ty.clone();
         let mut lowered = smir::Expr::local(root, current_ty.clone());
         for access in path {
-            let (next_ty, kind) = match access {
+            match access {
                 Access::Field(index) => {
                     let next_ty = match &current_ty {
                         mir::Type::Tuple(elements) => elements[*index as usize].clone(),
@@ -371,26 +371,15 @@ impl BodyLowerer<'_> {
                         receiver: Box::new(lowered),
                         index: *index,
                     };
-                    (next_ty, kind)
+                    current_ty = next_ty.clone();
+                    lowered = smir::Expr::new(next_ty, kind);
                 }
-                Access::EnumField { variant, index } => {
-                    let mir::Type::Enum(enum_id, _) = current_ty else {
-                        unreachable!("variant pattern field access has an enum receiver")
-                    };
-                    let next_ty = self.enums.defs[enum_id].variants[*variant as usize].fields
-                        [*index as usize]
-                        .ty
-                        .clone();
-                    let kind = smir::ExprKind::EnumField {
-                        operand: Box::new(lowered),
-                        variant: *variant,
-                        index: *index,
-                    };
-                    (next_ty, kind)
+                Access::VariantField(field) => {
+                    lowered =
+                        smir::Expr::variant_payload_project(&self.enums.defs, lowered, *field);
+                    current_ty = lowered.ty.clone();
                 }
-            };
-            current_ty = next_ty.clone();
-            lowered = smir::Expr::new(next_ty, kind);
+            }
         }
         lowered
     }

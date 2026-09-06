@@ -2806,21 +2806,20 @@ Module mangling=compact-v2
       val $when.1: Option$PUX<Ptr<Unit>>
         Type Option$PUX<Ptr<Unit>>
         Local actual
+      val $pattern.subject.2: Option$PUX<Ptr<Unit>>
+        Type Option$PUX<Ptr<Unit>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PUX<Ptr<Unit>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$PUX v0
+          Type Option$PUX<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: Ptr<Unit>
         Type Ptr<Unit>
-        EnumField v0 f0
+        VariantPayloadProject Option$PUX v0 f0
           Type Option$PUX<Ptr<Unit>>
-          Local $when.1
+          Local $pattern.subject.2
       val $receiver: Ptr<Unit>
         Type Ptr<Unit>
         Local pointer
@@ -2839,35 +2838,47 @@ Module mangling=compact-v2
             Type Ptr<Unit>
             Local $receiver
       goto bb3
-    bb2 if.else.2
-      assign $result.0
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$PUX<Ptr<Unit>>
+        Type Option$PUX<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$PUX v1
+          Type Option$PUX<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun optionalCellMatches @scoop.optionalCellMatches(actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>, expected: Ptr<NativeCell>) -> Boolean
     bb0 entry
       val $when.1: Option$PD10_NativeCellXX<Ptr<NativeCell>>
         Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
         Local actual
+      val $pattern.subject.2: Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$PD10_NativeCellXX v0
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        EnumField v0 f0
+        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
           Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-          Local $when.1
+          Local $pattern.subject.2
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local pointer
@@ -2886,101 +2897,137 @@ Module mangling=compact-v2
             Type Ptr<NativeCell>
             Local $receiver
       goto bb3
-    bb2 if.else.2
-      assign $result.1
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$PD10_NativeCellXX v1
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun optionalOpaqueIsNone @scoop.optionalOpaqueIsNone(actual: Option$PUX<Ptr<Unit>>) -> Boolean
     bb0 entry
       val $when.1: Option$PUX<Ptr<Unit>>
         Type Option$PUX<Ptr<Unit>>
         Local actual
+      val $pattern.subject.2: Option$PUX<Ptr<Unit>>
+        Type Option$PUX<Ptr<Unit>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PUX<Ptr<Unit>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$PUX v0
+          Type Option$PUX<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: Ptr<Unit>
         Type Ptr<Unit>
-        EnumField v0 f0
+        VariantPayloadProject Option$PUX v0 f0
           Type Option$PUX<Ptr<Unit>>
-          Local $when.1
+          Local $pattern.subject.2
       assign $result.2
         Type Boolean
         BoolLiteral false
       goto bb3
-    bb2 if.else.2
-      assign $result.2
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$PUX<Ptr<Unit>>
+        Type Option$PUX<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral true
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$PUX v1
+          Type Option$PUX<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.2
+    bb4 pattern.pass.4
+      assign $result.2
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun optionalCellIsNone @scoop.optionalCellIsNone(actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>) -> Boolean
     bb0 entry
       val $when.1: Option$PD10_NativeCellXX<Ptr<NativeCell>>
         Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
         Local actual
+      val $pattern.subject.2: Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$PD10_NativeCellXX v0
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        EnumField v0 f0
+        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
           Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-          Local $when.1
+          Local $pattern.subject.2
       assign $result.3
         Type Boolean
         BoolLiteral false
       goto bb3
-    bb2 if.else.2
-      assign $result.3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral true
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$PD10_NativeCellXX v1
+          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.3
+    bb4 pattern.pass.4
+      assign $result.3
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun applyOptionalCallback @scoop.applyOptionalCallback(callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>, value: Int) -> Int
     bb0 entry
       val $when.1: Option$NI32RI32X<FunPtr<(Int) -> Int>>
         Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
         Local callback
+      val $pattern.subject.2: Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$NI32RI32X v0
+          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        EnumField v0 f0
+        VariantPayloadProject Option$NI32RI32X v0 f0
           Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-          Local $when.1
+          Local $pattern.subject.2
       val $argument.0: Int
         Type Int
         Local value
@@ -3002,48 +3049,73 @@ Module mangling=compact-v2
         Type Int
         Local $call.1
       goto bb3
-    bb2 if.else.2
-      assign $result.4
-        Type Int
-        IntegerLiteral Int value=-1 bits=0xffffffff
-      goto bb3
-    bb3 if.merge.3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$NI32RI32X v1
+          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Int
         Local $result.4
+    bb4 pattern.pass.4
+      assign $result.4
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun optionalCallbackIsNone @scoop.optionalCallbackIsNone(callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Boolean
     bb0 entry
       val $when.1: Option$NI32RI32X<FunPtr<(Int) -> Int>>
         Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
         Local callback
+      val $pattern.subject.2: Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$NI32RI32X v0
+          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val pointer: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        EnumField v0 f0
+        VariantPayloadProject Option$NI32RI32X v0 f0
           Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-          Local $when.1
+          Local $pattern.subject.2
       assign $result.5
         Type Boolean
         BoolLiteral false
       goto bb3
-    bb2 if.else.2
-      assign $result.5
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Local $when.1
+      branch bb4 bb5
         Type Boolean
-        BoolLiteral true
-      goto bb3
-    bb3 if.merge.3
+        VariantTest Option$NI32RI32X v1
+          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
       return
         Type Boolean
         Local $result.5
+    bb4 pattern.pass.4
+      assign $result.5
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun main @scoop_main() -> Unit
     bb0 entry
       val $argument.0: ULong
@@ -5359,94 +5431,134 @@ Module
     local %2 $receiver: ptr<raw>
     local %3 $result.0: i1
     local %4 $when.1: enum0
+    local %5 $pattern.subject.2: enum0
+    local %6 $pattern.subject.3: enum0
   block entry
     poll managed-void-target0 sp223 live=[]
     store param0 -> local4
-    t0 = enum_tag e0 local4 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e0 v0 f0 local4 : ptr<raw>
-    store t2 -> local0
+    store local4 -> local5
+    t0 = variant_test e0 v0 local5 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e0 v0 f0 local5 : ptr<raw>
+    store t1 -> local0
     store local0 -> local1
     store param1 -> local2
-    t3 = ptr_to_ulong local1 : i64
-    t4 = ptr_to_ulong local2 : i64
-    t5 = integer_compare_Equal<ULong> t3, t4 : i1
-    store t5 -> local3
-    br @if.merge.3
-  block if.else.2
-    store false -> local3
-    br @if.merge.3
-  block if.merge.3
+    t2 = ptr_to_ulong local1 : i64
+    t3 = ptr_to_ulong local2 : i64
+    t4 = integer_compare_Equal<ULong> t2, t3 : i1
+    store t4 -> local3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local4 -> local6
+    t5 = variant_test e0 v1 local6 : i1
+    cbr t5 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local3
+  block pattern.pass.4
+    store false -> local3
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.optionalCellMatches(enum1, ptr<raw>) -> i1
     local %0 pointer: ptr<raw>
     local %1 $receiver: ptr<raw>
     local %2 $receiver: ptr<raw>
     local %3 $result.1: i1
     local %4 $when.1: enum1
+    local %5 $pattern.subject.2: enum1
+    local %6 $pattern.subject.3: enum1
   block entry
     poll managed-void-target0 sp224 live=[]
     store param0 -> local4
-    t0 = enum_tag e1 local4 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e1 v0 f0 local4 : ptr<raw>
-    store t2 -> local0
+    store local4 -> local5
+    t0 = variant_test e1 v0 local5 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e1 v0 f0 local5 : ptr<raw>
+    store t1 -> local0
     store local0 -> local1
     store param1 -> local2
-    t3 = ptr_to_ulong local1 : i64
-    t4 = ptr_to_ulong local2 : i64
-    t5 = integer_compare_Equal<ULong> t3, t4 : i1
-    store t5 -> local3
-    br @if.merge.3
-  block if.else.2
-    store false -> local3
-    br @if.merge.3
-  block if.merge.3
+    t2 = ptr_to_ulong local1 : i64
+    t3 = ptr_to_ulong local2 : i64
+    t4 = integer_compare_Equal<ULong> t2, t3 : i1
+    store t4 -> local3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local4 -> local6
+    t5 = variant_test e1 v1 local6 : i1
+    cbr t5 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local3
+  block pattern.pass.4
+    store false -> local3
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.optionalOpaqueIsNone(enum0) -> i1
     local %0 pointer: ptr<raw>
     local %1 $result.2: i1
     local %2 $when.1: enum0
+    local %3 $pattern.subject.2: enum0
+    local %4 $pattern.subject.3: enum0
   block entry
     poll managed-void-target0 sp225 live=[]
     store param0 -> local2
-    t0 = enum_tag e0 local2 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e0 v0 f0 local2 : ptr<raw>
-    store t2 -> local0
+    store local2 -> local3
+    t0 = variant_test e0 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e0 v0 f0 local3 : ptr<raw>
+    store t1 -> local0
     store false -> local1
-    br @if.merge.3
-  block if.else.2
-    store true -> local1
-    br @if.merge.3
-  block if.merge.3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local4
+    t2 = variant_test e0 v1 local4 : i1
+    cbr t2 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local1
+  block pattern.pass.4
+    store true -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.optionalCellIsNone(enum1) -> i1
     local %0 pointer: ptr<raw>
     local %1 $result.3: i1
     local %2 $when.1: enum1
+    local %3 $pattern.subject.2: enum1
+    local %4 $pattern.subject.3: enum1
   block entry
     poll managed-void-target0 sp226 live=[]
     store param0 -> local2
-    t0 = enum_tag e1 local2 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e1 v0 f0 local2 : ptr<raw>
-    store t2 -> local0
+    store local2 -> local3
+    t0 = variant_test e1 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e1 v0 f0 local3 : ptr<raw>
+    store t1 -> local0
     store false -> local1
-    br @if.merge.3
-  block if.else.2
-    store true -> local1
-    br @if.merge.3
-  block if.merge.3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local4
+    t2 = variant_test e1 v1 local4 : i1
+    cbr t2 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local1
+  block pattern.pass.4
+    store true -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.applyOptionalCallback(enum2, i32) -> i32
     local %0 pointer: ptr<code>
     local %1 $argument.0: i32
@@ -5455,54 +5567,74 @@ Module
     local %4 $parameter.callback: ptr<code>
     local %5 $result.4: i32
     local %6 $when.1: enum2
-    local %7 $call.1: i32
-    local %8 $sc.1: i32
-    local %9 $sc.2: ptr<code>
-    local %10 $sc.3: i32
+    local %7 $pattern.subject.2: enum2
+    local %8 $pattern.subject.3: enum2
+    local %9 $call.1: i32
+    local %10 $sc.1: i32
+    local %11 $sc.2: ptr<code>
+    local %12 $sc.3: i32
   block entry
     poll managed-void-target0 sp227 live=[]
     store param0 -> local6
-    t0 = enum_tag e2 local6 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e2 v0 f0 local6 : ptr<code>
-    store t2 -> local0
+    store local6 -> local7
+    t0 = variant_test e2 v0 local7 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e2 v0 f0 local7 : ptr<code>
+    store t1 -> local0
     store param1 -> local1
     store local0 -> local2
     store local1 -> local3
     store local2 -> local4
-    store local3 -> local8
-    store local4 -> local9
-    call native-safe-indirect-target0 sp22 roots=[] local10 = sig=indirect0 (sret i32, ptr<raw>, ptr<raw>) extern23(c-arg-address(local8), c-arg-address(local9))
-    store local10 -> local7
-    store local7 -> local5
-    br @if.merge.3
-  block if.else.2
-    store integer<Int>(0xffffffff) -> local5
-    br @if.merge.3
-  block if.merge.3
+    store local3 -> local10
+    store local4 -> local11
+    call native-safe-indirect-target0 sp22 roots=[] local12 = sig=indirect0 (sret i32, ptr<raw>, ptr<raw>) extern23(c-arg-address(local10), c-arg-address(local11))
+    store local12 -> local9
+    store local9 -> local5
+    br @pattern.merge.3
+  block pattern.else.2
+    store local6 -> local8
+    t2 = variant_test e2 v1 local8 : i1
+    cbr t2 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local5
+  block pattern.pass.4
+    store integer<Int>(0xffffffff) -> local5
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop.optionalCallbackIsNone(enum2) -> i1
     local %0 pointer: ptr<code>
     local %1 $result.5: i1
     local %2 $when.1: enum2
+    local %3 $pattern.subject.2: enum2
+    local %4 $pattern.subject.3: enum2
   block entry
     poll managed-void-target0 sp228 live=[]
     store param0 -> local2
-    t0 = enum_tag e2 local2 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e2 v0 f0 local2 : ptr<code>
-    store t2 -> local0
+    store local2 -> local3
+    t0 = variant_test e2 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e2 v0 f0 local3 : ptr<code>
+    store t1 -> local0
     store false -> local1
-    br @if.merge.3
-  block if.else.2
-    store true -> local1
-    br @if.merge.3
-  block if.merge.3
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local4
+    t2 = variant_test e2 v1 local4 : i1
+    cbr t2 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
     ret local1
+  block pattern.pass.4
+    store true -> local1
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop_main() -> void
     local %0 $argument.0: i64
     local %1 $parameter.size: i64

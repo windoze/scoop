@@ -85,9 +85,10 @@ fn when_lowers_to_a_decision_sequence() {
     );
     let module = lower(&h.finish(main));
 
-    // The subject is evaluated once into `$when.1`; each arm is a
-    // tag comparison, then the field bindings, then the body; a
-    // failed tag test falls through to the next arm. (`print` /
+    // The subject is evaluated once into `$when.1`; each arm is a typed
+    // variant test, then the payload bindings, then the body. A failed test
+    // falls through to the next arm, and the proof marks only the final false
+    // edge unreachable. (`print` /
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
     let expected = "\
@@ -127,37 +128,50 @@ Module mangling=compact-v2
       val $when.1: Option$I32<Int>
         Type Option$I32<Int>
         Local o
+      val $pattern.subject.2: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val x: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
-          Local $when.1
+          Local $pattern.subject.2
       call @scoop.print direct
         Type Int
         Local x
       goto bb3
-    bb2 if.else.2
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$I32 v1
+          Type Option$I32<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
       call @scoop.println direct
         Type String
         StringConst @scoop.str.1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
       goto bb3
-    bb3 if.merge.3
-      return
   str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"none\"
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);
+    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -253,50 +267,97 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     let entry = &body.blocks[body.entry];
     let mir::Terminator::Branch {
         cond,
-        then_block: payload_block,
+        then_block: outer_match,
         ..
     } = &entry.terminator
     else {
-        panic!("outer enum tag must control the short-circuit edge")
+        panic!("the outer variant test must control its matching edge")
     };
-    assert!(matches!(
-        &cond.kind,
-        mir::ExprKind::Binary { lhs, .. }
-            if matches!(&lhs.kind, mir::ExprKind::EnumTag(operand)
-                if matches!(&operand.kind, mir::ExprKind::Local(_)))
-    ));
+    let mir::ExprKind::VariantTest {
+        operand,
+        variant: outer_variant,
+    } = &cond.kind
+    else {
+        panic!("the outer enum pattern uses VariantTest")
+    };
+    let mir::ExprKind::Local(outer_local) = operand.kind else {
+        panic!("the outer VariantTest consumes the stable when subject")
+    };
+    assert!(!body.locals[outer_local].mutable);
 
-    let payload_block = &body.blocks[*payload_block];
-    assert!(
-        payload_block.statements.iter().any(|statement| {
-            let mir::StatementKind::Assign { value, .. } = &statement.kind else {
-                return false;
+    let outer_match = &body.blocks[*outer_match];
+    let (nested_local, nested_init) = outer_match
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::ValDecl { local, init } = &statement.kind else {
+                return None;
             };
-            matches!(
-                &value.kind,
-                mir::ExprKind::Binary { lhs, .. }
-                    if matches!(&lhs.kind, mir::ExprKind::EnumTag(operand)
-                        if matches!(&operand.kind, mir::ExprKind::FieldAccess { receiver, index: 0 }
-                            if matches!(&receiver.kind, mir::ExprKind::EnumField {
-                                variant: 0,
-                                index: 0,
-                                ..
-                            })))
-            )
-        }),
-        "outer payload projection must occur only on the matching-tag edge"
-    );
+            body.locals[*local]
+                .name
+                .starts_with("$pattern.")
+                .then_some((*local, init))
+        })
+        .expect("the nested enum value is materialized on the outer true edge");
+    assert!(!body.locals[nested_local].mutable);
+    let mir::ExprKind::FieldAccess { receiver, index: 0 } = &nested_init.kind else {
+        panic!("the nested enum is reached through its enclosing struct field")
+    };
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &receiver.kind else {
+        panic!("the outer payload uses a typed projection")
+    };
+    assert_eq!(field.variant(), *outer_variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == outer_local));
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: nested_match,
+        ..
+    } = &outer_match.terminator
+    else {
+        panic!("the materialized nested value is tested in the same block")
+    };
+    let mir::ExprKind::VariantTest {
+        operand,
+        variant: nested_variant,
+    } = &cond.kind
+    else {
+        panic!("the nested enum pattern uses VariantTest")
+    };
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
+
+    let nested_match = &body.blocks[*nested_match];
+    let binding_init = nested_match
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::ValDecl { local, init } = &statement.kind else {
+                return None;
+            };
+            (body.locals[*local].name == "value").then_some(init)
+        })
+        .expect("the binding is committed only after the full pattern succeeds");
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &binding_init.kind else {
+        panic!("the nested binding uses a typed payload projection")
+    };
+    assert_eq!(field.variant(), *nested_variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
+    assert_eq!(module.validate(), Ok(()));
+    let rendered = dump(&module);
+    assert!(!rendered.contains("MachineEq(EnumTag)"));
+    assert!(!rendered.contains("EnumField v"));
 }
 
 #[test]
-fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
-    fn branch_count(explicit_else: bool) -> usize {
+fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreachable() {
+    fn lower_case(explicit_else: bool) -> mir::Module {
         let mut h = Harness::new();
         let int = h.int;
         let option_int = h.option(int);
         let application = h.enum_application_of(option_int);
         let mut locals = Arena::new();
         let subject = locals.alloc(local("subject", option_int));
+        let value = locals.alloc(local("value", int));
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -307,8 +368,8 @@ fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
                         arm(
                             hir::Pattern::Variant {
                                 application,
-                                variant: 0,
-                                fields: vec![(0, hir::Pattern::Wildcard)],
+                                variant: 1,
+                                fields: Vec::new(),
                             },
                             None,
                             Vec::new(),
@@ -316,8 +377,8 @@ fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
                         arm(
                             hir::Pattern::Variant {
                                 application,
-                                variant: 1,
-                                fields: Vec::new(),
+                                variant: 0,
+                                fields: vec![(0, hir::Pattern::Binding { local: value })],
                             },
                             None,
                             Vec::new(),
@@ -334,21 +395,74 @@ fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
                 )],
             },
         );
-        let module = lower(&h.finish(main));
-        module.functions[module.entry]
-            .body
+        lower(&h.finish(main))
+    }
+
+    for explicit_else in [false, true] {
+        let module = lower_case(explicit_else);
+        assert_eq!(module.validate(), Ok(()));
+        let body = &module.functions[module.entry].body;
+        let branches = body
             .blocks
             .iter()
             .filter(|(_, block)| matches!(&block.terminator, mir::Terminator::Branch { .. }))
-            .count()
-    }
+            .count();
+        assert_eq!(branches, 2, "both refutable arms retain their tests");
 
-    assert_eq!(branch_count(false), 1, "proof removes the final false edge");
-    assert_eq!(
-        branch_count(true),
-        2,
-        "an explicit else keeps the final pattern test even when its body is empty",
-    );
+        let (_, final_test) = body
+            .blocks
+            .iter()
+            .find(|(_, block)| {
+                matches!(
+                    &block.terminator,
+                    mir::Terminator::Branch { cond, .. }
+                        if matches!(
+                            &cond.kind,
+                            mir::ExprKind::VariantTest { variant, .. }
+                                if variant.variant_index() == 0
+                        )
+                )
+            })
+            .expect("the final Some pattern retains its VariantTest");
+        let mir::Terminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } = &final_test.terminator
+        else {
+            unreachable!("selected a branch terminator")
+        };
+        let mir::ExprKind::VariantTest { operand, variant } = &cond.kind else {
+            unreachable!("selected the final variant test")
+        };
+        let mir::ExprKind::Local(tested_local) = operand.kind else {
+            panic!("the final variant test consumes the stable subject")
+        };
+        let projection = body.blocks[*then_block]
+            .statements
+            .iter()
+            .find_map(|statement| {
+                let mir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                    return None;
+                };
+                let mir::ExprKind::VariantPayloadProject { operand, field } = &init.kind else {
+                    return None;
+                };
+                Some((operand, field))
+            })
+            .expect("the final arm binds its payload on the test's true edge");
+        assert_eq!(projection.1.variant(), *variant);
+        assert!(matches!(projection.0.kind, mir::ExprKind::Local(local) if local == tested_local));
+
+        assert_eq!(
+            matches!(
+                body.blocks[*else_block].terminator,
+                mir::Terminator::Unreachable
+            ),
+            !explicit_else,
+            "only an Impossible fallback turns the final false edge unreachable",
+        );
+    }
 }
 
 #[test]
@@ -445,7 +559,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     );
     let module = lower(&h.finish(main));
 
-    // The guard nests inside the tag test's then branch; failing
+    // The guard nests inside the typed variant test's then branch; failing
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
     let expected = "\
@@ -480,21 +594,20 @@ Module mangling=compact-v2
       val $when.1: Option$I32<Int>
         Type Option$I32<Int>
         Local o
+      val $pattern.subject.2: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val x: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
-          Local $when.1
+          Local $pattern.subject.2
       val threshold: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -509,12 +622,12 @@ Module mangling=compact-v2
             Local threshold
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.else.2
+    bb2 pattern.else.2
       call @scoop.println direct
         Type String
         StringConst @scoop.str.2
       goto bb3
-    bb3 if.merge.3
+    bb3 pattern.merge.3
       return
     bb4 if.then.4
       call @scoop.print direct
@@ -534,6 +647,171 @@ Module mangling=compact-v2
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);
+    assert_eq!(module.validate(), Ok(()));
+}
+
+#[test]
+fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
+    fn boolean_equality(h: &mut Harness, name: &str) -> hir::FunctionId {
+        let boolean = h.boolean;
+        let mut locals = Arena::new();
+        let lhs = locals.alloc(local("lhs", boolean));
+        let rhs = locals.alloc(local("rhs", boolean));
+        h.user_fn_full(
+            name,
+            Vec::new(),
+            vec![param("lhs", boolean, lhs), param("rhs", boolean, rhs)],
+            boolean,
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Return {
+                    value: Some(bool_lit(h, true)),
+                })],
+            },
+        )
+    }
+
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let int = h.int;
+    let first_equals = boolean_equality(&mut h, "firstEquals");
+    let second_equals = boolean_equality(&mut h, "secondEquals");
+    let tuple_ty = h.tuple(&[boolean, boolean, int]);
+    let subject = h.user_fn_full(
+        "subject",
+        Vec::new(),
+        Vec::new(),
+        tuple_ty,
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(expr(
+                    hir::ExprKind::TupleLiteral(vec![
+                        bool_lit(&h, true),
+                        bool_lit(&h, false),
+                        int_lit(&h, 7),
+                    ]),
+                    tuple_ty,
+                )),
+            })],
+        },
+    );
+    let mut guard_locals = Arena::new();
+    let guard_value = guard_locals.alloc(local("value", int));
+    let guard = h.user_fn_full(
+        "guard",
+        Vec::new(),
+        vec![param("value", int, guard_value)],
+        boolean,
+        hir::Body {
+            locals: guard_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(bool_lit(&h, true)),
+            })],
+        },
+    );
+
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                call_typed(subject, Vec::new(), tuple_ty),
+                vec![arm(
+                    hir::Pattern::Tuple(vec![
+                        hir::Pattern::Literal {
+                            value: bool_lit(&h, true),
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::Callable::Function(first_equals),
+                            },
+                            subject_ty: boolean,
+                        },
+                        hir::Pattern::Literal {
+                            value: bool_lit(&h, false),
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::Callable::Function(second_equals),
+                            },
+                            subject_ty: boolean,
+                        },
+                        hir::Pattern::Binding { local: value },
+                    ]),
+                    Some(call_typed(guard, vec![local_ref(value, int)], boolean)),
+                    Vec::new(),
+                )],
+                hir::WhenFallback::Else(Vec::new()),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+
+    let mut current = body.entry;
+    let mut calls = Vec::new();
+    let mut binding_visible = false;
+    for _ in 0..8 {
+        let block = &body.blocks[current];
+        for statement in &block.statements {
+            if let mir::StatementKind::ValDecl { local, .. } = &statement.kind
+                && body.locals[*local].name == "value"
+            {
+                binding_visible = true;
+            }
+            let mir::StatementKind::Call(effect) = &statement.kind else {
+                continue;
+            };
+            let call = match effect {
+                mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
+            };
+            let mir::Callee::User(function) = call.target.callee else {
+                continue;
+            };
+            let name = module.functions[function].name.as_str();
+            if name == "guard" {
+                assert!(
+                    binding_visible,
+                    "bindings are visible before guard evaluation"
+                );
+            }
+            calls.push(name);
+        }
+        if calls.len() == 4 {
+            break;
+        }
+        current = match block.terminator {
+            mir::Terminator::Branch { then_block, .. } => then_block,
+            mir::Terminator::Goto(next) => next,
+            _ => break,
+        };
+    }
+    assert_eq!(
+        calls,
+        ["subject", "firstEquals", "secondEquals", "guard"],
+        "subject, field tests, bindings, and guard retain source evaluation order",
+    );
+
+    for expected in ["subject", "firstEquals", "secondEquals", "guard"] {
+        let count = body
+            .blocks
+            .iter()
+            .flat_map(|(_, block)| &block.statements)
+            .filter(|statement| {
+                let mir::StatementKind::Call(effect) = &statement.kind else {
+                    return false;
+                };
+                let call = match effect {
+                    mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
+                };
+                matches!(
+                    call.target.callee,
+                    mir::Callee::User(function) if module.functions[function].name == expected
+                )
+            })
+            .count();
+        assert_eq!(count, 1, "{expected} is emitted exactly once");
+    }
 }
 
 #[test]
@@ -666,6 +944,12 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
         );
         let module = lower(&h.finish(main));
         let body = &module.functions[module.entry].body;
+        assert!(
+            body.locals
+                .iter()
+                .all(|(_, local)| !local.name.starts_with("$pattern.subject.")),
+            "literal-only arms do not need stable variant subject copies",
+        );
         assert!(
             entry_statements(body)
                 .iter()

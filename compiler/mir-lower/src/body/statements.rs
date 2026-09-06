@@ -293,11 +293,12 @@ impl BodyLowerer<'_> {
             span,
         });
         let mut path = Vec::new();
+        let mut steps = Vec::new();
         let mut bindings = Vec::new();
-        let cond = self.lower_pattern(pattern, slot, &mut path, &ty, &mut bindings);
+        self.lower_pattern(pattern, slot, &mut path, &ty, &mut steps, &mut bindings);
         // hir-lower only emits irrefutable patterns (tuple / struct /
         // binding / wildcard) in destructuring declarations.
-        debug_assert!(cond.is_none(), "destructuring patterns are irrefutable");
+        debug_assert!(steps.is_empty(), "destructuring patterns are irrefutable");
         for (local, init) in bindings {
             out.push(smir::Statement {
                 kind: smir::StatementKind::ValDecl { local, init },
@@ -373,15 +374,10 @@ impl BodyLowerer<'_> {
         out.append(&mut chain);
     }
 
-    /// Lower `arms` into the decision sequence: each arm is
-    /// `if (<pattern condition>) { <bindings>; [if (<guard>) <body>
-    /// else <next>] } else <next>` — a failed guard falls through to
-    /// the next arm. With no guard the arm body is the then branch
-    /// directly; an unconditionally matching arm (binding / wildcard,
-    /// no guard) is inlined and makes the remaining arms unreachable
-    /// (hir-lower rejects those). Exhaustiveness was checked at HIR,
-    /// so the innermost false edge is either an explicit `else` body or an
-    /// `Impossible` edge carrying a typed exhaustiveness proof.
+    /// Lower `arms` into ordered pattern decisions. A failed test or guard
+    /// falls through to the next arm. Bindings are declared only after the
+    /// complete pattern succeeds. HIR exhaustiveness controls only the final
+    /// false edge; it never suppresses a refutable pattern's runtime tests.
     pub(super) fn lower_arms(
         &mut self,
         arms: &[hir::WhenArm],
@@ -400,8 +396,34 @@ impl BodyLowerer<'_> {
             };
         };
         let mut path = Vec::new();
+        let mut steps = Vec::new();
         let mut bindings = Vec::new();
-        let cond = self.lower_pattern(&arm.pattern, subject, &mut path, subject_ty, &mut bindings);
+        let decision_subject = if pattern_requires_stable_variant_subject(&arm.pattern) {
+            self.new_hidden("pattern.subject", subject_ty.clone(), false)
+        } else {
+            subject
+        };
+        self.lower_pattern(
+            &arm.pattern,
+            decision_subject,
+            &mut path,
+            subject_ty,
+            &mut steps,
+            &mut bindings,
+        );
+        if decision_subject != subject {
+            assert!(
+                !steps.is_empty(),
+                "a refutable pattern emits a runtime test"
+            );
+            steps.insert(
+                0,
+                smir::PatternDecisionStep::Materialize {
+                    local: decision_subject,
+                    init: smir::Expr::local(subject, subject_ty.clone()),
+                },
+            );
+        }
         let mut then: Vec<smir::Statement> = bindings
             .into_iter()
             .map(|(local, init)| smir::Statement {
@@ -430,29 +452,17 @@ impl BodyLowerer<'_> {
         } else {
             then.extend(self.lower_statements(&arm.body));
         }
-        if rest.is_empty()
-            && matches!(fallback, hir::WhenFallback::Impossible(_))
-            && arm.guard.is_none()
-        {
-            // HIR carries the proof that the complete arm sequence is
-            // exhaustive.
-            // Reaching its final unguarded arm therefore proves this pattern,
-            // even when the pattern itself is refutable in isolation. Keeping
-            // an impossible false edge would make values defined by every arm
-            // appear live before their definitions at a suspend site.
-            return then;
-        }
-        let Some(cond) = cond else {
+        if steps.is_empty() {
             // Matches unconditionally; `rest` is unreachable.
             return then;
-        };
+        }
         let next = self.lower_arms(rest, subject, subject_ty, fallback, fallback_span);
         vec![smir::Statement {
-            kind: smir::StatementKind::If {
-                cond,
+            kind: smir::StatementKind::PatternDecision(smir::PatternDecision {
+                steps,
                 then_body: then,
-                else_body: non_empty(next),
-            },
+                else_body: next,
+            }),
             span: arm.span,
         }]
     }

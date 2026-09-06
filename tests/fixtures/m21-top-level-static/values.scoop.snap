@@ -1433,54 +1433,48 @@ Module mangling=compact-v2
       val $when.1: Option$S<String>
         Type Option$S<String>
         Local this
+      val $pattern.subject.2: Option$S<String>
+        Type Option$S<String>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$S<String>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$S v0
+          Type Option$S<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val $left.0.0: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject Option$S v0 f0
           Type Option$S<String>
-          Local $when.1
-      val $when.2: Option$S<String>
-        Type Option$S<String>
-        Local other
-      branch bb4 bb5
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$S<String>
-            Local $when.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb2 if.else.2
+          Local $pattern.subject.2
       val $when.3: Option$S<String>
         Type Option$S<String>
         Local other
+      val $pattern.subject.4: Option$S<String>
+        Type Option$S<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$S v0
+          Type Option$S<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option$S<String>
+        Type Option$S<String>
+        Local $when.1
       branch bb7 bb8
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$S<String>
-            Local $when.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(1)
-    bb3 if.merge.3
+        VariantTest Option$S v1
+          Type Option$S<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
       unreachable
-    bb4 if.then.4
+    bb4 pattern.pass.4
       val $right.0.0: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject Option$S v0 f0
           Type Option$S<String>
-          Local $when.2
+          Local $pattern.subject.4
       call $call.1: Boolean = @scoop.String.equals direct
         Type String
         Local $left.0.0
@@ -1489,22 +1483,38 @@ Module mangling=compact-v2
       return
         Type Boolean
         Local $call.1
-    bb5 if.else.5
+    bb5 pattern.else.5
       return
         Type Boolean
         BoolLiteral false
-    bb6 if.merge.6
+    bb6 pattern.merge.6
       goto bb3
-    bb7 if.then.7
+    bb7 pattern.pass.7
+      val $when.6: Option$S<String>
+        Type Option$S<String>
+        Local other
+      val $pattern.subject.7: Option$S<String>
+        Type Option$S<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option$S v1
+          Type Option$S<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb3
+    bb10 pattern.pass.10
       return
         Type Boolean
         BoolLiteral true
-    bb8 if.else.8
+    bb11 pattern.else.11
       return
         Type Boolean
         BoolLiteral false
-    bb9 if.merge.9
-      goto bb3
+    bb12 pattern.merge.12
+      goto bb9
   fun init.Throwable.$c0 @scoop.init.Throwable.$c0(this: Throwable) -> Unit
     bb0 entry
       return
@@ -2199,38 +2209,48 @@ Module
     local %0 $left.0.0: ptr<managed>
     local %1 $right.0.0: ptr<managed>
     local %2 $when.1: enum0
-    local %3 $when.2: enum0
+    local %3 $pattern.subject.2: enum0
     local %4 $when.3: enum0
-    local %5 $call.1: i1
+    local %5 $pattern.subject.4: enum0
+    local %6 $pattern.subject.5: enum0
+    local %7 $when.6: enum0
+    local %8 $pattern.subject.7: enum0
+    local %9 $call.1: i1
   block entry
     poll managed-void-target0 sp85 live=[param0:enum0@0, param1:enum0@0]
     store param0 -> local2
-    t0 = enum_tag e0 local2 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e0 v0 f0 local2 : ptr<managed>
-    store t2 -> local0
-    store param1 -> local3
-    t3 = enum_tag e0 local3 : machine<enum-tag>
-    t4 = MachineEq(EnumTag) t3, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t4 then @if.then.4 else @if.else.5
-  block if.else.2
+    store local2 -> local3
+    t0 = variant_test e0 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e0 v0 f0 local3 : ptr<managed>
+    store t1 -> local0
     store param1 -> local4
-    t5 = enum_tag e0 local4 : machine<enum-tag>
-    t6 = MachineEq(EnumTag) t5, machine<enum-tag>(EnumTag(1)) : i1
-    cbr t6 then @if.then.7 else @if.else.8
-  block if.then.4
-    t7 = enum_field e0 v0 f0 local3 : ptr<managed>
-    store t7 -> local1
-    call managed-direct-target0 sp49 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t8 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn19(local0, local1)
-    store t8 -> local5
-    ret local5
-  block if.else.5
+    store local4 -> local5
+    t2 = variant_test e0 v0 local5 : i1
+    cbr t2 then @pattern.pass.4 else @pattern.else.5
+  block pattern.else.2
+    store local2 -> local6
+    t3 = variant_test e0 v1 local6 : i1
+    cbr t3 then @pattern.pass.7 else @pattern.else.8
+  block pattern.pass.4
+    t4 = variant_payload_project e0 v0 f0 local5 : ptr<managed>
+    store t4 -> local1
+    call managed-direct-target0 sp49 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t5 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn19(local0, local1)
+    store t5 -> local9
+    ret local9
+  block pattern.else.5
     ret false
-  block if.then.7
+  block pattern.pass.7
+    store param1 -> local7
+    store local7 -> local8
+    t6 = variant_test e0 v1 local8 : i1
+    cbr t6 then @pattern.pass.10 else @pattern.else.11
+  block pattern.else.8
+    unreachable
+  block pattern.pass.10
     ret true
-  block if.else.8
+  block pattern.else.11
     ret false
   fun @scoop.init.Throwable.$c0(ptr<managed>) -> void
   block entry

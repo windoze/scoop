@@ -1,0 +1,47 @@
+// EXPECT-COMPILE
+
+enum Inner {
+    Flag(Boolean, Int),
+    Empty
+}
+
+enum Outer {
+    Wrapped(Inner, Boolean),
+    Other
+}
+
+enum Ticket {
+    Empty,
+    Value(Int)
+}
+
+fun traced(value: Outer): Outer {
+    println("subject")
+    return value
+}
+
+fun guarded(value: Int): Boolean {
+    println("guard")
+    return value > 0
+}
+
+fun classify(value: Outer): Int = when (traced(value)) {
+    Wrapped(Flag(false, amount), false) if (guarded(amount)) -> amount
+    Wrapped(Flag(_, amount), _) -> amount + 100
+    Wrapped(Empty, _) -> -2
+    Other -> -1
+}
+
+fun finalPayload(value: Ticket): Int = when (value) {
+    Empty -> -1
+    Value(payload) -> payload
+}
+
+fun main() {
+    println(classify(Outer.Wrapped(Inner.Flag(false, 7), false)))
+    println(classify(Outer.Wrapped(Inner.Flag(false, -1), false)))
+    println(classify(Outer.Wrapped(Inner.Flag(true, 8), false)))
+    println(classify(Outer.Wrapped(Inner.Flag(false, 9), true)))
+    println(finalPayload(Ticket.Value(11)))
+    println(finalPayload(Ticket.Empty))
+}

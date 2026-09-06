@@ -1409,63 +1409,73 @@ Module mangling=compact-v2
       val $when.1: Outer.Flag
         Type Outer.Flag
         Local this
+      val $pattern.subject.2: Outer.Flag
+        Type Outer.Flag
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Outer.Flag
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
-      val $when.2: Outer.Flag
-        Type Outer.Flag
-        Local other
-      branch bb4 bb5
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Outer.Flag
-            Local $when.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb2 if.else.2
+        VariantTest Outer.Flag v0
+          Type Outer.Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val $when.3: Outer.Flag
         Type Outer.Flag
         Local other
+      val $pattern.subject.4: Outer.Flag
+        Type Outer.Flag
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Outer.Flag v0
+          Type Outer.Flag
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Outer.Flag
+        Type Outer.Flag
+        Local $when.1
       branch bb7 bb8
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Outer.Flag
-            Local $when.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(1)
-    bb3 if.merge.3
+        VariantTest Outer.Flag v1
+          Type Outer.Flag
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
       unreachable
-    bb4 if.then.4
+    bb4 pattern.pass.4
       return
         Type Boolean
         BoolLiteral true
-    bb5 if.else.5
+    bb5 pattern.else.5
       return
         Type Boolean
         BoolLiteral false
-    bb6 if.merge.6
+    bb6 pattern.merge.6
       goto bb3
-    bb7 if.then.7
+    bb7 pattern.pass.7
+      val $when.6: Outer.Flag
+        Type Outer.Flag
+        Local other
+      val $pattern.subject.7: Outer.Flag
+        Type Outer.Flag
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Outer.Flag v1
+          Type Outer.Flag
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb3
+    bb10 pattern.pass.10
       return
         Type Boolean
         BoolLiteral true
-    bb8 if.else.8
+    bb11 pattern.else.11
       return
         Type Boolean
         BoolLiteral false
-    bb9 if.merge.9
-      goto bb3
+    bb12 pattern.merge.12
+      goto bb9
   fun Outer.Marker.id @scoop.Outer.Marker.id(this: Outer.Marker) -> Int
     bb0 entry
       return
@@ -2162,31 +2172,41 @@ Module
     ret t0
   fun @scoop.Outer.Flag.equals(enum1, enum1) -> i1
     local %0 $when.1: enum1
-    local %1 $when.2: enum1
+    local %1 $pattern.subject.2: enum1
     local %2 $when.3: enum1
+    local %3 $pattern.subject.4: enum1
+    local %4 $pattern.subject.5: enum1
+    local %5 $when.6: enum1
+    local %6 $pattern.subject.7: enum1
   block entry
     poll managed-void-target0 sp82 live=[]
     store param0 -> local0
-    t0 = enum_tag e1 local0 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    store param1 -> local1
-    t2 = enum_tag e1 local1 : machine<enum-tag>
-    t3 = MachineEq(EnumTag) t2, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t3 then @if.then.4 else @if.else.5
-  block if.else.2
+    store local0 -> local1
+    t0 = variant_test e1 v0 local1 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
     store param1 -> local2
-    t4 = enum_tag e1 local2 : machine<enum-tag>
-    t5 = MachineEq(EnumTag) t4, machine<enum-tag>(EnumTag(1)) : i1
-    cbr t5 then @if.then.7 else @if.else.8
-  block if.then.4
+    store local2 -> local3
+    t1 = variant_test e1 v0 local3 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.else.2
+    store local0 -> local4
+    t2 = variant_test e1 v1 local4 : i1
+    cbr t2 then @pattern.pass.7 else @pattern.else.8
+  block pattern.pass.4
     ret true
-  block if.else.5
+  block pattern.else.5
     ret false
-  block if.then.7
+  block pattern.pass.7
+    store param1 -> local5
+    store local5 -> local6
+    t3 = variant_test e1 v1 local6 : i1
+    cbr t3 then @pattern.pass.10 else @pattern.else.11
+  block pattern.else.8
+    unreachable
+  block pattern.pass.10
     ret true
-  block if.else.8
+  block pattern.else.11
     ret false
   fun @scoop.Outer.Marker.id(ptr<managed>) -> i32
   block entry

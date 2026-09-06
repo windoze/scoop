@@ -1795,21 +1795,20 @@ Module mangling=compact-v2
       val $when.1: Option$S<String>
         Type Option$S<String>
         Local value
+      val $pattern.subject.2: Option$S<String>
+        Type Option$S<String>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$S<String>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb1 if.then.1
+        VariantTest Option$S v0
+          Type Option$S<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
       val text: String
         Type String
-        EnumField v0 f0
+        VariantPayloadProject Option$S v0 f0
           Type Option$S<String>
-          Local $when.1
+          Local $pattern.subject.2
       val $argument.0: String
         Type String
         Local text
@@ -1820,7 +1819,18 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       goto bb3
-    bb2 if.else.2
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option$S<String>
+        Type Option$S<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option$S v1
+          Type Option$S<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
       val $argument.0: String
         Type String
         StringConst @scoop.str.7
@@ -1830,9 +1840,11 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
       goto bb3
-    bb3 if.merge.3
-      return
   fun main @scoop_main() -> Unit
     bb0 entry
       val $argument.0: String
@@ -2225,21 +2237,20 @@ Module mangling=compact-v2
       val $when.1: Option$E8_Option$SX<Option$S<String>>
         Type Option$E8_Option$SX<Option$S<String>>
         Local nested
+      val $pattern.subject.2: Option$E8_Option$SX<Option$S<String>>
+        Type Option$E8_Option$SX<Option$S<String>>
+        Local $when.1
       branch bb25 bb26
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$E8_Option$SX<Option$S<String>>
-            Local $when.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb25 if.then.25
+        VariantTest Option$E8_Option$SX v0
+          Type Option$E8_Option$SX<Option$S<String>>
+          Local $pattern.subject.2
+    bb25 pattern.pass.25
       val inner: Option$S<String>
         Type Option$S<String>
-        EnumField v0 f0
+        VariantPayloadProject Option$E8_Option$SX v0 f0
           Type Option$E8_Option$SX<Option$S<String>>
-          Local $when.1
+          Local $pattern.subject.2
       val $argument.0: Option$S<String>
         Type Option$S<String>
         Local inner
@@ -2250,7 +2261,25 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.value
       goto bb27
-    bb26 if.else.26
+    bb26 pattern.else.26
+      val $pattern.subject.3: Option$E8_Option$SX<Option$S<String>>
+        Type Option$E8_Option$SX<Option$S<String>>
+        Local $when.1
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Option$E8_Option$SX v1
+          Type Option$E8_Option$SX<Option$S<String>>
+          Local $pattern.subject.3
+    bb27 pattern.merge.27
+      val $opt.16: Option$C5_ProbeX<Probe>
+        Type Option$C5_ProbeX<Probe>
+        Local some
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Option$C5_ProbeX v0
+          Type Option$C5_ProbeX<Probe>
+          Local $opt.16
+    bb28 pattern.pass.28
       val $argument.0: String
         Type String
         StringConst @scoop.str.9
@@ -2260,17 +2289,12 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
+      goto bb30
+    bb29 pattern.else.29
+      unreachable
+    bb30 pattern.merge.30
       goto bb27
-    bb27 if.merge.27
-      val $opt.16: Option$C5_ProbeX<Probe>
-        Type Option$C5_ProbeX<Probe>
-        Local some
-      branch bb28 bb29
-        Type Boolean
-        VariantTest Option$C5_ProbeX v0
-          Type Option$C5_ProbeX<Probe>
-          Local $opt.16
-    bb28 if.then.28
+    bb31 if.then.31
       val $receiver: Probe
         Type Probe
         VariantPayloadProject Option$C5_ProbeX v0 f0
@@ -2284,34 +2308,33 @@ Module mangling=compact-v2
         VariantConstruct Option$U<Unit> v0
           Type Unit
           UnitLiteral
-      goto bb30
-    bb29 if.else.29
+      goto bb33
+    bb32 if.else.32
       val $res.17: Option$U<Unit>
         Type Option$U<Unit>
         VariantConstruct Option$U<Unit> v1
-      goto bb30
-    bb30 if.merge.30
+      goto bb33
+    bb33 if.merge.33
       val unitResult: Option$U<Unit>
         Type Option$U<Unit>
         Local $res.17
-      val $when.2: Option$U<Unit>
+      val $when.4: Option$U<Unit>
         Type Option$U<Unit>
         Local unitResult
-      branch bb31 bb32
+      val $pattern.subject.5: Option$U<Unit>
+        Type Option$U<Unit>
+        Local $when.4
+      branch bb34 bb35
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$U<Unit>
-            Local $when.2
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb31 if.then.31
+        VariantTest Option$U v0
+          Type Option$U<Unit>
+          Local $pattern.subject.5
+    bb34 pattern.pass.34
       val value: Unit
         Type Unit
-        EnumField v0 f0
+        VariantPayloadProject Option$U v0 f0
           Type Option$U<Unit>
-          Local $when.2
+          Local $pattern.subject.5
       val $argument.0: String
         Type String
         StringConst @scoop.str.10
@@ -2321,19 +2344,17 @@ Module mangling=compact-v2
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb33
-    bb32 if.else.32
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.11
-      val $parameter.value: String
-        Type String
-        Local $argument.0
-      call @scoop.println$S direct
-        Type String
-        Local $parameter.value
-      goto bb33
-    bb33 if.merge.33
+      goto bb36
+    bb35 pattern.else.35
+      val $pattern.subject.6: Option$U<Unit>
+        Type Option$U<Unit>
+        Local $when.4
+      branch bb37 bb38
+        Type Boolean
+        VariantTest Option$U v1
+          Type Option$U<Unit>
+          Local $pattern.subject.6
+    bb36 pattern.merge.36
       val $argument.0: String
         Type String
         StringConst @scoop.str.12
@@ -2368,12 +2389,27 @@ Module mangling=compact-v2
       val $opt.18: Option$C7_ServiceX<Service>
         Type Option$C7_ServiceX<Service>
         Local maybeService
-      branch bb34 bb35
+      branch bb40 bb41
         Type Boolean
         VariantTest Option$C7_ServiceX v0
           Type Option$C7_ServiceX<Service>
           Local $opt.18
-    bb34 if.then.34
+    bb37 pattern.pass.37
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.11
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb39
+    bb38 pattern.else.38
+      unreachable
+    bb39 pattern.merge.39
+      goto bb36
+    bb40 if.then.40
       val $receiver: Handler
         Type Handler
         FieldAccess 0
@@ -2397,13 +2433,13 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $call.11
-      goto bb36
-    bb35 if.else.35
+      goto bb42
+    bb41 if.else.41
       val $res.19: Option$S<String>
         Type Option$S<String>
         VariantConstruct Option$S<String> v1
-      goto bb36
-    bb36 if.merge.36
+      goto bb42
+    bb42 if.merge.42
       val $argument.0: Option$S<String>
         Type Option$S<String>
         Local $res.19
@@ -2427,12 +2463,12 @@ Module mangling=compact-v2
       val $opt.20: Option$FI32RI32X<(Int) -> Int>
         Type Option$FI32RI32X<(Int) -> Int>
         Local maybeFunction
-      branch bb37 bb38
+      branch bb43 bb44
         Type Boolean
         VariantTest Option$FI32RI32X v0
           Type Option$FI32RI32X<(Int) -> Int>
           Local $opt.20
-    bb37 if.then.37
+    bb43 if.then.43
       call $call.12: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         VariantPayloadProject Option$FI32RI32X v0 f0
@@ -2445,31 +2481,30 @@ Module mangling=compact-v2
         VariantConstruct Option$I32<Int> v0
           Type Int
           Local $call.12
-      goto bb39
-    bb38 if.else.38
+      goto bb45
+    bb44 if.else.44
       val $res.21: Option$I32<Int>
         Type Option$I32<Int>
         VariantConstruct Option$I32<Int> v1
-      goto bb39
-    bb39 if.merge.39
-      val $when.3: Option$I32<Int>
+      goto bb45
+    bb45 if.merge.45
+      val $when.7: Option$I32<Int>
         Type Option$I32<Int>
         Local $res.21
-      branch bb40 bb41
+      val $pattern.subject.8: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.7
+      branch bb46 bb47
         Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type Option$I32<Int>
-            Local $when.3
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb40 if.then.40
+        VariantTest Option$I32 v0
+          Type Option$I32<Int>
+          Local $pattern.subject.8
+    bb46 pattern.pass.46
       val value: Int
         Type Int
-        EnumField v0 f0
+        VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
-          Local $when.3
+          Local $pattern.subject.8
       val $argument.0: Int
         Type Int
         Local value
@@ -2479,8 +2514,19 @@ Module mangling=compact-v2
       call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
-      goto bb42
-    bb41 if.else.41
+      goto bb48
+    bb47 pattern.else.47
+      val $pattern.subject.9: Option$I32<Int>
+        Type Option$I32<Int>
+        Local $when.7
+      branch bb49 bb50
+        Type Boolean
+        VariantTest Option$I32 v1
+          Type Option$I32<Int>
+          Local $pattern.subject.9
+    bb48 pattern.merge.48
+      return
+    bb49 pattern.pass.49
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -2490,9 +2536,11 @@ Module mangling=compact-v2
       call @scoop.println$I32 direct
         Type Int
         Local $parameter.value
-      goto bb42
-    bb42 if.merge.42
-      return
+      goto bb51
+    bb50 pattern.else.50
+      unreachable
+    bb51 pattern.merge.51
+      goto bb48
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
@@ -3230,28 +3278,38 @@ Module
     local %3 $argument.0: ptr<managed>
     local %4 $parameter.value: ptr<managed>
     local %5 $when.1: enum0
+    local %6 $pattern.subject.2: enum0
+    local %7 $pattern.subject.3: enum0
   block entry
     poll managed-void-target2 sp116 live=[param0:enum0@0]
     store param0 -> local5
-    t0 = enum_tag e0 local5 : machine<enum-tag>
-    t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = enum_field e0 v0 f0 local5 : ptr<managed>
-    store t2 -> local0
+    store local5 -> local6
+    t0 = variant_test e0 v0 local6 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    t1 = variant_payload_project e0 v0 f0 local6 : ptr<managed>
+    store t1 -> local0
     store local0 -> local1
     store local1 -> local2
     call managed-void-target0 sp36 live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn33(local2)
-    t3 = aggregate () : {}
-    br @if.merge.3
-  block if.else.2
+    t2 = aggregate () : {}
+    br @pattern.merge.3
+  block pattern.else.2
+    store local5 -> local7
+    t3 = variant_test e0 v1 local7 : i1
+    cbr t3 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret
+  block pattern.pass.4
     store global7 -> local3
     store local3 -> local4
     call managed-void-target1 sp37 live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn33(local4)
     t4 = aggregate () : {}
-    br @if.merge.3
-  block if.merge.3
-    ret
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
   fun @scoop_main() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.prefix: ptr<managed>
@@ -3356,30 +3414,36 @@ Module
     local %100 $argument.0: i32
     local %101 $parameter.value: i32
     local %102 $when.1: enum2
-    local %103 $when.2: enum3
-    local %104 $when.3: enum6
-    local %105 $new.1: ptr<managed>
-    local %106 $call.2: ptr<managed>
-    local %107 $call.3: ptr<managed>
-    local %108 $call.4: ptr<managed>
-    local %109 $call.5: ptr<managed>
-    local %110 $call.6: ptr<managed>
-    local %111 $call.7: ptr<managed>
-    local %112 $call.8: ptr<managed>
-    local %113 $call.9: enum0
-    local %114 $new.10: ptr<managed>
-    local %115 $call.11: ptr<managed>
-    local %116 $call.12: i32
-    local %117 $sc.1: struct10
+    local %103 $pattern.subject.2: enum2
+    local %104 $pattern.subject.3: enum2
+    local %105 $when.4: enum3
+    local %106 $pattern.subject.5: enum3
+    local %107 $pattern.subject.6: enum3
+    local %108 $when.7: enum6
+    local %109 $pattern.subject.8: enum6
+    local %110 $pattern.subject.9: enum6
+    local %111 $new.1: ptr<managed>
+    local %112 $call.2: ptr<managed>
+    local %113 $call.3: ptr<managed>
+    local %114 $call.4: ptr<managed>
+    local %115 $call.5: ptr<managed>
+    local %116 $call.6: ptr<managed>
+    local %117 $call.7: ptr<managed>
+    local %118 $call.8: ptr<managed>
+    local %119 $call.9: enum0
+    local %120 $new.10: ptr<managed>
+    local %121 $call.11: ptr<managed>
+    local %122 $call.12: i32
+    local %123 $sc.1: struct10
   block entry
     poll managed-void-target17 sp117 live=[]
     store global8 -> local0
     store local0 -> local1
     call managed-direct-target0 sp38 live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t0 -> local105
-    call managed-void-target0 sp39 live=[local1:ptr<managed>@0, local105:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn43(local105, local1)
+    store t0 -> local111
+    call managed-void-target0 sp39 live=[local1:ptr<managed>@0, local111:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn43(local111, local1)
     t1 = aggregate () : {}
-    store local105 -> local2
+    store local111 -> local2
     store local2 -> local3
     t2 = enum_wrap e1 v0 (local3) : enum1
     store t2 -> local4
@@ -3395,8 +3459,8 @@ Module
     store t6 -> local8
     store local8 -> local9
     call managed-direct-target2 sp41 live=[local4:enum1@0, local5:enum1@0, local7:ptr<managed>@0] t7 = sig=direct2 (ptr<managed>, i32) -> ptr<managed> local-fn23(local7, local9)
-    store t7 -> local106
-    t8 = enum_wrap e0 v0 (local106) : enum0
+    store t7 -> local112
+    t8 = enum_wrap e0 v0 (local112) : enum0
     store t8 -> local10
     br @if.merge.3
   block if.else.2
@@ -3419,8 +3483,8 @@ Module
     store t13 -> local16
     store local16 -> local17
     call managed-direct-target4 sp44 live=[local4:enum1@0, local5:enum1@0, local15:ptr<managed>@0] t14 = sig=direct4 (ptr<managed>, i32) -> ptr<managed> local-fn23(local15, local17)
-    store t14 -> local107
-    t15 = enum_wrap e0 v0 (local107) : enum0
+    store t14 -> local113
+    t15 = enum_wrap e0 v0 (local113) : enum0
     store t15 -> local18
     br @if.merge.6
   block if.else.5
@@ -3442,8 +3506,8 @@ Module
     call managed-direct-target5 sp46 live=[local4:enum1@0, local5:enum1@0, local23:ptr<managed>@0] t20 = sig=direct5 () -> i32 local-fn26()
     store t20 -> local24
     call managed-direct-target6 sp47 live=[local4:enum1@0, local5:enum1@0, local23:ptr<managed>@0] t21 = sig=direct6 (ptr<managed>, i32) -> ptr<managed> local-fn23(local23, local24)
-    store t21 -> local108
-    t22 = enum_wrap e0 v0 (local108) : enum0
+    store t21 -> local114
+    t22 = enum_wrap e0 v0 (local114) : enum0
     store t22 -> local25
     br @if.merge.9
   block if.else.8
@@ -3465,8 +3529,8 @@ Module
     call managed-direct-target7 sp49 live=[local4:enum1@0, local5:enum1@0, local30:ptr<managed>@0] t27 = sig=direct7 () -> i32 local-fn26()
     store t27 -> local31
     call managed-direct-target8 sp50 live=[local4:enum1@0, local5:enum1@0, local30:ptr<managed>@0] t28 = sig=direct8 (ptr<managed>, i32) -> ptr<managed> local-fn23(local30, local31)
-    store t28 -> local109
-    t29 = enum_wrap e0 v0 (local109) : enum0
+    store t28 -> local115
+    t29 = enum_wrap e0 v0 (local115) : enum0
     store t29 -> local32
     br @if.merge.12
   block if.else.11
@@ -3489,8 +3553,8 @@ Module
     store integer<Int>(0x00000008) -> local38
     store local38 -> local39
     call managed-direct-target10 sp53 live=[local4:enum1@0, local5:enum1@0, local37:ptr<managed>@0] t35 = sig=direct10 (ptr<managed>, i32) -> ptr<managed> local-fn23(local37, local39)
-    store t35 -> local110
-    t36 = enum_wrap e0 v0 (local110) : enum0
+    store t35 -> local116
+    t36 = enum_wrap e0 v0 (local116) : enum0
     store t36 -> local40
     br @if.merge.15
   block if.else.14
@@ -3512,8 +3576,8 @@ Module
     store integer<Int>(0x00000009) -> local46
     store local46 -> local47
     call managed-direct-target11 sp55 live=[local4:enum1@0, local5:enum1@0, local45:ptr<managed>@0] t41 = sig=direct11 (ptr<managed>, i32) -> ptr<managed> local-fn29(local45, local47)
-    store t41 -> local111
-    t42 = enum_wrap e0 v0 (local111) : enum0
+    store t41 -> local117
+    t42 = enum_wrap e0 v0 (local117) : enum0
     store t42 -> local48
     br @if.merge.18
   block if.else.17
@@ -3535,8 +3599,8 @@ Module
     store integer<Int>(0x00000009) -> local54
     store local54 -> local55
     call managed-direct-target12 sp57 live=[local4:enum1@0, local53:ptr<managed>@0] t47 = sig=direct12 (ptr<managed>, i32) -> ptr<managed> local-fn29(local53, local55)
-    store t47 -> local112
-    t48 = enum_wrap e0 v0 (local112) : enum0
+    store t47 -> local118
+    t48 = enum_wrap e0 v0 (local118) : enum0
     store t48 -> local56
     br @if.merge.21
   block if.else.20
@@ -3556,8 +3620,8 @@ Module
     t52 = variant_payload_project e1 v0 f0 local60 : ptr<managed>
     store t52 -> local61
     call managed-direct-target13 sp59 live=[local4:enum1@0, local61:ptr<managed>@0] t53 = sig=direct13 (ptr<managed>) -> enum0 local-fn24(local61)
-    store t53 -> local113
-    t54 = enum_wrap e2 v0 (local113) : enum2
+    store t53 -> local119
+    t54 = enum_wrap e2 v0 (local119) : enum2
     store t54 -> local62
     br @if.merge.24
   block if.else.23
@@ -3567,28 +3631,36 @@ Module
   block if.merge.24
     store local62 -> local63
     store local63 -> local102
-    t56 = enum_tag e2 local102 : machine<enum-tag>
-    t57 = MachineEq(EnumTag) t56, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t57 then @if.then.25 else @if.else.26
-  block if.then.25
-    t58 = enum_field e2 v0 f0 local102 : enum0
-    store t58 -> local64
+    store local102 -> local103
+    t56 = variant_test e2 v0 local103 : i1
+    cbr t56 then @pattern.pass.25 else @pattern.else.26
+  block pattern.pass.25
+    t57 = variant_payload_project e2 v0 f0 local103 : enum0
+    store t57 -> local64
     store local64 -> local65
     store local65 -> local66
     call managed-void-target8 sp60 live=[local4:enum1@0, local66:enum0@0] sig=void8 (enum0) local-fn30(local66)
-    t59 = aggregate () : {}
-    br @if.merge.27
-  block if.else.26
+    t58 = aggregate () : {}
+    br @pattern.merge.27
+  block pattern.else.26
+    store local102 -> local104
+    t59 = variant_test e2 v1 local104 : i1
+    cbr t59 then @pattern.pass.28 else @pattern.else.29
+  block pattern.merge.27
+    store local4 -> local69
+    t60 = variant_test e1 v0 local69 : i1
+    cbr t60 then @if.then.31 else @if.else.32
+  block pattern.pass.28
     store global9 -> local67
     store local67 -> local68
     call managed-void-target9 sp61 live=[local4:enum1@0, local68:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn33(local68)
-    t60 = aggregate () : {}
-    br @if.merge.27
-  block if.merge.27
-    store local4 -> local69
-    t61 = variant_test e1 v0 local69 : i1
-    cbr t61 then @if.then.28 else @if.else.29
-  block if.then.28
+    t61 = aggregate () : {}
+    br @pattern.merge.30
+  block pattern.else.29
+    unreachable
+  block pattern.merge.30
+    br @pattern.merge.27
+  block if.then.31
     t62 = variant_payload_project e1 v0 f0 local69 : ptr<managed>
     store t62 -> local70
     call managed-void-target10 sp62 live=[local70:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn25(local70)
@@ -3596,64 +3668,72 @@ Module
     t64 = aggregate () : {}
     t65 = enum_wrap e3 v0 (t64) : enum3
     store t65 -> local71
-    br @if.merge.30
-  block if.else.29
+    br @if.merge.33
+  block if.else.32
     t66 = enum_wrap e3 v1 () : enum3
     store t66 -> local71
-    br @if.merge.30
-  block if.merge.30
+    br @if.merge.33
+  block if.merge.33
     store local71 -> local72
-    store local72 -> local103
-    t67 = enum_tag e3 local103 : machine<enum-tag>
-    t68 = MachineEq(EnumTag) t67, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t68 then @if.then.31 else @if.else.32
-  block if.then.31
-    t69 = enum_field e3 v0 f0 local103 : {}
-    store t69 -> local73
+    store local72 -> local105
+    store local105 -> local106
+    t67 = variant_test e3 v0 local106 : i1
+    cbr t67 then @pattern.pass.34 else @pattern.else.35
+  block pattern.pass.34
+    t68 = variant_payload_project e3 v0 f0 local106 : {}
+    store t68 -> local73
     store global10 -> local74
     store local74 -> local75
     call managed-void-target11 sp63 live=[local75:ptr<managed>@0] sig=void11 (ptr<managed>) local-fn33(local75)
-    t70 = aggregate () : {}
-    br @if.merge.33
-  block if.else.32
-    store global11 -> local76
-    store local76 -> local77
-    call managed-void-target12 sp64 live=[local77:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn33(local77)
-    t71 = aggregate () : {}
-    br @if.merge.33
-  block if.merge.33
+    t69 = aggregate () : {}
+    br @pattern.merge.36
+  block pattern.else.35
+    store local105 -> local107
+    t70 = variant_test e3 v1 local107 : i1
+    cbr t70 then @pattern.pass.37 else @pattern.else.38
+  block pattern.merge.36
     store global12 -> local78
     store local78 -> local79
-    call no-gc-indirect-target0 local117 = sig=indirect0 (sret struct10, ptr<managed>) local-fn46(local79)
-    store local117 -> local80
+    call no-gc-indirect-target0 local123 = sig=indirect0 (sret struct10, ptr<managed>) local-fn46(local79)
+    store local123 -> local80
     store local80 -> local81
-    call managed-direct-target14 sp65 live=[local81:struct10@0] t72 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t72 -> local114
-    call managed-void-target13 sp66 live=[local81:struct10@0, local114:ptr<managed>@0] sig=void13 (ptr<managed>, struct10) local-fn44(local114, local81)
-    t73 = aggregate () : {}
-    store local114 -> local82
+    call managed-direct-target14 sp64 live=[local81:struct10@0] t71 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t71 -> local120
+    call managed-void-target12 sp65 live=[local81:struct10@0, local120:ptr<managed>@0] sig=void12 (ptr<managed>, struct10) local-fn44(local120, local81)
+    t72 = aggregate () : {}
+    store local120 -> local82
     store local82 -> local83
-    t74 = enum_wrap e4 v0 (local83) : enum4
-    store t74 -> local84
+    t73 = enum_wrap e4 v0 (local83) : enum4
+    store t73 -> local84
     store local84 -> local85
-    t75 = variant_test e4 v0 local85 : i1
-    cbr t75 then @if.then.34 else @if.else.35
-  block if.then.34
+    t74 = variant_test e4 v0 local85 : i1
+    cbr t74 then @if.then.40 else @if.else.41
+  block pattern.pass.37
+    store global11 -> local76
+    store local76 -> local77
+    call managed-void-target13 sp66 live=[local77:ptr<managed>@0] sig=void13 (ptr<managed>) local-fn33(local77)
+    t75 = aggregate () : {}
+    br @pattern.merge.39
+  block pattern.else.38
+    unreachable
+  block pattern.merge.39
+    br @pattern.merge.36
+  block if.then.40
     t76 = variant_payload_project e4 v0 f0 local85 : ptr<managed>
     t77 = heap_load t76 +16 : struct10
     store t77 -> local86
     store integer<Int>(0x0000000a) -> local87
     store local87 -> local88
     call managed-direct-target15 sp67 live=[local86:struct10@0] t78 = sig=direct15 (struct10, i32) -> ptr<managed> local-fn19(local86, local88)
-    store t78 -> local115
-    t79 = enum_wrap e0 v0 (local115) : enum0
+    store t78 -> local121
+    t79 = enum_wrap e0 v0 (local121) : enum0
     store t79 -> local89
-    br @if.merge.36
-  block if.else.35
+    br @if.merge.42
+  block if.else.41
     t80 = enum_wrap e0 v1 () : enum0
     store t80 -> local89
-    br @if.merge.36
-  block if.merge.36
+    br @if.merge.42
+  block if.merge.42
     store local89 -> local90
     store local90 -> local91
     call managed-void-target14 sp68 live=[local91:enum0@0] sig=void14 (enum0) local-fn30(local91)
@@ -3667,39 +3747,47 @@ Module
     store t84 -> local94
     store local94 -> local95
     t85 = variant_test e5 v0 local95 : i1
-    cbr t85 then @if.then.37 else @if.else.38
-  block if.then.37
+    cbr t85 then @if.then.43 else @if.else.44
+  block if.then.43
     t86 = variant_payload_project e5 v0 f0 local95 : ptr<managed>
     call managed-direct-target17 sp70 live=[t86:ptr<managed>@0] t87 = sig=direct17 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t86(t86, integer<Int>(0x00000029))
-    store t87 -> local116
-    t88 = enum_wrap e6 v0 (local116) : enum6
+    store t87 -> local122
+    t88 = enum_wrap e6 v0 (local122) : enum6
     store t88 -> local96
-    br @if.merge.39
-  block if.else.38
+    br @if.merge.45
+  block if.else.44
     t89 = enum_wrap e6 v1 () : enum6
     store t89 -> local96
-    br @if.merge.39
-  block if.merge.39
-    store local96 -> local104
-    t90 = enum_tag e6 local104 : machine<enum-tag>
-    t91 = MachineEq(EnumTag) t90, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t91 then @if.then.40 else @if.else.41
-  block if.then.40
-    t92 = enum_field e6 v0 f0 local104 : i32
-    store t92 -> local97
+    br @if.merge.45
+  block if.merge.45
+    store local96 -> local108
+    store local108 -> local109
+    t90 = variant_test e6 v0 local109 : i1
+    cbr t90 then @pattern.pass.46 else @pattern.else.47
+  block pattern.pass.46
+    t91 = variant_payload_project e6 v0 f0 local109 : i32
+    store t91 -> local97
     store local97 -> local98
     store local98 -> local99
     call managed-void-target15 sp71 live=[] sig=void15 (i32) local-fn34(local99)
-    t93 = aggregate () : {}
-    br @if.merge.42
-  block if.else.41
+    t92 = aggregate () : {}
+    br @pattern.merge.48
+  block pattern.else.47
+    store local108 -> local110
+    t93 = variant_test e6 v1 local110 : i1
+    cbr t93 then @pattern.pass.49 else @pattern.else.50
+  block pattern.merge.48
+    ret
+  block pattern.pass.49
     store integer<Int>(0x00000000) -> local100
     store local100 -> local101
     call managed-void-target16 sp72 live=[] sig=void16 (i32) local-fn34(local101)
     t94 = aggregate () : {}
-    br @if.merge.42
-  block if.merge.42
-    ret
+    br @pattern.merge.51
+  block pattern.else.50
+    unreachable
+  block pattern.merge.51
+    br @pattern.merge.48
   fun @scoop.$lambda.0(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32

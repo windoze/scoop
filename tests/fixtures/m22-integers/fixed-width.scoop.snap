@@ -3107,7 +3107,7 @@ Module mangling=compact-v2
     bb53 scope.53
       end_catch
       goto bb39
-    bb54 if.then.54
+    bb54 pattern.pass.54
       val $argument.0: String
         Type String
         StringConst @scoop.str.5
@@ -3118,7 +3118,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       goto bb56
-    bb55 if.else.55
+    bb55 pattern.else.55
       val $argument.0: String
         Type String
         StringConst @scoop.str.6
@@ -3129,7 +3129,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       goto bb56
-    bb56 if.merge.56
+    bb56 pattern.merge.56
       val $receiver: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -3583,17 +3583,17 @@ Module mangling=compact-v2
           Local $when.21
           Type Int8
           IntegerLiteral Int8 value=127 bits=0x7f
-    bb70 if.then.70
+    bb70 pattern.pass.70
       assign $result.5
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb72
-    bb71 if.else.71
+    bb71 pattern.else.71
       assign $result.5
         Type Long
         IntegerLiteral Long value=2147483648 bits=0x0000000080000000
       goto bb72
-    bb72 if.merge.72
+    bb72 pattern.merge.72
       val jointlyInferredWhen: Long
         Type Long
         Local $result.5
@@ -5281,7 +5281,7 @@ Module
     store t82 -> local144
     store local144 -> local285
     t83 = integer_compare_Equal<UInt8> local285, integer<UInt8>(0xff) : i1
-    cbr t83 then @if.then.54 else @if.else.55
+    cbr t83 then @pattern.pass.54 else @pattern.else.55
   block try.body.40
     store local0 -> local111
     store integer<Int8>(0x00) -> local112
@@ -5335,19 +5335,19 @@ Module
   block scope.53
     end_catch
     br @try.end.39
-  block if.then.54
+  block pattern.pass.54
     store global5 -> local145
     store local145 -> local146
     call managed-void-target35 sp62 live=[local146:ptr<managed>@0] sig=void37 (ptr<managed>) local-fn35(local146)
     t92 = aggregate () : {}
-    br @if.merge.56
-  block if.else.55
+    br @pattern.merge.56
+  block pattern.else.55
     store global6 -> local147
     store local147 -> local148
     call managed-void-target36 sp63 live=[local148:ptr<managed>@0] sig=void38 (ptr<managed>) local-fn35(local148)
     t93 = aggregate () : {}
-    br @if.merge.56
-  block if.merge.56
+    br @pattern.merge.56
+  block pattern.merge.56
     store integer<Int>(0x00000001) -> local149
     store integer<Long>(0xffffffffffffffff) -> local150
     store local150 -> local151
@@ -5532,14 +5532,14 @@ Module
     t145 = aggregate () : {}
     store local0 -> local290
     t146 = integer_compare_Equal<Int8> local290, integer<Int8>(0x7f) : i1
-    cbr t146 then @if.then.70 else @if.else.71
-  block if.then.70
+    cbr t146 then @pattern.pass.70 else @pattern.else.71
+  block pattern.pass.70
     store integer<Long>(0x0000000000000001) -> local225
-    br @if.merge.72
-  block if.else.71
+    br @pattern.merge.72
+  block pattern.else.71
     store integer<Long>(0x0000000080000000) -> local225
-    br @if.merge.72
-  block if.merge.72
+    br @pattern.merge.72
+  block pattern.merge.72
     store local225 -> local226
     store local226 -> local227
     store local227 -> local228
