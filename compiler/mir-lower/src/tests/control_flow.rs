@@ -262,14 +262,29 @@ fn control_flow_becomes_cfg() {
 #[test]
 fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
     let mut h = Harness::new();
+    let condition = h.user_fn_full(
+        "condition",
+        Vec::new(),
+        Vec::new(),
+        h.boolean,
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(bool_lit(&h, false)),
+            })],
+        },
+    );
     let mut locals = Arena::new();
-    let condition_value = locals.alloc(local("$argument.0", h.boolean));
+    let condition_value = locals.alloc(local("$condition.0", h.boolean));
     let main = h.user_fn(
         "main",
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::While {
-                condition_setup: vec![val_decl(condition_value, bool_lit(&h, false))],
+                condition_setup: vec![val_decl(
+                    condition_value,
+                    call_typed(condition, Vec::new(), h.boolean),
+                )],
                 cond: local_ref(condition_value, h.boolean),
                 body: Vec::new(),
             })],
@@ -277,19 +292,196 @@ fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
     );
     let module = lower(&h.finish(main));
     let body = &module.functions[module.entry].body;
+    let header = body
+        .blocks
+        .iter()
+        .find_map(|(id, block)| block.name.starts_with("while.cond").then_some(id))
+        .expect("the loop has one explicit header");
+    let loop_body = body
+        .blocks
+        .iter()
+        .find_map(|(id, block)| block.name.starts_with("while.body").then_some(id))
+        .expect("the loop has one body");
+    let condition_local = body
+        .locals
+        .iter()
+        .find_map(|(id, local)| (local.name == "$condition.0").then_some(id))
+        .expect("the HIR condition temporary keeps one MIR local identity");
 
-    assert!(entry_statements(body).iter().any(|statement| matches!(
-        statement.kind,
-        mir::StatementKind::ValDecl { local, .. } if body.locals[local].name == "$argument.0"
-    )));
+    assert!(entry_statements(body).is_empty());
+    assert!(matches!(
+        body.blocks[body.entry].terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
+    let [setup] = body.blocks[header].statements.as_slice() else {
+        panic!("the condition side effect is emitted once in the loop header")
+    };
+    let (call, destination) = statement_call(setup);
+    let mir::Callee::User(callee) = call.target.callee else {
+        panic!("the condition setup keeps its exact user-call target")
+    };
+    assert_eq!(module.functions[callee].name, "condition");
+    assert_eq!(destination, Some(condition_local));
+    assert!(!body.locals[condition_local].mutable);
+    let mir::Terminator::Branch { cond, .. } = &body.blocks[header].terminator else {
+        panic!("the condition is evaluated after its header setup")
+    };
+    assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == condition_local));
+    assert!(body.blocks[loop_body].statements.is_empty());
+    assert!(matches!(
+        body.blocks[loop_body].terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
     assert!(
-        block_named(body, "while.body")
+        body.locals
+            .iter()
+            .all(|(_, local)| local.name != "$cond" && !local.name.starts_with("$cond.")),
+        "header normalization must not synthesize a mutable condition cache"
+    );
+    let setup_call_count = body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.statements)
+        .filter(|statement| {
+            let mir::StatementKind::Call(effect) = &statement.kind else {
+                return false;
+            };
+            let call = match effect {
+                mir::CallEffect::Unit(call) => call,
+                mir::CallEffect::Value { call, .. } => call,
+            };
+            matches!(call.target.callee, mir::Callee::User(id) if module.functions[id].name == "condition")
+        })
+        .count();
+    assert_eq!(setup_call_count, 1, "HIR condition setup is lowered once");
+}
+
+#[test]
+fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
+    let mut h = Harness::new();
+    let println = h.println_string();
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    condition_setup: vec![stmt(hir::StatementKind::Return { value: None })],
+                    cond: bool_lit(&h, true),
+                    body: vec![expr_stmt(call(
+                        &h,
+                        println,
+                        vec![str_lit(&h, "unreachable body")],
+                    ))],
+                }),
+                expr_stmt(call(&h, println, vec![str_lit(&h, "unreachable exit")])),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+
+    assert_eq!(
+        body.blocks.len(),
+        2,
+        "a sealed header creates no body or exit"
+    );
+    assert!(entry_statements(body).is_empty());
+    let header = block_named(body, "while.cond");
+    assert!(header.statements.is_empty());
+    assert!(matches!(
+        header.terminator,
+        mir::Terminator::Return { value: None }
+    ));
+    assert!(
+        body.blocks.iter().all(|(_, block)| {
+            !block.name.starts_with("while.body") && !block.name.starts_with("while.exit")
+        }),
+        "terminating setup must leave the surrounding CFG sealed"
+    );
+}
+
+#[test]
+fn while_condition_prelude_is_owned_by_the_header_and_reentered_by_the_backedge() {
+    let mut h = Harness::new();
+    h.exception("UnwrapException");
+    let boolean = h.boolean;
+    let option_boolean = h.option(boolean);
+    let mut locals = Arena::new();
+    let option = locals.alloc(local("option", option_boolean));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    option,
+                    expr(
+                        hir::ExprKind::SomeWrap(Box::new(bool_lit(&h, true))),
+                        option_boolean,
+                    ),
+                ),
+                stmt(hir::StatementKind::While {
+                    condition_setup: Vec::new(),
+                    cond: expr(
+                        hir::ExprKind::Unwrap {
+                            operand: Box::new(local_ref(option, option_boolean)),
+                            trap_on_none: true,
+                        },
+                        boolean,
+                    ),
+                    body: Vec::new(),
+                }),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let header = body
+        .blocks
+        .iter()
+        .find_map(|(id, block)| block.name.starts_with("while.cond").then_some(id))
+        .expect("the loop has one header entry");
+    let loop_body = body
+        .blocks
+        .iter()
+        .find_map(|(id, block)| block.name.starts_with("while.body").then_some(id))
+        .expect("the loop has one body");
+
+    assert_eq!(entry_statements(body).len(), 1);
+    assert!(matches!(
+        body.blocks[body.entry].terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
+    assert!(
+        body.blocks[header]
             .statements
             .iter()
             .any(|statement| matches!(
                 statement.kind,
                 mir::StatementKind::ValDecl { local, .. }
-                    if body.locals[local].name == "$argument.0"
+                    if body.locals[local].name.starts_with("$opt.") && !body.locals[local].mutable
             ))
     );
+    assert!(matches!(
+        body.blocks[header].terminator,
+        mir::Terminator::Branch {
+            cond: mir::Expr {
+                kind: mir::ExprKind::VariantTest { .. },
+                ..
+            },
+            ..
+        }
+    ));
+    assert!(
+        body.blocks
+            .iter()
+            .any(|(_, block)| matches!(block.terminator, mir::Terminator::Throw { .. })),
+        "the None path of the header-owned null assertion throws"
+    );
+    assert!(matches!(
+        body.blocks[loop_body].terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
 }

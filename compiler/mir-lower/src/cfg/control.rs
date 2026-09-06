@@ -168,7 +168,11 @@ impl<'a> CfgLowerer<'a> {
                 then_body,
                 else_body,
             } => self.lower_if(cond, then_body, else_body.as_deref(), span),
-            smir::StatementKind::While { cond, body } => self.lower_while(cond, body, span),
+            smir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => self.lower_while(condition_setup, cond, body, span),
             smir::StatementKind::Try(try_) => self.lower_try(try_),
             smir::StatementKind::Throw(exception) => {
                 let exception = self.lower_expr(exception, span);
@@ -242,13 +246,18 @@ impl<'a> CfgLowerer<'a> {
 
     pub(super) fn lower_while(
         &mut self,
+        condition_setup: &'a [smir::Statement],
         cond: &smir::Expr,
         body: &'a [smir::Statement],
         span: Span,
     ) {
-        let cond_block = self.new_block("while.cond");
-        self.seal(mir::Terminator::Goto(cond_block));
-        self.enter(cond_block);
+        let header = self.new_block("while.cond");
+        self.seal(mir::Terminator::Goto(header));
+        self.enter(header);
+        self.lower_statements(condition_setup);
+        if self.current_sealed {
+            return;
+        }
         let cond = self.lower_expr(cond, span);
         let body_block = self.new_block("while.body");
         let exit_block = self.new_block("while.exit");
@@ -260,7 +269,7 @@ impl<'a> CfgLowerer<'a> {
         self.enter(body_block);
         self.lower_statements(body);
         if !self.current_sealed {
-            self.seal(mir::Terminator::Goto(cond_block));
+            self.seal(mir::Terminator::Goto(header));
         }
         self.enter(exit_block);
     }

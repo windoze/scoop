@@ -72,6 +72,9 @@ pub(crate) enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        /// Statements evaluated at the start of every condition check. This
+        /// is a first-class header region rather than a preheader/body copy.
+        condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
     },

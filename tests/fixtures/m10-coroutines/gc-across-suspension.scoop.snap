@@ -1581,6 +1581,8 @@ Module mangling=compact-v2
       var index: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1
       val $receiver: Int
         Type Int
         Local index
@@ -1590,7 +1592,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      var $cond.1: Boolean
+      branch bb2 bb3
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1601,11 +1603,6 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-      goto bb1
-    bb1 while.cond.1
-      branch bb2 bb3
-        Type Boolean
-        Local $cond.1
     bb2 while.body.2
       val $receiver: String
         Type String
@@ -1651,26 +1648,6 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-      val $receiver: Int
-        Type Int
-        Local index
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1000 bits=0x000003e8
-      val $parameter.other: Int
-        Type Int
-        Local $argument.0
-      assign $cond.1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Int result=Long
-            Type Int
-            Local $receiver
-            Type Int
-            Local $parameter.other
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
     bb3 while.exit.3
       return
@@ -4558,21 +4535,19 @@ Module
     local %10 $receiver: i32
     local %11 $argument.0: i32
     local %12 $parameter.other: i32
-    local %13 $cond.1: i1
-    local %14 $new.1: ptr<managed>
+    local %13 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp168 live=[]
     store integer<Int>(0x00000000) -> local0
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target1 sp169 live=[]
     store local0 -> local1
     store integer<Int>(0x000003e8) -> local2
     store local2 -> local3
     t0 = integer_compare_to<Int> local1, local3 : i64
     t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
-    store t1 -> local13
-    br @while.cond.1
-  block while.cond.1
-    poll managed-void-target1 sp169 live=[]
-    cbr local13 then @while.body.2 else @while.exit.3
+    cbr t1 then @while.body.2 else @while.exit.3
   block while.body.2
     store global11 -> local4
     store global12 -> local5
@@ -4581,21 +4556,15 @@ Module
     store t2 -> local7
     store local7 -> local8
     call managed-direct-target1 sp34 live=[local8:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t3 -> local14
-    call managed-void-target0 sp35 live=[local8:ptr<managed>@0, local14:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn33(local14, local8)
+    store t3 -> local13
+    call managed-void-target0 sp35 live=[local8:ptr<managed>@0, local13:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn33(local13, local8)
     t4 = aggregate () : {}
-    store local14 -> local9
+    store local13 -> local9
     store local0 -> local10
     store integer<Int>(0x00000001) -> local11
     store local11 -> local12
     t5 = integer_Add<Int> local10, local12 : i32
     store t5 -> local0
-    store local0 -> local1
-    store integer<Int>(0x000003e8) -> local2
-    store local2 -> local3
-    t6 = integer_compare_to<Int> local1, local3 : i64
-    t7 = integer_compare_Less<Long> t6, integer<Long>(0x0000000000000000) : i1
-    store t7 -> local13
     br @while.cond.1
   block while.exit.3
     ret

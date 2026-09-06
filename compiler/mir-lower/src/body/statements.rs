@@ -314,57 +314,14 @@ impl BodyLowerer<'_> {
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
-        let mut initial_setup = self.lower_statements(condition_setup);
-        let initial_cond = self.lower_expr(cond);
-        initial_setup.extend(
-            std::mem::take(&mut self.prelude)
-                .into_iter()
-                .map(|kind| smir::Statement { kind, span }),
-        );
-        if initial_setup.is_empty() {
-            let body = self.lower_statements(body);
-            out.push(smir::Statement {
-                kind: smir::StatementKind::While {
-                    cond: initial_cond,
-                    body,
-                },
-                span,
-            });
-            return;
-        }
-        // The condition contains explicit HIR setup and/or an expression
-        // prelude such as a trap test (`!!`), all of which must run on every
-        // iteration:
-        // `P; while (C) B` becomes `P; var $c = C; while ($c) { B; P;
-        // $c = C }`.
-        out.extend(initial_setup);
-        let cond_local = self.new_hidden("cond", mir::Type::Boolean, true);
-        out.push(smir::Statement {
-            kind: smir::StatementKind::ValDecl {
-                local: cond_local,
-                init: initial_cond,
-            },
-            span,
-        });
-        let mut body = self.lower_statements(body);
-        let mut repeated_setup = self.lower_statements(condition_setup);
-        let repeated_cond = self.lower_expr(cond);
-        repeated_setup.extend(
-            std::mem::take(&mut self.prelude)
-                .into_iter()
-                .map(|kind| smir::Statement { kind, span }),
-        );
-        body.extend(repeated_setup);
-        body.push(smir::Statement {
-            kind: smir::StatementKind::Assign {
-                local: cond_local,
-                value: repeated_cond,
-            },
-            span,
-        });
+        let mut condition_setup = self.lower_statements(condition_setup);
+        let cond = self.lower_expr(cond);
+        self.drain_prelude(span, &mut condition_setup);
+        let body = self.lower_statements(body);
         out.push(smir::Statement {
             kind: smir::StatementKind::While {
-                cond: smir::Expr::local(cond_local, mir::Type::Boolean),
+                condition_setup,
+                cond,
                 body,
             },
             span,

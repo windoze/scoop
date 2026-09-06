@@ -1169,6 +1169,8 @@ Module mangling=compact-v2
       var i: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1
       val $receiver: Long
         Type Long
         Local i
@@ -1180,7 +1182,7 @@ Module mangling=compact-v2
       val $parameter.other: Long
         Type Long
         Local $argument.0
-      var $cond.1: Boolean
+      branch bb2 bb3
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1191,11 +1193,6 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-      goto bb1
-    bb1 while.cond.1
-      branch bb2 bb3
-        Type Boolean
-        Local $cond.1
     bb2 while.body.2
       val $receiver: Int
         Type Int
@@ -1209,17 +1206,17 @@ Module mangling=compact-v2
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.2: Array<Int>
+      val $arr.1: Array<Int>
         Type Array<Int>
         Local $receiver
-      val $idx.3: Long
+      val $idx.2: Long
         Type Long
         Local $parameter.index
       branch bb5 bb4
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.3
+          Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 while.exit.3
@@ -1231,11 +1228,11 @@ Module mangling=compact-v2
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.3
+          Local $idx.2
           Type Long
           ArrayLen Array$I32
             Type Array<Int>
-            Local $arr.2
+            Local $arr.1
       goto bb6
     bb5 logic.short.5
       assign $logic.1
@@ -1261,9 +1258,9 @@ Module mangling=compact-v2
         Type Int
         ArrayGet Array$I32
           Type Array<Int>
-          Local $arr.2
+          Local $arr.1
           Type Long
-          Local $idx.3
+          Local $idx.2
       val $parameter.other: Int
         Type Int
         Local $argument.0
@@ -1290,28 +1287,6 @@ Module mangling=compact-v2
           Local $receiver
           Type Long
           Local $parameter.other
-      val $receiver: Long
-        Type Long
-        Local i
-      val $argument.0: Long
-        Type Long
-        ArrayLen Array$I32
-          Type Array<Int>
-          Local a
-      val $parameter.other: Long
-        Type Long
-        Local $argument.0
-      assign $cond.1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $receiver
-            Type Long
-            Local $parameter.other
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -2049,56 +2024,54 @@ Module
     local %11 $receiver: i64
     local %12 $argument.0: i64
     local %13 $parameter.other: i64
-    local %14 $cond.1: i1
-    local %15 $arr.2: ptr<managed>
-    local %16 $idx.3: i64
-    local %17 $logic.1: i1
-    local %18 $new.2: ptr<managed>
+    local %14 $arr.1: ptr<managed>
+    local %15 $idx.2: i64
+    local %16 $logic.1: i1
+    local %17 $new.2: ptr<managed>
   block entry
     poll managed-void-target1 sp72 live=[param0:ptr<managed>@0]
     store integer<Int>(0x00000000) -> local0
     store integer<Long>(0x0000000000000000) -> local1
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target1 sp73 live=[param0:ptr<managed>@0]
     store local1 -> local2
     t0 = array_len array0 param0 : i64
     store t0 -> local3
     store local3 -> local4
     t1 = integer_compare_to<Long> local2, local4 : i64
     t2 = integer_compare_Less<Long> t1, integer<Long>(0x0000000000000000) : i1
-    store t2 -> local14
-    br @while.cond.1
-  block while.cond.1
-    poll managed-void-target1 sp73 live=[param0:ptr<managed>@0]
-    cbr local14 then @while.body.2 else @while.exit.3
+    cbr t2 then @while.body.2 else @while.exit.3
   block while.body.2
     store local0 -> local8
     store param0 -> local5
     store local1 -> local6
     store local6 -> local7
-    store local5 -> local15
-    store local7 -> local16
-    t3 = integer_compare_Less<Long> local16, integer<Long>(0x0000000000000000) : i1
+    store local5 -> local14
+    store local7 -> local15
+    t3 = integer_compare_Less<Long> local15, integer<Long>(0x0000000000000000) : i1
     cbr t3 then @logic.short.5 else @logic.rhs.4
   block while.exit.3
     ret local0
   block logic.rhs.4
-    t4 = array_len array0 local15 : i64
-    t5 = integer_compare_GreaterOrEqual<Long> local16, t4 : i1
-    store t5 -> local17
+    t4 = array_len array0 local14 : i64
+    t5 = integer_compare_GreaterOrEqual<Long> local15, t4 : i1
+    store t5 -> local16
     br @logic.merge.6
   block logic.short.5
-    store true -> local17
+    store true -> local16
     br @logic.merge.6
   block logic.merge.6
-    cbr local17 then @if.then.7 else @if.merge.8
+    cbr local16 then @if.then.7 else @if.merge.8
   block if.then.7
     call managed-direct-target0 sp22 live=[] t6 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
-    store t6 -> local18
-    call managed-void-target0 sp23 live=[local18:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn33(local18)
+    store t6 -> local17
+    call managed-void-target0 sp23 live=[local17:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn33(local17)
     t7 = aggregate () : {}
-    throw local18
+    throw local17
     unreachable
   block if.merge.8
-    t8 = array_get array0 local15 local16 : i32
+    t8 = array_get array0 local14 local15 : i32
     store t8 -> local9
     store local9 -> local10
     t9 = integer_Add<Int> local8, local10 : i32
@@ -2108,13 +2081,6 @@ Module
     store local12 -> local13
     t10 = integer_Add<Long> local11, local13 : i64
     store t10 -> local1
-    store local1 -> local2
-    t11 = array_len array0 param0 : i64
-    store t11 -> local3
-    store local3 -> local4
-    t12 = integer_compare_to<Long> local2, local4 : i64
-    t13 = integer_compare_Less<Long> t12, integer<Long>(0x0000000000000000) : i1
-    store t13 -> local14
     br @while.cond.1
   fun @scoop_main() -> void
     local %0 $argument.0: ptr<managed>

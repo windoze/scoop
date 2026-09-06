@@ -1205,6 +1205,8 @@ Module mangling=compact-v2
       var count: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1
       val $receiver: Int
         Type Int
         Local count
@@ -1214,7 +1216,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      var $cond.1: Boolean
+      branch bb2 bb3
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1225,11 +1227,6 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-      goto bb1
-    bb1 while.cond.1
-      branch bb2 bb3
-        Type Boolean
-        Local $cond.1
     bb2 while.body.2
       val $argument.0: String
         Type String
@@ -1258,26 +1255,6 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-      val $receiver: Int
-        Type Int
-        Local count
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      val $parameter.other: Int
-        Type Int
-        Local $argument.0
-      assign $cond.1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Int result=Long
-            Type Int
-            Local $receiver
-            Type Int
-            Local $parameter.other
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
     bb3 while.exit.3
       return
@@ -1924,9 +1901,8 @@ Module
     local %20 $receiver: i32
     local %21 $argument.0: i32
     local %22 $parameter.other: i32
-    local %23 $cond.1: i1
-    local %24 $sc.1: struct10
-    local %25 $sc.2: struct10
+    local %23 $sc.1: struct10
+    local %24 $sc.2: struct10
   block entry
     poll managed-void-target3 sp64 live=[]
     store global0 -> local0
@@ -1934,15 +1910,15 @@ Module
     store t0 -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local24 = sig=indirect0 (sret struct10, ptr<managed>, {i32, ptr<managed>}) local-fn36(local2, local3)
-    store local24 -> local4
+    call no-gc-indirect-target0 local23 = sig=indirect0 (sret struct10, ptr<managed>, {i32, ptr<managed>}) local-fn36(local2, local3)
+    store local23 -> local4
     store global2 -> local5
     t1 = aggregate (integer<Int>(0x00000001), global3) : {i32, ptr<managed>}
     store t1 -> local6
     store local5 -> local7
     store local6 -> local8
-    call no-gc-indirect-target1 local25 = sig=indirect1 (sret struct10, ptr<managed>, {i32, ptr<managed>}) local-fn36(local7, local8)
-    store local25 -> local9
+    call no-gc-indirect-target1 local24 = sig=indirect1 (sret struct10, ptr<managed>, {i32, ptr<managed>}) local-fn36(local7, local8)
+    store local24 -> local9
     call managed-direct-target0 sp22 live=[local4:struct10@0+16, local9:struct10@0+16] t2 = sig=direct0 (struct10, struct10) -> i1 local-fn26(local4, local9)
     store t2 -> local10
     store local10 -> local11
@@ -1955,16 +1931,15 @@ Module
     call managed-void-target1 sp24 live=[local4:struct10@0+16, local13:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn24(local13)
     t6 = aggregate () : {}
     store integer<Int>(0x00000000) -> local14
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target3 sp65 live=[local4:struct10@0+16]
     store local14 -> local15
     store integer<Int>(0x00000002) -> local16
     store local16 -> local17
     t7 = integer_compare_to<Int> local15, local17 : i64
     t8 = integer_compare_Less<Long> t7, integer<Long>(0x0000000000000000) : i1
-    store t8 -> local23
-    br @while.cond.1
-  block while.cond.1
-    poll managed-void-target3 sp65 live=[local4:struct10@0+16]
-    cbr local23 then @while.body.2 else @while.exit.3
+    cbr t8 then @while.body.2 else @while.exit.3
   block while.body.2
     t9 = extract local4, 0 : ptr<managed>
     store t9 -> local18
@@ -1976,12 +1951,6 @@ Module
     store local21 -> local22
     t11 = integer_Add<Int> local20, local22 : i32
     store t11 -> local14
-    store local14 -> local15
-    store integer<Int>(0x00000002) -> local16
-    store local16 -> local17
-    t12 = integer_compare_to<Int> local15, local17 : i64
-    t13 = integer_compare_Less<Long> t12, integer<Long>(0x0000000000000000) : i1
-    store t13 -> local23
     br @while.cond.1
   block while.exit.3
     ret

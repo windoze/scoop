@@ -1368,6 +1368,8 @@ Module mangling=compact-v2
       var index: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1
       val $receiver: Int
         Type Int
         Local index
@@ -1377,7 +1379,7 @@ Module mangling=compact-v2
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      var $cond.1: Boolean
+      branch bb2 bb3
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -1388,11 +1390,6 @@ Module mangling=compact-v2
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-      goto bb1
-    bb1 while.cond.1
-      branch bb2 bb3
-        Type Boolean
-        Local $cond.1
     bb2 while.body.2
       val snapshot: Int
         Type Int
@@ -1418,26 +1415,6 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-      val $receiver: Int
-        Type Int
-        Local index
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $parameter.other: Int
-        Type Int
-        Local $argument.0
-      assign $cond.1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Int result=Long
-            Type Int
-            Local $receiver
-            Type Int
-            Local $parameter.other
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb1
     bb3 while.exit.3
       call @scoop_rt_gc_collect direct
@@ -2247,8 +2224,7 @@ Module
     local %33 $parameter.value: i32
     local %34 $argument.0: i32
     local %35 $parameter.value: i32
-    local %36 $cond.1: i1
-    local %37 $new.1: ptr<managed>
+    local %36 $new.1: ptr<managed>
   block entry
     poll managed-void-target8 sp84 live=[]
     call managed-direct-target0 sp24 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(24)))
@@ -2260,10 +2236,10 @@ Module
     store integer<Int>(0x00000027) -> local2
     store local2 -> local3
     call managed-direct-target2 sp26 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t3 -> local37
-    call managed-void-target0 sp27 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local37:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn41(local37, local3)
+    store t3 -> local36
+    call managed-void-target0 sp27 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local36:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn41(local36, local3)
     t4 = aggregate () : {}
-    store local37 -> local4
+    store local36 -> local4
     store local4 -> local5
     store integer<Int>(0x00000001) -> local6
     store local5 -> local7
@@ -2281,16 +2257,15 @@ Module
     heap_store t7 +16 t8
     store t7 -> local15
     store integer<Int>(0x00000000) -> local16
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target8 sp85 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0]
     store local16 -> local17
     store integer<Int>(0x00000003) -> local18
     store local18 -> local19
     t9 = integer_compare_to<Int> local17, local19 : i64
     t10 = integer_compare_Less<Long> t9, integer<Long>(0x0000000000000000) : i1
-    store t10 -> local36
-    br @while.cond.1
-  block while.cond.1
-    poll managed-void-target8 sp85 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0]
-    cbr local36 then @while.body.2 else @while.exit.3
+    cbr t10 then @while.body.2 else @while.exit.3
   block while.body.2
     store local16 -> local20
     call managed-direct-target6 sp31 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0] t11 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(32)))
@@ -2303,46 +2278,40 @@ Module
     store local22 -> local23
     t13 = integer_Add<Int> local21, local23 : i32
     store t13 -> local16
-    store local16 -> local17
-    store integer<Int>(0x00000003) -> local18
-    store local18 -> local19
-    t14 = integer_compare_to<Int> local17, local19 : i64
-    t15 = integer_compare_Less<Long> t14, integer<Long>(0x0000000000000000) : i1
-    store t15 -> local36
     br @while.cond.1
   block while.exit.3
     call managed-void-target1 sp32 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
-    t16 = aggregate () : {}
-    call managed-direct-target7 sp33 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t17 = sig=direct7 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local0(local0, integer<Int>(0x00000028))
-    store t17 -> local24
+    t14 = aggregate () : {}
+    call managed-direct-target7 sp33 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t15 = sig=direct7 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local0(local0, integer<Int>(0x00000028))
+    store t15 -> local24
     store local24 -> local25
     call managed-void-target2 sp34 live=[local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] sig=void2 (i32) local-fn31(local25)
-    t18 = aggregate () : {}
-    call managed-direct-target8 sp35 live=[local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t19 = sig=direct8 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local1(local1)
-    store t19 -> local26
+    t16 = aggregate () : {}
+    call managed-direct-target8 sp35 live=[local1:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t17 = sig=direct8 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local1(local1)
+    store t17 -> local26
     store local26 -> local27
     call managed-void-target3 sp36 live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local27:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn32(local27)
-    t20 = aggregate () : {}
-    call managed-direct-target9 sp37 live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t21 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local9(local9)
-    store t21 -> local28
+    t18 = aggregate () : {}
+    call managed-direct-target9 sp37 live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t19 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local9(local9)
+    store t19 -> local28
     store local28 -> local29
     call managed-void-target4 sp38 live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] sig=void4 (i32) local-fn31(local29)
-    t22 = aggregate () : {}
-    call managed-direct-target10 sp39 live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t23 = sig=direct10 (ptr<managed>) -> i32 dispatch[Closure:2] local14(local14)
-    store t23 -> local30
+    t20 = aggregate () : {}
+    call managed-direct-target10 sp39 live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] t21 = sig=direct10 (ptr<managed>) -> i32 dispatch[Closure:2] local14(local14)
+    store t21 -> local30
     store local30 -> local31
     call managed-void-target5 sp40 live=[local4:ptr<managed>@0, local15:ptr<managed>@0] sig=void5 (i32) local-fn31(local31)
-    t24 = aggregate () : {}
-    t25 = heap_load local4 +16 : i32
-    store t25 -> local32
+    t22 = aggregate () : {}
+    t23 = heap_load local4 +16 : i32
+    store t23 -> local32
     store local32 -> local33
     call managed-void-target6 sp41 live=[local15:ptr<managed>@0] sig=void6 (i32) local-fn31(local33)
-    t26 = aggregate () : {}
-    call managed-direct-target11 sp42 live=[local15:ptr<managed>@0] t27 = sig=direct11 (ptr<managed>) -> i32 dispatch[Closure:2] local15(local15)
-    store t27 -> local34
+    t24 = aggregate () : {}
+    call managed-direct-target11 sp42 live=[local15:ptr<managed>@0] t25 = sig=direct11 (ptr<managed>) -> i32 dispatch[Closure:2] local15(local15)
+    store t25 -> local34
     store local34 -> local35
     call managed-void-target7 sp43 live=[] sig=void7 (i32) local-fn31(local35)
-    t28 = aggregate () : {}
+    t26 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>) -> ptr<managed>
     local %0 value: ptr<managed>
