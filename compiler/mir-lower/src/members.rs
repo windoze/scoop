@@ -269,6 +269,8 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),
@@ -321,6 +323,10 @@ impl Lowerer {
         }
         lowerer.allocate_fragment_locals(constructor.body());
         let statements = lowerer.lower_statements(&constructor.body().statements);
+        assert!(
+            lowerer.active_loops.is_empty(),
+            "class-constructor loop remapping is balanced"
+        );
         let body = smir::Body {
             locals: lowerer.locals,
             statements,
@@ -365,6 +371,8 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),
@@ -468,6 +476,10 @@ impl Lowerer {
                 statements
             }
         };
+        assert!(
+            lowerer.active_loops.is_empty(),
+            "struct-constructor loop remapping is balanced"
+        );
         (
             params,
             return_ty,

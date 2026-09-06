@@ -47,6 +47,12 @@ impl BodyLowerer<'_> {
                 self.drain_prelude(span, out);
                 smir::StatementKind::Return { value }
             }
+            hir::StatementKind::Break { target } => smir::StatementKind::Break {
+                target: self.active_loop(*target),
+            },
+            hir::StatementKind::Continue { target } => smir::StatementKind::Continue {
+                target: self.active_loop(*target),
+            },
             hir::StatementKind::ValDecl { pattern, init } => {
                 self.lower_val_decl(pattern, init, span, out);
                 return;
@@ -138,11 +144,12 @@ impl BodyLowerer<'_> {
                 }
             }
             hir::StatementKind::While {
+                target,
                 condition_setup,
                 cond,
                 body,
             } => {
-                self.lower_while(condition_setup, cond, body, span, out);
+                self.lower_while(*target, condition_setup, cond, body, span, out);
                 return;
             }
             hir::StatementKind::When(when) => {
@@ -309,24 +316,56 @@ impl BodyLowerer<'_> {
 
     pub(super) fn lower_while(
         &mut self,
+        target: hir::LoopId,
         condition_setup: &[hir::Statement],
         cond: &hir::Expr,
         body: &[hir::Statement],
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
+        let loop_id = smir::LoopId::from_raw(self.next_loop_id);
+        self.next_loop_id = self
+            .next_loop_id
+            .checked_add(1)
+            .expect("one callable cannot contain u32::MAX structured loops");
+        assert!(
+            self.active_loops
+                .iter()
+                .all(|(active, _)| *active != target),
+            "a concrete HIR loop identity is established exactly once on its active path"
+        );
+        self.active_loops.push((target, loop_id));
         let mut condition_setup = self.lower_statements(condition_setup);
         let cond = self.lower_expr(cond);
         self.drain_prelude(span, &mut condition_setup);
         let body = self.lower_statements(body);
+        let popped = self.active_loops.pop();
+        assert_eq!(
+            popped,
+            Some((target, loop_id)),
+            "structured loop remapping is lexically nested"
+        );
         out.push(smir::Statement {
             kind: smir::StatementKind::While {
+                target: loop_id,
                 condition_setup,
                 cond,
                 body,
             },
             span,
         });
+    }
+
+    fn active_loop(&self, target: hir::LoopId) -> smir::LoopId {
+        let (source, lowered) = self
+            .active_loops
+            .last()
+            .expect("concrete HIR binds every break/continue inside an active loop");
+        assert_eq!(
+            *source, target,
+            "unlabelled break/continue targets the lexical innermost loop"
+        );
+        *lowered
     }
 
     /// `when` becomes a decision sequence (DESIGN 3.3): the subject is

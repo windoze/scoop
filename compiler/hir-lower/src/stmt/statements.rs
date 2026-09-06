@@ -195,12 +195,17 @@ impl Lowerer {
                 }
             }
             ast::StatementKind::While(while_) => {
+                let target = self.fresh_loop();
+                self.loop_targets.push(target);
                 let mut sink = Vec::new();
                 let Some(cond) = self.lower_condition(&while_.cond, "while", &mut sink) else {
+                    assert_eq!(self.loop_targets.pop(), Some(target));
                     return;
                 };
                 let body = self.lower_block(&while_.body);
+                assert_eq!(self.loop_targets.pop(), Some(target));
                 hir::StatementKind::While {
+                    target,
                     condition_setup: sink,
                     cond,
                     body,

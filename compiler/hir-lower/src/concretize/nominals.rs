@@ -190,11 +190,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> (concrete::ConstructorArguments, Vec<concrete::LocalId>) {
         let (locals, local_map) = self.lower_locals(&source.locals, substitution);
-        let statements = source
-            .statements
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
-            .collect();
+        let statements = self.lower_statement_region(&source.statements, substitution, &local_map);
         let args = source
             .args
             .iter()

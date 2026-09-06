@@ -55,6 +55,8 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),

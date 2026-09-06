@@ -35,11 +35,13 @@ impl Lowerer {
                     };
                 }
                 hir::StatementKind::While {
+                    target: loop_target,
                     condition_setup,
                     cond,
                     body,
                 } => {
                     statement.kind = hir::StatementKind::While {
+                        target: loop_target,
                         condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,
                         body: self.adapt_inferred_returns(body, target),
@@ -75,6 +77,7 @@ impl Lowerer {
     }
 
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
@@ -198,6 +201,8 @@ impl Lowerer {
         self.current_source_context = outer_source_context;
         self.pop_safety_context();
         self.pop_suspension_context();
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
 
         hir::Body {
             locals: std::mem::take(&mut self.locals),

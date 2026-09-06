@@ -37,7 +37,10 @@ pub(in super::super) fn collect_statement_type_occurrences(
 ) {
     for statement in statements {
         match &statement.kind {
-            hir::StatementKind::InitializationEnsure(_) | hir::StatementKind::LocalFunction(_) => {}
+            hir::StatementKind::InitializationEnsure(_)
+            | hir::StatementKind::LocalFunction(_)
+            | hir::StatementKind::Break { .. }
+            | hir::StatementKind::Continue { .. } => {}
             hir::StatementKind::Expr(expression) | hir::StatementKind::Throw(expression) => {
                 collect_expr_type_occurrences(lowerer, expression, out);
             }
@@ -95,6 +98,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,

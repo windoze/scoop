@@ -10,6 +10,7 @@ struct InstantiationContext {
     bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     locals: Vec<hir::Expr>,
     captures: HashMap<hir::BindingId, hir::Expr>,
+    loop_targets: Vec<(hir::LoopId, hir::LoopId)>,
     evaluation: InstantiationEvaluation,
 }
 
@@ -96,6 +97,7 @@ impl Lowerer {
                     (capture.binding, value)
                 })
                 .collect(),
+            loop_targets: Vec::new(),
             evaluation: if self.lowering_default_template {
                 InstantiationEvaluation::Template
             } else {
@@ -105,6 +107,7 @@ impl Lowerer {
         for statement in &template.statements {
             sink.push(self.instantiate_default_statement(statement, &mut context));
         }
+        debug_assert!(context.loop_targets.is_empty());
         self.instantiate_default_expr(&template.value, &mut context)
     }
 
@@ -153,20 +156,52 @@ impl Lowerer {
                 }),
             },
             hir::StatementKind::While {
+                target,
                 condition_setup,
                 cond,
                 body,
-            } => hir::StatementKind::While {
-                condition_setup: condition_setup
+            } => {
+                let mapped_target = self.fresh_loop();
+                context.loop_targets.push((*target, mapped_target));
+                let condition_setup = condition_setup
                     .iter()
                     .map(|statement| self.instantiate_default_statement(statement, context))
-                    .collect(),
-                cond: self.instantiate_default_expr(cond, context),
-                body: body
+                    .collect();
+                let cond = self.instantiate_default_expr(cond, context);
+                let body = body
                     .iter()
                     .map(|statement| self.instantiate_default_statement(statement, context))
-                    .collect(),
-            },
+                    .collect();
+                assert_eq!(context.loop_targets.pop(), Some((*target, mapped_target)));
+                hir::StatementKind::While {
+                    target: mapped_target,
+                    condition_setup,
+                    cond,
+                    body,
+                }
+            }
+            hir::StatementKind::Break { target } => {
+                let &(source, mapped) = context
+                    .loop_targets
+                    .last()
+                    .expect("a default-template break has an active loop target");
+                assert_eq!(
+                    source, *target,
+                    "an unlabelled break targets the innermost loop"
+                );
+                hir::StatementKind::Break { target: mapped }
+            }
+            hir::StatementKind::Continue { target } => {
+                let &(source, mapped) = context
+                    .loop_targets
+                    .last()
+                    .expect("a default-template continue has an active loop target");
+                assert_eq!(
+                    source, *target,
+                    "an unlabelled continue targets the innermost loop"
+                );
+                hir::StatementKind::Continue { target: mapped }
+            }
             hir::StatementKind::When(when) => hir::StatementKind::When(hir::When {
                 subject: self.instantiate_default_expr(&when.subject, context),
                 arms: when

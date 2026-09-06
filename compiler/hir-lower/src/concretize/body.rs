@@ -2,6 +2,11 @@ use super::*;
 mod expression;
 mod pattern;
 
+#[derive(Default)]
+pub(super) struct LoopRemap {
+    active: Vec<(export::LoopId, concrete::LoopId)>,
+}
+
 impl Concretizer<'_> {
     pub(super) fn lower_body(
         &mut self,
@@ -9,11 +14,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> (concrete::Body, Vec<concrete::LocalId>) {
         let (locals, local_map) = self.lower_locals(&source.locals, substitution);
-        let statements = source
-            .statements
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
-            .collect();
+        let statements = self.lower_statement_region(&source.statements, substitution, &local_map);
         (concrete::Body { locals, statements }, local_map)
     }
 
@@ -42,6 +43,7 @@ impl Concretizer<'_> {
         source: &export::Statement,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
+        loops: &mut LoopRemap,
     ) -> Option<concrete::Statement> {
         let kind = match &source.kind {
             export::StatementKind::Expr(expr) => {
@@ -81,39 +83,56 @@ impl Concretizer<'_> {
                 else_body,
             } => concrete::StatementKind::If {
                 cond: self.lower_expr(cond, substitution, locals),
-                then_body: self.lower_statements(then_body, substitution, locals),
+                then_body: self.lower_statements(then_body, substitution, locals, loops),
                 else_body: else_body
                     .as_ref()
-                    .map(|body| self.lower_statements(body, substitution, locals)),
+                    .map(|body| self.lower_statements(body, substitution, locals, loops)),
             },
             export::StatementKind::While {
+                target,
                 condition_setup,
                 cond,
                 body,
-            } => concrete::StatementKind::While {
-                condition_setup: self.lower_statements(condition_setup, substitution, locals),
-                cond: self.lower_expr(cond, substitution, locals),
-                body: self.lower_statements(body, substitution, locals),
+            } => {
+                let mapped_target = self.fresh_loop();
+                loops.active.push((*target, mapped_target));
+                let condition_setup =
+                    self.lower_statements(condition_setup, substitution, locals, loops);
+                let cond = self.lower_expr(cond, substitution, locals);
+                let body = self.lower_statements(body, substitution, locals, loops);
+                assert_eq!(loops.active.pop(), Some((*target, mapped_target)));
+                concrete::StatementKind::While {
+                    target: mapped_target,
+                    condition_setup,
+                    cond,
+                    body,
+                }
+            }
+            export::StatementKind::Break { target } => concrete::StatementKind::Break {
+                target: self.active_loop_target(loops, *target, "break"),
+            },
+            export::StatementKind::Continue { target } => concrete::StatementKind::Continue {
+                target: self.active_loop_target(loops, *target, "continue"),
             },
             export::StatementKind::When(when) => {
-                concrete::StatementKind::When(self.lower_when(when, substitution, locals))
+                concrete::StatementKind::When(self.lower_when(when, substitution, locals, loops))
             }
             export::StatementKind::Try(try_) => concrete::StatementKind::Try(concrete::Try {
-                body: self.lower_statements(&try_.body, substitution, locals),
+                body: self.lower_statements(&try_.body, substitution, locals, loops),
                 catches: try_
                     .catches
                     .iter()
                     .map(|catch| concrete::CatchClause {
                         local: self.lower_local(catch.local, locals),
                         ty: self.lower_type(catch.ty, substitution),
-                        body: self.lower_statements(&catch.body, substitution, locals),
+                        body: self.lower_statements(&catch.body, substitution, locals, loops),
                         span: catch.span,
                     })
                     .collect(),
                 finally_body: try_
                     .finally_body
                     .as_ref()
-                    .map(|body| self.lower_statements(body, substitution, locals)),
+                    .map(|body| self.lower_statements(body, substitution, locals, loops)),
             }),
             export::StatementKind::Throw(expr) => {
                 concrete::StatementKind::Throw(self.lower_expr(expr, substitution, locals))
@@ -130,11 +149,49 @@ impl Concretizer<'_> {
         source: &[export::Statement],
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
+        loops: &mut LoopRemap,
     ) -> Vec<concrete::Statement> {
         source
             .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, locals))
+            .filter_map(|statement| self.lower_statement(statement, substitution, locals, loops))
             .collect()
+    }
+
+    pub(super) fn lower_statement_region(
+        &mut self,
+        source: &[export::Statement],
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> Vec<concrete::Statement> {
+        let mut loops = LoopRemap::default();
+        let statements = self.lower_statements(source, substitution, locals, &mut loops);
+        debug_assert!(loops.active.is_empty());
+        statements
+    }
+
+    fn fresh_loop(&mut self) -> concrete::LoopId {
+        let identity = self.next_loop_identity;
+        self.next_loop_identity = identity
+            .checked_add(1)
+            .expect("LocalConcrete HIR loop identity space exhausted");
+        concrete::LoopId::from_raw(identity)
+    }
+
+    fn active_loop_target(
+        &self,
+        loops: &LoopRemap,
+        source: export::LoopId,
+        operation: &str,
+    ) -> concrete::LoopId {
+        let &(expected, mapped) = loops
+            .active
+            .last()
+            .unwrap_or_else(|| panic!("a concrete {operation} requires an active loop target"));
+        assert_eq!(
+            expected, source,
+            "an unlabelled {operation} targets the innermost loop"
+        );
+        mapped
     }
 
     pub(super) fn lower_assign_target(
@@ -200,6 +257,7 @@ impl Concretizer<'_> {
         source: &export::When,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
+        loops: &mut LoopRemap,
     ) -> concrete::When {
         let subject = self.lower_expr(&source.subject, substitution, locals);
         let arms = source
@@ -208,17 +266,17 @@ impl Concretizer<'_> {
             .map(|arm| concrete::WhenArm {
                 pattern: self.lower_pattern(&arm.pattern, subject.ty, substitution, locals),
                 guard: arm.guard.as_ref().map(|guard| concrete::WhenGuard {
-                    setup: self.lower_statements(&guard.setup, substitution, locals),
+                    setup: self.lower_statements(&guard.setup, substitution, locals, loops),
                     condition: self.lower_expr(&guard.condition, substitution, locals),
                 }),
-                body: self.lower_statements(&arm.body, substitution, locals),
+                body: self.lower_statements(&arm.body, substitution, locals, loops),
                 span: arm.span,
             })
             .collect();
         let fallback = match &source.fallback {
-            export::WhenFallback::Else(body) => {
-                concrete::WhenFallback::Else(self.lower_statements(body, substitution, locals))
-            }
+            export::WhenFallback::Else(body) => concrete::WhenFallback::Else(
+                self.lower_statements(body, substitution, locals, loops),
+            ),
             export::WhenFallback::Impossible(proof) => {
                 let proof = match proof {
                     export::ExhaustivenessProof::IrrefutableArm { subject_ty } => {

@@ -134,6 +134,7 @@ impl ReferenceCollector<'_> {
     fn statement(&mut self, statement: &hir::Statement) {
         match &statement.kind {
             hir::StatementKind::InitializationEnsure(_) => {}
+            hir::StatementKind::Break { .. } | hir::StatementKind::Continue { .. } => {}
             hir::StatementKind::Expr(value) | hir::StatementKind::Throw(value) => {
                 self.expression(value);
             }
@@ -168,6 +169,7 @@ impl ReferenceCollector<'_> {
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,

@@ -86,6 +86,7 @@ impl Lowerer {
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
@@ -304,6 +305,8 @@ impl Lowerer {
         self.current_owner = outer_owner;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
         lowered
     }
 }

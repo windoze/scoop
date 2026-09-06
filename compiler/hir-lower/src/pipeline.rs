@@ -36,6 +36,14 @@ impl Lowerer {
         binding
     }
 
+    pub(crate) fn fresh_loop(&mut self) -> hir::LoopId {
+        let identity = self.next_loop_identity;
+        self.next_loop_identity = identity
+            .checked_add(1)
+            .expect("Export HIR loop identity space exhausted");
+        hir::LoopId::from_raw(identity)
+    }
+
     pub(crate) fn alloc_local(&mut self, name: String, ty: TypeId, mutable: bool) -> hir::LocalId {
         let binding = self.fresh_binding();
         self.locals.alloc(hir::Local {
@@ -91,6 +99,7 @@ impl Lowerer {
             next_type_param_identity: 0,
             next_virtual_method_identity: 0,
             next_constructor_parameter_identity: 0,
+            next_loop_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
@@ -234,6 +243,7 @@ impl Lowerer {
             locals: Arena::new(),
             scopes: Scopes::new(),
             local_function_scopes: LocalFunctionScopes::new(),
+            loop_targets: Vec::new(),
             capture_contexts: Vec::new(),
             next_binding_id: 0,
             instantiations: Arena::new(),

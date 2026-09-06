@@ -8,54 +8,59 @@ impl<'a> CfgLowerer<'a> {
         let handler_target = if try_.catches.is_empty() {
             None
         } else {
-            Some(UnwindTarget {
-                pad: self.new_block_with("try.handler_pad", None),
-                continuation: self
-                    .new_block_with("try.handler_cleanup", enclosing.map(|target| target.pad)),
-                handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-            })
+            let pad = self.new_block_with("try.handler_pad", None);
+            let continuation =
+                self.new_block_with("try.handler_cleanup", enclosing.map(|target| target.pad));
+            Some(self.new_unwind_target(
+                pad,
+                continuation,
+                enclosing.is_some_and(|target| target.handles_in_function),
+            ))
         };
-        let exit_target = UnwindTarget {
-            pad: self.new_block_with("try.exit_pad", None),
-            continuation: self
-                .new_block_with("try.exit_cleanup", enclosing.map(|target| target.pad)),
-            handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-        };
+        let exit_pad = self.new_block_with("try.exit_pad", None);
+        let exit_continuation =
+            self.new_block_with("try.exit_cleanup", enclosing.map(|target| target.pad));
+        let exit_target = self.new_unwind_target(
+            exit_pad,
+            exit_continuation,
+            enclosing.is_some_and(|target| target.handles_in_function),
+        );
         let end = self.new_block_with("try.end", enclosing.map(|target| target.pad));
-        let own_target = UnwindTarget {
-            pad: unwind,
-            continuation: dispatch,
-            handles_in_function: true,
-        };
+        let own_target = self.new_unwind_target(unwind, dispatch, true);
+        let cleanup_base = self.cleanup_depth();
 
         let body_entry = self.new_block_with("try.body", Some(unwind));
         self.seal(mir::Terminator::Goto(body_entry));
         self.try_stack.push(own_target);
         if let Some(finally) = &try_.finally_body {
-            self.return_cleanups.push(ReturnCleanup::Finally {
-                owner_unwind: unwind,
+            self.normal_cleanups.push(NormalCleanup::Finally {
+                owner: own_target.owner,
                 body: finally,
             });
         }
         self.enter(body_entry);
         self.lower_statements(&try_.body);
-        self.try_stack.pop();
         let finally = try_.finally_body.as_deref();
-        if finally.is_some() {
-            self.return_cleanups.pop();
-        }
-
         let mut end_reachable = false;
         if !self.current_sealed {
-            self.ensure_unwind_context();
-            if let Some(finally) = finally {
-                self.lower_statements(finally);
-            }
-            if !self.current_sealed {
-                self.seal(mir::Terminator::Goto(end));
-                end_reachable = true;
-            }
+            end_reachable |= self.route_transfer(PendingTransfer::Fallthrough(ResumeTarget {
+                block: end,
+                cleanup_depth: cleanup_base,
+            }));
         }
+        if finally.is_some() {
+            let cleanup = self.normal_cleanups.pop();
+            assert!(matches!(
+                cleanup,
+                Some(NormalCleanup::Finally { owner, .. }) if owner == own_target.owner
+            ));
+        }
+        let active = self.try_stack.pop();
+        assert_eq!(
+            active.map(|target| target.owner),
+            Some(own_target.owner),
+            "try body unwind scopes are lexically nested"
+        );
 
         self.enter(unwind);
         self.push(
@@ -105,50 +110,52 @@ impl<'a> CfgLowerer<'a> {
                 catch.span,
             );
             self.try_stack.push(handler_target);
-            let cleanup_base = self.return_cleanups.len();
             if let Some(finally) = finally {
-                self.return_cleanups.push(ReturnCleanup::Finally {
-                    owner_unwind: unwind,
+                self.normal_cleanups.push(NormalCleanup::Finally {
+                    owner: own_target.owner,
                     body: finally,
                 });
             }
-            self.return_cleanups.push(ReturnCleanup::EndCatch {
-                cleanup_pad: handler_target.pad,
+            self.normal_cleanups.push(NormalCleanup::EndCatch {
+                owner: handler_target.owner,
             });
             self.lower_statements(&catch.body);
-            self.return_cleanups.truncate(cleanup_base);
-            self.try_stack.pop();
             if !self.current_sealed {
-                self.push(
-                    mir::StatementKind::Eh(mir::EhStatement::EndCatch),
-                    synthetic_span(),
-                );
-                if let Some(finally) = finally {
-                    self.lower_statements(finally);
-                }
-                if !self.current_sealed {
-                    self.seal(mir::Terminator::Goto(end));
-                    end_reachable = true;
-                }
+                end_reachable |= self.route_transfer(PendingTransfer::Fallthrough(ResumeTarget {
+                    block: end,
+                    cleanup_depth: cleanup_base,
+                }));
             }
+            self.normal_cleanups.truncate(cleanup_base.0);
+            let active = self.try_stack.pop();
+            assert_eq!(
+                active.map(|target| target.owner),
+                Some(handler_target.owner),
+                "catch body unwind scopes are lexically nested"
+            );
             self.enter(next);
         }
 
         self.try_stack.push(exit_target);
-        let cleanup_base = self.return_cleanups.len();
-        self.return_cleanups.push(ReturnCleanup::EndCatch {
-            cleanup_pad: exit_target.pad,
+        let unmatched_cleanup_base = self.cleanup_depth();
+        self.normal_cleanups.push(NormalCleanup::EndCatch {
+            owner: exit_target.owner,
         });
         if let Some(finally) = finally {
             self.lower_statements(finally);
         }
-        self.return_cleanups.truncate(cleanup_base);
+        self.normal_cleanups.truncate(unmatched_cleanup_base.0);
         if !self.current_sealed {
             self.seal(mir::Terminator::Rethrow {
                 unwind: Some(exit_target.pad),
             });
         }
-        self.try_stack.pop();
+        let active = self.try_stack.pop();
+        assert_eq!(
+            active.map(|target| target.owner),
+            Some(exit_target.owner),
+            "unmatched catch cleanup scopes are lexically nested"
+        );
 
         if let Some(handler_target) = handler_target {
             self.enter(handler_target.pad);
@@ -199,43 +206,5 @@ impl<'a> CfgLowerer<'a> {
         if !end_reachable {
             self.seal(mir::Terminator::Unreachable);
         }
-    }
-
-    pub(super) fn emit_return_cleanups(&mut self) {
-        let all = std::mem::take(&mut self.return_cleanups);
-        let saved_try_stack = self.try_stack.clone();
-        let mut remaining = all.clone();
-        while let Some(cleanup) = remaining.pop() {
-            if self.current_sealed {
-                break;
-            }
-            self.return_cleanups = remaining.clone();
-            match cleanup {
-                ReturnCleanup::Finally { owner_unwind, body } => {
-                    if let Some(pos) = self
-                        .try_stack
-                        .iter()
-                        .rposition(|target| target.pad == owner_unwind)
-                    {
-                        self.try_stack.truncate(pos);
-                    }
-                    self.lower_statements(body);
-                }
-                ReturnCleanup::EndCatch { cleanup_pad } => {
-                    self.push(
-                        mir::StatementKind::Eh(mir::EhStatement::EndCatch),
-                        synthetic_span(),
-                    );
-                    let active = self.try_stack.pop();
-                    assert_eq!(
-                        active.map(|target| target.pad),
-                        Some(cleanup_pad),
-                        "active catch cleanup nesting"
-                    );
-                }
-            }
-        }
-        self.return_cleanups = all;
-        self.try_stack = saved_try_stack;
     }
 }

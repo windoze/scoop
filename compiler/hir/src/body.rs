@@ -49,9 +49,16 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
+    },
+    Break {
+        target: LoopId,
+    },
+    Continue {
+        target: LoopId,
     },
     /// Pattern `when` (spec 5); checked for exhaustiveness at HIR.
     When(When),

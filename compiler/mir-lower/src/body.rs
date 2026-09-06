@@ -55,6 +55,10 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,
+    /// Active concrete-HIR loop identities explicitly remapped into the
+    /// private structured construction IR for this callable.
+    pub(super) active_loops: Vec<(hir::LoopId, smir::LoopId)>,
+    pub(super) next_loop_id: u32,
     /// Constructor-parameter identities available while lowering one
     /// generated class constructor's delegation expressions.
     pub(super) constructor_param_map: HashMap<hir::ConstructorParamId, smir::Expr>,

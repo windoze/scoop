@@ -4,6 +4,17 @@ use la_arena::Arena;
 use scoop_ast::Span;
 use scoop_mir as mir;
 
+/// Function-local identity of one structured loop after concrete-HIR ids have
+/// been explicitly remapped into this construction IR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LoopId(u32);
+
+impl LoopId {
+    pub(crate) const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct Body {
     pub(crate) locals: Arena<mir::Local>,
@@ -58,6 +69,12 @@ pub(crate) enum StatementKind {
     Return {
         value: Option<Expr>,
     },
+    Break {
+        target: LoopId,
+    },
+    Continue {
+        target: LoopId,
+    },
     ValDecl {
         local: mir::LocalId,
         init: Expr,
@@ -90,6 +107,7 @@ pub(crate) enum StatementKind {
     },
     PatternDecision(PatternDecision),
     While {
+        target: LoopId,
         /// Statements evaluated at the start of every condition check. This
         /// is a first-class header region rather than a preheader/body copy.
         condition_setup: Vec<Statement>,

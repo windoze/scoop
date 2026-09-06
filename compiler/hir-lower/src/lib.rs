@@ -273,6 +273,10 @@ pub(crate) struct Lowerer {
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
     pub(crate) next_constructor_parameter_identity: u32,
+    /// Cone-wide identity allocator for structured loop occurrences. The
+    /// active target stack below is callable-local, but identities remain
+    /// unique when declaration-bound templates are materialized repeatedly.
+    pub(crate) next_loop_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -547,6 +551,10 @@ pub(crate) struct Lowerer {
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
     pub(crate) local_function_scopes: LocalFunctionScopes,
+    /// Lexically active loop targets in the current callable or detached
+    /// declaration-bound expression. Callable boundaries replace this with an
+    /// empty stack and restore the enclosing stack on exit.
+    pub(crate) loop_targets: Vec<hir::LoopId>,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.

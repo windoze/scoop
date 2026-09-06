@@ -81,6 +81,7 @@ pub(super) fn dump_statements(
                 }
             }
             StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,
@@ -92,6 +93,12 @@ pub(super) fn dump_statements(
                 }
                 dump_expr(module, locals, cond, indent + 1, out);
                 dump_statements(module, locals, body, indent + 1, out);
+            }
+            StatementKind::Break { target } => {
+                out.push_str(&format!("{pad}break loop{}\n", target.into_raw()));
+            }
+            StatementKind::Continue { target } => {
+                out.push_str(&format!("{pad}continue loop{}\n", target.into_raw()));
             }
             StatementKind::Try(try_) => {
                 out.push_str(&format!("{pad}try\n"));

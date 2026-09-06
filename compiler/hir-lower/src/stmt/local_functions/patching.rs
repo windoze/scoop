@@ -20,7 +20,9 @@ pub(super) fn patch_local_function_calls(
                     patch_local_function_call_expr(value, target, captures);
                 }
             }
-            hir::StatementKind::LocalFunction(_) => {}
+            hir::StatementKind::LocalFunction(_)
+            | hir::StatementKind::Break { .. }
+            | hir::StatementKind::Continue { .. } => {}
             hir::StatementKind::ValDecl { pattern, init } => {
                 patch_local_function_call_pattern(pattern, target, captures);
                 patch_local_function_call_expr(init, target, captures);
@@ -56,6 +58,7 @@ pub(super) fn patch_local_function_calls(
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,

@@ -1,22 +1,10 @@
 use std::collections::BTreeSet;
-use std::convert::Infallible;
 
 use super::*;
 
 /// One way that control can leave a structured statement region.
 ///
-/// Production HIR does not contain loop jumps yet, so its target type is
-/// temporarily [`Infallible`]. Keeping the algebra generic lets the typed
-/// loop-target slice replace that instantiation without introducing a second
-/// fallthrough analysis.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "typed loop targets construct these variants in the next parser-closed slice"
-    )
-)]
 pub(crate) enum ControlOutcome<Target> {
     Fallthrough,
     Return,
@@ -59,6 +47,18 @@ impl<Target: Ord> ControlOutcomes<Target> {
         self
     }
 
+    /// Consume the jumps owned by `target`, returning whether at least one
+    /// break makes the loop's exit reachable. Continue is a header edge and
+    /// therefore contributes no escaping outcome.
+    fn consume_loop_jumps(&mut self, target: Target) -> bool
+    where
+        Target: Copy,
+    {
+        let exits = self.values.remove(&ControlOutcome::Break(target));
+        self.values.remove(&ControlOutcome::Continue(target));
+        exits
+    }
+
     /// Sequence two regions. Only an incoming fallthrough reaches `next`;
     /// every already-abrupt outcome is preserved unchanged.
     fn then(mut self, next: Self) -> Self {
@@ -95,7 +95,7 @@ impl<Target: Ord> FromIterator<ControlOutcome<Target>> for ControlOutcomes<Targe
     }
 }
 
-pub(crate) type HirControlOutcomes = ControlOutcomes<Infallible>;
+pub(crate) type HirControlOutcomes = ControlOutcomes<hir::LoopId>;
 
 /// Analyze a statement list. Once no fallthrough remains, later statements
 /// are unreachable and cannot add outcomes back to the list.
@@ -114,6 +114,12 @@ fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes 
     match &statement.kind {
         hir::StatementKind::Return { .. } => HirControlOutcomes::singleton(ControlOutcome::Return),
         hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
+        hir::StatementKind::Break { target } => {
+            HirControlOutcomes::singleton(ControlOutcome::Break(*target))
+        }
+        hir::StatementKind::Continue { target } => {
+            HirControlOutcomes::singleton(ControlOutcome::Continue(*target))
+        }
         hir::StatementKind::If {
             then_body,
             else_body,
@@ -135,21 +141,32 @@ fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes 
             }
         }
         hir::StatementKind::While {
+            target,
             condition_setup,
             body,
             ..
         } => {
-            let setup = statements_control_outcomes(condition_setup);
-            if !setup.can_fall_through() {
-                return setup;
+            let mut setup = statements_control_outcomes(condition_setup);
+            let reaches_condition = setup.values.remove(&ControlOutcome::Fallthrough);
+            let setup_breaks = setup.consume_loop_jumps(*target);
+
+            let mut result = setup;
+            if setup_breaks {
+                result.values.insert(ControlOutcome::Fallthrough);
             }
 
-            // A completed condition may be false before the first iteration,
-            // so the loop conservatively falls through. Body fallthrough is a
-            // backedge; only its abrupt outcomes escape the loop.
-            let mut body_outcomes = statements_control_outcomes(body);
-            body_outcomes.values.remove(&ControlOutcome::Fallthrough);
-            setup.then(body_outcomes.union(HirControlOutcomes::fallthrough()))
+            if reaches_condition {
+                // A completed condition may be false before the first
+                // iteration, so the loop conservatively falls through. Body
+                // fallthrough and continue are backedges; a matching break is
+                // another path to the same exit.
+                result.values.insert(ControlOutcome::Fallthrough);
+                let mut body_outcomes = statements_control_outcomes(body);
+                body_outcomes.values.remove(&ControlOutcome::Fallthrough);
+                body_outcomes.consume_loop_jumps(*target);
+                result = result.union(body_outcomes);
+            }
+            result
         }
         hir::StatementKind::Expr(_)
         | hir::StatementKind::InitializationEnsure(_)
@@ -229,7 +246,7 @@ mod tests {
 
     fn assert_hir_outcomes(
         statements: &[hir::Statement],
-        expected: impl IntoIterator<Item = ControlOutcome<Infallible>>,
+        expected: impl IntoIterator<Item = ControlOutcome<hir::LoopId>>,
     ) {
         assert_eq!(
             statements_control_outcomes(statements),
@@ -267,7 +284,9 @@ mod tests {
 
     #[test]
     fn while_setup_must_complete_before_body_or_false_exit() {
+        let target = hir::LoopId::from_raw(0);
         let abrupt_setup = statement(hir::StatementKind::While {
+            target,
             condition_setup: vec![return_statement()],
             cond: expression(),
             body: vec![throw_statement()],
@@ -275,6 +294,7 @@ mod tests {
         assert_hir_outcomes(&[abrupt_setup], [ControlOutcome::Return]);
 
         let reachable_condition = statement(hir::StatementKind::While {
+            target,
             condition_setup: Vec::new(),
             cond: expression(),
             body: vec![throw_statement()],
@@ -285,6 +305,7 @@ mod tests {
         );
 
         let mixed_setup = statement(hir::StatementKind::While {
+            target,
             condition_setup: vec![statement(hir::StatementKind::If {
                 cond: expression(),
                 then_body: vec![return_statement()],
@@ -301,6 +322,56 @@ mod tests {
                 ControlOutcome::Throw,
             ],
         );
+    }
+
+    #[test]
+    fn loop_targets_are_consumed_from_while_setup_and_body() {
+        let target = hir::LoopId::from_raw(0);
+        let setup_break = statement(hir::StatementKind::While {
+            target,
+            condition_setup: vec![statement(hir::StatementKind::Break { target })],
+            cond: expression(),
+            body: vec![throw_statement()],
+        });
+        assert_hir_outcomes(&[setup_break], [ControlOutcome::Fallthrough]);
+
+        let setup_continue = statement(hir::StatementKind::While {
+            target,
+            condition_setup: vec![statement(hir::StatementKind::Continue { target })],
+            cond: expression(),
+            body: vec![throw_statement()],
+        });
+        assert_hir_outcomes(&[setup_continue], []);
+
+        let body_jumps = statement(hir::StatementKind::While {
+            target,
+            condition_setup: Vec::new(),
+            cond: expression(),
+            body: vec![statement(hir::StatementKind::If {
+                cond: expression(),
+                then_body: vec![statement(hir::StatementKind::Break { target })],
+                else_body: Some(vec![statement(hir::StatementKind::Continue { target })]),
+            })],
+        });
+        assert_hir_outcomes(&[body_jumps], [ControlOutcome::Fallthrough]);
+    }
+
+    #[test]
+    fn inner_loop_target_break_in_finally_preserves_the_pending_outer_jump() {
+        let outer = hir::LoopId::from_raw(0);
+        let inner = hir::LoopId::from_raw(1);
+        let transfer = statement(hir::StatementKind::Try(hir::Try {
+            body: vec![statement(hir::StatementKind::Break { target: outer })],
+            catches: Vec::new(),
+            finally_body: Some(vec![statement(hir::StatementKind::While {
+                target: inner,
+                condition_setup: Vec::new(),
+                cond: expression(),
+                body: vec![statement(hir::StatementKind::Break { target: inner })],
+            })]),
+        }));
+
+        assert_hir_outcomes(&[transfer], [ControlOutcome::Break(outer)]);
     }
 
     #[test]

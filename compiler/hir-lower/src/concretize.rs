@@ -134,6 +134,7 @@ struct Concretizer<'a> {
         (export::ForeignCallbackRegistrationId, Vec<concrete::TypeId>),
         concrete::ForeignCallbackRegistrationId,
     >,
+    next_loop_identity: u32,
 }
 
 impl<'a> Concretizer<'a> {
@@ -250,6 +251,7 @@ impl<'a> Concretizer<'a> {
             coercion_by_key: HashMap::new(),
             foreign_callback_registrations: Arena::new(),
             foreign_callback_by_key: HashMap::new(),
+            next_loop_identity: 0,
         }
     }
 

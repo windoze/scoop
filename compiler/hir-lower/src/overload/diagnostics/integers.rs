@@ -117,6 +117,7 @@ fn collect_statement_integer_literal_kinds(
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,
@@ -130,7 +131,9 @@ fn collect_statement_integer_literal_kinds(
             | hir::StatementKind::Return { value: None }
             | hir::StatementKind::When(_)
             | hir::StatementKind::Try(_)
-            | hir::StatementKind::Throw(_) => {}
+            | hir::StatementKind::Throw(_)
+            | hir::StatementKind::Break { .. }
+            | hir::StatementKind::Continue { .. } => {}
         }
     }
 }

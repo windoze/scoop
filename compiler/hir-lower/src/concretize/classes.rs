@@ -344,10 +344,11 @@ impl Concretizer<'_> {
                     ..
                 } => {
                     let locals = self.append_source_locals(body, &initializer.locals, substitution);
-                    body.statements
-                        .extend(initializer.statements.iter().filter_map(|statement| {
-                            self.lower_statement(statement, substitution, &locals)
-                        }));
+                    body.statements.extend(self.lower_statement_region(
+                        &initializer.statements,
+                        substitution,
+                        &locals,
+                    ));
                     let value = self.lower_expr(&initializer.value, substitution, &locals);
                     let source_field = &self.source.class_fields[*field];
                     let application = self.source.classes[source_field.owner].self_application;
@@ -382,12 +383,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> Vec<concrete::Expr> {
         let locals = self.append_source_locals(body, &arguments.locals, substitution);
-        body.statements.extend(
-            arguments
-                .statements
-                .iter()
-                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
-        );
+        body.statements.extend(self.lower_statement_region(
+            &arguments.statements,
+            substitution,
+            &locals,
+        ));
         arguments
             .args
             .iter()
@@ -402,12 +402,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) {
         let locals = self.append_source_locals(body, &source.locals, substitution);
-        body.statements.extend(
-            source
-                .statements
-                .iter()
-                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
-        );
+        body.statements.extend(self.lower_statement_region(
+            &source.statements,
+            substitution,
+            &locals,
+        ));
     }
 
     pub(super) fn append_source_locals(

@@ -61,6 +61,7 @@ pub(in super::super) fn collect_statement_types(
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,
@@ -93,7 +94,10 @@ pub(in super::super) fn collect_statement_types(
                     collect_statement_types(lowerer, body, out);
                 }
             }
-            hir::StatementKind::InitializationEnsure(_) | hir::StatementKind::LocalFunction(_) => {}
+            hir::StatementKind::InitializationEnsure(_)
+            | hir::StatementKind::LocalFunction(_)
+            | hir::StatementKind::Break { .. }
+            | hir::StatementKind::Continue { .. } => {}
         }
     }
 }

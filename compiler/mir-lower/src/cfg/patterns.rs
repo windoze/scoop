@@ -22,6 +22,7 @@ impl<'a> CfgLowerer<'a> {
         let else_block = (!decision.else_body.is_empty()).then(|| self.new_block("pattern.else"));
         let merge_block = self.new_block("pattern.merge");
         let failure_block = else_block.unwrap_or(merge_block);
+        let mut merge_reachable = else_block.is_none();
         let mut pass_blocks = pass_blocks.into_iter();
 
         for step in &decision.steps {
@@ -63,14 +64,19 @@ impl<'a> CfgLowerer<'a> {
         self.lower_statements(&decision.then_body);
         if !self.current_sealed {
             self.seal(mir::Terminator::Goto(merge_block));
+            merge_reachable = true;
         }
         if let Some(else_block) = else_block {
             self.enter(else_block);
             self.lower_statements(&decision.else_body);
             if !self.current_sealed {
                 self.seal(mir::Terminator::Goto(merge_block));
+                merge_reachable = true;
             }
         }
         self.enter(merge_block);
+        if !merge_reachable {
+            self.seal(mir::Terminator::Unreachable);
+        }
     }
 }

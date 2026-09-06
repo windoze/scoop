@@ -76,6 +76,10 @@ impl BodyLowerer<'_> {
         } else {
             self.lower_statements(&body.statements)
         };
+        assert!(
+            self.active_loops.is_empty(),
+            "structured loop remapping is balanced at a callable boundary"
+        );
         (
             params,
             return_ty,

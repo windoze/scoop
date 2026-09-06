@@ -16,7 +16,9 @@ impl Lowerer {
                 hir::StatementKind::Expr(expr) => {
                     self.collect_no_gc_expr_violations(expr, out, requirements)
                 }
-                hir::StatementKind::LocalFunction(_) => {}
+                hir::StatementKind::LocalFunction(_)
+                | hir::StatementKind::Break { .. }
+                | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
                     if let Some(value) = value {
                         self.collect_no_gc_expr_violations(value, out, requirements);
@@ -65,6 +67,7 @@ impl Lowerer {
                     }
                 }
                 hir::StatementKind::While {
+                    target: _,
                     condition_setup,
                     cond,
                     body,

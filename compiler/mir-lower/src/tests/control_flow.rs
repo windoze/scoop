@@ -1,5 +1,24 @@
 use super::*;
 
+fn block_id_named(body: &mir::Body, prefix: &str) -> mir::BlockId {
+    body.blocks
+        .iter()
+        .find_map(|(id, block)| block.name.starts_with(prefix).then_some(id))
+        .unwrap_or_else(|| panic!("missing MIR block `{prefix}`"))
+}
+
+fn block_contains_int(block: &mir::BasicBlock, value: u32) -> bool {
+    block.statements.iter().any(|statement| {
+        matches!(
+            &statement.kind,
+            mir::StatementKind::Expr(mir::Expr {
+                kind: mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(bits)),
+                ..
+            }) if *bits == value
+        )
+    })
+}
+
 #[test]
 fn try_and_throw_become_explicit_cfg() {
     // try { throw MyError() } catch (e: MyError) { 1 } finally { 2 }
@@ -97,9 +116,9 @@ Module mangling=compact-v2
     bb11 scope.11 unwind bb3
       Type Int
       IntegerLiteral Int value=1 bits=0x00000001
+      end_catch
       goto bb12
     bb12 scope.12
-      end_catch
       Type Int
       IntegerLiteral Int value=2 bits=0x00000002
       goto bb7
@@ -233,6 +252,7 @@ fn control_flow_becomes_cfg() {
                     else_body: Some(vec![expr_stmt(call(&h, println, vec![str_lit(&h, "b")]))]),
                 }),
                 stmt(hir::StatementKind::While {
+                    target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, false),
                     body: vec![],
@@ -278,6 +298,7 @@ fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::While {
+                target: hir::LoopId::from_raw(0),
                 condition_setup: vec![val_decl(
                     condition_value,
                     call_typed(condition, Vec::new(), h.boolean),
@@ -363,6 +384,7 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    target: hir::LoopId::from_raw(0),
                     condition_setup: vec![stmt(hir::StatementKind::Return { value: None })],
                     cond: bool_lit(&h, true),
                     body: vec![expr_stmt(call(
@@ -376,12 +398,13 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
         },
     );
     let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
     let body = &module.functions[module.entry].body;
 
     assert_eq!(
         body.blocks.len(),
-        2,
-        "a sealed header creates no body or exit"
+        3,
+        "the typed loop keeps its complete exit target"
     );
     assert!(entry_statements(body).is_empty());
     let header = block_named(body, "while.cond");
@@ -391,11 +414,580 @@ fn terminating_while_header_setup_does_not_reopen_condition_or_exit_flow() {
         mir::Terminator::Return { value: None }
     ));
     assert!(
-        body.blocks.iter().all(|(_, block)| {
-            !block.name.starts_with("while.body") && !block.name.starts_with("while.exit")
-        }),
-        "terminating setup must leave the surrounding CFG sealed"
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block.name.starts_with("while.body")),
+        "terminating setup must not allocate a body"
     );
+    let exit = block_named(body, "while.exit");
+    assert!(exit.statements.is_empty());
+    assert!(matches!(exit.terminator, mir::Terminator::Unreachable));
+    assert!(
+        body.blocks
+            .iter()
+            .flat_map(|(_, block)| &block.statements)
+            .all(|statement| !matches!(statement.kind, mir::StatementKind::Call(_))),
+        "a return in the setup keeps the detached exit and all successors unreachable"
+    );
+}
+
+#[test]
+fn direct_break_in_while_setup_reaches_the_complete_exit_target() {
+    let mut h = Harness::new();
+    let target = hir::LoopId::from_raw(0);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: vec![stmt(hir::StatementKind::Break { target })],
+                    cond: bool_lit(&h, true),
+                    body: vec![expr_stmt(int_lit(&h, 99))],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let header = block_id_named(body, "while.cond");
+    let exit = block_id_named(body, "while.exit");
+
+    assert!(matches!(
+        body.blocks[header].terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block.name.starts_with("while.body")),
+        "a direct setup break reaches the exit without allocating the body"
+    );
+    assert!(block_contains_int(&body.blocks[exit], 7));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block_contains_int(block, 99)),
+        "the unreachable loop body is not lowered"
+    );
+}
+
+#[test]
+fn loop_body_break_and_continue_target_exit_and_header_without_merge_fallthrough() {
+    let mut h = Harness::new();
+    let target = hir::LoopId::from_raw(0);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: Vec::new(),
+                    cond: bool_lit(&h, true),
+                    body: vec![
+                        stmt(hir::StatementKind::If {
+                            cond: bool_lit(&h, true),
+                            then_body: vec![stmt(hir::StatementKind::Continue { target })],
+                            else_body: Some(vec![stmt(hir::StatementKind::Break { target })]),
+                        }),
+                        expr_stmt(int_lit(&h, 99)),
+                    ],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let header = block_id_named(body, "while.cond");
+    let exit = block_id_named(body, "while.exit");
+    let then_block = block_named(body, "if.then");
+    let else_block = block_named(body, "if.else");
+    let merge = block_named(body, "if.merge");
+
+    assert!(matches!(
+        then_block.terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
+    assert!(matches!(
+        else_block.terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(matches!(merge.terminator, mir::Terminator::Unreachable));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block_contains_int(block, 99)),
+        "two abrupt branches must not manufacture a reachable merge"
+    );
+    assert!(block_contains_int(&body.blocks[exit], 7));
+}
+
+#[test]
+fn outer_break_runs_finally_before_reaching_the_loop_exit() {
+    let mut h = Harness::new();
+    let target = hir::LoopId::from_raw(0);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: Vec::new(),
+                    cond: bool_lit(&h, true),
+                    body: vec![
+                        stmt(hir::StatementKind::Try(hir::Try {
+                            body: vec![stmt(hir::StatementKind::Break { target })],
+                            catches: Vec::new(),
+                            finally_body: Some(vec![expr_stmt(int_lit(&h, 41))]),
+                        })),
+                        expr_stmt(int_lit(&h, 99)),
+                    ],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let exit = block_id_named(body, "while.exit");
+    let try_body = block_named(body, "try.body");
+
+    assert!(block_contains_int(try_body, 41));
+    assert!(matches!(
+        try_body.terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(block_contains_int(&body.blocks[exit], 7));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block_contains_int(block, 99)),
+        "the pending break seals the remainder of the loop body"
+    );
+}
+
+#[test]
+fn non_unit_return_is_saved_before_finally_and_resumed_after_it() {
+    let mut h = Harness::new();
+    let int = h.int;
+    h.user_fn_full(
+        "value",
+        Vec::new(),
+        Vec::new(),
+        int,
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![stmt(hir::StatementKind::Try(hir::Try {
+                body: vec![stmt(hir::StatementKind::Return {
+                    value: Some(int_lit(&h, 9)),
+                })],
+                catches: Vec::new(),
+                finally_body: Some(vec![expr_stmt(int_lit(&h, 41))]),
+            }))],
+        },
+    );
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == "value").then_some(&function.body))
+        .expect("the non-Unit test function is lowered");
+    let return_slot = body
+        .locals
+        .iter()
+        .find_map(|(id, local)| local.name.starts_with("$return.").then_some(id))
+        .expect("a return crossing finally has stable storage");
+    let try_body = block_named(body, "try.body");
+    assert!(try_body.statements.iter().any(|statement| {
+        matches!(
+            &statement.kind,
+            mir::StatementKind::ValDecl { local, init }
+                if *local == return_slot
+                    && matches!(
+                        init.kind,
+                        mir::ExprKind::IntegerLiteral(
+                            mir::MirIntegerConstant::Signed32(9)
+                        )
+                    )
+        )
+    }));
+    let mir::Terminator::Goto(finally_block) = &try_body.terminator else {
+        panic!("the saved return enters finally")
+    };
+    let finally_block = &body.blocks[*finally_block];
+    assert!(block_contains_int(finally_block, 41));
+    assert!(matches!(
+        &finally_block.terminator,
+        mir::Terminator::Return {
+            value: Some(mir::Expr {
+                kind: mir::ExprKind::Local(local),
+                ..
+            })
+        } if *local == return_slot
+    ));
+}
+
+#[test]
+fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
+    let mut h = Harness::new();
+    let error = h.exception("MyError");
+    let error_ty = h.class_ty(error);
+    let target = hir::LoopId::from_raw(0);
+    let inner = hir::LoopId::from_raw(1);
+    let mut locals = Arena::new();
+    let caught = locals.alloc(local("caught", error_ty));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: Vec::new(),
+                    cond: bool_lit(&h, true),
+                    body: vec![stmt(hir::StatementKind::Try(hir::Try {
+                        body: Vec::new(),
+                        catches: vec![hir::CatchClause {
+                            local: caught,
+                            ty: error_ty,
+                            body: vec![
+                                stmt(hir::StatementKind::While {
+                                    target: inner,
+                                    condition_setup: Vec::new(),
+                                    cond: bool_lit(&h, true),
+                                    body: vec![stmt(hir::StatementKind::Break { target: inner })],
+                                }),
+                                expr_stmt(int_lit(&h, 43)),
+                                stmt(hir::StatementKind::Break { target }),
+                            ],
+                            span: SPAN,
+                        }],
+                        finally_body: Some(vec![expr_stmt(int_lit(&h, 42))]),
+                    }))],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let exit = block_id_named(body, "while.exit");
+    let catch = block_named(body, "try.catch");
+    let mir::Terminator::Goto(catch_body) = &catch.terminator else {
+        panic!("the catch binding enters its handler unwind context")
+    };
+    let catch_body = &body.blocks[*catch_body];
+    let mir::Terminator::Goto(inner_header) = &catch_body.terminator else {
+        panic!("the catch body enters its nested loop")
+    };
+    let mir::Terminator::Branch {
+        then_block: inner_body,
+        ..
+    } = &body.blocks[*inner_header].terminator
+    else {
+        panic!("the nested loop has a conditional header")
+    };
+    let mir::Terminator::Goto(inner_exit) = &body.blocks[*inner_body].terminator else {
+        panic!("the nested break targets its own exit")
+    };
+    let inner_exit = &body.blocks[*inner_exit];
+    assert!(
+        inner_exit.statements.first().is_some_and(|statement| {
+            matches!(
+                &statement.kind,
+                mir::StatementKind::Expr(mir::Expr {
+                    kind: mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(43)),
+                    ..
+                })
+            )
+        }),
+        "a break whose target remains inside the catch runs no catch cleanup"
+    );
+    let end_catch_count = inner_exit
+        .statements
+        .iter()
+        .filter(|statement| {
+            matches!(
+                statement.kind,
+                mir::StatementKind::Eh(mir::EhStatement::EndCatch)
+            )
+        })
+        .count();
+    assert_eq!(end_catch_count, 1, "the normal catch exit is balanced once");
+    let mir::Terminator::Goto(finally_block) = &inner_exit.terminator else {
+        panic!("the catch cleanup continues in the enclosing unwind context")
+    };
+    let finally_block = &body.blocks[*finally_block];
+    assert!(block_contains_int(finally_block, 42));
+    assert!(matches!(
+        finally_block.terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(block_contains_int(&body.blocks[exit], 7));
+}
+
+#[test]
+fn transfer_from_cleanup_free_try_nested_in_catch_reaches_outer_cleanup() {
+    let mut h = Harness::new();
+    let error = h.exception("MyError");
+    let error_ty = h.class_ty(error);
+    let target = hir::LoopId::from_raw(0);
+    let mut locals = Arena::new();
+    let outer_caught = locals.alloc(local("outerCaught", error_ty));
+    let inner_caught = locals.alloc(local("innerCaught", error_ty));
+    let escaping_try = hir::Try {
+        body: vec![stmt(hir::StatementKind::Break { target })],
+        catches: vec![hir::CatchClause {
+            local: inner_caught,
+            ty: error_ty,
+            body: vec![stmt(hir::StatementKind::Break { target })],
+            span: SPAN,
+        }],
+        finally_body: None,
+    };
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: Vec::new(),
+                    cond: bool_lit(&h, true),
+                    body: vec![stmt(hir::StatementKind::Try(hir::Try {
+                        body: Vec::new(),
+                        catches: vec![hir::CatchClause {
+                            local: outer_caught,
+                            ty: error_ty,
+                            body: vec![stmt(hir::StatementKind::Try(escaping_try))],
+                            span: SPAN,
+                        }],
+                        finally_body: Some(vec![expr_stmt(int_lit(&h, 42))]),
+                    }))],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let exit = block_id_named(body, "while.exit");
+    let normal_outer_catch_exit = body
+        .blocks
+        .iter()
+        .find_map(|(_, block)| {
+            if !block.name.starts_with("try.body")
+                || !block.statements.iter().any(|statement| {
+                    matches!(
+                        statement.kind,
+                        mir::StatementKind::Eh(mir::EhStatement::EndCatch)
+                    )
+                })
+            {
+                return None;
+            }
+            let mir::Terminator::Goto(next) = &block.terminator else {
+                return None;
+            };
+            block_contains_int(&body.blocks[*next], 42).then_some(*next)
+        })
+        .expect("the nested cleanup-free try reaches its outer catch cleanup");
+    assert!(matches!(
+        body.blocks[normal_outer_catch_exit].terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(block_contains_int(&body.blocks[exit], 7));
+}
+
+#[test]
+fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
+    let mut h = Harness::new();
+    let target = hir::LoopId::from_raw(0);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: vec![stmt(hir::StatementKind::Try(hir::Try {
+                        body: vec![stmt(hir::StatementKind::Break { target })],
+                        catches: Vec::new(),
+                        finally_body: Some(vec![stmt(hir::StatementKind::Return { value: None })]),
+                    }))],
+                    cond: bool_lit(&h, true),
+                    body: vec![expr_stmt(int_lit(&h, 99))],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let exit = block_id_named(body, "while.exit");
+
+    assert!(matches!(
+        body.blocks[exit].terminator,
+        mir::Terminator::Unreachable
+    ));
+    assert!(
+        body.blocks.iter().all(|(_, block)| {
+            !matches!(block.terminator, mir::Terminator::Goto(target) if target == exit)
+        }),
+        "an overriding finally return discards the pending break edge"
+    );
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block.name.starts_with("while.body")),
+        "an overridden setup break must not reopen condition or body flow"
+    );
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| { !block_contains_int(block, 99) && !block_contains_int(block, 7) }),
+        "the finally return seals every statement after the setup"
+    );
+}
+
+#[test]
+fn inner_finally_loop_consumes_its_break_then_resumes_the_pending_outer_break() {
+    let mut h = Harness::new();
+    let outer = hir::LoopId::from_raw(0);
+    let inner = hir::LoopId::from_raw(1);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![
+                stmt(hir::StatementKind::While {
+                    target: outer,
+                    condition_setup: vec![stmt(hir::StatementKind::Try(hir::Try {
+                        body: vec![stmt(hir::StatementKind::Break { target: outer })],
+                        catches: Vec::new(),
+                        finally_body: Some(vec![stmt(hir::StatementKind::While {
+                            target: inner,
+                            condition_setup: Vec::new(),
+                            cond: bool_lit(&h, true),
+                            body: vec![stmt(hir::StatementKind::Break { target: inner })],
+                        })]),
+                    }))],
+                    cond: bool_lit(&h, true),
+                    body: vec![expr_stmt(int_lit(&h, 99))],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let outer_exit = block_id_named(body, "while.exit");
+    let inner_body = block_id_named(body, "while.body");
+    let mir::Terminator::Goto(inner_exit) = &body.blocks[inner_body].terminator else {
+        panic!("the inner break targets its own exit")
+    };
+    assert_ne!(*inner_exit, outer_exit);
+    assert!(matches!(
+        body.blocks[*inner_exit].terminator,
+        mir::Terminator::Goto(target) if target == outer_exit
+    ));
+    assert!(block_contains_int(&body.blocks[outer_exit], 7));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block_contains_int(block, 99)),
+        "the resumed outer break skips the outer loop body"
+    );
+}
+
+#[test]
+fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let option_boolean = h.option(boolean);
+    let option_application = h.enum_application_of(option_boolean);
+    let target = hir::LoopId::from_raw(0);
+    let mut locals = Arena::new();
+    let subject = locals.alloc(local("subject", option_boolean));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    subject,
+                    expr(
+                        hir::ExprKind::SomeWrap(Box::new(bool_lit(&h, true))),
+                        option_boolean,
+                    ),
+                ),
+                stmt(hir::StatementKind::While {
+                    target,
+                    condition_setup: Vec::new(),
+                    cond: bool_lit(&h, true),
+                    body: vec![
+                        stmt(hir::StatementKind::When(hir::When {
+                            subject: local_ref(subject, option_boolean),
+                            arms: vec![hir::WhenArm {
+                                pattern: hir::Pattern::Variant {
+                                    application: option_application,
+                                    variant: 0,
+                                    fields: vec![(0, hir::Pattern::Wildcard)],
+                                },
+                                guard: None,
+                                body: vec![stmt(hir::StatementKind::Continue { target })],
+                                span: SPAN,
+                            }],
+                            fallback: hir::WhenFallback::Else(vec![stmt(
+                                hir::StatementKind::Break { target },
+                            )]),
+                        })),
+                        expr_stmt(int_lit(&h, 99)),
+                    ],
+                }),
+                expr_stmt(int_lit(&h, 7)),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+    let header = block_id_named(body, "while.cond");
+    let exit = block_id_named(body, "while.exit");
+    let pass = block_named(body, "pattern.pass");
+    let fallback = block_named(body, "pattern.else");
+    let merge = block_named(body, "pattern.merge");
+
+    assert!(matches!(
+        pass.terminator,
+        mir::Terminator::Goto(target) if target == header
+    ));
+    assert!(matches!(
+        fallback.terminator,
+        mir::Terminator::Goto(target) if target == exit
+    ));
+    assert!(matches!(merge.terminator, mir::Terminator::Unreachable));
+    assert!(
+        body.blocks
+            .iter()
+            .all(|(_, block)| !block_contains_int(block, 99)),
+        "two abrupt pattern outcomes must not manufacture fallthrough"
+    );
+    assert!(block_contains_int(&body.blocks[exit], 7));
 }
 
 #[test]
@@ -419,6 +1011,7 @@ fn while_condition_prelude_is_owned_by_the_header_and_reentered_by_the_backedge(
                     ),
                 ),
                 stmt(hir::StatementKind::While {
+                    target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: expr(
                         hir::ExprKind::Unwrap {

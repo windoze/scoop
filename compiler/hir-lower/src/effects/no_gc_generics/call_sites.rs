@@ -255,7 +255,9 @@ impl Lowerer {
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                     self.collect_generic_calls_in_expr(expr, out);
                 }
-                hir::StatementKind::LocalFunction(_) => {}
+                hir::StatementKind::LocalFunction(_)
+                | hir::StatementKind::Break { .. }
+                | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
                     if let Some(value) = value {
                         self.collect_generic_calls_in_expr(value, out);
@@ -293,6 +295,7 @@ impl Lowerer {
                     }
                 }
                 hir::StatementKind::While {
+                    target: _,
                     condition_setup,
                     cond,
                     body,

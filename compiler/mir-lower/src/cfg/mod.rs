@@ -6,22 +6,106 @@ use scoop_mir as mir;
 
 use crate::structured as smir;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct UnwindScopeId(u32);
+
 #[derive(Clone, Copy)]
 struct UnwindTarget {
+    owner: UnwindScopeId,
     pad: mir::BlockId,
     continuation: mir::BlockId,
     handles_in_function: bool,
 }
 
-#[derive(Clone)]
-enum ReturnCleanup<'a> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct CleanupDepth(usize);
+
+impl CleanupDepth {
+    const ROOT: Self = Self(0);
+}
+
+#[derive(Clone, Copy)]
+struct CleanupCursor {
+    next: CleanupDepth,
+    stop: CleanupDepth,
+}
+
+impl CleanupCursor {
+    fn new(next: CleanupDepth, stop: CleanupDepth) -> Self {
+        assert!(
+            stop <= next,
+            "a cleanup cursor stops at a prefix of its active stack"
+        );
+        Self { next, stop }
+    }
+
+    fn take_next(&mut self) -> Option<usize> {
+        if self.next == self.stop {
+            return None;
+        }
+        self.next.0 -= 1;
+        Some(self.next.0)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NormalCleanup<'a> {
     Finally {
-        owner_unwind: mir::BlockId,
+        owner: UnwindScopeId,
         body: &'a [smir::Statement],
     },
     EndCatch {
-        cleanup_pad: mir::BlockId,
+        owner: UnwindScopeId,
     },
+}
+
+#[derive(Clone, Copy)]
+struct ResumeTarget {
+    block: mir::BlockId,
+    cleanup_depth: CleanupDepth,
+}
+
+#[derive(Clone, Copy)]
+struct LoopExitTarget {
+    block: mir::BlockId,
+    cleanup_depth: CleanupDepth,
+}
+
+#[derive(Clone, Copy)]
+struct LoopHeaderTarget {
+    block: mir::BlockId,
+    cleanup_depth: CleanupDepth,
+}
+
+#[derive(Clone, Copy)]
+struct LoopTarget {
+    source: smir::LoopId,
+    exit: LoopExitTarget,
+    header: LoopHeaderTarget,
+    break_reachable: bool,
+}
+
+enum ReturnPayload {
+    Unit,
+    Value(mir::Expr),
+}
+
+enum PendingTransfer {
+    Fallthrough(ResumeTarget),
+    Return(ReturnPayload),
+    Break(LoopExitTarget),
+    Continue(LoopHeaderTarget),
+}
+
+impl PendingTransfer {
+    fn cleanup_depth(&self) -> CleanupDepth {
+        match self {
+            Self::Fallthrough(target) => target.cleanup_depth,
+            Self::Return(_) => CleanupDepth::ROOT,
+            Self::Break(target) => target.cleanup_depth,
+            Self::Continue(target) => target.cleanup_depth,
+        }
+    }
 }
 
 pub(crate) fn lower(
@@ -47,7 +131,9 @@ pub(crate) fn lower(
         hidden_count: 0,
         return_ty,
         try_stack: Vec::new(),
-        return_cleanups: Vec::new(),
+        unwind_scope_count: 0,
+        normal_cleanups: Vec::new(),
+        loop_targets: Vec::new(),
         enums,
     };
     lowerer.lower_statements(&statements);
@@ -59,6 +145,12 @@ pub(crate) fn lower(
         };
         lowerer.seal(terminator);
     }
+    assert!(
+        lowerer.try_stack.is_empty()
+            && lowerer.normal_cleanups.is_empty()
+            && lowerer.loop_targets.is_empty(),
+        "structured control scopes are balanced before MIR CFG construction completes"
+    );
     mir::Body {
         locals: lowerer.locals,
         blocks: lowerer.blocks,
@@ -76,13 +168,16 @@ struct CfgLowerer<'a> {
     hidden_count: usize,
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
-    return_cleanups: Vec<ReturnCleanup<'a>>,
+    unwind_scope_count: u32,
+    normal_cleanups: Vec<NormalCleanup<'a>>,
+    loop_targets: Vec<LoopTarget>,
     enums: &'a Arena<mir::EnumDef>,
 }
 
 mod control;
 mod expression;
 mod patterns;
+mod transfers;
 
 fn trap_message(expr: &smir::Expr) -> Option<mir::StringConstId> {
     let smir::ExprKind::Call(call) = &expr.kind else {

@@ -743,6 +743,7 @@ impl Lowerer {
     pub(crate) fn lower_runtime_top_level_initializers(&mut self) {
         for pending in self.pending_runtime_initializers.clone() {
             self.current_file = pending.file;
+            let outer_loop_targets = std::mem::take(&mut self.loop_targets);
             let outer_source_context = self.current_source_context;
             self.type_params_in_scope.clear();
             self.current_return_ty = self.unit;
@@ -826,6 +827,8 @@ impl Lowerer {
                 locals: std::mem::take(&mut self.locals),
                 statements,
             });
+            debug_assert!(self.loop_targets.is_empty());
+            self.loop_targets = outer_loop_targets;
         }
         self.diagnose_initialization_cycles();
     }
