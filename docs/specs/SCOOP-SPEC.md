@@ -1797,7 +1797,7 @@ Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 typed na
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
 - `@Extern` native callee不得把Scoop异常展开回generated caller；初版遇到这种unwind终止进程。源码可见的失败必须由managed函数/wrapper在native返回状态后构造并抛出，runtime-only的no-return throw入口不属于可由用户声明调用的Scoop ABI FFI surface。
 
-Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge：ref value 是直接 managed pointer；aggregate/value return沿用普通 Scoop 函数的 typed return storage规则。被调方必须按同一签名实现该 ABI，不能假设 C 编译器为同形 struct 选择的 ABI 与 Scoop value ABI 相同。
+Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge：ref value 是直接 managed pointer；aggregate/value return沿用普通 Scoop 函数的 typed return storage规则。当前 Darwin / AArch64 profile 中，scalar、ref/raw pointer/function pointer 与 niche enum 直接传递；所有非空 tuple、ordinary struct、tagged enum 与异常记录都通过 caller-owned、按 exact layout 对齐的间接 storage 传递，间接返回 storage 位于所有源码参数之前；Unit 返回为 machine void，其他 ZST 参数/结果只保留 typed identity而不传payload。被调方必须按同一 physical signature 实现该 ABI，不能把同形 C struct 的按值参数/返回直接用作 shim，也不能假设 C 编译器会为它选择与 Scoop value ABI 相同的寄存器或栈位置。
 
 这里的 Scoop ABI 仍是普通、单次进入并在返回前完成的 FFI 调用约定，不是 8.2 所述挂起函数的 hidden continuation ABI。`abi = "scoop"` 不放宽 `@Extern` 与 `suspend` 的互斥规则，也不提供自动 continuation / callback wrapper。
 
