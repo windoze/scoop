@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.4
+版本：0.5
 
 最后更新：2026-09-06
 
@@ -40,10 +40,10 @@
 | compiler-owned enum producer identity | 已完成 | `9706b4b` |
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
-| 共享 `IrrefutableBindingPlan` | 进行中 | 生命周期规范已由 `487244a` 消歧；正在实现 4.2a 的 plan core 与 val / var tuple / struct 迁移 |
-| typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.3 顺序落地 |
+| 共享 `IrrefutableBindingPlan` | 进行中 | 4.2a val / var tuple / struct planner 已由 `0049933` 完成；下一步为 class component、lambda、effect 与恢复语义 |
+| typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.4 的 downstream-first 顺序落地，parser 最后开放语法 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
-| 32 字节 aggregate 参数 ABI | 待修复 | 已有最小复现线索；须在 `for` / range 组合扩张前独立归因、修复并提交 |
+| Scoop aggregate 参数 ABI classification | 待修复 | 已确认是一般 LIR caller / callee 分类缺口而非固定 32 字节特例；按 4.3 在 `for` / range 前修复 |
 | M22 全量组合验收 | 待完成 | 依赖所有主线切片完成 |
 
 ## 4. 剩余执行顺序
@@ -76,14 +76,17 @@
 
 按可独立提交的两个切片执行：
 
-1. val / var planner
+1. val / var planner（已完成：`0049933`）
    - 新建内部 `IrrefutableBindingPlan` builder；输入一个 typed subject、AST pattern、叶 binding mutability 与 source span。
    - tuple / struct 使用 checked typed field identity；完整 shape 按声明序，运行期 projection / action 按源码序 depth-first。
    - subject 与每个 projection 结果使用 immutable hidden local；`var` 只让最终用户叶 binding mutable。
    - 失败时整体回滚；成功后展开为普通 `ValDecl` 和 `FieldAccess`。
-2. class component、lambda、effect 与恢复语义
+   - 端到端 golden 已锁定显式 subject / projection / bind 序列及逆声明序的 named-field 源码求值顺序；旧 composite val pattern 不再跨 Export HIR 边界。
+   - 完成验证：格式检查、全 workspace clippy、HIR lowering 671/671、strict fixture 4/4、全 workspace tests、`git diff --check`、无 `.snap.new`；独立审查未发现 correctness blocker。
+2. class component、lambda、effect 与恢复语义（进行中）
    - 删除仅服务 val 的 `lower_class_destructuring` 特判及“扫描 component 索引推断总元数”的逻辑。
    - class pattern 禁止 rest；源码写出 N 个位置就精确解析 `component1..N`，每次结果先进入独立 immutable hidden local，再递归处理子模式。
+   - `Component` action 接入前必须结构化校验 subject、index、exact typed winner、call receiver / result 与 setup 的一致性；不得保留忽略 `source` 的未验证展开路径。
    - lambda 的一个 composite pattern 保持一个 logical source / function-type 参数和一个 typed ABI classification entry；不得按叶 binding flatten。
    - ordinary 上下文选择 suspend component 是 effect error。
    - component throw 保留此前外部副作用并跳过后续 action。
@@ -92,37 +95,38 @@
 
 每个切片均需独立 HIR / MIR / LIR golden、正向组合 fixture 和稳定 negative fixture，完成后单独提交并更新第 3 节状态。第二个切片只有在普通、throw、suspend 恢复与 moving-GC 路径全部通过时才能提交，不把 effect 或恢复正确性留给后续补丁。
 
-### 4.3 typed loop target 与 abrupt cleanup
+### 4.3 Scoop aggregate 参数 ABI classification
 
-依赖：4.2 的 planner 接口稳定；while header 前置已由 `f1745b5` 完成。
+该问题已从单个“32 字节 tuple”风险归因为一般 Scoop typed ABI 缺口，必须在 `for` / range 扩大 aggregate 传参组合前独立修复：
 
-1. AST / parser 只加入无标签 `break` / `continue`；继续明确拒绝 label 和 `do-while`。`for` source shape 延后到 4.4，与完整 HIR 协议原子提交。
-2. HIR 引入不可跨 callable 的 typed `LoopId` 和 loop-target stack；进入 lambda、匿名函数或局部函数时重置 stack。
-3. 用 `ControlOutcome::{Fallthrough, Return, Throw, Break(LoopId), Continue(LoopId)}` 替换只表示 fallthrough 的布尔分析。
-4. 统一 return / break / continue 的 catch / finally cleanup 规划；finally 可以按既有规则覆盖 pending transfer，每个 `EndCatch` 恰好一次。
-5. Export / LocalConcrete HIR 保留结构化 typed `LoopId`；MIR lowering 将其一次解析为 CFG block、cleanup route 与 resume target，LIR 只接收 CFG edge 和 typed poll / statepoint，不携带源码 loop target。所有 continue 与普通回边都经过对应 header poll。
-6. 覆盖普通、嵌套、try/catch/finally、finally 覆盖、挂起 finally 与跨 callable negative。
+1. 保留原始“32 字节 tuple 作为 struct 构造器参数”最小 full-pipeline 复现，并补入能够区分类别的矩阵。当前 Darwin / AArch64 + LLVM 22.1 证据显示嵌套 24 字节 aggregate 也可失败，而平坦四 `Long` 的 32 字节 aggregate 可通过，因此不得用单一 size threshold 修补。
+2. 在 LIR 建立规范要求的 typed `AbiArgument::{ElidedZst, Direct, Indirect}` 与对应 return convention；同一 target/profile classifier 同时产生 callee definition、direct/indirect call site 与 extern contract 的物理签名，禁止两端各自从 LLVM type 猜测。
+3. `Indirect` storage、含 managed ref aggregate 的 caller-root publication、relocation 后 reload、closure / suspend hidden 参数必须保持 exact type、layout、scan 与 pointer provenance；不能通过禁用 statepoint 或绕开 aggregate 传参掩盖问题。
+4. 加入边界尺寸、平坦/嵌套 aggregate、caller/callee 分离、generic materialization、普通/managed call 及 C/Scoop ABI 隔离回归，并单独提交。
+5. 完成门包括专项 HIR / MIR / LIR golden、LLVM function/call attribute artifact、端到端输出、`cargo test --workspace`、全 workspace clippy、`git diff --check` 与无 `.snap.new`。
 
-提交边界建议：break / continue parser + typed HIR target；普通 CFG；EH/finally；coroutine/poll。任一提交都必须保持 workspace 可构建、现有 while 行为不退化。
+### 4.4 typed loop target 与 abrupt cleanup
 
-### 4.4 Iterator / Iterable 与 source `for`
+依赖：4.2 的 planner 接口稳定；while header 前置已由 `f1745b5` 完成。实现采用 downstream-first，parser 在所有 cleanup / coroutine / poll 路径闭合后才开放源码语法：
+
+1. 在 parser 仍拒绝 `break` / `continue` 时，先把 HIR lowering 内部控制流分析统一为 `ControlOutcome::{Fallthrough, Return, Throw, Break(LoopId), Continue(LoopId)}`；用构造 AST / IR 的单元测试锁定合并与 finally 覆盖规则。
+2. 引入不可跨 callable 的 typed `LoopId` 与 loop-target stack；进入 lambda、匿名函数或局部函数时重置 stack。Export / LocalConcrete HIR 保留结构化 target，MIR lowering 一次解析为 CFG block、cleanup route 与 resume target，并统一 return / break / continue 的 catch / finally cleanup；每个 `EndCatch` 恰好一次。
+3. 在 parser 仍拒绝新语法时闭合 coroutine pending transfer：挂起 finally 的正常/异常恢复、finally 覆盖及 resume target 都必须可验证。MIR 为规范化 loop header 保存显式 typed poll marker，coroutine 变换必须保留；LIR 机械映射为 poll / statepoint，不再依靠变换后可能被 resume edge 扰乱的自然回边识别。
+4. 最后才让 AST / parser 接受无标签 `break` / `continue`，并在同一提交跑通 HIR → MIR → LIR → codegen；继续明确拒绝 label 与 `do-while`。source `for` 语法延后到 4.5 的完整协议切片。
+5. 覆盖普通、嵌套、try/catch/finally、finally 覆盖、挂起 finally、所有 continue/header poll 路径与跨 callable negative。
+
+提交边界按内部 outcome、typed target + 普通/EH cleanup、coroutine + 显式 poll、parser 开放 + full pipeline 顺序切分。任一中间提交都必须保持 parser 对尚未端到端可用语法的拒绝、workspace 可构建且现有 while 行为不退化。
+
+### 4.5 Iterator / Iterable 与 source `for`
 
 1. AST / parser 的 source `for`、一次验证的非可选 HIR `IterationCore` 与完整 HIR lowering 同一原子切片落地；`IterationCore` 固定 Iterator template、`next` exact slot、Option template、Some payload field 与 None variant。
 2. 每个 source `for` 保存完整 `ForIterationPlan`：source temporary、唯一 iterator winner/result、exact `Iterator<T>`、conformance/boxing witness、specialized next slot、exact `Option<T>` refs、element type、binding plan 和 `LoopId`。
-3. source 与 iterator 各求值一次；`iterator()` 可以 suspend，`next()` 固定为 ordinary；每轮只通过 typed `next()` 和 Option primitive 分支，不按名称重查协议。
-4. 把 4.2 的 binding planner 接到每轮 Some payload；refutable `for` pattern 继续为编译错误。
-5. generic body 保存已选 typed witness，concretization 只替换类型，不重新做 operator / protocol resolution。
-6. 每轮创建 fresh binding scope；lambda / local callable capture 必须指向该轮独立 binding，不复用上一轮存储。
-7. 加入 Array / MutableArray 的普通 Iterable conformance与端到端 fixture。
-
-### 4.5 32 字节 aggregate 参数 ABI 修复
-
-该问题从风险项提升为显式完成门，并在 `for` / range 组合扩大前独立处理：
-
-1. 建立最小 full-pipeline fixture，锁定“32 字节 tuple 作为 struct 构造器参数”在 HIR / MIR / LIR 正确但运行值损坏的边界。
-2. 沿 calling convention、参数分类、LLVM function type 与 call-site attribute 双向核对根因；不得通过调整错误 golden 或绕开 aggregate 传参掩盖。
-3. 修复后加入边界尺寸、嵌套 aggregate、caller/callee 分离及 C/Scoop ABI 组合回归，并单独提交。
-4. 完成门包括专项 stage golden、端到端输出、`cargo test --workspace`、全 workspace clippy、`git diff --check` 与无 `.snap.new`。
+3. binding plan 首次持久进入 Export HIR / meta 前，必须以私有 checked constructor 或覆盖 local/type/mutability、shape/application/field、action 数据流与 component winner/call 的完整边界 validator 封闭跨字段不变量；reader 不能接收任意 public-field 组合。
+4. source 与 iterator 各求值一次；`iterator()` 可以 suspend，`next()` 固定为 ordinary；每轮只通过 typed `next()` 和 Option primitive 分支，不按名称重查协议。
+5. 把 4.2 的 binding planner 接到每轮 Some payload；refutable `for` pattern 继续为编译错误。
+6. generic body 保存已选 typed witness，concretization 只替换类型，不重新做 operator / protocol resolution。
+7. 每轮创建 fresh binding scope；lambda / local callable capture 必须指向该轮独立 binding，不复用上一轮存储。
+8. 加入 Array / MutableArray 的普通 Iterable conformance与端到端 fixture。
 
 ### 4.6 四种 range 与整数循环组合
 
@@ -153,8 +157,10 @@
 ## 6. 已知风险与旁支
 
 - 全量 clone `Lowerer` 能保证 transaction 正确，但在大量 pattern 下可能产生二次复杂度。当前优先闭合语义；4.2 planner 落地时应减少嵌套 clone，保证每个 owner 至多一个 transaction。
-- 新 binding fixture 曾复现一个既有问题：32 字节 tuple 作为 struct 构造器参数时，HIR / MIR / LIR 正确而运行值损坏。当前 fixture 已改为不掩盖该缺陷且仍逐项验证 binding；4.5 已把它提升为 `for` / range 前的独立任务和完成门，不能把错误输出接受为 golden。
+- 新 binding fixture 最初复现了“32 字节 tuple 作为 struct 构造器参数时运行值损坏”；独立 ABI 审计进一步证明根因是一般 Scoop aggregate 参数分类缺口而不是 32 字节阈值：嵌套 24 字节也可失败，平坦 32 字节也可通过。4.3 必须用 caller / callee 共用的 typed ABI classification 修复，不能接受错误输出为 golden。
+- 4.2a 的 plan 当前只由 HIR lowering 内部 builder 构造并在 val / var owner 内立即消费；公开数据模型尚不能独自排除所有跨字段非法组合。它不阻塞本切片，但在 4.5 持久进入 Export HIR / meta 前必须以 checked construction 或完整 validator 封闭。
 - `for` 当前仍在 parser 阶段明确拒绝；不能在 LoopId、cleanup、IterationCore 未结构化完成前先做仅语法可用的半实现。
+- coroutine CFG 审计发现仅靠 LIR 自然回边识别 header poll 在 resume edge 参与时不可靠；4.4 必须先加入由 MIR 显式携带并穿过 coroutine 变换的 header poll marker，再开放 `break` / `continue` parser。
 - runtime spec 仅在 ABI、对象模型、GC 或 runtime function contract 变化时修改。binding 名称分流和 compile-time transaction 复用既有 EH / coroutine / root 契约，不单独增加 runtime 规则。
 
 ## 7. 更新记录
@@ -166,3 +172,5 @@
 - 2026-09-06：完成 binding 裸名分流与 pattern transaction，提交 `a324559`。验证通过：`cargo fmt --all -- --check`；全 workspace clippy（`-D warnings`）；全 workspace test（含 HIR lowering 670 项、parser 394 项及 full-pipeline fixtures 4/4）；额外 strict fixture replay 4/4；`git diff --check`；无 `.snap.new`。独立审查未发现 correctness blocker。该切片只改变编译期名称分类与事务提交，不改变 runtime ABI / 对象模型 / GC / runtime function contract，因此无需修改 runtime spec。
 - 2026-09-06：4.2 进入设计复核；重点是 val / lambda 在 Export HIR 前展开、generic `for` 的 plan 生命周期、class component effect / suspend / GC 完成门，以及每个 owner 至多一次 transaction。
 - 2026-09-06：提交 `487244a`，明确 `IrrefutableBindingPlan` 由 Export HIR crate 拥有；val / lambda 在 Export HIR 前消费，generic source `for` 持久保存并在 LocalConcrete HIR 结束前展开。同步明确单一根 binding 的 storage coalescing 与 coroutine ordinary liveness 边界；4.2a 开始实现。
+- 2026-09-06：完成 4.2a val / var tuple / struct planner，提交 `0049933`。plan 的 declaration-order shape 与 source-order depth-first actions 分离，subject / projection 为 immutable hidden local，`var` 只影响用户叶，struct field 保留 exact application identity；val / var 在 Export HIR 前展开为 binding-only statement。验证通过：格式检查；全 workspace clippy（`-D warnings`）；HIR lowering 671/671；snapshot refresh 后 strict fixture 4/4；全 workspace tests；`git diff --check`；无 `.snap.new`。独立审查未发现 correctness blocker。该切片不改变 runtime ABI、对象模型、GC 或 runtime function contract，因此无需修改 runtime spec。
+- 2026-09-06：根据独立 loop / ABI 审计更新后续顺序。aggregate 问题改名为一般 Scoop ABI classification 缺口并前移到 4.3；loop 采用 outcome → typed target / cleanup → coroutine / explicit header poll → parser 开放的 downstream-first 顺序。记录 `Component` action 接入前校验与 binding plan 持久化前封闭构造为后续硬门。
