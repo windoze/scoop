@@ -120,14 +120,64 @@ fn when_named_field_pattern_with_rename_and_rest() {
     };
     assert_eq!(path.len(), 1);
     assert_eq!(fields.len(), 2);
-    assert_eq!(fields[0].name.text, "w");
-    assert!(fields[0].rename.is_none());
-    assert_eq!(fields[1].name.text, "h");
-    assert_eq!(
-        fields[1].rename.as_ref().map(|ident| ident.text.as_str()),
-        Some("height")
-    );
+    assert_eq!(fields[0].field.text, "w");
+    assert!(matches!(
+        &*fields[0].subpattern,
+        Pattern::Binding(name) if name == &fields[0].field
+    ));
+    assert_eq!(fields[1].field.text, "h");
+    assert!(matches!(
+        &*fields[1].subpattern,
+        Pattern::Binding(name) if name.text == "height"
+    ));
     assert!(rest.is_some());
+}
+
+#[test]
+fn when_named_fields_accept_recursive_subpatterns() {
+    let when = when_with_arms(
+        "        Named { literal: 0, wild: _, tuple: (x, _), nested: { value, .. }, variant: Some(y), .. } -> { }\n",
+    );
+    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+        panic!("expected a named pattern");
+    };
+    assert_eq!(fields.len(), 5);
+    assert!(matches!(&*fields[0].subpattern, Pattern::Literal { .. }));
+    assert!(matches!(&*fields[1].subpattern, Pattern::Wildcard { .. }));
+    assert!(matches!(&*fields[2].subpattern, Pattern::Tuple { .. }));
+    assert!(matches!(
+        &*fields[3].subpattern,
+        Pattern::Named { path, .. } if path.is_empty()
+    ));
+    assert!(matches!(
+        &*fields[4].subpattern,
+        Pattern::Positional { path, .. } if path.len() == 1 && path[0].text == "Some"
+    ));
+}
+
+#[test]
+fn unprefixed_named_pattern_and_recursive_dump() {
+    let when = when_with_arms("        { child: { value, .. }, flag: false, .. } -> { }\n");
+    let pattern = &when.arms[0].pattern;
+    assert!(matches!(pattern, Pattern::Named { path, .. } if path.is_empty()));
+    assert_eq!(
+        scoop_ast::dump_pattern(pattern),
+        "{child: {value, ..}, flag: false, ..}"
+    );
+}
+
+#[test]
+fn field_pattern_span_includes_recursive_rhs() {
+    let when = when_with_arms("        S { child: (x, _) } -> { }\n");
+    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+        panic!("expected a named pattern");
+    };
+    let field = &fields[0];
+    assert_eq!(field.span.start, field.field.span.start);
+    assert_eq!(
+        field.span.end,
+        crate::pattern::pattern_span(&field.subpattern).end
+    );
 }
 
 #[test]

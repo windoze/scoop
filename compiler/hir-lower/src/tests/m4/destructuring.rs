@@ -154,7 +154,7 @@ fn destructuring_declarations() {
       StructInit Point : Point
         Local $parameter.x : Int
         Local $parameter.y : Int
-    val struct(0: local8)
+    val struct(0: local8, 1: _)
       Local p : Point
     val struct(0: local9, 1: _)
       Local p : Point

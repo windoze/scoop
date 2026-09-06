@@ -695,7 +695,7 @@ Module
         Local $parameter.f1 : Int
         Local $parameter.f2 : Int
         Local $parameter.f3 : Int
-    val struct(0: local15)
+    val struct(0: local15, 1: _, 2: _)
       Local s : S
     val local16
       Local f1 : Int
@@ -703,7 +703,7 @@ Module
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val (local18, struct(1: local19))
+    val (local18, struct(0: _, 1: local19, 2: _))
       TupleLiteral : (Int, S)
         IntegerLiteral 9 : Int
         Local s : S

@@ -69,6 +69,7 @@ impl Parser {
                 })
             }
             TokenKind::LParen => self.parse_tuple_pattern(),
+            TokenKind::LBrace => self.parse_named_pattern(Vec::new(), token.span.start),
             TokenKind::Ident(text) => self.parse_ident_pattern(text, token.span),
             _ => self.unexpected("pattern"),
         }
@@ -205,7 +206,7 @@ impl Parser {
         })
     }
 
-    /// `Path { f1, f2: renamed, .. }` — the `{` is the current token.
+    /// `Path? { f1, f2: subpattern, .. }` — the `{` is the current token.
     /// `..` is allowed only as the last element (spec 4.6).
     fn parse_named_pattern(&mut self, path: Vec<Ident>, start: u32) -> Result<Pattern, Diagnostic> {
         self.bump(); // `{`
@@ -235,31 +236,24 @@ impl Parser {
                     }
                 }
                 _ => {
-                    let name = self.expect_ident("field name")?;
-                    if name.text == "_" {
+                    let field = self.expect_ident("field name")?;
+                    if field.text == "_" {
                         return Err(Diagnostic::at(
-                            name.span,
+                            field.span,
                             "`_` is not allowed in a field pattern",
                         ));
                     }
-                    let rename = if matches!(self.peek().kind, TokenKind::Colon) {
+                    let subpattern = if matches!(self.peek().kind, TokenKind::Colon) {
                         self.bump();
-                        let rename = self.expect_ident("binding name")?;
-                        if rename.text == "_" {
-                            return Err(Diagnostic::at(
-                                rename.span,
-                                "`_` is not allowed in a field pattern",
-                            ));
-                        }
-                        Some(rename)
+                        self.parse_pattern()?
                     } else {
-                        None
+                        Pattern::Binding(field.clone())
                     };
-                    let end = rename.as_ref().map(|r| r.span.end).unwrap_or(name.span.end);
+                    let end = pattern_span(&subpattern).end;
                     fields.push(FieldPattern {
-                        span: Span::new(name.span.start, end),
-                        name,
-                        rename,
+                        span: Span::new(field.span.start, end),
+                        field,
+                        subpattern: Box::new(subpattern),
                     });
                     if matches!(self.peek().kind, TokenKind::Comma) {
                         self.bump();

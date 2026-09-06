@@ -1,0 +1,46 @@
+// EXPECT-DIAGNOSTICS
+
+struct Leaf<T>(val value: T, val flag: Boolean)
+struct Pair(val left: Leaf<Int>, val right: Leaf<Int>)
+
+enum Choice {
+    Present { leaf: Leaf<Int> },
+    Empty
+}
+
+struct Root(val pair: Pair, val choice: Choice)
+
+fun refutableLiteral(root: Root) {
+    val { pair: { left: { flag: false, .. }, .. }, .. } = root
+}
+
+fun refutableVariant(root: Root) {
+    val { choice: Present { leaf: _ }, .. } = root
+}
+
+fun wrongGenericField(root: Root) {
+    when (root) {
+        { pair: { left: { value: "wrong", .. }, .. }, .. } -> {}
+        else -> {}
+    }
+}
+
+fun duplicateDeepBinding(root: Root) {
+    val {
+        pair: {
+            left: { value: repeated, .. },
+            right: { value: repeated, .. }
+        },
+        ..
+    } = root
+}
+
+fun missingNestedRest(root: Root) {
+    val { pair: { left: { value }, .. }, .. } = root
+}
+
+fun unknownNestedField(root: Root) {
+    val { pair: { left: { absent: ignored, .. }, .. }, .. } = root
+}
+
+fun main() {}

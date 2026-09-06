@@ -33,9 +33,13 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
                 .join(".");
             let mut parts: Vec<String> = fields
                 .iter()
-                .map(|f| match &f.rename {
-                    Some(rename) => format!("{}: {}", f.name.text, rename.text),
-                    None => f.name.text.clone(),
+                .map(|field| match &*field.subpattern {
+                    Pattern::Binding(binding) if binding == &field.field => {
+                        field.field.text.clone()
+                    }
+                    subpattern => {
+                        format!("{}: {}", field.field.text, dump_pattern(subpattern))
+                    }
                 })
                 .collect();
             if rest.is_some() {

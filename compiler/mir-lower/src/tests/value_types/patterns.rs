@@ -161,6 +161,134 @@ Module mangling=compact-v2
 }
 
 #[test]
+fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
+    let mut h = Harness::new();
+    let int = h.int;
+    let inner = h.option(int);
+    let inner_application = h.enum_application_of(inner);
+    let record = h.strukt("Record", &[("nested", inner), ("ignored", int)]);
+    let record_ty = h.struct_ty(record);
+    let record_application = h.struct_application_of(record_ty);
+    let outer = h.option(record_ty);
+    let outer_application = h.enum_application_of(outer);
+
+    let mut producer_locals = Arena::new();
+    let input = producer_locals.alloc(local("input", outer));
+    let producer = h.user_fn_full(
+        "subject",
+        Vec::new(),
+        vec![param("input", outer, input)],
+        outer,
+        hir::Body {
+            locals: producer_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(local_ref(input, outer)),
+            })],
+        },
+    );
+
+    let mut locals = Arena::new();
+    let source = locals.alloc(local("source", outer));
+    let value = locals.alloc(local("value", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                call_typed(producer, vec![local_ref(source, outer)], outer),
+                vec![arm(
+                    hir::Pattern::Variant {
+                        application: outer_application,
+                        variant: 0,
+                        fields: vec![(
+                            0,
+                            hir::Pattern::Struct {
+                                application: record_application,
+                                fields: vec![
+                                    (
+                                        0,
+                                        hir::Pattern::Variant {
+                                            application: inner_application,
+                                            variant: 0,
+                                            fields: vec![(
+                                                0,
+                                                hir::Pattern::Binding { local: value },
+                                            )],
+                                        },
+                                    ),
+                                    (1, hir::Pattern::Wildcard),
+                                ],
+                            },
+                        )],
+                    },
+                    None,
+                    Vec::new(),
+                )],
+                hir::WhenFallback::Else(Vec::new()),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+    let producer = module
+        .functions
+        .iter()
+        .find_map(|(id, function)| (function.name == "subject").then_some(id))
+        .expect("subject producer must lower");
+
+    let subject_calls = body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.statements)
+        .filter(|statement| {
+            let mir::StatementKind::Call(mir::CallEffect::Value { call, .. }) = &statement.kind
+            else {
+                return false;
+            };
+            matches!(&call.target.callee, mir::Callee::User(function) if *function == producer)
+        })
+        .count();
+    assert_eq!(subject_calls, 1, "the when subject call is emitted once");
+
+    let entry = &body.blocks[body.entry];
+    let mir::Terminator::Branch {
+        cond,
+        then_block: payload_block,
+        ..
+    } = &entry.terminator
+    else {
+        panic!("outer enum tag must control the short-circuit edge")
+    };
+    assert!(matches!(
+        &cond.kind,
+        mir::ExprKind::Binary { lhs, .. }
+            if matches!(&lhs.kind, mir::ExprKind::EnumTag(operand)
+                if matches!(&operand.kind, mir::ExprKind::Local(_)))
+    ));
+
+    let payload_block = &body.blocks[*payload_block];
+    assert!(
+        payload_block.statements.iter().any(|statement| {
+            let mir::StatementKind::Assign { value, .. } = &statement.kind else {
+                return false;
+            };
+            matches!(
+                &value.kind,
+                mir::ExprKind::Binary { lhs, .. }
+                    if matches!(&lhs.kind, mir::ExprKind::EnumTag(operand)
+                        if matches!(&operand.kind, mir::ExprKind::FieldAccess { receiver, index: 0 }
+                            if matches!(&receiver.kind, mir::ExprKind::EnumField {
+                                variant: 0,
+                                index: 0,
+                                ..
+                            })))
+            )
+        }),
+        "outer payload projection must occur only on the matching-tag edge"
+    );
+}
+
+#[test]
 fn final_refutable_arm_is_unconditional_only_with_an_impossible_proof() {
     fn branch_count(explicit_else: bool) -> usize {
         let mut h = Harness::new();

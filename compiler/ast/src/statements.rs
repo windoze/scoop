@@ -89,8 +89,9 @@ pub enum Pattern {
         rest: Option<Span>,
         span: Span,
     },
-    /// `Path?{ f1, f2: renamed, .. }` — enum named-field variant or
-    /// struct field pattern.
+    /// `Path?{ f1, f2: subpattern, .. }` — enum named-field variant or
+    /// struct field pattern. Shorthand fields are normalized to a binding
+    /// subpattern with the same identifier.
     Named {
         path: Vec<Ident>,
         fields: Vec<FieldPattern>,
@@ -107,9 +108,8 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldPattern {
-    pub name: Ident,
-    /// `field: renamed` — the binding name when it differs.
-    pub rename: Option<Ident>,
+    pub field: Ident,
+    pub subpattern: Box<Pattern>,
     pub span: Span,
 }
 

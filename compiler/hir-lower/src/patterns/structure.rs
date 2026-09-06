@@ -275,38 +275,38 @@ impl Lowerer {
             return None;
         }
         let mut seen = HashSet::new();
-        let mut pairs = Vec::with_capacity(fields.len());
+        let mut normalized: Vec<(u32, hir::Pattern)> = (0..field_types.len())
+            .map(|index| (index as u32, hir::Pattern::Wildcard))
+            .collect();
         for field in fields {
-            if field.name.text == "_" {
+            if field.field.text == "_" {
                 self.error(
-                    field.name.span,
+                    field.field.span,
                     "`_` is not allowed in a field pattern".to_string(),
                 );
                 return None;
             }
-            if !seen.insert(field.name.text.clone()) {
+            if !seen.insert(field.field.text.clone()) {
                 self.error(
-                    field.name.span,
-                    format!("duplicate field `{}` in pattern", field.name.text),
+                    field.field.span,
+                    format!("duplicate field `{}` in pattern", field.field.text),
                 );
                 return None;
             }
             let Some(index) = field_types
                 .iter()
-                .position(|(name, _)| name == &field.name.text)
+                .position(|(name, _)| name == &field.field.text)
             else {
                 self.error(
-                    field.name.span,
-                    format!("{owner} has no field `{}`", field.name.text),
+                    field.field.span,
+                    format!("{owner} has no field `{}`", field.field.text),
                 );
                 return None;
             };
-            let binding = field.rename.as_ref().unwrap_or(&field.name);
-            let local = self.bind_local(binding, field_types[index].1, ctx.mutable)?;
-            pairs.push((index as u32, hir::Pattern::Binding { local }));
+            normalized[index].1 =
+                self.lower_pattern(&field.subpattern, field_types[index].1, ctx)?;
         }
-        pairs.sort_by_key(|(index, _)| *index);
-        Some(pairs)
+        Some(normalized)
     }
 
     pub(super) fn variant_field_types(
