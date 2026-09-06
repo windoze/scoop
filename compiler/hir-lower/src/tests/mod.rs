@@ -30,6 +30,7 @@ mod m21_top_level_storage;
 mod m21_visibility;
 mod m22_aliases;
 mod m22_contextual_inference;
+mod m22_contextual_variants;
 mod m22_integer_diagnostics;
 mod m22_integer_exhaustiveness;
 mod m22_integers;

@@ -246,21 +246,19 @@ impl Lowerer {
         debug_assert!(matches!(op, ast::BinOp::Eq | ast::BinOp::Ne));
         let negate = op == ast::BinOp::Ne;
         let symbol = if negate { "!=" } else { "==" };
-        // `x == None` / `None == x`: the `None` construction takes its
-        // type from the other operand (expected-type hint), so the
-        // other side is lowered first. (`None` itself is side-effect
-        // free, so lowering order is unobservable here.)
+        // A contextual operand takes its exact type from the independently
+        // typed peer. A clone-only probe discovers that type; real lowering
+        // still appends both operand sinks in source order because a payload
+        // variant may evaluate effectful arguments.
         let lhs_is_integer_literal = crate::expr::integer_literal_default_kind(lhs).is_some();
         let rhs_is_integer_literal = crate::expr::integer_literal_default_kind(rhs).is_some();
+        let lhs_requires_expected = self.expr_requires_expected_type(lhs);
+        let rhs_requires_expected = self.expr_requires_expected_type(rhs);
         let direct_integer_kind = crate::expr::common_integer_literal_kind(&[lhs, rhs]);
         let (lhs, rhs) = if let Some(kind) = direct_integer_kind {
             let expected = self.integer_type(kind);
             let lhs = self.lower_expr(lhs, sink, Some(expected))?;
             let rhs = self.lower_expr(rhs, sink, Some(expected))?;
-            (lhs, rhs)
-        } else if is_none_literal(lhs) && !is_none_literal(rhs) {
-            let rhs = self.lower_expr(rhs, sink, None)?;
-            let lhs = self.lower_expr(lhs, sink, Some(rhs.ty))?;
             (lhs, rhs)
         } else if lhs_is_integer_literal && !rhs_is_integer_literal {
             // Integer literal syntax is side-effect free. Typing the other
@@ -275,17 +273,34 @@ impl Lowerer {
             };
             let lhs = self.lower_expr(lhs, sink, lhs_expected)?;
             (lhs, rhs)
+        } else if lhs_requires_expected && !rhs_requires_expected {
+            let mut probe = self.clone();
+            let mut probe_sink = Vec::new();
+            let Some(rhs_probe) = probe.lower_expr(rhs, &mut probe_sink, None) else {
+                if probe.diagnostics.len() > self.diagnostics.len() {
+                    self.commit_layer_diagnostics(probe);
+                } else {
+                    self.error(
+                        rhs.span(),
+                        "cannot determine equality operand type".to_string(),
+                    );
+                }
+                return None;
+            };
+            let lhs = self.lower_expr(lhs, sink, Some(rhs_probe.ty))?;
+            let rhs = self.lower_expr(rhs, sink, Some(lhs.ty))?;
+            (lhs, rhs)
         } else {
             let lhs = self.lower_expr(lhs, sink, None)?;
-            let rhs_hint = if is_none_literal(rhs) {
-                Some(lhs.ty)
-            } else if rhs_is_integer_literal {
+            let rhs_hint = if rhs_is_integer_literal {
                 match self.types[lhs.ty] {
                     Type::Integer(kind) if crate::expr::integer_literal_accepts_kind(rhs, kind) => {
                         Some(lhs.ty)
                     }
                     _ => None,
                 }
+            } else if rhs_requires_expected {
+                Some(lhs.ty)
             } else {
                 None
             };

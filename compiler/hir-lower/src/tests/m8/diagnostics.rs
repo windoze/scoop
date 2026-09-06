@@ -70,7 +70,10 @@ fn catch_local_is_not_visible_after_the_try() {
     )]);
     let errors = lower_user_with_exceptions(file).expect_err("`e` must be out of scope");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unknown variable `e`");
+    assert_eq!(
+        errors[0].message,
+        "unknown variable `e`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
 }
 
 // --- negative: the core Throwable contract ---

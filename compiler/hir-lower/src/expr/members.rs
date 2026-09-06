@@ -284,13 +284,13 @@ impl Lowerer {
                 return self.lower_static_nested_constructor(target, name, call, sink, expected);
             }
             if let NominalTarget::Enum(enum_id) = qualifier {
-                if let Some(variant) = self.find_variant(enum_id, &name.text) {
+                if let Some(target) = self.find_variant_ref(enum_id, &name.text) {
                     let expected = self.alias_fixed_expected(
                         direct_alias.as_ref().map(|(alias, _)| alias),
                         call.type_args,
                         expected,
                     )?;
-                    return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+                    return self.lower_variant_construct(target, call, sink, expected);
                 }
             }
             let forwarded = self.companion_forwarding_object(qualifier, &name.text);

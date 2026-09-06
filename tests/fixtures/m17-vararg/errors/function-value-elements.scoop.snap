@@ -5,4 +5,4 @@ expression: snapshot
 == diagnostics ==
 m17-vararg/errors/function-value-elements.scoop:4:42: error: no applicable candidate for callable reference `::collect` in current-unit top-level candidate layer:
   - fun collect(values: Array<Int>): Long — Long is not equal to Int
-m17-vararg/errors/function-value-elements.scoop:5:5: error: unknown function `reference`
+m17-vararg/errors/function-value-elements.scoop:5:5: error: unknown function `reference`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

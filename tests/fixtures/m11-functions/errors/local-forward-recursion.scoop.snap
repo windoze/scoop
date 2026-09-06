@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m11-functions/errors/local-forward-recursion.scoop:2:34: error: unknown function `second`
+m11-functions/errors/local-forward-recursion.scoop:2:34: error: unknown function `second`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

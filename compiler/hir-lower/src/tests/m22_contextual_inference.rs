@@ -105,7 +105,7 @@ fn control_value_fixed_points_use_nested_integer_defaults_as_seeds() {
                 val(
                     "fromWhen",
                     when_expr(
-                        struct_init("Choice.First", Vec::new()),
+                        field(var("Choice"), "First"),
                         vec![
                             arm(pat_bind("First"), None, vec![stmt(none())]),
                             arm(pat_bind("Second"), None, vec![stmt(some(int_lit(5)))]),

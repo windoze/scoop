@@ -5,4 +5,4 @@ expression: snapshot
 == diagnostics ==
 m21-objects/errors/outer-type-parameter.scoop:3:25: error: static nested declaration cannot use outer type parameter `T`
 m21-objects/errors/outer-type-parameter.scoop:3:29: error: static nested declaration cannot use outer type parameter `T`
-m21-objects/errors/outer-type-parameter.scoop:3:33: error: unknown variable `value`
+m21-objects/errors/outer-type-parameter.scoop:3:33: error: unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

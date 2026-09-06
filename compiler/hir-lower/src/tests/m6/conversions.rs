@@ -171,7 +171,7 @@ fn is_cast_and_ref_eq() {
         hir::ExprKind::Cast { optional: true, .. } => match &module.types[down_opt.ty] {
             hir::Type::Enum(application) => {
                 let application = &module.enum_applications[*application];
-                assert_eq!(application.template, module.option_enum);
+                assert_eq!(application.template, module.option_core.enumeration());
                 assert_eq!(application.arguments.len(), 1);
                 assert!(matches!(
                     module.types[application.arguments[0]],

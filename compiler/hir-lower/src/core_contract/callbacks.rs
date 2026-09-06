@@ -92,7 +92,9 @@ impl Lowerer {
                         if callback_param(param.ty)
                             && matches!(self.types[signature.return_ty], hir::Type::Enum(application)
                                 if self.enum_applications[application].template
-                                    == self.option_enum.expect("Option core exists")
+                                    == self
+                                        .option_enumeration()
+                                        .expect("Option core exists")
                                     && self.enum_applications[application].arguments.as_slice()
                                         == [throwable]))
                 }

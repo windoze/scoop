@@ -273,6 +273,7 @@ impl Lowerer {
             self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
+        self.validate_option_variants();
         for (id, decl, file_index) in &pending_classes {
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
@@ -462,8 +463,8 @@ impl Lowerer {
         // Invariant: empty diagnostics implies `main` was found and the
         // core `Option<T>` validated above.
         let entry = entry.expect("missing `main` is always diagnosed");
-        let option_enum = self
-            .option_enum
+        let option_core = self
+            .option_core
             .expect("a missing or invalid core `Option` is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
@@ -538,7 +539,7 @@ impl Lowerer {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
-            option_enum,
+            option_core,
             exception_core,
             coroutine_core,
             ffi_core,

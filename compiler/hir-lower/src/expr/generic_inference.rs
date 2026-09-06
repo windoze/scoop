@@ -326,11 +326,7 @@ impl Lowerer {
             {
                 true
             }
-            ast::Expr::Var(name) => {
-                name.text == "None"
-                    && self.scopes.lookup(&name.text).is_none()
-                    && !self.host_has_property(&name.text)
-            }
+            ast::Expr::Var(name) => self.bare_value_requires_expected(name),
             ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
             ast::Expr::TupleLiteral { elements, .. } => {
                 elements.is_empty()
@@ -341,8 +337,10 @@ impl Lowerer {
             // The surrounding type also chooses between Array and
             // MutableArray, even when every element is independently typed.
             ast::Expr::ArrayLiteral { .. } => true,
-            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
-            ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
+            ast::Expr::Call(call) => {
+                self.constructor_requires_expected(&call.callee, &call.args)
+                    || self.bare_call_requires_contextual_lookup(call)
+            }
             ast::Expr::StructInit { name, args, .. } => {
                 self.constructor_requires_expected(name, args)
             }
@@ -373,6 +371,54 @@ impl Lowerer {
             ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
             _ => false,
         }
+    }
+
+    fn bare_value_requires_expected(&self, name: &ast::Ident) -> bool {
+        if self.scopes.lookup(&name.text).is_some()
+            || self.available_capture(&name.text).is_some()
+            || self.constructor_params_in_scope.contains_key(&name.text)
+            || self.host_has_property(&name.text)
+            || self.visible_property(&name.text, None).is_some()
+            || self
+                .lexical_nested_nominal_target(&name.text)
+                .or_else(|| self.top_level_nominal_target(&name.text))
+                .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)))
+        {
+            return false;
+        }
+        let candidates = self.core_prelude_variant_refs(&name.text);
+        match candidates {
+            [target] if self.resolved_variant_style(*target) == VariantStyle::Unit => {
+                !self.enums[target.enumeration()].type_params.is_empty()
+            }
+            [_] => false,
+            [] => true,
+            _ => true,
+        }
+    }
+
+    fn bare_call_requires_contextual_lookup(&self, call: &ast::CallExpr) -> bool {
+        if call.callee.text.contains('.') {
+            return false;
+        }
+        if let Some(local) = self.scopes.lookup(&call.callee.text) {
+            let mut probe = self.clone();
+            let ty = self.locals[local].ty;
+            if probe.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
+                return false;
+            }
+        }
+        if let Some(capture) = self.available_capture(&call.callee.text) {
+            let mut probe = self.clone();
+            if probe.type_exposes_invoke(capture.ty, false)
+                || matches!(self.types[capture.ty], Type::FunPtr(_))
+            {
+                return false;
+            }
+        }
+        let mut probe = self.clone();
+        let mut sink = Vec::new();
+        probe.lower_call(call, &mut sink, None).is_none()
     }
 
     /// Whether a contextual expression can nevertheless synthesize a
@@ -540,7 +586,10 @@ impl Lowerer {
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
-            self.option_variant(name)
+            let [target] = self.core_prelude_variant_refs(name) else {
+                return None;
+            };
+            Some((target.enumeration(), target.local_index()))
         };
         if let Some((enum_id, variant)) = variant {
             return Some((

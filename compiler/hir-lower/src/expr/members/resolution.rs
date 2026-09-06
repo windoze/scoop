@@ -141,7 +141,7 @@ impl Lowerer {
     /// (the quiet probe behind the enum-path fallback in
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
-    pub(in crate::expr) fn host_has_property(&self, name: &str) -> bool {
+    pub(crate) fn host_has_property(&self, name: &str) -> bool {
         match self.current_this_ty().map(|ty| self.types[ty].clone()) {
             Some(Type::Class(application)) => {
                 let receiver_ty = self.current_this_ty().expect("member receiver type");

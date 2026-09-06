@@ -1,17 +1,18 @@
 use super::*;
 
 impl Lowerer {
-    /// A unit variant construction (`None`, `Color.Red`): the variant
-    /// carries no fields, so the enum's type arguments (if any) must
-    /// come from the expected-type hint — the M3 `None` inference
-    /// rule, generalized.
+    /// A unit variant construction (`Color.Red`): the variant carries no
+    /// fields, so the enum's type arguments (if any) must come from the
+    /// expected-type hint.
     pub(in crate::expr) fn lower_unit_variant(
         &mut self,
         name: &ast::Ident,
-        enum_id: hir::EnumId,
-        variant: u32,
+        target: hir::EnumVariantRef,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        debug_assert!(self.resolved_variant_style(target) == VariantStyle::Unit);
+        let enum_id = target.enumeration();
+        let variant = target.local_index();
         let arity = self.enums[enum_id].type_params.len();
         let expected_arguments = expected.and_then(|ty| match self.types[ty].clone() {
             Type::Enum(application) => {
@@ -69,12 +70,25 @@ impl Lowerer {
     /// instantiated field type.
     pub(in crate::expr) fn lower_variant_construct(
         &mut self,
-        enum_id: hir::EnumId,
-        variant: u32,
+        target: hir::EnumVariantRef,
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if self.resolved_variant_style(target) == VariantStyle::Unit {
+            let enumeration = target.enumeration();
+            let variant = &self.enums[enumeration].variants[target.local_index() as usize];
+            self.error(
+                call.span,
+                format!(
+                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
+                    variant.name, self.enums[enumeration].name, variant.name
+                ),
+            );
+            return None;
+        }
+        let enum_id = target.enumeration();
+        let variant = target.local_index();
         let CallSite {
             type_args: type_arg_refs,
             args,

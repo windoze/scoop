@@ -392,8 +392,10 @@ impl<'a> Concretizer<'a> {
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
         let callback_failure_payload = self.class_type
             [&self.class_by_key[&(self.source.exception_core.throwable.class(), Vec::new())]];
-        let callback_failure =
-            self.ensure_enum(self.source.option_enum, vec![callback_failure_payload]);
+        let callback_failure = self.ensure_enum(
+            self.source.option_core.enumeration(),
+            vec![callback_failure_payload],
+        );
 
         for (source_id, source) in self.source.initialization_failure_roots.iter() {
             let id = self
@@ -490,16 +492,7 @@ impl<'a> Concretizer<'a> {
         let source_exception_core = self.source.exception_core;
         let message_constructor = source_exception_core.illegal_state_message_constructor;
         let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
-        let option = &self.source.enums[self.source.option_enum];
-        let option_variant = |name: &str| {
-            concrete::VariantId::from_raw(
-                option
-                    .variants
-                    .iter()
-                    .position(|variant| variant.name == name)
-                    .expect("hir-lower validates the core Option variants") as u32,
-            )
-        };
+        let option_core = self.source.option_core;
 
         concrete::Module {
             types: self.types,
@@ -530,7 +523,10 @@ impl<'a> Concretizer<'a> {
             unit,
             boolean,
             string,
-            option_variants: (option_variant("Some"), option_variant("None")),
+            option_variants: (
+                concrete::VariantId::from_raw(option_core.some().local_index()),
+                concrete::VariantId::from_raw(option_core.none().local_index()),
+            ),
             exception_core: concrete::CompilerExceptionCore {
                 throwable: lower_exception(source_exception_core.throwable),
                 unwrap_exception: lower_exception(source_exception_core.unwrap_exception),

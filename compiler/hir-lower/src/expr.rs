@@ -56,7 +56,7 @@ use crate::stmt::statements_can_fall_through;
 use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
-    PendingCapture, ReturnInference, SuspensionContext,
+    PendingCapture, ReturnInference, SuspensionContext, VariantStyle,
 };
 
 mod callable_literals;
@@ -252,15 +252,10 @@ impl Lowerer {
                         self.lower_struct_init(struct_id, ty, call, sink, expected)
                     }
                 }
-                Constructor::Variant {
-                    enum_id,
-                    variant,
-                    alias,
-                } => {
+                Constructor::Variant { target, alias } => {
                     let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
                     self.lower_variant_construct(
-                        enum_id,
-                        variant,
+                        target,
                         CallSite {
                             type_args: &[],
                             args,
@@ -485,8 +480,7 @@ impl Lowerer {
 /// `classify_constructor`).
 enum Constructor {
     Variant {
-        enum_id: hir::EnumId,
-        variant: u32,
+        target: hir::EnumVariantRef,
         alias: Option<AliasExpansion>,
     },
     Struct {

@@ -461,7 +461,13 @@ pub(crate) struct Lowerer {
     /// The validated `Option<T>` enum of `scoop.core`; `None` only
     /// when the core library is misconfigured (diagnosed, so the
     /// module is rejected anyway).
-    pub(crate) option_enum: Option<EnumId>,
+    pub(crate) pending_option_enum: Option<EnumId>,
+    /// Complete typed Option contract, established only after pass 2 has
+    /// resolved and checked the `Some(T)` / `None` variant shapes.
+    pub(crate) option_core: Option<hir::OptionCore>,
+    /// Ordinary core-prelude variant bindings. Contextual enum lookup is a
+    /// separate, lower-priority layer and never populates this table.
+    pub(crate) core_prelude_variants: CorePreludeVariantBindings,
     /// Classes named `Throwable` declared in core files, in
     /// declaration order ((declaration, reference type)). Validated
     /// after pass 1 (`validate_throwable`); a second `Throwable` was

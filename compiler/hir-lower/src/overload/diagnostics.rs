@@ -42,32 +42,53 @@ impl Lowerer {
         } = context;
         debug_assert_eq!(failures.len(), prepared.len());
         failures.sort_by_key(|failure| failure.candidate);
-        if failures.iter().all(|failure| {
-            matches!(
-                failure.kind,
-                CandidateProbeFailureKind::Expression { expected: None, .. }
-            )
-        }) && failures
-            .windows(2)
-            .all(|pair| match (&pair[0].kind, &pair[1].kind) {
-                (
-                    CandidateProbeFailureKind::Expression {
-                        span: left_span,
-                        reason: left_reason,
-                        ..
-                    },
-                    CandidateProbeFailureKind::Expression {
-                        span: right_span,
-                        reason: right_reason,
-                        ..
-                    },
-                ) => left_span == right_span && left_reason == right_reason,
-                _ => false,
-            })
+        if failures
+            .iter()
+            .all(|failure| matches!(failure.kind, CandidateProbeFailureKind::Expression { .. }))
+            && failures
+                .windows(2)
+                .all(|pair| match (&pair[0].kind, &pair[1].kind) {
+                    (
+                        CandidateProbeFailureKind::Expression {
+                            span: left_span,
+                            reason: left_reason,
+                            ..
+                        },
+                        CandidateProbeFailureKind::Expression {
+                            span: right_span,
+                            reason: right_reason,
+                            ..
+                        },
+                    ) => left_span == right_span && left_reason == right_reason,
+                    _ => false,
+                })
         {
             let baseline = self.diagnostics.len();
             let diagnostics = failures[0].state.diagnostics[baseline..].to_vec();
-            if !diagnostics.is_empty() {
+            let same_diagnostics = !diagnostics.is_empty()
+                && failures[1..]
+                    .iter()
+                    .all(|failure| failure.state.diagnostics[baseline..] == diagnostics);
+            let all_unhinted = failures.iter().all(|failure| {
+                matches!(
+                    failure.kind,
+                    CandidateProbeFailureKind::Expression { expected: None, .. }
+                )
+            });
+            let fails_identically_without_context = match (arguments, &failures[0].kind) {
+                (
+                    OverloadArguments::Source(expressions),
+                    CandidateProbeFailureKind::Expression { source_index, .. },
+                ) => {
+                    let mut probe = self.clone();
+                    let mut sink = Vec::new();
+                    let before = probe.diagnostics.len();
+                    probe.lower_expr(&expressions[*source_index].expression, &mut sink, None);
+                    probe.diagnostics[before..] == diagnostics
+                }
+                _ => false,
+            };
+            if same_diagnostics && (all_unhinted || fails_identically_without_context) {
                 self.diagnostics.extend(diagnostics);
                 return;
             }

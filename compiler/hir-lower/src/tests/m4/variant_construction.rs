@@ -7,7 +7,10 @@ fn unknown_enum_in_qualified_path_is_an_error() {
     let file = file(vec![fun("main", vec![val("c", field(var("Foo"), "Red"))])]);
     let errors = lower_user(file).expect_err("unknown enum must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unknown variable `Foo`");
+    assert_eq!(
+        errors[0].message,
+        "unknown variable `Foo`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
 }
 
 #[test]
@@ -32,8 +35,8 @@ fn unknown_variant_in_dotted_call_is_an_error() {
     assert_eq!(errors[0].message, "enum `Color` has no variant `Purple`");
 }
 
-/// Only `Option`'s variants are globally visible (M4 simplification):
-/// other enums' variants need the `E.V` prefix.
+/// A non-prelude variant without an exact enum expected type must be
+/// qualified or annotated.
 #[test]
 fn bare_non_option_variant_is_an_error() {
     let file = file(vec![
@@ -45,8 +48,14 @@ fn bare_non_option_variant_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("bare variants must fail");
     assert_eq!(errors.len(), 2);
-    assert_eq!(errors[0].message, "unknown variable `Red`");
-    assert_eq!(errors[1].message, "unknown function `Green`");
+    assert_eq!(
+        errors[0].message,
+        "unknown variable `Red`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
+    assert_eq!(
+        errors[1].message,
+        "unknown function `Green`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
 }
 
 #[test]

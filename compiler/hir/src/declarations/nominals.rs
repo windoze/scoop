@@ -162,6 +162,94 @@ pub struct EnumApplication {
     pub canonical_type: TypeId,
 }
 
+/// Export-side identity of one declaration-local enum variant. The local
+/// index is private and can only enter this structure after it has been
+/// checked against the owning enum declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantRef {
+    enumeration: EnumId,
+    local_index: u32,
+}
+
+impl EnumVariantRef {
+    pub fn checked(enums: &Arena<EnumDecl>, enumeration: EnumId, local_index: u32) -> Option<Self> {
+        enums[enumeration]
+            .variants
+            .get(local_index as usize)
+            .map(|_| Self {
+                enumeration,
+                local_index,
+            })
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.enumeration
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
+}
+
+/// Complete typed identity of the compiler-validated core `Option` contract.
+/// `Some` and `None` cannot be paired with variants from another enum or with
+/// the wrong payload shapes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OptionCore {
+    enumeration: EnumId,
+    some: EnumVariantRef,
+    none: EnumVariantRef,
+}
+
+impl OptionCore {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        types: &Arena<Type>,
+        some: EnumVariantRef,
+        none: EnumVariantRef,
+    ) -> Option<Self> {
+        if some.enumeration != none.enumeration || some.local_index == none.local_index {
+            return None;
+        }
+        let declaration = &enums[some.enumeration];
+        let [parameter] = declaration.type_params.as_slice() else {
+            return None;
+        };
+        if declaration.name != "Option" || declaration.variants.len() != 2 {
+            return None;
+        }
+        let some_variant = declaration.variants.get(some.local_index as usize)?;
+        let none_variant = declaration.variants.get(none.local_index as usize)?;
+        let [field] = some_variant.fields.as_slice() else {
+            return None;
+        };
+        if some_variant.name != "Some"
+            || none_variant.name != "None"
+            || !matches!(types[field.ty], Type::Param(found) if found == parameter.id)
+            || !none_variant.fields.is_empty()
+        {
+            return None;
+        }
+        Some(Self {
+            enumeration: some.enumeration,
+            some,
+            none,
+        })
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.enumeration
+    }
+
+    pub const fn some(self) -> EnumVariantRef {
+        self.some
+    }
+
+    pub const fn none(self) -> EnumVariantRef {
+        self.none
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassModifier {
     Final,

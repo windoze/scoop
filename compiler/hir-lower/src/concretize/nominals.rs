@@ -273,20 +273,11 @@ impl Concretizer<'_> {
             !source.no_gc || gc_free,
             "HIR diagnoses an invalid @NoGC enum specialization"
         );
-        let option_variants = (source_id == self.source.option_enum).then(|| {
-            let some = source
-                .variants
-                .iter()
-                .position(|variant| variant.name == "Some")
-                .expect("validated Option has Some");
-            let none = source
-                .variants
-                .iter()
-                .position(|variant| variant.name == "None")
-                .expect("validated Option has None");
+        let option_core = self.source.option_core;
+        let option_variants = (source_id == option_core.enumeration()).then(|| {
             (
-                concrete::VariantId::from_raw(some as u32),
-                concrete::VariantId::from_raw(none as u32),
+                concrete::VariantId::from_raw(option_core.some().local_index()),
+                concrete::VariantId::from_raw(option_core.none().local_index()),
             )
         });
         self.enums[id].variants = variants;

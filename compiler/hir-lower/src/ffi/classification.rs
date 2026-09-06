@@ -134,7 +134,7 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                if Some(application.template) != self.option_enum
+                if Some(application.template) != self.option_enumeration()
                     || application.arguments.len() != 1
                 {
                     return Err(CAbiError {

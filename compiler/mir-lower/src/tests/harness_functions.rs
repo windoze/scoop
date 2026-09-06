@@ -419,6 +419,13 @@ impl Harness {
             function_name: String::new(),
             type_name: String::new(),
         });
+        let option_some = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 0)
+            .expect("test Option has Some");
+        let option_none = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 1)
+            .expect("test Option has None");
+        let option_core =
+            hir::OptionCore::checked(&self.enums, &self.types, option_some, option_none)
+                .expect("test Option has the core shape");
         hir::Module {
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
@@ -479,7 +486,7 @@ impl Harness {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
-            option_enum: self.option_enum,
+            option_core,
             exception_core,
             coroutine_core,
             ffi_core,

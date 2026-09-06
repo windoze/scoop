@@ -97,7 +97,7 @@ impl Lowerer {
         let deferred: Vec<_> = when
             .arms
             .iter()
-            .map(|arm| expected.is_none() && self.value_block_requires_expected(&arm.body))
+            .map(|arm| expected.is_none() && self.value_arm_requires_expected(arm, subject.ty))
             .collect();
         let defer_else = when
             .else_body
@@ -212,6 +212,15 @@ impl Lowerer {
             }),
         });
         Some(result)
+    }
+
+    fn value_arm_requires_expected(&self, arm: &ast::WhenArm, subject_ty: TypeId) -> bool {
+        let mut probe = self.clone();
+        probe.push_scope();
+        let result = probe.lower_arm_head(arm, subject_ty).is_some()
+            && probe.value_block_requires_expected(&arm.body);
+        probe.pop_scope();
+        result
     }
 
     /// One `when` arm: pattern (its bindings are in scope), optional

@@ -29,7 +29,10 @@ fn lowers_hello_world() {
     assert_eq!(module.types[module.boolean], Type::Boolean);
     assert_eq!(module.types[module.string], Type::String);
     // `Option` comes from the core library.
-    assert_eq!(module.enums[module.option_enum].name, "Option");
+    assert_eq!(
+        module.enums[module.option_core.enumeration()].name,
+        "Option"
+    );
 
     // Entry point is `main`.
     assert_eq!(module.functions[module.entry].name, "main");
@@ -166,7 +169,10 @@ fn unknown_function_is_an_error_with_callee_span() {
     )]);
     let errors = lower_user(file).expect_err("unknown callee must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unknown function `hello`");
+    assert_eq!(
+        errors[0].message,
+        "unknown function `hello`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
     assert_eq!(errors[0].span, Some(callee_span));
 }
 
@@ -231,6 +237,12 @@ fn collects_multiple_diagnostics() {
     )]);
     let errors = lower_user(file).expect_err("unknown callees must fail");
     assert_eq!(errors.len(), 2);
-    assert_eq!(errors[0].message, "unknown function `missing_one`");
-    assert_eq!(errors[1].message, "unknown function `missing_two`");
+    assert_eq!(
+        errors[0].message,
+        "unknown function `missing_one`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
+    assert_eq!(
+        errors[1].message,
+        "unknown function `missing_two`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"
+    );
 }

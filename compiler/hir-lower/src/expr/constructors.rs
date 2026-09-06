@@ -28,10 +28,10 @@ impl Lowerer {
     }
 
     /// What a `Name` / `Name(...)` construction site resolves to. A
-    /// dotted path `E.V` is always an enum variant; a bare name is a
-    /// globally visible `Option` variant (`Some` / `None`), then a
-    /// struct, then a class, then — for `Call` nodes only — a
-    /// function.
+    /// dotted path `E.V` is always an enum variant; a bare name first
+    /// considers visible nominal constructors. Call lowering probes that
+    /// nominal transactionally before ordinary callable and contextual
+    /// variant layers.
     pub(super) fn classify_constructor(&mut self, name: &ast::Ident) -> Option<Constructor> {
         if let Some((enum_name, variant_name)) = name.text.split_once('.') {
             let lexical_target = self.lexical_nested_nominal_target(enum_name);
@@ -83,25 +83,14 @@ impl Lowerer {
                 );
                 return None;
             }
-            let Some(variant) = self.find_variant(enum_id, variant_name) else {
+            let Some(target) = self.find_variant_ref(enum_id, variant_name) else {
                 self.error(
                     name.span,
                     format!("enum `{enum_name}` has no variant `{variant_name}`"),
                 );
                 return None;
             };
-            return Some(Constructor::Variant {
-                enum_id,
-                variant,
-                alias,
-            });
-        }
-        if let Some((enum_id, variant)) = self.option_variant(&name.text) {
-            return Some(Constructor::Variant {
-                enum_id,
-                variant,
-                alias: None,
-            });
+            return Some(Constructor::Variant { target, alias });
         }
         if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
             return Some(match target {

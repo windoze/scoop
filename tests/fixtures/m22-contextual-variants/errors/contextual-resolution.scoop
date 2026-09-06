@@ -1,0 +1,59 @@
+// EXPECT-DIAGNOSTICS
+
+enum State {
+    Ready,
+    Value(Int),
+    Pair(Int, Int),
+    Chosen(Int)
+}
+
+fun Chosen(value: Int): Int = value
+
+fun missingValue() {
+    val value: State = Missing
+}
+
+fun missingCall() {
+    val value: State = Missing(1)
+}
+
+fun missingPreludeName() {
+    val value: State = None
+}
+
+fun payloadAsValue() {
+    val value: State = Value
+}
+
+fun unitAsCall() {
+    val value: State = Ready()
+}
+
+fun wrongArity() {
+    val value: State = Pair(1)
+}
+
+fun unitHardShadow() {
+    val Ready = 1
+    val value: State = Ready
+}
+
+fun callableHardShadow() {
+    val Value: (Int) -> Int = { number: Int -> number }
+    val value: State = Value(1)
+}
+
+fun ordinaryCallableWins() {
+    val value: State = Chosen(1)
+}
+
+fun noExpectedType() {
+    val unit = Ready
+    val payload = Value(1)
+}
+
+fun nonEnumExpectedType() {
+    val value: Any = Ready
+}
+
+fun main() {}

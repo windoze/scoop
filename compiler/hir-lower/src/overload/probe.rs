@@ -290,13 +290,14 @@ impl Lowerer {
                             expressions[source_index].span(),
                         ),
                         diagnostic_reason(&attempt, diagnostics_before),
+                        attempt,
                     )
                 });
             }
             if progress {
                 continue;
             }
-            let Some((source_index, span, reason)) = first_failure else {
+            let Some((source_index, span, reason, failed_state)) = first_failure else {
                 let failure = state
                     .solve_callable_applicability(input)
                     .expect_err("an incomplete fully typed candidate has no complete solution");
@@ -309,7 +310,7 @@ impl Lowerer {
             };
             return Err(Box::new(CandidateProbeFailure {
                 candidate: candidate_index,
-                state: Box::new(state),
+                state: Box::new(failed_state),
                 arguments: lowered,
                 kind: CandidateProbeFailureKind::Expression {
                     source_index,

@@ -68,6 +68,21 @@ pub(crate) enum VariantStyle {
     Constructor,
 }
 
+#[derive(Clone, Default)]
+pub(crate) struct CorePreludeVariantBindings {
+    by_name: HashMap<String, Vec<hir::EnumVariantRef>>,
+}
+
+impl CorePreludeVariantBindings {
+    pub(crate) fn insert(&mut self, name: String, target: hir::EnumVariantRef) {
+        self.by_name.entry(name).or_default().push(target);
+    }
+
+    pub(crate) fn get(&self, name: &str) -> &[hir::EnumVariantRef] {
+        self.by_name.get(name).map_or(&[], Vec::as_slice)
+    }
+}
+
 /// The type a member function belongs to (M6). Method `Function`s are
 /// registered directly on their nominal owner and carry the
 /// owner's type and modality in `Function::method`; the receiver is `params[0]`.

@@ -111,10 +111,10 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// The `Option` enum from `scoop.core` (the desugar target of
-    /// `T?`, spec 7.1). Guaranteed present: a core library without a
-    /// suitable `Option` definition is a driver-level error.
-    pub option_enum: EnumId,
+    /// The complete checked `Option` contract from `scoop.core` (the
+    /// desugar target of `T?`, spec 7.1). Guaranteed present: a core library
+    /// without the exact `Some(T)` / `None` shape is rejected before HIR.
+    pub option_core: OptionCore,
     /// Compiler-generated exception construction targets. Every entry is a
     /// validated, zero-argument class constructor; later stages never find
     /// these entities by source or link name.

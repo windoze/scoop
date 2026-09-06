@@ -9,5 +9,5 @@ fun main() {
     println(Pair(1, 2) == Pair(1, 2))
     println(Pair(1, 2) != Pair(1, 3))
     println(Maybe.Value("x") == Maybe.Value("x"))
-    println(Maybe.Value("x") == Maybe.Empty<String>())
+    println(Maybe.Value("x") == Maybe.Empty)
 }

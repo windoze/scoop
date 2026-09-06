@@ -8,12 +8,6 @@ pub(super) struct ElseBranch {
     pub(super) value: hir::Expr,
 }
 
-/// Whether the expression is the `None` construction (see
-/// `lower_binary`).
-pub(super) fn is_none_literal(expr: &ast::Expr) -> bool {
-    matches!(expr, ast::Expr::Var(name) if name.text == "None")
-}
-
 impl Lowerer {
     pub(crate) fn lower_integer_literal(
         &mut self,

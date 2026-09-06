@@ -581,7 +581,7 @@ impl Lowerer {
             // `Option<Option<T>>` and deliberately does not collapse.
             ast::TypeRefKind::Nullable(inner) => {
                 let inner = self.resolve_type_ref(inner)?;
-                match self.option_enum {
+                match self.option_enumeration() {
                     Some(_) => Some(self.option_type(inner)),
                     None => {
                         self.error(

@@ -152,10 +152,7 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         "foreignCallback",
         vec![native_signature],
         vec![
-            named_argument(
-                "mode",
-                struct_init("ForeignCallbackMode.Reusable", Vec::new()),
-            ),
+            named_argument("mode", field(var("ForeignCallbackMode"), "Reusable")),
             named_argument("callback", callback),
             named_argument("contextIndex", int_lit(1)),
         ],

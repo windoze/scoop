@@ -27,10 +27,8 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
-        if let ast::Expr::Var(name) = expression
-            && name.text == "None"
-        {
-            return self.static_none_constant(expected);
+        if let Some(variant) = self.static_unit_variant_constant(expression, expected) {
+            return Some(variant);
         }
         let evaluated = self.evaluate_static_value(expression, Some(expected))?;
         if !self.types_equal(evaluated.ty, expected) {

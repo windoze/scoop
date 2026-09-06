@@ -38,19 +38,6 @@ impl Lowerer {
         self.alloc_local(name, ty, true)
     }
 
-    /// The `Option<T>` enum of `scoop.core` and the variant index of
-    /// `name`, when `name` is one of its variants. These names
-    /// (`Some` / `None`) are the globally visible constructors the core
-    /// library's default import provides (spec 7.2).
-    pub(crate) fn option_variant(&self, name: &str) -> Option<(EnumId, u32)> {
-        let id = self.option_enum?;
-        let index = self.enums[id]
-            .variants
-            .iter()
-            .position(|v| v.name == name)?;
-        Some((id, index as u32))
-    }
-
     /// The variant index of `name` in `enum_id`, if it exists.
     pub(crate) fn find_variant(&self, enum_id: EnumId, name: &str) -> Option<u32> {
         self.enums[enum_id]
@@ -60,12 +47,65 @@ impl Lowerer {
             .map(|index| index as u32)
     }
 
+    /// A checked typed variant identity for one declaration-local name.
+    pub(crate) fn find_variant_ref(
+        &self,
+        enum_id: EnumId,
+        name: &str,
+    ) -> Option<hir::EnumVariantRef> {
+        let index = self.find_variant(enum_id, name)?;
+        hir::EnumVariantRef::checked(&self.enums, enum_id, index)
+    }
+
+    /// Ordinary core-prelude candidates for a source name. The table is
+    /// populated exclusively by core-contract validation.
+    pub(crate) fn core_prelude_variant_refs(&self, name: &str) -> &[hir::EnumVariantRef] {
+        self.core_prelude_variants.get(name)
+    }
+
+    pub(crate) fn resolved_variant_style(&self, target: hir::EnumVariantRef) -> VariantStyle {
+        *self
+            .variant_styles
+            .get(&(target.enumeration(), target.local_index()))
+            .expect("a checked resolved variant retains its source call shape")
+    }
+
+    /// Resolve the lowest-priority contextual layer against one exact enum
+    /// application. This never scans unrelated enum declarations.
+    pub(crate) fn contextual_variant_ref(
+        &self,
+        name: &str,
+        expected: Option<TypeId>,
+    ) -> Option<hir::EnumVariantRef> {
+        let Type::Enum(application) = self.types[*expected.as_ref()?] else {
+            return None;
+        };
+        let enumeration = self.enum_applications[application].template;
+        self.find_variant_ref(enumeration, name)
+    }
+
+    pub(crate) fn exact_expected_enum(&self, expected: Option<TypeId>) -> Option<EnumId> {
+        let Type::Enum(application) = self.types[*expected.as_ref()?] else {
+            return None;
+        };
+        Some(self.enum_applications[application].template)
+    }
+
+    /// During declaration/type pass 1 this reads the provisional core enum;
+    /// after pass 2 only the complete checked Option contract remains.
+    pub(crate) fn option_enumeration(&self) -> Option<EnumId> {
+        self.option_core
+            .map(hir::OptionCore::enumeration)
+            .or(self.pending_option_enum)
+    }
+
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
         match &self.types[ty] {
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                (Some(application.template) == self.option_enum && application.arguments.len() == 1)
+                (Some(application.template) == self.option_enumeration()
+                    && application.arguments.len() == 1)
                     .then_some(application.arguments[0])
             }
             _ => None,
@@ -76,7 +116,7 @@ impl Lowerer {
     /// validated successfully.
     pub(crate) fn option_type(&mut self, inner: TypeId) -> TypeId {
         let id = self
-            .option_enum
+            .option_enumeration()
             .expect("Option types only exist after core validation");
         self.enum_application(id, vec![inner])
     }

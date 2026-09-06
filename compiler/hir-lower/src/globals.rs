@@ -7,7 +7,10 @@ use std::path::{Component, Path};
 use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
-use crate::{FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext};
+use crate::{
+    FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext,
+    VariantStyle,
+};
 
 mod consts;
 mod delegates;
@@ -928,14 +931,53 @@ impl Lowerer {
             return None;
         };
         let application_value = &self.enum_applications[application];
-        if Some(application_value.template) != self.option_enum {
+        let option = self.option_core?;
+        if application_value.template != option.enumeration() {
             return None;
         }
-        let (_, variant) = self.option_variant("None")?;
         Some(hir::HirConstantImage::EnumUnit {
             application,
-            variant,
+            variant: option.none().local_index(),
         })
+    }
+
+    fn static_unit_variant_constant(
+        &self,
+        expression: &ast::Expr,
+        expected: hir::TypeId,
+    ) -> Option<hir::HirConstantImage> {
+        let ast::Expr::Var(name) = expression else {
+            return None;
+        };
+        if self.scopes.lookup(&name.text).is_some()
+            || self.available_capture(&name.text).is_some()
+            || self.host_has_property(&name.text)
+            || self.visible_property(&name.text, None).is_some()
+        {
+            return None;
+        }
+        let hir::Type::Enum(application) = self.types[expected] else {
+            return None;
+        };
+        let application_value = &self.enum_applications[application];
+        let prelude = self
+            .core_prelude_variant_refs(&name.text)
+            .iter()
+            .copied()
+            .filter(|target| target.enumeration() == application_value.template)
+            .filter(|target| self.resolved_variant_style(*target) == VariantStyle::Unit)
+            .collect::<Vec<_>>();
+        let target = match prelude.as_slice() {
+            [target] => Some(*target),
+            [] => self.contextual_variant_ref(&name.text, Some(expected)),
+            _ => None,
+        }?;
+        (self.resolved_variant_style(target) == VariantStyle::Unit).then_some(
+            hir::HirConstantImage::EnumUnit {
+                application,
+                variant: target.local_index(),
+            },
+        )
     }
 
     fn declare_extension_property(
@@ -1150,10 +1192,8 @@ impl Lowerer {
         expr: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
-        if let ast::Expr::Var(name) = expr
-            && name.text == "None"
-        {
-            return self.static_none_constant(expected);
+        if let Some(variant) = self.static_unit_variant_constant(expr, expected) {
+            return Some(variant);
         }
         match (self.types[expected].clone(), expr) {
             (hir::Type::Integer(_), ast::Expr::IntLiteral(literal)) => self

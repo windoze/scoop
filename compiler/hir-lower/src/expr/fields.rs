@@ -139,14 +139,16 @@ impl Lowerer {
             );
             return None;
         };
-        let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
+        let Some(target) = self.find_variant_ref(enum_id, &variant_name.text) else {
             self.error(
                 variant_name.span,
                 format!("enum `{enum_name}` has no variant `{}`", variant_name.text),
             );
             return None;
         };
-        let arity = self.enums[enum_id].variants[variant as usize].fields.len();
+        let arity = self.enums[enum_id].variants[target.local_index() as usize]
+            .fields
+            .len();
         if arity != 0 {
             let vname = &variant_name.text;
             self.error(
@@ -157,7 +159,7 @@ impl Lowerer {
             );
             return None;
         }
-        self.lower_unit_variant(variant_name, enum_id, variant, expected)
+        self.lower_unit_variant(variant_name, target, expected)
     }
 
     /// `receiver?.field`: the receiver must be an `Option<S>`; the

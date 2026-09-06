@@ -4,4 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m4-enum/errors/refutable-in-val.scoop:3:9: error: refutable patterns are only allowed in `when`
-m4-enum/errors/refutable-in-val.scoop:4:13: error: unknown variable `x`
+m4-enum/errors/refutable-in-val.scoop:4:13: error: unknown variable `x`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

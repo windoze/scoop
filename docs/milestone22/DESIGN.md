@@ -376,9 +376,9 @@ qualified `E.V(...)`始终按普通variant constructor解析；显式/default st
 
 - unit variant可作为name expression，payload variant可作为call candidate；
 - contextual unit variant只在普通value-name lookup没有找到任何实体时启用。词法value binding是hard shadow：例如局部`val None: Int`存在时，`val x: Option<String> = None`报告普通类型错误，不回退到`Option.None`；
-- expected type若还是candidate-local inference variable，variant argument可以像`None`、lambda、空数组一样postpone，待固定点把它唯一绑定到exact enum application后再检查；
+- expected type若还是candidate-local inference variable，bare enum variant（包括`None`）可以像lambda、空数组一样postpone，待固定点把它唯一绑定到exact enum application后再检查；
 - expected为`Any`、interface、多个不可比较enum或最终未解变量时，不扫描所有enum猜目标，诊断要求写`E.V`或显式type annotation；
-- payload variant的contextual layer服从M16/M18既有named-call、local-value shadow、receiver、import与property-like分区，只在普通resolver允许继续到下一候选层时参与；它不能让不可调用的局部value失去既有hard-shadow语义。其他普通同名可见callable若在既有层无可应用candidate，才进入contextual enum层；
+- payload variant的contextual layer服从M16/M18既有named-call、local-value shadow、receiver、import与property-like分区，只在普通resolver允许继续到下一候选层时参与。按语言规范9.3.4，最近词法作用域中同名的callable-valued local形成hard shadow；普通不可调用local不参与callable层，也不阻止继续检查普通callable及contextual enum层。其他普通同名可见callable若在既有层无可应用candidate，才进入contextual enum层；
 - winner commit产生exact enum application、variant id、完整argument mapping和constructor target；LocalConcrete前不保留variant字符串或“以后看expected”的节点。
 
 `scoop.core.Option.*`通过prelude的typed default-import条目工作；编译器不再写`Some`/`None`短名称特判。未来M23只需把同一候选层换成真实import metadata。
