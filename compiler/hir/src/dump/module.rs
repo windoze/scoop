@@ -55,7 +55,9 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, decl) in module.enums.iter() {
-        if id == module.foreign_callback_core.mode || id == module.foreign_callback_core.state {
+        if id == module.foreign_callback_core.modes.enumeration()
+            || id == module.foreign_callback_core.states.enumeration()
+        {
             continue;
         }
         let type_params = if decl.type_params.is_empty() {

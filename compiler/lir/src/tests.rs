@@ -2,14 +2,14 @@ use super::{
     CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
     CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
     DirectCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr, EnumVariantRepr,
-    ExternFunctionIdentity, ExternFunctions, ForeignCallbackStatus, GcEffect,
-    InitializationOutcome, InternalPointerCarrier, LirFunctionType, LirReturnType,
-    LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind, MachineScalarValue,
-    ManagedCallDestination, ManagedRuntimeFunction, NativeBorrowedCallDestination,
-    NativeBorrowedResultPublication, NativeBorrowedResultRoot, NativeSafeCallDestination,
-    NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding, RefScan, ResultStorage,
-    ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallView, Value,
-    VoidCallSignature,
+    ExternFunctionIdentity, ExternFunctions, ForeignCallbackFailureResult, ForeignCallbackModes,
+    ForeignCallbackStates, ForeignCallbackStatus, GcEffect, InitializationOutcome,
+    InternalPointerCarrier, LirFunctionType, LirReturnType, LirTargetProfile, LirType,
+    LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
+    ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
+    NativeBorrowedResultRoot, NativeSafeCallDestination, NichePointerKind, NonEmptyRefScan,
+    PointerKind, PointerNullEncoding, RefScan, ResultStorage, ScoopExternFunction,
+    ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallView, Value, VoidCallSignature,
 };
 
 #[test]
@@ -34,6 +34,78 @@ fn darwin_aarch64_profile_fixes_every_backend_scalar_layout() {
         assert_eq!(layout.size_bytes(), size);
         assert_eq!(layout.alignment_bytes(), alignment);
     }
+}
+
+#[test]
+fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
+    let unit_variant = || EnumVariantRepr {
+        fields: Vec::new(),
+        slot_offset: 8,
+        slot_size: 0,
+        slot_align: 1,
+        gc_free: true,
+    };
+    let mut enums = EnumDefs::default();
+    let mode = enums.alloc(EnumDef {
+        name: "ForeignCallbackMode".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: vec![unit_variant(), unit_variant()],
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    });
+    let state = enums.alloc(EnumDef {
+        name: "ForeignCallbackState".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: (0..4).map(|_| unit_variant()).collect(),
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    });
+    let failure = enums.alloc(EnumDef {
+        name: "Option<Throwable>".to_string(),
+        repr: EnumRepr::Niche {
+            kind: NichePointerKind::Managed,
+            payload_variant: 0,
+        },
+        scan: RefScan::References(vec![0]),
+    });
+    let reusable = enums.variant_ref(mode, 0).unwrap();
+    let one_shot = enums.variant_ref(mode, 1).unwrap();
+    let modes = ForeignCallbackModes::checked(&enums, reusable, one_shot).unwrap();
+    assert_eq!(modes.runtime_code(modes.reusable()), Some(0));
+    assert_eq!(modes.runtime_code(modes.one_shot()), Some(1));
+    assert!(ForeignCallbackModes::checked(&enums, one_shot, reusable).is_none());
+
+    let states = ForeignCallbackStates::checked(
+        &enums,
+        enums.variant_ref(state, 0).unwrap(),
+        enums.variant_ref(state, 1).unwrap(),
+        enums.variant_ref(state, 2).unwrap(),
+        enums.variant_ref(state, 3).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        ForeignCallbackStates::checked(
+            &enums,
+            states.active(),
+            states.registered(),
+            states.completed(),
+            states.failed(),
+        )
+        .is_none()
+    );
+    let some = enums.variant_ref(failure, 0).unwrap();
+    assert!(
+        ForeignCallbackFailureResult::checked(
+            &enums,
+            enums.variant_field_ref(some, 0).unwrap(),
+            enums.variant_ref(failure, 1).unwrap(),
+        )
+        .is_some()
+    );
 }
 
 #[test]

@@ -123,7 +123,7 @@ pub enum ExportParameterOwner {
     Function(FunctionId),
     StructConstructor(StructConstructorId),
     ClassConstructor(ClassConstructorId),
-    VariantConstructor { enumeration: EnumId, variant: u32 },
+    VariantConstructor(EnumVariantRef),
 }
 
 #[derive(Debug, Clone)]

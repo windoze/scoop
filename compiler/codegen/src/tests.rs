@@ -31,6 +31,7 @@ mod runtime_eh_personality_tests;
 mod arrays;
 mod c_layout;
 mod closures;
+mod constants;
 mod enums;
 mod exceptions;
 mod initialization;
@@ -39,6 +40,7 @@ mod objects;
 mod platform;
 mod smoke;
 mod statepoints;
+mod validation_boundaries;
 
 use enums::enum_module;
 use exceptions::exceptions_module;

@@ -26,10 +26,11 @@
 //! single pointer-like field (`None` = null — this is
 //! `Option<String>`); otherwise a tagged form whose pure-value variants
 //! share one payload and whose ref-bearing variants have disjoint slots.
-//! Legacy MIR enum operations map onto `EnumWrap` / `EnumTag` /
-//! `EnumField`; representation-independent typed operations map onto
-//! `VariantTest` / `VariantPayloadProject`. Codegen translates both paths
-//! mechanically per the representation while existing producers migrate.
+//! Typed MIR variant construction maps onto typed `EnumWrap`, while the
+//! legacy `EnumTag` / `EnumField` readers remain for coroutine lowering.
+//! Representation-independent typed operations map onto `VariantTest` /
+//! `VariantPayloadProject`. Codegen translates both paths mechanically per
+//! the representation while the remaining readers migrate.
 //! Enum layouts keep fixed ref offsets for all disjoint
 //! ref-bearing slots; inactive slots are zero, so scanning never reads
 //! the tag and composes mechanically in aggregates (runtime spec 2.2).
@@ -169,7 +170,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         &string_global_map,
     );
     let callback_bridges = lower_callback_bridges(module, &structs, &enums);
-    let foreign_callback_families = lower_foreign_callback_families(module);
+    let foreign_callback_families = lower_foreign_callback_families(module, &enums);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module, &structs, &enums);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module

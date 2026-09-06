@@ -372,8 +372,7 @@ pub enum Instruction {
     /// Construct a variant value.
     EnumWrap {
         out: TempId,
-        enum_id: EnumDefId,
-        variant: u32,
+        variant: LirVariantRef,
         fields: Vec<Value>,
     },
     /// Read the variant tag (result `MachineScalar(EnumTag)`; niche: null

@@ -180,6 +180,11 @@ impl EnumRegistry {
             .expect("local-concrete HIR variant identities are valid in the MIR enum store")
     }
 
+    pub(super) fn lower_variant_ref(&self, source: hir::EnumVariantRef) -> mir::MirVariantRef {
+        let enum_id = self.by_hir[&source.enumeration()];
+        self.variant_ref(enum_id, source.variant().into_raw())
+    }
+
     /// Bind a payload field to an already checked semantic variant.
     pub(super) fn variant_field_ref(
         &self,
@@ -188,6 +193,14 @@ impl EnumRegistry {
     ) -> mir::MirVariantFieldRef {
         mir::MirVariantFieldRef::new(&self.defs, variant, field)
             .expect("local-concrete HIR payload identities are valid in the MIR enum store")
+    }
+
+    pub(super) fn lower_variant_field_ref(
+        &self,
+        source: hir::EnumVariantFieldRef,
+    ) -> mir::MirVariantFieldRef {
+        let variant = self.lower_variant_ref(source.variant());
+        self.variant_field_ref(variant, source.local_index())
     }
 
     pub(super) fn get_or_create(
@@ -205,16 +218,25 @@ impl EnumRegistry {
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            type_arguments: Vec::new(),
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         shell.enums.alloc(mir::EnumDef {
             name: name.clone(),
+            type_arguments: Vec::new(),
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         self.by_hir.insert(hir_id, id);
         self.hir_ids.insert(id, hir_id);
+        let type_arguments = decl
+            .type_arguments
+            .iter()
+            .map(|argument| types.lower(*argument, self, structs, interfaces, shell))
+            .collect::<Vec<_>>();
+        self.defs[id].type_arguments.clone_from(&type_arguments);
+        shell.enums[id].type_arguments = type_arguments;
         let variants = decl
             .variants
             .iter()
@@ -241,9 +263,10 @@ impl EnumRegistry {
         enum_id: mir::EnumId,
     ) -> Option<mir::OptionCore> {
         let &hir_id = self.hir_ids.get(&enum_id)?;
-        module.enums[hir_id]
-            .option_variants
-            .map(|(some, none)| mir::OptionCore::new(enum_id, some.into_raw(), none.into_raw()))
+        let option = module.option_core(hir_id)?;
+        let some_payload = self.lower_variant_field_ref(option.some_payload());
+        let none = self.lower_variant_ref(option.none());
+        mir::OptionCore::checked(&self.defs, some_payload, none)
     }
 
     pub(super) fn all_option_core(&self, module: &hir::Module) -> Vec<mir::OptionCore> {

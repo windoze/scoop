@@ -399,7 +399,7 @@ pub(super) fn dump_expr(
             out.push_str(&format!(
                 "{pad}VariantConstruct {} v{}\n",
                 type_name(module, &expr.ty),
-                variant
+                variant.variant_index()
             ));
             for field in fields {
                 dump_expr(module, locals, field, indent + 1, out);

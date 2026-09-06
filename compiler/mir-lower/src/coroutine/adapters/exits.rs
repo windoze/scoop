@@ -23,6 +23,10 @@ pub(super) fn drive_exit_blocks(
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
 ) -> DriveExitBlocks {
+    let completed_payload = lowerer
+        .coroutines
+        .step_metadata_for_type(step_ty)
+        .completed_payload();
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let exception = locals.alloc(local("$uncaught", throwable.clone()));
     let completion_ty = mir::Type::Interface(outer_continuation);
@@ -53,8 +57,8 @@ pub(super) fn drive_exit_blocks(
                         completed_value_ty,
                         mir::ExprKind::EnumField {
                             operand: Box::new(mir::Expr::local(step, step_ty.clone())),
-                            variant: 0,
-                            index: 0,
+                            variant: completed_payload.variant().variant_index(),
+                            index: completed_payload.field_index(),
                         },
                     ),
                 ],

@@ -11,6 +11,7 @@ fn edef(module: &lir::Module, id: mir::EnumId) -> &lir::EnumDef {
 fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
     let mut b = Builder::new();
     let option = b.option_enum(name, payload.clone());
+    let option_core = b.option_core[0];
     let option_ty = mir::Type::Enum(option, vec![payload.clone()]);
     let enum_tag_ty = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);
     let mut locals = Arena::new();
@@ -27,7 +28,7 @@ fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
                 expr(
                     option_ty.clone(),
                     mir::ExprKind::VariantConstruct {
-                        variant: 1,
+                        variant: option_core.none(),
                         fields: Vec::new(),
                     },
                 ),
@@ -55,7 +56,7 @@ fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
                 expr(
                     option_ty,
                     mir::ExprKind::VariantConstruct {
-                        variant: 0,
+                        variant: option_core.some(),
                         fields: vec![local_expr(p, payload)],
                     },
                 ),

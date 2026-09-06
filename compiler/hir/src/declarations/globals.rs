@@ -46,8 +46,7 @@ pub enum HirConstantImage {
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {
-        application: EnumApplicationId,
-        variant: u32,
+        variant: AppliedEnumVariantRef,
     },
     Struct {
         application: StructApplicationId,

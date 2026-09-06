@@ -26,9 +26,8 @@ pub struct Module {
     pub classes: Arena<ClassDef>,
     pub interfaces: Arena<InterfaceDef>,
     /// Every concrete specialization of core `Option`, identified by its
-    /// exact enum identity and validated Some/None variant indices. Consumers
-    /// must use this registry instead of recognizing nullable layouts by
-    /// shape.
+    /// inseparable Some payload-field and None variant identities. Consumers
+    /// must use this registry instead of recognizing nullable layouts by shape.
     pub option_core: Vec<OptionCore>,
     pub entry: FunctionId,
     pub meta: MirMeta,
@@ -36,34 +35,50 @@ pub struct Module {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OptionCore {
-    enum_id: EnumId,
-    some_variant: u32,
-    none_variant: u32,
+    some_payload: MirVariantFieldRef,
+    none: MirVariantRef,
 }
 
 impl OptionCore {
-    pub fn new(enum_id: EnumId, some_variant: u32, none_variant: u32) -> Self {
-        assert_ne!(
-            some_variant, none_variant,
-            "Option Some and None variants are distinct"
-        );
-        Self {
-            enum_id,
-            some_variant,
-            none_variant,
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        some_payload: MirVariantFieldRef,
+        none: MirVariantRef,
+    ) -> Option<Self> {
+        let some = some_payload.variant();
+        if some.enum_id() != none.enum_id() || some.variant_index() == none.variant_index() {
+            return None;
         }
+        let some_definition = some.definition(enums).ok()?;
+        let none_definition = none.definition(enums).ok()?;
+        let enumeration = &enums[some.enum_id()];
+        let [argument] = enumeration.type_arguments.as_slice() else {
+            return None;
+        };
+        (enumeration.variants.len() == 2
+            && some_definition.name == "Some"
+            && some_definition.fields.len() == 1
+            && some_payload.field_index() == 0
+            && some_payload.definition(enums).ok()?.ty == *argument
+            && none_definition.name == "None"
+            && none_definition.fields.is_empty())
+        .then_some(Self { some_payload, none })
     }
 
     pub const fn enum_id(self) -> EnumId {
-        self.enum_id
+        self.some_payload.variant().enum_id()
     }
 
-    pub const fn some_variant(self) -> u32 {
-        self.some_variant
+    pub const fn some(self) -> MirVariantRef {
+        self.some_payload.variant()
     }
 
-    pub const fn none_variant(self) -> u32 {
-        self.none_variant
+    pub const fn some_payload(self) -> MirVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> MirVariantRef {
+        self.none
     }
 }
 
@@ -71,7 +86,7 @@ impl Module {
     pub fn option_core(&self, enum_id: EnumId) -> Option<&OptionCore> {
         self.option_core
             .iter()
-            .find(|option| option.enum_id == enum_id)
+            .find(|option| option.enum_id() == enum_id)
     }
 }
 
@@ -98,8 +113,157 @@ pub struct ForeignCallbackAdapter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ForeignCallbackFamily {
     pub callback: StructId,
-    pub state: EnumId,
-    pub failure: EnumId,
+    pub modes: ForeignCallbackModes,
+    pub states: ForeignCallbackStates,
+    pub failure_result: ForeignCallbackFailureResult,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackModes {
+    reusable: MirVariantRef,
+    one_shot: MirVariantRef,
+}
+
+impl ForeignCallbackModes {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        reusable: MirVariantRef,
+        one_shot: MirVariantRef,
+    ) -> Option<Self> {
+        let reusable_definition = reusable.definition(enums).ok()?;
+        let one_shot_definition = one_shot.definition(enums).ok()?;
+        if reusable.enum_id() != one_shot.enum_id() {
+            return None;
+        }
+        let enumeration = &enums[reusable.enum_id()];
+        (enumeration.name == "ForeignCallbackMode"
+            && enumeration.type_arguments.is_empty()
+            && enumeration.variants.len() == 2
+            && reusable.variant_index() == 0
+            && one_shot.variant_index() == 1
+            && reusable_definition.name == "Reusable"
+            && reusable_definition.fields.is_empty()
+            && one_shot_definition.name == "OneShot"
+            && one_shot_definition.fields.is_empty())
+        .then_some(Self { reusable, one_shot })
+    }
+
+    pub const fn reusable(self) -> MirVariantRef {
+        self.reusable
+    }
+
+    pub const fn one_shot(self) -> MirVariantRef {
+        self.one_shot
+    }
+
+    pub const fn enum_id(self) -> EnumId {
+        self.reusable.enum_id()
+    }
+
+    pub fn contains(self, variant: MirVariantRef) -> bool {
+        variant == self.reusable || variant == self.one_shot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackStates {
+    registered: MirVariantRef,
+    active: MirVariantRef,
+    completed: MirVariantRef,
+    failed: MirVariantRef,
+}
+
+impl ForeignCallbackStates {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        registered: MirVariantRef,
+        active: MirVariantRef,
+        completed: MirVariantRef,
+        failed: MirVariantRef,
+    ) -> Option<Self> {
+        let variants = [registered, active, completed, failed];
+        if variants
+            .iter()
+            .any(|variant| variant.enum_id() != registered.enum_id())
+        {
+            return None;
+        }
+        if registered.enum_id().into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        let enumeration = &enums[registered.enum_id()];
+        let expected = [
+            (registered, "Registered"),
+            (active, "Active"),
+            (completed, "Completed"),
+            (failed, "Failed"),
+        ];
+        (enumeration.name == "ForeignCallbackState"
+            && enumeration.type_arguments.is_empty()
+            && enumeration.variants.len() == 4
+            && expected.iter().enumerate().all(|(index, (variant, name))| {
+                variant.variant_index() as usize == index
+                    && variant.definition(enums).is_ok_and(|definition| {
+                        definition.name == *name && definition.fields.is_empty()
+                    })
+            }))
+        .then_some(Self {
+            registered,
+            active,
+            completed,
+            failed,
+        })
+    }
+
+    pub const fn registered(self) -> MirVariantRef {
+        self.registered
+    }
+
+    pub const fn active(self) -> MirVariantRef {
+        self.active
+    }
+
+    pub const fn completed(self) -> MirVariantRef {
+        self.completed
+    }
+
+    pub const fn failed(self) -> MirVariantRef {
+        self.failed
+    }
+
+    pub const fn enum_id(self) -> EnumId {
+        self.registered.enum_id()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFailureResult {
+    option: OptionCore,
+    throwable: ClassId,
+}
+
+impl ForeignCallbackFailureResult {
+    pub fn checked(enums: &Arena<EnumDef>, option: OptionCore, throwable: ClassId) -> Option<Self> {
+        let option = OptionCore::checked(enums, option.some_payload(), option.none())?;
+        let payload = option.some_payload().definition(enums).ok()?;
+        (payload.ty == Type::Class(throwable)).then_some(Self { option, throwable })
+    }
+
+    pub const fn some_payload(self) -> MirVariantFieldRef {
+        self.option.some_payload()
+    }
+
+    pub const fn none(self) -> MirVariantRef {
+        self.option.none()
+    }
+
+    pub const fn enum_id(self) -> EnumId {
+        self.option.enum_id()
+    }
+
+    pub const fn throwable(self) -> ClassId {
+        self.throwable
+    }
 }
 
 /// Native-signature side of one typed managed callback registration.
@@ -111,13 +275,7 @@ pub struct ForeignCallbackBridge {
     pub family: ForeignCallbackFamilyId,
     pub native_signature: FunctionTypeId,
     pub context_index: u32,
-    pub mode: ForeignCallbackMode,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForeignCallbackMode {
-    Reusable,
-    OneShot,
+    pub mode: MirVariantRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -261,8 +419,7 @@ pub enum MirConstantImage {
     String(StringConstId),
     PointerNull(MirPointerNull),
     EnumUnit {
-        enum_id: EnumId,
-        variant: u32,
+        variant: MirVariantRef,
     },
     Struct {
         struct_id: StructId,
@@ -348,14 +505,114 @@ pub enum CoroutineLowering {
 
 #[derive(Debug)]
 pub struct CoroutineStep {
-    pub enum_id: EnumId,
-    pub result: Type,
+    completed_payload: MirVariantFieldRef,
+    suspended: MirVariantRef,
+    result: Type,
+}
+
+impl CoroutineStep {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        completed_payload: MirVariantFieldRef,
+        suspended: MirVariantRef,
+        result: Type,
+    ) -> Option<Self> {
+        let completed = completed_payload.variant();
+        if completed.enum_id() != suspended.enum_id()
+            || completed.variant_index() == suspended.variant_index()
+        {
+            return None;
+        }
+        let completed_definition = completed.definition(enums).ok()?;
+        let suspended_definition = suspended.definition(enums).ok()?;
+        (enums[completed.enum_id()].type_arguments.is_empty()
+            && enums[completed.enum_id()].variants.len() == 2
+            && completed_definition.fields.len() == 1
+            && completed_payload.field_index() == 0
+            && completed_payload.definition(enums).ok()?.ty == result
+            && suspended_definition.fields.is_empty())
+        .then_some(Self {
+            completed_payload,
+            suspended,
+            result,
+        })
+    }
+
+    pub const fn enum_id(&self) -> EnumId {
+        self.completed_payload.variant().enum_id()
+    }
+
+    pub const fn completed(&self) -> MirVariantRef {
+        self.completed_payload.variant()
+    }
+
+    pub const fn completed_payload(&self) -> MirVariantFieldRef {
+        self.completed_payload
+    }
+
+    pub const fn suspended(&self) -> MirVariantRef {
+        self.suspended
+    }
+
+    pub const fn result(&self) -> &Type {
+        &self.result
+    }
 }
 
 #[derive(Debug)]
 pub struct CoroutineSlot {
-    pub enum_id: EnumId,
-    pub value: Type,
+    value_payload: MirVariantFieldRef,
+    empty: MirVariantRef,
+    value: Type,
+}
+
+impl CoroutineSlot {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        value_payload: MirVariantFieldRef,
+        empty: MirVariantRef,
+        value: Type,
+    ) -> Option<Self> {
+        let value_variant = value_payload.variant();
+        if value_variant.enum_id() != empty.enum_id()
+            || value_variant.variant_index() == empty.variant_index()
+        {
+            return None;
+        }
+        let value_definition = value_variant.definition(enums).ok()?;
+        let empty_definition = empty.definition(enums).ok()?;
+        (enums[value_variant.enum_id()].type_arguments.is_empty()
+            && enums[value_variant.enum_id()].variants.len() == 2
+            && value_definition.fields.len() == 1
+            && value_payload.field_index() == 0
+            && value_payload.definition(enums).ok()?.ty == value
+            && empty_definition.fields.is_empty())
+        .then_some(Self {
+            value_payload,
+            empty,
+            value,
+        })
+    }
+
+    pub const fn enum_id(&self) -> EnumId {
+        self.value_payload.variant().enum_id()
+    }
+
+    pub const fn value_variant(&self) -> MirVariantRef {
+        self.value_payload.variant()
+    }
+
+    pub const fn value_payload(&self) -> MirVariantFieldRef {
+        self.value_payload
+    }
+
+    pub const fn empty(&self) -> MirVariantRef {
+        self.empty
+    }
+
+    pub const fn value(&self) -> &Type {
+        &self.value
+    }
 }
 
 #[derive(Debug)]

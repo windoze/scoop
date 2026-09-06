@@ -80,6 +80,11 @@ fn validate_function_shapes(
     for (_, block) in function.blocks.iter() {
         for instruction in &block.instructions {
             match instruction {
+                Instruction::EnumWrap {
+                    out,
+                    variant,
+                    fields,
+                } => validate_enum_wrap(module, function, *out, *variant, fields)?,
                 Instruction::VariantTest {
                     out,
                     operand,
@@ -87,7 +92,12 @@ fn validate_function_shapes(
                 } => {
                     validate_variant_ref(module, function, *variant, "variant_test")?;
                     validate_stable_operand(function, *operand, "variant_test")?;
-                    let operand_ty = function.value_ty(&module.globals, *operand);
+                    let operand_ty = super::checked_value_type(
+                        module,
+                        function,
+                        *operand,
+                        "variant_test operand",
+                    )?;
                     let expected = LirType::Enum(variant.definition());
                     if operand_ty != expected {
                         return Err(CodegenError(format!(
@@ -97,11 +107,13 @@ fn validate_function_shapes(
                             operand_ty.dump()
                         )));
                     }
-                    if function.temps[*out].ty != LirType::I1 {
+                    let result_ty =
+                        super::checked_temp_type(function, *out, "variant_test result")?;
+                    if result_ty != &LirType::I1 {
                         return Err(CodegenError(format!(
                             "variant_test @{} result is {}, expected i1",
                             function.symbol,
-                            function.temps[*out].ty.dump()
+                            result_ty.dump()
                         )));
                     }
                     tests.insert(
@@ -124,6 +136,65 @@ fn validate_function_shapes(
     Ok(tests)
 }
 
+fn validate_enum_wrap(
+    module: &Module,
+    function: &Function,
+    out: scoop_lir::TempId,
+    variant: scoop_lir::LirVariantRef,
+    fields: &[scoop_lir::Value],
+) -> Result<(), CodegenError> {
+    validate_variant_ref(module, function, variant, "enum_wrap")?;
+    let expected_result = LirType::Enum(variant.definition());
+    let actual_result = super::checked_temp_type(function, out, "enum_wrap result")?;
+    if actual_result != &expected_result {
+        return Err(CodegenError(format!(
+            "enum_wrap @{} result is {}, expected {}",
+            function.symbol,
+            actual_result.dump(),
+            expected_result.dump()
+        )));
+    }
+    let expected_fields = match &module.enums[variant.definition()].repr {
+        EnumRepr::Niche {
+            kind,
+            payload_variant,
+        } if variant.index() == *payload_variant => vec![LirType::Ptr(kind.pointer_kind())],
+        EnumRepr::Niche { .. } => Vec::new(),
+        EnumRepr::Tagged { variants, .. } => variants[variant.index() as usize]
+            .fields
+            .iter()
+            .map(|field| field.ty.clone())
+            .collect(),
+    };
+    if fields.len() != expected_fields.len() {
+        return Err(CodegenError(format!(
+            "enum_wrap @{} variant {} has {} fields, expected {}",
+            function.symbol,
+            variant.index(),
+            fields.len(),
+            expected_fields.len()
+        )));
+    }
+    for (index, (value, expected)) in fields.iter().zip(expected_fields).enumerate() {
+        let actual = super::checked_value_type(
+            module,
+            function,
+            *value,
+            &format!("enum_wrap field {index}"),
+        )?;
+        if actual != expected {
+            return Err(CodegenError(format!(
+                "enum_wrap @{} field {} has type {}, expected {}",
+                function.symbol,
+                index,
+                actual.dump(),
+                expected.dump()
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn validate_projection_shape(
     module: &Module,
     function: &Function,
@@ -143,7 +214,8 @@ fn validate_projection_shape(
             variant.index()
         )));
     }
-    let operand_ty = function.value_ty(&module.globals, operand);
+    let operand_ty =
+        super::checked_value_type(module, function, operand, "variant_payload_project operand")?;
     let expected_operand = LirType::Enum(field.definition());
     if operand_ty != expected_operand {
         return Err(CodegenError(format!(
@@ -157,7 +229,7 @@ fn validate_projection_shape(
         .enums
         .variant_field_type(field)
         .expect("a field contained by this store has an exact type");
-    let actual = &function.temps[out].ty;
+    let actual = super::checked_temp_type(function, out, "variant_payload_project result")?;
     if actual != &expected {
         let detail = match (actual, &expected) {
             (LirType::Ptr(actual), LirType::Ptr(expected)) => format!(
@@ -198,15 +270,11 @@ fn validate_variant_ref(
     variant: scoop_lir::LirVariantRef,
     instruction: &str,
 ) -> Result<(), CodegenError> {
-    if !module.enums.contains_variant(variant) {
-        return Err(CodegenError(format!(
-            "{instruction} @{} carries invalid enum{} variant {}",
-            function.symbol,
-            variant.definition().into_raw(),
-            variant.index()
-        )));
-    }
-    Ok(())
+    super::validate_variant_ref(
+        module,
+        variant,
+        &format!("{instruction} @{}", function.symbol),
+    )
 }
 
 fn validate_projection_dominance(

@@ -79,6 +79,11 @@ fn enum_module_with(
         },
         scan: niche_scan,
     });
+    let shape_v0 = enums.variant_ref(shape, 0).expect("Shape v0");
+    let shape_v1 = enums.variant_ref(shape, 1).expect("Shape v1");
+    let shape_v2 = enums.variant_ref(shape, 2).expect("Shape v2");
+    let option_v0 = enums.variant_ref(option, 0).expect("Option v0");
+    let option_v1 = enums.variant_ref(option, 1).expect("Option v1");
     let shape_ty = LirType::Enum(shape);
     let option_ty = LirType::Enum(option);
     let enum_tag_ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
@@ -117,8 +122,7 @@ fn enum_module_with(
         instructions: vec![
             Instruction::EnumWrap {
                 out: t0,
-                enum_id: shape,
-                variant: 0,
+                variant: shape_v0,
                 fields: vec![],
             },
             Instruction::EnumTag {
@@ -128,8 +132,7 @@ fn enum_module_with(
             },
             Instruction::EnumWrap {
                 out: t2,
-                enum_id: shape,
-                variant: 1,
+                variant: shape_v1,
                 fields: vec![signed64(7)],
             },
             Instruction::EnumField {
@@ -141,8 +144,7 @@ fn enum_module_with(
             },
             Instruction::EnumWrap {
                 out: t4,
-                enum_id: shape,
-                variant: 2,
+                variant: shape_v2,
                 fields: vec![Value::Temp(t3), Value::Param(1)],
             },
             Instruction::EnumTag {
@@ -236,8 +238,7 @@ fn enum_module_with(
             },
             Instruction::EnumWrap {
                 out: n2,
-                enum_id: option,
-                variant: 1,
+                variant: option_v1,
                 fields: vec![Value::Temp(n1)],
             },
             Instruction::Store {
@@ -246,8 +247,7 @@ fn enum_module_with(
             },
             Instruction::EnumWrap {
                 out: n3,
-                enum_id: option,
-                variant: 0,
+                variant: option_v0,
                 fields: vec![],
             },
             Instruction::EnumTag {
@@ -318,8 +318,7 @@ fn enum_module_with(
         name: "entry".to_string(),
         instructions: vec![Instruction::EnumWrap {
             out: produced,
-            enum_id: shape,
-            variant: 1,
+            variant: shape_v1,
             fields: vec![signed64(9)],
         }],
         terminator: Terminator::Return {
@@ -514,6 +513,73 @@ fn enum_wrap_rejects_machine_scalar_for_i64_field() {
 }
 
 #[test]
+fn enum_wrap_validator_rejects_wrong_result_arity_and_invalid_ref() {
+    let mut module = enum_module();
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+    let function = &mut module.functions[0];
+    let out = match &function.blocks[function.entry].instructions[0] {
+        Instruction::EnumWrap { out, .. } => *out,
+        _ => panic!("enum fixture starts with a wrap"),
+    };
+    function.temps[out].ty = LirType::Enum(option);
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap")
+            && error.0.contains("result is enum1")
+            && error.0.contains("expected enum0"),
+        "unexpected error: {error}"
+    );
+
+    let mut module = enum_module();
+    let function = &mut module.functions[0];
+    let Instruction::EnumWrap { fields, .. } = &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("enum fixture starts with a wrap")
+    };
+    fields.push(signed64(1));
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap") && error.0.contains("variant 0 has 1 fields, expected 0"),
+        "unexpected error: {error}"
+    );
+
+    let mut foreign = scoop_lir::EnumDefs::default();
+    let foreign_id = foreign.alloc(EnumDef {
+        name: "Foreign".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: (0..4)
+                .map(|_| EnumVariantRepr {
+                    fields: Vec::new(),
+                    slot_offset: 8,
+                    slot_size: 0,
+                    slot_align: 1,
+                    gc_free: true,
+                })
+                .collect(),
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    });
+    let invalid = foreign
+        .variant_ref(foreign_id, 3)
+        .expect("foreign variant exists");
+    let mut module = enum_module();
+    let function = &mut module.functions[0];
+    let Instruction::EnumWrap { variant, .. } =
+        &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("enum fixture starts with a wrap")
+    };
+    *variant = invalid;
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap") && error.0.contains("invalid enum0 variant 3"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
 fn enum_field_rejects_i64_as_machine_scalar_result() {
     let mut module = enum_module();
     let function = &mut module.functions[0];
@@ -522,6 +588,11 @@ fn enum_field_rejects_i64_as_machine_scalar_result() {
         _ => panic!("enum fixture must extract its one-field variant"),
     };
     function.temps[out].ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
+    function.blocks[function.entry].instructions.truncate(4);
+    function.blocks[function.entry].terminator = Terminator::Return {
+        value: Some(Value::Temp(out)),
+    };
+    function.return_ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
 
     let error = enum_codegen_error(&module);
     assert!(
@@ -561,8 +632,9 @@ fn niche_enum_wrap_rejects_machine_scalar_payload() {
     let error = enum_codegen_error(&module);
     assert!(
         error.0.contains("enum_wrap")
-            && error.0.contains("niche payload")
-            && error.0.contains("machine<enum-tag>"),
+            && error.0.contains("field 0")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected ptr<managed>"),
         "unexpected error: {error}"
     );
 }
@@ -575,6 +647,10 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
     ] {
         let mut module = enum_module_with(kind, RefScan::None, LirType::I64);
         let option = module.enums.iter().nth(1).expect("niche enum").0;
+        let none = module
+            .enums
+            .variant_ref(option, 0)
+            .expect("Option unit variant");
 
         let function = &mut module.functions[1];
         let field = match &function.blocks[function.entry].instructions[1] {
@@ -589,10 +665,7 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
             init: GlobalInit::Storage {
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
-                    payload: LirConstantImage::EnumUnit {
-                        enum_id: option,
-                        variant: 0,
-                    },
+                    payload: LirConstantImage::EnumUnit { variant: none },
                 },
                 thread_local: false,
             },
@@ -614,6 +687,10 @@ fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
     ] {
         let mut module = enum_module_with(expected, RefScan::None, LirType::I64);
         let option = module.enums.iter().nth(1).expect("niche enum").0;
+        let some = module
+            .enums
+            .variant_ref(option, 1)
+            .expect("Option payload variant");
 
         let function = &mut module.functions[1];
         let out = match &function.blocks[function.entry].instructions[2] {
@@ -622,8 +699,7 @@ fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
         };
         function.blocks[function.entry].instructions = vec![Instruction::EnumWrap {
             out,
-            enum_id: option,
-            variant: 1,
+            variant: some,
             fields: vec![Value::NullPointer(actual)],
         }];
         function.blocks[function.entry].terminator = Terminator::Unreachable;

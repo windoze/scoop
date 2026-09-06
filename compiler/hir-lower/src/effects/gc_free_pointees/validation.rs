@@ -255,9 +255,9 @@ impl Lowerer {
                         self.class_constructors[constructor].owner,
                     ))
                 }
-                crate::defaults::SourceParameterOwner::VariantConstructor {
-                    enumeration, ..
-                } => RequirementContext::Nominal(crate::Owner::Enum(enumeration)),
+                crate::defaults::SourceParameterOwner::VariantConstructor(variant) => {
+                    RequirementContext::Nominal(crate::Owner::Enum(variant.enumeration()))
+                }
             };
             let mut types = body
                 .locals

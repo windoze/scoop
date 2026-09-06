@@ -169,7 +169,10 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         .next()
         .expect("one callback registration");
     assert_eq!(registration.context_index, 1);
-    assert_eq!(registration.mode, hir::ForeignCallbackMode::Reusable);
+    assert_eq!(
+        registration.mode,
+        module.foreign_callback_core.modes.reusable()
+    );
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main has a user body")
     };

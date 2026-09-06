@@ -94,6 +94,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     assert!(matches!(
         lower_constant_image(
             &mir::MirConstantImage::PointerNull(mir::MirPointerNull::Data),
+            &lir::EnumDefs::default(),
             &HashMap::new()
         ),
         lir::LirConstantImage::NullPointer(lir::PointerKind::Raw)
@@ -101,6 +102,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     assert!(matches!(
         lower_constant_image(
             &mir::MirConstantImage::PointerNull(mir::MirPointerNull::Code),
+            &lir::EnumDefs::default(),
             &HashMap::new()
         ),
         lir::LirConstantImage::NullPointer(lir::PointerKind::Code)
@@ -135,6 +137,49 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
             lir::LirType::Ptr(kind)
         );
     }
+}
+
+#[test]
+fn enum_unit_constant_maps_between_checked_stage_local_refs() {
+    let mut mir_enums = Arena::new();
+    let mir_enum = mir_enums.alloc(mir::EnumDef {
+        name: "Flag".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![mir::VariantDef {
+            name: "Off".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        }],
+    });
+    let source = mir::MirVariantRef::new(&mir_enums, mir_enum, 0).expect("unit variant");
+    let mut lir_enums = lir::EnumDefs::default();
+    let lir_enum = lir_enums.alloc(lir::EnumDef {
+        name: "Flag".to_string(),
+        repr: lir::EnumRepr::Tagged {
+            variants: vec![lir::EnumVariantRepr {
+                fields: Vec::new(),
+                slot_offset: 8,
+                slot_size: 0,
+                slot_align: 1,
+                gc_free: true,
+            }],
+            size: 8,
+            align: 8,
+        },
+        scan: lir::RefScan::None,
+    });
+    let lowered = lower_constant_image(
+        &mir::MirConstantImage::EnumUnit { variant: source },
+        &lir_enums,
+        &HashMap::new(),
+    );
+    let lir::LirConstantImage::EnumUnit { variant } = lowered else {
+        panic!("unit enum constant stays a typed unit enum constant")
+    };
+    assert!(lir_enums.contains_variant(variant));
+    assert_eq!(variant.definition(), lir_enum);
+    assert_eq!(variant.index(), source.variant_index());
 }
 
 #[test]
@@ -175,13 +220,18 @@ fn static_initial_state_and_all_integer_constant_variants_lower_exhaustively() {
     ];
     for (source, expected) in cases {
         assert_eq!(
-            lower_constant_image(&mir::MirConstantImage::Integer(source), &HashMap::new(),),
+            lower_constant_image(
+                &mir::MirConstantImage::Integer(source),
+                &lir::EnumDefs::default(),
+                &HashMap::new(),
+            ),
             lir::LirConstantImage::Integer(expected)
         );
     }
     assert!(matches!(
         lower_static_initial_state(
             &mir::MirStaticInitialState::ZeroedForRuntimeUnit,
+            &lir::EnumDefs::default(),
             &HashMap::new(),
         ),
         lir::LirStaticInitialState::ZeroedForRuntimeUnit
@@ -191,6 +241,7 @@ fn static_initial_state_and_all_integer_constant_variants_lower_exhaustively() {
             &mir::MirStaticInitialState::EncodedStaticValue {
                 payload: mir::MirConstantImage::Integer(mir::MirIntegerConstant::Unsigned16(0),),
             },
+            &lir::EnumDefs::default(),
             &HashMap::new(),
         ),
         lir::LirStaticInitialState::EncodedStaticValue {

@@ -108,8 +108,10 @@ impl Lowerer {
             none_index.expect("validated Option has None") as u32,
         )
         .expect("validated None index belongs to Option");
+        let some_payload = hir::EnumVariantFieldRef::checked(&self.enums, some, 0)
+            .expect("validated Some has exactly one payload field");
         self.option_core = Some(
-            hir::OptionCore::checked(&self.enums, &self.types, some, none)
+            hir::OptionCore::checked(&self.enums, &self.types, some_payload, none)
                 .expect("validated Option variants form the checked HIR contract"),
         );
         self.pending_option_enum = None;

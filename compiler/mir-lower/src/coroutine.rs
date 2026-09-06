@@ -129,7 +129,7 @@ fn transform_function(
     let mut frame_slots = HashMap::new();
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
-        let (_, slot_ty) = lowerer.coroutines.slot_for(
+        let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
             &value_ty,
             &lowerer.structs,
             &mut lowerer.enums,
@@ -142,24 +142,20 @@ fn transform_function(
         });
         frame_slots.insert(
             *local,
-            FrameSlot {
-                field,
-                slot_ty: slot_ty.clone(),
-                value_ty,
-            },
+            FrameSlot::new(field, slot_ty.clone(), &lowerer.coroutines.slots[slot_id]),
         );
     }
-    let (_, failure_slot_ty) = lowerer.coroutines.slot_for(
+    let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
         &throwable_ty,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let failure_slot = FrameSlot {
-        field: frame_fields.len() as u32,
-        slot_ty: failure_slot_ty.clone(),
-        value_ty: throwable_ty.clone(),
-    };
+    let failure_slot = FrameSlot::new(
+        frame_fields.len() as u32,
+        failure_slot_ty.clone(),
+        &lowerer.coroutines.slots[failure_slot_id],
+    );
     frame_fields.push(mir::Field {
         name: "failure".to_string(),
         ty: failure_slot_ty,
@@ -333,6 +329,21 @@ struct FrameSlot {
     field: u32,
     slot_ty: mir::Type,
     value_ty: mir::Type,
+    empty: mir::MirVariantRef,
+    value_payload: mir::MirVariantFieldRef,
+}
+
+impl FrameSlot {
+    fn new(field: u32, slot_ty: mir::Type, metadata: &mir::CoroutineSlot) -> Self {
+        assert_eq!(slot_ty, mir::Type::Enum(metadata.enum_id(), Vec::new()));
+        Self {
+            field,
+            slot_ty,
+            value_ty: metadata.value().clone(),
+            empty: metadata.empty(),
+            value_payload: metadata.value_payload(),
+        }
+    }
 }
 
 struct GeneratedSite {

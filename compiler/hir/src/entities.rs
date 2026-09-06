@@ -170,13 +170,221 @@ pub struct FfiCore {
 #[derive(Debug, Clone, Copy)]
 pub struct ForeignCallbackCore {
     pub callback: StructId,
-    pub mode: EnumId,
-    pub state: EnumId,
+    pub modes: ForeignCallbackModes,
+    pub states: ForeignCallbackStates,
+    pub failure_result: ForeignCallbackFailureResult,
     pub register: FunctionId,
     pub retain: FunctionId,
     pub release: FunctionId,
     pub query_state: FunctionId,
     pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackModes {
+    reusable: AppliedEnumVariantRef,
+    one_shot: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackModes {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        reusable: AppliedEnumVariantRef,
+        one_shot: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        for variant in [reusable, one_shot] {
+            if AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                variant.application(),
+                variant.declaration(),
+            ) != Some(variant)
+            {
+                return None;
+            }
+        }
+        if reusable.application() != one_shot.application() {
+            return None;
+        }
+        let application = &applications[reusable.application()];
+        let declaration = &enums[application.template];
+        let reusable_definition = declaration.variants.get(reusable.local_index() as usize)?;
+        let one_shot_definition = declaration.variants.get(one_shot.local_index() as usize)?;
+        (declaration.name == "ForeignCallbackMode"
+            && declaration.self_application == reusable.application()
+            && declaration.type_params.is_empty()
+            && declaration.interfaces.is_empty()
+            && declaration.variants.len() == 2
+            && reusable != one_shot
+            && reusable.local_index() == 0
+            && one_shot.local_index() == 1
+            && reusable_definition.name == "Reusable"
+            && reusable_definition.fields.is_empty()
+            && one_shot_definition.name == "OneShot"
+            && one_shot_definition.fields.is_empty())
+        .then_some(Self { reusable, one_shot })
+    }
+
+    pub const fn reusable(self) -> AppliedEnumVariantRef {
+        self.reusable
+    }
+
+    pub const fn one_shot(self) -> AppliedEnumVariantRef {
+        self.one_shot
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.reusable.application()
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.reusable.declaration().enumeration()
+    }
+
+    pub fn contains(self, variant: AppliedEnumVariantRef) -> bool {
+        variant == self.reusable || variant == self.one_shot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackStates {
+    registered: AppliedEnumVariantRef,
+    active: AppliedEnumVariantRef,
+    completed: AppliedEnumVariantRef,
+    failed: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackStates {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        registered: AppliedEnumVariantRef,
+        active: AppliedEnumVariantRef,
+        completed: AppliedEnumVariantRef,
+        failed: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        let variants = [registered, active, completed, failed];
+        for variant in variants {
+            if AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                variant.application(),
+                variant.declaration(),
+            ) != Some(variant)
+            {
+                return None;
+            }
+        }
+        if variants
+            .iter()
+            .any(|variant| variant.application() != registered.application())
+        {
+            return None;
+        }
+        let application = &applications[registered.application()];
+        let declaration = &enums[application.template];
+        let expected = [
+            (registered, "Registered"),
+            (active, "Active"),
+            (completed, "Completed"),
+            (failed, "Failed"),
+        ];
+        (declaration.name == "ForeignCallbackState"
+            && declaration.self_application == registered.application()
+            && declaration.type_params.is_empty()
+            && declaration.interfaces.is_empty()
+            && declaration.variants.len() == 4
+            && expected.iter().enumerate().all(|(index, (variant, name))| {
+                variant.local_index() as usize == index
+                    && declaration.variants[index].name == *name
+                    && declaration.variants[index].fields.is_empty()
+            }))
+        .then_some(Self {
+            registered,
+            active,
+            completed,
+            failed,
+        })
+    }
+
+    pub const fn registered(self) -> AppliedEnumVariantRef {
+        self.registered
+    }
+
+    pub const fn active(self) -> AppliedEnumVariantRef {
+        self.active
+    }
+
+    pub const fn completed(self) -> AppliedEnumVariantRef {
+        self.completed
+    }
+
+    pub const fn failed(self) -> AppliedEnumVariantRef {
+        self.failed
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.registered.application()
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.registered.declaration().enumeration()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFailureResult {
+    some_payload: AppliedEnumVariantFieldRef,
+    none: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackFailureResult {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        option: OptionCore,
+        throwable: TypeId,
+        some_payload: AppliedEnumVariantFieldRef,
+        none: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        let some = some_payload.variant();
+        if AppliedEnumVariantFieldRef::checked(
+            enums,
+            applications,
+            some,
+            some_payload.local_index(),
+        ) != Some(some_payload)
+            || AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                none.application(),
+                none.declaration(),
+            ) != Some(none)
+            || some.application() != none.application()
+        {
+            return None;
+        }
+        let application = &applications[some.application()];
+        (application.template == option.enumeration()
+            && application.arguments.as_slice() == [throwable]
+            && some.declaration() == option.some()
+            && some_payload.local_index() == option.some_payload().local_index()
+            && none.declaration() == option.none())
+        .then_some(Self { some_payload, none })
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.some_payload.variant().application()
+    }
+
+    pub const fn some_payload(self) -> AppliedEnumVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> AppliedEnumVariantRef {
+        self.none
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -196,18 +404,12 @@ pub struct SourceLocationCore {
     pub current: FunctionId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForeignCallbackMode {
-    Reusable,
-    OneShot,
-}
-
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: ForeignCallbackMode,
+    pub mode: AppliedEnumVariantRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

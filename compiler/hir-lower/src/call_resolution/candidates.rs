@@ -52,10 +52,7 @@ pub(crate) enum NominalConstructorSource {
     Struct(hir::StructConstructorId),
     Class(hir::ClassConstructorId),
     IntrinsicClass(hir::ClassId),
-    Variant {
-        enumeration: hir::EnumId,
-        variant: u32,
-    },
+    Variant(hir::EnumVariantRef),
 }
 
 /// Constructor and variant declarations expose the same inference surface as
@@ -245,17 +242,13 @@ impl Lowerer {
                     declaration_span: declaration.span,
                 }
             }
-            NominalConstructorSource::Variant {
-                enumeration,
-                variant,
-            } => {
+            NominalConstructorSource::Variant(variant) => {
+                let enumeration = variant.enumeration();
+                let variant_index = variant.local_index();
                 let declaration = &self.enums[enumeration];
-                let source_owner = SourceParameterOwner::VariantConstructor {
-                    enumeration,
-                    variant,
-                };
-                let calling = &self.variant_parameter_calling[&(enumeration, variant)];
-                let argument_mode = match self.variant_styles[&(enumeration, variant)] {
+                let source_owner = SourceParameterOwner::VariantConstructor(variant);
+                let calling = &self.variant_parameter_calling[&(enumeration, variant_index)];
+                let argument_mode = match self.variant_styles[&(enumeration, variant_index)] {
                     crate::VariantStyle::Unit | crate::VariantStyle::Constructor => {
                         ArgumentMode::Mixed
                     }
@@ -265,7 +258,7 @@ impl Lowerer {
                 NominalConstructorView {
                     target,
                     owner_parameters: declaration.type_params.clone(),
-                    value_parameters: declaration.variants[variant as usize]
+                    value_parameters: declaration.variants[variant_index as usize]
                         .fields
                         .iter()
                         .zip(calling)

@@ -332,6 +332,9 @@ pub struct Field {
 #[derive(Debug)]
 pub struct EnumDef {
     pub name: String,
+    /// Canonical concrete arguments of this monomorphized enum instance.
+    /// Together with the arena id these recover its exact MIR `Type`.
+    pub type_arguments: Vec<Type>,
     /// True exactly when every fully specialized variant is GC-free.
     pub gc_free: bool,
     pub variants: Vec<VariantDef>,
@@ -389,6 +392,14 @@ impl MirVariantRef {
     pub fn definition(self, enums: &Arena<EnumDef>) -> Result<&VariantDef, MirVariantRefError> {
         Self::new(enums, self.enum_id, self.variant)?;
         Ok(&enums[self.enum_id].variants[self.variant as usize])
+    }
+
+    pub fn enum_type(self, enums: &Arena<EnumDef>) -> Result<Type, MirVariantRefError> {
+        self.definition(enums)?;
+        Ok(Type::Enum(
+            self.enum_id,
+            enums[self.enum_id].type_arguments.clone(),
+        ))
     }
 }
 

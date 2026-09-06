@@ -121,20 +121,23 @@ pub fn dump(module: &Module) -> String {
             "  foreign_callback_family fcf{} callback={} state={} failure={}\n",
             id.into_raw().into_u32(),
             module.structs[family.callback].name,
-            module.enums[family.state].name,
-            module.enums[family.failure].name,
+            module.enums[family.states.enum_id()].name,
+            module.enums[family.failure_result.enum_id()].name,
         ));
     }
     for (id, bridge) in module.foreign_callback_bridges.iter() {
         let adapter = &module.foreign_callback_adapters[bridge.adapter];
+        let mode_enum = &module.enums[bridge.mode.enum_id()];
+        let mode = &mode_enum.variants[bridge.mode.variant_index() as usize].name;
         out.push_str(&format!(
-            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={:?} adapter=@{}\n",
+            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={}.{} adapter=@{}\n",
             id.into_raw().into_u32(),
             bridge.family.into_raw().into_u32(),
             bridge.native_signature.into_raw().into_u32(),
             adapter.managed_signature.into_raw().into_u32(),
             bridge.context_index,
-            bridge.mode,
+            mode_enum.name,
+            mode,
             module.functions[adapter.function].symbol,
         ));
     }
@@ -285,16 +288,16 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_step cs{} {} result={}\n",
             id.into_raw().into_u32(),
-            module.enums[step.enum_id].name,
-            type_name(module, &step.result)
+            module.enums[step.enum_id()].name,
+            type_name(module, step.result())
         ));
     }
     for (id, slot) in module.meta.coroutine_slots.iter() {
         out.push_str(&format!(
             "  coroutine_slot cl{} {} value={}\n",
             id.into_raw().into_u32(),
-            module.enums[slot.enum_id].name,
-            type_name(module, &slot.value)
+            module.enums[slot.enum_id()].name,
+            type_name(module, slot.value())
         ));
     }
     for (id, frame) in module.meta.coroutine_frames.iter() {
@@ -378,8 +381,12 @@ fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
         MirConstantImage::String(id) => format!("@{}", module.strings[*id].symbol),
         MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
         MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),
-        MirConstantImage::EnumUnit { enum_id, variant } => {
-            format!("{}::v{variant}", module.enums[*enum_id].name)
+        MirConstantImage::EnumUnit { variant } => {
+            format!(
+                "{}::v{}",
+                module.enums[variant.enum_id()].name,
+                variant.variant_index()
+            )
         }
         MirConstantImage::Struct { struct_id, fields } => format!(
             "{}{{{}}}",

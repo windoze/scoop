@@ -9,6 +9,7 @@ impl Lowerer {
                 &mut self.enums,
                 &mut self.shell,
             );
+            let completed_variant = self.coroutines.steps[step].completed();
             let protocol = self.coroutine_protocol(module, &source.source_return);
             let continuation = self.interfaces.mir_id(protocol.continuation);
             let continuation_ty = mir::Type::Interface(continuation);
@@ -29,7 +30,7 @@ impl Lowerer {
                     *value = Some(mir::Expr::new(
                         step_ty.clone(),
                         mir::ExprKind::VariantConstruct {
-                            variant: 0,
+                            variant: completed_variant,
                             fields: vec![completed],
                         },
                     ));

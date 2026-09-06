@@ -1,5 +1,9 @@
 use super::*;
 
+mod callbacks;
+mod constants;
+mod metadata;
+
 fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
     VariantDef {
         name: name.to_string(),
@@ -19,6 +23,7 @@ fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {
         name: "Choice".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants,
     });
@@ -302,7 +307,7 @@ fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
 
 #[test]
 fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
-    let (module, enum_id) = module_with_variants(vec![
+    let (mut module, enum_id) = module_with_variants(vec![
         variant_def("Left", vec![Type::Integer(IntegerKind::SIGNED_32)]),
         variant_def("Right", Vec::new()),
     ]);
@@ -310,12 +315,89 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     assert_eq!(left.enum_id(), enum_id);
     assert_eq!(left.variant_index(), 0);
     let field = MirVariantFieldRef::new(&module.enums, left, 0).expect("Left._0 exists");
+    let right = MirVariantRef::new(&module.enums, enum_id, 1).expect("Right exists");
     assert_eq!(field.variant(), left);
     assert_eq!(field.field_index(), 0);
     assert_eq!(
         field.definition(&module.enums).unwrap().ty,
         Type::Integer(IntegerKind::SIGNED_32)
     );
+    let payload_ty = Type::Integer(IntegerKind::SIGNED_32);
+    let step = CoroutineStep::checked(&module.enums, field, right, payload_ty.clone())
+        .expect("valid CoroutineStep shape");
+    assert_eq!(step.completed(), left);
+    assert_eq!(step.suspended(), right);
+    let slot = CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone())
+        .expect("valid CoroutineSlot shape");
+    assert_eq!(slot.value_variant(), left);
+    assert_eq!(slot.empty(), right);
+    assert!(CoroutineStep::checked(&module.enums, field, right, Type::Boolean).is_none());
+    assert!(CoroutineSlot::checked(&module.enums, field, right, Type::Boolean).is_none());
+    module.enums[enum_id]
+        .variants
+        .push(variant_def("Unexpected", Vec::new()));
+    assert!(
+        CoroutineStep::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        "CoroutineStep metadata requires exactly two variants"
+    );
+    assert!(
+        CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        "CoroutineSlot metadata requires exactly two variants"
+    );
+    module.enums[enum_id].variants.pop();
+    module.enums[enum_id].type_arguments.push(Type::Boolean);
+    assert!(
+        CoroutineStep::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        "CoroutineStep metadata is already concrete"
+    );
+    assert!(
+        CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        "CoroutineSlot metadata is already concrete"
+    );
+    module.enums[enum_id].type_arguments.clear();
+
+    let option_enum = module.enums.alloc(EnumDef {
+        name: "Option".to_string(),
+        type_arguments: vec![payload_ty.clone()],
+        gc_free: true,
+        variants: vec![
+            variant_def("Some", vec![payload_ty.clone()]),
+            variant_def("None", Vec::new()),
+        ],
+    });
+    let some = MirVariantRef::new(&module.enums, option_enum, 0).unwrap();
+    let some_payload = MirVariantFieldRef::new(&module.enums, some, 0).unwrap();
+    let none = MirVariantRef::new(&module.enums, option_enum, 1).unwrap();
+    let option =
+        OptionCore::checked(&module.enums, some_payload, none).expect("valid Option shape");
+    assert_eq!(option.some(), some);
+    assert_eq!(option.some_payload(), some_payload);
+    assert_eq!(option.none(), none);
+    assert!(OptionCore::checked(&module.enums, some_payload, some).is_none());
+    module.enums[option_enum]
+        .variants
+        .push(variant_def("Unexpected", Vec::new()));
+    assert!(
+        OptionCore::checked(&module.enums, some_payload, none).is_none(),
+        "Option metadata requires exactly two variants"
+    );
+    module.enums[option_enum].variants.pop();
+    module.enums[option_enum].type_arguments[0] = Type::Boolean;
+    assert!(OptionCore::checked(&module.enums, some_payload, none).is_none());
+    module.enums[option_enum].type_arguments[0] = payload_ty.clone();
+
+    let foreign_enum = module.enums.alloc(EnumDef {
+        name: "Foreign".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![variant_def("None", Vec::new())],
+    });
+    let foreign_none = MirVariantRef::new(&module.enums, foreign_enum, 0).unwrap();
+    assert!(OptionCore::checked(&module.enums, some_payload, foreign_none).is_none());
+    assert!(
+        CoroutineStep::checked(&module.enums, field, foreign_none, payload_ty.clone()).is_none()
+    );
+    assert!(CoroutineSlot::checked(&module.enums, field, foreign_none, payload_ty).is_none());
 
     assert!(matches!(
         MirVariantRef::new(&module.enums, enum_id, 2),
@@ -341,6 +423,110 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
 }
 
 #[test]
+fn variant_construction_validation_checks_ref_result_arity_and_field_types() {
+    let int = Type::Integer(IntegerKind::SIGNED_32);
+    let (mut module, enum_id) = module_with_variants(vec![variant_def("Value", vec![int.clone()])]);
+    let variant = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
+    let construct = |ty, fields| Expr::new(ty, ExprKind::VariantConstruct { variant, fields });
+    set_return_expression(
+        &mut module,
+        construct(
+            Type::Enum(enum_id, Vec::new()),
+            vec![Expr::new(int.clone(), ExprKind::UnitLiteral)],
+        ),
+    );
+    assert_eq!(module.validate(), Ok(()));
+    let entry = module.functions[module.entry].body.entry;
+
+    return_value_mut(&mut module, entry).ty = Type::Boolean;
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::VariantConstructResultType {
+                actual: Type::Boolean,
+                ..
+            },
+            ..
+        })
+    ));
+
+    let expression = return_value_mut(&mut module, entry);
+    expression.ty = Type::Enum(enum_id, vec![Type::Boolean]);
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::VariantConstructResultType {
+                actual: Type::Enum(found, arguments),
+                ..
+            },
+            ..
+        }) if found == enum_id && arguments == vec![Type::Boolean]
+    ));
+
+    let expression = return_value_mut(&mut module, entry);
+    expression.ty = Type::Enum(enum_id, Vec::new());
+    let ExprKind::VariantConstruct { fields, .. } = &mut expression.kind else {
+        unreachable!()
+    };
+    fields.clear();
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::VariantConstructArity {
+                expected: 1,
+                actual: 0,
+                ..
+            },
+            ..
+        })
+    ));
+
+    let ExprKind::VariantConstruct { fields, .. } = &mut return_value_mut(&mut module, entry).kind
+    else {
+        unreachable!()
+    };
+    fields.push(Expr::new(Type::Boolean, ExprKind::BoolLiteral(false)));
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::VariantConstructFieldType {
+                expected: Type::Integer(IntegerKind::SIGNED_32),
+                actual: Type::Boolean,
+                ..
+            },
+            ..
+        })
+    ));
+
+    let mut foreign = Arena::new();
+    let foreign_enum = foreign.alloc(EnumDef {
+        name: "Choice".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![
+            variant_def("Value", vec![int]),
+            variant_def("Other", Vec::new()),
+        ],
+    });
+    let invalid = MirVariantRef::new(&foreign, foreign_enum, 1).unwrap();
+    let expression = return_value_mut(&mut module, entry);
+    expression.kind = ExprKind::VariantConstruct {
+        variant: invalid,
+        fields: Vec::new(),
+    };
+    assert!(matches!(
+        module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidVariantReference {
+                operation: MirVariantOperation::Construct,
+                error: MirVariantRefError::VariantOutOfBounds { variant: 1, .. },
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
 fn safe_expression_constructors_fix_results_and_reject_a_wrong_enum() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def(
         "Only",
@@ -348,6 +534,7 @@ fn safe_expression_constructors_fix_results_and_reject_a_wrong_enum() {
     )]);
     let other = module.enums.alloc(EnumDef {
         name: "Other".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![variant_def("Only", Vec::new())],
     });
@@ -358,6 +545,18 @@ fn safe_expression_constructors_fix_results_and_reject_a_wrong_enum() {
     let project = Expr::variant_payload_project(&module.enums, operand, field).unwrap();
     assert_eq!(test.ty, Type::Boolean);
     assert_eq!(project.ty, Type::Integer(IntegerKind::SIGNED_32));
+
+    module.enums[enum_id].type_arguments = vec![Type::Boolean];
+    let wrong_arguments = Expr::new(Type::Enum(enum_id, Vec::new()), ExprKind::UnitLiteral);
+    assert!(matches!(
+        Expr::variant_test(&module.enums, wrong_arguments, variant),
+        Err(MirVariantExprError::OperandTypeArgumentsMismatch {
+            enum_id: found,
+            expected,
+            actual,
+        }) if found == enum_id && expected == vec![Type::Boolean] && actual.is_empty()
+    ));
+    module.enums[enum_id].type_arguments.clear();
 
     let wrong = Expr::new(Type::Enum(other, Vec::new()), ExprKind::UnitLiteral);
     assert!(matches!(
@@ -542,6 +741,7 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
         name: "Choice".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![variant_def(
             "Only",
@@ -606,6 +806,7 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def("Only", Vec::new())]);
     let other = module.enums.alloc(EnumDef {
         name: "Other".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![variant_def("Only", Vec::new())],
     });

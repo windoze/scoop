@@ -131,7 +131,7 @@ impl Lowerer {
         let some_message = smir::Expr::new(
             cycle.message_type.clone(),
             smir::ExprKind::VariantConstruct {
-                variant: option.some_variant(),
+                variant: option.some(),
                 fields: vec![cycle_message],
             },
         );

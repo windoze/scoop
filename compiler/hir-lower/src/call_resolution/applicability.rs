@@ -368,7 +368,8 @@ impl Lowerer {
                     self.class_applications[declaration.self_application].canonical_type,
                 )
             }
-            NominalConstructorSource::Variant { enumeration, .. } => {
+            NominalConstructorSource::Variant(variant) => {
+                let enumeration = variant.enumeration();
                 let declaration = &self.enums[enumeration];
                 (
                     declaration.span,
@@ -460,8 +461,8 @@ impl Lowerer {
             NominalConstructorSource::IntrinsicClass(class) => {
                 NominalApplication::Class(class, application_arguments)
             }
-            NominalConstructorSource::Variant { enumeration, .. } => {
-                NominalApplication::Enum(enumeration, application_arguments)
+            NominalConstructorSource::Variant(variant) => {
+                NominalApplication::Enum(variant.enumeration(), application_arguments)
             }
         };
         session.push(

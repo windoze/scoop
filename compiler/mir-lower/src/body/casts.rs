@@ -96,10 +96,15 @@ impl BodyLowerer<'_> {
             let hir::TypeKind::Enum(option) = self.module.types[expr_ty].kind else {
                 unreachable!("an `as?` result is an Option<T>")
             };
-            let (some, _) = self.module.enums[option]
-                .option_variants
+            let option = self
+                .module
+                .option_core(option)
                 .expect("an `as?` result is core's Option<T>");
-            self.module.enums[option].variants[some.into_raw() as usize].fields[0].ty
+            let payload = option.some_payload();
+            self.module.enums[option.enumeration()].variants
+                [payload.variant().variant().into_raw() as usize]
+                .fields[payload.local_index() as usize]
+                .ty
         } else {
             expr_ty
         };
@@ -185,7 +190,7 @@ impl BodyLowerer<'_> {
         };
         let option_ty = self.lower_type(expr_ty);
         let option = option_core_for_type(self.module, self.enums, &option_ty);
-        let (some, none) = (option.some_variant(), option.none_variant());
+        let (some, none) = (option.some(), option.none());
         let result = self.new_hidden("cast", option_ty.clone(), true);
         let some_value = smir::Expr::new(
             option_ty.clone(),

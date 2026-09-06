@@ -388,14 +388,54 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_functions();
         let coroutine_protocols = self.build_coroutine_protocols();
         self.drain_pending_functions();
-        let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
-        let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
-        let callback_failure_payload = self.class_type
-            [&self.class_by_key[&(self.source.exception_core.throwable.class(), Vec::new())]];
-        let callback_failure = self.ensure_enum(
-            self.source.option_core.enumeration(),
-            vec![callback_failure_payload],
+        let source_callback_core = self.source.foreign_callback_core;
+        let callback_reusable =
+            self.lower_applied_enum_variant_ref(source_callback_core.modes.reusable(), &[]);
+        let callback_one_shot =
+            self.lower_applied_enum_variant_ref(source_callback_core.modes.one_shot(), &[]);
+        let callback_modes = concrete::ForeignCallbackModes::checked(
+            &self.enums,
+            callback_reusable,
+            callback_one_shot,
+        )
+        .expect("the validated foreign callback mode protocol survives concretization");
+        let callback_registered =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.registered(), &[]);
+        let callback_active =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.active(), &[]);
+        let callback_completed =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.completed(), &[]);
+        let callback_failed =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.failed(), &[]);
+        let callback_states = concrete::ForeignCallbackStates::checked(
+            &self.enums,
+            callback_registered,
+            callback_active,
+            callback_completed,
+            callback_failed,
+        )
+        .expect("the validated foreign callback state protocol survives concretization");
+        let callback_failure_some = self.lower_applied_enum_variant_field_ref(
+            source_callback_core.failure_result.some_payload(),
+            &[],
         );
+        let callback_failure_none =
+            self.lower_applied_enum_variant_ref(source_callback_core.failure_result.none(), &[]);
+        let callback_failure_option = concrete::OptionCore::checked(
+            &self.enums,
+            callback_failure_some,
+            callback_failure_none,
+        )
+        .expect("the validated foreign callback failure protocol survives concretization");
+        let callback_throwable =
+            self.class_by_key[&(self.source.exception_core.throwable.class(), Vec::new())];
+        let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
+            &self.enums,
+            &self.types,
+            callback_failure_option,
+            callback_throwable,
+        )
+        .expect("foreign callback failure remains the exact Option<Throwable> specialization");
 
         for (source_id, source) in self.source.initialization_failure_roots.iter() {
             let id = self
@@ -492,7 +532,38 @@ impl<'a> Concretizer<'a> {
         let source_exception_core = self.source.exception_core;
         let message_constructor = source_exception_core.illegal_state_message_constructor;
         let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
-        let option_core = self.source.option_core;
+        let source_option_core = self.source.option_core;
+        let option_core = self
+            .enums
+            .iter()
+            .filter(|(enumeration, _)| {
+                self.enum_source[enumeration] == source_option_core.enumeration()
+            })
+            .map(|(enumeration, _)| {
+                let some = concrete::EnumVariantRef::checked(
+                    &self.enums,
+                    enumeration,
+                    concrete::VariantId::from_raw(
+                        source_option_core.some_payload().variant().local_index(),
+                    ),
+                )
+                .expect("a concrete Option specialization retains its Some variant");
+                let some_payload = concrete::EnumVariantFieldRef::checked(
+                    &self.enums,
+                    some,
+                    source_option_core.some_payload().local_index(),
+                )
+                .expect("a concrete Option specialization retains its Some payload identity");
+                let none = concrete::EnumVariantRef::checked(
+                    &self.enums,
+                    enumeration,
+                    concrete::VariantId::from_raw(source_option_core.none().local_index()),
+                )
+                .expect("a concrete Option specialization retains its None variant");
+                concrete::OptionCore::checked(&self.enums, some_payload, none)
+                    .expect("the validated Option shape survives concretization")
+            })
+            .collect();
 
         concrete::Module {
             types: self.types,
@@ -523,10 +594,7 @@ impl<'a> Concretizer<'a> {
             unit,
             boolean,
             string,
-            option_variants: (
-                concrete::VariantId::from_raw(option_core.some().local_index()),
-                concrete::VariantId::from_raw(option_core.none().local_index()),
-            ),
+            option_core,
             exception_core: concrete::CompilerExceptionCore {
                 throwable: lower_exception(source_exception_core.throwable),
                 unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
@@ -546,9 +614,9 @@ impl<'a> Concretizer<'a> {
             },
             coroutine_protocols,
             foreign_callback_core: concrete::ForeignCallbackCore {
-                mode: callback_mode,
-                state: callback_state,
-                failure: callback_failure,
+                modes: callback_modes,
+                states: callback_states,
+                failure_result: callback_failure_result,
             },
             intrinsic_type_core,
             entry,

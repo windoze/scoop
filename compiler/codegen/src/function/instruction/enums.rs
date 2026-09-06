@@ -11,81 +11,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         match instruction {
             Instruction::EnumWrap {
                 out,
-                enum_id,
                 variant,
                 fields,
             } => {
-                let def = &self.enums[*enum_id];
-                if function.temps[*out].ty != LirType::Enum(*enum_id) {
-                    return Err(CodegenError(format!(
-                        "enum_wrap @{} must produce its declared enum e{}",
-                        function.symbol,
-                        enum_id.into_raw()
-                    )));
-                }
-                match &def.repr {
-                    EnumRepr::Niche {
-                        kind,
-                        payload_variant,
-                    } => {
-                        let expected_count = usize::from(*variant == *payload_variant);
-                        if *variant > 1 || fields.len() != expected_count {
-                            return Err(CodegenError(format!(
-                                "enum_wrap @{} has an invalid niche variant or payload arity",
-                                function.symbol
-                            )));
-                        }
-                        if let Some(field) = fields.first() {
-                            let field_ty = function.value_ty(self.globals_arena, *field);
-                            let expected = LirType::Ptr(kind.pointer_kind());
-                            if field_ty != expected {
-                                return Err(CodegenError(format!(
-                                    "enum_wrap @{} niche payload has type {}, expected {}",
-                                    function.symbol,
-                                    field_ty.dump(),
-                                    expected.dump(),
-                                )));
-                            }
-                        }
-                    }
-                    EnumRepr::Tagged { variants, .. } => {
-                        let Some(variant_repr) = variants.get(*variant as usize) else {
-                            return Err(CodegenError(format!(
-                                "enum_wrap @{} has invalid variant {}",
-                                function.symbol, variant
-                            )));
-                        };
-                        if fields.len() != variant_repr.fields.len() {
-                            return Err(CodegenError(format!(
-                                "enum_wrap @{} variant {} has {} fields, expected {}",
-                                function.symbol,
-                                variant,
-                                fields.len(),
-                                variant_repr.fields.len()
-                            )));
-                        }
-                        for (index, (value, expected)) in
-                            fields.iter().zip(&variant_repr.fields).enumerate()
-                        {
-                            let actual = function.value_ty(self.globals_arena, *value);
-                            if actual != expected.ty {
-                                return Err(CodegenError(format!(
-                                    "enum_wrap @{} field {} has type {}, expected {}",
-                                    function.symbol,
-                                    index,
-                                    actual.dump(),
-                                    expected.ty.dump()
-                                )));
-                            }
-                        }
-                    }
-                }
+                let enum_id = variant.definition();
+                let variant_index = variant.index();
+                let def = &self.enums[enum_id];
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
                     EnumRepr::Niche {
                         payload_variant, ..
                     } => {
-                        if *variant == *payload_variant {
+                        if variant_index == *payload_variant {
                             // The payload is the bare pointer itself.
                             self.value(fields[0])?
                         } else {
@@ -128,7 +65,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         builder
                             .build_store(
                                 tag_ptr,
-                                context.i64_type().const_int(*variant as u64, false),
+                                context.i64_type().const_int(variant_index as u64, false),
                             )
                             .map_err(|e| {
                                 CodegenError(format!(
@@ -136,7 +73,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                     symbol = function.symbol
                                 ))
                             })?;
-                        let variant_repr = &variants[*variant as usize];
+                        let variant_repr = &variants[variant_index as usize];
                         for (value, field) in fields.iter().zip(&variant_repr.fields) {
                             let field_ptr = self.enum_field_ptr(slot, field.offset, "field_ptr")?;
                             builder

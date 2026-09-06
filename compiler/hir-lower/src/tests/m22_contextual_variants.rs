@@ -581,18 +581,25 @@ fn checked_variant_references_reject_wrong_owners_and_indices() {
         .expect("Other enum");
     let present = hir::EnumVariantRef::checked(&module.enums, maybe, 0).expect("present ref");
     let absent = hir::EnumVariantRef::checked(&module.enums, maybe, 1).expect("absent ref");
+    let present_payload =
+        hir::EnumVariantFieldRef::checked(&module.enums, present, 0).expect("present payload ref");
     let other_absent =
         hir::EnumVariantRef::checked(&module.enums, other, 0).expect("other absent ref");
 
     assert!(hir::EnumVariantRef::checked(&module.enums, maybe, 2).is_none());
     assert!(
-        hir::OptionCore::checked(&module.enums, &module.types, present, other_absent).is_none()
+        hir::OptionCore::checked(&module.enums, &module.types, present_payload, other_absent)
+            .is_none()
     );
-    assert!(hir::OptionCore::checked(&module.enums, &module.types, absent, present).is_none());
-    assert!(hir::OptionCore::checked(&module.enums, &module.types, present, absent).is_none());
+    assert!(hir::EnumVariantFieldRef::checked(&module.enums, absent, 0).is_none());
+    assert!(
+        hir::OptionCore::checked(&module.enums, &module.types, present_payload, absent).is_none()
+    );
 
     let checked = module.option_core;
     assert_eq!(module.enums[checked.enumeration()].name, "Option");
+    assert_eq!(checked.some_payload().variant(), checked.some());
+    assert_eq!(checked.some_payload().local_index(), 0);
     assert_eq!(
         module.enums[checked.enumeration()].variants[checked.some().local_index() as usize].name,
         "Some"

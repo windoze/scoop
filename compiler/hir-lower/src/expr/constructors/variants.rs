@@ -12,7 +12,6 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         debug_assert!(self.resolved_variant_style(target) == VariantStyle::Unit);
         let enum_id = target.enumeration();
-        let variant = target.local_index();
         let arity = self.enums[enum_id].type_params.len();
         let expected_arguments = expected.and_then(|ty| match self.types[ty].clone() {
             Type::Enum(application) => {
@@ -23,10 +22,7 @@ impl Lowerer {
             _ => None,
         });
         let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Variant {
-                enumeration: enum_id,
-                variant,
-            },
+            crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
         );
         let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
             0,
@@ -48,9 +44,13 @@ impl Lowerer {
             }
         };
         let application = self.enum_application_id(enum_id, type_args);
-        let variant =
-            hir::AppliedEnumVariantRef::checked(&self.enum_applications, application, target)
-                .expect("the selected application belongs to the checked variant declaration");
+        let variant = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            application,
+            target,
+        )
+        .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
@@ -90,17 +90,13 @@ impl Lowerer {
             return None;
         }
         let enum_id = target.enumeration();
-        let variant = target.local_index();
         let CallSite {
             type_args: type_arg_refs,
             args,
             span,
         } = call;
         let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Variant {
-                enumeration: enum_id,
-                variant,
-            },
+            crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
         );
         let argument_map =
             match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
@@ -156,9 +152,13 @@ impl Lowerer {
         );
 
         let application = self.enum_application_id(enum_id, type_args);
-        let variant =
-            hir::AppliedEnumVariantRef::checked(&self.enum_applications, application, target)
-                .expect("the selected application belongs to the checked variant declaration");
+        let variant = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            application,
+            target,
+        )
+        .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {

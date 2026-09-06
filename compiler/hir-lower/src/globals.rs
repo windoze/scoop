@@ -935,10 +935,14 @@ impl Lowerer {
         if application_value.template != option.enumeration() {
             return None;
         }
-        Some(hir::HirConstantImage::EnumUnit {
+        let variant = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
             application,
-            variant: option.none().local_index(),
-        })
+            option.none(),
+        )
+        .expect("the exact Option application belongs to its checked None variant");
+        Some(hir::HirConstantImage::EnumUnit { variant })
     }
 
     fn static_unit_variant_constant(
@@ -972,12 +976,14 @@ impl Lowerer {
             [] => self.contextual_variant_ref(&name.text, Some(expected)),
             _ => None,
         }?;
-        (self.resolved_variant_style(target) == VariantStyle::Unit).then_some(
-            hir::HirConstantImage::EnumUnit {
-                application,
-                variant: target.local_index(),
-            },
-        )
+        let variant = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            application,
+            target,
+        )?;
+        (self.resolved_variant_style(target) == VariantStyle::Unit)
+            .then_some(hir::HirConstantImage::EnumUnit { variant })
     }
 
     fn declare_extension_property(

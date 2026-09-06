@@ -179,6 +179,7 @@ impl Lowerer {
     ) -> hir::AppliedEnumVariantRef {
         let application = self.instantiate_default_enum_application(source.application(), context);
         hir::AppliedEnumVariantRef::checked(
+            &self.enums,
             &self.enum_applications,
             application,
             source.declaration(),
@@ -192,8 +193,13 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::AppliedEnumVariantFieldRef {
         let variant = self.instantiate_default_applied_enum_variant(source.variant(), context);
-        hir::AppliedEnumVariantFieldRef::checked(&self.enums, variant, source.local_index())
-            .expect("default substitution preserves the enum payload field")
+        hir::AppliedEnumVariantFieldRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            variant,
+            source.local_index(),
+        )
+        .expect("default substitution preserves the enum payload field")
     }
 
     pub(super) fn instantiate_default_class_application(

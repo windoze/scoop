@@ -194,10 +194,57 @@ impl EnumVariantRef {
     }
 }
 
+/// Declaration-local identity of one field of one checked enum variant.
+///
+/// This ref deliberately retains its variant owner so compiler-recognized
+/// contracts cannot pair a bare field ordinal with another variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantFieldRef {
+    variant: EnumVariantRef,
+    local_index: u32,
+}
+
+impl EnumVariantFieldRef {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        variant: EnumVariantRef,
+        local_index: u32,
+    ) -> Option<Self> {
+        let checked_variant =
+            EnumVariantRef::checked(enums, variant.enumeration(), variant.local_index())?;
+        if checked_variant != variant {
+            return None;
+        }
+        let enumeration = &enums[checked_variant.enumeration()];
+        enumeration
+            .variants
+            .get(checked_variant.local_index() as usize)?
+            .fields
+            .get(local_index as usize)
+            .map(|_| Self {
+                variant: checked_variant,
+                local_index,
+            })
+    }
+
+    pub const fn variant(self) -> EnumVariantRef {
+        self.variant
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
+}
+
 /// Exact export-side identity of one variant of one enum application.
 /// Keeping the application and its checked declaration-local variant in one
 /// value prevents generic applications from being paired with another
 /// template's variant index.
+///
+/// This is a coordinate identity, not an arena-branded capability. `checked`
+/// revalidates both coordinates against the supplied target stores, so a ref
+/// from another store is accepted only when those same coordinates form a
+/// valid relation in the target stores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AppliedEnumVariantRef {
     application: EnumApplicationId,
@@ -206,6 +253,7 @@ pub struct AppliedEnumVariantRef {
 
 impl AppliedEnumVariantRef {
     pub fn checked(
+        enums: &Arena<EnumDecl>,
         applications: &Arena<EnumApplication>,
         application: EnumApplicationId,
         declaration: EnumVariantRef,
@@ -213,9 +261,14 @@ impl AppliedEnumVariantRef {
         if application.into_raw().into_u32() as usize >= applications.len() {
             return None;
         }
-        (applications[application].template == declaration.enumeration()).then_some(Self {
+        let checked_declaration = EnumVariantRef::checked(
+            enums,
+            applications[application].template,
+            declaration.local_index(),
+        )?;
+        (checked_declaration == declaration).then_some(Self {
             application,
-            declaration,
+            declaration: checked_declaration,
         })
     }
 
@@ -230,7 +283,7 @@ impl AppliedEnumVariantRef {
         }
         let declaration =
             EnumVariantRef::checked(enums, applications[application].template, local_index)?;
-        Self::checked(applications, application, declaration)
+        Self::checked(enums, applications, application, declaration)
     }
 
     pub const fn application(self) -> EnumApplicationId {
@@ -247,6 +300,8 @@ impl AppliedEnumVariantRef {
 }
 
 /// Exact export-side identity of one field of one applied enum variant.
+/// Like `AppliedEnumVariantRef`, this value has no arena brand: construction
+/// rechecks its complete coordinate chain in the supplied target stores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AppliedEnumVariantFieldRef {
     variant: AppliedEnumVariantRef,
@@ -256,24 +311,25 @@ pub struct AppliedEnumVariantFieldRef {
 impl AppliedEnumVariantFieldRef {
     pub fn checked(
         enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
         variant: AppliedEnumVariantRef,
         local_index: u32,
     ) -> Option<Self> {
-        if variant.declaration().enumeration().into_raw().into_u32() as usize >= enums.len() {
+        let checked_variant = AppliedEnumVariantRef::checked(
+            enums,
+            applications,
+            variant.application(),
+            variant.declaration(),
+        )?;
+        if checked_variant != variant {
             return None;
         }
-        let declaration = variant.declaration();
-        let enumeration = &enums[declaration.enumeration()];
-        let declared_variant = enumeration
-            .variants
-            .get(declaration.local_index() as usize)?;
-        declared_variant
-            .fields
-            .get(local_index as usize)
-            .map(|_| Self {
-                variant,
-                local_index,
-            })
+        let checked_field =
+            EnumVariantFieldRef::checked(enums, checked_variant.declaration(), local_index)?;
+        Some(Self {
+            variant: checked_variant,
+            local_index: checked_field.local_index(),
+        })
     }
 
     pub const fn variant(self) -> AppliedEnumVariantRef {
@@ -331,7 +387,7 @@ impl AppliedStructFieldRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OptionCore {
     enumeration: EnumId,
-    some: EnumVariantRef,
+    some_payload: EnumVariantFieldRef,
     none: EnumVariantRef,
 }
 
@@ -339,35 +395,57 @@ impl OptionCore {
     pub fn checked(
         enums: &Arena<EnumDecl>,
         types: &Arena<Type>,
-        some: EnumVariantRef,
+        some_payload: EnumVariantFieldRef,
         none: EnumVariantRef,
     ) -> Option<Self> {
-        if some.enumeration != none.enumeration || some.local_index == none.local_index {
+        let some = some_payload.variant();
+        let checked_some = EnumVariantRef::checked(enums, some.enumeration(), some.local_index())?;
+        if checked_some != some {
             return None;
         }
-        let declaration = &enums[some.enumeration];
+        let checked_some_payload =
+            EnumVariantFieldRef::checked(enums, checked_some, some_payload.local_index())?;
+        if checked_some_payload != some_payload {
+            return None;
+        }
+        let checked_none = EnumVariantRef::checked(enums, none.enumeration(), none.local_index())?;
+        if checked_none != none
+            || checked_some.enumeration() != checked_none.enumeration()
+            || checked_some.local_index() == checked_none.local_index()
+        {
+            return None;
+        }
+        let declaration = &enums[checked_some.enumeration()];
         let [parameter] = declaration.type_params.as_slice() else {
             return None;
         };
         if declaration.name != "Option" || declaration.variants.len() != 2 {
             return None;
         }
-        let some_variant = declaration.variants.get(some.local_index as usize)?;
-        let none_variant = declaration.variants.get(none.local_index as usize)?;
+        let some_variant = declaration
+            .variants
+            .get(checked_some.local_index() as usize)?;
+        let none_variant = declaration
+            .variants
+            .get(checked_none.local_index() as usize)?;
         let [field] = some_variant.fields.as_slice() else {
             return None;
         };
+        if field.ty.into_raw().into_u32() as usize >= types.len() {
+            return None;
+        }
         if some_variant.name != "Some"
             || none_variant.name != "None"
+            || checked_some_payload.local_index() != 0
             || !matches!(types[field.ty], Type::Param(found) if found == parameter.id)
             || !none_variant.fields.is_empty()
         {
             return None;
         }
         Some(Self {
-            enumeration: some.enumeration,
-            some,
-            none,
+            enumeration: checked_some.enumeration(),
+            some_payload: checked_some_payload,
+            none: checked_none,
         })
     }
 
@@ -376,7 +454,11 @@ impl OptionCore {
     }
 
     pub const fn some(self) -> EnumVariantRef {
-        self.some
+        self.some_payload.variant()
+    }
+
+    pub const fn some_payload(self) -> EnumVariantFieldRef {
+        self.some_payload
     }
 
     pub const fn none(self) -> EnumVariantRef {
@@ -894,27 +976,43 @@ mod tests {
         let empty = EnumVariantRef::checked(&enums, choice, 1).unwrap();
         assert!(EnumVariantRef::checked(&enums, choice, 2).is_none());
         assert!(EnumVariantRef::checked(&enums, EnumId::from_raw(99.into()), 0).is_none());
-        let applied_int = AppliedEnumVariantRef::checked(&applications, choice_int, data).unwrap();
+        let data_field = EnumVariantFieldRef::checked(&enums, data, 0).unwrap();
+        assert_eq!(data_field.variant(), data);
+        assert_eq!(data_field.local_index(), 0);
+        assert!(EnumVariantFieldRef::checked(&enums, data, 1).is_none());
+        assert!(EnumVariantFieldRef::checked(&enums, empty, 0).is_none());
+        let applied_int =
+            AppliedEnumVariantRef::checked(&enums, &applications, choice_int, data).unwrap();
         let applied_string =
-            AppliedEnumVariantRef::checked(&applications, choice_string, data).unwrap();
+            AppliedEnumVariantRef::checked(&enums, &applications, choice_string, data).unwrap();
         assert_ne!(applied_int, applied_string);
-        assert!(AppliedEnumVariantRef::checked(&applications, other_application, data).is_none());
+        assert!(
+            AppliedEnumVariantRef::checked(&enums, &applications, other_application, data)
+                .is_none()
+        );
         assert!(
             AppliedEnumVariantRef::checked_index(&enums, &applications, choice_int, 2).is_none()
         );
         assert!(
             AppliedEnumVariantRef::checked(
+                &enums,
                 &applications,
                 EnumApplicationId::from_raw(99.into()),
                 data
             )
             .is_none()
         );
-        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_int, 0).is_some());
-        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_int, 1).is_none());
+        assert!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, applied_int, 0).is_some()
+        );
+        assert!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, applied_int, 1).is_none()
+        );
         let applied_empty =
-            AppliedEnumVariantRef::checked(&applications, choice_int, empty).unwrap();
-        assert!(AppliedEnumVariantFieldRef::checked(&enums, applied_empty, 0).is_none());
+            AppliedEnumVariantRef::checked(&enums, &applications, choice_int, empty).unwrap();
+        assert!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, applied_empty, 0).is_none()
+        );
 
         let mut structs = Arena::new();
         let declared_application = StructApplicationId::from_raw(0.into());
@@ -992,6 +1090,298 @@ mod tests {
                 0
             )
             .is_none()
+        );
+    }
+
+    #[test]
+    fn applied_enum_refs_revalidate_coordinates_in_target_stores() {
+        let mut types = Arena::new();
+        let unit = types.alloc(Type::Unit);
+
+        let mut enums = Arena::new();
+        let choice = enums.alloc(enum_declaration(
+            "Choice",
+            EnumApplicationId::from_raw(0.into()),
+            vec![
+                Variant {
+                    name: "Data".to_string(),
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty: unit,
+                    }],
+                },
+                Variant {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+            ],
+        ));
+        let other = enums.alloc(enum_declaration(
+            "Other",
+            EnumApplicationId::from_raw(1.into()),
+            vec![Variant {
+                name: "Data".to_string(),
+                fields: vec![Field {
+                    name: "value".to_string(),
+                    ty: unit,
+                }],
+            }],
+        ));
+        let mut applications = Arena::new();
+        let choice_application = applications.alloc(EnumApplication {
+            template: choice,
+            arguments: Vec::new(),
+            canonical_type: unit,
+        });
+        let other_application = applications.alloc(EnumApplication {
+            template: other,
+            arguments: Vec::new(),
+            canonical_type: unit,
+        });
+
+        let mut foreign_enums = Arena::new();
+        let foreign_choice = foreign_enums.alloc(enum_declaration(
+            "ForeignChoice",
+            EnumApplicationId::from_raw(0.into()),
+            vec![
+                Variant {
+                    name: "ForeignData".to_string(),
+                    fields: vec![
+                        Field {
+                            name: "first".to_string(),
+                            ty: unit,
+                        },
+                        Field {
+                            name: "second".to_string(),
+                            ty: unit,
+                        },
+                    ],
+                },
+                Variant {
+                    name: "ForeignEmpty".to_string(),
+                    fields: Vec::new(),
+                },
+                Variant {
+                    name: "ForeignExtra".to_string(),
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty: unit,
+                    }],
+                },
+            ],
+        ));
+        foreign_enums.alloc(enum_declaration(
+            "ForeignOther",
+            EnumApplicationId::from_raw(2.into()),
+            Vec::new(),
+        ));
+        let mut foreign_applications = Arena::new();
+        let foreign_same_application = foreign_applications.alloc(EnumApplication {
+            template: foreign_choice,
+            arguments: Vec::new(),
+            canonical_type: unit,
+        });
+        let foreign_wrong_owner_application = foreign_applications.alloc(EnumApplication {
+            template: foreign_choice,
+            arguments: Vec::new(),
+            canonical_type: unit,
+        });
+
+        assert_eq!(choice_application, foreign_same_application);
+        assert_eq!(other_application, foreign_wrong_owner_application);
+        let foreign_data = EnumVariantRef::checked(&foreign_enums, foreign_choice, 0).unwrap();
+        let foreign_applied = AppliedEnumVariantRef::checked(
+            &foreign_enums,
+            &foreign_applications,
+            foreign_same_application,
+            foreign_data,
+        )
+        .unwrap();
+
+        let target_applied = AppliedEnumVariantRef::checked(
+            &enums,
+            &applications,
+            foreign_applied.application(),
+            foreign_applied.declaration(),
+        )
+        .expect("same coordinates are revalidated in the target stores");
+        assert_eq!(target_applied, foreign_applied);
+        assert_eq!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, foreign_applied, 0,)
+                .expect("the target variant has field zero")
+                .variant(),
+            target_applied
+        );
+        assert!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, foreign_applied, 1,)
+                .is_none(),
+            "a field index valid only in the foreign store must be rejected"
+        );
+
+        let foreign_wrong_owner = AppliedEnumVariantRef::checked(
+            &foreign_enums,
+            &foreign_applications,
+            foreign_wrong_owner_application,
+            foreign_data,
+        )
+        .unwrap();
+        assert!(
+            AppliedEnumVariantRef::checked(
+                &enums,
+                &applications,
+                foreign_wrong_owner.application(),
+                foreign_wrong_owner.declaration(),
+            )
+            .is_none(),
+            "the target application owner decides the relation"
+        );
+        assert!(
+            AppliedEnumVariantFieldRef::checked(&enums, &applications, foreign_wrong_owner, 0,)
+                .is_none(),
+            "field construction must revalidate the applied variant owner"
+        );
+
+        let foreign_extra = EnumVariantRef::checked(&foreign_enums, foreign_choice, 2).unwrap();
+        assert!(
+            AppliedEnumVariantRef::checked(
+                &enums,
+                &applications,
+                choice_application,
+                foreign_extra,
+            )
+            .is_none(),
+            "a variant index valid only in the foreign store must be rejected"
+        );
+
+        let mut invalid_applications = Arena::new();
+        let invalid_application = invalid_applications.alloc(EnumApplication {
+            template: EnumId::from_raw(99.into()),
+            arguments: Vec::new(),
+            canonical_type: unit,
+        });
+        assert!(
+            AppliedEnumVariantRef::checked(
+                &enums,
+                &invalid_applications,
+                invalid_application,
+                foreign_data,
+            )
+            .is_none(),
+            "an application with an invalid target-store owner must be rejected"
+        );
+    }
+
+    #[test]
+    fn option_core_revalidates_refs_and_field_types_before_indexing() {
+        let parameter = TypeParamId::from_raw(7);
+        let mut types = Arena::new();
+        let parameter_ty = types.alloc(Type::Param(parameter));
+        let mut enums = Arena::new();
+        let option = enums.alloc(enum_declaration(
+            "Option",
+            EnumApplicationId::from_raw(0.into()),
+            vec![
+                Variant {
+                    name: "Some".to_string(),
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty: parameter_ty,
+                    }],
+                },
+                Variant {
+                    name: "None".to_string(),
+                    fields: Vec::new(),
+                },
+            ],
+        ));
+        enums[option].type_params.push(TypeParamDecl {
+            id: parameter,
+            name: "T".to_string(),
+            bounds: TypeParamBounds::Unconstrained,
+            span: Span::new(0, 0),
+        });
+        let other = enums.alloc(enum_declaration(
+            "Other",
+            EnumApplicationId::from_raw(1.into()),
+            vec![Variant {
+                name: "None".to_string(),
+                fields: Vec::new(),
+            }],
+        ));
+        let some = EnumVariantRef::checked(&enums, option, 0).unwrap();
+        let some_payload = EnumVariantFieldRef::checked(&enums, some, 0).unwrap();
+        let none = EnumVariantRef::checked(&enums, option, 1).unwrap();
+        assert!(OptionCore::checked(&enums, &types, some_payload, none).is_some());
+
+        let foreign_none = EnumVariantRef::checked(&enums, other, 0).unwrap();
+        assert!(OptionCore::checked(&enums, &types, some_payload, foreign_none).is_none());
+
+        let mut foreign_enums = Arena::new();
+        let foreign_option = foreign_enums.alloc(enum_declaration(
+            "Foreign",
+            EnumApplicationId::from_raw(0.into()),
+            vec![
+                Variant {
+                    name: "Payload".to_string(),
+                    fields: vec![
+                        Field {
+                            name: "first".to_string(),
+                            ty: parameter_ty,
+                        },
+                        Field {
+                            name: "second".to_string(),
+                            ty: parameter_ty,
+                        },
+                    ],
+                },
+                Variant {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+                Variant {
+                    name: "Extra".to_string(),
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty: parameter_ty,
+                    }],
+                },
+            ],
+        ));
+        let foreign_some = EnumVariantRef::checked(&foreign_enums, foreign_option, 0).unwrap();
+        let foreign_payload =
+            EnumVariantFieldRef::checked(&foreign_enums, foreign_some, 0).unwrap();
+        let foreign_none = EnumVariantRef::checked(&foreign_enums, foreign_option, 1).unwrap();
+        let from_foreign_coordinates =
+            OptionCore::checked(&enums, &types, foreign_payload, foreign_none)
+                .expect("foreign refs with valid target coordinates have no arena brand");
+        assert_eq!(from_foreign_coordinates.some_payload(), some_payload);
+        assert_eq!(from_foreign_coordinates.none(), none);
+
+        let foreign_second_payload =
+            EnumVariantFieldRef::checked(&foreign_enums, foreign_some, 1).unwrap();
+        assert!(
+            OptionCore::checked(&enums, &types, foreign_second_payload, foreign_none).is_none(),
+            "a payload index valid only in the foreign store must be rejected"
+        );
+        let foreign_extra = EnumVariantRef::checked(&foreign_enums, foreign_option, 2).unwrap();
+        let foreign_extra_payload =
+            EnumVariantFieldRef::checked(&foreign_enums, foreign_extra, 0).unwrap();
+        assert!(
+            OptionCore::checked(&enums, &types, foreign_extra_payload, foreign_none).is_none(),
+            "a variant index valid only in the foreign store must be rejected"
+        );
+
+        let empty_types = Arena::new();
+        assert!(OptionCore::checked(&enums, &empty_types, some_payload, none).is_none());
+        let mut wrong_types = Arena::new();
+        wrong_types.alloc(Type::String);
+        assert!(OptionCore::checked(&enums, &wrong_types, some_payload, none).is_none());
+
+        let mut invalid_type_enums = enums.clone();
+        invalid_type_enums[option].variants[0].fields[0].ty = TypeId::from_raw(99.into());
+        assert!(
+            OptionCore::checked(&invalid_type_enums, &types, some_payload, none).is_none(),
+            "an out-of-bounds field type coordinate must not be indexed"
         );
     }
 }

@@ -799,7 +799,7 @@ Module mangling=compact-v2
   extern ef10 startOne @m13_start_one(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int) -> Ptr<Unit> <abi=c no-gc lib=fixture_native>
   extern ef11 joinOne @m13_join_one(Ptr<Unit>) -> Int <abi=c no-gc lib=fixture_native>
   foreign_callback_family fcf0 callback=ForeignCallback$FI32_PUXRI32X state=ForeignCallbackState failure=Option$C9_ThrowableX
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type1 context=1 mode=OneShot adapter=@scoop_foreign_callback_adapter_0
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type1 context=1 mode=ForeignCallbackMode.OneShot adapter=@scoop_foreign_callback_adapter_0
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct ForeignCallback$FI32_PUXRI32X (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option$PUX
@@ -2910,7 +2910,7 @@ Module
   extern ef10 startOne @m13_start_one(ptr<code>, ptr<raw>, i32) -> ptr<raw> <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->data-ptr<opaque-void,direct> bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
   extern ef11 joinOne @m13_join_one(ptr<raw>) -> i32 <c exact=(data-ptr<opaque-void,direct>)->Int bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
   foreign_callback_family fcf0 callback=struct10 state=enum4 failure=enum5
-  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
+  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
   fun @scoop.Int8.toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64

@@ -5,7 +5,7 @@ use super::*;
 /// bridge. Synthetic names intentionally do not expose Scoop source field
 /// names; the bridge ABI promises byte layout, not a C-facing typedef API.
 pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
-    validation::validate_c_layouts(module)?;
+    validation::validate_module(module)?;
     let function_types = collect_module_function_types(module)?;
     let renderer = CTypeRenderer::new(&function_types);
 

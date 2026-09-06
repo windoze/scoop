@@ -106,8 +106,35 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         let option = module
             .option_core(enum_id)
             .expect("each concrete core Option has exact MIR provenance");
-        assert_eq!(option.some_variant(), 0);
-        assert_eq!(option.none_variant(), 1);
+        assert_eq!(option.enum_id(), enum_id);
+        assert_eq!(option.some_payload().variant(), option.some());
+        assert_eq!(option.some_payload().field_index(), 0);
+        assert_eq!(
+            option.some().definition(&module.enums).unwrap().name,
+            "Some"
+        );
+        assert_eq!(
+            option
+                .some()
+                .definition(&module.enums)
+                .unwrap()
+                .fields
+                .len(),
+            1
+        );
+        assert_eq!(
+            option.none().definition(&module.enums).unwrap().name,
+            "None"
+        );
+        assert!(
+            option
+                .none()
+                .definition(&module.enums)
+                .unwrap()
+                .fields
+                .is_empty()
+        );
+        assert_ne!(option.some(), option.none());
     }
     assert!(
         module
@@ -531,4 +558,114 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         .expect("the Some edge projects its payload");
     assert!(matches!(projection.0.kind, mir::ExprKind::Local(local) if local == tested));
     assert_eq!(projection.1.variant(), *variant);
+}
+
+#[test]
+fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir() {
+    let mut h = Harness::new();
+    let option_int = h.option(h.int);
+    let option_string = h.option(h.string);
+    let int_application = h.enum_application_of(option_int);
+    let string_application = h.enum_application_of(option_string);
+    let none = hir::EnumVariantRef::checked(&h.enums, h.option_enum, 1)
+        .expect("test core Option has None");
+    let int_none =
+        hir::AppliedEnumVariantRef::checked(&h.enums, &h.enum_applications, int_application, none)
+            .expect("None belongs to Option<Int>");
+    let string_none = hir::AppliedEnumVariantRef::checked(
+        &h.enums,
+        &h.enum_applications,
+        string_application,
+        none,
+    )
+    .expect("None belongs to Option<String>");
+    assert_ne!(int_none, string_none);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+    let mut export = h.finish(main);
+    for (name, ty, variant) in [
+        ("noneInt", option_int, int_none),
+        ("noneString", option_string, string_none),
+    ] {
+        export.globals.alloc(hir::Global {
+            name: name.to_string(),
+            property: hir::PropertyId::from_raw(0.into()),
+            ty,
+            mutable: false,
+            storage: hir::GlobalStorage::Managed {
+                state: hir::HirStaticInitialState::EncodedStaticValue {
+                    payload: hir::HirConstantImage::EnumUnit { variant },
+                },
+            },
+            span: SPAN,
+        });
+    }
+
+    let concrete = scoop_hir_lower::concretize_export(&export);
+    let concrete_refs = ["noneInt", "noneString"].map(|name| {
+        let global = concrete
+            .globals
+            .iter()
+            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .expect("concrete global");
+        let hir::concrete::TypeKind::Enum(enum_id) = &concrete.types[global.ty].kind else {
+            panic!("constant keeps its exact concrete enum type")
+        };
+        let hir::concrete::GlobalStorage::Managed {
+            state:
+                hir::concrete::HirStaticInitialState::EncodedStaticValue {
+                    payload: hir::concrete::HirConstantImage::EnumUnit { variant },
+                },
+        } = &global.storage
+        else {
+            panic!("constant keeps its checked concrete unit variant")
+        };
+        assert_eq!(variant.enumeration(), *enum_id);
+        assert_eq!(
+            concrete.enums[*enum_id].variants[variant.variant().into_raw() as usize].name,
+            "None"
+        );
+        *variant
+    });
+    assert_ne!(concrete_refs[0], concrete_refs[1]);
+
+    let module = crate::lower(&concrete);
+    let mir_refs = ["noneInt", "noneString"].map(|name| {
+        let global = module
+            .globals
+            .iter()
+            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .expect("MIR global");
+        let mir::Type::Enum(enum_id, arguments) = &global.ty else {
+            panic!("constant keeps its exact MIR enum type")
+        };
+        assert_eq!(arguments, &module.enums[*enum_id].type_arguments);
+        let mir::GlobalStorage::Managed {
+            initial_state:
+                mir::MirStaticInitialState::EncodedStaticValue {
+                    payload: mir::MirConstantImage::EnumUnit { variant },
+                },
+        } = &global.storage
+        else {
+            panic!("constant keeps its checked MIR unit variant")
+        };
+        assert_eq!(variant.enum_id(), *enum_id);
+        assert_eq!(variant.definition(&module.enums).unwrap().name, "None");
+        *variant
+    });
+    assert_ne!(mir_refs[0], mir_refs[1]);
+    assert_eq!(
+        module.enums[mir_refs[0].enum_id()].type_arguments,
+        vec![mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(
+        module.enums[mir_refs[1].enum_id()].type_arguments,
+        vec![mir::Type::String]
+    );
+    assert_eq!(module.validate(), Ok(()));
 }

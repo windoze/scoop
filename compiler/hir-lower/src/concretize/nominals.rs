@@ -230,7 +230,6 @@ impl Concretizer<'_> {
             type_arguments: arguments.clone(),
             gc_free: false,
             variants: Vec::new(),
-            option_variants: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -273,17 +272,9 @@ impl Concretizer<'_> {
             !source.no_gc || gc_free,
             "HIR diagnoses an invalid @NoGC enum specialization"
         );
-        let option_core = self.source.option_core;
-        let option_variants = (source_id == option_core.enumeration()).then(|| {
-            (
-                concrete::VariantId::from_raw(option_core.some().local_index()),
-                concrete::VariantId::from_raw(option_core.none().local_index()),
-            )
-        });
         self.enums[id].variants = variants;
         self.enums[id].interfaces = interfaces;
         self.enums[id].interface_implementations = interface_implementations;
-        self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
         self.enums[id].methods = methods;

@@ -467,6 +467,10 @@ closure conversion后再做coroutine transform的既有顺序不变。pending br
 
 MIR的typed variant reference由stage-local enum id与该定义构造时已经检查过范围的variant index组成；typed variant-field reference再封闭保存前者与已检查的field index，两者都不能单独从裸index构造。`VariantTest`的结果固定为canonical Boolean，`VariantPayloadProject`的结果固定为variant-field引用所指field的exact `MirTypeId`。module validation除检查operand与result外，还验证每个projection只在相同operand/variant test的true-edge支配区域中出现；此验证不读取或推测tag/niche layout。
 
+M22同时封闭所有compiler-owned enum producer，而不只封闭上述consumer primitive。Export HIR中的variant constructor/default owner、需要exact generic application的`VariantConstruct`及unit-enum constant image都保存经对应definition store检查的variant/field ref；LocalConcrete与MIR逐stage重建自己的checked ref，不能平行携带enum id与裸ordinal。MIR enum definition非可选地保存该单态实例的canonical type arguments，`OptionCore`原子保存Some payload field与None variant；module validation据此检查construct result的完整enum application、payload arity/逐字段exact type，以及global constant image每个递归leaf的owner与payloadless约束。
+
+compiler生成的callback与coroutine metadata也遵守同一规则。callback family原子保存mode、state与`Option<Throwable>` failure的全部typed role，bridge只保存属于该family的mode ref；`CoroutineStep<R>`与`CoroutineSlot<T>`分别保存Completed/Value payload field和Suspended/Empty variant。兼容保留的协程`EnumTag`/`EnumField` reader可以读取layout ordinal，但ordinal只能由这些metadata accessor导出，producer不得写死或按名称重建。
+
 ### 5.4 LIR / codegen / FFI
 
 - LIR scalar type扩展为`I8/I16/I32/I64`；expression、const、annotation/default metadata、global initializer与constant image中的integer constant都显式携带kind/type，不能再由`Value::IntConst`或任一未类型化`i64` metadata payload默认推断I64；signedness由typed operation/FFI classifier携带，因为LLVM integer type本身不编码signedness；
@@ -477,6 +481,8 @@ MIR的typed variant reference由stage-local enum id与该定义构造时已经�
 - C bridge type tree把void严格限制在function result，并为data pointer同时保存`OpaqueVoid | Object(CType)` pointee与direct/nullable storage shape：只有`Ptr<Unit>`使用`OpaqueVoid`，其他pointee必须是non-ZST portable C object type。C-layout struct与nullable data/code-pointer enum使用fully concrete refined LIR ref，struct field tree不递归内联；by-value struct dependency必须无环，pointer edge只需forward declaration。C extern/callback/global及C-layout field不再平行保存可矛盾的`LirType`；
 - MIR的`VariantTest`/`VariantPayloadProject`在LIR取得concrete enum layout后，分别机械降低为tagged discriminant或niche/null test与对应payload projection；`for Option`与`when`共享该路径；
 - LIR为上述primitive重新建立本stage专有的checked variant reference与variant-field reference，前者封闭保存`EnumDefId`与合法variant index，后者封闭保存前者与合法field index；MIR→LIR只映射这些typed identity，不重新解析名称。`VariantTest`直接产生`I1`；`VariantPayloadProject`只携带variant-field reference，结果必须是layout中该field的exact `LirType`，并且只可在匹配test的true-edge支配下消费。tagged表示机械比较discriminant并按variant slot/field offset投影；niche表示按目标variant选择null或non-null测试，payload variant的投影复用carrier值。managed、raw data与code pointer carrier始终保留各自provenance。checked constructor与LIR/module/codegen verifier必须拒绝错误enum、越界variant/field、错误结果type、错误pointee provenance或缺失支配关系；codegen不新增runtime ABI，也不补任何source语义分支；
+- structured MIR/CFG MIR的`VariantConstruct`、LIR `EnumWrap`以及三阶段constant image直接携带各stage checked variant ref。相邻lowering只映射ref，MIR与codegen的统一module validation门必须在dump、layout或发射前拒绝错误owner、错误exact result、payload arity/type不符及带payload variant伪装成unit constant；
+- callback runtime的mode/state `uint32_t`是独立wire code，不是enum tag。codegen只能经validated callback family把mode role编码为`0/1`，并把state的`0/1/2/3`穷尽解码为Registered/Active/Completed/Failed typed variant；任何其他返回值进入显式fatal/trap block，不能零扩展后直接写入语言enum storage；
 - MIR CFG的每条循环回边，包括continue edge，必须经过LIR的typed managed poll；可共享header poll，但不能存在绕过poll的回边。root liveness覆盖iterator、range、payload、copy-update temporary及finally pending transfer；
 - alias在HIR后没有运行期表示；range和array iterator是普通core nominal type/call，不加入LIR专用range instruction。
 

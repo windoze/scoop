@@ -67,8 +67,6 @@ pub(super) fn option_core_for_type(
 }
 
 /// The representation-independent identities needed to consume `Some`.
-/// Raw declaration indices are accepted only at this enum-store boundary;
-/// expression lowering receives checked, inseparable variant/field refs.
 #[derive(Clone, Copy)]
 pub(super) struct OptionSomeRefs {
     pub(super) variant: mir::MirVariantRef,
@@ -81,7 +79,8 @@ pub(super) fn option_some_refs_for_type(
     ty: &mir::Type,
 ) -> OptionSomeRefs {
     let option = option_core_for_type(module, enums, ty);
-    let variant = enums.variant_ref(option.enum_id(), option.some_variant());
-    let payload = enums.variant_field_ref(variant, 0);
-    OptionSomeRefs { variant, payload }
+    OptionSomeRefs {
+        variant: option.some(),
+        payload: option.some_payload(),
+    }
 }

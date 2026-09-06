@@ -42,15 +42,39 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
     assert_eq!(module.interfaces[continuation].name, "Continuation$I32");
 
     let step = &module.meta.coroutine_steps[coroutine.step];
-    assert_eq!(step.result, mir::Type::Integer(mir::IntegerKind::SIGNED_32));
-    let step_def = &module.enums[step.enum_id];
+    assert_eq!(
+        step.result(),
+        &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
+    let step_def = &module.enums[step.enum_id()];
     assert!(step_def.gc_free);
     assert!(step_def.variants.iter().all(|variant| variant.gc_free));
     assert_eq!(
         function.return_ty,
-        mir::Type::Enum(step.enum_id, Vec::new())
+        mir::Type::Enum(step.enum_id(), Vec::new())
     );
-    assert_eq!(step_def.variants[0].name, "Completed");
+    assert_eq!(
+        step.completed().definition(&module.enums).unwrap().name,
+        "Completed"
+    );
+    assert_eq!(
+        step.completed_payload()
+            .definition(&module.enums)
+            .unwrap()
+            .ty,
+        *step.result()
+    );
+    assert_eq!(
+        step.suspended().definition(&module.enums).unwrap().name,
+        "Suspended"
+    );
+    assert!(
+        step.suspended()
+            .definition(&module.enums)
+            .unwrap()
+            .fields
+            .is_empty()
+    );
     let mir::Terminator::Return { value: Some(value) } =
         &function.body.blocks[function.body.entry].terminator
     else {
@@ -59,10 +83,10 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
     assert!(matches!(
         &value.kind,
         mir::ExprKind::VariantConstruct {
-            variant: 0,
+            variant,
             fields,
             ..
-        } if matches!(fields.as_slice(), [field]
+        } if *variant == step.completed() && matches!(fields.as_slice(), [field]
             if matches!(field.kind,
                 mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(42))))
     ));
@@ -155,32 +179,62 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             .iter()
             .any(|(_, block)| block.name == "coroutine.resume.1")
     );
-    let int_slot = module
-        .enums
+    let (_, int_slot) = module
+        .meta
+        .coroutine_slots
         .iter()
-        .find_map(|(_, definition)| (definition.name == "CoroutineSlot$I32").then_some(definition))
+        .find(|(_, slot)| slot.value() == &mir::Type::Integer(mir::IntegerKind::SIGNED_32))
         .expect("live Int local uses a concrete coroutine slot");
-    assert!(int_slot.gc_free);
-    assert!(int_slot.variants.iter().all(|variant| variant.gc_free));
+    let int_slot_def = &module.enums[int_slot.enum_id()];
+    assert!(int_slot_def.gc_free);
+    assert!(int_slot_def.variants.iter().all(|variant| variant.gc_free));
+    assert_eq!(
+        int_slot
+            .value_variant()
+            .definition(&module.enums)
+            .unwrap()
+            .name,
+        "Value"
+    );
+    assert_eq!(
+        int_slot
+            .value_payload()
+            .definition(&module.enums)
+            .unwrap()
+            .ty,
+        *int_slot.value()
+    );
+    assert_eq!(
+        int_slot.empty().definition(&module.enums).unwrap().name,
+        "Empty"
+    );
     let throwable = module
         .classes
         .iter()
         .find_map(|(id, definition)| (definition.name == "Throwable").then_some(id))
         .expect("Throwable class");
-    let throwable_slot = module
-        .enums
+    let (_, throwable_slot) = module
+        .meta
+        .coroutine_slots
         .iter()
-        .find_map(|(_, definition)| {
-            (definition.name.starts_with("CoroutineSlot$")
-                && definition.variants.get(1).is_some_and(|variant| {
-                    variant.fields.len() == 1 && variant.fields[0].ty == mir::Type::Class(throwable)
-                }))
-            .then_some(definition)
-        })
+        .find(|(_, slot)| slot.value() == &mir::Type::Class(throwable))
         .expect("the failure latch uses a concrete Throwable slot");
-    assert!(!throwable_slot.gc_free);
-    assert!(throwable_slot.variants[0].gc_free);
-    assert!(!throwable_slot.variants[1].gc_free);
+    let throwable_slot_def = &module.enums[throwable_slot.enum_id()];
+    assert!(!throwable_slot_def.gc_free);
+    assert!(
+        throwable_slot
+            .empty()
+            .definition(&module.enums)
+            .unwrap()
+            .gc_free
+    );
+    assert!(
+        !throwable_slot
+            .value_variant()
+            .definition(&module.enums)
+            .unwrap()
+            .gc_free
+    );
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
     assert_eq!(
         point.result,
@@ -423,6 +477,17 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
 
     let completed = &helper.body.blocks[completed];
+    let mir::Type::Enum(step_enum, arguments) = &helper.body.locals[step_local].ty else {
+        panic!("the helper call result is a CoroutineStep")
+    };
+    assert!(arguments.is_empty());
+    let step_metadata = module
+        .meta
+        .coroutine_steps
+        .iter()
+        .find_map(|(_, metadata)| (metadata.enum_id() == *step_enum).then_some(metadata))
+        .expect("the helper step has typed metadata");
+    let completed_payload = step_metadata.completed_payload();
     let (resume, destination) = statement_call(&completed.statements[0]);
     assert!(destination.is_none(), "Continuation.resume returns Unit");
     let mir::CallKind::Interface {
@@ -440,9 +505,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             if matches!(completion.kind, mir::ExprKind::Local(_))
                 && matches!(&field.kind, mir::ExprKind::EnumField {
                     operand,
-                    variant: 0,
-                    index: 0
-                } if matches!(operand.kind, mir::ExprKind::Local(local) if local == step_local))));
+                    variant,
+                    index
+                } if *variant == completed_payload.variant().variant_index()
+                    && *index == completed_payload.field_index()
+                    && matches!(operand.kind, mir::ExprKind::Local(local) if local == step_local))));
 
     let suspended = &helper.body.blocks[suspended];
     assert!(suspended.statements.is_empty());

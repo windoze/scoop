@@ -59,10 +59,7 @@ pub(super) fn lower_foreign_callback_bridges(
                 .collect(),
             return_type: c_return_type(module, structs, enums, &signature.return_type),
             context_index: bridge.context_index,
-            mode: match bridge.mode {
-                mir::ForeignCallbackMode::Reusable => lir::ForeignCallbackMode::Reusable,
-                mir::ForeignCallbackMode::OneShot => lir::ForeignCallbackMode::OneShot,
-            },
+            mode: variant_ref(enums, bridge.mode),
         });
     }
     bridges
@@ -70,13 +67,35 @@ pub(super) fn lower_foreign_callback_bridges(
 
 pub(super) fn lower_foreign_callback_families(
     module: &mir::Module,
+    enums: &lir::EnumDefs,
 ) -> Arena<lir::ForeignCallbackFamily> {
     let mut families = Arena::new();
     for (id, family) in module.foreign_callback_families.iter() {
+        let modes = lir::ForeignCallbackModes::checked(
+            enums,
+            variant_ref(enums, family.modes.reusable()),
+            variant_ref(enums, family.modes.one_shot()),
+        )
+        .expect("the checked MIR callback modes map to the LIR enum store");
+        let states = lir::ForeignCallbackStates::checked(
+            enums,
+            variant_ref(enums, family.states.registered()),
+            variant_ref(enums, family.states.active()),
+            variant_ref(enums, family.states.completed()),
+            variant_ref(enums, family.states.failed()),
+        )
+        .expect("the checked MIR callback states map to the LIR enum store");
+        let failure_result = lir::ForeignCallbackFailureResult::checked(
+            enums,
+            variant_field_ref(enums, family.failure_result.some_payload()),
+            variant_ref(enums, family.failure_result.none()),
+        )
+        .expect("the checked MIR callback failure result maps to the LIR enum store");
         let lowered = families.alloc(lir::ForeignCallbackFamily {
             callback: struct_def_id(family.callback),
-            state: enum_def_id(family.state),
-            failure: enum_def_id(family.failure),
+            modes,
+            states,
+            failure_result,
         });
         assert_eq!(
             lowered.into_raw(),

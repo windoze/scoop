@@ -859,7 +859,7 @@ Module
     val local6
       Local $argument.2 : ForeignCallbackMode
     val local7
-      ForeignCallbackRegister registration0 native=function_type4 managed=function_type7 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration0 native=function_type4 managed=function_type7 context=1 mode=ForeignCallbackMode.OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $parameter.callback : (Int) -> Int
     val local8
       Local oneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -962,7 +962,7 @@ Module
     val local45
       Local $argument.2 : ForeignCallbackMode
     val local46
-      ForeignCallbackRegister registration1 native=function_type4 managed=function_type7 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration1 native=function_type4 managed=function_type7 context=1 mode=ForeignCallbackMode.OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $parameter.callback : (Int) -> Int
     val local47
       Local failedStart : ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -1016,7 +1016,7 @@ Module
     val local65
       Local $argument.2 : ForeignCallbackMode
     val local66
-      ForeignCallbackRegister registration2 native=function_type4 managed=function_type7 context=1 mode=Reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration2 native=function_type4 managed=function_type7 context=1 mode=ForeignCallbackMode.Reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $parameter.callback : (Int) -> Int
     val local67
       FieldAccess field 0 : FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -1130,7 +1130,7 @@ Module
     val local106
       Local $argument.2 : ForeignCallbackMode
     val local107
-      ForeignCallbackRegister registration3 native=function_type5 managed=function_type8 context=0 mode=OneShot : ForeignCallback<(Ptr<Unit>) -> Unit>
+      ForeignCallbackRegister registration3 native=function_type5 managed=function_type8 context=0 mode=ForeignCallbackMode.OneShot : ForeignCallback<(Ptr<Unit>) -> Unit>
         Local $parameter.callback : () -> Unit
     val local108
       Local collector : ForeignCallback<(Ptr<Unit>) -> Unit>
@@ -1238,10 +1238,10 @@ Module mangling=compact-v2
   extern ef16 borrowedRoundTrip @m13_borrowed_round_trip(String, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Unit>) -> String <abi=scoop managed lib=fixture_native>
   foreign_callback_family fcf0 callback=ForeignCallback$FI32_PUXRI32X state=ForeignCallbackState failure=Option$C9_ThrowableX
   foreign_callback_family fcf1 callback=ForeignCallback$FPUXRUX state=ForeignCallbackState failure=Option$C9_ThrowableX
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=OneShot adapter=@scoop_foreign_callback_adapter_0
-  foreign_callback_bridge fcb1 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=OneShot adapter=@scoop_foreign_callback_adapter_1
-  foreign_callback_bridge fcb2 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=Reusable adapter=@scoop_foreign_callback_adapter_2
-  foreign_callback_bridge fcb3 family=fcf1 native=function_type1 managed=function_type3 context=0 mode=OneShot adapter=@scoop_foreign_callback_adapter_3
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.OneShot adapter=@scoop_foreign_callback_adapter_0
+  foreign_callback_bridge fcb1 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.OneShot adapter=@scoop_foreign_callback_adapter_1
+  foreign_callback_bridge fcb2 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@scoop_foreign_callback_adapter_2
+  foreign_callback_bridge fcb3 family=fcf1 native=function_type1 managed=function_type3 context=0 mode=ForeignCallbackMode.OneShot adapter=@scoop_foreign_callback_adapter_3
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct ForeignCallback$FI32_PUXRI32X (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   struct ForeignCallback$FPUXRUX (function: FunPtr<(Ptr<Unit>) -> Unit>, context: Ptr<Unit>)
@@ -3080,10 +3080,10 @@ Module
   extern ef16 borrowedRoundTrip @m13_borrowed_round_trip(ptr<managed>, ptr<code>, ptr<raw>) -> ptr<managed> <scoop managed nounwind lib=fixture_native>
   foreign_callback_family fcf0 callback=struct10 state=enum4 failure=enum3
   foreign_callback_family fcf1 callback=struct11 state=enum4 failure=enum3
-  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
-  foreign_callback_bridge fcb1 family=fcf0 @scoop_foreign_callback_adapter_1 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
-  foreign_callback_bridge fcb2 family=fcf0 @scoop_foreign_callback_adapter_2 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=Reusable c=(Int,data-ptr<opaque-void,direct>)->Int
-  foreign_callback_bridge fcb3 family=fcf1 @scoop_foreign_callback_adapter_3 -> @scoop_foreign_callback_1 signature=@scoop_foreign_callback_signature_1 context=0 mode=OneShot c=(data-ptr<opaque-void,direct>)->void
+  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
+  foreign_callback_bridge fcb1 family=fcf0 @scoop_foreign_callback_adapter_1 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
+  foreign_callback_bridge fcb2 family=fcf0 @scoop_foreign_callback_adapter_2 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=ForeignCallbackMode.Reusable c=(Int,data-ptr<opaque-void,direct>)->Int
+  foreign_callback_bridge fcb3 family=fcf1 @scoop_foreign_callback_adapter_3 -> @scoop_foreign_callback_1 signature=@scoop_foreign_callback_signature_1 context=0 mode=ForeignCallbackMode.OneShot c=(data-ptr<opaque-void,direct>)->void
   fun @scoop.Int8.toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64

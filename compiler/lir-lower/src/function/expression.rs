@@ -716,7 +716,9 @@ impl<'a> FunctionLowerer<'a> {
                 let mir::Type::Enum(enum_id, _) = ty else {
                     unreachable!("a variant construction has an enum type")
                 };
-                let field_count = self.module.enums[*enum_id].variants[*variant as usize]
+                assert_eq!(variant.enum_id(), *enum_id);
+                let field_count = self.module.enums[*enum_id].variants
+                    [variant.variant_index() as usize]
                     .fields
                     .len();
                 assert_eq!(fields.len(), field_count, "enum variant field arity");
@@ -726,8 +728,7 @@ impl<'a> FunctionLowerer<'a> {
                 let out = self.new_temp(out_ty);
                 self.push(lir::Instruction::EnumWrap {
                     out,
-                    enum_id: enum_def_id(*enum_id),
-                    variant: *variant,
+                    variant: variant_ref(self.enums, *variant),
                     fields,
                 });
                 lir::Value::Temp(out)

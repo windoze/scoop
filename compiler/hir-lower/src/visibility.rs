@@ -660,8 +660,8 @@ impl Lowerer {
                 &self.class_constructors[constructor].access.lookup.0
             }
             NominalConstructorSource::IntrinsicClass(class) => &self.classes[class].access.lookup.0,
-            NominalConstructorSource::Variant { enumeration, .. } => {
-                &self.enums[enumeration].access.lookup.0
+            NominalConstructorSource::Variant(variant) => {
+                &self.enums[variant.enumeration()].access.lookup.0
             }
         };
         self.access_domain_allows(domain, None)
@@ -799,12 +799,9 @@ impl Lowerer {
             hir::ExportParameterOwner::ClassConstructor(constructor) => {
                 &self.class_constructors[constructor].access
             }
-            hir::ExportParameterOwner::VariantConstructor {
-                enumeration,
-                variant: _,
-            } => {
+            hir::ExportParameterOwner::VariantConstructor(variant) => {
                 return hir::CallDomain {
-                    direct: self.enums[enumeration].access.lookup.clone(),
+                    direct: self.enums[variant.enumeration()].access.lookup.clone(),
                     slot: None,
                 };
             }

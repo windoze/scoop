@@ -491,8 +491,7 @@ fn redefining_a_tested_temp_invalidates_variant_dominance_fact() {
         instructions: vec![
             Instruction::EnumWrap {
                 out: enum_value,
-                enum_id: shape,
-                variant: 1,
+                variant,
                 fields: vec![signed64(1)],
             },
             Instruction::VariantTest {
@@ -505,8 +504,7 @@ fn redefining_a_tested_temp_invalidates_variant_dominance_fact() {
             // the test fact described before control reaches the true edge.
             Instruction::EnumWrap {
                 out: enum_value,
-                enum_id: shape,
-                variant: 1,
+                variant,
                 fields: vec![signed64(2)],
             },
         ],

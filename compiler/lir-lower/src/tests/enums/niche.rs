@@ -77,6 +77,7 @@ fn option_of_code_pointer_records_code_niche_provenance() {
     });
     let option = mir_module.enums.alloc(mir::EnumDef {
         name: "Option$F".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
             mir::VariantDef {
@@ -156,6 +157,7 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     // Reversed declaration order: the payload variant comes second.
     let flip = b.enums.alloc(mir::EnumDef {
         name: "Flip".to_string(),
+        type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
             mir::VariantDef {
@@ -176,6 +178,7 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     // Two variants, but the payload variant has two fields: tagged.
     let pair_or_none = b.enums.alloc(mir::EnumDef {
         name: "PairOrNone".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
             mir::VariantDef {

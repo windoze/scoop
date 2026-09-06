@@ -602,13 +602,11 @@ impl Concretizer<'_> {
                     export::HirPointerNullKind::Code => concrete::HirPointerNullKind::Code,
                 })
             }
-            export::HirConstantImage::EnumUnit {
-                application,
-                variant,
-            } => concrete::HirConstantImage::EnumUnit {
-                enum_id: self.lower_enum_application(*application, &[]),
-                variant: *variant,
-            },
+            export::HirConstantImage::EnumUnit { variant } => {
+                concrete::HirConstantImage::EnumUnit {
+                    variant: self.lower_applied_enum_variant_ref(*variant, &[]),
+                }
+            }
             export::HirConstantImage::Struct {
                 application,
                 fields,

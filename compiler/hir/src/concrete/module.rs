@@ -35,7 +35,7 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    pub option_variants: (VariantId, VariantId),
+    pub option_core: Vec<OptionCore>,
     pub exception_core: CompilerExceptionCore,
     pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub foreign_callback_core: ForeignCallbackCore,
@@ -44,6 +44,15 @@ pub struct Module {
     /// so no parameterized template can leak into this local graph.
     pub intrinsic_type_core: IntrinsicTypeCore,
     pub entry: FunctionId,
+}
+
+impl Module {
+    pub fn option_core(&self, enumeration: EnumId) -> Option<OptionCore> {
+        self.option_core
+            .iter()
+            .copied()
+            .find(|option| option.enumeration() == enumeration)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -128,9 +137,179 @@ pub struct InitializationFailureRoot {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ForeignCallbackCore {
-    pub mode: EnumId,
-    pub state: EnumId,
-    pub failure: EnumId,
+    pub modes: ForeignCallbackModes,
+    pub states: ForeignCallbackStates,
+    pub failure_result: ForeignCallbackFailureResult,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackModes {
+    reusable: EnumVariantRef,
+    one_shot: EnumVariantRef,
+}
+
+impl ForeignCallbackModes {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        reusable: EnumVariantRef,
+        one_shot: EnumVariantRef,
+    ) -> Option<Self> {
+        let reusable = EnumVariantRef::checked(enums, reusable.enumeration(), reusable.variant())?;
+        let one_shot = EnumVariantRef::checked(enums, one_shot.enumeration(), one_shot.variant())?;
+        if reusable.enumeration() != one_shot.enumeration() {
+            return None;
+        }
+        let enumeration = &enums[reusable.enumeration()];
+        let reusable_definition = &enumeration.variants[reusable.variant().into_raw() as usize];
+        let one_shot_definition = &enumeration.variants[one_shot.variant().into_raw() as usize];
+        (enumeration.name == "ForeignCallbackMode"
+            && enumeration.type_arguments.is_empty()
+            && enumeration.variants.len() == 2
+            && reusable.variant().into_raw() == 0
+            && one_shot.variant().into_raw() == 1
+            && reusable_definition.name == "Reusable"
+            && reusable_definition.fields.is_empty()
+            && one_shot_definition.name == "OneShot"
+            && one_shot_definition.fields.is_empty())
+        .then_some(Self { reusable, one_shot })
+    }
+
+    pub const fn reusable(self) -> EnumVariantRef {
+        self.reusable
+    }
+
+    pub const fn one_shot(self) -> EnumVariantRef {
+        self.one_shot
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.reusable.enumeration()
+    }
+
+    pub fn contains(self, variant: EnumVariantRef) -> bool {
+        variant == self.reusable || variant == self.one_shot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackStates {
+    registered: EnumVariantRef,
+    active: EnumVariantRef,
+    completed: EnumVariantRef,
+    failed: EnumVariantRef,
+}
+
+impl ForeignCallbackStates {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        registered: EnumVariantRef,
+        active: EnumVariantRef,
+        completed: EnumVariantRef,
+        failed: EnumVariantRef,
+    ) -> Option<Self> {
+        let variants = [registered, active, completed, failed].map(|variant| {
+            EnumVariantRef::checked(enums, variant.enumeration(), variant.variant())
+        });
+        let [
+            Some(registered),
+            Some(active),
+            Some(completed),
+            Some(failed),
+        ] = variants
+        else {
+            return None;
+        };
+        let variants = [registered, active, completed, failed];
+        if variants
+            .iter()
+            .any(|variant| variant.enumeration() != registered.enumeration())
+        {
+            return None;
+        }
+        let enumeration = &enums[registered.enumeration()];
+        let expected = [
+            (registered, "Registered"),
+            (active, "Active"),
+            (completed, "Completed"),
+            (failed, "Failed"),
+        ];
+        (enumeration.name == "ForeignCallbackState"
+            && enumeration.type_arguments.is_empty()
+            && enumeration.variants.len() == 4
+            && expected.iter().enumerate().all(|(index, (variant, name))| {
+                variant.variant().into_raw() as usize == index
+                    && enumeration.variants[index].name == *name
+                    && enumeration.variants[index].fields.is_empty()
+            }))
+        .then_some(Self {
+            registered,
+            active,
+            completed,
+            failed,
+        })
+    }
+
+    pub const fn registered(self) -> EnumVariantRef {
+        self.registered
+    }
+
+    pub const fn active(self) -> EnumVariantRef {
+        self.active
+    }
+
+    pub const fn completed(self) -> EnumVariantRef {
+        self.completed
+    }
+
+    pub const fn failed(self) -> EnumVariantRef {
+        self.failed
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.registered.enumeration()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFailureResult {
+    option: OptionCore,
+    throwable: ClassId,
+}
+
+impl ForeignCallbackFailureResult {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        types: &Arena<Type>,
+        option: OptionCore,
+        throwable: ClassId,
+    ) -> Option<Self> {
+        let option = OptionCore::checked(enums, option.some_payload(), option.none())?;
+        let payload = &enums[option.enumeration()].variants
+            [option.some().variant().into_raw() as usize]
+            .fields[option.some_payload().local_index() as usize];
+        if payload.ty.into_raw().into_u32() as usize >= types.len()
+            || !matches!(types[payload.ty].kind, TypeKind::Class(found) if found == throwable)
+        {
+            return None;
+        }
+        Some(Self { option, throwable })
+    }
+
+    pub const fn some_payload(self) -> EnumVariantFieldRef {
+        self.option.some_payload()
+    }
+
+    pub const fn none(self) -> EnumVariantRef {
+        self.option.none()
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.option.enumeration()
+    }
+
+    pub const fn throwable(self) -> ClassId {
+        self.throwable
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,19 +319,13 @@ pub struct IntrinsicTypeCore {
     pub string: ClassId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForeignCallbackMode {
-    Reusable,
-    OneShot,
-}
-
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
     pub callback: StructId,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: ForeignCallbackMode,
+    pub mode: EnumVariantRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

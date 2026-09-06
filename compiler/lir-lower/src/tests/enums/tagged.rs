@@ -25,6 +25,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     );
     let wrapped = b.enums.alloc(mir::EnumDef {
         name: "Wrapped".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
             mir::VariantDef {
@@ -157,6 +158,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     // enum Msg { Text(String), Pair(Boolean, String), Empty }
     let msg = b.enums.alloc(mir::EnumDef {
         name: "Msg".to_string(),
+        type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
             mir::VariantDef {

@@ -292,6 +292,43 @@ fn non_literal_variant_default_is_typed_at_the_definition() {
 }
 
 #[test]
+fn variant_parameter_interface_keeps_its_checked_owner_identity() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_constructor(
+                "WithDefault",
+                vec![("d", ty_named("Int"), Some(int_lit(9)))],
+            )],
+        ),
+        fun("main", vec![]),
+    ]);
+    let module = lower_user(file).expect("the variant default must lower");
+    let shape = module
+        .enums
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == "Shape").then_some(id))
+        .expect("Shape enum");
+    let variant = hir::EnumVariantRef::checked(&module.enums, shape, 0)
+        .expect("Shape.WithDefault checked identity");
+    let interface = module
+        .source_parameter_interfaces
+        .iter()
+        .find(|interface| interface.owner == hir::ExportParameterOwner::VariantConstructor(variant))
+        .expect("variant constructor parameter protocol");
+    assert_eq!(interface.parameters.len(), 1);
+    assert!(matches!(
+        interface.parameters[0].calling,
+        hir::ExportParameterCalling::Default { .. }
+    ));
+    assert_eq!(
+        module.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
+        "WithDefault"
+    );
+}
+
+#[test]
 fn variant_default_type_mismatch_is_an_error() {
     let file = file(vec![
         enum_decl(

@@ -8,8 +8,9 @@ fn lower_variant_primitives(
     let mut builder = Builder::new();
     let option = builder.option_enum(enum_name, payload_ty.clone());
     let option_ty = mir::Type::Enum(option, vec![payload_ty.clone()]);
-    let some = mir::MirVariantRef::new(&builder.enums, option, 0).expect("Some variant");
-    let some_payload = mir::MirVariantFieldRef::new(&builder.enums, some, 0).expect("Some payload");
+    let option_core = builder.option_core[0];
+    let some = option_core.some();
+    let some_payload = option_core.some_payload();
 
     let mut locals = Arena::new();
     let subject = locals.alloc(local("subject", option_ty.clone()));
@@ -28,7 +29,7 @@ fn lower_variant_primitives(
             expr(
                 option_ty.clone(),
                 mir::ExprKind::VariantConstruct {
-                    variant: 0,
+                    variant: some,
                     fields: vec![payload],
                 },
             ),
@@ -88,8 +89,20 @@ fn lower_variant_primitives(
     lower(&builder.finish(main))
 }
 
-fn primitive_instructions(module: &lir::Module) -> (&lir::Instruction, &lir::Instruction) {
+fn primitive_instructions(
+    module: &lir::Module,
+) -> (&lir::Instruction, &lir::Instruction, &lir::Instruction) {
     let function = &module.functions[0];
+    let wrap = function
+        .blocks
+        .iter()
+        .find_map(|(_, block)| {
+            block
+                .instructions
+                .iter()
+                .find(|instruction| matches!(instruction, lir::Instruction::EnumWrap { .. }))
+        })
+        .expect("lowered typed variant construction");
     let test = function
         .blocks
         .iter()
@@ -109,13 +122,19 @@ fn primitive_instructions(module: &lir::Module) -> (&lir::Instruction, &lir::Ins
             })
         })
         .expect("lowered payload projection");
-    (test, project)
+    (wrap, test, project)
 }
 
 #[test]
 fn typed_variant_primitives_lower_through_tagged_layout() {
     let module = lower_variant_primitives("Option$I", INT, int_expr(7));
-    let (test, project) = primitive_instructions(&module);
+    let (wrap, test, project) = primitive_instructions(&module);
+    let lir::Instruction::EnumWrap {
+        variant: wrapped, ..
+    } = wrap
+    else {
+        unreachable!()
+    };
     let lir::Instruction::VariantTest { variant, .. } = test else {
         unreachable!()
     };
@@ -123,6 +142,7 @@ fn typed_variant_primitives_lower_through_tagged_layout() {
         unreachable!()
     };
 
+    assert_eq!(wrapped, variant);
     assert_eq!(variant.index(), 0);
     assert_eq!(field.variant(), *variant);
     assert_eq!(field.index(), 0);
@@ -146,8 +166,9 @@ fn typed_variant_primitives_lower_through_niche_layout() {
     let payload = builder.string("payload");
     let option = builder.option_enum("Option$S", mir::Type::String);
     let option_ty = mir::Type::Enum(option, vec![mir::Type::String]);
-    let some = mir::MirVariantRef::new(&builder.enums, option, 0).expect("Some variant");
-    let some_payload = mir::MirVariantFieldRef::new(&builder.enums, some, 0).expect("Some payload");
+    let option_core = builder.option_core[0];
+    let some = option_core.some();
+    let some_payload = option_core.some_payload();
 
     let mut locals = Arena::new();
     let subject = locals.alloc(local("subject", option_ty.clone()));
@@ -165,7 +186,7 @@ fn typed_variant_primitives_lower_through_niche_layout() {
             expr(
                 option_ty.clone(),
                 mir::ExprKind::VariantConstruct {
-                    variant: 0,
+                    variant: some,
                     fields: vec![string_expr(payload)],
                 },
             ),
@@ -223,7 +244,13 @@ fn typed_variant_primitives_lower_through_niche_layout() {
         },
     );
     let module = lower(&builder.finish(main));
-    let (test, project) = primitive_instructions(&module);
+    let (wrap, test, project) = primitive_instructions(&module);
+    let lir::Instruction::EnumWrap {
+        variant: wrapped, ..
+    } = wrap
+    else {
+        unreachable!()
+    };
     let lir::Instruction::VariantTest { variant, .. } = test else {
         unreachable!()
     };
@@ -231,6 +258,7 @@ fn typed_variant_primitives_lower_through_niche_layout() {
         unreachable!()
     };
 
+    assert_eq!(wrapped, variant);
     assert_eq!(field.variant(), *variant);
     assert_eq!(module.functions[0].temps[*out].ty, lir::MANAGED_PTR);
     assert!(matches!(

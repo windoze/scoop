@@ -418,7 +418,7 @@ impl Expr {
         variant
             .definition(enums)
             .map_err(MirVariantExprError::InvalidVariant)?;
-        validate_variant_operand(&operand, variant)?;
+        validate_variant_operand(enums, &operand, variant)?;
         Ok(Self::new(
             Type::Boolean,
             ExprKind::VariantTest {
@@ -440,7 +440,7 @@ impl Expr {
             .map_err(MirVariantExprError::InvalidField)?
             .ty
             .clone();
-        validate_variant_operand(&operand, field.variant())?;
+        validate_variant_operand(enums, &operand, field.variant())?;
         Ok(Self::new(
             ty,
             ExprKind::VariantPayloadProject {
@@ -452,10 +452,11 @@ impl Expr {
 }
 
 fn validate_variant_operand(
+    enums: &Arena<EnumDef>,
     operand: &Expr,
     variant: MirVariantRef,
 ) -> Result<(), MirVariantExprError> {
-    let Type::Enum(actual, _) = &operand.ty else {
+    let Type::Enum(actual, actual_arguments) = &operand.ty else {
         return Err(MirVariantExprError::OperandIsNotEnum {
             actual: operand.ty.clone(),
         });
@@ -466,6 +467,19 @@ fn validate_variant_operand(
             actual: *actual,
         });
     }
+    let Type::Enum(_, expected_arguments) = variant
+        .enum_type(enums)
+        .map_err(MirVariantExprError::InvalidVariant)?
+    else {
+        unreachable!("a checked MIR variant always produces an enum type")
+    };
+    if actual_arguments != &expected_arguments {
+        return Err(MirVariantExprError::OperandTypeArgumentsMismatch {
+            enum_id: variant.enum_id(),
+            expected: expected_arguments,
+            actual: actual_arguments.clone(),
+        });
+    }
     Ok(())
 }
 
@@ -473,8 +487,18 @@ fn validate_variant_operand(
 pub enum MirVariantExprError {
     InvalidVariant(MirVariantRefError),
     InvalidField(MirVariantFieldRefError),
-    OperandIsNotEnum { actual: Type },
-    OperandEnumMismatch { expected: EnumId, actual: EnumId },
+    OperandIsNotEnum {
+        actual: Type,
+    },
+    OperandEnumMismatch {
+        expected: EnumId,
+        actual: EnumId,
+    },
+    OperandTypeArgumentsMismatch {
+        enum_id: EnumId,
+        expected: Vec<Type>,
+        actual: Vec<Type>,
+    },
 }
 
 impl std::fmt::Display for MirVariantExprError {
@@ -493,6 +517,15 @@ impl std::fmt::Display for MirVariantExprError {
                 "variant operation expects MIR enum {}, got MIR enum {}",
                 expected.into_raw().into_u32(),
                 actual.into_raw().into_u32()
+            ),
+            Self::OperandTypeArgumentsMismatch {
+                enum_id,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "variant operation expects MIR enum {} arguments {expected:?}, got {actual:?}",
+                enum_id.into_raw().into_u32()
             ),
         }
     }
@@ -708,7 +741,7 @@ pub enum ExprKind {
     /// Variant construction. The enclosing `Expr::ty` is the instantiated
     /// enum type; `fields` are the variant's values in declaration order.
     VariantConstruct {
-        variant: u32,
+        variant: MirVariantRef,
         fields: Vec<Expr>,
     },
     /// Read the variant tag of an enum value (internal enum-tag scalar).

@@ -115,21 +115,22 @@ fn exact_option_payload<'a>(
         id,
         "Option refinement belongs to this exact enum specialization",
     );
-    let definition = &module.enums[id];
-    let some = definition
-        .variants
-        .get(option.some_variant() as usize)
+    let some = option
+        .some()
+        .definition(&module.enums)
         .expect("core Option Some variant exists");
-    let none = definition
-        .variants
-        .get(option.none_variant() as usize)
+    let none = option
+        .none()
+        .definition(&module.enums)
         .expect("core Option None variant exists");
     let [argument] = arguments else {
         panic!("core Option specialization has exactly one type argument")
     };
-    let [field] = some.fields.as_slice() else {
-        panic!("core Option Some has exactly one payload field")
-    };
+    let field = option
+        .some_payload()
+        .definition(&module.enums)
+        .expect("core Option Some payload exists");
+    assert_eq!(some.fields.len(), 1, "core Option Some has one field");
     assert!(none.fields.is_empty(), "core Option None has no fields");
     assert_eq!(
         &field.ty, argument,

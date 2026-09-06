@@ -1,7 +1,16 @@
 use super::*;
 
+mod constants;
+pub use constants::MirConstantImageError;
+use constants::validate_constant_images;
+mod callbacks;
+use callbacks::validate_foreign_callback_metadata;
+mod metadata;
+use metadata::validate_enum_metadata;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirVariantOperation {
+    Construct,
     Test,
     PayloadProject,
 }
@@ -9,6 +18,7 @@ pub enum MirVariantOperation {
 impl MirVariantOperation {
     const fn name(self) -> &'static str {
         match self {
+            Self::Construct => "VariantConstruct",
             Self::Test => "VariantTest",
             Self::PayloadProject => "VariantPayloadProject",
         }
@@ -17,6 +27,23 @@ impl MirVariantOperation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirValidationErrorKind {
+    InvalidOptionCore,
+    InvalidCoroutineStep,
+    InvalidCoroutineSlot,
+    InvalidForeignCallbackFamily {
+        reason: &'static str,
+    },
+    InvalidForeignCallbackBridge {
+        reason: &'static str,
+    },
+    InvalidForeignCallbackExpression {
+        reason: &'static str,
+    },
+    InvalidConstantImage {
+        path: Vec<u32>,
+        expected: Type,
+        error: MirConstantImageError,
+    },
     InvalidStructReference {
         struct_id: StructId,
     },
@@ -45,6 +72,20 @@ pub enum MirValidationErrorKind {
     InvalidVariantFieldReference {
         error: MirVariantFieldRefError,
     },
+    VariantConstructResultType {
+        variant: MirVariantRef,
+        actual: Type,
+    },
+    VariantConstructArity {
+        variant: MirVariantRef,
+        expected: usize,
+        actual: usize,
+    },
+    VariantConstructFieldType {
+        field: MirVariantFieldRef,
+        expected: Type,
+        actual: Type,
+    },
     VariantOperandIsNotEnum {
         operation: MirVariantOperation,
         actual: Type,
@@ -53,6 +94,12 @@ pub enum MirValidationErrorKind {
         operation: MirVariantOperation,
         expected: EnumId,
         actual: EnumId,
+    },
+    VariantOperandTypeArgumentsMismatch {
+        operation: MirVariantOperation,
+        enum_id: EnumId,
+        expected: Vec<Type>,
+        actual: Vec<Type>,
     },
     VariantTestResultType {
         actual: Type,
@@ -67,22 +114,142 @@ pub enum MirValidationErrorKind {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MirValidationLocation {
+    OptionCore {
+        enumeration: EnumId,
+    },
+    CoroutineStep {
+        step: CoroutineStepId,
+    },
+    CoroutineSlot {
+        slot: CoroutineSlotId,
+    },
+    ForeignCallbackFamily {
+        family: ForeignCallbackFamilyId,
+    },
+    ForeignCallbackBridge {
+        bridge: ForeignCallbackBridgeId,
+    },
+    FunctionBlock {
+        function: FunctionId,
+        block: BlockId,
+    },
+    Global {
+        global: GlobalId,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirValidationError {
-    pub function: FunctionId,
-    pub block: BlockId,
+    pub location: MirValidationLocation,
     pub kind: MirValidationErrorKind,
 }
 
 impl std::fmt::Display for MirValidationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let function = self.function.into_raw().into_u32();
-        let block = self.block.into_raw().into_u32();
-        write!(
-            formatter,
-            "invalid MIR in function {function}, block {block}: "
-        )?;
+        match self.location {
+            MirValidationLocation::OptionCore { enumeration } => write!(
+                formatter,
+                "invalid MIR Option metadata for enum {}: ",
+                enumeration.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineStep { step } => write!(
+                formatter,
+                "invalid MIR CoroutineStep metadata {}: ",
+                step.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CoroutineSlot { slot } => write!(
+                formatter,
+                "invalid MIR CoroutineSlot metadata {}: ",
+                slot.into_raw().into_u32()
+            )?,
+            MirValidationLocation::ForeignCallbackFamily { family } => write!(
+                formatter,
+                "invalid MIR foreign callback family {}: ",
+                family.into_raw().into_u32()
+            )?,
+            MirValidationLocation::ForeignCallbackBridge { bridge } => write!(
+                formatter,
+                "invalid MIR foreign callback bridge {}: ",
+                bridge.into_raw().into_u32()
+            )?,
+            MirValidationLocation::FunctionBlock { function, block } => write!(
+                formatter,
+                "invalid MIR in function {}, block {}: ",
+                function.into_raw().into_u32(),
+                block.into_raw().into_u32()
+            )?,
+            MirValidationLocation::Global { global } => write!(
+                formatter,
+                "invalid MIR global {} constant image: ",
+                global.into_raw().into_u32()
+            )?,
+        }
         match &self.kind {
+            MirValidationErrorKind::InvalidOptionCore => {
+                formatter.write_str("stored Some/None identities no longer match the enum")
+            }
+            MirValidationErrorKind::InvalidCoroutineStep => formatter.write_str(
+                "stored Completed/Suspended identities no longer match the coroutine-step enum",
+            ),
+            MirValidationErrorKind::InvalidCoroutineSlot => formatter
+                .write_str("stored Value/Empty identities no longer match the coroutine-slot enum"),
+            MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
+            | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
+            | MirValidationErrorKind::InvalidForeignCallbackExpression { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidConstantImage {
+                path,
+                expected,
+                error,
+            } => {
+                if !path.is_empty() {
+                    write!(formatter, "at struct field path {path:?}, ")?;
+                }
+                match error {
+                    MirConstantImageError::TypeMismatch { image } => {
+                        write!(
+                            formatter,
+                            "{image} does not match expected type {expected:?}"
+                        )
+                    }
+                    MirConstantImageError::InvalidStringReference { string } => write!(
+                        formatter,
+                        "references unknown MIR string {}",
+                        string.into_raw().into_u32()
+                    ),
+                    MirConstantImageError::InvalidStructReference { struct_id } => write!(
+                        formatter,
+                        "references unknown MIR struct {}",
+                        struct_id.into_raw().into_u32()
+                    ),
+                    MirConstantImageError::StructRequiresDeclared { struct_id } => write!(
+                        formatter,
+                        "MIR struct {} does not have a declared representation",
+                        struct_id.into_raw().into_u32()
+                    ),
+                    MirConstantImageError::StructArity {
+                        struct_id,
+                        expected,
+                        actual,
+                    } => write!(
+                        formatter,
+                        "MIR struct {} requires {expected} fields, got {actual}",
+                        struct_id.into_raw().into_u32()
+                    ),
+                    MirConstantImageError::InvalidVariantReference { error } => {
+                        write!(formatter, "EnumUnit carries {error}")
+                    }
+                    MirConstantImageError::EnumUnitHasPayload { variant } => write!(
+                        formatter,
+                        "EnumUnit for MIR enum {} variant {} requires a payloadless variant",
+                        variant.enum_id().into_raw().into_u32(),
+                        variant.variant_index()
+                    ),
+                }
+            }
             MirValidationErrorKind::InvalidStructReference { struct_id } => write!(
                 formatter,
                 "StructConstruct references unknown MIR struct {}",
@@ -123,6 +290,33 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::InvalidVariantFieldReference { error } => {
                 write!(formatter, "VariantPayloadProject carries {error}")
             }
+            MirValidationErrorKind::VariantConstructResultType { variant, actual } => write!(
+                formatter,
+                "VariantConstruct for MIR enum {} variant {} must produce that exact enum type, got {actual:?}",
+                variant.enum_id().into_raw().into_u32(),
+                variant.variant_index()
+            ),
+            MirValidationErrorKind::VariantConstructArity {
+                variant,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "VariantConstruct for MIR enum {} variant {} requires {expected} fields, got {actual}",
+                variant.enum_id().into_raw().into_u32(),
+                variant.variant_index()
+            ),
+            MirValidationErrorKind::VariantConstructFieldType {
+                field,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "VariantConstruct for MIR enum {} variant {} field {} must have type {expected:?}, got {actual:?}",
+                field.variant().enum_id().into_raw().into_u32(),
+                field.variant().variant_index(),
+                field.field_index()
+            ),
             MirValidationErrorKind::VariantOperandIsNotEnum { operation, actual } => write!(
                 formatter,
                 "{} requires an enum operand, got {actual:?}",
@@ -138,6 +332,17 @@ impl std::fmt::Display for MirValidationError {
                 operation.name(),
                 expected.into_raw().into_u32(),
                 actual.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::VariantOperandTypeArgumentsMismatch {
+                operation,
+                enum_id,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "{} expects MIR enum {} arguments {expected:?}, got {actual:?}",
+                operation.name(),
+                enum_id.into_raw().into_u32()
             ),
             MirValidationErrorKind::VariantTestResultType { actual } => write!(
                 formatter,
@@ -180,6 +385,9 @@ impl Module {
 /// not to printed or structural expression equality. Producers must materialize
 /// a tested enum value into such a local before testing and projecting it.
 pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
+    validate_enum_metadata(module)?;
+    validate_foreign_callback_metadata(module)?;
+    validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;
     }
@@ -194,8 +402,7 @@ fn validate_body(
     for (block, definition) in body.blocks.iter() {
         try_visit_block_exprs(definition, &mut |expr| {
             validate_expression_shape(module, expr).map_err(|kind| MirValidationError {
-                function,
-                block,
+                location: MirValidationLocation::FunctionBlock { function, block },
                 kind,
             })
         })?;
@@ -210,8 +417,7 @@ fn validate_body(
             };
             let Some(value) = stable_variant_value(body, &stable_locals, operand) else {
                 return Err(MirValidationError {
-                    function,
-                    block,
+                    location: MirValidationLocation::FunctionBlock { function, block },
                     kind: MirValidationErrorKind::VariantPayloadNotDominated { field: *field },
                 });
             };
@@ -224,8 +430,7 @@ fn validate_body(
                 Ok(())
             } else {
                 Err(MirValidationError {
-                    function,
-                    block,
+                    location: MirValidationLocation::FunctionBlock { function, block },
                     kind: MirValidationErrorKind::VariantPayloadNotDominated { field: *field },
                 })
             }
@@ -277,6 +482,42 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                 }
             }
         }
+        ExprKind::VariantConstruct { variant, fields } => {
+            let definition = variant.definition(&module.enums).map_err(|error| {
+                MirValidationErrorKind::InvalidVariantReference {
+                    operation: MirVariantOperation::Construct,
+                    error,
+                }
+            })?;
+            if expr.ty
+                != variant
+                    .enum_type(&module.enums)
+                    .expect("the variant was validated")
+            {
+                return Err(MirValidationErrorKind::VariantConstructResultType {
+                    variant: *variant,
+                    actual: expr.ty.clone(),
+                });
+            }
+            if fields.len() != definition.fields.len() {
+                return Err(MirValidationErrorKind::VariantConstructArity {
+                    variant: *variant,
+                    expected: definition.fields.len(),
+                    actual: fields.len(),
+                });
+            }
+            for (index, (field, expected)) in fields.iter().zip(&definition.fields).enumerate() {
+                if field.ty != expected.ty {
+                    let field_ref = MirVariantFieldRef::new(&module.enums, *variant, index as u32)
+                        .expect("an enumerated variant field is checked by its definition");
+                    return Err(MirValidationErrorKind::VariantConstructFieldType {
+                        field: field_ref,
+                        expected: expected.ty.clone(),
+                        actual: field.ty.clone(),
+                    });
+                }
+            }
+        }
         ExprKind::VariantTest { operand, variant } => {
             variant.definition(&module.enums).map_err(|error| {
                 MirValidationErrorKind::InvalidVariantReference {
@@ -284,7 +525,7 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                     error,
                 }
             })?;
-            validate_operand_type(operand, *variant, MirVariantOperation::Test)?;
+            validate_operand_type(module, operand, *variant, MirVariantOperation::Test)?;
             if expr.ty != Type::Boolean {
                 return Err(MirValidationErrorKind::VariantTestResultType {
                     actual: expr.ty.clone(),
@@ -296,6 +537,7 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                 .definition(&module.enums)
                 .map_err(|error| MirValidationErrorKind::InvalidVariantFieldReference { error })?;
             validate_operand_type(
+                module,
                 operand,
                 field.variant(),
                 MirVariantOperation::PayloadProject,
@@ -308,17 +550,74 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                 });
             }
         }
+        ExprKind::ForeignCallbackRegister { bridge, closure } => {
+            if bridge.into_raw().into_u32() as usize >= module.foreign_callback_bridges.len() {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "registration references an invalid bridge",
+                });
+            }
+            let bridge = &module.foreign_callback_bridges[*bridge];
+            let family = module.foreign_callback_families[bridge.family];
+            let adapter = &module.foreign_callback_adapters[bridge.adapter];
+            if closure.ty != Type::Function(adapter.managed_signature) {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "registration closure does not match the adapter signature",
+                });
+            }
+            if expr.ty != Type::Struct(family.callback) {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "registration result does not match the family callback struct",
+                });
+            }
+        }
+        ExprKind::ForeignCallbackOperation {
+            operation,
+            callback,
+        } => {
+            let family_id = operation.family();
+            if family_id.into_raw().into_u32() as usize >= module.foreign_callback_families.len() {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "operation references an invalid callback family",
+                });
+            }
+            let family = module.foreign_callback_families[family_id];
+            if callback.ty != Type::Struct(family.callback) {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "operation operand does not match the family callback struct",
+                });
+            }
+            let expected = match operation {
+                ForeignCallbackOperation::Retain(_) => Type::Struct(family.callback),
+                ForeignCallbackOperation::Release(_) => Type::Unit,
+                ForeignCallbackOperation::State(_) => family
+                    .states
+                    .registered()
+                    .enum_type(&module.enums)
+                    .expect("family metadata was validated before function bodies"),
+                ForeignCallbackOperation::Failure(_) => family
+                    .failure_result
+                    .none()
+                    .enum_type(&module.enums)
+                    .expect("family metadata was validated before function bodies"),
+            };
+            if expr.ty != expected {
+                return Err(MirValidationErrorKind::InvalidForeignCallbackExpression {
+                    reason: "operation result does not match its typed family relation",
+                });
+            }
+        }
         _ => {}
     }
     Ok(())
 }
 
 fn validate_operand_type(
+    module: &Module,
     operand: &Expr,
     variant: MirVariantRef,
     operation: MirVariantOperation,
 ) -> Result<(), MirValidationErrorKind> {
-    let Type::Enum(actual, _) = &operand.ty else {
+    let Type::Enum(actual, actual_arguments) = &operand.ty else {
         return Err(MirValidationErrorKind::VariantOperandIsNotEnum {
             operation,
             actual: operand.ty.clone(),
@@ -330,6 +629,17 @@ fn validate_operand_type(
             expected: variant.enum_id(),
             actual: *actual,
         });
+    }
+    let expected_arguments = &module.enums[variant.enum_id()].type_arguments;
+    if actual_arguments != expected_arguments {
+        return Err(
+            MirValidationErrorKind::VariantOperandTypeArgumentsMismatch {
+                operation,
+                enum_id: variant.enum_id(),
+                expected: expected_arguments.clone(),
+                actual: actual_arguments.clone(),
+            },
+        );
     }
     Ok(())
 }
@@ -409,7 +719,7 @@ fn matching_test_edges(module: &Module, body: &Body, stable_locals: &[bool]) -> 
         };
         if cond.ty != Type::Boolean
             || variant.definition(&module.enums).is_err()
-            || validate_operand_type(operand, *variant, MirVariantOperation::Test).is_err()
+            || validate_operand_type(module, operand, *variant, MirVariantOperation::Test).is_err()
         {
             continue;
         }

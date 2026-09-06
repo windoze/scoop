@@ -415,13 +415,9 @@ fn source_owner(owner: hir::ExportParameterOwner) -> SourceParameterOwner {
         hir::ExportParameterOwner::ClassConstructor(class) => {
             SourceParameterOwner::ClassConstructor(class)
         }
-        hir::ExportParameterOwner::VariantConstructor {
-            enumeration,
-            variant,
-        } => SourceParameterOwner::VariantConstructor {
-            enumeration,
-            variant,
-        },
+        hir::ExportParameterOwner::VariantConstructor(variant) => {
+            SourceParameterOwner::VariantConstructor(variant)
+        }
     }
 }
 

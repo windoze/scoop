@@ -7,6 +7,7 @@ pub fn emit_object(
     output: &Path,
     profile: TargetProfile,
 ) -> Result<(), CodegenError> {
+    validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
@@ -35,6 +36,7 @@ pub fn emit_object(
 /// rewrite used by [`emit_object`]. Source-language and upstream IR semantics
 /// must already be explicit in `module`.
 pub fn render_llvm_ir(module: &Module, profile: TargetProfile) -> Result<String, CodegenError> {
+    validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;

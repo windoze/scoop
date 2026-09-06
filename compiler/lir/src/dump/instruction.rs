@@ -529,7 +529,6 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         )),
         Instruction::EnumWrap {
             out,
-            enum_id,
             variant,
             fields,
         } => {
@@ -537,8 +536,8 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             buf.push_str(&format!(
                 "    t{} = enum_wrap e{} v{} ({}) : {}\n",
                 out.into_raw(),
-                enum_id.into_raw(),
-                variant,
+                variant.definition().into_raw(),
+                variant.index(),
                 fields.join(", "),
                 function.temps[*out].ty.dump()
             ))

@@ -219,11 +219,23 @@ pub fn dump(module: &Module) -> String {
             "  foreign_callback_family fcf{} callback=struct{} state=enum{} failure=enum{}\n",
             id.into_raw(),
             family.callback.into_raw(),
-            family.state.into_raw(),
-            family.failure.into_raw(),
+            family.states.definition().into_raw(),
+            family.failure_result.definition().into_raw(),
         ));
     }
     for (id, bridge) in module.foreign_callback_bridges.iter() {
+        let family = &module.foreign_callback_families[bridge.family];
+        let mode = if bridge.mode == family.modes.reusable() {
+            "ForeignCallbackMode.Reusable".to_string()
+        } else if bridge.mode == family.modes.one_shot() {
+            "ForeignCallbackMode.OneShot".to_string()
+        } else {
+            format!(
+                "enum{}.v{}",
+                bridge.mode.definition().into_raw(),
+                bridge.mode.index()
+            )
+        };
         let params = bridge
             .params
             .iter()
@@ -231,14 +243,14 @@ pub fn dump(module: &Module) -> String {
             .collect::<Vec<_>>()
             .join(",");
         out.push_str(&format!(
-            "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={:?} c=({})->{}\n",
+            "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={} c=({})->{}\n",
             id.into_raw(),
             bridge.family.into_raw(),
             bridge.adapter_symbol,
             bridge.trampoline_symbol,
             bridge.signature_symbol,
             bridge.context_index,
-            bridge.mode,
+            mode,
             params,
             bridge.return_type.dump(),
         ));

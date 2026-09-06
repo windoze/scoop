@@ -842,8 +842,7 @@ pub enum LirConstantImage {
         kind: PointerKind,
     },
     EnumUnit {
-        enum_id: EnumDefId,
-        variant: u32,
+        variant: LirVariantRef,
     },
     Struct {
         struct_id: StructDefId,

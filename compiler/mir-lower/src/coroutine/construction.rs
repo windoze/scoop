@@ -201,8 +201,8 @@ pub(super) fn restore_statement(
             slot.value_ty.clone(),
             mir::ExprKind::EnumField {
                 operand: Box::new(frame_field(frame, slot.field, slot.slot_ty.clone())),
-                variant: 1,
-                index: 0,
+                variant: slot.value_payload.variant().variant_index(),
+                index: slot.value_payload.field_index(),
             },
         ),
     })
@@ -212,7 +212,7 @@ pub(super) fn slot_empty(slot: &FrameSlot) -> mir::Expr {
     mir::Expr::new(
         slot.slot_ty.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 0,
+            variant: slot.empty,
             fields: Vec::new(),
         },
     )
@@ -223,26 +223,32 @@ pub(super) fn slot_value(slot: &FrameSlot, value: mir::Expr) -> mir::Expr {
     mir::Expr::new(
         slot.slot_ty.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 1,
+            variant: slot.value_payload.variant(),
             fields: vec![value],
         },
     )
 }
 
-pub(super) fn suspended_value(step: &mir::Type) -> mir::Expr {
+pub(super) fn suspended_value(step: &mir::Type, suspended: mir::MirVariantRef) -> mir::Expr {
+    debug_assert_eq!(step, &mir::Type::Enum(suspended.enum_id(), Vec::new()));
     mir::Expr::new(
         step.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 1,
+            variant: suspended,
             fields: Vec::new(),
         },
     )
 }
 
-pub(super) fn is_completed(step: mir::LocalId, step_ty: mir::Type) -> mir::Expr {
+pub(super) fn is_completed(
+    step: mir::LocalId,
+    step_ty: mir::Type,
+    completed: mir::MirVariantRef,
+) -> mir::Expr {
+    debug_assert_eq!(step_ty, mir::Type::Enum(completed.enum_id(), Vec::new()));
     machine_eq(
         mir::Expr::enum_tag(mir::Expr::local(step, step_ty)),
-        mir::MachineScalarValue::EnumTag(0),
+        mir::MachineScalarValue::EnumTag(completed.variant_index()),
     )
 }
 

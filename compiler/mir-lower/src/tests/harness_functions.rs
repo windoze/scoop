@@ -421,11 +421,82 @@ impl Harness {
         });
         let option_some = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 0)
             .expect("test Option has Some");
+        let option_some_payload = hir::EnumVariantFieldRef::checked(&self.enums, option_some, 0)
+            .expect("test Option Some has its payload");
         let option_none = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 1)
             .expect("test Option has None");
         let option_core =
-            hir::OptionCore::checked(&self.enums, &self.types, option_some, option_none)
+            hir::OptionCore::checked(&self.enums, &self.types, option_some_payload, option_none)
                 .expect("test Option has the core shape");
+        let callback_mode_application = self.enums[callback_mode].self_application;
+        let callback_modes = hir::ForeignCallbackModes::checked(
+            &self.enums,
+            &self.enum_applications,
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_mode_application,
+                0,
+            )
+            .expect("test callback mode has Reusable"),
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_mode_application,
+                1,
+            )
+            .expect("test callback mode has OneShot"),
+        )
+        .expect("test callback mode has the core shape");
+        let callback_state_application = self.enums[callback_state].self_application;
+        let callback_state_ref = |index| {
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_state_application,
+                index,
+            )
+            .expect("test callback state variant exists")
+        };
+        let callback_states = hir::ForeignCallbackStates::checked(
+            &self.enums,
+            &self.enum_applications,
+            callback_state_ref(0),
+            callback_state_ref(1),
+            callback_state_ref(2),
+            callback_state_ref(3),
+        )
+        .expect("test callback state has the core shape");
+        let throwable = self.class_ty(exception_core.throwable.class());
+        let callback_failure_application = self.enum_application(self.option_enum, vec![throwable]);
+        let callback_failure_some = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            callback_failure_application,
+            option_core.some(),
+        )
+        .expect("test callback failure has Some");
+        let callback_failure_result = hir::ForeignCallbackFailureResult::checked(
+            &self.enums,
+            &self.enum_applications,
+            option_core,
+            throwable,
+            hir::AppliedEnumVariantFieldRef::checked(
+                &self.enums,
+                &self.enum_applications,
+                callback_failure_some,
+                option_core.some_payload().local_index(),
+            )
+            .expect("test callback failure Some has a payload"),
+            hir::AppliedEnumVariantRef::checked(
+                &self.enums,
+                &self.enum_applications,
+                callback_failure_application,
+                option_core.none(),
+            )
+            .expect("test callback failure has None"),
+        )
+        .expect("test callback failure has the core shape");
         hir::Module {
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
@@ -492,8 +563,9 @@ impl Harness {
             ffi_core,
             foreign_callback_core: hir::ForeignCallbackCore {
                 callback: ptr,
-                mode: callback_mode,
-                state: callback_state,
+                modes: callback_modes,
+                states: callback_states,
+                failure_result: callback_failure_result,
                 register: entry,
                 retain: entry,
                 release: entry,

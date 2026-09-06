@@ -3,17 +3,129 @@ use std::collections::{HashMap, HashSet};
 use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
+mod constants;
 mod variants;
+use constants::validate_constant_images;
 use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_niche_representations(module)?;
+    validate_constant_images(module)?;
     validate_variant_primitives(module)?;
     validate_machine_containers(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;
     validate_c_abi(module)?;
     validate_foreign_callbacks(module)
+}
+
+fn validate_variant_ref(
+    module: &Module,
+    variant: scoop_lir::LirVariantRef,
+    owner: &str,
+) -> Result<(), CodegenError> {
+    if !module.enums.contains_variant(variant) {
+        return Err(CodegenError(format!(
+            "{owner} carries invalid enum{} variant {} reference",
+            variant.definition().into_raw(),
+            variant.index()
+        )));
+    }
+    Ok(())
+}
+
+fn checked_temp_type<'a>(
+    function: &'a Function,
+    temp: scoop_lir::TempId,
+    owner: &str,
+) -> Result<&'a LirType, CodegenError> {
+    let index = arena_index(temp);
+    if index >= function.temps.len() {
+        return Err(CodegenError(format!(
+            "{owner} references invalid temporary t{index} in @{}",
+            function.symbol
+        )));
+    }
+    Ok(&function.temps[temp].ty)
+}
+
+fn checked_value_type(
+    module: &Module,
+    function: &Function,
+    value: Value,
+    owner: &str,
+) -> Result<LirType, CodegenError> {
+    let invalid = |kind: &str, index: usize| {
+        CodegenError(format!(
+            "{owner} references invalid {kind} {index} in @{}",
+            function.symbol
+        ))
+    };
+    match value {
+        Value::Local(id) => {
+            let index = arena_index(id);
+            if index >= function.locals.len() {
+                return Err(invalid("local", index));
+            }
+            Ok(function.locals[id].ty.clone())
+        }
+        Value::Param(index) => function
+            .params
+            .get(index as usize)
+            .cloned()
+            .ok_or_else(|| invalid("parameter", index as usize)),
+        Value::Temp(id) => checked_temp_type(function, id, owner).cloned(),
+        Value::IntegerConst(value) => Ok(value.scalar_type()),
+        Value::MachineScalar(value) => Ok(LirType::MachineScalar(value.kind())),
+        Value::BoolConst(_) => Ok(LirType::I1),
+        Value::NullPointer(kind) => Ok(LirType::Ptr(kind)),
+        Value::TypeDescriptor(reference) => {
+            let (kind, index, len) = match reference {
+                scoop_lir::TypeDescriptorRef::Local(id) => (
+                    "local type descriptor",
+                    arena_index(id),
+                    module.meta.type_descriptors.len(),
+                ),
+                scoop_lir::TypeDescriptorRef::External(id) => (
+                    "external type descriptor",
+                    arena_index(id),
+                    module.meta.external_type_descriptors.len(),
+                ),
+            };
+            if index >= len {
+                return Err(invalid(kind, index));
+            }
+            Ok(scoop_lir::METADATA_PTR)
+        }
+        Value::RootScan(id) => {
+            let index = arena_index(id);
+            if index >= function.call_targets.root_scans.len() {
+                return Err(invalid("root scan", index));
+            }
+            Ok(scoop_lir::METADATA_PTR)
+        }
+        Value::Global(id) => {
+            let index = arena_index(id);
+            if index >= module.globals.len() {
+                return Err(invalid("global", index));
+            }
+            Ok(LirType::Ptr(module.globals[id].address_kind))
+        }
+        Value::InitializationUnit(id) => {
+            let index = arena_index(id);
+            if index >= module.initialization_units.len() {
+                return Err(invalid("initialization unit", index));
+            }
+            Ok(scoop_lir::METADATA_PTR)
+        }
+        Value::CArgumentStorage(storage) => {
+            let index = arena_index(storage.local());
+            if index >= function.locals.len() {
+                return Err(invalid("C argument local", index));
+            }
+            Ok(scoop_lir::RAW_PTR)
+        }
+    }
 }
 
 fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
@@ -587,19 +699,6 @@ fn validate_foreign_callback_family(
             family.callback.into_raw()
         )));
     }
-    if family.state.into_raw().into_u32() as usize >= module.enums.len() {
-        return Err(CodegenError(format!(
-            "{owner} references invalid state enum {}",
-            family.state.into_raw()
-        )));
-    }
-    if family.failure.into_raw().into_u32() as usize >= module.enums.len() {
-        return Err(CodegenError(format!(
-            "{owner} references invalid failure enum {}",
-            family.failure.into_raw()
-        )));
-    }
-
     let callback = &module.structs[family.callback];
     let callback_shape = callback.scoop_fields().is_some_and(|fields| {
         matches!(
@@ -622,33 +721,51 @@ fn validate_foreign_callback_family(
         )));
     }
 
-    let state = &module.enums[family.state];
-    let state_shape = matches!(
+    let modes = scoop_lir::ForeignCallbackModes::checked(
+        &module.enums,
+        family.modes.reusable(),
+        family.modes.one_shot(),
+    );
+    if modes != Some(family.modes) {
+        return Err(CodegenError(format!(
+            "{owner} carries invalid callback mode variant metadata"
+        )));
+    }
+    let states = scoop_lir::ForeignCallbackStates::checked(
+        &module.enums,
+        family.states.registered(),
+        family.states.active(),
+        family.states.completed(),
+        family.states.failed(),
+    );
+    if states != Some(family.states) {
+        return Err(CodegenError(format!(
+            "{owner} carries invalid callback state variant metadata"
+        )));
+    }
+    let state = &module.enums[family.states.definition()];
+    if !matches!(
         &state.repr,
         EnumRepr::Tagged {
-            variants,
             size: 8,
             align: 8,
-        } if variants.len() == 4 && variants.iter().all(|variant| variant.fields.is_empty())
-    ) && !state.scan.contains_reference();
-    if !state_shape {
+            ..
+        }
+    ) || state.scan.contains_reference()
+    {
         return Err(CodegenError(format!(
             "{owner} state enum `{}` does not have the closed four-state unit representation",
             state.name
         )));
     }
-
-    let failure = &module.enums[family.failure];
-    if !matches!(
-        failure.repr,
-        EnumRepr::Niche {
-            kind: scoop_lir::NichePointerKind::Managed,
-            ..
-        }
-    ) {
+    let failure_result = scoop_lir::ForeignCallbackFailureResult::checked(
+        &module.enums,
+        family.failure_result.some_payload(),
+        family.failure_result.none(),
+    );
+    if failure_result != Some(family.failure_result) {
         return Err(CodegenError(format!(
-            "{owner} failure enum `{}` is not a managed-reference niche enum",
-            failure.name
+            "{owner} carries invalid managed-reference callback failure metadata"
         )));
     }
     Ok(())
@@ -667,7 +784,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                 id.into_raw()
             )));
         }
-        let identity = (family.state, family.failure);
+        let identity = (family.modes, family.states, family.failure_result);
         if let Some(expected) = protocol {
             if expected != identity {
                 return Err(CodegenError(format!(
@@ -695,6 +812,14 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
             bridge.family,
             &format!("foreign callback bridge {}", id.into_raw()),
         )?;
+        let family = &module.foreign_callback_families[bridge.family];
+        if family.modes.runtime_code(bridge.mode).is_none() {
+            return Err(CodegenError(format!(
+                "foreign callback bridge {} carries a mode outside family {}",
+                id.into_raw(),
+                bridge.family.into_raw()
+            )));
+        }
         let Some(context_type) = bridge.params.get(bridge.context_index as usize) else {
             return Err(CodegenError(format!(
                 "foreign callback bridge {} context index {} is outside its {} C parameters",
@@ -797,8 +922,17 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                             bridge.family,
                             &format!("foreign callback registration @{}", function.symbol),
                         )?;
-                        let closure_ty = function.value_ty(&module.globals, *closure);
-                        let result_ty = &function.temps[*out].ty;
+                        let closure_ty = checked_value_type(
+                            module,
+                            function,
+                            *closure,
+                            "foreign callback registration closure",
+                        )?;
+                        let result_ty = checked_temp_type(
+                            function,
+                            *out,
+                            "foreign callback registration result",
+                        )?;
                         if closure_ty != scoop_lir::MANAGED_PTR
                             || result_ty != &LirType::Struct(family.callback)
                         {
@@ -819,7 +953,12 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                             family_id,
                             &format!("foreign callback operation @{}", function.symbol),
                         )?;
-                        let callback_ty = function.value_ty(&module.globals, operation.callback());
+                        let callback_ty = checked_value_type(
+                            module,
+                            function,
+                            operation.callback(),
+                            "foreign callback operation callback",
+                        )?;
                         if callback_ty != LirType::Struct(family.callback) {
                             return Err(CodegenError(format!(
                                 "foreign callback operation @{} for family {} requires exact callback struct {}, got {}",
@@ -831,14 +970,17 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         }
                         let result_valid = match *operation {
                             scoop_lir::ForeignCallbackOperation::Retain { out, .. } => {
-                                function.temps[out].ty == LirType::Struct(family.callback)
+                                checked_temp_type(function, out, "foreign callback retain result")?
+                                    == &LirType::Struct(family.callback)
                             }
                             scoop_lir::ForeignCallbackOperation::Release { .. } => true,
                             scoop_lir::ForeignCallbackOperation::State { out, .. } => {
-                                function.temps[out].ty == LirType::Enum(family.state)
+                                checked_temp_type(function, out, "foreign callback state result")?
+                                    == &LirType::Enum(family.states.definition())
                             }
                             scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
-                                function.temps[out].ty == LirType::Enum(family.failure)
+                                checked_temp_type(function, out, "foreign callback failure result")?
+                                    == &LirType::Enum(family.failure_result.definition())
                             }
                         };
                         if !result_valid {

@@ -127,8 +127,8 @@ pub(super) fn requirement_context_for_default(
                 lowerer.class_constructors[constructor].owner,
             ))
         }
-        crate::defaults::SourceParameterOwner::VariantConstructor { enumeration, .. } => {
-            RequirementContext::Nominal(crate::Owner::Enum(enumeration))
+        crate::defaults::SourceParameterOwner::VariantConstructor(variant) => {
+            RequirementContext::Nominal(crate::Owner::Enum(variant.enumeration()))
         }
     }
 }
@@ -144,10 +144,11 @@ pub(super) fn default_owner_sort_key(
         crate::defaults::SourceParameterOwner::ClassConstructor(id) => {
             (2, id.into_raw().into_u32(), 0)
         }
-        crate::defaults::SourceParameterOwner::VariantConstructor {
-            enumeration,
-            variant,
-        } => (3, enumeration.into_raw().into_u32(), variant),
+        crate::defaults::SourceParameterOwner::VariantConstructor(variant) => (
+            3,
+            variant.enumeration().into_raw().into_u32(),
+            variant.local_index(),
+        ),
     }
 }
 

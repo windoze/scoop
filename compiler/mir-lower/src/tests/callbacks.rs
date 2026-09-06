@@ -123,6 +123,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         captures: Vec::new(),
         span: SPAN,
     });
+    let mode = source.foreign_callback_core.modes.reusable();
     let registration =
         source
             .foreign_callback_registrations
@@ -130,7 +131,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
                 native_function_type: function_type,
                 managed_function_type: function_type,
                 context_index: 0,
-                mode: hir::ForeignCallbackMode::Reusable,
+                mode,
             });
     let hir::FunctionKind::User(main_body) = &mut source.functions[main].kind else {
         panic!("main is a user function")
@@ -154,8 +155,24 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         .expect("registration generates one native bridge");
     let family = module.foreign_callback_families[bridge.family];
     assert_eq!(family.callback, module.structs.iter().next().unwrap().0);
-    assert_eq!(module.enums[family.state].name, "ForeignCallbackState");
-    assert!(module.enums[family.failure].name.starts_with("Option$"));
+    assert_eq!(
+        module.enums[family.states.enum_id()].name,
+        "ForeignCallbackState"
+    );
+    assert!(
+        module.enums[family.failure_result.enum_id()]
+            .name
+            .starts_with("Option$")
+    );
+    assert_eq!(
+        family
+            .modes
+            .reusable()
+            .definition(&module.enums)
+            .unwrap()
+            .name,
+        "Reusable"
+    );
     let (_, adapter) = module
         .foreign_callback_adapters
         .iter()

@@ -19,6 +19,10 @@ pub(super) fn generate_failure_method(
     failure_state: mir::CoroutineFrameState,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
+    let completed = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .completed();
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
@@ -79,7 +83,7 @@ pub(super) fn generate_failure_method(
             })),
         ],
         terminator: mir::Terminator::Branch {
-            cond: is_completed(step, outer_step.clone()),
+            cond: is_completed(step, outer_step.clone(), completed),
             then_block: exits.completed,
             else_block: exits.suspended,
         },

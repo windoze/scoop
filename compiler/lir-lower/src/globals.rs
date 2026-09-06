@@ -30,7 +30,11 @@ pub(super) fn lower_globals(
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
-                        initial_state: lower_static_initial_state(initial_state, string_globals),
+                        initial_state: lower_static_initial_state(
+                            initial_state,
+                            enums,
+                            string_globals,
+                        ),
                         thread_local: false,
                     },
                 });
@@ -46,7 +50,11 @@ pub(super) fn lower_globals(
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
-                        initial_state: lower_static_initial_state(initial_state, string_globals),
+                        initial_state: lower_static_initial_state(
+                            initial_state,
+                            enums,
+                            string_globals,
+                        ),
                         thread_local: *thread_local,
                     },
                 });
@@ -91,6 +99,7 @@ pub(super) fn lower_globals(
 
 pub(super) fn lower_static_initial_state(
     state: &mir::MirStaticInitialState,
+    enums: &lir::EnumDefs,
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> lir::LirStaticInitialState {
     match state {
@@ -99,7 +108,7 @@ pub(super) fn lower_static_initial_state(
         }
         mir::MirStaticInitialState::EncodedStaticValue { payload } => {
             lir::LirStaticInitialState::EncodedStaticValue {
-                payload: lower_constant_image(payload, string_globals),
+                payload: lower_constant_image(payload, enums, string_globals),
             }
         }
     }
@@ -107,6 +116,7 @@ pub(super) fn lower_static_initial_state(
 
 pub(super) fn lower_constant_image(
     value: &mir::MirConstantImage,
+    enums: &lir::EnumDefs,
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> lir::LirConstantImage {
     match value {
@@ -124,15 +134,14 @@ pub(super) fn lower_constant_image(
                 mir::MirPointerNull::Code => lir::PointerKind::Code,
             })
         }
-        mir::MirConstantImage::EnumUnit { enum_id, variant } => lir::LirConstantImage::EnumUnit {
-            enum_id: enum_def_id(*enum_id),
-            variant: *variant,
+        mir::MirConstantImage::EnumUnit { variant } => lir::LirConstantImage::EnumUnit {
+            variant: variant_ref(enums, *variant),
         },
         mir::MirConstantImage::Struct { struct_id, fields } => lir::LirConstantImage::Struct {
             struct_id: struct_def_id(*struct_id),
             fields: fields
                 .iter()
-                .map(|field| lower_constant_image(field, string_globals))
+                .map(|field| lower_constant_image(field, enums, string_globals))
                 .collect(),
         },
     }

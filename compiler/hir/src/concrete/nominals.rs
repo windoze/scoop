@@ -110,7 +110,6 @@ pub struct EnumDef {
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
-    pub option_variants: Option<(VariantId, VariantId)>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
@@ -182,6 +181,68 @@ impl EnumVariantFieldRef {
 
     pub const fn local_index(self) -> u32 {
         self.local_index
+    }
+}
+
+/// Complete local-concrete identity of one specialized core `Option` shape.
+/// The Some payload and None variants are inseparable from their checked
+/// owner, and their arities are verified when this value is constructed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct OptionCore {
+    some_payload: EnumVariantFieldRef,
+    none: EnumVariantRef,
+}
+
+impl OptionCore {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        some_payload: EnumVariantFieldRef,
+        none: EnumVariantRef,
+    ) -> Option<Self> {
+        let some = some_payload.variant();
+        if some.enumeration() != none.enumeration() || some.variant() == none.variant() {
+            return None;
+        }
+        if some.enumeration().into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        let enumeration = &enums[some.enumeration()];
+        let [argument] = enumeration.type_arguments.as_slice() else {
+            return None;
+        };
+        let some_definition = enumeration
+            .variants
+            .get(some.variant().into_raw() as usize)?;
+        let none_definition = enumeration
+            .variants
+            .get(none.variant().into_raw() as usize)?;
+        (enumeration.variants.len() == 2
+            && some_definition.name == "Some"
+            && some_definition.fields.len() == 1
+            && some_payload.local_index() == 0
+            && some_definition
+                .fields
+                .get(some_payload.local_index() as usize)
+                .is_some_and(|field| field.ty == *argument)
+            && none_definition.name == "None"
+            && none_definition.fields.is_empty())
+        .then_some(Self { some_payload, none })
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.some_payload.variant().enumeration()
+    }
+
+    pub const fn some(self) -> EnumVariantRef {
+        self.some_payload.variant()
+    }
+
+    pub const fn some_payload(self) -> EnumVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> EnumVariantRef {
+        self.none
     }
 }
 
@@ -444,8 +505,7 @@ pub enum HirConstantImage {
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {
-        enum_id: EnumId,
-        variant: u32,
+        variant: EnumVariantRef,
     },
     Struct {
         struct_id: StructId,
@@ -469,13 +529,13 @@ mod tests {
         let mut enums = Arena::new();
         let enumeration = enums.alloc(EnumDef {
             origin: EnumOriginId::from_raw(0),
-            name: "Choice".to_string(),
+            name: "Option".to_string(),
             owner: None,
-            type_arguments: Vec::new(),
+            type_arguments: vec![ty],
             gc_free: true,
             variants: vec![
                 Variant {
-                    name: "Data".to_string(),
+                    name: "Some".to_string(),
                     gc_free: true,
                     fields: vec![Field {
                         name: "value".to_string(),
@@ -483,12 +543,11 @@ mod tests {
                     }],
                 },
                 Variant {
-                    name: "Empty".to_string(),
+                    name: "None".to_string(),
                     gc_free: true,
                     fields: Vec::new(),
                 },
             ],
-            option_variants: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -507,6 +566,43 @@ mod tests {
         assert_eq!(field.variant(), data);
         assert!(EnumVariantFieldRef::checked(&enums, data, 1).is_none());
         assert!(EnumVariantFieldRef::checked(&enums, empty, 0).is_none());
+        let option = OptionCore::checked(&enums, field, empty).expect("valid Option shape");
+        assert_eq!(option.enumeration(), enumeration);
+        assert_eq!(option.some_payload(), field);
+        assert_eq!(option.some(), data);
+        assert_eq!(option.none(), empty);
+        assert!(OptionCore::checked(&enums, field, data).is_none());
+        enums[enumeration].type_arguments.clear();
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].type_arguments.push(ty);
+        enums[enumeration].type_arguments[0] = TypeId::from_raw(1.into());
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].type_arguments[0] = ty;
+        enums[enumeration].variants.push(Variant {
+            name: "Unexpected".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].variants.pop();
+        let other = enums.alloc(EnumDef {
+            origin: EnumOriginId::from_raw(1),
+            name: "Other".to_string(),
+            owner: None,
+            type_arguments: Vec::new(),
+            gc_free: true,
+            variants: vec![Variant {
+                name: "Empty".to_string(),
+                gc_free: true,
+                fields: Vec::new(),
+            }],
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: Span::new(0, 0),
+        });
+        let other_empty = EnumVariantRef::checked(&enums, other, VariantId::from_raw(0)).unwrap();
+        assert!(OptionCore::checked(&enums, field, other_empty).is_none());
 
         let mut structs = Arena::new();
         let declared = structs.alloc(StructDef {

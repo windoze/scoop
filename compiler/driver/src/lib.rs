@@ -124,6 +124,12 @@ pub fn compile_file_with_options(
     let warnings = hir.warnings;
 
     let mir = scoop_mir_lower::lower(&hir.local);
+    mir.validate().map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("MIR validation failed: {error}"),
+        )]
+    })?;
     let mir_dump = scoop_mir::dump(&mir);
 
     let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target_profile());

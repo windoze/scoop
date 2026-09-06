@@ -123,8 +123,10 @@ impl BodyLowerer<'_> {
                 for (argument, expected) in args.iter().zip(expected_fields) {
                     assert_eq!(self.lower_type(argument.ty), self.lower_type(expected));
                 }
+                let variant = self.enums.lower_variant_ref(*variant);
+                assert_eq!(variant.enum_id(), *enum_id);
                 smir::ExprKind::VariantConstruct {
-                    variant: variant.variant().into_raw(),
+                    variant,
                     fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
             }
@@ -135,9 +137,8 @@ impl BodyLowerer<'_> {
                     unreachable!("a variant test has an enum operand")
                 };
                 assert_eq!(self.enums.hir_ids[enum_id], variant.enumeration());
-                let variant = self
-                    .enums
-                    .variant_ref(*enum_id, variant.variant().into_raw());
+                let variant = self.enums.lower_variant_ref(*variant);
+                assert_eq!(variant.enum_id(), *enum_id);
                 return smir::Expr::variant_test(&self.enums.defs, operand, variant);
             }
             hir::ExprKind::VariantPayloadProject { operand, field } => {
@@ -152,10 +153,8 @@ impl BodyLowerer<'_> {
                     .fields[field.local_index() as usize]
                     .ty;
                 assert_eq!(ty, self.lower_type(expected));
-                let variant = self
-                    .enums
-                    .variant_ref(*enum_id, source_variant.variant().into_raw());
-                let field = self.enums.variant_field_ref(variant, field.local_index());
+                let field = self.enums.lower_variant_field_ref(*field);
+                assert_eq!(field.variant().enum_id(), *enum_id);
                 return smir::Expr::variant_payload_project(&self.enums.defs, operand, field);
             }
             hir::ExprKind::Local(local) => {
@@ -540,11 +539,15 @@ impl BodyLowerer<'_> {
                         mir::ForeignCallbackOperation::Release(family)
                     }
                     hir::ForeignCallbackOperation::State => {
-                        assert!(matches!(ty, mir::Type::Enum(id, _) if id == contract.state));
+                        assert!(
+                            matches!(ty, mir::Type::Enum(id, _) if id == contract.states.enum_id())
+                        );
                         mir::ForeignCallbackOperation::State(family)
                     }
                     hir::ForeignCallbackOperation::Failure => {
-                        assert!(matches!(ty, mir::Type::Enum(id, _) if id == contract.failure));
+                        assert!(
+                            matches!(ty, mir::Type::Enum(id, _) if id == contract.failure_result.enum_id())
+                        );
                         mir::ForeignCallbackOperation::Failure(family)
                     }
                 };
@@ -684,14 +687,14 @@ impl BodyLowerer<'_> {
             // desugars) become generic construction and checked semantic
             // variant operations on core's `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
-                let some = option_core_for_type(self.module, self.enums, &ty).some_variant();
+                let some = option_core_for_type(self.module, self.enums, &ty).some();
                 smir::ExprKind::VariantConstruct {
                     variant: some,
                     fields: vec![self.lower_expr(operand)],
                 }
             }
             hir::ExprKind::NoneLiteral => {
-                let none = option_core_for_type(self.module, self.enums, &ty).none_variant();
+                let none = option_core_for_type(self.module, self.enums, &ty).none();
                 smir::ExprKind::VariantConstruct {
                     variant: none,
                     fields: Vec::new(),

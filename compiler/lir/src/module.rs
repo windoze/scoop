@@ -77,8 +77,169 @@ pub struct CallbackBridge {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ForeignCallbackFamily {
     pub callback: StructDefId,
-    pub state: EnumDefId,
-    pub failure: EnumDefId,
+    pub modes: ForeignCallbackModes,
+    pub states: ForeignCallbackStates,
+    pub failure_result: ForeignCallbackFailureResult,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackModes {
+    reusable: LirVariantRef,
+    one_shot: LirVariantRef,
+}
+
+impl ForeignCallbackModes {
+    pub fn checked(
+        enums: &EnumDefs,
+        reusable: LirVariantRef,
+        one_shot: LirVariantRef,
+    ) -> Option<Self> {
+        if !enums.contains_variant(reusable)
+            || !enums.contains_variant(one_shot)
+            || reusable.definition() != one_shot.definition()
+            || reusable == one_shot
+            || reusable.index() != 0
+            || one_shot.index() != 1
+        {
+            return None;
+        }
+        let EnumRepr::Tagged { variants, .. } = &enums[reusable.definition()].repr else {
+            return None;
+        };
+        (variants.len() == 2 && variants.iter().all(|variant| variant.fields.is_empty()))
+            .then_some(Self { reusable, one_shot })
+    }
+
+    pub const fn reusable(self) -> LirVariantRef {
+        self.reusable
+    }
+
+    pub const fn one_shot(self) -> LirVariantRef {
+        self.one_shot
+    }
+
+    pub const fn definition(self) -> EnumDefId {
+        self.reusable.definition()
+    }
+
+    pub fn runtime_code(self, mode: LirVariantRef) -> Option<u32> {
+        if mode == self.reusable {
+            Some(0)
+        } else if mode == self.one_shot {
+            Some(1)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackStates {
+    registered: LirVariantRef,
+    active: LirVariantRef,
+    completed: LirVariantRef,
+    failed: LirVariantRef,
+}
+
+impl ForeignCallbackStates {
+    pub fn checked(
+        enums: &EnumDefs,
+        registered: LirVariantRef,
+        active: LirVariantRef,
+        completed: LirVariantRef,
+        failed: LirVariantRef,
+    ) -> Option<Self> {
+        let variants = [registered, active, completed, failed];
+        if variants.iter().any(|variant| {
+            !enums.contains_variant(*variant) || variant.definition() != registered.definition()
+        }) {
+            return None;
+        }
+        for (index, variant) in variants.iter().enumerate() {
+            if variants[..index].contains(variant) || variant.index() as usize != index {
+                return None;
+            }
+        }
+        let EnumRepr::Tagged {
+            variants: definitions,
+            ..
+        } = &enums[registered.definition()].repr
+        else {
+            return None;
+        };
+        (definitions.len() == 4 && definitions.iter().all(|variant| variant.fields.is_empty()))
+            .then_some(Self {
+                registered,
+                active,
+                completed,
+                failed,
+            })
+    }
+
+    pub const fn registered(self) -> LirVariantRef {
+        self.registered
+    }
+
+    pub const fn active(self) -> LirVariantRef {
+        self.active
+    }
+
+    pub const fn completed(self) -> LirVariantRef {
+        self.completed
+    }
+
+    pub const fn failed(self) -> LirVariantRef {
+        self.failed
+    }
+
+    pub const fn definition(self) -> EnumDefId {
+        self.registered.definition()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFailureResult {
+    some_payload: LirVariantFieldRef,
+    none: LirVariantRef,
+}
+
+impl ForeignCallbackFailureResult {
+    pub fn checked(
+        enums: &EnumDefs,
+        some_payload: LirVariantFieldRef,
+        none: LirVariantRef,
+    ) -> Option<Self> {
+        if !enums.contains_variant_field(some_payload)
+            || !enums.contains_variant(none)
+            || some_payload.definition() != none.definition()
+            || some_payload.variant() == none
+        {
+            return None;
+        }
+        let EnumRepr::Niche {
+            kind: NichePointerKind::Managed,
+            payload_variant,
+        } = &enums[some_payload.definition()].repr
+        else {
+            return None;
+        };
+        (some_payload.variant().index() == *payload_variant
+            && some_payload.index() == 0
+            && enums.variant_field_ref(none, 0).is_none())
+        .then_some(Self { some_payload, none })
+    }
+
+    pub const fn some_payload(self) -> LirVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> LirVariantRef {
+        self.none
+    }
+
+    pub const fn definition(self) -> EnumDefId {
+        self.some_payload.definition()
+    }
 }
 
 #[derive(Debug)]
@@ -90,13 +251,7 @@ pub struct ForeignCallbackBridge {
     pub params: Vec<CType>,
     pub return_type: CReturnType,
     pub context_index: u32,
-    pub mode: ForeignCallbackMode,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForeignCallbackMode {
-    Reusable,
-    OneShot,
+    pub mode: LirVariantRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

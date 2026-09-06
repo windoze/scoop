@@ -4,6 +4,7 @@ pub(super) fn lower_managed_static_state(
     state: &hir::HirStaticInitialState,
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
+    enums: &EnumRegistry,
     strings: &mut Arena<mir::StringConst>,
 ) -> mir::MirStaticInitialState {
     match state {
@@ -11,7 +12,7 @@ pub(super) fn lower_managed_static_state(
             mir::MirStaticInitialState::ZeroedForRuntimeUnit
         }
         hir::HirStaticInitialState::EncodedStaticValue { payload } => {
-            lower_encoded_static_state(payload, ty, structs, strings)
+            lower_encoded_static_state(payload, ty, structs, enums, strings)
         }
     }
 }
@@ -20,10 +21,11 @@ pub(super) fn lower_encoded_static_state(
     payload: &hir::HirConstantImage,
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
+    enums: &EnumRegistry,
     strings: &mut Arena<mir::StringConst>,
 ) -> mir::MirStaticInitialState {
     mir::MirStaticInitialState::EncodedStaticValue {
-        payload: lower_global_constant(payload, ty, structs, strings),
+        payload: lower_global_constant(payload, ty, structs, enums, strings),
     }
 }
 
@@ -31,6 +33,7 @@ pub(super) fn lower_global_constant(
     value: &hir::HirConstantImage,
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
+    enums: &EnumRegistry,
     strings: &mut Arena<mir::StringConst>,
 ) -> mir::MirConstantImage {
     match (value, ty) {
@@ -61,11 +64,10 @@ pub(super) fn lower_global_constant(
             hir::HirConstantImage::NullPointer(hir::HirPointerNullKind::Code),
             mir::Type::FunPtr(_),
         ) => mir::MirConstantImage::PointerNull(mir::MirPointerNull::Code),
-        (hir::HirConstantImage::EnumUnit { variant, .. }, mir::Type::Enum(enum_id, _)) => {
-            mir::MirConstantImage::EnumUnit {
-                enum_id: *enum_id,
-                variant: *variant,
-            }
+        (hir::HirConstantImage::EnumUnit { variant }, mir::Type::Enum(enum_id, _)) => {
+            let variant = enums.lower_variant_ref(*variant);
+            assert_eq!(variant.enum_id(), *enum_id);
+            mir::MirConstantImage::EnumUnit { variant }
         }
         (hir::HirConstantImage::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
             let definition = &structs[*struct_id];
@@ -81,7 +83,7 @@ pub(super) fn lower_global_constant(
                     .iter()
                     .zip(definition_fields)
                     .map(|(field, definition)| {
-                        lower_global_constant(field, &definition.ty, structs, strings)
+                        lower_global_constant(field, &definition.ty, structs, enums, strings)
                     })
                     .collect(),
             }
@@ -114,6 +116,7 @@ mod tests {
                 &hir::HirConstantImage::Integer(value),
                 &mir::Type::Integer(kind),
                 &structs,
+                &EnumRegistry::default(),
                 &mut strings,
             );
             let mir::MirStaticInitialState::EncodedStaticValue {
@@ -135,6 +138,7 @@ mod tests {
             },
             &mir::Type::Unit,
             &Arena::new(),
+            &EnumRegistry::default(),
             &mut Arena::new(),
         );
         assert_eq!(state, mir::MirStaticInitialState::ZeroedForRuntimeUnit);

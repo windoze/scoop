@@ -19,6 +19,10 @@ pub(super) fn generate_resume_method(
     result: &mir::Type,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
+    let completed = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .completed();
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let value = locals.alloc(local("value", result.clone()));
@@ -81,7 +85,7 @@ pub(super) fn generate_resume_method(
             statements
         },
         terminator: mir::Terminator::Branch {
-            cond: is_completed(step, outer_step.clone()),
+            cond: is_completed(step, outer_step.clone(), completed),
             then_block: exits.completed,
             else_block: exits.suspended,
         },

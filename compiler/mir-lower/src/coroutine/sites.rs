@@ -18,6 +18,10 @@ pub(super) fn rewrite_site(
     driver: mir::FunctionId,
     site: SuspendSite,
 ) -> GeneratedSite {
+    let outer_suspended = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .suspended();
     let block = &mut body.blocks[site.block];
     let suffix = block.statements.split_off(site.statement + 1);
     let suspend_statement = block
@@ -88,6 +92,14 @@ pub(super) fn rewrite_site(
         mutable: false,
     });
     let step_ty = callee_return_type(lowerer, call.target.callee);
+    let completed_variant = lowerer
+        .coroutines
+        .step_metadata_for_type(&step_ty)
+        .completed();
+    let completed_payload = lowerer
+        .coroutines
+        .step_metadata_for_type(&step_ty)
+        .completed_payload();
     let step_local = body.locals.alloc(mir::Local {
         name: format!("$step.{}", site.state),
         ty: step_ty.clone(),
@@ -144,8 +156,8 @@ pub(super) fn rewrite_site(
                         site.result.clone(),
                         mir::ExprKind::EnumField {
                             operand: Box::new(mir::Expr::local(step_local, step_ty.clone())),
-                            variant: 0,
-                            index: 0,
+                            variant: completed_payload.variant().variant_index(),
+                            index: completed_payload.field_index(),
                         },
                     ),
                 }));
@@ -216,12 +228,12 @@ pub(super) fn rewrite_site(
         name: format!("coroutine.suspended.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step)),
+            value: Some(suspended_value(outer_step, outer_suspended)),
         },
         unwind: None,
     });
     body.blocks[site.block].terminator = mir::Terminator::Branch {
-        cond: is_completed(step_local, step_ty),
+        cond: is_completed(step_local, step_ty, completed_variant),
         then_block: claim_completed,
         else_block: suspended,
     };
@@ -301,8 +313,8 @@ pub(super) fn failure_resume_block(
                         failure_slot.field,
                         failure_slot.slot_ty.clone(),
                     )),
-                    variant: 1,
-                    index: 0,
+                    variant: failure_slot.value_payload.variant().variant_index(),
+                    index: failure_slot.value_payload.field_index(),
                 },
             ),
             unwind,

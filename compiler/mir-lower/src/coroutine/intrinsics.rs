@@ -25,28 +25,32 @@ pub(super) fn rewrite_intrinsic_site(
         unreachable!("intrinsic site carries its concrete register method")
     };
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
-    let (_, result_latch_ty) = lowerer.coroutines.slot_for(
+    let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
         &site.result,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let (_, failure_latch_ty) = lowerer.coroutines.slot_for(
+    let (failure_latch_id, failure_latch_ty) = lowerer.coroutines.slot_for(
         &throwable,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let result_latch = FrameSlot {
-        field: 2,
-        slot_ty: result_latch_ty,
-        value_ty: site.result.clone(),
-    };
-    let failure_latch = FrameSlot {
-        field: 3,
-        slot_ty: failure_latch_ty,
-        value_ty: throwable.clone(),
-    };
+    let result_latch = FrameSlot::new(
+        2,
+        result_latch_ty,
+        &lowerer.coroutines.slots[result_latch_id],
+    );
+    let failure_latch = FrameSlot::new(
+        3,
+        failure_latch_ty,
+        &lowerer.coroutines.slots[failure_latch_id],
+    );
+    let outer_suspended = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .suspended();
     let adapter = generate_adapter(
         lowerer,
         module,
@@ -146,8 +150,8 @@ pub(super) fn rewrite_intrinsic_site(
                                 result_latch.field,
                                 result_latch.slot_ty.clone(),
                             )),
-                            variant: 1,
-                            index: 0,
+                            variant: result_latch.value_payload.variant().variant_index(),
+                            index: result_latch.value_payload.field_index(),
                         },
                     ),
                 }));
@@ -175,8 +179,8 @@ pub(super) fn rewrite_intrinsic_site(
                             failure_latch.field,
                             failure_latch.slot_ty.clone(),
                         )),
-                        variant: 1,
-                        index: 0,
+                        variant: failure_latch.value_payload.variant().variant_index(),
+                        index: failure_latch.value_payload.field_index(),
                     },
                 ),
             }),
@@ -191,7 +195,7 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.registered_suspend.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step)),
+            value: Some(suspended_value(outer_step, outer_suspended)),
         },
         unwind: None,
     });

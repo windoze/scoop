@@ -657,7 +657,7 @@ Module
     val local6
       Local $argument.2 : ForeignCallbackMode
     val local7
-      ForeignCallbackRegister registration0 native=function_type4 managed=function_type6 context=0 mode=Reusable : ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+      ForeignCallbackRegister registration0 native=function_type4 managed=function_type6 context=0 mode=ForeignCallbackMode.Reusable : ForeignCallback<(Ptr<Unit>, Int) -> Unit>
         Local $parameter.callback : (Int) -> Unit
     val local8
       FieldAccess field 0 : FunPtr<(Ptr<Unit>, Int) -> Unit>
@@ -717,7 +717,7 @@ Module mangling=compact-v2
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   extern ef10 callContextFirst @m13_call_context_first(FunPtr<(Ptr<Unit>, Int) -> Unit>, Ptr<Unit>, Int) -> Unit <abi=c no-gc lib=fixture_native>
   foreign_callback_family fcf0 callback=ForeignCallback$FPUX_I32RUX state=ForeignCallbackState failure=Option$C9_ThrowableX
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type1 context=0 mode=Reusable adapter=@scoop_foreign_callback_adapter_0
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type1 context=0 mode=ForeignCallbackMode.Reusable adapter=@scoop_foreign_callback_adapter_0
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct ForeignCallback$FPUX_I32RUX (function: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>)
   enum Option$S
@@ -1687,7 +1687,7 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
   extern ef10 callContextFirst @m13_call_context_first(ptr<code>, ptr<raw>, i32) -> void <c exact=(code-ptr<(data-ptr<opaque-void,direct>,Int)->void,direct>,data-ptr<opaque-void,direct>,Int)->void bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
   foreign_callback_family fcf0 callback=struct10 state=enum2 failure=enum3
-  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=0 mode=Reusable c=(data-ptr<opaque-void,direct>,Int)->void
+  foreign_callback_bridge fcb0 family=fcf0 @scoop_foreign_callback_adapter_0 -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=0 mode=ForeignCallbackMode.Reusable c=(data-ptr<opaque-void,direct>,Int)->void
   fun @scoop.Int8.toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64

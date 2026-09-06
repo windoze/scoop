@@ -36,26 +36,40 @@ impl Builder {
     /// `payload`, named as mir-lower names its instances.
     pub(in crate::tests) fn option_enum(&mut self, name: &str, payload: mir::Type) -> mir::EnumId {
         let payload_gc_free = self.type_gc_free(&payload);
+        let mut variants = Vec::new();
+        let some_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
+        let mut some_fields = Vec::new();
+        let some_payload_index =
+            u32::try_from(some_fields.len()).expect("test field arity fits u32");
+        some_fields.push(mir::Field {
+            name: "_1".to_string(),
+            ty: payload.clone(),
+        });
+        variants.push(mir::VariantDef {
+            name: "Some".to_string(),
+            gc_free: payload_gc_free,
+            fields: some_fields,
+        });
+        let none_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
+        variants.push(mir::VariantDef {
+            name: "None".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
         let id = self.enums.alloc(mir::EnumDef {
             name: name.to_string(),
+            type_arguments: vec![payload],
             gc_free: payload_gc_free,
-            variants: vec![
-                mir::VariantDef {
-                    name: "Some".to_string(),
-                    gc_free: payload_gc_free,
-                    fields: vec![mir::Field {
-                        name: "_1".to_string(),
-                        ty: payload,
-                    }],
-                },
-                mir::VariantDef {
-                    name: "None".to_string(),
-                    gc_free: true,
-                    fields: Vec::new(),
-                },
-            ],
+            variants,
         });
-        self.option_core.push(mir::OptionCore::new(id, 0, 1));
+        let some = mir::MirVariantRef::new(&self.enums, id, some_index).expect("Some variant");
+        let some_payload = mir::MirVariantFieldRef::new(&self.enums, some, some_payload_index)
+            .expect("Some payload");
+        let none = mir::MirVariantRef::new(&self.enums, id, none_index).expect("None variant");
+        self.option_core.push(
+            mir::OptionCore::checked(&self.enums, some_payload, none)
+                .expect("test Option metadata matches its enum"),
+        );
         id
     }
 

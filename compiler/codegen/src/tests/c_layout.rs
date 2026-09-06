@@ -71,6 +71,26 @@ fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     })
 }
 
+fn callback_mode(module: &mut Module) -> scoop_lir::EnumDefId {
+    module.enums.alloc(EnumDef {
+        name: "ForeignCallbackMode".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: (0..2)
+                .map(|_| EnumVariantRepr {
+                    fields: Vec::new(),
+                    slot_offset: 8,
+                    slot_size: 0,
+                    slot_align: 1,
+                    gc_free: true,
+                })
+                .collect(),
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    })
+}
+
 fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
         name: name.to_string(),
@@ -160,14 +180,40 @@ fn c_value(ty: scoop_lir::CType) -> scoop_lir::CReturnType {
 
 pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::ForeignCallbackFamilyId {
     let callback = callback_struct(module, "ForeignCallback<F>");
+    let mode = callback_mode(module);
     let state = callback_state(module, "ForeignCallbackState");
     let failure = callback_failure(module, "Option<Throwable>");
+    let modes = scoop_lir::ForeignCallbackModes::checked(
+        &module.enums,
+        module.enums.variant_ref(mode, 0).expect("Reusable"),
+        module.enums.variant_ref(mode, 1).expect("OneShot"),
+    )
+    .expect("callback modes");
+    let states = scoop_lir::ForeignCallbackStates::checked(
+        &module.enums,
+        module.enums.variant_ref(state, 0).expect("Registered"),
+        module.enums.variant_ref(state, 1).expect("Active"),
+        module.enums.variant_ref(state, 2).expect("Completed"),
+        module.enums.variant_ref(state, 3).expect("Failed"),
+    )
+    .expect("callback states");
+    let some = module.enums.variant_ref(failure, 0).expect("Some");
+    let failure_result = scoop_lir::ForeignCallbackFailureResult::checked(
+        &module.enums,
+        module
+            .enums
+            .variant_field_ref(some, 0)
+            .expect("Some payload"),
+        module.enums.variant_ref(failure, 1).expect("None"),
+    )
+    .expect("callback failure result");
     module
         .foreign_callback_families
         .alloc(scoop_lir::ForeignCallbackFamily {
             callback,
-            state,
-            failure,
+            modes,
+            states,
+            failure_result,
         })
 }
 
@@ -195,7 +241,7 @@ fn add_foreign_callback_bridge(
             params: fixture.params,
             return_type: fixture.return_type,
             context_index: fixture.context_index,
-            mode: scoop_lir::ForeignCallbackMode::Reusable,
+            mode: module.foreign_callback_families[family].modes.reusable(),
         });
     module
         .functions
@@ -460,14 +506,15 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         return_type: c_value(scoop_lir::CType::Struct(outer)),
     });
     let foreign_callback_family = foreign_callback_family(&mut module);
+    let callback_modes = module.foreign_callback_families[foreign_callback_family].modes;
     for (adapter, mode) in [
         (
             "scoop_foreign_callback_adapter_0",
-            scoop_lir::ForeignCallbackMode::Reusable,
+            callback_modes.reusable(),
         ),
         (
             "scoop_foreign_callback_adapter_1",
-            scoop_lir::ForeignCallbackMode::OneShot,
+            callback_modes.one_shot(),
         ),
     ] {
         module
@@ -1363,7 +1410,7 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
-            mode: scoop_lir::ForeignCallbackMode::Reusable,
+            mode: module.foreign_callback_families[family].modes.reusable(),
         });
 
     let error = c_bridge_source(&module)
@@ -1399,6 +1446,141 @@ fn foreign_callback_operation_rejects_lookalike_callback_struct() {
         error.0.contains("requires exact callback struct")
             && error.0.contains(&format!("struct{}", lookalike.into_raw())),
         "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_family_revalidates_mode_state_and_failure_metadata() {
+    type CorruptCallbackFamily = fn(&mut Module, scoop_lir::ForeignCallbackFamilyId);
+    let cases: [(&str, CorruptCallbackFamily); 3] = [
+        (
+            "mode",
+            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
+                let mut foreign = values_module();
+                callback_state(&mut foreign, "Padding");
+                let definition = callback_mode(&mut foreign);
+                let modes = scoop_lir::ForeignCallbackModes::checked(
+                    &foreign.enums,
+                    foreign.enums.variant_ref(definition, 0).unwrap(),
+                    foreign.enums.variant_ref(definition, 1).unwrap(),
+                )
+                .unwrap();
+                module.foreign_callback_families[family].modes = modes;
+            },
+        ),
+        (
+            "state",
+            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
+                let mut foreign = values_module();
+                let definition = callback_state(&mut foreign, "ForeignCallbackState");
+                let states = scoop_lir::ForeignCallbackStates::checked(
+                    &foreign.enums,
+                    foreign.enums.variant_ref(definition, 0).unwrap(),
+                    foreign.enums.variant_ref(definition, 1).unwrap(),
+                    foreign.enums.variant_ref(definition, 2).unwrap(),
+                    foreign.enums.variant_ref(definition, 3).unwrap(),
+                )
+                .unwrap();
+                module.foreign_callback_families[family].states = states;
+            },
+        ),
+        (
+            "managed-reference callback failure",
+            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
+                let mut foreign = values_module();
+                let definition = callback_failure(&mut foreign, "Option<Throwable>");
+                let some = foreign.enums.variant_ref(definition, 0).unwrap();
+                let failure = scoop_lir::ForeignCallbackFailureResult::checked(
+                    &foreign.enums,
+                    foreign.enums.variant_field_ref(some, 0).unwrap(),
+                    foreign.enums.variant_ref(definition, 1).unwrap(),
+                )
+                .unwrap();
+                module.foreign_callback_families[family].failure_result = failure;
+            },
+        ),
+    ];
+    for (kind, corrupt) in cases {
+        let mut module = values_module();
+        let family = foreign_callback_family(&mut module);
+        corrupt(&mut module, family);
+
+        let error = c_bridge_source(&module)
+            .expect_err("callback family metadata must be revalidated at codegen entry");
+        assert!(error.0.contains(kind), "unexpected error: {error}");
+    }
+}
+
+#[test]
+fn foreign_callback_bridge_mode_must_belong_to_its_family() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    let foreign_mode = module.foreign_callback_families[family].states.registered();
+    add_foreign_callback_bridge(
+        &mut module,
+        family,
+        ForeignCallbackBridgeFixture {
+            adapter: "foreign_callback_adapter",
+            trampoline: "foreign_callback",
+            signature: "foreign_callback_signature",
+            params: vec![c_opaque_pointer()],
+            return_type: scoop_lir::CReturnType::Void,
+            context_index: 0,
+        },
+    );
+    let bridge = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("test bridge")
+        .0;
+    module.foreign_callback_bridges[bridge].mode = foreign_mode;
+
+    let error =
+        c_bridge_source(&module).expect_err("callback bridge mode must belong to its typed family");
+    assert!(
+        error.0.contains("mode outside family"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
+    let mut module = values_module();
+    let family = foreign_callback_family(&mut module);
+    let callback = module.foreign_callback_families[family].callback;
+    let states = module.foreign_callback_families[family].states;
+    let function = &mut module.functions[0];
+    function.params.push(LirType::Struct(callback));
+    let out = function.temps.alloc(Temp {
+        ty: LirType::Enum(states.definition()),
+    });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ForeignCallbackOperation(
+            scoop_lir::ForeignCallbackOperation::State {
+                family,
+                out,
+                callback: Value::Param(0),
+            },
+        ));
+
+    let ir = ir_of(&module);
+    for expected in [
+        "icmp ule i32 %callback_state, 3",
+        "label %callback_state_invalid",
+        "call void @llvm.trap()",
+        "unreachable",
+        "select i1 %callback_state_case, i64 2, i64 3",
+        "i64 1, i64 %callback_state_tag",
+        "i64 0, i64 %callback_state_tag",
+    ] {
+        assert!(ir.contains(expected), "missing `{expected}` in:\n{ir}");
+    }
+    assert_eq!(
+        ir.matches("select i1 %callback_state_case").count(),
+        3,
+        "{ir}"
     );
 }
 

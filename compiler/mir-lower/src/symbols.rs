@@ -84,6 +84,7 @@ pub(super) fn mangling_shell(
     for (_, def) in enums.iter() {
         shell_enums.alloc(mir::EnumDef {
             name: def.name.clone(),
+            type_arguments: def.type_arguments.clone(),
             gc_free: def.gc_free,
             variants: Vec::new(),
         });

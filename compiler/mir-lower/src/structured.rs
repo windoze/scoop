@@ -476,7 +476,7 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
     },
     VariantConstruct {
-        variant: u32,
+        variant: mir::MirVariantRef,
         fields: Vec<Expr>,
     },
     VariantTest {

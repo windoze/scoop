@@ -266,6 +266,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     let payload = mir::Type::Ptr(Box::new(INT));
     let lookalike = builder.enums.alloc(mir::EnumDef {
         name: "LooksLikeOption".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
             mir::VariantDef {
@@ -324,14 +325,42 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         gc_free: true,
         fields: Vec::new(),
     };
+    let mode = builder.enums.alloc(mir::EnumDef {
+        name: "ForeignCallbackMode".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: ["Reusable", "OneShot"].map(unit_variant).into(),
+    });
     let state = builder.enums.alloc(mir::EnumDef {
         name: "ForeignCallbackState".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: ["Registered", "Active", "Completed", "Failed"]
             .map(unit_variant)
             .into(),
     });
-    let failure = builder.option_enum("Option<Any>", mir::Type::Any);
+    let throwable = builder.class("Throwable", None, &[], Vec::new(), Vec::new());
+    let failure = builder.option_enum("Option<Throwable>", mir::Type::Class(throwable));
+    let modes = mir::ForeignCallbackModes::checked(
+        &builder.enums,
+        mir::MirVariantRef::new(&builder.enums, mode, 0).expect("Reusable"),
+        mir::MirVariantRef::new(&builder.enums, mode, 1).expect("OneShot"),
+    )
+    .expect("callback modes");
+    let states = mir::ForeignCallbackStates::checked(
+        &builder.enums,
+        mir::MirVariantRef::new(&builder.enums, state, 0).expect("Registered"),
+        mir::MirVariantRef::new(&builder.enums, state, 1).expect("Active"),
+        mir::MirVariantRef::new(&builder.enums, state, 2).expect("Completed"),
+        mir::MirVariantRef::new(&builder.enums, state, 3).expect("Failed"),
+    )
+    .expect("callback states");
+    let failure_result = mir::ForeignCallbackFailureResult::checked(
+        &builder.enums,
+        *builder.option_core.last().expect("failure Option metadata"),
+        throwable,
+    )
+    .expect("callback failure result");
     let main = builder.main(Arena::new(), Vec::new());
     let mut module = builder.finish(main);
     let native_signature = module.function_types.alloc(mir::FunctionType {
@@ -348,8 +377,9 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         .foreign_callback_families
         .alloc(mir::ForeignCallbackFamily {
             callback,
-            state,
-            failure,
+            modes,
+            states,
+            failure_result,
         });
     let adapter = module
         .foreign_callback_adapters
@@ -364,14 +394,24 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             family,
             native_signature,
             context_index: 0,
-            mode: mir::ForeignCallbackMode::Reusable,
+            mode: modes.reusable(),
         });
 
     let lowered = lower(&module);
     let lowered_family = lowered.foreign_callback_families.iter().next().unwrap().1;
     assert_eq!(lowered_family.callback.into_raw(), callback.into_raw());
-    assert_eq!(lowered_family.state.into_raw(), state.into_raw());
-    assert_eq!(lowered_family.failure.into_raw(), failure.into_raw());
+    assert_eq!(
+        lowered_family.states.definition().into_raw(),
+        state.into_raw()
+    );
+    assert_eq!(
+        lowered_family.failure_result.definition().into_raw(),
+        failure.into_raw()
+    );
+    assert_eq!(
+        lowered_family.modes.reusable().definition().into_raw(),
+        mode.into_raw()
+    );
     assert_eq!(
         lowered
             .foreign_callback_bridges

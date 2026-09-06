@@ -302,13 +302,10 @@ impl Lowerer {
                 .name
                 .clone(),
             NominalConstructorSource::IntrinsicClass(class) => self.classes[class].name.clone(),
-            NominalConstructorSource::Variant {
-                enumeration,
-                variant,
-            } => format!(
+            NominalConstructorSource::Variant(variant) => format!(
                 "{}.{}",
-                self.enums[enumeration].name,
-                self.enums[enumeration].variants[variant as usize].name,
+                self.enums[variant.enumeration()].name,
+                self.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
             ),
         }
     }
