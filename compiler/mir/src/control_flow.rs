@@ -1,8 +1,10 @@
 use super::*;
 
 mod calls;
+mod visit;
 
 pub use calls::*;
+pub use visit::*;
 
 #[derive(Debug)]
 pub struct Function {
@@ -405,7 +407,98 @@ impl Expr {
             ExprKind::EnumTag(Box::new(operand)),
         )
     }
+
+    /// Test one checked semantic variant without exposing its physical tag or
+    /// niche representation to MIR.
+    pub fn variant_test(
+        enums: &Arena<EnumDef>,
+        operand: Expr,
+        variant: MirVariantRef,
+    ) -> Result<Self, MirVariantExprError> {
+        variant
+            .definition(enums)
+            .map_err(MirVariantExprError::InvalidVariant)?;
+        validate_variant_operand(&operand, variant)?;
+        Ok(Self::new(
+            Type::Boolean,
+            ExprKind::VariantTest {
+                operand: Box::new(operand),
+                variant,
+            },
+        ))
+    }
+
+    /// Project one checked payload field. The result type comes only from the
+    /// field definition that produced `field`.
+    pub fn variant_payload_project(
+        enums: &Arena<EnumDef>,
+        operand: Expr,
+        field: MirVariantFieldRef,
+    ) -> Result<Self, MirVariantExprError> {
+        let ty = field
+            .definition(enums)
+            .map_err(MirVariantExprError::InvalidField)?
+            .ty
+            .clone();
+        validate_variant_operand(&operand, field.variant())?;
+        Ok(Self::new(
+            ty,
+            ExprKind::VariantPayloadProject {
+                operand: Box::new(operand),
+                field,
+            },
+        ))
+    }
 }
+
+fn validate_variant_operand(
+    operand: &Expr,
+    variant: MirVariantRef,
+) -> Result<(), MirVariantExprError> {
+    let Type::Enum(actual, _) = &operand.ty else {
+        return Err(MirVariantExprError::OperandIsNotEnum {
+            actual: operand.ty.clone(),
+        });
+    };
+    if *actual != variant.enum_id() {
+        return Err(MirVariantExprError::OperandEnumMismatch {
+            expected: variant.enum_id(),
+            actual: *actual,
+        });
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MirVariantExprError {
+    InvalidVariant(MirVariantRefError),
+    InvalidField(MirVariantFieldRefError),
+    OperandIsNotEnum { actual: Type },
+    OperandEnumMismatch { expected: EnumId, actual: EnumId },
+}
+
+impl std::fmt::Display for MirVariantExprError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidVariant(error) => error.fmt(formatter),
+            Self::InvalidField(error) => error.fmt(formatter),
+            Self::OperandIsNotEnum { actual } => {
+                write!(
+                    formatter,
+                    "variant operation requires an enum operand, got {actual:?}"
+                )
+            }
+            Self::OperandEnumMismatch { expected, actual } => write!(
+                formatter,
+                "variant operation expects MIR enum {}, got MIR enum {}",
+                expected.into_raw().into_u32(),
+                actual.into_raw().into_u32()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for MirVariantExprError {}
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
@@ -621,6 +714,16 @@ pub enum ExprKind {
         operand: Box<Expr>,
         variant: u32,
         index: u32,
+    },
+    /// Representation-independent test of one checked semantic variant.
+    VariantTest {
+        operand: Box<Expr>,
+        variant: MirVariantRef,
+    },
+    /// Representation-independent projection of one checked payload field.
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: MirVariantFieldRef,
     },
 }
 

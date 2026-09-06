@@ -329,6 +329,10 @@ val changed = event.{ payload: newPayload() }
 
 HIR内部的`CopyUpdatePlan`原子保存base temporary、struct/variant typed identity、声明顺序field mapping、源码顺序RHS与结果type。winner与类型检查完成后，它展开为普通temporary、表示无关的`VariantTest`/throw、`VariantPayloadProject`和`StructConstruct`/`VariantConstruct`；`LocalConcreteHir`不保留字段字符串或source `CopyUpdate`节点。LIR才依据concrete layout把variant操作机械降低为tag或niche检查，HIR/MIR不得假定enum一定有物理tag。
 
+这两个表示无关primitive的typed契约固定为：`VariantTest(operand, variant) -> Boolean`，以及`VariantPayloadProject(operand, variant_field) -> exact field type`。其中`variant`同时封闭保存exact enum identity与已经按该enum定义检查过范围的variant index，`variant_field`再封闭保存该typed variant与已经按同一variant payload检查过范围的field index；MIR与LIR分别拥有本stage的两种typed reference，相邻lowering只做穷尽id映射，调用点不能散落`enum id + u32`、裸field index、名称或FQN回退。两个primitive的operand必须是引用所指向的exact enum；projection的结果type只能由该field定义导出。
+
+`VariantPayloadProject`只允许在对同一value与同一typed variant执行的`VariantTest`为true的控制流分支支配下消费。这个条件是IR合法性的一部分，而不是依赖producer“通常先检查”的约定；MIR module validation与LIR module validation都必须拒绝错误enum、越界variant/field、错误结果type或缺少对应true-edge支配证明的projection。MIR primitive不暴露tag、null或payload offset；LIR取得concrete representation后才把test与projection机械解释为tagged discriminant或niche/null操作，并保留managed/raw/code pointer provenance。
+
 ## 4. 模式与enum变体
 
 ### 4.1 binding pattern与match pattern
@@ -465,6 +469,8 @@ closure conversion后再做coroutine transform的既有顺序不变。pending br
 
 最终MIR只有普通CFG branch/goto/throw、typed integer operation、表示无关的`VariantTest`/`VariantPayloadProject`与literal test、aggregate projection/construction及call；不含source loop、pattern matrix或copy update。integer div/rem已经展开为除零throw、signed边界结果与安全primitive operation；shift count已经mask并在窄操作数上显式转换为后端要求的宽度。decision plan的`Impossible` edge只能来自HIR proof。
 
+MIR的typed variant reference由stage-local enum id与该定义构造时已经检查过范围的variant index组成；typed variant-field reference再封闭保存前者与已检查的field index，两者都不能单独从裸index构造。`VariantTest`的结果固定为canonical Boolean，`VariantPayloadProject`的结果固定为variant-field引用所指field的exact `MirTypeId`。module validation除检查operand与result外，还验证每个projection只在相同operand/variant test的true-edge支配区域中出现；此验证不读取或推测tag/niche layout。
+
 ### 5.4 LIR / codegen / FFI
 
 - LIR scalar type扩展为`I8/I16/I32/I64`；expression、const、annotation/default metadata、global initializer与constant image中的integer constant都显式携带kind/type，不能再由`Value::IntConst`或任一未类型化`i64` metadata payload默认推断I64；signedness由typed operation/FFI classifier携带，因为LLVM integer type本身不编码signedness；
@@ -474,6 +480,7 @@ closure conversion后再做coroutine transform的既有顺序不变。pending br
 - HIR、MIR、LIR分别拥有自己的C-layout value、constant image与static-initial-state IR类型，并由相邻lowering穷尽转写typed id；不能跨crate type-alias或从bits/任意对齐整数重建语义。layout前没有通用`Zero`/裸`i64`常量旁路，layout后的LIR `EncodedStaticValue`只携带canonical allocation-extent bytes与typed relocation，`ZeroedForRuntimeUnit`不由encoded zero bits反推；
 - C bridge type tree把void严格限制在function result，并为data pointer同时保存`OpaqueVoid | Object(CType)` pointee与direct/nullable storage shape：只有`Ptr<Unit>`使用`OpaqueVoid`，其他pointee必须是non-ZST portable C object type。C-layout struct与nullable data/code-pointer enum使用fully concrete refined LIR ref，struct field tree不递归内联；by-value struct dependency必须无环，pointer edge只需forward declaration。C extern/callback/global及C-layout field不再平行保存可矛盾的`LirType`；
 - MIR的`VariantTest`/`VariantPayloadProject`在LIR取得concrete enum layout后，分别机械降低为tagged discriminant或niche/null test与对应payload projection；`for Option`、copy update和`when`共享该路径；
+- LIR为上述primitive重新建立本stage专有的checked variant reference与variant-field reference，前者封闭保存`EnumDefId`与合法variant index，后者封闭保存前者与合法field index；MIR→LIR只映射这些typed identity，不重新解析名称。`VariantTest`直接产生`I1`；`VariantPayloadProject`只携带variant-field reference，结果必须是layout中该field的exact `LirType`，并且只可在匹配test的true-edge支配下消费。tagged表示机械比较discriminant并按variant slot/field offset投影；niche表示按目标variant选择null或non-null测试，payload variant的投影复用carrier值。managed、raw data与code pointer carrier始终保留各自provenance。checked constructor与LIR/module/codegen verifier必须拒绝错误enum、越界variant/field、错误结果type、错误pointee provenance或缺失支配关系；codegen不新增runtime ABI，也不补任何source语义分支；
 - MIR CFG的每条循环回边，包括continue edge，必须经过LIR的typed managed poll；可共享header poll，但不能存在绕过poll的回边。root liveness覆盖iterator、range、payload、copy-update temporary及finally pending transfer；
 - alias在HIR后没有运行期表示；range和array iterator是普通core nominal type/call，不加入LIR专用range instruction。
 

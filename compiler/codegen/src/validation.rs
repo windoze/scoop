@@ -3,8 +3,12 @@ use std::collections::{HashMap, HashSet};
 use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
+mod variants;
+use variants::validate_variant_primitives;
+
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_niche_representations(module)?;
+    validate_variant_primitives(module)?;
     validate_machine_containers(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;

@@ -5,6 +5,29 @@ pub(crate) fn enum_def_id(id: mir::EnumId) -> lir::EnumDefId {
     lir::EnumDefId::from_raw(id.into_raw())
 }
 
+/// Map one MIR-local checked variant identity into the independently checked
+/// LIR identity owned by the completed enum-layout store.
+pub(crate) fn variant_ref(
+    enums: &lir::EnumDefs,
+    variant: mir::MirVariantRef,
+) -> lir::LirVariantRef {
+    enums
+        .variant_ref(enum_def_id(variant.enum_id()), variant.variant_index())
+        .expect("a checked MIR variant maps to the same completed LIR enum definition")
+}
+
+/// Map one MIR-local checked payload field into the LIR layout authority.
+/// Field type and pointer provenance are deliberately revalidated here rather
+/// than reconstructed from the MIR result expression.
+pub(crate) fn variant_field_ref(
+    enums: &lir::EnumDefs,
+    field: mir::MirVariantFieldRef,
+) -> lir::LirVariantFieldRef {
+    enums
+        .variant_field_ref(variant_ref(enums, field.variant()), field.field_index())
+        .expect("a checked MIR variant field exists in the completed LIR enum layout")
+}
+
 pub(crate) fn struct_def_id(id: mir::StructId) -> lir::StructDefId {
     lir::StructDefId::from_raw(id.into_raw())
 }

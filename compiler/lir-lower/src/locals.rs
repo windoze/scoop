@@ -61,6 +61,8 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::IntegerConversion { operand, .. }
             | mir::ExprKind::EnumTag(operand)
             | mir::ExprKind::EnumField { operand, .. }
+            | mir::ExprKind::VariantTest { operand, .. }
+            | mir::ExprKind::VariantPayloadProject { operand, .. }
             | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
             | mir::ExprKind::PtrToULong(operand)
             | mir::ExprKind::PtrCast { operand, .. } => collect_expr(operand, out),

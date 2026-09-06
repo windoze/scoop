@@ -392,6 +392,22 @@ pub enum Instruction {
         index: u32,
         operand: Value,
     },
+    /// Test whether `operand` contains one checked variant.  The result is
+    /// canonical Boolean (`I1`); physical tag/null details remain private to
+    /// the selected enum representation.
+    VariantTest {
+        out: TempId,
+        operand: Value,
+        variant: LirVariantRef,
+    },
+    /// Project one payload field after a matching [`Instruction::VariantTest`]
+    /// true edge.  Module validation proves that edge dominates this use and
+    /// derives the exact result type from `variant` plus `field`.
+    VariantPayloadProject {
+        out: TempId,
+        operand: Value,
+        field: LirVariantFieldRef,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

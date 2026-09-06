@@ -726,3 +726,5 @@ fn niche_enum_scan_must_match_its_pointer_provenance() {
         );
     }
 }
+
+mod primitives;

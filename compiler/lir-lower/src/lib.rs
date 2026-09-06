@@ -26,9 +26,11 @@
 //! single pointer-like field (`None` = null — this is
 //! `Option<String>`); otherwise a tagged form whose pure-value variants
 //! share one payload and whose ref-bearing variants have disjoint slots.
-//! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
-//! `EnumField`, which codegen translates mechanically per the
-//! representation. Enum layouts keep fixed ref offsets for all disjoint
+//! Legacy MIR enum operations map onto `EnumWrap` / `EnumTag` /
+//! `EnumField`; representation-independent typed operations map onto
+//! `VariantTest` / `VariantPayloadProject`. Codegen translates both paths
+//! mechanically per the representation while existing producers migrate.
+//! Enum layouts keep fixed ref offsets for all disjoint
 //! ref-bearing slots; inactive slots are zero, so scanning never reads
 //! the tag and composes mechanically in aggregates (runtime spec 2.2).
 //!
@@ -131,6 +133,9 @@ use scoop_mir as mir;
 
 /// Lower MIR to LIR.
 pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir::Module {
+    module
+        .validate()
+        .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     match module.meta.mangling_schema {
         mir::ManglingSchemaIdentity::CompactV2 => {}
     }

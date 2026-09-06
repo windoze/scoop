@@ -66,7 +66,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::ArrayClone { .. } => self.emit_array_instruction(instruction),
             Instruction::EnumWrap { .. }
             | Instruction::EnumTag { .. }
-            | Instruction::EnumField { .. } => self.emit_enum_instruction(instruction),
+            | Instruction::EnumField { .. }
+            | Instruction::VariantTest { .. }
+            | Instruction::VariantPayloadProject { .. } => self.emit_enum_instruction(instruction),
         }
     }
 }

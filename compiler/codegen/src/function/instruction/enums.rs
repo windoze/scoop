@@ -341,6 +341,179 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 };
                 self.temps.insert(*out, result);
             }
+            Instruction::VariantTest {
+                out,
+                operand,
+                variant,
+            } => {
+                if !self.enums.contains_variant(*variant) {
+                    return Err(CodegenError(format!(
+                        "variant_test @{} carries a variant reference that is invalid for this module",
+                        function.symbol
+                    )));
+                }
+                if function.temps[*out].ty != LirType::I1 {
+                    return Err(CodegenError(format!(
+                        "variant_test @{} must produce i1",
+                        function.symbol
+                    )));
+                }
+                let enum_id = variant.definition();
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                if operand_ty != LirType::Enum(enum_id) {
+                    return Err(CodegenError(format!(
+                        "variant_test @{} expects e{}, got {}",
+                        function.symbol,
+                        enum_id.into_raw(),
+                        operand_ty.dump()
+                    )));
+                }
+                let def = &self.enums[enum_id];
+                let operand = self.value(*operand)?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result: BasicValueEnum = match &def.repr {
+                    EnumRepr::Niche {
+                        payload_variant, ..
+                    } => {
+                        let pointer = operand.into_pointer_value();
+                        let predicate = if variant.index() == *payload_variant {
+                            IntPredicate::NE
+                        } else {
+                            IntPredicate::EQ
+                        };
+                        builder
+                            .build_int_compare(
+                                predicate,
+                                pointer,
+                                pointer.get_type().const_null(),
+                                &name,
+                            )
+                            .map_err(|error| {
+                                CodegenError(format!(
+                                    "variant_test @{symbol}: {error}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                            .into()
+                    }
+                    EnumRepr::Tagged { .. } => {
+                        let tag = builder
+                            .build_extract_value(operand.into_struct_value(), 0, "variant_tag")
+                            .map_err(|error| {
+                                CodegenError(format!(
+                                    "variant_test tag @{symbol}: {error}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                            .into_int_value();
+                        builder
+                            .build_int_compare(
+                                IntPredicate::EQ,
+                                tag,
+                                context.i64_type().const_int(variant.index() as u64, false),
+                                &name,
+                            )
+                            .map_err(|error| {
+                                CodegenError(format!(
+                                    "variant_test @{symbol}: {error}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                            .into()
+                    }
+                };
+                self.temps.insert(*out, result);
+            }
+            Instruction::VariantPayloadProject {
+                out,
+                operand,
+                field,
+            } => {
+                if !self.enums.contains_variant_field(*field) {
+                    return Err(CodegenError(format!(
+                        "variant_payload_project @{} carries a variant field reference that is invalid for this module",
+                        function.symbol
+                    )));
+                }
+                let variant = field.variant();
+                let enum_id = variant.definition();
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                if operand_ty != LirType::Enum(enum_id) {
+                    return Err(CodegenError(format!(
+                        "variant_payload_project @{} expects e{}, got {}",
+                        function.symbol,
+                        enum_id.into_raw(),
+                        operand_ty.dump()
+                    )));
+                }
+                let expected_ty = self.enums.variant_field_type(*field).ok_or_else(|| {
+                    CodegenError(format!(
+                        "variant_payload_project @{} has an invalid field {} for e{} v{}",
+                        function.symbol,
+                        field.index(),
+                        enum_id.into_raw(),
+                        variant.index()
+                    ))
+                })?;
+                if function.temps[*out].ty != expected_ty {
+                    return Err(CodegenError(format!(
+                        "variant_payload_project @{} produces {}, expected {}",
+                        function.symbol,
+                        function.temps[*out].ty.dump(),
+                        expected_ty.dump()
+                    )));
+                }
+
+                let def = &self.enums[enum_id];
+                let operand = self.value(*operand)?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result: BasicValueEnum = match &def.repr {
+                    // A niche payload is the provenance-preserving carrier
+                    // itself. `variant_field_type` above proves that this is
+                    // exactly field zero of the payload variant.
+                    EnumRepr::Niche { .. } => operand,
+                    EnumRepr::Tagged {
+                        variants,
+                        size,
+                        align,
+                    } => {
+                        let ty = tagged_ty(
+                            context,
+                            self.managed_address_space,
+                            *size,
+                            *align,
+                            &def.scan,
+                        )?;
+                        let slot = self.entry_alloca(ty.into(), "variant_payload_project")?;
+                        builder.build_store(slot, operand).map_err(|error| {
+                            CodegenError(format!(
+                                "variant_payload_project spill @{symbol}: {error}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                        let field =
+                            &variants[variant.index() as usize].fields[field.index() as usize];
+                        let field_ptr =
+                            self.enum_field_ptr(slot, field.offset, "variant_payload_field_ptr")?;
+                        let field_ty = basic_ty(
+                            context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            &field.ty,
+                        )?;
+                        builder
+                            .build_load(field_ty, field_ptr, &name)
+                            .map_err(|error| {
+                                CodegenError(format!(
+                                    "variant_payload_project @{symbol}: {error}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                    }
+                };
+                self.temps.insert(*out, result);
+            }
             _ => unreachable!("instruction dispatcher routes only enum instructions"),
         }
         Ok(())

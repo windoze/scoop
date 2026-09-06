@@ -115,7 +115,9 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayClone { out, .. }
         | Instruction::EnumWrap { out, .. }
         | Instruction::EnumTag { out, .. }
-        | Instruction::EnumField { out, .. } => Some(*out),
+        | Instruction::EnumField { out, .. }
+        | Instruction::VariantTest { out, .. }
+        | Instruction::VariantPayloadProject { out, .. } => Some(*out),
         Instruction::Call { site } => site.direct_out(),
         Instruction::Invoke { site } => site.direct_out(),
         Instruction::LandingPad { record, .. } | Instruction::CleanupPad { record, .. } => {

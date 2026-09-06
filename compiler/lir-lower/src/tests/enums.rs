@@ -66,4 +66,5 @@ fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
 }
 
 mod niche;
+mod primitives;
 mod tagged;

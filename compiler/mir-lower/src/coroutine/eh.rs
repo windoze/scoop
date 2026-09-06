@@ -197,7 +197,11 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
         | mir::ExprKind::IntegerUnary { operand, .. }
         | mir::ExprKind::IntegerConversion { operand, .. }
         | mir::ExprKind::EnumTag(operand)
-        | mir::ExprKind::EnumField { operand, .. } => rewrite_expr(operand, managed, managed_ty),
+        | mir::ExprKind::EnumField { operand, .. }
+        | mir::ExprKind::VariantTest { operand, .. }
+        | mir::ExprKind::VariantPayloadProject { operand, .. } => {
+            rewrite_expr(operand, managed, managed_ty)
+        }
         mir::ExprKind::AtomicFieldCompareExchange {
             object,
             expected,

@@ -25,6 +25,9 @@ pub use types::*;
 mod module;
 pub use module::*;
 
+mod validation;
+pub use validation::*;
+
 mod control_flow;
 pub use control_flow::*;
 

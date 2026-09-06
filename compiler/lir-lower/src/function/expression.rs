@@ -767,6 +767,39 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
+            mir::ExprKind::VariantTest { operand, variant } => {
+                assert_eq!(
+                    *ty,
+                    mir::Type::Boolean,
+                    "a representation-independent variant test produces Boolean"
+                );
+                let operand = self.lower_expr(operand);
+                let variant = variant_ref(self.enums, *variant);
+                let out = self.new_temp(lir::LirType::I1);
+                self.push(lir::Instruction::VariantTest {
+                    out,
+                    operand,
+                    variant,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::ExprKind::VariantPayloadProject { operand, field } => {
+                let operand = self.lower_expr(operand);
+                let field = variant_field_ref(self.enums, *field);
+                let out_ty = self.value_type(ty);
+                assert_eq!(
+                    self.enums.variant_field_type(field),
+                    Some(out_ty.clone()),
+                    "a representation-independent payload projection keeps its exact field type"
+                );
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::VariantPayloadProject {
+                    out,
+                    operand,
+                    field,
+                });
+                lir::Value::Temp(out)
+            }
             mir::ExprKind::Binary { op, lhs, rhs } => {
                 let lir_op = binary_op(*op);
                 let lhs = self.lower_expr(lhs);

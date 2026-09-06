@@ -498,6 +498,53 @@ pub struct EnumDef {
     pub scan: RefScan,
 }
 
+/// A variant identity refined against one [`EnumDefs`] definition store.
+///
+/// The fields are deliberately private: a raw variant index is not a valid
+/// LIR identity until the owning enum definition has proved that it is in
+/// range.  As with the other refined LIR references, consumers that receive a
+/// complete module still revalidate the reference against that module's store
+/// before using it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LirVariantRef {
+    definition: EnumDefId,
+    variant: u32,
+}
+
+impl LirVariantRef {
+    pub const fn definition(self) -> EnumDefId {
+        self.definition
+    }
+
+    pub const fn index(self) -> u32 {
+        self.variant
+    }
+}
+
+/// A payload field identity refined together with its owning variant.
+///
+/// Keeping the two indices in one closed value prevents an instruction from
+/// pairing a checked variant with an unrelated or unchecked field number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LirVariantFieldRef {
+    variant: LirVariantRef,
+    field: u32,
+}
+
+impl LirVariantFieldRef {
+    pub const fn variant(self) -> LirVariantRef {
+        self.variant
+    }
+
+    pub const fn definition(self) -> EnumDefId {
+        self.variant.definition()
+    }
+
+    pub const fn index(self) -> u32 {
+        self.field
+    }
+}
+
 /// Enum definitions are immutable after allocation except for their recursive
 /// scan program.  A C-nullable option's exact payload contract is bound once,
 /// on the first refined-reference request, and every later request must agree.
@@ -571,6 +618,80 @@ impl EnumDefs {
 
     pub fn set_scan(&mut self, id: EnumDefId, scan: RefScan) {
         self.definitions[id].scan = scan;
+    }
+
+    /// Refine a raw enum/id pair into a variant identity owned by this store.
+    pub fn variant_ref(&self, definition: EnumDefId, variant: u32) -> Option<LirVariantRef> {
+        let definition_index = definition.into_raw().into_u32() as usize;
+        if definition_index >= self.definitions.len() {
+            return None;
+        }
+        let variant_count = match &self.definitions[definition].repr {
+            // A niche representation is structurally restricted to one unit
+            // and one payload variant.
+            EnumRepr::Niche { .. } => 2,
+            EnumRepr::Tagged { variants, .. } => variants.len(),
+        };
+        ((variant as usize) < variant_count).then_some(LirVariantRef {
+            definition,
+            variant,
+        })
+    }
+
+    /// Revalidate a refined reference received as part of a complete module.
+    /// This rejects a reference minted by a different definition store whose
+    /// raw arena index does not describe the same valid variant here.
+    pub fn contains_variant(&self, variant: LirVariantRef) -> bool {
+        self.variant_ref(variant.definition, variant.variant) == Some(variant)
+    }
+
+    /// Refine a checked variant plus raw field index into one closed payload
+    /// field identity.
+    pub fn variant_field_ref(
+        &self,
+        variant: LirVariantRef,
+        field: u32,
+    ) -> Option<LirVariantFieldRef> {
+        self.variant_field_type_unchecked_index(variant, field)
+            .map(|_| LirVariantFieldRef { variant, field })
+    }
+
+    /// Revalidate a refined field reference received in a complete module.
+    pub fn contains_variant_field(&self, field: LirVariantFieldRef) -> bool {
+        self.variant_field_ref(field.variant, field.field) == Some(field)
+    }
+
+    /// Exact payload field type for one checked field identity.
+    ///
+    /// Niche payloads are represented by their provenance-preserving carrier;
+    /// tagged payloads use the layout-complete field record.  Returning the
+    /// exact LIR type from this single authority prevents callers from
+    /// reconstructing pointer provenance or a field type independently.
+    pub fn variant_field_type(&self, field: LirVariantFieldRef) -> Option<LirType> {
+        self.variant_field_type_unchecked_index(field.variant, field.field)
+    }
+
+    fn variant_field_type_unchecked_index(
+        &self,
+        variant: LirVariantRef,
+        field: u32,
+    ) -> Option<LirType> {
+        if !self.contains_variant(variant) {
+            return None;
+        }
+        match &self.definitions[variant.definition].repr {
+            EnumRepr::Niche {
+                kind,
+                payload_variant,
+            } if variant.variant == *payload_variant && field == 0 => {
+                Some(LirType::Ptr(kind.pointer_kind()))
+            }
+            EnumRepr::Niche { .. } => None,
+            EnumRepr::Tagged { variants, .. } => variants[variant.variant as usize]
+                .fields
+                .get(field as usize)
+                .map(|field| field.ty.clone()),
+        }
     }
 
     pub fn nullable_data_pointer_ref(

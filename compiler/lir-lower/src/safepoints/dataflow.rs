@@ -41,6 +41,8 @@ pub(super) fn instruction_uses(
         | lir::Instruction::ArrayClone { operand, .. }
         | lir::Instruction::EnumTag { operand, .. }
         | lir::Instruction::EnumField { operand, .. }
+        | lir::Instruction::VariantTest { operand, .. }
+        | lir::Instruction::VariantPayloadProject { operand, .. }
         | lir::Instruction::ForeignCallbackRegister {
             closure: operand, ..
         } => vec![*operand],
@@ -143,6 +145,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::EnumWrap { out, .. }
         | lir::Instruction::EnumTag { out, .. }
         | lir::Instruction::EnumField { out, .. }
+        | lir::Instruction::VariantTest { out, .. }
+        | lir::Instruction::VariantPayloadProject { out, .. }
         | lir::Instruction::ForeignCallbackRegister { out, .. } => Some(*out),
         lir::Instruction::Call { site } => return call_defs(site.result()),
         lir::Instruction::Invoke { site } => return call_defs(site.result()),
@@ -206,4 +210,77 @@ pub(super) fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
         }
     }
     successors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variant_primitives_track_their_operand_use_and_temp_definition() {
+        let mut enums = lir::EnumDefs::default();
+        let enum_id = enums.alloc(lir::EnumDef {
+            name: "Tracked".to_string(),
+            repr: lir::EnumRepr::Tagged {
+                variants: vec![lir::EnumVariantRepr {
+                    fields: vec![lir::EnumFieldRepr {
+                        ty: lir::MANAGED_PTR,
+                        offset: 8,
+                    }],
+                    slot_offset: 8,
+                    slot_size: 8,
+                    slot_align: 8,
+                    gc_free: false,
+                }],
+                size: 16,
+                align: 8,
+            },
+            scan: lir::RefScan::References(vec![8]),
+        });
+        let variant = enums.variant_ref(enum_id, 0).expect("variant exists");
+        let field = enums
+            .variant_field_ref(variant, 0)
+            .expect("payload field exists");
+
+        let mut temps = Arena::default();
+        let tested = temps.alloc(lir::Temp {
+            ty: lir::LirType::I1,
+        });
+        let projected = temps.alloc(lir::Temp {
+            ty: lir::MANAGED_PTR,
+        });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(lir::BasicBlock {
+            name: "entry".to_string(),
+            instructions: Vec::new(),
+            terminator: lir::Terminator::Unreachable,
+        });
+        let function = lir::Function {
+            gc_effect: lir::GcEffect::Managed,
+            symbol: "scoop.dataflow.variant".to_string(),
+            params: vec![lir::LirType::Enum(enum_id)],
+            return_ty: lir::LirType::Void,
+            call_targets: lir::CallTargets::default(),
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        };
+        let operand = lir::Value::Param(0);
+        let test = lir::Instruction::VariantTest {
+            out: tested,
+            operand,
+            variant,
+        };
+        let project = lir::Instruction::VariantPayloadProject {
+            out: projected,
+            operand,
+            field,
+        };
+
+        assert_eq!(instruction_uses(&test, &function), vec![operand]);
+        assert_eq!(instruction_defs(&test), vec![LiveValue::Temp(tested)]);
+        assert_eq!(instruction_uses(&project, &function), vec![operand]);
+        assert_eq!(instruction_defs(&project), vec![LiveValue::Temp(projected)]);
+    }
 }

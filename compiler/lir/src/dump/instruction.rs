@@ -569,5 +569,30 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+        Instruction::VariantTest {
+            out,
+            operand,
+            variant,
+        } => buf.push_str(&format!(
+            "    t{} = variant_test e{} v{} {} : {}\n",
+            out.into_raw(),
+            variant.definition().into_raw(),
+            variant.index(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::VariantPayloadProject {
+            out,
+            operand,
+            field,
+        } => buf.push_str(&format!(
+            "    t{} = variant_payload_project e{} v{} f{} {} : {}\n",
+            out.into_raw(),
+            field.definition().into_raw(),
+            field.variant().index(),
+            field.index(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
     }
 }

@@ -1,8 +1,9 @@
 use super::{
     CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
     CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, EnumRepr, ExternFunctionIdentity, ExternFunctions, ForeignCallbackStatus,
-    GcEffect, InitializationOutcome, InternalPointerCarrier, LirFunctionType, LirReturnType,
+    DirectCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr, EnumVariantRepr,
+    ExternFunctionIdentity, ExternFunctions, ForeignCallbackStatus, GcEffect,
+    InitializationOutcome, InternalPointerCarrier, LirFunctionType, LirReturnType,
     LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind, MachineScalarValue,
     ManagedCallDestination, ManagedRuntimeFunction, NativeBorrowedCallDestination,
     NativeBorrowedResultPublication, NativeBorrowedResultRoot, NativeSafeCallDestination,
@@ -87,6 +88,76 @@ fn niche_representation_atomically_preserves_source_pointer_provenance() {
         assert_eq!(PointerKind::from(kind), expected);
         assert_eq!(payload_variant, 1);
     }
+}
+
+#[test]
+fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
+    let mut enums = EnumDefs::default();
+    let tagged = enums.alloc(EnumDef {
+        name: "Tagged".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: vec![
+                EnumVariantRepr {
+                    fields: Vec::new(),
+                    slot_offset: 8,
+                    slot_size: 0,
+                    slot_align: 1,
+                    gc_free: true,
+                },
+                EnumVariantRepr {
+                    fields: vec![EnumFieldRepr {
+                        ty: LirType::Ptr(PointerKind::Managed),
+                        offset: 8,
+                    }],
+                    slot_offset: 8,
+                    slot_size: 8,
+                    slot_align: 8,
+                    gc_free: false,
+                },
+            ],
+            size: 16,
+            align: 8,
+        },
+        scan: RefScan::References(vec![8]),
+    });
+    let niche = enums.alloc(EnumDef {
+        name: "RawOption".to_string(),
+        repr: EnumRepr::Niche {
+            kind: NichePointerKind::Raw,
+            payload_variant: 0,
+        },
+        scan: RefScan::None,
+    });
+
+    let tagged_payload = enums.variant_ref(tagged, 1).expect("valid tagged variant");
+    assert_eq!(tagged_payload.definition(), tagged);
+    assert_eq!(tagged_payload.index(), 1);
+    assert!(enums.contains_variant(tagged_payload));
+    assert!(enums.variant_ref(tagged, 2).is_none());
+
+    let tagged_field = enums
+        .variant_field_ref(tagged_payload, 0)
+        .expect("valid tagged payload field");
+    assert_eq!(tagged_field.variant(), tagged_payload);
+    assert_eq!(tagged_field.definition(), tagged);
+    assert_eq!(tagged_field.index(), 0);
+    assert_eq!(
+        enums.variant_field_type(tagged_field),
+        Some(LirType::Ptr(PointerKind::Managed))
+    );
+    assert!(enums.variant_field_ref(tagged_payload, 1).is_none());
+
+    let niche_payload = enums.variant_ref(niche, 0).expect("valid niche payload");
+    let niche_unit = enums.variant_ref(niche, 1).expect("valid niche unit");
+    let niche_field = enums
+        .variant_field_ref(niche_payload, 0)
+        .expect("niche carrier is its single payload field");
+    assert_eq!(
+        enums.variant_field_type(niche_field),
+        Some(LirType::Ptr(PointerKind::Raw))
+    );
+    assert!(enums.variant_field_ref(niche_payload, 1).is_none());
+    assert!(enums.variant_field_ref(niche_unit, 0).is_none());
 }
 
 #[test]

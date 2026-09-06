@@ -408,6 +408,24 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}EnumField v{variant} f{index}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::VariantTest { operand, variant } => {
+            out.push_str(&format!(
+                "{pad}VariantTest {} v{}\n",
+                module.enums[variant.enum_id()].name,
+                variant.variant_index()
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            let variant = field.variant();
+            out.push_str(&format!(
+                "{pad}VariantPayloadProject {} v{} f{}\n",
+                module.enums[variant.enum_id()].name,
+                variant.variant_index(),
+                field.field_index()
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
     }
 }
 

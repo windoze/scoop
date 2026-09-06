@@ -1,0 +1,386 @@
+//! Defensive validation for typed variant tests and payload projections.
+
+use std::collections::{HashMap, HashSet};
+
+use super::super::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct VariantFact {
+    operand: scoop_lir::Value,
+    variant: scoop_lir::LirVariantRef,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct Knowledge {
+    /// Test results whose operand identity has not been redefined.
+    tests: HashSet<scoop_lir::TempId>,
+    /// Facts introduced specifically on a matching conditional true edge.
+    facts: HashSet<VariantFact>,
+}
+
+impl Knowledge {
+    fn intersect_with(&mut self, other: &Self) {
+        self.tests.retain(|test| other.tests.contains(test));
+        self.facts.retain(|fact| other.facts.contains(fact));
+    }
+
+    fn kill_value(
+        &mut self,
+        value: scoop_lir::Value,
+        tests: &HashMap<scoop_lir::TempId, VariantFact>,
+    ) {
+        self.tests
+            .retain(|test| tests.get(test).is_none_or(|fact| fact.operand != value));
+        self.facts.retain(|fact| fact.operand != value);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct FlowEdge {
+    from: scoop_lir::BlockId,
+    to: scoop_lir::BlockId,
+    /// Present only on a `CondBr` then edge.
+    true_condition: Option<scoop_lir::TempId>,
+}
+
+pub(super) fn validate_variant_primitives(module: &Module) -> Result<(), CodegenError> {
+    for function in &module.functions {
+        let tests = validate_function_shapes(module, function)?;
+        validate_projection_dominance(function, &tests)?;
+    }
+    Ok(())
+}
+
+fn validate_function_shapes(
+    module: &Module,
+    function: &Function,
+) -> Result<HashMap<scoop_lir::TempId, VariantFact>, CodegenError> {
+    // Variant dominance relies on Temp meaning one stable SSA-ish value.  No
+    // older whole-LIR verifier enforced that invariant, so establish it here
+    // for every instruction before trusting Temp identity in a fact.
+    let mut definitions = HashSet::new();
+    for (_, block) in function.blocks.iter() {
+        for instruction in &block.instructions {
+            for output in crate::module_context::instruction_temp_defs(instruction)
+                .into_iter()
+                .flatten()
+            {
+                if !definitions.insert(output) {
+                    return Err(CodegenError(format!(
+                        "function @{} defines temporary t{} more than once",
+                        function.symbol,
+                        output.into_raw()
+                    )));
+                }
+            }
+        }
+    }
+
+    let mut tests = HashMap::new();
+    for (_, block) in function.blocks.iter() {
+        for instruction in &block.instructions {
+            match instruction {
+                Instruction::VariantTest {
+                    out,
+                    operand,
+                    variant,
+                } => {
+                    validate_variant_ref(module, function, *variant, "variant_test")?;
+                    validate_stable_operand(function, *operand, "variant_test")?;
+                    let operand_ty = function.value_ty(&module.globals, *operand);
+                    let expected = LirType::Enum(variant.definition());
+                    if operand_ty != expected {
+                        return Err(CodegenError(format!(
+                            "variant_test @{} expects {}, got {}",
+                            function.symbol,
+                            expected.dump(),
+                            operand_ty.dump()
+                        )));
+                    }
+                    if function.temps[*out].ty != LirType::I1 {
+                        return Err(CodegenError(format!(
+                            "variant_test @{} result is {}, expected i1",
+                            function.symbol,
+                            function.temps[*out].ty.dump()
+                        )));
+                    }
+                    tests.insert(
+                        *out,
+                        VariantFact {
+                            operand: *operand,
+                            variant: *variant,
+                        },
+                    );
+                }
+                Instruction::VariantPayloadProject {
+                    out,
+                    operand,
+                    field,
+                } => validate_projection_shape(module, function, *out, *operand, *field)?,
+                _ => {}
+            }
+        }
+    }
+    Ok(tests)
+}
+
+fn validate_projection_shape(
+    module: &Module,
+    function: &Function,
+    out: scoop_lir::TempId,
+    operand: scoop_lir::Value,
+    field: scoop_lir::LirVariantFieldRef,
+) -> Result<(), CodegenError> {
+    let variant = field.variant();
+    validate_variant_ref(module, function, variant, "variant_payload_project")?;
+    validate_stable_operand(function, operand, "variant_payload_project")?;
+    if !module.enums.contains_variant_field(field) {
+        return Err(CodegenError(format!(
+            "variant_payload_project @{} carries invalid field {} for enum{} variant {}",
+            function.symbol,
+            field.index(),
+            field.definition().into_raw(),
+            variant.index()
+        )));
+    }
+    let operand_ty = function.value_ty(&module.globals, operand);
+    let expected_operand = LirType::Enum(field.definition());
+    if operand_ty != expected_operand {
+        return Err(CodegenError(format!(
+            "variant_payload_project @{} expects {}, got {}",
+            function.symbol,
+            expected_operand.dump(),
+            operand_ty.dump()
+        )));
+    }
+    let expected = module
+        .enums
+        .variant_field_type(field)
+        .expect("a field contained by this store has an exact type");
+    let actual = &function.temps[out].ty;
+    if actual != &expected {
+        let detail = match (actual, &expected) {
+            (LirType::Ptr(actual), LirType::Ptr(expected)) => format!(
+                "pointer provenance is {}, expected {}",
+                actual.dump(),
+                expected.dump()
+            ),
+            _ => format!("result is {}, expected {}", actual.dump(), expected.dump()),
+        };
+        return Err(CodegenError(format!(
+            "variant_payload_project @{} {detail}",
+            function.symbol
+        )));
+    }
+    Ok(())
+}
+
+fn validate_stable_operand(
+    function: &Function,
+    operand: scoop_lir::Value,
+    instruction: &str,
+) -> Result<(), CodegenError> {
+    if !matches!(
+        operand,
+        scoop_lir::Value::Param(_) | scoop_lir::Value::Local(_) | scoop_lir::Value::Temp(_)
+    ) {
+        return Err(CodegenError(format!(
+            "{instruction} @{} requires a stable Param/Local/Temp enum value identity",
+            function.symbol
+        )));
+    }
+    Ok(())
+}
+
+fn validate_variant_ref(
+    module: &Module,
+    function: &Function,
+    variant: scoop_lir::LirVariantRef,
+    instruction: &str,
+) -> Result<(), CodegenError> {
+    if !module.enums.contains_variant(variant) {
+        return Err(CodegenError(format!(
+            "{instruction} @{} carries invalid enum{} variant {}",
+            function.symbol,
+            variant.definition().into_raw(),
+            variant.index()
+        )));
+    }
+    Ok(())
+}
+
+fn validate_projection_dominance(
+    function: &Function,
+    tests: &HashMap<scoop_lir::TempId, VariantFact>,
+) -> Result<(), CodegenError> {
+    if function.blocks.is_empty() {
+        return Ok(());
+    }
+    let count = function.blocks.len();
+    let index = |id: scoop_lir::BlockId| id.into_raw().into_u32() as usize;
+    let checked_index = |id: scoop_lir::BlockId| -> Result<usize, CodegenError> {
+        let value = index(id);
+        if value >= count {
+            return Err(CodegenError(format!(
+                "variant control-flow validation in @{} reached invalid block {}",
+                function.symbol,
+                id.into_raw()
+            )));
+        }
+        Ok(value)
+    };
+
+    let mut outgoing = vec![Vec::new(); count];
+    let mut predecessors = vec![Vec::new(); count];
+    for (id, block) in function.blocks.iter() {
+        let mut add = |to: scoop_lir::BlockId,
+                       true_condition: Option<scoop_lir::TempId>|
+         -> Result<(), CodegenError> {
+            checked_index(to)?;
+            let edge = FlowEdge {
+                from: id,
+                to,
+                true_condition,
+            };
+            outgoing[index(id)].push(edge);
+            predecessors[index(to)].push(edge);
+            Ok(())
+        };
+        match block.terminator {
+            Terminator::Br(target) => add(target, None)?,
+            Terminator::CondBr {
+                cond,
+                then_block,
+                else_block,
+            } => {
+                let condition = match cond {
+                    Value::Temp(temp) => Some(temp),
+                    _ => None,
+                };
+                add(then_block, condition)?;
+                add(else_block, None)?;
+            }
+            Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {}
+        }
+        if let Some(Instruction::Invoke { site }) = block.instructions.last() {
+            add(site.unwind(), None)?;
+        }
+    }
+
+    let entry = checked_index(function.entry)?;
+    let mut reachable = vec![false; count];
+    let mut pending = vec![function.entry];
+    while let Some(block) = pending.pop() {
+        let block_index = index(block);
+        if std::mem::replace(&mut reachable[block_index], true) {
+            continue;
+        }
+        pending.extend(outgoing[block_index].iter().map(|edge| edge.to));
+    }
+
+    // This is a forward must-analysis. Starting reachable non-entry blocks at
+    // the universe and intersecting predecessor edge states computes exactly
+    // the facts established on every path, i.e. true-edge dominance.
+    let universe = Knowledge {
+        tests: tests.keys().copied().collect(),
+        facts: tests.values().copied().collect(),
+    };
+    let mut incoming = vec![universe; count];
+    for (block, state) in incoming.iter_mut().enumerate() {
+        if block == entry || !reachable[block] {
+            *state = Knowledge::default();
+        }
+    }
+    loop {
+        let mut next = incoming.clone();
+        let mut changed = false;
+        for block in 0..count {
+            if block == entry || !reachable[block] {
+                next[block] = Knowledge::default();
+                continue;
+            }
+            let mut edges = predecessors[block]
+                .iter()
+                .copied()
+                .filter(|edge| reachable[index(edge.from)]);
+            let Some(first) = edges.next() else {
+                next[block] = Knowledge::default();
+                continue;
+            };
+            let mut state = edge_knowledge(function, &incoming[index(first.from)], first, tests);
+            for edge in edges {
+                let other = edge_knowledge(function, &incoming[index(edge.from)], edge, tests);
+                state.intersect_with(&other);
+            }
+            if state != incoming[block] {
+                next[block] = state;
+                changed = true;
+            }
+        }
+        incoming = next;
+        if !changed {
+            break;
+        }
+    }
+
+    for (id, block) in function.blocks.iter() {
+        let mut knowledge = incoming[index(id)].clone();
+        for instruction in &block.instructions {
+            if let Instruction::VariantPayloadProject { operand, field, .. } = instruction {
+                let required = VariantFact {
+                    operand: *operand,
+                    variant: field.variant(),
+                };
+                if !knowledge.facts.contains(&required) {
+                    return Err(CodegenError(format!(
+                        "variant_payload_project @{} for enum{} variant {} is not dominated by a matching VariantTest true edge for the same operand",
+                        function.symbol,
+                        field.definition().into_raw(),
+                        field.variant().index()
+                    )));
+                }
+            }
+            transfer(&mut knowledge, instruction, tests);
+        }
+    }
+    Ok(())
+}
+
+fn edge_knowledge(
+    function: &Function,
+    incoming: &Knowledge,
+    edge: FlowEdge,
+    tests: &HashMap<scoop_lir::TempId, VariantFact>,
+) -> Knowledge {
+    let mut knowledge = incoming.clone();
+    for instruction in &function.blocks[edge.from].instructions {
+        transfer(&mut knowledge, instruction, tests);
+    }
+    if let Some(condition) = edge.true_condition
+        && knowledge.tests.contains(&condition)
+        && let Some(fact) = tests.get(&condition)
+    {
+        knowledge.facts.insert(*fact);
+    }
+    knowledge
+}
+
+fn transfer(
+    knowledge: &mut Knowledge,
+    instruction: &Instruction,
+    tests: &HashMap<scoop_lir::TempId, VariantFact>,
+) {
+    for output in crate::module_context::instruction_temp_defs(instruction)
+        .into_iter()
+        .flatten()
+    {
+        knowledge.tests.remove(&output);
+        knowledge.kill_value(Value::Temp(output), tests);
+    }
+    if let Instruction::Store { local, .. } = instruction {
+        knowledge.kill_value(Value::Local(*local), tests);
+    }
+    if let Instruction::VariantTest { out, .. } = instruction {
+        knowledge.tests.insert(*out);
+    }
+}

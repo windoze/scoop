@@ -299,7 +299,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::IntegerUnary { operand, .. }
         | mir::ExprKind::IntegerConversion { operand, .. }
         | mir::ExprKind::EnumTag(operand)
-        | mir::ExprKind::EnumField { operand, .. } => expr_uses(operand, uses),
+        | mir::ExprKind::EnumField { operand, .. }
+        | mir::ExprKind::VariantTest { operand, .. }
+        | mir::ExprKind::VariantPayloadProject { operand, .. } => expr_uses(operand, uses),
         mir::ExprKind::AtomicFieldCompareExchange {
             object,
             expected,
