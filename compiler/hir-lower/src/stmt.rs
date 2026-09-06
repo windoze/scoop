@@ -29,6 +29,21 @@ pub(crate) struct ValueBlock {
     pub(crate) value: Option<hir::Expr>,
 }
 
+impl ValueBlock {
+    /// Preserve evaluation when this block does not contribute a structured
+    /// expression result. Unit literals have no observable effect.
+    fn discard_value(&mut self) {
+        if let Some(value) = self.value.take()
+            && !matches!(value.kind, hir::ExprKind::UnitLiteral)
+        {
+            self.statements.push(hir::Statement {
+                span: value.span,
+                kind: hir::StatementKind::Expr(value),
+            });
+        }
+    }
+}
+
 mod assignments;
 mod blocks;
 mod body;
@@ -40,4 +55,4 @@ mod places;
 mod statements;
 mod when;
 
-pub(crate) use flow::statements_can_fall_through;
+pub(crate) use flow::statements_control_outcomes;

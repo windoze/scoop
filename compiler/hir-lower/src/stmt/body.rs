@@ -149,7 +149,7 @@ impl Lowerer {
                 // an earlier error.
                 if !returns_unit
                     && self.diagnostics.len() == diagnostics_before
-                    && statements_can_fall_through(&statements)
+                    && statements_control_outcomes(&statements).can_fall_through()
                 {
                     self.error(
                         block.span,

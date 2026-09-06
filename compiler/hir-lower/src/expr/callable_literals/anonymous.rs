@@ -151,7 +151,7 @@ impl Lowerer {
             self.current_return_ty = return_ty;
             if self.diagnostics.len() == diagnostics_before
                 && !self.types_equal(return_ty, self.unit)
-                && statements_can_fall_through(&statements)
+                && statements_control_outcomes(&statements).can_fall_through()
             {
                 let found = self.type_name(return_ty);
                 self.error(
@@ -165,7 +165,9 @@ impl Lowerer {
             if known_return.is_none() {
                 statements = self.adapt_inferred_returns(statements, return_ty);
             }
-            if self.types_equal(return_ty, self.unit) && statements_can_fall_through(&statements) {
+            if self.types_equal(return_ty, self.unit)
+                && statements_control_outcomes(&statements).can_fall_through()
+            {
                 statements.push(hir::Statement {
                     kind: hir::StatementKind::Return { value: None },
                     span: body.span,

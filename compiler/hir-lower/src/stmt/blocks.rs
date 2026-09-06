@@ -78,7 +78,7 @@ impl Lowerer {
             } else {
                 None
             };
-            let value = if statements_can_fall_through(&statements) {
+            let value = if statements_control_outcomes(&statements).can_fall_through() {
                 Some(value.unwrap_or(hir::Expr {
                     kind: hir::ExprKind::UnitLiteral,
                     ty: self.unit,
@@ -144,14 +144,7 @@ impl Lowerer {
 
         if self.types_equal(result_ty, self.unit) {
             for block in blocks.iter_mut() {
-                if let Some(value) = block.value.take()
-                    && !matches!(value.kind, hir::ExprKind::UnitLiteral)
-                {
-                    block.statements.push(hir::Statement {
-                        span: value.span,
-                        kind: hir::StatementKind::Expr(value),
-                    });
-                }
+                block.discard_value();
             }
             return Some(hir::Expr {
                 kind: hir::ExprKind::UnitLiteral,
