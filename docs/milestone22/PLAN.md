@@ -1,6 +1,6 @@
 # M22 执行计划
 
-版本：0.3
+版本：0.4
 
 最后更新：2026-09-06
 
@@ -40,7 +40,7 @@
 | compiler-owned enum producer identity | 已完成 | `9706b4b` |
 | binding / match 分流与原子 binding 语义规范 | 已完成 | `efed112` |
 | binding 裸名分流与 pattern transaction | 已完成 | `a324559`；binding / match / Unit 分流、递归失败回滚及 full-pipeline fixture 均已锁定 |
-| 共享 `IrrefutableBindingPlan` | 进行中 | 4.1 已闭合；正在复核现有 val / lambda / class component lowering，随后按 4.2 实现 |
+| 共享 `IrrefutableBindingPlan` | 进行中 | 生命周期规范已由 `487244a` 消歧；正在实现 4.2a 的 plan core 与 val / var tuple / struct 迁移 |
 | typed loop target、cleanup 与 suspend 控制转移 | 待实现 | 按 4.3 顺序落地 |
 | Iterator / Iterable、`for` 与四种 range | 待实现 | 依赖共享 binding plan 和 typed loop target |
 | 32 字节 aggregate 参数 ABI | 待修复 | 已有最小复现线索；须在 `for` / range 组合扩张前独立归因、修复并提交 |
@@ -165,3 +165,4 @@
 - 2026-09-06：根据独立计划复核消歧 binding plan 生命周期与 LoopId 边界；`for` parser 延后到完整协议切片；把 32 字节 aggregate 参数 ABI 提升为独立任务，并补齐逐提交卫生门。
 - 2026-09-06：完成 binding 裸名分流与 pattern transaction，提交 `a324559`。验证通过：`cargo fmt --all -- --check`；全 workspace clippy（`-D warnings`）；全 workspace test（含 HIR lowering 670 项、parser 394 项及 full-pipeline fixtures 4/4）；额外 strict fixture replay 4/4；`git diff --check`；无 `.snap.new`。独立审查未发现 correctness blocker。该切片只改变编译期名称分类与事务提交，不改变 runtime ABI / 对象模型 / GC / runtime function contract，因此无需修改 runtime spec。
 - 2026-09-06：4.2 进入设计复核；重点是 val / lambda 在 Export HIR 前展开、generic `for` 的 plan 生命周期、class component effect / suspend / GC 完成门，以及每个 owner 至多一次 transaction。
+- 2026-09-06：提交 `487244a`，明确 `IrrefutableBindingPlan` 由 Export HIR crate 拥有；val / lambda 在 Export HIR 前消费，generic source `for` 持久保存并在 LocalConcrete HIR 结束前展开。同步明确单一根 binding 的 storage coalescing 与 coroutine ordinary liveness 边界；4.2a 开始实现。
