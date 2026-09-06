@@ -5,9 +5,11 @@
 //! marker, never the range operator (the spec 4.6 disambiguation rule).
 //! Enum variant patterns and struct patterns share their shapes
 //! (`Path(...)`, `Path { ... }`, tuple patterns); HIR resolves which is
-//! which. A bare identifier is always a binding ("binding first", spec
-//! chapter 5); a dotted path without an argument list (`E.V`) is a unit
-//! variant pattern, encoded as a positional pattern with no elements.
+//! which. Except for the built-in `Unit` literal spelling, an unqualified
+//! bare identifier stays unresolved binding-shaped syntax; HIR classifies it
+//! according to the binding or match context. A dotted path without an
+//! argument list (`E.V`) is a unit variant pattern, encoded as a positional
+//! pattern with no elements.
 
 use scoop_ast::{Diagnostic, Expr, FieldPattern, Ident, Pattern, Span};
 
@@ -246,6 +248,13 @@ impl Parser {
                     let subpattern = if matches!(self.peek().kind, TokenKind::Colon) {
                         self.bump();
                         self.parse_pattern()?
+                    } else if field.text == "Unit" {
+                        // Shorthand is exactly `field: field`, including the
+                        // built-in Unit-literal classification of its RHS.
+                        Pattern::Literal {
+                            expr: Box::new(Expr::UnitLiteral { span: field.span }),
+                            span: field.span,
+                        }
                     } else {
                         Pattern::Binding(field.clone())
                     };

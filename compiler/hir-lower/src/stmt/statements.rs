@@ -284,15 +284,26 @@ impl Lowerer {
             },
         ) = (self.types[ty].clone(), &decl.target)
         {
-            return self.lower_class_destructuring(
+            let diagnostics_before = self.diagnostics.len();
+            let mut state = self.clone();
+            let mut planned = Vec::new();
+            let lowered = state.lower_class_destructuring(
                 elements,
                 *rest,
                 *span,
                 decl.mutable,
                 init,
                 sink,
-                out,
+                &mut planned,
             );
+            if lowered.is_some() && state.diagnostics.len() == diagnostics_before {
+                *self = state;
+                out.extend(planned);
+                return Some(());
+            }
+            self.diagnostics
+                .extend(state.diagnostics.into_iter().skip(diagnostics_before));
+            return None;
         }
         // The pattern is lowered after the initializer, so bindings are
         // not visible in their own initializer.

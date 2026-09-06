@@ -54,17 +54,52 @@ impl Lowerer {
         matched_ty: TypeId,
         ctx: PatternCtx,
     ) -> Option<hir::Pattern> {
+        // A pattern is one semantic transaction. Recursive lowering allocates
+        // locals, emits match warnings, and updates the lexical scope as it
+        // walks, so a late error must discard every earlier leaf and warning
+        // instead of exposing a partial result. A full Lowerer clone also
+        // keeps nested callable/candidate-owned entities private.
+        let diagnostics_before = self.diagnostics.len();
+        let mut state = self.clone();
+        let lowered = state.lower_pattern_inner(pattern, matched_ty, ctx);
+        if let Some(pattern) = lowered
+            && state.diagnostics.len() == diagnostics_before
+        {
+            *self = state;
+            return Some(pattern);
+        }
+
+        // A dependency such as a previously failed type alias may already
+        // own the only diagnostic. In that case recursive lowering can fail
+        // without appending another one; rollback is still required.
+        self.diagnostics
+            .extend(state.diagnostics.into_iter().skip(diagnostics_before));
+        None
+    }
+
+    pub(super) fn lower_pattern_inner(
+        &mut self,
+        pattern: &ast::Pattern,
+        matched_ty: TypeId,
+        ctx: PatternCtx,
+    ) -> Option<hir::Pattern> {
         match pattern {
             ast::Pattern::Binding(name) => {
-                // A bare identifier that names a unit variant of the
-                // matched enum is a variant pattern (spec 5.1);
-                // anything else binds (spec 5 "binding priority").
-                let unmatched_enum = if let Type::Enum(application) = self.types[matched_ty] {
-                    let enum_id = self.enum_applications[application].template;
-                    if let Some(variant) = self.find_variant(enum_id, &name.text) {
-                        return self.bare_variant_pattern(name, application, variant, ctx);
+                // Variant-first bare-name lookup belongs exclusively to
+                // match patterns. In binding positions every ordinary bare
+                // identifier introduces a new local, even when the subject
+                // enum has a variant with the same name. `Unit` / `()` reach
+                // this stage as literal patterns and remain rejected below.
+                let unmatched_enum = if ctx.in_when {
+                    if let Type::Enum(application) = self.types[matched_ty] {
+                        let enum_id = self.enum_applications[application].template;
+                        if let Some(variant) = self.find_variant(enum_id, &name.text) {
+                            return self.bare_variant_pattern(name, application, variant, ctx);
+                        }
+                        Some(self.type_name(matched_ty))
+                    } else {
+                        None
                     }
-                    Some(self.type_name(matched_ty))
                 } else {
                     None
                 };

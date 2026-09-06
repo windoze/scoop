@@ -1,0 +1,61 @@
+// EXPECT-COMPILE
+
+enum Signal {
+    Ready,
+    Payload(Int)
+}
+
+struct Bundle(
+    val optional: Int?,
+    val signal: Signal
+)
+
+struct UnitBox(val Unit: Unit)
+
+fun classify(value: Signal): Int = when (value) {
+    Ready -> 1
+    Payload(number) -> number
+}
+
+fun optionValue(value: Int?): Int = when (value) {
+    None -> 0
+    Some(number) -> number
+}
+
+fun plainBinding(): Int {
+    val source: Int? = Some(7)
+    val None = source
+    return optionValue(None)
+}
+
+fun nestedBinding() {
+    val bundle = Bundle(Some(3), Signal.Ready)
+    val nested: (Signal, Int?) = (Signal.Payload(4), None)
+    val (
+        { optional: None, signal: Ready },
+        (Payload, NestedNone)
+    ) = (bundle, nested)
+    println(optionValue(None))
+    println(classify(Ready))
+    println(classify(Payload))
+    println(optionValue(NestedNone))
+}
+
+fun lambdaBinding(): Int {
+    val unpack: ((Int?, Signal)) -> Int = { (None, Ready) ->
+        optionValue(None) + classify(Ready)
+    }
+    return unpack((Some(5), Signal.Ready))
+}
+
+fun explicitUnitFieldBinding(): Unit {
+    val { Unit: value } = UnitBox(Unit)
+    return value
+}
+
+fun main() {
+    println(plainBinding())
+    nestedBinding()
+    println(lambdaBinding())
+    explicitUnitFieldBinding()
+}

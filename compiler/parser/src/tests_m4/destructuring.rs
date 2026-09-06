@@ -64,6 +64,19 @@ fn val_struct_field_destructuring() {
 }
 
 #[test]
+fn field_shorthand_preserves_the_unit_literal_classification() {
+    let decl = val_target("Record { Unit }");
+    let Pattern::Named { fields, .. } = &decl.target else {
+        panic!("expected a named pattern");
+    };
+    assert!(matches!(
+        &*fields[0].subpattern,
+        Pattern::Literal { expr, .. }
+            if matches!(&**expr, Expr::UnitLiteral { .. })
+    ));
+}
+
+#[test]
 fn val_nested_destructuring() {
     let decl = val_target("(a, (b, c))");
     let Pattern::Tuple { elements, .. } = &decl.target else {

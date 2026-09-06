@@ -233,25 +233,6 @@ fn refutable_patterns_in_val_are_an_error() {
     }
 }
 
-/// A bare `None` in a `val` target is a (refutable) unit variant
-/// pattern, not a binding.
-#[test]
-fn bare_unit_variant_in_val_is_an_error() {
-    let file = file(vec![fun(
-        "main",
-        vec![
-            val_ty("o", Some(ty_nullable(ty_named("Int"))), none()),
-            val_pat(false, pat_bind("None"), None, var("o")),
-        ],
-    )]);
-    let errors = lower_user(file).expect_err("`val None` must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "refutable patterns are only allowed in `when`"
-    );
-}
-
 #[test]
 fn destructuring_type_mismatch_is_an_error() {
     let file = file(vec![fun(

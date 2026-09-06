@@ -1,0 +1,13 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-binding-patterns/errors/irrefutable-only.scoop:11:9: error: refutable patterns are only allowed in `when`
+m22-binding-patterns/errors/irrefutable-only.scoop:15:9: error: refutable patterns are only allowed in `when`
+m22-binding-patterns/errors/irrefutable-only.scoop:19:11: error: refutable patterns are only allowed in `when`
+m22-binding-patterns/errors/irrefutable-only.scoop:23:9: error: refutable patterns are only allowed in `when`
+m22-binding-patterns/errors/irrefutable-only.scoop:27:9: error: refutable patterns are only allowed in `when`
+m22-binding-patterns/errors/irrefutable-only.scoop:32:9: error: variant `Payload` of `Signal` has 1 field(s); use `Payload(...)` to match it
+m22-binding-patterns/errors/irrefutable-only.scoop:40:19: error: `escaped` is already declared in this scope
+m22-binding-patterns/errors/irrefutable-only.scoop:41:13: error: unknown variable `escaped`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

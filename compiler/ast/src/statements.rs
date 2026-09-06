@@ -90,8 +90,8 @@ pub enum Pattern {
         span: Span,
     },
     /// `Path?{ f1, f2: subpattern, .. }` — enum named-field variant or
-    /// struct field pattern. Shorthand fields are normalized to a binding
-    /// subpattern with the same identifier.
+    /// struct field pattern. A shorthand field is normalized exactly like
+    /// parsing its identifier as the RHS; notably, `Unit` stays a literal.
     Named {
         path: Vec<Ident>,
         fields: Vec<FieldPattern>,

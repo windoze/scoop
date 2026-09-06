@@ -216,7 +216,7 @@ impl Lowerer {
         let indices = self.positional_pattern_indices(elements, rest, total, owner, span)?;
         let mut fields = Vec::with_capacity(elements.len());
         for (element, field_index) in elements.iter().zip(indices) {
-            let sub = self.lower_pattern(element, field_types[field_index], ctx)?;
+            let sub = self.lower_pattern_inner(element, field_types[field_index], ctx)?;
             fields.push((field_index as u32, sub));
         }
         Some(fields)
@@ -304,7 +304,7 @@ impl Lowerer {
                 return None;
             };
             normalized[index].1 =
-                self.lower_pattern(&field.subpattern, field_types[index].1, ctx)?;
+                self.lower_pattern_inner(&field.subpattern, field_types[index].1, ctx)?;
         }
         Some(normalized)
     }
