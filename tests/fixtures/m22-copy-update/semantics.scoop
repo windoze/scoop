@@ -24,41 +24,22 @@ fun defaultMarker(): String {
 
 struct Stamped(val value: Int, val marker: String = defaultMarker())
 
-enum NamedEvent {
-    Data { code: Int, text: String },
-    Empty
-}
+struct NamedEvent(val code: Int, val text: String)
 
-enum ConstructorEvent {
-    Payload(val count: Int, val label: String),
-    Empty
-}
+struct ConstructorEvent(val count: Int, val label: String)
 
 class Token(val text: String)
 
-enum NicheEvent {
-    Present { token: Token },
-    Empty
-}
+struct ManagedValue(val token: Token)
 
 fun printNamed(value: NamedEvent) {
-    when (value) {
-        Data { code, text } -> {
-            println(code)
-            println(text)
-        }
-        Empty -> println("empty")
-    }
+    println(value.code)
+    println(value.text)
 }
 
 fun printConstructor(value: ConstructorEvent) {
-    when (value) {
-        Payload(count, label) -> {
-            println(count)
-            println(label)
-        }
-        Empty -> println("empty")
-    }
+    println(value.count)
+    println(value.label)
 }
 
 fun main() {
@@ -77,22 +58,20 @@ fun main() {
     println(stamped.marker)
     println(restamped.marker)
 
-    val named: NamedEvent = NamedEvent.Data(code = 5, text = "old")
+    val named = NamedEvent(5, "old")
     val namedChanged = named.{ text: traceText("named-rhs", "new") }
     printNamed(named)
     printNamed(namedChanged)
 
-    val constructor: ConstructorEvent = ConstructorEvent.Payload(6, "before")
+    val constructor = ConstructorEvent(6, "before")
     val constructorChanged = constructor.{
         label: traceText("constructor-rhs", "after")
     }
     printConstructor(constructor)
     printConstructor(constructorChanged)
 
-    val niche: NicheEvent = NicheEvent.Present(token = Token("niche-before"))
-    val nicheChanged = niche.{ token: Token("niche-after") }
-    when (nicheChanged) {
-        Present { token } -> println(token.text)
-        Empty -> println("empty")
-    }
+    val managed = ManagedValue(Token("managed-before"))
+    val managedChanged = managed.{ token: Token("managed-after") }
+    println(managed.token.text)
+    println(managedChanged.token.text)
 }

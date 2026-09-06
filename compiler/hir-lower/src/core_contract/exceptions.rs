@@ -5,22 +5,6 @@ use crate::{
     defaults::SourceParameterOwner,
 };
 
-pub(crate) struct PendingCompilerException {
-    name: &'static str,
-    class: ClassId,
-    zero_source_constructor: hir::ClassConstructorId,
-}
-
-pub(crate) struct PendingCompilerExceptionCore {
-    throwable: hir::CompilerException,
-    unwrap_exception: PendingCompilerException,
-    class_cast_exception: PendingCompilerException,
-    arithmetic_exception: PendingCompilerException,
-    index_out_of_bounds_exception: PendingCompilerException,
-    illegal_state_exception: PendingCompilerException,
-    illegal_state_message_constructor: hir::MessageClassConstructor,
-}
-
 impl Lowerer {
     fn illegal_state_message_constructor(
         &mut self,
@@ -44,33 +28,35 @@ impl Lowerer {
         constructor.map(|constructor| hir::MessageClassConstructor { class, constructor })
     }
 
-    fn zero_source_call_shape(&self, constructor: hir::ClassConstructorId) -> bool {
-        let declaration = &self.class_constructors[constructor];
-        let Some(callings) = self.class_parameter_calling.get(&constructor) else {
-            return false;
-        };
-        declaration.parameters.len() == callings.len()
-            && callings
-                .iter()
-                .all(|calling| !matches!(calling, crate::FnParamCalling::Required))
-    }
-
-    fn zero_source_defaults_ready(&self, constructor: hir::ClassConstructorId) -> bool {
-        let owner = SourceParameterOwner::ClassConstructor(constructor);
-        self.class_parameter_calling[&constructor]
+    fn zero_source_argument_constructor(&self, class: ClassId) -> Option<hir::ClassConstructorId> {
+        self.classes[class]
+            .constructors
             .iter()
-            .enumerate()
-            .all(|(index, calling)| match calling {
-                crate::FnParamCalling::Required => false,
-                crate::FnParamCalling::Default { .. } => {
-                    self.default_templates.contains_key(&(owner, index as u32))
+            .copied()
+            .find(|constructor| {
+                let declaration = &self.class_constructors[*constructor];
+                let Some(callings) = self.class_parameter_calling.get(constructor) else {
+                    return false;
+                };
+                if declaration.parameters.len() != callings.len() {
+                    return false;
                 }
-                crate::FnParamCalling::Vararg { omission, .. } => match omission {
-                    crate::FnVarargOmission::EmptyArray => true,
-                    crate::FnVarargOmission::Default { .. } => {
-                        self.default_templates.contains_key(&(owner, index as u32))
-                    }
-                },
+                let owner = SourceParameterOwner::ClassConstructor(*constructor);
+                callings
+                    .iter()
+                    .enumerate()
+                    .all(|(index, calling)| match calling {
+                        crate::FnParamCalling::Required => false,
+                        crate::FnParamCalling::Default { .. } => {
+                            self.default_templates.contains_key(&(owner, index as u32))
+                        }
+                        crate::FnParamCalling::Vararg { omission, .. } => match omission {
+                            crate::FnVarargOmission::EmptyArray => true,
+                            crate::FnVarargOmission::Default { .. } => {
+                                self.default_templates.contains_key(&(owner, index as u32))
+                            }
+                        },
+                    })
             })
     }
 
@@ -141,12 +127,12 @@ impl Lowerer {
 }
 
 impl Lowerer {
-    fn discover_compiler_exception(
+    pub(crate) fn compiler_exception(
         &mut self,
-        name: &'static str,
+        name: &str,
         files: &[ast::SourceFile],
         throwable: ClassId,
-    ) -> Option<PendingCompilerException> {
+    ) -> Option<hir::CompilerException> {
         let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
         let id = candidate.filter(|id| self.class_files[id] < self.user_file_index);
         let Some(id) = id else {
@@ -161,16 +147,12 @@ impl Lowerer {
         };
         self.current_file = self.class_files[&id];
         let declaration = &self.classes[id];
-        let zero_source_constructor = declaration
-            .constructors
-            .iter()
-            .copied()
-            .find(|constructor| self.zero_source_call_shape(*constructor));
+        let zero_arg = self.zero_source_argument_constructor(id);
         let valid = declaration.modifier == hir::ClassModifier::Final
             && declaration.type_params.is_empty()
             && declaration.is_declared()
-            && self.class_descends_from(id, throwable)
-            && zero_source_constructor.is_some();
+            && zero_arg.is_some()
+            && self.class_descends_from(id, throwable);
         if !valid {
             self.error(
                 declaration.span,
@@ -178,44 +160,22 @@ impl Lowerer {
                     "class `{name}` in scoop.core must be a non-generic final subtype of `Throwable` callable with zero source arguments"
                 ),
             );
-            return None;
         }
-        Some(PendingCompilerException {
-            name,
-            class: id,
-            zero_source_constructor: zero_source_constructor
-                .expect("the validated exception has a zero-source constructor shape"),
+        zero_arg.map(|constructor| {
+            let constructor = self.compiler_exception_callable(constructor);
+            hir::CompilerException {
+                constructor: hir::ZeroArgClassConstructor {
+                    class: id,
+                    constructor,
+                },
+            }
         })
     }
 
-    fn finalize_compiler_exception(
-        &mut self,
-        pending: PendingCompilerException,
-    ) -> Option<hir::CompilerException> {
-        if !self.zero_source_defaults_ready(pending.zero_source_constructor) {
-            self.current_file = self.class_files[&pending.class];
-            self.error(
-                self.classes[pending.class].span,
-                format!(
-                    "class `{}` in scoop.core must be a non-generic final subtype of `Throwable` callable with zero source arguments",
-                    pending.name
-                ),
-            );
-            return None;
-        }
-        let constructor = self.compiler_exception_callable(pending.zero_source_constructor);
-        Some(hir::CompilerException {
-            constructor: hir::ZeroArgClassConstructor {
-                class: pending.class,
-                constructor,
-            },
-        })
-    }
-
-    pub(crate) fn discover_exception_core(
+    pub(crate) fn validate_exception_core(
         &mut self,
         files: &[ast::SourceFile],
-    ) -> Option<PendingCompilerExceptionCore> {
+    ) -> Option<hir::CompilerExceptionCore> {
         let throwable = self.throwable.map(|(id, _)| id)?;
         self.current_file = self.class_files[&throwable];
         let declaration = &self.classes[throwable];
@@ -242,58 +202,33 @@ impl Lowerer {
             },
         };
         let illegal_state =
-            self.discover_compiler_exception("IllegalStateException", files, throwable.class())?;
+            self.compiler_exception("IllegalStateException", files, throwable.class())?;
         let illegal_state_message_constructor =
-            self.illegal_state_message_constructor(illegal_state.class)?;
-        self.illegal_state_message_constructor = Some(illegal_state_message_constructor);
-        Some(PendingCompilerExceptionCore {
+            self.illegal_state_message_constructor(illegal_state.class())?;
+        Some(hir::CompilerExceptionCore {
             throwable,
-            unwrap_exception: self.discover_compiler_exception(
+            unwrap_exception: self.compiler_exception(
                 "UnwrapException",
                 files,
                 throwable.class(),
             )?,
-            class_cast_exception: self.discover_compiler_exception(
+            class_cast_exception: self.compiler_exception(
                 "ClassCastException",
                 files,
                 throwable.class(),
             )?,
-            arithmetic_exception: self.discover_compiler_exception(
+            arithmetic_exception: self.compiler_exception(
                 "ArithmeticException",
                 files,
                 throwable.class(),
             )?,
-            index_out_of_bounds_exception: self.discover_compiler_exception(
+            index_out_of_bounds_exception: self.compiler_exception(
                 "IndexOutOfBoundsException",
                 files,
                 throwable.class(),
             )?,
             illegal_state_exception: illegal_state,
             illegal_state_message_constructor,
-        })
-    }
-
-    pub(crate) fn finalize_exception_core(
-        &mut self,
-        pending: PendingCompilerExceptionCore,
-    ) -> Option<hir::CompilerExceptionCore> {
-        let illegal_state_exception =
-            self.finalize_compiler_exception(pending.illegal_state_exception)?;
-        let unwrap_exception = self.finalize_compiler_exception(pending.unwrap_exception)?;
-        let class_cast_exception =
-            self.finalize_compiler_exception(pending.class_cast_exception)?;
-        let arithmetic_exception =
-            self.finalize_compiler_exception(pending.arithmetic_exception)?;
-        let index_out_of_bounds_exception =
-            self.finalize_compiler_exception(pending.index_out_of_bounds_exception)?;
-        Some(hir::CompilerExceptionCore {
-            throwable: pending.throwable,
-            unwrap_exception,
-            class_cast_exception,
-            arithmetic_exception,
-            index_out_of_bounds_exception,
-            illegal_state_exception,
-            illegal_state_message_constructor: pending.illegal_state_message_constructor,
         })
     }
 

@@ -486,11 +486,6 @@ pub(crate) struct Lowerer {
     /// lowering-time lookup feeds the complete typed `CompilerExceptionCore`
     /// emitted after class representations and inheritance are resolved.
     pub(crate) throwable: Option<(ClassId, TypeId)>,
-    /// Exact message constructor discovered before defaults and constructor
-    /// bodies are lowered. Final exception adapters are built later, after
-    /// default templates exist; copy-update lowering never performs a name
-    /// lookup for this target.
-    pub(crate) illegal_state_message_constructor: Option<hir::MessageClassConstructor>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
     /// Source-call protocols for nominal constructor parameters. Layout

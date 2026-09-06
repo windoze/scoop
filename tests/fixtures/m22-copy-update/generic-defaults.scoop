@@ -2,10 +2,7 @@
 
 struct Box<T>(val value: T, val label: String)
 
-enum Cell<T> {
-    Full { value: T, label: String },
-    Empty
-}
+struct Cell<T>(val value: T, val label: String)
 
 typealias TextBox = Box<String>
 
@@ -16,30 +13,19 @@ fun <T> replaceCell(cell: Cell<T>, value: T): Cell<T> = cell.{ value: value }
 fun replaceAlias(box: TextBox): TextBox = box.{ value: "alias" }
 
 fun defaultCell(
-    cell: Cell<String> = Cell.Full(
-        value = "before-default",
-        label = "default-label"
-    ).{ value: "after-default" }
+    cell: Cell<String> = Cell("before-default", "default-label").{
+        value: "after-default"
+    }
 ): Cell<String> = cell
 
 fun printIntCell(cell: Cell<Int>) {
-    when (cell) {
-        Full { value, label } -> {
-            println(value)
-            println(label)
-        }
-        Empty -> println("empty")
-    }
+    println(cell.value)
+    println(cell.label)
 }
 
 fun printTextCell(cell: Cell<String>) {
-    when (cell) {
-        Full { value, label } -> {
-            println(value)
-            println(label)
-        }
-        Empty -> println("empty")
-    }
+    println(cell.value)
+    println(cell.label)
 }
 
 fun main() {
@@ -53,8 +39,8 @@ fun main() {
     println(aliasBox.value)
     println(aliasBox.label)
 
-    val intCell: Cell<Int> = Cell.Full(value = 3, label = "int-cell")
-    val textCell: Cell<String> = Cell.Full(value = "old", label = "text-cell")
+    val intCell = Cell(3, "int-cell")
+    val textCell = Cell("old", "text-cell")
     printIntCell(replaceCell(intCell, 4))
     printTextCell(replaceCell(textCell, "new"))
     printTextCell(defaultCell())

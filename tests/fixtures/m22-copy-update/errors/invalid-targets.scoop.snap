@@ -3,11 +3,11 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m22-copy-update/errors/invalid-targets.scoop:9:19: error: copy update requires an exact declared struct or enum value, found ReferenceValue
-m22-copy-update/errors/invalid-targets.scoop:14:19: error: copy update requires an exact declared struct or enum value, found (Int, Int)
-m22-copy-update/errors/invalid-targets.scoop:18:19: error: copy update requires an exact declared struct or enum value, found Int
-m22-copy-update/errors/invalid-targets.scoop:23:19: error: copy update requires an exact declared struct or enum value, found Array<Int>
-m22-copy-update/errors/invalid-targets.scoop:28:19: error: copy update requires an exact declared struct or enum value, found () -> Int
-m22-copy-update/errors/invalid-targets.scoop:33:19: error: enum `Option` has no named-payload variant containing all copy-update fields: `value`
-m22-copy-update/errors/invalid-targets.scoop:37:19: error: copy update requires an exact declared struct or enum value, found Ptr<Int>
-m22-copy-update/errors/invalid-targets.scoop:41:19: error: copy update requires an exact declared struct or enum value, found FunPtr<() -> Int>
+m22-copy-update/errors/invalid-targets.scoop:9:19: error: copy update requires an exact declared struct value, found ReferenceValue
+m22-copy-update/errors/invalid-targets.scoop:14:19: error: copy update requires an exact declared struct value, found (Int, Int)
+m22-copy-update/errors/invalid-targets.scoop:18:19: error: copy update requires an exact declared struct value, found Int
+m22-copy-update/errors/invalid-targets.scoop:23:19: error: copy update requires an exact declared struct value, found Array<Int>
+m22-copy-update/errors/invalid-targets.scoop:28:19: error: copy update requires an exact declared struct value, found () -> Int
+m22-copy-update/errors/invalid-targets.scoop:33:19: error: copy update requires an exact declared struct value, found Option<Int>
+m22-copy-update/errors/invalid-targets.scoop:37:19: error: copy update requires an exact declared struct value, found Ptr<Int>
+m22-copy-update/errors/invalid-targets.scoop:41:19: error: copy update requires an exact declared struct value, found FunPtr<() -> Int>

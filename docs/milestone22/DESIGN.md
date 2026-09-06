@@ -2,7 +2,7 @@
 
 版本：0.2（草案）
 
-对应`docs/ROADMAP.md`的M22。M22在M16的统一constraint/MSC、M18的operator与`iterator`/`componentN` typed role、M20的exact invariant application、M21的typed access domain以及M25的自有异常ABI之上，补齐四条长期欠账：`for`/`break`/`continue`，值类型副本更新，递归模式与裸enum变体，以及完整定宽整数/区间。
+对应`docs/ROADMAP.md`的M22。M22在M16的统一constraint/MSC、M18的operator与`iterator`/`componentN` typed role、M20的exact invariant application、M21的typed access domain以及M25的自有异常ABI之上，补齐四条长期欠账：`for`/`break`/`continue`，struct副本更新，递归模式与裸enum变体，以及完整定宽整数/区间。
 
 本里程碑首先是语义与IR正确性门。当前enum穷尽性只按variant名称计数，可能把`V(true)`误当作覆盖整个`V(Boolean)`并让MIR删除最后一个条件；当前`while`又把condition setup复制到循环尾，直接加入`continue`会跳过下一轮setup。M22必须先消除这两类不可靠结构，再扩展语法，不能只让parser接受新形式。
 
@@ -17,7 +17,7 @@
 - `for`只消费M18已有的普通`iterator` operator候选。其结果必须唯一满足某个exact `Iterator<T>` conformance；`next()`及`Option.Some/None`来自一次验证后保存的typed core contract，不按名称/FQN查找；
 - `val`/`var`、lambda参数与`for`变量使用递归、不可失败的binding pattern；`when`使用允许literal/variant的refutable match pattern。`for (Some(x) in xs)`不是过滤语法，而是编译错误；
 - 穷尽性统一使用递归constructor/pattern-matrix算法。enum variant的payload、Boolean、Unit、tuple和struct都递归参与覆盖；guard不贡献覆盖；缺失诊断给出一个稳定witness；
-- 副本更新只支持struct与enum命名字段variant。enum目标由所写字段名集合唯一确定，先检查active variant，再求值更新表达式；variant不匹配抛`IllegalStateException`；
+- 副本更新只支持具有声明字段的exact struct。任何enum目标（包括命名字段variant）都是稳定编译错误，必须用`when`匹配并显式重建；编译器不生成active-variant检查或`IllegalStateException`路径；
 - 表达式位裸variant只由普通可见候选或唯一expected exact enum application引入，不扫描全程序全部enum；`Option`不再拥有另一套硬编码表达式解析；
 - `IntRange`/`UIntRange`/`LongRange`/`ULongRange`及iterator由普通public core源码实现，四者都是不同的真实nominal type，不新增range runtime ABI。`CharRange`等到`Char`进入已实现子集后再加入；
 - 为保持既有64位source/core API的值域，原来使用`Int`的通用契约整体迁为`Long`，包括Array size/index、`Hash.hash()`结果、integer及String的`compareTo`结果、shift count、`SourceLocation`、`@CLayout`与callback index等；原来使用`UInt`并依赖64位值域的契约（包括pointer raw与size surface）相应迁为`ULong`。ROADMAP已把尚未进入实现子集的String length/index/slice排在M24；这些API首次实现时直接使用`Long`，M22不为尚不存在的surface制造占位intrinsic。Array公开上限继续是数学上的`INT64_MAX`，不因新`Int`缩窄，也不要求core新增整数边界companion常量。编译器/runtime内部的enum tag、statepoint id、allocation size、count与offset继续使用各自独立的typed machine metadata，不能为了迁移源码surface而改成`Long`/`ULong`；
@@ -309,28 +309,21 @@ iterator必须以显式“是否还有下一个元素”状态结束：产出当
 
 ```kotlin
 val moved = point.{ x: point.x + 1, y: nextY() }
-val changed = event.{ payload: newPayload() }
 ```
 
 共同规则：
 
-- `baseExpr`先求值且仅求值一次，结果保存于typed temporary；base必须是exact struct或enum value；class、interface、tuple、basic type与函数值非法；
+- `baseExpr`先求值且仅求值一次，结果保存于typed temporary；base必须是具有声明字段的exact struct value；enum、class、interface、tuple、basic type、intrinsic value family与函数值非法；
 - 每个更新项必须是直接字段名；列表至少一项且不能重复。更新表达式在确认目标后按源码从左到右各求值一次，并检查可赋给字段exact type；
 - 最终按字段声明顺序构造完整新值；未更新字段从base temporary读取，已更新字段使用对应temporary。原值与其storage从不原地修改；
 - 任何base/update表达式的异常或挂起遵守普通求值规则，已经发生的外部副作用不回滚；跨调用存活的base及含ref更新值进入正常root/relocation plan；
 - `opt?.{ ... }`继续非法；必须先用`when`显式拆包。
 
-对struct，字段直接由base exact struct identity确定。对enum，候选只包括拥有命名字段payload且字段集合包含全部所写名称的variant；选择只看字段名，不用更新表达式类型反向消歧：
+字段只由base exact struct identity与源码字段名确定，不用更新表达式类型反向选择目标。HIR在建立field candidate、lower RHS或commit plan之前确认base是exact declared struct；enum及其他非struct目标立即产生同一类稳定诊断。即使某个enum命名字段variant恰好包含全部所写字段，也不建立variant候选。
 
-- 恰好一个候选时得到唯一typed `EnumVariantId`，再检查各表达式类型；
-- 无候选报告未知/不共同属于同一variant的字段；
-- 多个候选即歧义，诊断列出variant并建议用`when`后显式重建；
-- 在求值任何更新表达式之前用typed `VariantTest(EnumVariantId)`检查base active variant。结果不是目标variant时，抛`IllegalStateException`，message稳定包含enum与期望variant；
-- variant匹配后通过typed `VariantPayloadProject`只读取active payload并重建同一variant，绝不能借副本更新改变variant种类。
+HIR内部的`CopyUpdatePlan`原子保存base temporary、exact struct application、经definition检查的typed field identity、声明顺序field mapping、源码顺序RHS与结果type。winner与类型检查完成后，它只展开为普通temporary、field projection与compiler-only raw `StructConstruct`；`LocalConcreteHir`不保留字段字符串或source `CopyUpdate`节点。该路径不产生`VariantTest`、`VariantPayloadProject`、`VariantConstruct`或compiler-generated throw。
 
-HIR内部的`CopyUpdatePlan`原子保存base temporary、struct/variant typed identity、声明顺序field mapping、源码顺序RHS与结果type。winner与类型检查完成后，它展开为普通temporary、表示无关的`VariantTest`/throw、`VariantPayloadProject`和`StructConstruct`/`VariantConstruct`；`LocalConcreteHir`不保留字段字符串或source `CopyUpdate`节点。LIR才依据concrete layout把variant操作机械降低为tag或niche检查，HIR/MIR不得假定enum一定有物理tag。
-
-这两个表示无关primitive的typed契约固定为：`VariantTest(operand, variant) -> Boolean`，以及`VariantPayloadProject(operand, variant_field) -> exact field type`。其中`variant`同时封闭保存exact enum identity与已经按该enum定义检查过范围的variant index，`variant_field`再封闭保存该typed variant与已经按同一variant payload检查过范围的field index；MIR与LIR分别拥有本stage的两种typed reference，相邻lowering只做穷尽id映射，调用点不能散落`enum id + u32`、裸field index、名称或FQN回退。两个primitive的operand必须是引用所指向的exact enum；projection的结果type只能由该field定义导出。
+供`for`、`when`等enum consumer使用的两个表示无关primitive，其typed契约固定为：`VariantTest(operand, variant) -> Boolean`，以及`VariantPayloadProject(operand, variant_field) -> exact field type`。其中`variant`同时封闭保存exact enum identity与已经按该enum定义检查过范围的variant index，`variant_field`再封闭保存该typed variant与已经按同一variant payload检查过范围的field index；MIR与LIR分别拥有本stage的两种typed reference，相邻lowering只做穷尽id映射，调用点不能散落`enum id + u32`、裸field index、名称或FQN回退。两个primitive的operand必须是引用所指向的exact enum；projection的结果type只能由该field定义导出。
 
 `VariantPayloadProject`只允许在对同一value与同一typed variant执行的`VariantTest`为true的控制流分支支配下消费。这个条件是IR合法性的一部分，而不是依赖producer“通常先检查”的约定；MIR module validation与LIR module validation都必须拒绝错误enum、越界variant/field、错误结果type或缺少对应true-edge支配证明的projection。MIR primitive不暴露tag、null或payload offset；LIR取得concrete representation后才把test与projection机械解释为tagged discriminant或niche/null操作，并保留managed/raw/code pointer provenance。
 
@@ -482,7 +475,7 @@ MIR的typed variant reference由stage-local enum id与该定义构造时已经�
 - `docs/milestone23/DESIGN.md`第3.3节的persistent-identity mangler接管前，M22 compact type code与schema兼容边界由impl spec 2.3的`compact-v2`表唯一定义；artifact/cache使用封闭`ManglingSchemaIdentity::CompactV2`，M23对应独立的`PersistentV1`，不能只比较版本数字。alias先展开，internal machine scalar不得取得source compact code；
 - HIR、MIR、LIR分别拥有自己的C-layout value、constant image与static-initial-state IR类型，并由相邻lowering穷尽转写typed id；不能跨crate type-alias或从bits/任意对齐整数重建语义。layout前没有通用`Zero`/裸`i64`常量旁路，layout后的LIR `EncodedStaticValue`只携带canonical allocation-extent bytes与typed relocation，`ZeroedForRuntimeUnit`不由encoded zero bits反推；
 - C bridge type tree把void严格限制在function result，并为data pointer同时保存`OpaqueVoid | Object(CType)` pointee与direct/nullable storage shape：只有`Ptr<Unit>`使用`OpaqueVoid`，其他pointee必须是non-ZST portable C object type。C-layout struct与nullable data/code-pointer enum使用fully concrete refined LIR ref，struct field tree不递归内联；by-value struct dependency必须无环，pointer edge只需forward declaration。C extern/callback/global及C-layout field不再平行保存可矛盾的`LirType`；
-- MIR的`VariantTest`/`VariantPayloadProject`在LIR取得concrete enum layout后，分别机械降低为tagged discriminant或niche/null test与对应payload projection；`for Option`、copy update和`when`共享该路径；
+- MIR的`VariantTest`/`VariantPayloadProject`在LIR取得concrete enum layout后，分别机械降低为tagged discriminant或niche/null test与对应payload projection；`for Option`与`when`共享该路径；
 - LIR为上述primitive重新建立本stage专有的checked variant reference与variant-field reference，前者封闭保存`EnumDefId`与合法variant index，后者封闭保存前者与合法field index；MIR→LIR只映射这些typed identity，不重新解析名称。`VariantTest`直接产生`I1`；`VariantPayloadProject`只携带variant-field reference，结果必须是layout中该field的exact `LirType`，并且只可在匹配test的true-edge支配下消费。tagged表示机械比较discriminant并按variant slot/field offset投影；niche表示按目标variant选择null或non-null测试，payload variant的投影复用carrier值。managed、raw data与code pointer carrier始终保留各自provenance。checked constructor与LIR/module/codegen verifier必须拒绝错误enum、越界variant/field、错误结果type、错误pointee provenance或缺失支配关系；codegen不新增runtime ABI，也不补任何source语义分支；
 - MIR CFG的每条循环回边，包括continue edge，必须经过LIR的typed managed poll；可共享header poll，但不能存在绕过poll的回边。root liveness覆盖iterator、range、payload、copy-update temporary及finally pending transfer；
 - alias在HIR后没有运行期表示；range和array iterator是普通core nominal type/call，不加入LIR专用range instruction。
@@ -494,7 +487,6 @@ M22修改`scoop.core`源码与core contract，但不新增必须由C runtime实�
 - 补齐八种integer representation及其普通public能力、transparent alias、public Iterator/Iterable、四种真实`IntRange`/`UIntRange`/`LongRange`/`ULongRange`、internal iterator实现、Array/MutableArray conformance；
 - 把Ptr/FunPtr core contract迁为无公开representation field的intrinsic family，保留唯一typed unsafe `PtrFromNonZeroULong`入口并删除`FunPtr()`；`toULong`、`Long` offset与返回`ULong`的`sizeOf`/`alignOf`共同锁定临时64位底层surface，旧fixture中的裸零pointer改用`Option.None`；
 - 新增普通managed `IllegalArgumentException`作为`Exception`子类，供非法range step使用。它不是compiler主动构造的异常，因此不进入`CompilerExceptionCore`；
-- enum副本更新variant mismatch由compiler使用既有typed `IllegalStateException(message)` constructor；variant不是类型，失败也不是cast，因此不复用`ClassCastException`。除零继续使用`ArithmeticException`；
 - `Int8`/`Int16`/`Int`与`UInt8`/`UInt16`/`UInt`的ToString可在core先扩为`Long`/`ULong`后调用既有后备，equals/算术/layout由typed intrinsic实现；所有`Hash.hash()`返回`Long`，不增加按短名称选择的runtime switch；
 - `Long`/`ULong`的`toString`继续由普通core member body调用迁名后的既有typed Scoop-ABI runtime后备，不把会分配/GC并返回`String`的格式化塞入`IntegerOperation`；integer equals统一降低为typed compare，不再以`scoop_rt_int_equals`/`scoop_rt_uint_equals`等旧owner命名helper作为生成代码契约，M22迁移完调用点后删除这些公开helper；
 - wrapping overflow不抛异常、不分配，也不需要runtime helper。range终止和signed division edge在生成代码/core逻辑中显式处理；
@@ -511,7 +503,7 @@ M22修改`scoop.core`源码与core contract，但不新增必须由C runtime实�
 - loop外或跨lambda/local function的break/continue、label与do-while当前未支持；
 - `iterator` role缺失/歧义、返回type零个或多个不同`Iterator<T>` conformance、core协议损坏；
 - for/lambda/val中的literal/variant等refutable pattern；componentN缺失/歧义与字段/rest/重复binding错误；
-- copy update空列表、非法base、未知/重复字段、enum零/多个variant候选、字段type mismatch；运行期variant mismatch不是编译错误；
+- copy update空列表、non-struct base（包括任何enum）、未知/重复struct字段与字段type mismatch；enum在字段候选或RHS lowering之前按统一非法base诊断拒绝，不存在variant候选或运行期mismatch路径；
 - 裸variant无expected enum、错误expected type、import/context候选歧义及constructor argument失败；
 - 不穷尽`when`显示稳定missing witness；guard不计覆盖时明确提示；疑似拼错的enum variant catch-all binding产生非致命warning；
 - `Ptr`的非GC-free concrete pointee/未能传播并证明的generic predicate/`ULong`常量零构造、`FunPtr`任意constructor、访问不存在的Ptr/FunPtr raw field、对二者做解构/copy update、非函数FunPtr type argument及非法地址来源分别给出稳定诊断；不得回退成普通零字段struct构造；
@@ -548,8 +540,9 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 ### 8.3 copy update与pattern
 
 - struct/generic struct/nested update的base一次、RHS源码顺序、声明顺序重建与原值不变；
-- enum唯一字段集、共享字段歧义、variant mismatch先于RHS、正确variant重建；tagged与niche表示都覆盖，含ref字段跨异常/挂起/GC；
 - 字段shorthand、literal/`_`/nested tuple/struct/enum subpattern、rest补全、重复/未知字段与binding；
+- unit、位置payload与命名字段payload enum均锁定同一个non-struct base诊断；即使命名字段集合唯一匹配也不能建立copy-update plan、lower RHS或生成variant test/projection/construction/throw；
+- 含ref字段的struct覆盖普通、异常、挂起与moving-GC路径，锁定base及更新temporary的root/relocation；
 - enum payload递归覆盖、Boolean product组合、nested enum/tuple/struct、guard不计覆盖；enum/tuple/struct中的一个`Int8`列由全256个literal覆盖时可穷尽、少一个给真实witness，unsigned witness带`u`后缀，String开放域要求wildcard；
 - 专门回归单variant `V(Boolean)`只有`V(true)`必须报缺失`V(false)`，且MIR不得把该arm无条件化；
 - annotated return/argument/generic expected下的裸unit/payload variant、普通/import/context层优先级、无expected失败和Option无特判；
@@ -578,7 +571,7 @@ AST、Export HIR、LocalConcrete HIR、MIR、LIR golden分别锁定source facts�
 
 每个编号都是可独立提交且workspace保持可构建的切片。每批变更先执行`cargo fmt --all`与`cargo clippy --workspace`，再运行对应crate测试、stage golden和fixture；不能留下把旧`Type::Int/UInt`继续解释为64位的旁路、与新IntegerKind并行的未类型化integer通道、Option专用裸variant、return专用cleanup、按variant名计数的穷尽旁路或source plan泄漏到MIR。
 
-M22只有在以下条件同时满足时完成：八种integer及alias在类型/layout/ABI/const/runtime中一致且total core map无缺项，`Int`/`UInt`不再残留64位解释；literal只在winner commit定型并遵守32→64默认阶梯且没有隐式数值conversion；既有array/String/Hash/compare/shift/SourceLocation/FFI annotation/pointer/size等64位source契约完整迁名为`Long`/`ULong`，Array上限仍为`INT64_MAX`，内部machine metadata没有伪装成源码integer；四种range具有独立nominal identity；全部wrapping/div/shift边界无LLVM poison；裸Ptr/FunPtr不存在全零构造或公开representation旁路且Option niche可区分；while/for每个continue走正确header和poll；break/continue跨catch/finally/suspend恰好执行所需cleanup；for只使用typed exact Iterator协议且source只求值一次；copy update顺序/variant检查闭合；递归pattern matrix能给出sound proof/witness且MIR只信任该proof；所有source计划在LocalConcrete/MIR边界按本设计消失。
+M22只有在以下条件同时满足时完成：八种integer及alias在类型/layout/ABI/const/runtime中一致且total core map无缺项，`Int`/`UInt`不再残留64位解释；literal只在winner commit定型并遵守32→64默认阶梯且没有隐式数值conversion；既有array/String/Hash/compare/shift/SourceLocation/FFI annotation/pointer/size等64位source契约完整迁名为`Long`/`ULong`，Array上限仍为`INT64_MAX`，内部machine metadata没有伪装成源码integer；四种range具有独立nominal identity；全部wrapping/div/shift边界无LLVM poison；裸Ptr/FunPtr不存在全零构造或公开representation旁路且Option niche可区分；while/for每个continue走正确header和poll；break/continue跨catch/finally/suspend恰好执行所需cleanup；for只使用typed exact Iterator协议且source只求值一次；struct copy update的base一次、RHS源码序与声明序重建闭合，所有enum目标稳定报错且不生成state-check/throw路径；递归pattern matrix能给出sound proof/witness且MIR只信任该proof；所有source计划在LocalConcrete/MIR边界按本设计消失。
 
 ## 10. 明确不做
 
@@ -591,5 +584,5 @@ M22只有在以下条件同时满足时完成：八种integer及alias在类型/l
 7. refutable/过滤式for pattern；需要过滤时在body中显式`when`/`continue`；
 8. 全局扫描enum来猜裸variant、expected为Any/interface时的反向动态选择或按variant短名称恢复typed identity；
 9. array `==`、完整smart cast、sealed exhaustiveness、or-pattern/range-pattern与一般lint框架；M22只补spec已要求的enum catch-all warning通道；
-10. 为copy update生成in-place mutation、改变enum variant、class `copy`约定或Option safe-update语法；
+10. 实现任何enum或class copy update、为struct copy update生成in-place mutation、引入class `copy`约定或Option safe-update语法；
 11. M23的真实`.slib`/import/re-export与M24的String byte API/字符串插值。M24依赖的是`UInt8`/`UByte`，不是signed `Byte`。

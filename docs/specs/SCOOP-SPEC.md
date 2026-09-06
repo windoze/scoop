@@ -242,7 +242,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 
 #### 4.4.1 不可变性
 
-值类型实例构造后不可修改。对具有字段名的struct或enum命名字段variant，可通过副本更新表达式创建新值（见4.5）；其他值类型必须显式重建。也可以把任意新值重新绑定到`var`变量（这是重绑定，不是原地修改）。
+值类型实例构造后不可修改。对具有字段名的struct，可通过副本更新表达式创建新值（见4.5）；enum与其他值类型必须显式重建。也可以把任意新值重新绑定到`var`变量（这是重绑定，不是原地修改）。
 
 #### 4.4.2 无 identity
 
@@ -282,7 +282,7 @@ struct Point(val x: Int, val y: Int) : Describable {
 
 ### 4.5 副本更新表达式
 
-副本更新表达式基于一个既有值创建"修改了部分字段"的新值：
+副本更新表达式基于一个既有struct值创建“修改了部分字段”的新值：
 
 ```
 struct S(val f1: Int, val f2: Int)
@@ -296,10 +296,10 @@ s3 = s3.{ f1: 84 }        // var 重绑定，不是原地修改
 规则：
 
 - 形式为非空`baseExpr.{ field: expr, ... }`。`.`之后的`{`进入专用字段列表，因此不需要新关键字；块内不能出现语句、rest或嵌套field path。
-- `baseExpr`先求值且只求值一次，静态类型必须是exact struct或enum value；class、interface、tuple、basic type与函数值均不支持。结果为完整新值，原值及其storage不发生原地修改。
+- `baseExpr`先求值且只求值一次，静态类型必须是exact declared struct value；enum（包括具有命名字段payload的variant）、class、interface、tuple、basic type、intrinsic value family与函数值均不支持。结果为完整新值，原值及其storage不发生原地修改。
 - 更新字段不能重复。目标确定后，各RHS按源码从左到右各求值一次并必须可赋给对应exact field type；未提及字段从保存的base值复制，最终按字段声明顺序构造结果。任一RHS抛出或挂起时后续RHS不求值，已发生的外部副作用不回滚。
-- struct字段由base exact type直接确定。enum候选只包括“命名字段payload中包含全部所写字段”的variant，选择只看字段名、不用RHS type反向消歧：零个候选、多个候选、未知/跨variant字段都是编译错误；诊断应列出歧义variant并建议用`when`显式重建。
-- enum得到唯一目标variant后，必须在求值任何RHS之前检查base active variant；不匹配时抛`IllegalStateException`，message包含enum和期望variant，且RHS均不执行。匹配后只读取active payload并重建同一variant，副本更新不能改变variant种类。该语义检查不承诺物理tag；7.4的tagged与niche表示必须得到相同结果。
+- 字段只由base的exact struct identity与源码字段名确定；未知或重复字段、以及RHS无法赋给对应exact field type，均为编译错误。RHS type不参与目标选择。
+- enum不是副本更新目标；即使其某个命名字段variant恰好包含全部所写字段，也必须用`when`匹配并显式重建。编译器不为副本更新生成active-variant检查、payload投影或variant不匹配异常路径。
 - 不支持穿透`Option`的写法（`opt?.{ f: 1 }`）：先用`when`拆包，再做副本更新。
 
 ### 4.6 解构声明（destructuring）

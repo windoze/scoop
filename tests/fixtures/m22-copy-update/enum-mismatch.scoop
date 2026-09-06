@@ -1,25 +1,30 @@
-// EXPECT-COMPILE
+// EXPECT-DIAGNOSTICS
 
-enum Event {
-    Data { code: Int, text: String },
-    Other { code: Int }
+enum UnitChoice {
+    Only
 }
 
-fun makeEvent(): Event {
-    println("mismatch-base")
-    return Event.Other(code = 7)
+enum PositionalChoice {
+    Item(Int)
 }
 
-fun shouldNotRun(): String {
-    println("rhs-ran")
-    return "new"
+enum NamedChoice {
+    Data { value: Int }
 }
 
-fun main() {
-    try {
-        val changed = makeEvent().{ text: shouldNotRun() }
-        println("unexpected-success")
-    } catch (error: IllegalStateException) {
-        println(error.message!!)
-    }
+fun rejectUnit() {
+    val base: UnitChoice = UnitChoice.Only
+    val invalid = base.{ value: missingRhs() }
 }
+
+fun rejectPositional() {
+    val base: PositionalChoice = PositionalChoice.Item(1)
+    val invalid = base.{ value: missingRhs() }
+}
+
+fun rejectNamedEvenWithAUniqueFieldMatch() {
+    val base: NamedChoice = NamedChoice.Data(value = 1)
+    val invalid = base.{ value: missingRhs() }
+}
+
+fun main() {}

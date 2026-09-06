@@ -4,10 +4,7 @@ public class Node(val text: String)
 
 struct ManagedPair(val left: Node, val right: Node)
 
-enum ManagedEvent {
-    Data { kept: Node, changed: Node },
-    Empty
-}
+struct ManagedEvent(val kept: Node, val changed: Node)
 
 class Gate(var waiter: Continuation<Node>?) {
     fun complete(value: Node) {
@@ -38,19 +35,14 @@ class CopyTask(val firstGate: Gate, val secondGate: Gate) : SuspendTask<Int> {
         println(changedPair.left.text)
         println(changedPair.right.text)
 
-        val originalEvent: ManagedEvent = ManagedEvent.Data(
-            kept = Node("event-kept-" + "alive"),
-            changed = Node("event-old-" + "alive")
+        val originalEvent = ManagedEvent(
+            Node("event-kept-" + "alive"),
+            Node("event-old-" + "alive")
         )
         val changedEvent = originalEvent.{ changed: awaitNode(secondGate) }
         gcCollect()
-        when (changedEvent) {
-            Data { kept, changed } -> {
-                println(kept.text)
-                println(changed.text)
-            }
-            Empty -> println("empty")
-        }
+        println(changedEvent.kept.text)
+        println(changedEvent.changed.text)
         return 42
     }
 }
