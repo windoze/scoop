@@ -582,13 +582,16 @@ impl Lowerer {
         name: &str,
         receiver: Option<hir::TypeId>,
     ) -> Option<hir::PropertyId> {
-        self.properties_by_name
-            .get(name)?
-            .iter()
-            .copied()
-            .find(|&property| {
+        let properties = self.properties_by_name.get(name)?;
+        for layer in crate::imports::LOOKUP_LAYERS {
+            if let Some(property) = properties.iter().copied().find(|&property| {
                 self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
-            })
+                    && self.property_lookup_layer(property) == Some(layer)
+            }) {
+                return Some(property);
+            }
+        }
+        None
     }
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {

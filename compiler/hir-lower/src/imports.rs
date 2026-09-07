@@ -468,3 +468,99 @@ enum Walked {
     Existed,
     NoMatch,
 }
+
+/// The DESIGN 2.3 layer order for unqualified top-level lookops between
+/// the this-member layer and the core-prelude variant layer:
+/// exact imports shadow the current package, which shadows star imports,
+/// which shadow the implicitly imported core surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LookupLayer {
+    ExactImport,
+    CurrentPackage,
+    StarImport,
+    CorePrelude,
+}
+
+pub(crate) const LOOKUP_LAYERS: [LookupLayer; 4] = [
+    LookupLayer::ExactImport,
+    LookupLayer::CurrentPackage,
+    LookupLayer::StarImport,
+    LookupLayer::CorePrelude,
+];
+
+impl Lowerer {
+    /// Classifies one declaration (by its declaring file and whether the
+    /// current file's exact imports bind this specific entity) into the
+    /// first layer that admits it; `None` means invisible at unqualified
+    /// level.
+    pub(crate) fn lookup_layer(
+        &self,
+        declaring_file: usize,
+        entity_imported: bool,
+    ) -> Option<LookupLayer> {
+        if entity_imported {
+            return Some(LookupLayer::ExactImport);
+        }
+        if self.file_packages[declaring_file] == self.file_packages[self.current_file] {
+            return Some(LookupLayer::CurrentPackage);
+        }
+        let declaring_package = self.file_packages[declaring_file];
+        if self.file_star_imports_package(self.current_file, declaring_package) {
+            return Some(LookupLayer::StarImport);
+        }
+        if self.intrinsic_sources[declaring_file].core {
+            return Some(LookupLayer::CorePrelude);
+        }
+        None
+    }
+
+    /// Whether one of the file's star imports names exactly this package.
+    fn file_star_imports_package(&self, file: usize, package: hir::PackageId) -> bool {
+        self.file_imports[file]
+            .star
+            .iter()
+            .any(|star| self.package_by_segments(&star.path) == Some(package))
+    }
+
+    /// Whether the current file's resolved exact-import bindings contain
+    /// this function.
+    fn function_exact_imported(&self, function: hir::FunctionId) -> bool {
+        self.file_imports[self.current_file]
+            .exact
+            .iter()
+            .filter_map(|import| import.binding.as_ref())
+            .any(|binding| {
+                binding.targets.iter().any(|target| {
+                    matches!(
+                        target.target,
+                        hir::ImportedTarget::Function { function: imported } if imported == function
+                    )
+                })
+            })
+    }
+
+    /// The lookup layer of one top-level function from the current file.
+    pub(crate) fn function_lookup_layer(&self, function: hir::FunctionId) -> Option<LookupLayer> {
+        self.lookup_layer(
+            self.function_files[&function],
+            self.function_exact_imported(function),
+        )
+    }
+
+    /// The lookup layer of one top-level property from the current file.
+    pub(crate) fn property_lookup_layer(&self, property: hir::PropertyId) -> Option<LookupLayer> {
+        let entity_imported = self.file_imports[self.current_file]
+            .exact
+            .iter()
+            .filter_map(|import| import.binding.as_ref())
+            .any(|binding| {
+                binding.targets.iter().any(|target| {
+                    matches!(
+                        target.target,
+                        hir::ImportedTarget::Property { property: imported } if imported == property
+                    )
+                })
+            });
+        self.lookup_layer(self.property_files[&property], entity_imported)
+    }
+}

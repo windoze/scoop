@@ -208,6 +208,11 @@ impl Lowerer {
                 .any(|&(other, _, other_file)| {
                     self.functions[other].name == decl.name.text
                         && self.same_parameter_signature(id, other)
+                        // Duplicate declarations are per-package: entity
+                        // identity includes the declaring file's package,
+                        // so same-signature functions in distinct packages
+                        // are distinct entities resolved by lookup layers.
+                        && self.file_packages[other_file] == self.file_packages[file_index]
                         && (self.functions[id].access.declared != hir::DeclaredVisibility::Private
                             || self.functions[other].access.declared
                                 != hir::DeclaredVisibility::Private

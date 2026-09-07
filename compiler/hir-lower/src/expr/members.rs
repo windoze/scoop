@@ -468,8 +468,8 @@ impl Lowerer {
             }
         }
 
-        for same_side in [true, false] {
-            let mut extensions = self.extension_candidates_on_side(&name.text, same_side);
+        for layer in crate::imports::LOOKUP_LAYERS {
+            let mut extensions = self.extension_candidates_in_layer(&name.text, layer);
             extensions.retain(|function| {
                 Self::matches_required_modifiers(
                     self.signatures[function].modifiers,
@@ -496,10 +496,10 @@ impl Lowerer {
             }
             let mut extension_property_state = self.clone();
             let mut extension_property_sink = Vec::new();
-            match extension_property_state.resolve_extension_property_on_side(
+            match extension_property_state.resolve_extension_property_in_layer(
                 receiver.clone(),
                 name,
-                same_side,
+                layer,
                 &mut extension_property_sink,
                 true,
             ) {
@@ -527,7 +527,7 @@ impl Lowerer {
                         call,
                         expected,
                         direct_required.infix,
-                        same_side,
+                        layer,
                     ) {
                         match layer {
                             Ok(mut layer) => {
@@ -555,7 +555,7 @@ impl Lowerer {
                     call,
                     expected,
                     direct_required.infix,
-                    same_side,
+                    layer,
                 )
             {
                 match layer {
@@ -604,22 +604,18 @@ impl Lowerer {
             && (!required.infix || modifiers.is_infix)
     }
 
-    pub(in crate::expr) fn extension_candidates_on_side(
+    pub(in crate::expr) fn extension_candidates_in_layer(
         &self,
         name: &str,
-        same_side: bool,
+        layer: crate::imports::LookupLayer,
     ) -> Vec<hir::FunctionId> {
-        let call_site_is_core = self.current_file < self.user_file_index;
         self.extensions_by_name
             .get(name)
             .into_iter()
             .flatten()
             .copied()
             .filter(|function| self.function_is_accessible(*function, None))
-            .filter(|function| {
-                let candidate_is_core = self.function_files[function] < self.user_file_index;
-                (candidate_is_core == call_site_is_core) == same_side
-            })
+            .filter(|function| self.function_lookup_layer(*function) == Some(layer))
             .collect()
     }
 
@@ -689,9 +685,9 @@ impl Lowerer {
         call: CallSite<'_>,
         expected: Option<TypeId>,
         require_infix: bool,
-        same_side: bool,
+        layer: crate::imports::LookupLayer,
     ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
-        let mut candidates = self.extension_candidates_on_side("invoke", same_side);
+        let mut candidates = self.extension_candidates_in_layer("invoke", layer);
         candidates.retain(|function| {
             Self::matches_required_modifiers(
                 self.signatures[function].modifiers,

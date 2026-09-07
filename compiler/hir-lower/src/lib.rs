@@ -121,6 +121,8 @@ mod stmt;
 mod tests;
 #[cfg(test)]
 mod tests_m23_imports;
+#[cfg(test)]
+mod tests_m23_layers;
 mod types;
 mod visibility;
 

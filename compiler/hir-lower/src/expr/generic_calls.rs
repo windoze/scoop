@@ -123,8 +123,8 @@ impl Lowerer {
         // If no real member wins, another visible extension may use it as
         // the implicit receiver before ordinary top-level functions.
         if self.current_this_ty().is_some() {
-            for same_side in [true, false] {
-                let extensions = self.extension_candidates_on_side(&name, same_side);
+            for layer in crate::imports::LOOKUP_LAYERS {
+                let extensions = self.extension_candidates_in_layer(&name, layer);
                 if !extensions.is_empty() {
                     match self.probe_expr_layer(|state, layer_sink| {
                         let receiver = state
@@ -155,10 +155,10 @@ impl Lowerer {
                 let receiver = extension_property_state
                     .lower_current_this(call.callee.span)
                     .expect("a lexical receiver has a `this` value");
-                match extension_property_state.resolve_extension_property_on_side(
+                match extension_property_state.resolve_extension_property_in_layer(
                     receiver,
                     &call.callee,
-                    same_side,
+                    layer,
                     &mut extension_property_sink,
                     true,
                 ) {
@@ -195,7 +195,7 @@ impl Lowerer {
                                 },
                                 expected,
                                 false,
-                                same_side,
+                                layer,
                             )
                         {
                             match layer {
@@ -228,7 +228,7 @@ impl Lowerer {
                         },
                         expected,
                         false,
-                        same_side,
+                        crate::imports::LOOKUP_LAYERS[crate::imports::LOOKUP_LAYERS.len() - 1],
                     )
                 {
                     match layer {
@@ -241,26 +241,22 @@ impl Lowerer {
             }
         }
 
-        // Final two layers, relative to the call site's file: the
-        // declarations on the call site's own side of the core/user
-        // boundary come first, the other side is the implicitly
-        // imported layer.
+        // Final top-level layers (DESIGN 2.3): exact imports shadow the
+        // current package, which shadows star imports, which shadow the
+        // implicitly imported core surface. Each layer is probed
+        // transactionally; the first with an applicable candidate wins.
         let top_level = self
             .functions_by_name
             .get(&name)
             .cloned()
             .unwrap_or_default();
-        let call_site_is_core = self.current_file < self.user_file_index;
         let mut found_top_level_candidate = false;
-        for same_side in [true, false] {
+        for layer in crate::imports::LOOKUP_LAYERS {
             let candidates = top_level
                 .iter()
                 .copied()
                 .filter(|function| self.function_is_accessible(*function, None))
-                .filter(|function| {
-                    ((self.function_files[function] < self.user_file_index) == call_site_is_core)
-                        == same_side
-                })
+                .filter(|function| self.function_lookup_layer(*function) == Some(layer))
                 .collect::<Vec<_>>();
             if !candidates.is_empty() {
                 found_top_level_candidate = true;
@@ -288,9 +284,7 @@ impl Lowerer {
                 .copied()
                 .find(|property| {
                     self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
-                        && (((self.property_files[property] < self.user_file_index)
-                            == call_site_is_core)
-                            == same_side)
+                        && self.property_lookup_layer(*property) == Some(layer)
                 });
             let Some(property) = property else {
                 continue;

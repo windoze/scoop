@@ -346,21 +346,15 @@ impl Lowerer {
         let Some(ids) = ids else {
             return Vec::new();
         };
-        let call_site_is_core = self.current_file < self.user_file_index;
-        let same_side: Vec<_> = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
-            .collect();
-        let imported = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-            .collect::<Vec<_>>();
-        [same_side, imported]
+        crate::imports::LOOKUP_LAYERS
             .into_iter()
+            .map(|layer| {
+                ids.iter()
+                    .copied()
+                    .filter(|id| self.function_is_accessible(*id, None))
+                    .filter(|id| self.function_lookup_layer(*id) == Some(layer))
+                    .collect::<Vec<_>>()
+            })
             .filter(|layer| !layer.is_empty())
             .collect()
     }
@@ -381,25 +375,19 @@ impl Lowerer {
                 .flatten()
                 .copied(),
         );
-        let call_site_is_core = self.current_file < self.user_file_index;
-        let same_side: Vec<_> = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
-            .collect();
-        let imported = ids
+        crate::imports::LOOKUP_LAYERS
             .into_iter()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-            .collect::<Vec<_>>();
-        [same_side, imported]
-            .into_iter()
-            .filter(|layer| !layer.is_empty())
-            .map(|mut layer| {
-                layer.sort_by_key(|id| id.into_raw().into_u32());
-                layer
+            .map(|layer| {
+                let mut candidates: Vec<hir::FunctionId> = ids
+                    .iter()
+                    .copied()
+                    .filter(|id| self.function_is_accessible(*id, None))
+                    .filter(|id| self.function_lookup_layer(*id) == Some(layer))
+                    .collect();
+                candidates.sort_by_key(|id| id.into_raw().into_u32());
+                candidates
             })
+            .filter(|layer| !layer.is_empty())
             .collect()
     }
 }

@@ -110,13 +110,13 @@ impl Lowerer {
             .get(&name.text)
             .is_some_and(|properties| !properties.is_empty());
         let mut first_failure = None;
-        for same_side in [true, false] {
+        for layer in crate::imports::LOOKUP_LAYERS {
             let mut state = self.clone();
             let mut layer_sink = Vec::new();
-            match state.resolve_extension_property_on_side(
+            match state.resolve_extension_property_in_layer(
                 receiver.clone(),
                 name,
-                same_side,
+                layer,
                 &mut layer_sink,
                 require_read,
             ) {
@@ -145,15 +145,14 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn resolve_extension_property_on_side(
+    pub(crate) fn resolve_extension_property_in_layer(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
-        same_side: bool,
+        layer: crate::imports::LookupLayer,
         sink: &mut Vec<hir::Statement>,
         require_read: bool,
     ) -> ExtensionPropertyResolution {
-        let call_site_is_core = self.current_file < self.user_file_index;
         let properties = self
             .extension_properties_by_name
             .get(&name.text)
@@ -166,10 +165,7 @@ impl Lowerer {
                     Some(receiver.ty),
                 )
             })
-            .filter(|property| {
-                ((self.property_files[property] < self.user_file_index) == call_site_is_core)
-                    == same_side
-            })
+            .filter(|property| self.property_lookup_layer(*property) == Some(layer))
             .collect::<Vec<_>>();
         if properties.is_empty() {
             return ExtensionPropertyResolution::NoCandidate;
