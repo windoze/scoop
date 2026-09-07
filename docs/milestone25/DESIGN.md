@@ -504,7 +504,7 @@ Darwin executable使用 `nm -u` / `dyld_info -imports` / `otool -L` 等价检查
 
 ### 7.6 全量回归
 
-完成迁移后按项目准则先执行 formatting / lint，再执行 runtime tests、codegen/driver tests、exception fixtures、moving-GC stress和完整 `cargo test`。M1–M24既有异常与协程fixture必须无语义变化通过。
+完成迁移后按项目准则先执行 formatting / lint，再执行 runtime tests、codegen/driver tests、exception fixtures、moving-GC stress和完整 `cargo test`。M1–M23既有异常与协程fixture必须无语义变化通过。
 
 ---
 
@@ -564,7 +564,7 @@ M25 完成必须同时满足：
 6. LSDA decoder和artifact verifier只接受LLVM 22.1 Darwin/AArch64封闭子集；
 7. 最终程序不链接libc++abi，不导入任何禁止symbol，`_Unwind_*`由libSystem提供；
 8. HIR/MIR/LIR的语言级异常语义未发生未写入spec的变化；
-9. M1–M24回归、lint和完整测试通过。
+9. M1–M23回归、lint和完整测试通过。
 
 ---
 

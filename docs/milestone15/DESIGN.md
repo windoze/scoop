@@ -59,7 +59,7 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 - parallel/concurrent marking 或 evacuation；collector 仍单线程；
 - concurrent compaction/read barrier/Brooks pointer；
 - weak reference、ephemeron；
-- GC-free release hook；它是后续用于兜底释放native resource的受限机制，不属于M15；
+- GC-free release hook；它后来由M24设计为用于兜底释放native resource的受限机制，不属于M15；
 - 全功能GC finalizer永久不支持，不是后续backlog。尤其不允许以`finalize`/析构方法、release hook或runtime内部开关执行任意managed代码、访问对象图或复活对象；
 - pinned interior pointer 的新语言能力；`PinnedPtr.raw` 继续只由既有 pin 契约产生；
 - 新异常 ABI、suspend FFI 或异常跨 C frame；
@@ -473,7 +473,7 @@ object allocation commit顺序为：完整清零 → 写对象头 → 写 exact 
 
 任何阶段失败均 fatal，不允许恢复到旧堆继续执行。
 
-M15在判定对象不可达或回收from-space时不调用用户代码。evacuation、旧副本poison与block quarantine只是同一逻辑对象的存储迁移/回收步骤，绝不构成析构事件。未来GC-free release hook若加入，armed状态必须随forwarding转移，不能因一次移动对同一资源重复执行清理。
+M15在判定对象不可达或回收from-space时不调用managed用户代码。evacuation、旧副本poison与block quarantine只是同一逻辑对象的存储迁移/回收步骤，绝不构成析构事件。M24后来加入的GC-free release hook只在逻辑死亡对象真正reclaim前同步运行；`RELEASE_READY`状态随forwarding转移，from-space旧副本不能因一次移动对同一资源重复执行清理。
 
 ### 9.2 evacuation allocator
 
