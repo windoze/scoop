@@ -49,10 +49,14 @@ pub struct ManifestCore {
     pub artifact_fingerprint: ArtifactFingerprint,
 }
 
-/// One direct dependency record: identity plus the three semantic
-/// fingerprints the compile key consumes.
+/// One direct dependency record: coordinate, identity plus the three
+/// semantic fingerprints the compile key consumes. The coordinate is
+/// stored alongside the identity digest so build resolution can locate
+/// transitive dependencies by canonical path; the reader verifies that
+/// it hashes to the recorded identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DependencyRecord {
+    pub coordinate: ConeCoordinate,
     pub cone_identity: ConeIdentity,
     pub hir_semantic_fingerprint: Digest256,
     pub mir_semantic_fingerprint: Digest256,
@@ -103,7 +107,7 @@ impl ManifestCore {
         });
         writer.field(15).array(self.dependencies.len() as u64);
         for dependency in &self.dependencies {
-            writer.map(4);
+            writer.map(7);
             writer.field(1).bytes(dependency.cone_identity.as_bytes());
             writer
                 .field(2)
@@ -114,6 +118,9 @@ impl ManifestCore {
             writer
                 .field(4)
                 .bytes(dependency.lir_semantic_fingerprint.as_bytes());
+            writer.field(5).text(dependency.coordinate.group());
+            writer.field(6).text(dependency.coordinate.name());
+            writer.field(7).text(dependency.coordinate.version().as_str());
         }
         write_capability_field(&mut writer, 16, self.target_profile.as_capability());
         writer
@@ -205,7 +212,7 @@ impl ManifestCore {
         for _ in 0..items.count() {
             let mut entry = items.map()?;
             let entry_entries = entry.remaining_entries();
-            if entry_entries != 4 {
+            if entry_entries != 7 {
                 return Err(ManifestError::BadShape);
             }
             expect_key(&mut entry, 1)?;
@@ -216,10 +223,22 @@ impl ManifestCore {
             let mir = Digest256::from_bytes(read_digest(&mut entry)?);
             expect_key(&mut entry, 4)?;
             let lir = Digest256::from_bytes(read_digest(&mut entry)?);
+            expect_key(&mut entry, 5)?;
+            let group = entry.text()?.to_owned();
+            expect_key(&mut entry, 6)?;
+            let name = entry.text()?.to_owned();
+            expect_key(&mut entry, 7)?;
+            let version = entry.text()?.to_owned();
             if entry.next_key()?.is_some() {
                 return Err(ManifestError::BadShape);
             }
+            let coordinate =
+                ConeCoordinate::new(&group, &name, &version).map_err(ManifestError::Coordinate)?;
+            if cone_identity != ConeIdentity::of(&coordinate) {
+                return Err(ManifestError::DependencyIdentityMismatch);
+            }
             dependencies.push(DependencyRecord {
+                coordinate,
                 cone_identity,
                 hir_semantic_fingerprint: hir,
                 mir_semantic_fingerprint: mir,
@@ -362,6 +381,7 @@ pub enum ManifestError {
     MemberIdOrder,
     MemberIdMismatch,
     MetadataRoleCount,
+    DependencyIdentityMismatch,
     Coordinate(scoop_identity::CoordinateError),
     Capability(scoop_identity::CapabilityError),
     Member(crate::member::MemberError),
@@ -389,6 +409,10 @@ impl fmt::Display for ManifestError {
             ManifestError::MetadataRoleCount => write!(
                 f,
                 "member directory must contain exactly one HIR, MIR and LIR metadata member"
+            ),
+            ManifestError::DependencyIdentityMismatch => write!(
+                f,
+                "dependency record coordinate does not hash to its recorded identity"
             ),
             ManifestError::Coordinate(error) => write!(f, "invalid coordinate: {error}"),
             ManifestError::Capability(error) => write!(f, "invalid capability: {error}"),

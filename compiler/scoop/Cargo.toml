@@ -1,0 +1,19 @@
+[package]
+name = "scoop-build"
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "scoop"
+path = "src/main.rs"
+
+[lib]
+name = "scoop_build"
+path = "src/lib.rs"
+
+[dependencies]
+scoop-identity.workspace = true
+scoop-manifest.workspace = true
+scoop-slib.workspace = true
+
+[dev-dependencies]

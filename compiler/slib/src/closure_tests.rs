@@ -36,6 +36,7 @@ fn template(
         dependencies: deps
             .into_iter()
             .map(|coordinate| DependencyRecord {
+                coordinate: coordinate.clone(),
                 cone_identity: ConeIdentity::of(&coordinate),
                 hir_semantic_fingerprint: Digest256::from_bytes([7; 32]),
                 mir_semantic_fingerprint: Digest256::from_bytes([8; 32]),
@@ -179,6 +180,7 @@ fn non_reserved_core_is_rejected() {
 fn core_with_dependencies_is_rejected() {
     let mut core_template = template("scoop", "scoop.core", "0.1.0", vec![]);
     core_template.dependencies.push(DependencyRecord {
+        coordinate: coord("org.x", "x", "1.0.0"),
         cone_identity: ConeIdentity::of(&coord("org.x", "x", "1.0.0")),
         hir_semantic_fingerprint: Digest256::ZERO,
         mir_semantic_fingerprint: Digest256::ZERO,

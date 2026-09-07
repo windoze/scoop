@@ -407,6 +407,15 @@ name = "scoop-ast"
 version = "0.0.0"
 
 [[package]]
+name = "scoop-build"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "scoop-manifest",
+ "scoop-slib",
+]
+
+[[package]]
 name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
