@@ -1,0 +1,8 @@
+[package]
+name = "scoop-manifest"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-identity.workspace = true
+toml_edit = "0.22"

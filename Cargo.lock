@@ -459,6 +459,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-manifest"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "toml_edit",
+]
+
+[[package]]
 name = "scoop-mir"
 version = "0.0.0"
 dependencies = [

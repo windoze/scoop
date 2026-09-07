@@ -25,7 +25,7 @@
 
 - **T1 spec/ROADMAP 同步核验**（已完成：`4ea2442e` 已把三份 spec 与 ROADMAP 同步到 M23 设计；语言规范 §12、IMPL spec 2.x、runtime spec 相应章节齐备）。本计划落地时若发现 spec 缺口随时先改 spec。
 - **T2 `compiler/identity` crate**（已完成）：canonical CBOR codec（`CborReader`/`CborWriter`：最短整数、定长、integer-key map 严格递增、拒绝 float/tag/indefinite/reserved、声明长度不超输入、nesting 预算、`SeqGuard`/`MapGuard` RAII）、`Digest256` + `DomainHasher`（domain tag + 每字段 u64 LE 长度前缀）、`ConeCoordinate`（group/name grammar、canonical SemVer 2.0.0 文本保留、SemVer 优先序 + build tiebreak 的全序）、`ConeIdentity`（`scoop-cone-id-v1` domain hash over canonical CBOR）、reserved core coordinate、`CapabilityId`（namespace 255B/segment 63B grammar + major ≥ 1）、`TargetProfileWireId`/`ObjectFormatWireId` typed wrapper 与四个内建 capability（darwin-aarch64 target profile、mach-o-relocatable、scoop-lir、generated-c-bridge link-object verifier）。验证：`cargo test -p scoop-identity` 17/17；`cargo clippy -p scoop-identity --all-targets -- -D warnings`；workspace build。提交 `<hash>`。
-- **T3 `compiler/manifest` crate**：`Cone.toml` v1 解析（`toml` crate），semantic projection（group/name/version/kind + exact dependency coordinate 表）与 locator projection（path/artifact/search）分离；unknown semantic 字段诊断、reserved core coordinate 拒绝、executable dependency 规则、坐标与 key 逐字 canonical 相等检查。单元测试覆盖 DESIGN §1.2 全部错误。
+- **T3 `compiler/manifest` crate**（已完成）：`Cone.toml` v1 严格解析（`toml_edit`，span 诊断）：schema=1、`[cone]` 四字段（group/name/version/kind）、`[dependencies]` exact key + string 短式/inline table/sub-table 三种 value 形态、locator 互斥、unknown field 拒绝（含拼错 semantic 字段）、reserved core coordinate 依赖声明拒绝、sysroot core manifest 自身合法。semantic/locator projection 分离（`semantic_dependency_coordinates()` 不含 locator）。executable-as-dependency 与坐标一致性检查属 graph 解析（T8/T6），经本 crate 的模型表达。验证：`cargo test -p scoop-manifest` 15/15；clippy `-D warnings`。提交 `23c14ec4`。
 - **T4 `compiler/protocol` crate**：`scoop` ↔ `scoopc` 版本化结构化消息（编译请求、typed 诊断、产物完成/失败），schema version 常量；首批只定义类型 + round-trip 测试。
 
 ### 阶段 B：`.slib` 容器与 envelope（DESIGN §4.1、§4.2）
@@ -122,3 +122,4 @@
 
 - 2026-09-07：建立本计划。T1 经核验已完成（spec 同步在 `4ea2442e` 及此前文档提交中闭合）。开始 T2 `compiler/identity`。
 - 2026-09-07：完成 T2 `compiler/identity`（canonical CBOR、domain hash、coordinate/identity、capability registry）。注：`SlibMemberId` 与 `ArtifactFingerprint` 的定义随 T5 slib envelope 落在 slib 侧，identity crate 只承载跨 crate 共享的底层类型。开始 T3 `compiler/manifest`。
+- 2026-09-07：完成 T3 `compiler/manifest`（Cone.toml v1 严格解析 + semantic/locator projection 分离，15 测试）。开始 T4 `compiler/protocol`。
