@@ -70,7 +70,14 @@ impl Lowerer {
                     }),
                 )
             } else {
-                let Some(&enum_id) = self.enums_by_name.get(enum_name) else {
+                let enum_id = self
+                    .first_nominal_layer(enum_name)
+                    .and_then(|(_, candidates)| candidates.first().copied())
+                    .and_then(|target| match target {
+                        crate::NominalTarget::Enum(id) => Some(id),
+                        _ => None,
+                    });
+                let Some(enum_id) = enum_id else {
                     self.error(name.span, format!("unknown enum `{enum_name}`"));
                     return None;
                 };
@@ -133,33 +140,38 @@ impl Lowerer {
                 | None => Constructor::Unmatched,
             });
         }
-        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
-            if !self.nominal_is_accessible(ty) {
-                self.error(
-                    name.span,
-                    format!("struct `{}` is not accessible here", name.text),
-                );
-                return None;
+        let Some((target, ty)) = self.layered_nominal_entry(name) else {
+            return Some(Constructor::Unmatched);
+        };
+        match target {
+            crate::NominalTarget::Struct(struct_id) => {
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("struct `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                Some(Constructor::Struct {
+                    struct_id,
+                    ty,
+                    alias: None,
+                })
             }
-            return Some(Constructor::Struct {
-                struct_id,
-                ty,
-                alias: None,
-            });
-        }
-        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
-            if !self.nominal_is_accessible(ty) {
-                self.error(
-                    name.span,
-                    format!("class `{}` is not accessible here", name.text),
-                );
-                return None;
+            crate::NominalTarget::Class(class_id) => {
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!("class `{}` is not accessible here", name.text),
+                    );
+                    return None;
+                }
+                Some(Constructor::Class {
+                    class_id,
+                    alias: None,
+                })
             }
-            return Some(Constructor::Class {
-                class_id,
-                alias: None,
-            });
+            _ => Some(Constructor::Unmatched),
         }
-        Some(Constructor::Unmatched)
     }
 }

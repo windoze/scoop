@@ -12,19 +12,27 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<StructId> {
-        let candidate = self.structs_by_name.get(name).map(|(id, _)| *id);
-        if let Some(id) = candidate
-            && self
-                .struct_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index)
-                < self.user_file_index
-        {
+        let candidate = self
+            .structs_by_name
+            .get(name)
+            .into_iter()
+            .flatten()
+            .map(|(id, _)| *id)
+            .find(|id| {
+                self.struct_files
+                    .get(id)
+                    .copied()
+                    .unwrap_or(self.user_file_index)
+                    < self.user_file_index
+            });
+        if let Some(id) = candidate {
             return Some(id);
         }
-        self.current_file = candidate
-            .and_then(|id| self.struct_files.get(&id).copied())
+        self.current_file = self
+            .structs_by_name
+            .get(name)
+            .and_then(|entries| entries.first())
+            .and_then(|(id, _)| self.struct_files.get(id).copied())
             .unwrap_or(0);
         self.error(
             files[0].span,
@@ -57,18 +65,51 @@ impl Lowerer {
             return None;
         }
         if matches!(name, "Unit" | "Any") {
-            Some("a built-in type")
-        } else if self.source_type_aliases_by_name.contains_key(name) {
+            return Some("a built-in type");
+        }
+        // The type namespace is per-package: same-name types in distinct
+        // packages are distinct entities resolved through lookup layers.
+        // A conflict exists only when a same-name entry was declared in
+        // the current file's package.
+        let package = self.file_packages[self.current_file];
+        let declared_in_package = |entry_file: Option<usize>| {
+            entry_file.is_some_and(|file| self.file_packages[file] == package)
+        };
+        let alias_conflicts = self
+            .source_type_aliases_by_name
+            .get(name)
+            .is_some_and(|aliases| !aliases.is_empty());
+        if alias_conflicts {
             Some("a typealias")
-        } else if self.structs_by_name.contains_key(name) {
+        } else if self.structs_by_name.get(name).is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|(id, _)| declared_in_package(self.struct_files.get(id).copied()))
+        }) {
             Some("a struct")
-        } else if self.enums_by_name.contains_key(name) {
+        } else if self.enums_by_name.get(name).is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|id| declared_in_package(self.enum_files.get(id).copied()))
+        }) {
             Some("an enum")
-        } else if self.classes_by_name.contains_key(name) {
+        } else if self.classes_by_name.get(name).is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|(id, _)| declared_in_package(self.class_files.get(id).copied()))
+        }) {
             Some("a class")
-        } else if self.interfaces_by_name.contains_key(name) {
+        } else if self.interfaces_by_name.get(name).is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|(id, _)| declared_in_package(self.interface_files.get(id).copied()))
+        }) {
             Some("an interface")
-        } else if self.objects_by_name.contains_key(name) {
+        } else if self.objects_by_name.get(name).is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|id| declared_in_package(self.object_files.get(id).copied()))
+        }) {
             Some("an object")
         } else {
             None
@@ -188,7 +229,9 @@ impl Lowerer {
             }
             None => {
                 self.structs_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                    .entry(decl.name.text.clone())
+                    .or_default()
+                    .push((id, ty));
             }
         }
         self.struct_files.insert(id, file_index);
@@ -276,7 +319,10 @@ impl Lowerer {
                     .insert((owner, decl.name.text.clone()), NominalTarget::Enum(id));
             }
             None => {
-                self.enums_by_name.insert(decl.name.text.clone(), id);
+                self.enums_by_name
+                    .entry(decl.name.text.clone())
+                    .or_default()
+                    .push(id);
             }
         }
         let parameter_ids = self.enums[id]
@@ -439,7 +485,9 @@ impl Lowerer {
             }
             None => {
                 self.classes_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                    .entry(decl.name.text.clone())
+                    .or_default()
+                    .push((id, ty));
             }
         }
         self.class_files.insert(id, file_index);
@@ -551,7 +599,9 @@ impl Lowerer {
             }
             None => {
                 self.interfaces_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                    .entry(decl.name.text.clone())
+                    .or_default()
+                    .push((id, ty));
             }
         }
         self.interface_files.insert(id, file_index);

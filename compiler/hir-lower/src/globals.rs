@@ -1267,6 +1267,7 @@ impl Lowerer {
     fn global_struct_callee(&self, call: &ast::CallExpr) -> Option<hir::StructId> {
         self.structs_by_name
             .get(&call.callee.text)
+            .and_then(|entries| entries.first())
             .map(|&(structure, _)| structure)
     }
 

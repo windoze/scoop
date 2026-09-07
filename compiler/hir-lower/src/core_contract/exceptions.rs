@@ -133,12 +133,12 @@ impl Lowerer {
         files: &[ast::SourceFile],
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
-        let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
-        let id = candidate.filter(|id| self.class_files[id] < self.user_file_index);
-        let Some(id) = id else {
-            self.current_file = candidate
-                .and_then(|id| self.class_files.get(&id).copied())
-                .unwrap_or(0);
+        let candidate = match self.core_unit_nominal(name) {
+            Some(crate::NominalTarget::Class(id)) => Some(id),
+            _ => None,
+        };
+        let Some(id) = candidate else {
+            self.current_file = 0;
             self.error(
                 files[0].span,
                 format!("scoop.core must define class `{name}`"),

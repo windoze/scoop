@@ -6,15 +6,11 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<EnumId> {
-        let candidate = self.enums_by_name.get(name).copied();
-        if let Some(id) = candidate
-            && self
-                .enum_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index)
-                < self.user_file_index
-        {
+        let candidate = match self.core_unit_nominal(name) {
+            Some(crate::NominalTarget::Enum(id)) => Some(id),
+            _ => None,
+        };
+        if let Some(id) = candidate {
             return Some(id);
         }
         self.current_file = 0;

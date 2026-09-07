@@ -366,7 +366,8 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
-    pub(crate) source_type_aliases_by_name: HashMap<String, aliases::SourceTypeAliasId>,
+    pub(crate) source_type_aliases_by_name: HashMap<String, Vec<aliases::SourceTypeAliasId>>,
+    pub(crate) export_alias_ids: HashMap<aliases::SourceTypeAliasId, hir::ExportTypeAliasId>,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -433,14 +434,14 @@ pub(crate) struct Lowerer {
     /// earlier file is implicitly imported `scoop.core`.
     pub(crate) user_file_index: usize,
     /// Struct namespace: name → (declaration, value type of the struct).
-    pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
+    pub(crate) structs_by_name: HashMap<String, Vec<(StructId, TypeId)>>,
     /// Enum namespace.
-    pub(crate) enums_by_name: HashMap<String, EnumId>,
+    pub(crate) enums_by_name: HashMap<String, Vec<EnumId>>,
     /// Class namespace: name → (declaration, reference type of the class).
-    pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
+    pub(crate) classes_by_name: HashMap<String, Vec<(ClassId, TypeId)>>,
     /// Interface namespace: name → (declaration, interface type).
-    pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
-    pub(crate) objects_by_name: HashMap<String, ObjectId>,
+    pub(crate) interfaces_by_name: HashMap<String, Vec<(InterfaceId, TypeId)>>,
+    pub(crate) objects_by_name: HashMap<String, Vec<ObjectId>>,
     /// Physical class representation -> semantic singleton declaration.
     /// The relation is typed and established when the object is declared;
     /// constructor/body lowering never recovers it from a generated name.

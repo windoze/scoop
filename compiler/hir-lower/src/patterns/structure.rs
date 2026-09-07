@@ -150,7 +150,14 @@ impl Lowerer {
                     };
                     (self.enum_applications[application].template, Some(target))
                 } else {
-                    let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
+                    let enum_id = self
+                        .first_nominal_layer(&enum_name.text)
+                        .and_then(|(_, candidates)| candidates.first().copied())
+                        .and_then(|target| match target {
+                            crate::NominalTarget::Enum(id) => Some(id),
+                            _ => None,
+                        });
+                    let Some(enum_id) = enum_id else {
                         self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
                         return None;
                     };

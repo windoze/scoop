@@ -153,6 +153,7 @@ impl Lowerer {
             delegate_storages: Arena::new(),
             source_type_aliases: Arena::new(),
             source_type_aliases_by_name: HashMap::new(),
+            export_alias_ids: HashMap::new(),
             type_aliases: Arena::new(),
             type_alias_resolution_stack: Vec::new(),
             generic_functions: Arena::new(),

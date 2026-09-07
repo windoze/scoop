@@ -170,3 +170,86 @@ public fun describe(count: Int): Int {
     let main = module.functions[module.entry].clone();
     let _ = main;
 }
+
+const TYPE_FOO: &str = r#"package org.shape
+
+public struct Point(val x: Int, val y: Int)
+"#;
+
+const TYPE_BAR: &str = r#"package org.metric
+
+public class Point public constructor(public val magnitude: Long)
+"#;
+
+#[test]
+fn same_name_types_in_distinct_packages_lower() {
+    // Per-package type namespaces: both Points coexist in one Cone.
+    let library = r#"package org.shape
+
+public fun origin(): Point {
+    return Point(0, 0)
+}
+"#;
+    let user = r#"package org.metric
+
+fun main() {
+    val p = Point(3)
+    println(p.magnitude)
+}
+"#;
+    let module = lower_unit(&[
+        parse(TYPE_FOO),
+        parse(TYPE_BAR),
+        parse(library),
+        parse(user),
+    ])
+    .expect("lowers");
+    let _ = module;
+}
+
+#[test]
+fn type_resolution_is_layered_for_imports() {
+    // The user file (root package) imports org.shape.Point exactly;
+    // `Point` must resolve to the struct, not the core-unit class of
+    // the same name (both are otherwise reachable through the implicit
+    // core layer).
+    let user = r#"import org.shape.Point
+
+fun main() {
+    val origin: Point = Point(0, 0)
+    println(origin.x)
+}
+"#;
+    let module = lower_unit(&[parse(TYPE_FOO), parse(TYPE_BAR), parse(user)]).expect("lowers");
+    let _ = module;
+}
+
+#[test]
+fn same_layer_type_ambiguity_is_diagnosed() {
+    // Without imports both Points sit in the implicit core layer.
+    let user = r#"fun main() {
+    val origin = Point(0, 0)
+}
+"#;
+    let diagnostics =
+        lower_unit(&[parse(TYPE_FOO), parse(TYPE_BAR), parse(user)]).expect_err("ambiguous type");
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("`Point` is ambiguous")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn star_import_binds_package_type_surface() {
+    let user = r#"import org.metric.*
+
+fun main() {
+    val p = Point(3)
+    println(p.magnitude)
+}
+"#;
+    let module = lower_unit(&[parse(TYPE_FOO), parse(TYPE_BAR), parse(user)]).expect("lowers");
+    let _ = module;
+}

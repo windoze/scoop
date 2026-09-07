@@ -523,7 +523,10 @@ impl Lowerer {
         {
             return false;
         }
-        if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
+        if let Some(&(class, _)) = self
+            .classes_by_name
+            .get(&name.text)
+            .and_then(|entries| entries.first())
             && self.array_class_kind(class).is_some()
         {
             let [source] = args else {
@@ -581,7 +584,13 @@ impl Lowerer {
     /// does not denote a constructor.
     pub(super) fn constructor_inference_shape(&self, name: &str) -> Option<(usize, Vec<TypeId>)> {
         let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
-            let enum_id = self.enums_by_name.get(enum_name).copied()?;
+            let enum_id = self
+                .first_nominal_layer(enum_name)
+                .and_then(|(_, candidates)| candidates.first().copied())
+                .and_then(|target| match target {
+                    crate::NominalTarget::Enum(id) => Some(id),
+                    _ => None,
+                })?;
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
@@ -602,6 +611,7 @@ impl Lowerer {
         }
         self.structs_by_name
             .get(name)
+            .and_then(|entries| entries.first())
             .map(|(struct_id, _)| {
                 (
                     self.structs[*struct_id].type_params.len(),
@@ -613,21 +623,24 @@ impl Lowerer {
                 )
             })
             .or_else(|| {
-                self.classes_by_name.get(name).map(|(class_id, _)| {
-                    let constructor = self.classes[*class_id].constructors.first().copied();
-                    (
-                        self.classes[*class_id].type_params.len(),
-                        constructor
-                            .map(|constructor| {
-                                self.class_constructors[constructor]
-                                    .parameters
-                                    .iter()
-                                    .map(|parameter| parameter.ty)
-                                    .collect()
-                            })
-                            .unwrap_or_default(),
-                    )
-                })
+                self.classes_by_name
+                    .get(name)
+                    .and_then(|entries| entries.first())
+                    .map(|(class_id, _)| {
+                        let constructor = self.classes[*class_id].constructors.first().copied();
+                        (
+                            self.classes[*class_id].type_params.len(),
+                            constructor
+                                .map(|constructor| {
+                                    self.class_constructors[constructor]
+                                        .parameters
+                                        .iter()
+                                        .map(|parameter| parameter.ty)
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
+                        )
+                    })
             })
     }
 
@@ -698,7 +711,13 @@ impl Lowerer {
         {
             return None;
         }
-        let enum_id = self.enums_by_name.get(&enum_name.text).copied()?;
+        let enum_id = self
+            .first_nominal_layer(&enum_name.text)
+            .and_then(|(_, candidates)| candidates.first().copied())
+            .and_then(|target| match target {
+                crate::NominalTarget::Enum(id) => Some(id),
+                _ => None,
+            })?;
         let ast::FieldSelector::Name(variant_name) = &access.selector else {
             return None;
         };

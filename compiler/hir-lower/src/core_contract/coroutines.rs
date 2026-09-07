@@ -84,11 +84,10 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<InterfaceId> {
-        let candidate = self
-            .interfaces_by_name
-            .get(name)
-            .map(|(id, _)| *id)
-            .filter(|id| self.interface_files[id] < self.user_file_index);
+        let candidate = match self.core_unit_nominal(name) {
+            Some(crate::NominalTarget::Interface(id)) => Some(id),
+            _ => None,
+        };
         if candidate.is_none() {
             self.current_file = 0;
             self.error(

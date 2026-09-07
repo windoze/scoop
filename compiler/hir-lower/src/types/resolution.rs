@@ -2,32 +2,80 @@ use super::*;
 use crate::{NominalTarget, Owner};
 
 impl Lowerer {
+    /// The unqualified top-level nominal binding for a name through the
+    /// DESIGN 2.3 layer ladder. Unqualified type lookup is
+    /// non-overloadable: the first layer with candidates must hold
+    /// exactly one, or the caller reports an ambiguity.
     pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        self.structs_by_name
-            .get(name)
-            .map(|(id, _)| NominalTarget::Struct(*id))
-            .or_else(|| {
-                self.enums_by_name
-                    .get(name)
-                    .copied()
-                    .map(NominalTarget::Enum)
-            })
-            .or_else(|| {
-                self.classes_by_name
-                    .get(name)
-                    .map(|(id, _)| NominalTarget::Class(*id))
-            })
-            .or_else(|| {
-                self.interfaces_by_name
-                    .get(name)
-                    .map(|(id, _)| NominalTarget::Interface(*id))
-            })
-            .or_else(|| {
-                self.objects_by_name
-                    .get(name)
-                    .copied()
-                    .map(NominalTarget::Object)
-            })
+        self.first_nominal_layer(name)
+            .and_then(|(_, candidates)| candidates.first().copied())
+    }
+
+    /// The single unqualified nominal binding for a type reference,
+    /// chosen through the layer ladder; same-layer duplicates are an
+    /// ambiguity. Returns the target plus its canonical type id.
+    pub(crate) fn layered_nominal_entry(
+        &mut self,
+        name: &ast::Ident,
+    ) -> Option<(NominalTarget, TypeId)> {
+        let (layer, candidates) = self.first_nominal_layer(&name.text)?;
+        if candidates.len() > 1 {
+            self.error(
+                name.span,
+                format!(
+                    "type `{}` is ambiguous: {} declarations are visible in the same candidate layer",
+                    name.text,
+                    candidates.len()
+                ),
+            );
+            return None;
+        }
+        let target = candidates[0];
+        let ty = match target {
+            NominalTarget::Struct(id) => self
+                .structs_by_name
+                .get(&name.text)
+                .and_then(|entries| {
+                    entries
+                        .iter()
+                        .find(|(candidate, _)| *candidate == id)
+                        .map(|(_, ty)| *ty)
+                })
+                .expect("the layered candidate is registered"),
+            NominalTarget::Enum(id) => {
+                let registered = self
+                    .enums_by_name
+                    .get(&name.text)
+                    .is_some_and(|entries| entries.contains(&id));
+                debug_assert!(registered, "the layered candidate is registered");
+                self.enum_application(id, Vec::new())
+            }
+            NominalTarget::Class(id) => self
+                .classes_by_name
+                .get(&name.text)
+                .and_then(|entries| {
+                    entries
+                        .iter()
+                        .find(|(candidate, _)| *candidate == id)
+                        .map(|(_, ty)| *ty)
+                })
+                .expect("the layered candidate is registered"),
+            NominalTarget::Interface(id) => self
+                .interfaces_by_name
+                .get(&name.text)
+                .and_then(|entries| {
+                    entries
+                        .iter()
+                        .find(|(candidate, _)| *candidate == id)
+                        .map(|(_, ty)| *ty)
+                })
+                .expect("the layered candidate is registered"),
+            NominalTarget::Object(id) => {
+                self.object_types[self.objects[id].object_type].canonical_type
+            }
+        };
+        let _ = layer;
+        Some((target, ty))
     }
 
     pub(crate) fn nested_nominal_target(&self, owner: Owner, name: &str) -> Option<NominalTarget> {
@@ -252,146 +300,7 @@ impl Lowerer {
                 if self.source_type_alias_named(&name.text).is_some() {
                     return self.resolve_type_alias_reference(name, true);
                 }
-                // Generic structs (M9, spec 3.2).
-                if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
-                    let arity = self.structs[struct_id].type_params.len();
-                    if arity == 0 {
-                        self.error(name.span, format!("struct `{}` is not generic", name.text));
-                        return None;
-                    }
-                    if arity != args.len() {
-                        self.error(
-                            name.span,
-                            format!(
-                                "struct `{}` takes {arity} type argument(s), but {} were supplied",
-                                name.text,
-                                args.len()
-                            ),
-                        );
-                        return None;
-                    }
-                    let mut resolved = Vec::with_capacity(args.len());
-                    for arg in args {
-                        resolved.push(self.resolve_type_ref(arg)?);
-                    }
-                    let params = self.structs[struct_id].type_params.clone();
-                    if !self.check_type_argument_kinds(
-                        &params,
-                        &resolved,
-                        name.span,
-                        &format!("struct `{}`", name.text),
-                    ) {
-                        return None;
-                    }
-                    if Some(struct_id) == self.ffi_ptr {
-                        let pointee = resolved[0];
-                        let ty = self.intern_type(Type::Ptr(pointee));
-                        self.pointer_type_uses
-                            .push((ty, self.current_file, name.span));
-                        return Some(ty);
-                    }
-                    if Some(struct_id) == self.ffi_fun_ptr {
-                        if self.allow_deferred_fun_ptr
-                            && matches!(self.types[resolved[0]], Type::Param(_))
-                        {
-                            return Some(self.struct_application(struct_id, resolved));
-                        }
-                        let Type::Function(function_type) = self.types[resolved[0]] else {
-                            self.error(
-                                name.span,
-                                "`FunPtr` type argument must be an ordinary concrete function type"
-                                    .to_string(),
-                            );
-                            return None;
-                        };
-                        let function = &self.function_types[function_type];
-                        if function.is_suspend || self.function_type_contains_param(function_type) {
-                            self.error(
-                                name.span,
-                                "`FunPtr` type argument must be an ordinary concrete function type"
-                                    .to_string(),
-                            );
-                            return None;
-                        }
-                        let ty = self.intern_type(Type::FunPtr(function_type));
-                        self.fun_ptr_type_uses
-                            .push((ty, self.current_file, name.span));
-                        return Some(ty);
-                    }
-                    return Some(self.struct_application(struct_id, resolved));
-                }
-                if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
-                    let arity = self.interfaces[interface_id].type_params.len();
-                    if arity == 0 {
-                        self.error(
-                            name.span,
-                            format!("interface `{}` is not generic", name.text),
-                        );
-                        return None;
-                    }
-                    if arity != args.len() {
-                        self.error(
-                            name.span,
-                            format!(
-                                "interface `{}` takes {arity} type argument(s), but {} were supplied",
-                                name.text,
-                                args.len()
-                            ),
-                        );
-                        return None;
-                    }
-                    let mut resolved = Vec::with_capacity(args.len());
-                    for arg in args {
-                        resolved.push(self.resolve_type_ref(arg)?);
-                    }
-                    let params = self.interfaces[interface_id].type_params.clone();
-                    if !self.check_type_argument_kinds(
-                        &params,
-                        &resolved,
-                        name.span,
-                        &format!("interface `{}`", name.text),
-                    ) {
-                        return None;
-                    }
-                    return Some(self.intern_interface_application(interface_id, resolved));
-                }
-                if let Some(&(class_id, _)) = self.classes_by_name.get(&name.text) {
-                    let arity = self.classes[class_id].type_params.len();
-                    if arity == 0 {
-                        self.error(name.span, format!("class `{}` is not generic", name.text));
-                        return None;
-                    }
-                    if arity != args.len() {
-                        self.error(
-                            name.span,
-                            format!(
-                                "class `{}` takes {arity} type argument(s), but {} were supplied",
-                                name.text,
-                                args.len()
-                            ),
-                        );
-                        return None;
-                    }
-                    let mut resolved = Vec::with_capacity(args.len());
-                    for arg in args {
-                        resolved.push(self.resolve_type_ref(arg)?);
-                    }
-                    let params = self.classes[class_id].type_params.clone();
-                    if !self.check_type_argument_kinds(
-                        &params,
-                        &resolved,
-                        name.span,
-                        &format!("class `{}`", name.text),
-                    ) {
-                        return None;
-                    }
-                    return Some(self.class_application(class_id, resolved));
-                }
-                if self.objects_by_name.contains_key(&name.text) {
-                    self.error(name.span, format!("object `{}` is not generic", name.text));
-                    return None;
-                }
-                let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
+                let Some((target, _)) = self.layered_nominal_entry(name) else {
                     let what = if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
                     } else {
@@ -400,32 +309,177 @@ impl Lowerer {
                     self.error(name.span, what);
                     return None;
                 };
-                let arity = self.enums[enum_id].type_params.len();
-                if arity != args.len() {
-                    let enum_name = self.enums[enum_id].name.clone();
-                    self.error(
-                        name.span,
-                        format!(
-                            "enum `{enum_name}` takes {arity} type argument(s), but {} were supplied",
-                            args.len()
-                        ),
-                    );
-                    return None;
+                match target {
+                    NominalTarget::Struct(struct_id) => {
+                        let arity = self.structs[struct_id].type_params.len();
+                        if arity == 0 {
+                            self.error(name.span, format!("struct `{}` is not generic", name.text));
+                            return None;
+                        }
+                        if arity != args.len() {
+                            self.error(
+                                name.span,
+                                format!(
+                                    "struct `{}` takes {arity} type argument(s), but {} were supplied",
+                                    name.text,
+                                    args.len()
+                                ),
+                            );
+                            return None;
+                        }
+                        let mut resolved = Vec::with_capacity(args.len());
+                        for arg in args {
+                            resolved.push(self.resolve_type_ref(arg)?);
+                        }
+                        let params = self.structs[struct_id].type_params.clone();
+                        if !self.check_type_argument_kinds(
+                            &params,
+                            &resolved,
+                            name.span,
+                            &format!("struct `{}`", name.text),
+                        ) {
+                            return None;
+                        }
+                        if Some(struct_id) == self.ffi_ptr {
+                            let pointee = resolved[0];
+                            let ty = self.intern_type(Type::Ptr(pointee));
+                            self.pointer_type_uses
+                                .push((ty, self.current_file, name.span));
+                            return Some(ty);
+                        }
+                        if Some(struct_id) == self.ffi_fun_ptr {
+                            if self.allow_deferred_fun_ptr
+                                && matches!(self.types[resolved[0]], Type::Param(_))
+                            {
+                                return Some(self.struct_application(struct_id, resolved));
+                            }
+                            let Type::Function(function_type) = self.types[resolved[0]] else {
+                                self.error(
+                                    name.span,
+                                    "`FunPtr` type argument must be an ordinary concrete function type"
+                                        .to_string(),
+                                );
+                                return None;
+                            };
+                            let function = &self.function_types[function_type];
+                            if function.is_suspend
+                                || self.function_type_contains_param(function_type)
+                            {
+                                self.error(
+                                    name.span,
+                                    "`FunPtr` type argument must be an ordinary concrete function type"
+                                        .to_string(),
+                                );
+                                return None;
+                            }
+                            let ty = self.intern_type(Type::FunPtr(function_type));
+                            self.fun_ptr_type_uses
+                                .push((ty, self.current_file, name.span));
+                            return Some(ty);
+                        }
+                        Some(self.struct_application(struct_id, resolved))
+                    }
+                    NominalTarget::Interface(interface_id) => {
+                        let arity = self.interfaces[interface_id].type_params.len();
+                        if arity == 0 {
+                            self.error(
+                                name.span,
+                                format!("interface `{}` is not generic", name.text),
+                            );
+                            return None;
+                        }
+                        if arity != args.len() {
+                            self.error(
+                                name.span,
+                                format!(
+                                    "interface `{}` takes {arity} type argument(s), but {} were supplied",
+                                    name.text,
+                                    args.len()
+                                ),
+                            );
+                            return None;
+                        }
+                        let mut resolved = Vec::with_capacity(args.len());
+                        for arg in args {
+                            resolved.push(self.resolve_type_ref(arg)?);
+                        }
+                        let params = self.interfaces[interface_id].type_params.clone();
+                        if !self.check_type_argument_kinds(
+                            &params,
+                            &resolved,
+                            name.span,
+                            &format!("interface `{}`", name.text),
+                        ) {
+                            return None;
+                        }
+                        Some(self.intern_interface_application(interface_id, resolved))
+                    }
+                    NominalTarget::Class(class_id) => {
+                        let arity = self.classes[class_id].type_params.len();
+                        if arity == 0 {
+                            self.error(name.span, format!("class `{}` is not generic", name.text));
+                            return None;
+                        }
+                        if arity != args.len() {
+                            self.error(
+                                name.span,
+                                format!(
+                                    "class `{}` takes {arity} type argument(s), but {} were supplied",
+                                    name.text,
+                                    args.len()
+                                ),
+                            );
+                            return None;
+                        }
+                        let mut resolved = Vec::with_capacity(args.len());
+                        for arg in args {
+                            resolved.push(self.resolve_type_ref(arg)?);
+                        }
+                        let params = self.classes[class_id].type_params.clone();
+                        if !self.check_type_argument_kinds(
+                            &params,
+                            &resolved,
+                            name.span,
+                            &format!("class `{}`", name.text),
+                        ) {
+                            return None;
+                        }
+                        Some(self.class_application(class_id, resolved))
+                    }
+                    NominalTarget::Object(_) => {
+                        self.error(name.span, format!("object `{}` is not generic", name.text));
+                        None
+                    }
+                    NominalTarget::Enum(enum_id) => {
+                        let arity = self.enums[enum_id].type_params.len();
+                        if arity != args.len() {
+                            let enum_name = self.enums[enum_id].name.clone();
+                            self.error(
+                                name.span,
+                                format!(
+                                    "enum `{enum_name}` takes {arity} type argument(s), but {} were supplied",
+                                    args.len()
+                                ),
+                            );
+                            return None;
+                        }
+                        let mut resolved = Vec::with_capacity(args.len());
+                        for arg in args {
+                            resolved.push(self.resolve_type_ref(arg)?);
+                        }
+                        let params = self.enums[enum_id].type_params.clone();
+                        if !self.check_type_argument_kinds(
+                            &params,
+                            &resolved,
+                            name.span,
+                            &format!("enum `{}`", self.enums[enum_id].name),
+                        ) {
+                            None
+                        } else {
+                            Some(self.enum_application(enum_id, resolved))
+                        }
+                    }
                 }
-                let mut resolved = Vec::with_capacity(args.len());
-                for arg in args {
-                    resolved.push(self.resolve_type_ref(arg)?);
-                }
-                let params = self.enums[enum_id].type_params.clone();
-                if !self.check_type_argument_kinds(
-                    &params,
-                    &resolved,
-                    name.span,
-                    &format!("enum `{}`", self.enums[enum_id].name),
-                ) {
-                    return None;
-                }
-                Some(self.enum_application(enum_id, resolved))
             }
             ast::TypeRefKind::Qualified { path, arguments } => {
                 self.resolve_qualified_nominal(path, arguments, ty_ref.span)
@@ -482,68 +536,68 @@ impl Lowerer {
                     // 5.5); the core library shape arrives with M7/core.
                     "Any" => Some(self.any),
                     _ => {
-                        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
-                            // A generic struct needs its type
-                            // arguments (`PinnedPtr<T>` goes through
-                            // TypeRefKind::Generic), mirroring the
-                            // generic enum rule below.
-                            let arity = self.structs[struct_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic struct `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
+                        let Some((target, ty)) = self.layered_nominal_entry(name) else {
+                            self.error(name.span, format!("unknown type `{}`", name.text));
+                            return None;
+                        };
+                        match target {
+                            NominalTarget::Struct(struct_id) => {
+                                // A generic struct needs its type
+                                // arguments (`PinnedPtr<T>` goes through
+                                // TypeRefKind::Generic), mirroring the
+                                // generic enum rule below.
+                                let arity = self.structs[struct_id].type_params.len();
+                                if arity != 0 {
+                                    self.error(
+                                        name.span,
+                                        format!(
+                                            "generic struct `{}` requires {arity} type argument(s)",
+                                            name.text
+                                        ),
+                                    );
+                                    return None;
+                                }
+                                Some(ty)
                             }
-                            return Some(ty);
-                        }
-                        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
-                            let arity = self.classes[class_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic class `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
+                            NominalTarget::Class(class_id) => {
+                                let arity = self.classes[class_id].type_params.len();
+                                if arity != 0 {
+                                    self.error(
+                                        name.span,
+                                        format!(
+                                            "generic class `{}` requires {arity} type argument(s)",
+                                            name.text
+                                        ),
+                                    );
+                                    return None;
+                                }
+                                Some(ty)
                             }
-                            return Some(ty);
-                        }
-                        if let Some(&(interface_id, ty)) = self.interfaces_by_name.get(&name.text) {
-                            let arity = self.interfaces[interface_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic interface `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
+                            NominalTarget::Interface(interface_id) => {
+                                let arity = self.interfaces[interface_id].type_params.len();
+                                if arity != 0 {
+                                    self.error(
+                                        name.span,
+                                        format!(
+                                            "generic interface `{}` requires {arity} type argument(s)",
+                                            name.text
+                                        ),
+                                    );
+                                    return None;
+                                }
+                                Some(ty)
                             }
-                            return Some(ty);
-                        }
-                        if let Some(&object) = self.objects_by_name.get(&name.text) {
-                            return Some(
-                                self.object_types[self.objects[object].object_type].canonical_type,
-                            );
-                        }
-                        match self.enums_by_name.get(&name.text) {
-                            Some(&id) => {
+                            NominalTarget::Object(_) => Some(ty),
+                            NominalTarget::Enum(enum_id) => {
                                 // Bare name without type arguments:
                                 // only non-generic enums are usable
                                 // (`Option<Int>` / `Box<Int>` go
                                 // through TypeRefKind::Generic).
-                                let arity = self.enums[id].type_params.len();
+                                let arity = self.enums[enum_id].type_params.len();
                                 if arity == 0 {
-                                    Some(self.enum_application(id, Vec::new()))
+                                    Some(self.enum_application(enum_id, Vec::new()))
                                 } else {
-                                    let enum_name = self.enums[id].name.clone();
+                                    let enum_name = self.enums[enum_id].name.clone();
                                     self.error(
                                         name.span,
                                         format!(
@@ -552,10 +606,6 @@ impl Lowerer {
                                     );
                                     None
                                 }
-                            }
-                            None => {
-                                self.error(name.span, format!("unknown type `{}`", name.text));
-                                None
                             }
                         }
                     }

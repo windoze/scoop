@@ -385,7 +385,10 @@ impl Lowerer {
                 }
             }
             None => {
-                self.objects_by_name.insert(name.to_string(), object);
+                self.objects_by_name
+                    .entry(name.to_string())
+                    .or_default()
+                    .push(object);
             }
         }
         self.object_by_backing_class.insert(backing_class, object);

@@ -20,6 +20,12 @@ pub(crate) struct SourceTypeAlias {
     resolution: TypeAliasResolution,
 }
 
+impl SourceTypeAlias {
+    pub(crate) fn file(&self) -> usize {
+        self.file
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 enum TypeAliasResolution {
     Unresolved,
@@ -55,11 +61,28 @@ impl Lowerer {
             file,
             resolution: TypeAliasResolution::Unresolved,
         });
-        self.source_type_aliases_by_name.insert(name, id);
+        self.source_type_aliases_by_name
+            .entry(name)
+            .or_default()
+            .push(id);
     }
 
+    /// The visible typealias binding for a name: exact imports shadow
+    /// the current package, which shadows star imports, which shadow the
+    /// core unit. Same-layer duplicates are per-package distinct and
+    /// unreachable here through different packages.
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
-        self.source_type_aliases_by_name.get(name).copied()
+        let aliases = self.source_type_aliases_by_name.get(name)?;
+        for layer in crate::imports::LOOKUP_LAYERS {
+            if let Some(id) = aliases
+                .iter()
+                .copied()
+                .find(|id| self.source_alias_lookup_layer(*id) == Some(layer))
+            {
+                return Some(id);
+            }
+        }
+        None
     }
 
     pub(crate) fn resolve_type_alias_reference(
@@ -187,12 +210,13 @@ impl Lowerer {
                 alias.origin.span,
                 &format!("typealias `{}`", alias.name),
             );
-            self.type_aliases.alloc(hir::TypeAliasDecl {
+            let export_id = self.type_aliases.alloc(hir::TypeAliasDecl {
                 name: alias.name,
                 access,
                 target,
                 origin: alias.origin,
             });
+            self.export_alias_ids.insert(id, export_id);
         }
         self.current_file = previous_file;
     }

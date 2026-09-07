@@ -564,3 +564,227 @@ impl Lowerer {
         self.lookup_layer(self.property_files[&property], entity_imported)
     }
 }
+
+impl Lowerer {
+    /// The lookup layer of one source typealias.
+    pub(crate) fn source_alias_lookup_layer(
+        &self,
+        alias: crate::aliases::SourceTypeAliasId,
+    ) -> Option<LookupLayer> {
+        let entity_imported = self.file_imports[self.current_file]
+            .exact
+            .iter()
+            .filter_map(|import| import.binding.as_ref())
+            .any(|binding| {
+                binding.targets.iter().any(|target| {
+                    matches!(
+                        target.target,
+                        hir::ImportedTarget::TypeAlias { alias: imported } if Some(&imported)
+                            == self.export_alias_ids.get(&alias)
+                    )
+                })
+            });
+        let declaring_file = self.source_type_aliases[alias].file();
+        self.lookup_layer(declaring_file, entity_imported)
+    }
+}
+
+impl Lowerer {
+    /// All top-level nominal candidates for `name` admitted at one
+    /// lookup layer, in declaration order. Non-overloadable: a layer
+    /// with more than one candidate is an ambiguity the caller reports.
+    /// The lookup layer of one nominal declaration, honouring exact
+    /// imports that bind this specific entity.
+    pub(crate) fn nominal_lookup_layer(&self, target: NominalTarget) -> Option<LookupLayer> {
+        let entity_imported = self.file_imports[self.current_file]
+            .exact
+            .iter()
+            .filter_map(|import| import.binding.as_ref())
+            .any(|binding| {
+                binding.targets.iter().any(|candidate| {
+                    let imported = &candidate.target;
+                    match (imported, target) {
+                        (
+                            hir::ImportedTarget::Struct { declaration },
+                            NominalTarget::Struct(actual),
+                        ) => *declaration == actual,
+                        (
+                            hir::ImportedTarget::Enum { declaration },
+                            NominalTarget::Enum(actual),
+                        ) => *declaration == actual,
+                        (
+                            hir::ImportedTarget::Class { declaration },
+                            NominalTarget::Class(actual),
+                        ) => *declaration == actual,
+                        (
+                            hir::ImportedTarget::Interface { declaration },
+                            NominalTarget::Interface(actual),
+                        ) => *declaration == actual,
+                        (
+                            hir::ImportedTarget::Object { declaration },
+                            NominalTarget::Object(actual),
+                        ) => *declaration == actual,
+                        _ => false,
+                    }
+                })
+            });
+        let declaring_file = match target {
+            NominalTarget::Struct(id) => self
+                .struct_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index),
+            NominalTarget::Enum(id) => self
+                .enum_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index),
+            NominalTarget::Class(id) => self
+                .class_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index),
+            NominalTarget::Interface(id) => self
+                .interface_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index),
+            NominalTarget::Object(id) => self
+                .object_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index),
+        };
+        self.lookup_layer(declaring_file, entity_imported)
+    }
+
+    pub(crate) fn nominal_candidates_in_layer(
+        &self,
+        name: &str,
+        layer: LookupLayer,
+    ) -> Vec<NominalTarget> {
+        let mut candidates = Vec::new();
+        candidates.extend(
+            self.structs_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|(id, _)| NominalTarget::Struct(*id)),
+        );
+        candidates.extend(
+            self.enums_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|id| NominalTarget::Enum(*id)),
+        );
+        candidates.extend(
+            self.classes_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|(id, _)| NominalTarget::Class(*id)),
+        );
+        candidates.extend(
+            self.interfaces_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|(id, _)| NominalTarget::Interface(*id)),
+        );
+        candidates.extend(
+            self.objects_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|id| NominalTarget::Object(*id)),
+        );
+        candidates.retain(|target| self.nominal_lookup_layer(*target) == Some(layer));
+        candidates
+    }
+
+    /// The first layer (in DESIGN order) admitting at least one nominal
+    /// candidate for `name`, with its candidates. Unqualified type
+    /// lookup is non-overloadable: multiple candidates in one layer are
+    /// reported by the caller as ambiguity.
+    pub(crate) fn first_nominal_layer(
+        &self,
+        name: &str,
+    ) -> Option<(LookupLayer, Vec<NominalTarget>)> {
+        for layer in LOOKUP_LAYERS {
+            let candidates = self.nominal_candidates_in_layer(name, layer);
+            if !candidates.is_empty() {
+                return Some((layer, candidates));
+            }
+        }
+        None
+    }
+
+    /// Core-unit well-known nominal lookup for core-contract
+    /// validation: the unique candidate declared inside the implicitly
+    /// imported core unit.
+    pub(crate) fn core_unit_nominal(&self, name: &str) -> Option<NominalTarget> {
+        let is_core_file = |file: usize| self.intrinsic_sources[file].core;
+        if let Some(entries) = self.structs_by_name.get(name) {
+            for (id, _) in entries {
+                if is_core_file(
+                    self.struct_files
+                        .get(id)
+                        .copied()
+                        .unwrap_or(self.user_file_index),
+                ) {
+                    return Some(NominalTarget::Struct(*id));
+                }
+            }
+        }
+        if let Some(entries) = self.enums_by_name.get(name) {
+            for id in entries {
+                if is_core_file(
+                    self.enum_files
+                        .get(id)
+                        .copied()
+                        .unwrap_or(self.user_file_index),
+                ) {
+                    return Some(NominalTarget::Enum(*id));
+                }
+            }
+        }
+        if let Some(entries) = self.classes_by_name.get(name) {
+            for (id, _) in entries {
+                if is_core_file(
+                    self.class_files
+                        .get(id)
+                        .copied()
+                        .unwrap_or(self.user_file_index),
+                ) {
+                    return Some(NominalTarget::Class(*id));
+                }
+            }
+        }
+        if let Some(entries) = self.interfaces_by_name.get(name) {
+            for (id, _) in entries {
+                if is_core_file(
+                    self.interface_files
+                        .get(id)
+                        .copied()
+                        .unwrap_or(self.user_file_index),
+                ) {
+                    return Some(NominalTarget::Interface(*id));
+                }
+            }
+        }
+        if let Some(entries) = self.objects_by_name.get(name) {
+            for id in entries {
+                if is_core_file(
+                    self.object_files
+                        .get(id)
+                        .copied()
+                        .unwrap_or(self.user_file_index),
+                ) {
+                    return Some(NominalTarget::Object(*id));
+                }
+            }
+        }
+        None
+    }
+}
