@@ -1,4 +1,27 @@
-//! `.slib` packaging and reader: bundles the `.o` with HIR / MIR / LIR
-//! metadata for downstream Cones.
+//! `.slib` v1: deterministic archive packaging, typed member directory
+//! and purpose-tiered artifact validation
+//! (`docs/milestone23/DESIGN.md` sections 4.1-4.2).
 //!
-//! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.6.
+//! The container is a canonical SysV `ar` archive whose semantics live
+//! entirely in the typed manifest directory; physical names, extensions
+//! and order carry no meaning of their own.
+
+pub mod archive;
+pub mod artifact;
+pub mod limits;
+pub mod manifest;
+pub mod member;
+
+#[cfg(test)]
+mod tests;
+
+pub use artifact::{
+    DecodedSlibEnvelope, ManifestCoreTemplate, SlibBuilder, SlibError, ValidatedGraphArtifact,
+    ordinal_name,
+};
+pub use limits::SlibDecodeLimits;
+pub use manifest::{ArtifactFingerprint, DependencyRecord, ManifestCore, ManifestError};
+pub use member::{
+    LogicalKey, MemberError, MemberPurposeSet, MemberStableKey, SlibMemberId, SlibMemberRecord,
+    SlibMemberRole,
+};

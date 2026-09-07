@@ -4,6 +4,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-scoop-hir.workspace = true
-scoop-lir.workspace = true
-scoop-mir.workspace = true
+scoop-identity.workspace = true
+scoop-manifest.workspace = true
+sha2 = "0.10"
