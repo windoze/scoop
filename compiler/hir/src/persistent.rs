@@ -71,19 +71,42 @@ pub struct PersistentIds<'a> {
     enum_ids: BTreeMap<u32, PersistentTypeId>,
     class_ids: BTreeMap<u32, PersistentTypeId>,
     interface_ids: BTreeMap<u32, PersistentTypeId>,
-    generic_type_ids: BTreeMap<u32, PersistentGenericTypeId>,
+    // Generic template caches stay per-kind: nominal arenas are
+    // independent, so raw indices collide across kinds.
+    generic_struct_ids: BTreeMap<u32, PersistentGenericTypeId>,
+    generic_enum_ids: BTreeMap<u32, PersistentGenericTypeId>,
+    generic_class_ids: BTreeMap<u32, PersistentGenericTypeId>,
+    generic_interface_ids: BTreeMap<u32, PersistentGenericTypeId>,
 }
 
-fn nominal_key(name: &str, kind: &'static str) -> Vec<u8> {
-    DefinitionKey::Source {
-        // Packages arrive with the import milestone; all current
-        // declarations live in the root package.
-        package: String::new(),
-        owner: Vec::new(),
-        name: name.to_owned(),
-        signature: kind.as_bytes().to_vec(),
-    }
-    .canonical_cbor()
+/// One typed step of a nominal owner chain, using the owner's own
+/// persistent type id.
+fn nominal_owner_step(
+    ids: &mut PersistentIds<'_>,
+    owner: crate::NominalOwner,
+) -> Option<OwnerStep> {
+    let owner_id = match owner {
+        crate::NominalOwner::Class(id) => ids.class_id(id)?,
+        crate::NominalOwner::Interface(id) => ids.interface_id(id)?,
+        crate::NominalOwner::Struct(id) => ids.struct_id(id)?,
+        crate::NominalOwner::Enum(id) => ids.enum_id(id)?,
+        // An object owner rides on its backing class: the class is the
+        // nominal declaration the object's members are scoped to, so its
+        // persistent id is the typed owner step (with the object kind
+        // distinguishing object membership from class inheritance in the
+        // key's owner-kind tag).
+        crate::NominalOwner::Object(id) => {
+            let backing = ids.module.objects[id].backing_class;
+            ids.class_id(backing)?
+        }
+    };
+    let kind = match owner {
+        crate::NominalOwner::Object(_) => OwnerKind::Object,
+        _ => OwnerKind::Type,
+    };
+    let mut raw = [0u8; 32];
+    raw.copy_from_slice(owner_id.as_bytes());
+    Some(OwnerStep { kind, id: raw })
 }
 
 impl<'a> PersistentIds<'a> {
@@ -95,7 +118,10 @@ impl<'a> PersistentIds<'a> {
             enum_ids: BTreeMap::new(),
             class_ids: BTreeMap::new(),
             interface_ids: BTreeMap::new(),
-            generic_type_ids: BTreeMap::new(),
+            generic_struct_ids: BTreeMap::new(),
+            generic_enum_ids: BTreeMap::new(),
+            generic_class_ids: BTreeMap::new(),
+            generic_interface_ids: BTreeMap::new(),
         }
     }
 
@@ -104,10 +130,20 @@ impl<'a> PersistentIds<'a> {
         if let Some(cached) = self.struct_ids.get(&raw) {
             return Some(*cached);
         }
-        let decl = &self.module.structs[id];
+        let decl: &StructDecl = &self.module.structs[id];
         let cone = self.world.cone_of(decl.origin)?;
-        let persistent =
-            PersistentTypeId::from_definition_key(cone, &nominal_key(&decl.name, "struct"));
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner,
+            name: decl.name.clone(),
+            signature: b"struct".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeId::from_definition_key(cone, &key);
         self.struct_ids.insert(raw, persistent);
         Some(persistent)
     }
@@ -119,8 +155,18 @@ impl<'a> PersistentIds<'a> {
         }
         let decl: &EnumDecl = &self.module.enums[id];
         let cone = self.world.cone_of(decl.origin)?;
-        let persistent =
-            PersistentTypeId::from_definition_key(cone, &nominal_key(&decl.name, "enum"));
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner,
+            name: decl.name.clone(),
+            signature: b"enum".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeId::from_definition_key(cone, &key);
         self.enum_ids.insert(raw, persistent);
         Some(persistent)
     }
@@ -132,8 +178,18 @@ impl<'a> PersistentIds<'a> {
         }
         let decl: &ClassDecl = &self.module.classes[id];
         let cone = self.world.cone_of(decl.origin)?;
-        let persistent =
-            PersistentTypeId::from_definition_key(cone, &nominal_key(&decl.name, "class"));
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner,
+            name: decl.name.clone(),
+            signature: b"class".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeId::from_definition_key(cone, &key);
         self.class_ids.insert(raw, persistent);
         Some(persistent)
     }
@@ -145,8 +201,18 @@ impl<'a> PersistentIds<'a> {
         }
         let decl: &InterfaceDecl = &self.module.interfaces[id];
         let cone = self.world.cone_of(decl.origin)?;
-        let persistent =
-            PersistentTypeId::from_definition_key(cone, &nominal_key(&decl.name, "interface"));
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner,
+            name: decl.name.clone(),
+            signature: b"interface".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeId::from_definition_key(cone, &key);
         self.interface_ids.insert(raw, persistent);
         Some(persistent)
     }
@@ -158,11 +224,12 @@ impl<'a> PersistentIds<'a> {
         origin: DeclarationOrigin,
         name: &str,
         kind: &'static str,
+        owner: Vec<OwnerStep>,
     ) -> Option<PersistentGenericTypeId> {
         let cone = self.world.cone_of(origin)?;
         let key = DefinitionKey::Source {
             package: String::new(),
-            owner: Vec::new(),
+            owner,
             name: name.to_owned(),
             signature: format!("{kind}-template").into_bytes(),
         }
@@ -172,45 +239,61 @@ impl<'a> PersistentIds<'a> {
 
     pub fn generic_struct_id(&mut self, id: StructId) -> Option<PersistentGenericTypeId> {
         let raw: u32 = u32::from(id.into_raw());
-        if let Some(cached) = self.generic_type_ids.get(&raw) {
+        if let Some(cached) = self.generic_struct_ids.get(&raw) {
             return Some(*cached);
         }
         let decl: &StructDecl = &self.module.structs[id];
-        let persistent = self.generic_template_id(decl.origin, &decl.name, "struct")?;
-        self.generic_type_ids.insert(raw, persistent);
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let persistent = self.generic_template_id(decl.origin, &decl.name, "struct", owner)?;
+        self.generic_struct_ids.insert(raw, persistent);
         Some(persistent)
     }
 
     pub fn generic_enum_id(&mut self, id: EnumId) -> Option<PersistentGenericTypeId> {
         let raw: u32 = u32::from(id.into_raw());
-        if let Some(cached) = self.generic_type_ids.get(&raw) {
+        if let Some(cached) = self.generic_enum_ids.get(&raw) {
             return Some(*cached);
         }
         let decl: &EnumDecl = &self.module.enums[id];
-        let persistent = self.generic_template_id(decl.origin, &decl.name, "enum")?;
-        self.generic_type_ids.insert(raw, persistent);
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let persistent = self.generic_template_id(decl.origin, &decl.name, "enum", owner)?;
+        self.generic_enum_ids.insert(raw, persistent);
         Some(persistent)
     }
 
     pub fn generic_class_id(&mut self, id: ClassId) -> Option<PersistentGenericTypeId> {
         let raw: u32 = u32::from(id.into_raw());
-        if let Some(cached) = self.generic_type_ids.get(&raw) {
+        if let Some(cached) = self.generic_class_ids.get(&raw) {
             return Some(*cached);
         }
         let decl: &ClassDecl = &self.module.classes[id];
-        let persistent = self.generic_template_id(decl.origin, &decl.name, "class")?;
-        self.generic_type_ids.insert(raw, persistent);
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let persistent = self.generic_template_id(decl.origin, &decl.name, "class", owner)?;
+        self.generic_class_ids.insert(raw, persistent);
         Some(persistent)
     }
 
     pub fn generic_interface_id(&mut self, id: InterfaceId) -> Option<PersistentGenericTypeId> {
         let raw: u32 = u32::from(id.into_raw());
-        if let Some(cached) = self.generic_type_ids.get(&raw) {
+        if let Some(cached) = self.generic_interface_ids.get(&raw) {
             return Some(*cached);
         }
         let decl: &InterfaceDecl = &self.module.interfaces[id];
-        let persistent = self.generic_template_id(decl.origin, &decl.name, "interface")?;
-        self.generic_type_ids.insert(raw, persistent);
+        let owner = match decl.owner {
+            Some(owner) => vec![nominal_owner_step(self, owner)?],
+            None => Vec::new(),
+        };
+        let persistent = self.generic_template_id(decl.origin, &decl.name, "interface", owner)?;
+        self.generic_interface_ids.insert(raw, persistent);
         Some(persistent)
     }
 
@@ -256,7 +339,7 @@ impl<'a> PersistentIds<'a> {
                     let id = self.enum_id(template)?;
                     out.array(2).unsigned(6).bytes(id.as_bytes());
                 } else {
-                    let origin = self.generic_template_id(decl.origin, &decl.name, "enum")?;
+                    let origin = self.generic_enum_id(template)?;
                     out.array(3).unsigned(7).bytes(origin.as_bytes());
                     out.array(app.arguments.len() as u64);
                     for argument in app.arguments.clone() {
@@ -272,7 +355,7 @@ impl<'a> PersistentIds<'a> {
                     let id = self.class_id(template)?;
                     out.array(2).unsigned(6).bytes(id.as_bytes());
                 } else {
-                    let origin = self.generic_template_id(decl.origin, &decl.name, "class")?;
+                    let origin = self.generic_class_id(template)?;
                     out.array(3).unsigned(7).bytes(origin.as_bytes());
                     out.array(app.arguments.len() as u64);
                     for argument in app.arguments.clone() {
@@ -288,7 +371,7 @@ impl<'a> PersistentIds<'a> {
                     let id = self.interface_id(template)?;
                     out.array(2).unsigned(6).bytes(id.as_bytes());
                 } else {
-                    let origin = self.generic_template_id(decl.origin, &decl.name, "interface")?;
+                    let origin = self.generic_interface_id(template)?;
                     out.array(3).unsigned(7).bytes(origin.as_bytes());
                     out.array(app.arguments.len() as u64);
                     for argument in app.arguments.clone() {
@@ -416,9 +499,7 @@ impl<'a> PersistentIds<'a> {
                         id: if decl.type_params.is_empty() {
                             *self.enum_id(template)?.as_bytes()
                         } else {
-                            *self
-                                .generic_template_id(decl.origin, &decl.name, "enum")?
-                                .as_bytes()
+                            *self.generic_enum_id(template)?.as_bytes()
                         },
                     },
                     "enum",
@@ -437,9 +518,7 @@ impl<'a> PersistentIds<'a> {
                         id: if decl.type_params.is_empty() {
                             *self.class_id(template)?.as_bytes()
                         } else {
-                            *self
-                                .generic_template_id(decl.origin, &decl.name, "class")?
-                                .as_bytes()
+                            *self.generic_class_id(template)?.as_bytes()
                         },
                     },
                     "class",
@@ -458,9 +537,7 @@ impl<'a> PersistentIds<'a> {
                         id: if decl.type_params.is_empty() {
                             *self.interface_id(template)?.as_bytes()
                         } else {
-                            *self
-                                .generic_template_id(decl.origin, &decl.name, "interface")?
-                                .as_bytes()
+                            *self.generic_interface_id(template)?.as_bytes()
                         },
                     },
                     "interface",

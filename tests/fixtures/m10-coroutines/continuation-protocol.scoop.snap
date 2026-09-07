@@ -1155,7 +1155,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1216,7 +1216,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1277,7 +1277,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1338,7 +1338,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1437,7 +1437,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1498,7 +1498,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1559,7 +1559,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1620,7 +1620,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1709,7 +1709,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1760,7 +1760,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1811,7 +1811,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1862,7 +1862,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1951,7 +1951,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5 direct
+      call @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -2002,7 +2002,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5 direct
+      call @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -2053,7 +2053,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5 direct
+      call @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -2104,7 +2104,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5 direct
+      call @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -2193,7 +2193,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2254,7 +2254,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2315,7 +2315,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2376,7 +2376,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2475,7 +2475,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2536,7 +2536,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2597,7 +2597,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2658,7 +2658,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2747,7 +2747,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2798,7 +2798,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2849,7 +2849,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2900,7 +2900,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2989,7 +2989,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7 direct
+      call @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3040,7 +3040,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7 direct
+      call @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3091,7 +3091,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7 direct
+      call @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3142,7 +3142,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7 direct
+      call @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3287,7 +3287,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IntRangeIterator
         ClassAlloc IntRangeIterator
-      call @scoop$1$fn$2f178408536736773e5495619a9846aceb4d133dcabb62cb4370a53d986ff519 direct
+      call @scoop$1$fn$032af2d008fb69172ae887b013b9b94bfffd5da88a45eae25444358298e7d9cb direct
         Type IntRangeIterator
         Local $new.1
         Type Int
@@ -3342,7 +3342,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31 direct
+      call @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -3392,7 +3392,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type IntRange
         ClassAlloc IntRange
-      call @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5 direct
+      call @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591 direct
         Type IntRange
         Local $new.2
         Type Int
@@ -3591,7 +3591,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -3739,7 +3739,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -4263,7 +4263,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type LongRangeIterator
         ClassAlloc LongRangeIterator
-      call @scoop$1$fn$8ba3f412bec162ed0df3d97c09e571801e208a5234e3af0cf09d164ac185722b direct
+      call @scoop$1$fn$217a92b3cbd633c22a5099e5e9caf081d995fd5d935975ec1df6548fdc636e93 direct
         Type LongRangeIterator
         Local $new.1
         Type Long
@@ -4318,7 +4318,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31 direct
+      call @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -4368,7 +4368,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type LongRange
         ClassAlloc LongRange
-      call @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5 direct
+      call @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48 direct
         Type LongRange
         Local $new.2
         Type Long
@@ -4567,7 +4567,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -4715,7 +4715,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -5239,7 +5239,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UIntRangeIterator
         ClassAlloc UIntRangeIterator
-      call @scoop$1$fn$5189429f70138bb21d7d66aa056c974ba1af49be718d36aa2c47786ff0e28e4c direct
+      call @scoop$1$fn$4c64cc87992b81fbb16df35a19c4697ef04536028d25cecf818cccbcad844070 direct
         Type UIntRangeIterator
         Local $new.1
         Type UInt
@@ -5281,7 +5281,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31 direct
+      call @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -5331,7 +5331,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73 direct
+      call @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb direct
         Type UIntRange
         Local $new.2
         Type UInt
@@ -5515,7 +5515,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -5648,7 +5648,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -6146,7 +6146,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ULongRangeIterator
         ClassAlloc ULongRangeIterator
-      call @scoop$1$fn$b380a925649ea5575057104957700046e1fa2483cc9ad0e8c197d3b186f84a53 direct
+      call @scoop$1$fn$5937cc2ca398cda03d3663da0e66fca40b8e8afe0bd9e6c60d869541e2fdc07a direct
         Type ULongRangeIterator
         Local $new.1
         Type ULong
@@ -6188,7 +6188,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31 direct
+      call @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -6238,7 +6238,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7 direct
+      call @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f direct
         Type ULongRange
         Local $new.2
         Type ULong
@@ -6422,7 +6422,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -6555,7 +6555,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203 direct
+      call @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -7066,7 +7066,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7190,7 +7190,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7287,7 +7287,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7303,7 +7303,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.2
       val $argument.0: Throwable
@@ -7418,7 +7418,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7444,7 +7444,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7458,7 +7458,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba direct
+      call @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7 direct
         Type UnwrapException
         Local $new.1
       val $argument.0: Throwable
@@ -7688,7 +7688,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type Holder
         ClassAlloc Holder
-      call @scoop$1$fn$7db35964fae5cfc34070cb3f3890df2cffaac9863a936e17fa5737f69a8378c8 direct
+      call @scoop$1$fn$25b7fd6996d8e9b93fd703f106568d99bea7437f4c77d93123c49f832fa3acf8 direct
         Type Holder
         Local $new.1
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -7705,7 +7705,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type WaitingTask
         ClassAlloc WaitingTask
-      call @scoop$1$fn$2c46f839fc2f633ac40321ebd4b269f268a70ebbdce8778c45c2a58296b7c7e4 direct
+      call @scoop$1$fn$5cd21ac9404bb10aa234bccc3bb1cd05435d1df1d20325adcb8f724e989e8d6d direct
         Type WaitingTask
         Local $new.2
         Type Holder
@@ -7716,7 +7716,7 @@ Module mangling=persistent-v1
       assign $new.3
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292 direct
+      call @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df direct
         Type RecordingCompletion
         Local $new.3
       val $argument.1: Continuation$I32
@@ -7750,7 +7750,7 @@ Module mangling=persistent-v1
       assign $new.4
         Type ResumeThenThrowTask
         ClassAlloc ResumeThenThrowTask
-      call @scoop$1$fn$27aa4c629c00a90a65e37c7ff0387b3283246e0fd39c9252a24474750ab410cd direct
+      call @scoop$1$fn$12bc8cefb1592378a6ed4cc15fc1da21983f2b052d3d7aa86ca476bf1cdfec9f direct
         Type ResumeThenThrowTask
         Local $new.4
       val $argument.0: SuspendTask$I32
@@ -7759,7 +7759,7 @@ Module mangling=persistent-v1
       assign $new.5
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292 direct
+      call @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df direct
         Type RecordingCompletion
         Local $new.5
       val $argument.1: Continuation$I32
@@ -7779,7 +7779,7 @@ Module mangling=persistent-v1
       assign $new.6
         Type SynchronousFailureTask
         ClassAlloc SynchronousFailureTask
-      call @scoop$1$fn$27b5080960a2404a7e5721c7e902e831fb563058eda29e3fe391036bc9593a23 direct
+      call @scoop$1$fn$3490cf93645e071f3673294db4db6c0dbf8a8e3fc5394996a1358b7fef956b99 direct
         Type SynchronousFailureTask
         Local $new.6
       val $argument.0: SuspendTask$I32
@@ -7788,7 +7788,7 @@ Module mangling=persistent-v1
       assign $new.7
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292 direct
+      call @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df direct
         Type RecordingCompletion
         Local $new.7
       val $argument.1: Continuation$I32
@@ -7814,7 +7814,7 @@ Module mangling=persistent-v1
       assign $new.8
         Type Holder
         ClassAlloc Holder
-      call @scoop$1$fn$7db35964fae5cfc34070cb3f3890df2cffaac9863a936e17fa5737f69a8378c8 direct
+      call @scoop$1$fn$25b7fd6996d8e9b93fd703f106568d99bea7437f4c77d93123c49f832fa3acf8 direct
         Type Holder
         Local $new.8
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -7831,7 +7831,7 @@ Module mangling=persistent-v1
       assign $new.9
         Type SaveThenThrowTask
         ClassAlloc SaveThenThrowTask
-      call @scoop$1$fn$0a253099470b7b1526ead1be638dd3eb4d9db548796e735878672401851cc8ee direct
+      call @scoop$1$fn$53af86fe24c681b624f7b803ed311b77395bcf757a87227e421b685dc6d3294f direct
         Type SaveThenThrowTask
         Local $new.9
         Type Holder
@@ -7842,7 +7842,7 @@ Module mangling=persistent-v1
       assign $new.10
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292 direct
+      call @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df direct
         Type RecordingCompletion
         Local $new.10
       val $argument.1: Continuation$I32
@@ -7882,7 +7882,7 @@ Module mangling=persistent-v1
       assign $new.11
         Type Holder
         ClassAlloc Holder
-      call @scoop$1$fn$7db35964fae5cfc34070cb3f3890df2cffaac9863a936e17fa5737f69a8378c8 direct
+      call @scoop$1$fn$25b7fd6996d8e9b93fd703f106568d99bea7437f4c77d93123c49f832fa3acf8 direct
         Type Holder
         Local $new.11
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -7899,7 +7899,7 @@ Module mangling=persistent-v1
       assign $new.12
         Type WaitingTask
         ClassAlloc WaitingTask
-      call @scoop$1$fn$2c46f839fc2f633ac40321ebd4b269f268a70ebbdce8778c45c2a58296b7c7e4 direct
+      call @scoop$1$fn$5cd21ac9404bb10aa234bccc3bb1cd05435d1df1d20325adcb8f724e989e8d6d direct
         Type WaitingTask
         Local $new.12
         Type Holder
@@ -7910,7 +7910,7 @@ Module mangling=persistent-v1
       assign $new.13
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292 direct
+      call @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df direct
         Type RecordingCompletion
         Local $new.13
       val $argument.1: Continuation$I32
@@ -7990,7 +7990,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun init.IntRange.$c2 @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.IntRange.$c2 @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRange
@@ -8018,7 +8018,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local inclusive
       return
-  fun init.IntRangeIterator.$c3 @scoop$1$fn$2f178408536736773e5495619a9846aceb4d133dcabb62cb4370a53d986ff519(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.IntRangeIterator.$c3 @scoop$1$fn$032af2d008fb69172ae887b013b9b94bfffd5da88a45eae25444358298e7d9cb(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRangeIterator
@@ -8051,7 +8051,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local exhausted
       return
-  fun init.LongRange.$c4 @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.LongRange.$c4 @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRange
@@ -8079,7 +8079,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local inclusive
       return
-  fun init.LongRangeIterator.$c5 @scoop$1$fn$8ba3f412bec162ed0df3d97c09e571801e208a5234e3af0cf09d164ac185722b(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.LongRangeIterator.$c5 @scoop$1$fn$217a92b3cbd633c22a5099e5e9caf081d995fd5d935975ec1df6548fdc636e93(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRangeIterator
@@ -8112,7 +8112,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local exhausted
       return
-  fun init.UIntRange.$c6 @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.UIntRange.$c6 @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRange
@@ -8140,7 +8140,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local inclusive
       return
-  fun init.UIntRangeIterator.$c7 @scoop$1$fn$5189429f70138bb21d7d66aa056c974ba1af49be718d36aa2c47786ff0e28e4c(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.UIntRangeIterator.$c7 @scoop$1$fn$4c64cc87992b81fbb16df35a19c4697ef04536028d25cecf818cccbcad844070(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRangeIterator
@@ -8173,7 +8173,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local exhausted
       return
-  fun init.ULongRange.$c8 @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.ULongRange.$c8 @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRange
@@ -8201,7 +8201,7 @@ Module mangling=persistent-v1
         Type Boolean
         Local inclusive
       return
-  fun init.ULongRangeIterator.$c9 @scoop$1$fn$b380a925649ea5575057104957700046e1fa2483cc9ad0e8c197d3b186f84a53(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.ULongRangeIterator.$c9 @scoop$1$fn$5937cc2ca398cda03d3663da0e66fca40b8e8afe0bd9e6c60d869541e2fdc07a(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRangeIterator
@@ -8234,12 +8234,12 @@ Module mangling=persistent-v1
         Type Boolean
         Local exhausted
       return
-  fun init.Throwable.$c10 @scoop$1$fn$c27cfa611d7bf9891c8ddcf437b685a952bc465a930ad01572c5fed7eefd722f(this: Throwable) -> Unit
+  fun init.Throwable.$c10 @scoop$1$fn$6bbb3e77eaae4a7d0ec05bc7296c70c6aac8f88583baf648c40f7878830b222b(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop$1$fn$c27cfa611d7bf9891c8ddcf437b685a952bc465a930ad01572c5fed7eefd722f direct
+      call @scoop$1$fn$6bbb3e77eaae4a7d0ec05bc7296c70c6aac8f88583baf648c40f7878830b222b direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -8250,7 +8250,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c12 @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c12 @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -8266,7 +8266,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -8274,7 +8274,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c13 @scoop$1$fn$9b35e862270a390cf2c18ac63e0eddbeaef2a1d4e8b4297906637443f1723f2e(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c13 @scoop$1$fn$a2a3e9ac52dd1b789e10e8d9e0e9eacbdf16e5bc4c8d76e2fea2223c65aa42dc(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -8290,7 +8290,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -8298,7 +8298,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c14 @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c14 @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -8314,7 +8314,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -8322,7 +8322,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c15 @scoop$1$fn$f43e0e36c38993f412d34388f54e60a25391ed1b88945f5e759147c11bfaaa90(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c15 @scoop$1$fn$fb8b5f38c2f1528452c03bf1b7b3a1c3c7ebd57b97db61ce9fdca09252c206a0(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -8338,7 +8338,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -8346,7 +8346,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902(this: IllegalArgumentException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -8354,7 +8354,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
@@ -8362,7 +8362,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @scoop$1$fn$b44593341df143c7ee863fc850843c3b9162d7245068217c2c09a2d6cdacccea(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @scoop$1$fn$fa2b649cc121d3819ade8540d8737a9c687b769feec4bc979d2b610a18e99882(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -8370,7 +8370,7 @@ Module mangling=persistent-v1
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec direct
+      call @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -8378,7 +8378,7 @@ Module mangling=persistent-v1
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c28 @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c28 @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -8391,13 +8391,13 @@ Module mangling=persistent-v1
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop$1$fn$b44593341df143c7ee863fc850843c3b9162d7245068217c2c09a2d6cdacccea direct
+      call @scoop$1$fn$fa2b649cc121d3819ade8540d8737a9c687b769feec4bc979d2b610a18e99882 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.Holder.$c18 @scoop$1$fn$7db35964fae5cfc34070cb3f3890df2cffaac9863a936e17fa5737f69a8378c8(this: Holder, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.Holder.$c18 @scoop$1$fn$25b7fd6996d8e9b93fd703f106568d99bea7437f4c77d93123c49f832fa3acf8(this: Holder, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
     bb0 entry
       field_set 0
         Type Holder
@@ -8405,7 +8405,7 @@ Module mangling=persistent-v1
         Type Option$J16_Continuation$I32X<Continuation$I32>
         Local waiter
       return
-  fun init.SavingRegistration.$c19 @scoop$1$fn$e50a563f1332911c21e92f43d76f2f8158f877e9139134c975ba4a98c334edf7(this: SavingRegistration, holder: Holder) -> Unit
+  fun init.SavingRegistration.$c19 @scoop$1$fn$24e4df7f7eb18b8b5676e2a16692c86189186175ab39bb45fd5c6a76913244ff(this: SavingRegistration, holder: Holder) -> Unit
     bb0 entry
       field_set 0
         Type SavingRegistration
@@ -8413,10 +8413,10 @@ Module mangling=persistent-v1
         Type Holder
         Local holder
       return
-  fun init.ResumeThenThrowRegistration.$c20 @scoop$1$fn$926d63cbba1f6b62365ff75e3cdc1c4f0646ea7af90ae497274470548686a589(this: ResumeThenThrowRegistration) -> Unit
+  fun init.ResumeThenThrowRegistration.$c20 @scoop$1$fn$4732ae174b53d0f1050c1cbc132b64ae7f77848c16f240734ce61da227ba162f(this: ResumeThenThrowRegistration) -> Unit
     bb0 entry
       return
-  fun init.SaveThenThrowRegistration.$c21 @scoop$1$fn$4181e0560820a0264bd3b1d7c6651a461fdd89933601436014f7a5d7c7e5bd9b(this: SaveThenThrowRegistration, holder: Holder) -> Unit
+  fun init.SaveThenThrowRegistration.$c21 @scoop$1$fn$bf7e8657f41f6e6edd4d7697418b900528d3bc1ad6901e7420bca5e53a9e534f(this: SaveThenThrowRegistration, holder: Holder) -> Unit
     bb0 entry
       field_set 0
         Type SaveThenThrowRegistration
@@ -8424,10 +8424,10 @@ Module mangling=persistent-v1
         Type Holder
         Local holder
       return
-  fun init.SynchronousFailureRegistration.$c22 @scoop$1$fn$fca81ed314629e6ece8e229e262a96dcb2f4d82a57fea247c7350225f99ac9f6(this: SynchronousFailureRegistration) -> Unit
+  fun init.SynchronousFailureRegistration.$c22 @scoop$1$fn$b3b960348c8456935e732b02bce4f0a9ff54d117b75bcc0658795041f507b6d2(this: SynchronousFailureRegistration) -> Unit
     bb0 entry
       return
-  fun init.WaitingTask.$c23 @scoop$1$fn$2c46f839fc2f633ac40321ebd4b269f268a70ebbdce8778c45c2a58296b7c7e4(this: WaitingTask, holder: Holder) -> Unit
+  fun init.WaitingTask.$c23 @scoop$1$fn$5cd21ac9404bb10aa234bccc3bb1cd05435d1df1d20325adcb8f724e989e8d6d(this: WaitingTask, holder: Holder) -> Unit
     bb0 entry
       field_set 0
         Type WaitingTask
@@ -8435,10 +8435,10 @@ Module mangling=persistent-v1
         Type Holder
         Local holder
       return
-  fun init.ResumeThenThrowTask.$c24 @scoop$1$fn$27aa4c629c00a90a65e37c7ff0387b3283246e0fd39c9252a24474750ab410cd(this: ResumeThenThrowTask) -> Unit
+  fun init.ResumeThenThrowTask.$c24 @scoop$1$fn$12bc8cefb1592378a6ed4cc15fc1da21983f2b052d3d7aa86ca476bf1cdfec9f(this: ResumeThenThrowTask) -> Unit
     bb0 entry
       return
-  fun init.SaveThenThrowTask.$c25 @scoop$1$fn$0a253099470b7b1526ead1be638dd3eb4d9db548796e735878672401851cc8ee(this: SaveThenThrowTask, holder: Holder) -> Unit
+  fun init.SaveThenThrowTask.$c25 @scoop$1$fn$53af86fe24c681b624f7b803ed311b77395bcf757a87227e421b685dc6d3294f(this: SaveThenThrowTask, holder: Holder) -> Unit
     bb0 entry
       field_set 0
         Type SaveThenThrowTask
@@ -8446,13 +8446,13 @@ Module mangling=persistent-v1
         Type Holder
         Local holder
       return
-  fun init.SynchronousFailureTask.$c26 @scoop$1$fn$27b5080960a2404a7e5721c7e902e831fb563058eda29e3fe391036bc9593a23(this: SynchronousFailureTask) -> Unit
+  fun init.SynchronousFailureTask.$c26 @scoop$1$fn$3490cf93645e071f3673294db4db6c0dbf8a8e3fc5394996a1358b7fef956b99(this: SynchronousFailureTask) -> Unit
     bb0 entry
       return
-  fun init.RecordingCompletion.$c27 @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292(this: RecordingCompletion) -> Unit
+  fun init.RecordingCompletion.$c27 @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df(this: RecordingCompletion) -> Unit
     bb0 entry
       return
-  fun ctor.SourceLocation.$c5 @scoop$1$fn$3a5764031dd3649b3cc2a9743e5cc03978fc575d1de96bc160d84f410cdfb17f(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
+  fun ctor.SourceLocation.$c5 @scoop$1$fn$366003f719c8842c0be0220f1662edca023aff2f0e60dd52ac9af21b090b81da(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
       return
         Type SourceLocation
@@ -8522,7 +8522,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type SavingRegistration
         ClassAlloc SavingRegistration
-      call @scoop$1$fn$e50a563f1332911c21e92f43d76f2f8158f877e9139134c975ba4a98c334edf7 direct
+      call @scoop$1$fn$24e4df7f7eb18b8b5676e2a16692c86189186175ab39bb45fd5c6a76913244ff direct
         Type SavingRegistration
         Local $new.1
         Type Holder
@@ -8616,7 +8616,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8840,7 +8840,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8875,7 +8875,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9039,7 +9039,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9233,7 +9233,7 @@ Module mangling=persistent-v1
       assign $new.3
         Type ResumeThenThrowRegistration
         ClassAlloc ResumeThenThrowRegistration
-      call @scoop$1$fn$926d63cbba1f6b62365ff75e3cdc1c4f0646ea7af90ae497274470548686a589 direct
+      call @scoop$1$fn$4732ae174b53d0f1050c1cbc132b64ae7f77848c16f240734ce61da227ba162f direct
         Type ResumeThenThrowRegistration
         Local $new.3
       val registration: SuspendRegistration$I32
@@ -9342,7 +9342,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw unwind bb1
@@ -9566,7 +9566,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9601,7 +9601,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9765,7 +9765,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -9967,7 +9967,7 @@ Module mangling=persistent-v1
       assign $new.3
         Type SaveThenThrowRegistration
         ClassAlloc SaveThenThrowRegistration
-      call @scoop$1$fn$4181e0560820a0264bd3b1d7c6651a461fdd89933601436014f7a5d7c7e5bd9b direct
+      call @scoop$1$fn$bf7e8657f41f6e6edd4d7697418b900528d3bc1ad6901e7420bca5e53a9e534f direct
         Type SaveThenThrowRegistration
         Local $new.3
         Type Holder
@@ -10078,7 +10078,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw unwind bb1
@@ -10302,7 +10302,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10337,7 +10337,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10501,7 +10501,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -10695,7 +10695,7 @@ Module mangling=persistent-v1
       assign $new.3
         Type SynchronousFailureRegistration
         ClassAlloc SynchronousFailureRegistration
-      call @scoop$1$fn$fca81ed314629e6ece8e229e262a96dcb2f4d82a57fea247c7350225f99ac9f6 direct
+      call @scoop$1$fn$b3b960348c8456935e732b02bce4f0a9ff54d117b75bcc0658795041f507b6d2 direct
         Type SynchronousFailureRegistration
         Local $new.3
       val registration: SuspendRegistration$I32
@@ -10804,7 +10804,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw unwind bb1
@@ -11028,7 +11028,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11063,7 +11063,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -11227,7 +11227,7 @@ Module mangling=persistent-v1
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773 direct
+      call @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -15526,7 +15526,7 @@ Module
     call native-borrowed-void-target1 sp200 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1608434b8981713d8babdad3accbd5ab3ed25eaae5356cf474b6139fd40887c5(ptr<managed>, i32, i32, i32, i1, i1) -> void
+  fun @scoop$1$fn$ce4919b46b31831ce0f484fcf5224df0c3a9d58e754043b3548556802aed3591(ptr<managed>, i32, i32, i32, i1, i1) -> void
   block entry
     poll managed-void-target0 sp390 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15535,7 +15535,7 @@ Module
     heap_store param0 +28 param4
     heap_store param0 +29 param5
     ret
-  fun @scoop$1$fn$2f178408536736773e5495619a9846aceb4d133dcabb62cb4370a53d986ff519(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
+  fun @scoop$1$fn$032af2d008fb69172ae887b013b9b94bfffd5da88a45eae25444358298e7d9cb(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp391 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15545,7 +15545,7 @@ Module
     heap_store param0 +29 param5
     heap_store param0 +30 param6
     ret
-  fun @scoop$1$fn$220f08542659d1c5b360d605b5e3d7e6dc674be75818e094f37dc077632b2ad5(ptr<managed>, i64, i64, i64, i1, i1) -> void
+  fun @scoop$1$fn$1a3f192b8fbac0fb0df89f8cd153436cd6aecd49958231de8732b918c2579a48(ptr<managed>, i64, i64, i64, i1, i1) -> void
   block entry
     poll managed-void-target0 sp392 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15554,7 +15554,7 @@ Module
     heap_store param0 +40 param4
     heap_store param0 +41 param5
     ret
-  fun @scoop$1$fn$8ba3f412bec162ed0df3d97c09e571801e208a5234e3af0cf09d164ac185722b(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
+  fun @scoop$1$fn$217a92b3cbd633c22a5099e5e9caf081d995fd5d935975ec1df6548fdc636e93(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp393 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15564,7 +15564,7 @@ Module
     heap_store param0 +41 param5
     heap_store param0 +42 param6
     ret
-  fun @scoop$1$fn$b72297d4af0a46eac5885c100515adedce1976e1c5e8f74f75be39fa19aaad73(ptr<managed>, i32, i32, i32, i1, i1) -> void
+  fun @scoop$1$fn$8e67e15f090bc44c90125d9136128be2a0a57a721780a4b81168196fc7279fcb(ptr<managed>, i32, i32, i32, i1, i1) -> void
   block entry
     poll managed-void-target0 sp394 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15573,7 +15573,7 @@ Module
     heap_store param0 +28 param4
     heap_store param0 +29 param5
     ret
-  fun @scoop$1$fn$5189429f70138bb21d7d66aa056c974ba1af49be718d36aa2c47786ff0e28e4c(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
+  fun @scoop$1$fn$4c64cc87992b81fbb16df35a19c4697ef04536028d25cecf818cccbcad844070(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp395 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15583,7 +15583,7 @@ Module
     heap_store param0 +29 param5
     heap_store param0 +30 param6
     ret
-  fun @scoop$1$fn$376814ea171e88c0890b4fb87fe78721a883ff18e5bdb0e4470c648ff738d9d7(ptr<managed>, i64, i64, i64, i1, i1) -> void
+  fun @scoop$1$fn$dbab7b1ad5cb441e8e7fa7f911ceae8062d2958737691e6410d4e774135ce07f(ptr<managed>, i64, i64, i64, i1, i1) -> void
   block entry
     poll managed-void-target0 sp396 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15592,7 +15592,7 @@ Module
     heap_store param0 +40 param4
     heap_store param0 +41 param5
     ret
-  fun @scoop$1$fn$b380a925649ea5575057104957700046e1fa2483cc9ad0e8c197d3b186f84a53(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
+  fun @scoop$1$fn$5937cc2ca398cda03d3663da0e66fca40b8e8afe0bd9e6c60d869541e2fdc07a(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp397 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -15602,18 +15602,18 @@ Module
     heap_store param0 +41 param5
     heap_store param0 +42 param6
     ret
-  fun @scoop$1$fn$c27cfa611d7bf9891c8ddcf437b685a952bc465a930ad01572c5fed7eefd722f(ptr<managed>) -> void
+  fun @scoop$1$fn$6bbb3e77eaae4a7d0ec05bc7296c70c6aac8f88583baf648c40f7878830b222b(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp398 live=[]
     ret
-  fun @scoop$1$fn$678bf04e239aa660575ecebb5a06db96ec8a87f17247cd9d1d2e653cb1eaa1ec(ptr<managed>, enum1) -> void
+  fun @scoop$1$fn$ce741620d7ea192eb3f7f6716106b794fdaefe379023dff847b04cb676c78cfb(ptr<managed>, enum1) -> void
   block entry
     poll managed-void-target1 sp399 live=[param0:ptr<managed>@0, param1:enum1@0]
     call managed-void-target0 sp201 live=[param0:ptr<managed>@0, param1:enum1@0] sig=void0 (ptr<managed>) local-fn95(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$b3764421b556e46bf265aa5855d405e4434219f2949d35a09583edfab46179ba(ptr<managed>) -> void
+  fun @scoop$1$fn$65ae0c54213631638fb707122134c9e9af13c3dc3140d4f93e98a4a2069363d7(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -15628,7 +15628,7 @@ Module
     call managed-void-target0 sp202 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$9b35e862270a390cf2c18ac63e0eddbeaef2a1d4e8b4297906637443f1723f2e(ptr<managed>) -> void
+  fun @scoop$1$fn$a2a3e9ac52dd1b789e10e8d9e0e9eacbdf16e5bc4c8d76e2fea2223c65aa42dc(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -15643,7 +15643,7 @@ Module
     call managed-void-target0 sp203 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$16b2a18aeaa919293181bfd8cb89856721bf7d266c7fce381b2066e42646f203(ptr<managed>) -> void
+  fun @scoop$1$fn$eda7235cc5d3dbda643895c8ea1a6f8fc02166ced6ff66dbd9b6cbf3690cb445(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -15658,7 +15658,7 @@ Module
     call managed-void-target0 sp204 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$f43e0e36c38993f412d34388f54e60a25391ed1b88945f5e759147c11bfaaa90(ptr<managed>) -> void
+  fun @scoop$1$fn$fb8b5f38c2f1528452c03bf1b7b3a1c3c7ebd57b97db61ce9fdca09252c206a0(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum1
@@ -15673,7 +15673,7 @@ Module
     call managed-void-target0 sp205 live=[param0:ptr<managed>@0, local3:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$4a0fb5059a44b5b42f9a0729fde10687e2f751b0f40ba1ca78034afa84fe7b31(ptr<managed>, enum1) -> void
+  fun @scoop$1$fn$9e3ce95722a717831562e25ab53388eef01f924d65e73421bc74fca26be48902(ptr<managed>, enum1) -> void
     local %0 $argument.0: enum1
     local %1 $parameter.message: enum1
   block entry
@@ -15683,7 +15683,7 @@ Module
     call managed-void-target0 sp206 live=[param0:ptr<managed>@0, local1:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b44593341df143c7ee863fc850843c3b9162d7245068217c2c09a2d6cdacccea(ptr<managed>, enum1) -> void
+  fun @scoop$1$fn$fa2b649cc121d3819ade8540d8737a9c687b769feec4bc979d2b610a18e99882(ptr<managed>, enum1) -> void
     local %0 $argument.0: enum1
     local %1 $parameter.message: enum1
   block entry
@@ -15693,7 +15693,7 @@ Module
     call managed-void-target0 sp207 live=[param0:ptr<managed>@0, local1:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn96(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$fn$e34e8cb47f773b4ec43afae3060b5b02d8cefbd100eebdd1aad656cccfb91773(ptr<managed>) -> void
+  fun @scoop$1$fn$daf576047c0104edb036965d1877b1908500583561bddeb7086715e5c567d620(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum1
@@ -15706,52 +15706,52 @@ Module
     call managed-void-target0 sp208 live=[param0:ptr<managed>@0, local2:enum1@0] sig=void0 (ptr<managed>, enum1) local-fn102(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$7db35964fae5cfc34070cb3f3890df2cffaac9863a936e17fa5737f69a8378c8(ptr<managed>, enum0) -> void
+  fun @scoop$1$fn$25b7fd6996d8e9b93fd703f106568d99bea7437f4c77d93123c49f832fa3acf8(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target0 sp407 live=[param0:ptr<managed>@0, param1:enum0@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$e50a563f1332911c21e92f43d76f2f8158f877e9139134c975ba4a98c334edf7(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$24e4df7f7eb18b8b5676e2a16692c86189186175ab39bb45fd5c6a76913244ff(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp408 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$926d63cbba1f6b62365ff75e3cdc1c4f0646ea7af90ae497274470548686a589(ptr<managed>) -> void
+  fun @scoop$1$fn$4732ae174b53d0f1050c1cbc132b64ae7f77848c16f240734ce61da227ba162f(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp409 live=[]
     ret
-  fun @scoop$1$fn$4181e0560820a0264bd3b1d7c6651a461fdd89933601436014f7a5d7c7e5bd9b(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$bf7e8657f41f6e6edd4d7697418b900528d3bc1ad6901e7420bca5e53a9e534f(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp410 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$fca81ed314629e6ece8e229e262a96dcb2f4d82a57fea247c7350225f99ac9f6(ptr<managed>) -> void
+  fun @scoop$1$fn$b3b960348c8456935e732b02bce4f0a9ff54d117b75bcc0658795041f507b6d2(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp411 live=[]
     ret
-  fun @scoop$1$fn$2c46f839fc2f633ac40321ebd4b269f268a70ebbdce8778c45c2a58296b7c7e4(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$5cd21ac9404bb10aa234bccc3bb1cd05435d1df1d20325adcb8f724e989e8d6d(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp412 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$27aa4c629c00a90a65e37c7ff0387b3283246e0fd39c9252a24474750ab410cd(ptr<managed>) -> void
+  fun @scoop$1$fn$12bc8cefb1592378a6ed4cc15fc1da21983f2b052d3d7aa86ca476bf1cdfec9f(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp413 live=[]
     ret
-  fun @scoop$1$fn$0a253099470b7b1526ead1be638dd3eb4d9db548796e735878672401851cc8ee(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$53af86fe24c681b624f7b803ed311b77395bcf757a87227e421b685dc6d3294f(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp414 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$27b5080960a2404a7e5721c7e902e831fb563058eda29e3fe391036bc9593a23(ptr<managed>) -> void
+  fun @scoop$1$fn$3490cf93645e071f3673294db4db6c0dbf8a8e3fc5394996a1358b7fef956b99(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp415 live=[]
     ret
-  fun @scoop$1$fn$4bd352bb9f2de3352fd6064d76d16a0bb707dd527c2a99080310b7cdd72e9292(ptr<managed>) -> void
+  fun @scoop$1$fn$c2779100cf00aa3698fbbcadb5498e9324c023d0f1fe013bfc2ff0e9b360f7df(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp416 live=[]
     ret
-  fun @scoop$1$fn$3a5764031dd3649b3cc2a9743e5cc03978fc575d1de96bc160d84f410cdfb17f(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
+  fun @scoop$1$fn$366003f719c8842c0be0220f1662edca023aff2f0e60dd52ac9af21b090b81da(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0

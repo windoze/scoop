@@ -155,7 +155,9 @@ impl Lowerer {
                 });
                 source_args.push(smir::Expr::local(local, ty));
             }
-            let reference_index = id.into_raw().into_u32();
+            // Per-expression entities use their normalized source span as
+            // the stable identity; the arena ordinal never enters the key.
+            let span = reference.span;
             let encoded = mir::encode_type(&self.shell, &mir::Type::Function(function_type))
                 .expect("callable reference signatures are source-level MIR types");
             let function = self.functions.alloc(mir::Function {
@@ -164,7 +166,7 @@ impl Lowerer {
                 symbol: crate::generated_function_symbol(
                     self.cone,
                     scoop_identity::GeneratedRole::CallableAdapter,
-                    &format!("callable-reference/{reference_index}/{encoded}"),
+                    &format!("callable-reference/{}:{}/{}", span.start, span.end, encoded),
                     &[],
                 ),
                 params: Vec::new(),

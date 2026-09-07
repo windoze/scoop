@@ -138,7 +138,7 @@ Module mangling=persistent-v1
         g0 = generated_function_symbol(
             scoop_hir_lower::test_cone_identity(),
             scoop_identity::GeneratedRole::InitStorage,
-            "class-initializer/init.MyError.$c0",
+            "class-initializer/MyError/",
             &[]
         ),
     );

@@ -179,6 +179,36 @@ impl Lowerer {
         }
     }
 
+    /// Structural signature key for one constructor overload: the encoded
+    /// parameter types in declaration order. Constructor identity is the
+    /// owner plus this sequence; source ordinals never enter it.
+    fn constructor_signature_key(
+        &mut self,
+        module: &hir::Module,
+        parameters: &[hir::ConstructorParameter],
+    ) -> String {
+        let types = crate::types::Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        let mut encoded = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let lowered = types.lower(
+                parameter.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            encoded.push(
+                mir::encode_type(&self.shell, &lowered)
+                    .expect("constructor parameter types are source-level MIR types"),
+            );
+        }
+        encoded.join("_")
+    }
+
     /// Declare one hidden class initializer. Source constructor identity and
     /// owner specialization are both encoded, so overloads never collide.
     pub(super) fn declare_ctor(
@@ -189,12 +219,13 @@ impl Lowerer {
         let constructor = &module.class_constructors[constructor_id];
         let decl = &module.classes[constructor.class];
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
+        let signature = self.constructor_signature_key(module, &constructor.parameters);
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             symbol: crate::generated_function_symbol(
                 self.cone,
                 scoop_identity::GeneratedRole::InitStorage,
-                &format!("class-initializer/{name}"),
+                &format!("class-initializer/{}/{}", decl.name, signature),
                 &[],
             ),
             name,
@@ -215,6 +246,7 @@ impl Lowerer {
         let constructor = &module.struct_constructors[constructor_id];
         let decl = &module.structs[constructor.structure];
         let name = format!("ctor.{}.$c{}", decl.name, constructor.source_discriminator);
+        let signature = self.constructor_signature_key(module, &constructor.parameters);
         let gc_effect = match &constructor.kind {
             // Primary struct construction only assembles an already-evaluated
             // value. Defaults and source arguments are evaluated by the
@@ -227,7 +259,7 @@ impl Lowerer {
             symbol: crate::generated_function_symbol(
                 self.cone,
                 scoop_identity::GeneratedRole::InitStorage,
-                &format!("struct-constructor/{name}"),
+                &format!("struct-constructor/{}/{}", decl.name, signature),
                 &[],
             ),
             name,

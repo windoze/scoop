@@ -151,13 +151,13 @@ Module mangling=persistent-v1
         g0 = generated_function_symbol(
             scoop_hir_lower::test_cone_identity(),
             scoop_identity::GeneratedRole::InitStorage,
-            "struct-constructor/ctor.S.$c0",
+            "struct-constructor/S/I32",
             &[]
         ),
         g1 = generated_function_symbol(
             scoop_hir_lower::test_cone_identity(),
             scoop_identity::GeneratedRole::InitStorage,
-            "class-initializer/init.ClassCastException.$c0",
+            "class-initializer/ClassCastException/",
             &[]
         ),
     );

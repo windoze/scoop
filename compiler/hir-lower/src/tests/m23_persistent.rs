@@ -306,3 +306,103 @@ fn concrete_functions_carry_persistent_symbols() {
             && function.symbol.is_empty()
     }));
 }
+
+#[test]
+fn nested_same_name_nominals_get_distinct_persistent_ids() {
+    // Regression: nested nominal keys must carry the typed owner chain;
+    // `First.Nested` and `Second.Nested` are distinct entities.
+    let outer = |owner: &str| {
+        let mut declaration = class_decl(
+            ast::ClassModifier::Final,
+            owner,
+            vec![],
+            None,
+            vec![],
+            vec![],
+        );
+        let Decl::Class(class) = &mut declaration else {
+            unreachable!("class builder returns a class");
+        };
+        let Decl::Class(nested) = class_decl(
+            ast::ClassModifier::Final,
+            "Nested",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ) else {
+            unreachable!("class builder returns a class");
+        };
+        class.members.push(ast::ClassMember::Nested(Box::new(
+            ast::NestedNominalDecl::Class(Box::new(nested)),
+        )));
+        declaration
+    };
+    let first = outer("First");
+    let second = outer("Second");
+    let output = lower_user_output(file(vec![first, second, fun("main", vec![])]))
+        .expect("nested declarations lower");
+    let persistent_world = world();
+    let mut ids = hir::PersistentIds::new(&output.export, &persistent_world);
+    let nested_ids: Vec<scoop_identity::persistent::PersistentTypeId> = output
+        .export
+        .classes
+        .iter()
+        .filter(|(_, declaration)| declaration.name == "Nested")
+        .filter_map(|(id, _)| ids.class_id(id))
+        .collect();
+    assert_eq!(nested_ids.len(), 2, "two nested classes exist");
+    assert_ne!(
+        nested_ids[0].as_bytes(),
+        nested_ids[1].as_bytes(),
+        "same-named nested classes under distinct owners must not collide"
+    );
+}
+
+#[test]
+fn generic_template_ids_stay_distinct_across_nominal_kinds() {
+    // Regression: generic template caches are per-kind; raw arena indices
+    // collide across the struct/enum/class/interface arenas. One
+    // declaration of each kind lands at raw index 0 in its own arena, so
+    // a shared cache would return the first kind's template for every
+    // later kind.
+    let module = lower_user(file(vec![
+        fun("main", vec![]),
+        generic_struct_decl("Cell", vec!["T"], vec![]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Node",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+    ]))
+    .expect("distinct-named declarations lower");
+    let persistent_world = world();
+    let mut ids = hir::PersistentIds::new(&module, &persistent_world);
+    let struct_decl_id = module
+        .structs
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Cell")
+        .map(|(id, _)| id)
+        .expect("struct Cell");
+    let class_decl_id = module
+        .classes
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Node")
+        .map(|(id, _)| id)
+        .expect("class Node");
+    let struct_template = ids.generic_struct_id(struct_decl_id).unwrap();
+    // Before the per-kind caches, a class lookup whose raw index happened
+    // to equal an already-cached struct index returned the struct
+    // template id. The caches are keyed per-kind now, so distinct
+    // declarations never alias regardless of index overlap.
+    let class_template = ids.generic_class_id(class_decl_id).unwrap();
+    assert_ne!(struct_template.as_bytes(), class_template.as_bytes());
+    // And the plain ids differ by kind tag at the same raw index.
+    assert_ne!(
+        ids.struct_id(struct_decl_id).unwrap().as_bytes(),
+        ids.class_id(class_decl_id).unwrap().as_bytes()
+    );
+}
