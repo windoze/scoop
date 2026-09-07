@@ -2,8 +2,44 @@ use crate::{Block, CallArgument, Expr, Ident, IntegerLiteralSyntax, Span, TypeRe
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
+    /// At most one package header; `RootPackage` when omitted.
+    pub package: PackageSyntax,
+    /// File-head imports only; declaration-order preserved.
+    pub imports: Vec<ImportSyntax>,
     pub declarations: Vec<Decl>,
     pub span: Span,
+}
+
+/// The file's package declaration (spec section 12.4.1). Omission is the
+/// explicit root package, never an unknown state.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PackageSyntax {
+    RootPackage,
+    QualifiedPackage(QualifiedPath),
+}
+
+/// A dot-separated non-empty identifier sequence. The package / owner /
+/// entity boundary is resolved by HIR typed namespaces, never by string
+/// concatenation here.
+#[derive(Debug, Clone, PartialEq)]
+pub struct QualifiedPath {
+    pub segments: Vec<Ident>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImportSyntax {
+    Exact {
+        public: bool,
+        path: QualifiedPath,
+        alias: Option<Ident>,
+        span: Span,
+    },
+    Star {
+        public: bool,
+        path: QualifiedPath,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -6,6 +6,54 @@ use super::{
 
 pub fn dump(file: &SourceFile) -> String {
     let mut out = String::from("SourceFile\n");
+    match &file.package {
+        PackageSyntax::QualifiedPackage(path) => {
+            out.push_str(&format!(
+                "  package {}\n",
+                path.segments
+                    .iter()
+                    .map(|segment| segment.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join(".")
+            ));
+        }
+        PackageSyntax::RootPackage => {}
+    }
+    for import in &file.imports {
+        match import {
+            ImportSyntax::Exact {
+                public,
+                path,
+                alias,
+                ..
+            } => {
+                out.push_str(&format!(
+                    "  {}import {}{}\n",
+                    if *public { "public " } else { "" },
+                    path.segments
+                        .iter()
+                        .map(|segment| segment.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("."),
+                    alias
+                        .as_ref()
+                        .map(|alias| format!(" as {}", alias.text))
+                        .unwrap_or_default()
+                ));
+            }
+            ImportSyntax::Star { public, path, .. } => {
+                out.push_str(&format!(
+                    "  {}import {}.*\n",
+                    if *public { "public " } else { "" },
+                    path.segments
+                        .iter()
+                        .map(|segment| segment.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join(".")
+                ));
+            }
+        }
+    }
     for decl in &file.declarations {
         match decl {
             Decl::Global(g) => {

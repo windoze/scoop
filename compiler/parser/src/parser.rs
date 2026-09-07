@@ -10,7 +10,7 @@
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
-use scoop_ast::{Diagnostic, Ident, SourceFile, Span};
+use scoop_ast::{Diagnostic, Ident, ImportSyntax, PackageSyntax, QualifiedPath, SourceFile, Span};
 
 use crate::lexer::{Token, TokenKind, lex};
 
@@ -27,6 +27,15 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         next_anonymous_function_id: 0,
         next_callable_reference_id: 0,
     };
+    // File header: one optional `package`, then zero or more imports.
+    // Each header item is an independent recovery boundary.
+    let package = parser.parse_package_header();
+    let mut imports = Vec::new();
+    while let Some(import) = parser.parse_import_header() {
+        if let Some(import) = import {
+            imports.push(import);
+        }
+    }
     let mut declarations = Vec::new();
     while !parser.at_eof() {
         let start = parser.pos;
@@ -39,6 +48,8 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         }
     }
     let file = SourceFile {
+        package,
+        imports,
         declarations,
         span: Span::new(0, source.len() as u32),
     };
@@ -154,6 +165,205 @@ impl Parser {
                 return;
             }
             self.bump();
+        }
+    }
+
+    /// Span from token `start` to just before the current token.
+    fn span_from(&self, start: usize) -> Span {
+        let start_span = self.tokens[start].span;
+        let end = if self.pos > start {
+            self.tokens[self.pos - 1].span.end
+        } else {
+            start_span.start
+        };
+        Span::new(start_span.start, end)
+    }
+
+    /// Whether the current token is the contextual keyword `package`.
+    fn at_contextual(&self, keyword: &str) -> bool {
+        matches!(&self.tokens.get(self.pos).map(|t| &t.kind), Some(TokenKind::Ident(name)) if name == keyword)
+    }
+
+    /// `package QualifiedPath` — at most once and only before any import
+    /// or declaration; later occurrences surface as ordinary declaration
+    /// errors through `parse_decl`.
+    fn parse_package_header(&mut self) -> PackageSyntax {
+        if !self.at_contextual("package") {
+            return PackageSyntax::RootPackage;
+        }
+        let start = self.pos;
+        self.pos += 1;
+        match self.parse_qualified_path() {
+            Ok(path) => PackageSyntax::QualifiedPackage(path),
+            Err(diagnostic) => {
+                self.diagnostics.push(diagnostic);
+                self.skip_to_header_boundary(start);
+                PackageSyntax::RootPackage
+            }
+        }
+    }
+
+    /// `public? import ImportSelector (as Ident)?` / `public? import
+    /// QualifiedPath . *`. Returns `None` when the header ends; `Some(None)`
+    /// records that a malformed import was diagnosed and skipped.
+    fn parse_import_header(&mut self) -> Option<Option<ImportSyntax>> {
+        let start = self.pos;
+        let public = if self.at_contextual("public") {
+            // Only consume `public` when an `import` actually follows;
+            // otherwise it belongs to a declaration.
+            if matches!(&self.tokens.get(self.pos + 1).map(|t| &t.kind), Some(TokenKind::Ident(name)) if name == "import")
+            {
+                self.pos += 2;
+                true
+            } else {
+                return None;
+            }
+        } else if self.at_contextual("import") {
+            self.pos += 1;
+            false
+        } else {
+            return None;
+        };
+        match self.parse_import_selector(public, start) {
+            Ok(import) => Some(Some(import)),
+            Err(diagnostic) => {
+                self.diagnostics.push(diagnostic);
+                self.skip_to_header_boundary(start);
+                Some(None)
+            }
+        }
+    }
+
+    fn parse_import_selector(
+        &mut self,
+        public: bool,
+        start: usize,
+    ) -> Result<ImportSyntax, Diagnostic> {
+        let path = self.parse_qualified_path()?;
+        // Star suffix: `path . *` — no alias allowed.
+        if self.eat_dot_star() {
+            let span = self.span_from(start);
+            if let Some(alias) = self.try_alias() {
+                return Err(Diagnostic::at(alias.span, "a star import cannot use `as`"));
+            }
+            if !self.header_item_or_declaration_starts() {
+                return Err(Diagnostic::at(
+                    self.span_from(self.pos),
+                    "unexpected tokens after the star import",
+                ));
+            }
+            return Ok(ImportSyntax::Star { public, path, span });
+        }
+        let alias = self.try_alias();
+        let span = self.span_from(start);
+        if !self.header_item_or_declaration_starts() {
+            return Err(Diagnostic::at(
+                self.span_from(self.pos),
+                "unexpected tokens after the import selector; expected a qualified path, `as`, or a declaration",
+            ));
+        }
+        Ok(ImportSyntax::Exact {
+            public,
+            path,
+            alias,
+            span,
+        })
+    }
+
+    /// Dot-separated identifier sequence (at least one segment).
+    fn parse_qualified_path(&mut self) -> Result<QualifiedPath, Diagnostic> {
+        let start = self.pos;
+        let mut segments = Vec::new();
+        while let Some(TokenKind::Ident(name)) = self.tokens.get(self.pos).map(|t| &t.kind) {
+            let ident = Ident {
+                text: name.clone(),
+                span: self.span_from(self.pos),
+            };
+            segments.push(ident);
+            self.pos += 1;
+            let dot_followed_by_ident = matches!(
+                (
+                    &self.tokens.get(self.pos).map(|t| &t.kind),
+                    self.tokens.get(self.pos + 1).map(|t| &t.kind)
+                ),
+                (Some(TokenKind::Dot), Some(TokenKind::Ident(_)))
+            );
+            if !dot_followed_by_ident {
+                break;
+            }
+            self.pos += 1;
+        }
+        if segments.is_empty() {
+            return Err(Diagnostic::at(
+                self.span_from(start),
+                "expected a qualified path of `.`-separated identifiers",
+            ));
+        }
+        let span = self.span_from(start);
+        Ok(QualifiedPath { segments, span })
+    }
+
+    /// Whether the current token can start another header item or a
+    /// declaration (the only legal successors of an import).
+    fn header_item_or_declaration_starts(&self) -> bool {
+        self.at_contextual("import")
+            || self.at_contextual("public")
+            || self.at_eof()
+            || self.is_top_level_start()
+    }
+
+    /// Consumes `.` `*` if present.
+    fn eat_dot_star(&mut self) -> bool {
+        let dot_star = matches!(
+            (
+                &self.tokens.get(self.pos).map(|t| &t.kind),
+                self.tokens.get(self.pos + 1).map(|t| &t.kind)
+            ),
+            (Some(TokenKind::Dot), Some(TokenKind::Star))
+        );
+        if dot_star {
+            self.pos += 2;
+        }
+        dot_star
+    }
+
+    /// `as Identifier`, if present.
+    fn try_alias(&mut self) -> Option<Ident> {
+        if !matches!(
+            &self.tokens.get(self.pos).map(|t| &t.kind),
+            Some(TokenKind::As)
+        ) {
+            return None;
+        }
+        self.pos += 1;
+        match self.tokens.get(self.pos).map(|t| &t.kind) {
+            Some(TokenKind::Ident(name)) => {
+                let ident = Ident {
+                    text: name.clone(),
+                    span: self.span_from(self.pos),
+                };
+                self.pos += 1;
+                Some(ident)
+            }
+            _ => {
+                self.diagnostics.push(Diagnostic::at(
+                    self.span_from(self.pos),
+                    "expected an identifier after `as`",
+                ));
+                None
+            }
+        }
+    }
+
+    /// Header-level recovery: advance to the next token that can begin a
+    /// header item or a declaration.
+    fn skip_to_header_boundary(&mut self, item_start: usize) {
+        let _ = item_start;
+        while !self.at_eof() {
+            if self.is_top_level_start() {
+                return;
+            }
+            self.pos += 1;
         }
     }
 
