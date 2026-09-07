@@ -12,16 +12,23 @@ use crate::graph::{BuildInputs, GraphError, NodeOrigin, resolve_graph};
 /// In-memory inputs: manifests and artifacts keyed by path, plus the
 /// core slot and a search-root list.
 #[derive(Default)]
-struct MemoryInputs {
-    manifests: BTreeMap<String, ConeManifest>,
-    artifacts: BTreeMap<String, Vec<u8>>,
-    search_paths: Vec<String>,
-    core: Option<Vec<u8>>,
-    search_calls: Vec<ConeCoordinate>,
+pub(crate) struct MemoryInputs {
+    pub(crate) manifests: BTreeMap<String, ConeManifest>,
+    pub(crate) artifacts: BTreeMap<String, Vec<u8>>,
+    pub(crate) search_paths: Vec<String>,
+    pub(crate) core: Option<Vec<u8>>,
+    pub(crate) search_calls: Vec<ConeCoordinate>,
 }
 
 impl MemoryInputs {
-    fn add_manifest(&mut self, path: &str, group: &str, name: &str, version: &str, kind: ConeKind) {
+    pub(crate) fn add_manifest(
+        &mut self,
+        path: &str,
+        group: &str,
+        name: &str,
+        version: &str,
+        kind: ConeKind,
+    ) {
         let text = format!(
             "schema = 1\n\n[cone]\ngroup = \"{group}\"\nname = \"{name}\"\nversion = \"{version}\"\nkind = \"{}\"\n",
             kind.as_str()
@@ -30,7 +37,7 @@ impl MemoryInputs {
         self.manifests.insert(path.to_owned(), manifest);
     }
 
-    fn add_artifact(
+    pub(crate) fn add_artifact(
         &mut self,
         path: &str,
         group: &str,
@@ -134,14 +141,15 @@ impl BuildInputs for MemoryInputs {
             .collect())
     }
 
-    fn core_slot(&mut self) -> Result<Vec<u8>, GraphError> {
+    fn core_slot(&mut self) -> Result<(String, Vec<u8>), GraphError> {
         self.core
             .clone()
+            .map(|bytes| ("core.slib".to_owned(), bytes))
             .ok_or_else(|| GraphError::CoreSlot("missing".to_owned()))
     }
 }
 
-fn root_manifest(kind: ConeKind, deps: Vec<DeclaredDependency>) -> ConeManifest {
+pub(crate) fn root_manifest(kind: ConeKind, deps: Vec<DeclaredDependency>) -> ConeManifest {
     let text = format!(
         "schema = 1\n\n[cone]\ngroup = \"dev.example\"\nname = \"app\"\nversion = \"0.1.0\"\nkind = \"{}\"\n",
         kind.as_str()

@@ -95,11 +95,12 @@ impl scoop_build::BuildInputs for FsBuildInputs {
         Ok(candidates)
     }
 
-    fn core_slot(&mut self) -> Result<Vec<u8>, scoop_build::GraphError> {
+    fn core_slot(&mut self) -> Result<(String, Vec<u8>), scoop_build::GraphError> {
         let sysroot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../sysroot");
         let slot = sysroot.join("lib/scoop.core/artifact/cone.slib");
-        std::fs::read(&slot).map_err(|error| {
+        let bytes = std::fs::read(&slot).map_err(|error| {
             scoop_build::GraphError::CoreSlot(format!("{}: {error}", slot.display()))
-        })
+        })?;
+        Ok((slot.display().to_string(), bytes))
     }
 }

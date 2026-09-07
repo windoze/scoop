@@ -15,5 +15,6 @@ path = "src/lib.rs"
 scoop-identity.workspace = true
 scoop-manifest.workspace = true
 scoop-slib.workspace = true
+sha2 = "0.10"
 
 [dev-dependencies]

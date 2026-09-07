@@ -138,8 +138,9 @@ pub trait BuildInputs {
     /// `<root>/<group>/<name>/<version>/cone.slib`.
     fn search_candidates(&mut self, coordinate: &ConeCoordinate)
     -> Result<Vec<String>, GraphError>;
-    /// Reads the trusted sysroot core artifact.
-    fn core_slot(&mut self) -> Result<Vec<u8>, GraphError>;
+    /// Reads the trusted sysroot core artifact, returning its path (for
+    /// dependent artifact requests) and bytes.
+    fn core_slot(&mut self) -> Result<(String, Vec<u8>), GraphError>;
 }
 
 /// Where a resolved node's content comes from.
@@ -490,11 +491,11 @@ impl Resolver<'_> {
         if let Some(existing) = self.nodes.get(&core_identity) {
             return Ok(existing.identity);
         }
-        let bytes = self
+        let (core_path, bytes) = self
             .inputs
             .core_slot()
             .map_err(|error| GraphError::CoreSlot(error.to_string()))?;
-        let artifact = open_graph_view(&bytes, "sysroot core slot")
+        let artifact = open_graph_view(&bytes, &core_path)
             .map_err(|error| GraphError::CoreSlot(format!("invalid core artifact: {error}")))?;
         if !artifact.coordinate().is_reserved_core() {
             return Err(GraphError::CoreSlot(format!(
@@ -504,9 +505,9 @@ impl Resolver<'_> {
         }
         let node = self.add_prebuilt_node(
             artifact,
-            "sysroot core slot",
+            &core_path.clone(),
             NodeOrigin::Core {
-                artifact_path: "sysroot core slot".to_owned(),
+                artifact_path: core_path,
             },
         )?;
         Ok(node.identity)

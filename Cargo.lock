@@ -413,6 +413,7 @@ dependencies = [
  "scoop-identity",
  "scoop-manifest",
  "scoop-slib",
+ "sha2",
 ]
 
 [[package]]

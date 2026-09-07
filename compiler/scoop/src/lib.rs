@@ -9,6 +9,9 @@
 pub mod graph;
 #[cfg(test)]
 mod graph_tests;
+pub mod schedule;
+#[cfg(test)]
+mod schedule_tests;
 
 pub use graph::{
     BuildInputs, GraphError, NodeOrigin, ResolvedBuildGraph, ResolvedNode, resolve_graph,
