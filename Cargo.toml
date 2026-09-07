@@ -4,6 +4,7 @@ members = [
     "compiler/ast",
     "compiler/identity",
     "compiler/manifest",
+    "compiler/protocol",
     "compiler/parser",
     "compiler/hir",
     "compiler/hir-lower",
@@ -35,6 +36,7 @@ toml = { version = "0.8" }
 scoop-ast = { path = "compiler/ast" }
 scoop-identity = { path = "compiler/identity" }
 scoop-manifest = { path = "compiler/manifest" }
+scoop-protocol = { path = "compiler/protocol" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }
 scoop-hir-lower = { path = "compiler/hir-lower" }

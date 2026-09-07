@@ -493,6 +493,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-protocol"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+]
+
+[[package]]
 name = "scoop-slib"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,7 @@
+[package]
+name = "scoop-protocol"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-identity.workspace = true
