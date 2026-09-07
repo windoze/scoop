@@ -14,11 +14,15 @@ pub mod capability;
 pub mod cbor;
 pub mod coordinate;
 pub mod digest;
+pub mod persistent;
 
 pub use capability::{CapabilityError, CapabilityId, ObjectFormatId, TargetProfileWireId};
 pub use cbor::{CborError, CborReader, CborWriter, MapGuard, SeqGuard};
 pub use coordinate::{ConeCoordinate, ConeIdentity, CoordinateError, Version};
 pub use digest::{Digest256, DomainHasher};
+pub use persistent::{
+    DefinitionKey, GeneratedRole, OwnerKind, OwnerStep, SymbolKind, mangle, truncated_runtime_id,
+};
 
 #[cfg(test)]
 mod tests;
