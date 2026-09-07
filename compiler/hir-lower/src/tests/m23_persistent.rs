@@ -406,3 +406,56 @@ fn generic_template_ids_stay_distinct_across_nominal_kinds() {
         ids.class_id(class_decl_id).unwrap().as_bytes()
     );
 }
+
+#[test]
+fn semantic_surface_records_packages_and_imports() {
+    let user = r#"package dev.example.app
+
+import org.foo.model.User
+import org.foo.ops.render as renderUser
+import org.foo.model.State.*
+public import org.foo.errors.*
+fun main() {}
+"#;
+    let output = lower_user_output(parse_user(user)).expect("lowers");
+    let surface = &output.export.semantic_surface;
+    // The user file is the last source file; the core files are root.
+    let user_file = surface.files.len() - 1;
+    let package = surface.package_of_file(user_file);
+    assert_eq!(package.segments, vec!["dev", "example", "app"]);
+    // Core files share the interned root package.
+    assert!(
+        surface.files[..user_file]
+            .iter()
+            .all(|file| surface.packages[file.package].is_root())
+    );
+    let imports = &surface.files[user_file].imports;
+    assert_eq!(imports.exact.len(), 2);
+    assert_eq!(imports.exact[0].path, vec!["org", "foo", "model", "User"]);
+    assert!(imports.exact[0].alias.is_none());
+    assert!(!imports.exact[0].public);
+    assert_eq!(
+        imports.exact[1].alias.as_deref(),
+        Some("renderUser"),
+        "alias is recorded"
+    );
+    assert_eq!(imports.star.len(), 2);
+    assert!(!imports.star[0].public);
+    assert!(imports.star[1].public, "public star import is marked");
+}
+
+#[test]
+fn root_package_files_share_one_interned_id() {
+    let output = lower_user_output(file(vec![fun("main", vec![])])).expect("lowers");
+    let surface = &output.export.semantic_surface;
+    let ids: std::collections::HashSet<u32> = surface
+        .files
+        .iter()
+        .map(|file| u32::from(file.package.into_raw()))
+        .collect();
+    assert_eq!(ids.len(), 1, "all files are root-package interned once");
+}
+
+fn parse_user(text: &str) -> SourceFile {
+    scoop_parser::parse(text).expect("test source parses")
+}

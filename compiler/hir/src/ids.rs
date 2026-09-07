@@ -9,6 +9,7 @@ pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;
+pub type PackageId = Idx<crate::imports::PackageDecl>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
 pub type InitializationUnitId = Idx<InitializationUnit>;

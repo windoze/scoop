@@ -25,6 +25,78 @@ impl Lowerer {
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
+        // File packages and imports are collected structurally before any
+        // name resolution; packages intern by segment equality so files
+        // declaring the same package share one id.
+        let mut package_arena: Vec<hir::PackageDecl> = Vec::new();
+        let mut file_surfaces = Vec::with_capacity(files.len());
+        for file in files {
+            let package = match &file.package {
+                ast::PackageSyntax::RootPackage => hir::PackageDecl::root(),
+                ast::PackageSyntax::QualifiedPackage(path) => hir::PackageDecl {
+                    segments: path
+                        .segments
+                        .iter()
+                        .map(|segment| segment.text.clone())
+                        .collect(),
+                },
+            };
+            let package_id = match package_arena
+                .iter()
+                .position(|existing| *existing == package)
+            {
+                Some(index) => la_arena::Idx::from_raw(la_arena::RawIdx::from_u32(index as u32)),
+                None => {
+                    let index = package_arena.len();
+                    package_arena.push(package);
+                    la_arena::Idx::from_raw(la_arena::RawIdx::from_u32(index as u32))
+                }
+            };
+            let mut exact = Vec::new();
+            let mut star = Vec::new();
+            for import in &file.imports {
+                match import {
+                    ast::ImportSyntax::Exact {
+                        public,
+                        path,
+                        alias,
+                        span,
+                    } => exact.push(hir::ExactImport {
+                        public: *public,
+                        path: path
+                            .segments
+                            .iter()
+                            .map(|segment| segment.text.clone())
+                            .collect(),
+                        alias: alias.as_ref().map(|alias| alias.text.clone()),
+                        span: *span,
+                        // Resolution fills this in T15; until then the
+                        // import is recorded but contributes no binding.
+                        binding: None,
+                    }),
+                    ast::ImportSyntax::Star { public, path, span } => {
+                        star.push(hir::StarImport {
+                            public: *public,
+                            path: path
+                                .segments
+                                .iter()
+                                .map(|segment| segment.text.clone())
+                                .collect(),
+                            span: *span,
+                        });
+                    }
+                }
+            }
+            file_surfaces.push(hir::FileSurface {
+                package: package_id,
+                imports: hir::FileImports { exact, star },
+            });
+        }
+        let semantic_surface = hir::SemanticSurface {
+            packages: package_arena.into_iter().collect(),
+            files: file_surfaces,
+        };
+
         let mut pending_interfaces = Vec::new();
         let mut pending_objects = Vec::new();
         let mut pending_functions = Vec::new();
@@ -503,6 +575,7 @@ impl Lowerer {
                     source: source.source,
                 })
                 .collect(),
+            semantic_surface,
             source_contexts: self.source_contexts,
             types: self.types,
             function_types: self.function_types,

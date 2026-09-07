@@ -567,6 +567,7 @@ impl Harness {
         )
         .expect("test callback failure has the core shape");
         hir::Module {
+            semantic_surface: hir::SemanticSurface::default(),
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 provider: hir::IntrinsicProviderId::from_raw(0),

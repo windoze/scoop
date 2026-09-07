@@ -11,3 +11,4 @@ scoop-identity.workspace = true
 
 [dev-dependencies]
 scoop-identity.workspace = true
+scoop-parser.workspace = true

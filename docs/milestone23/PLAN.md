@@ -69,6 +69,8 @@
 
 ### 阶段 F：HIR semantic world 与 import（DESIGN §2.2–2.5、§5.2）
 
+- **T14 第 1 批：HIR package/import 结构记录**（已完成）：`hir::imports` 模块——`PackageDecl`（segment 相等 intern，root 为显式空段）、`PackageId`（arena typed id）、`ImportBindingSource::{CurrentCone{witness}}`（封闭 sum，DirectDependency 分支随 `.slib` 加载接入）、`ImportedTargetBinding{local_name, targets 演进中, sources}`、`ImportedTarget::{Function, Property, Type, TypeAlias}`（封闭 namespace sum）、`FileImports{exact, star}`、`ExactImport{public, path, alias, span, binding: Option}`（binding 由 T15 解析填充；None=未解析已诊断）、`StarImport{public, path, span}`、`SemanticSurface{packages: Arena<PackageDecl>, files: Vec<FileSurface{package, imports}>}`。ExportHir `Module.semantic_surface` 与 `source_files` 同序；hir-lower `run()` 在声明 pass 前按文件收集（package intern 去重、ast::ImportSyntax 全量转记、public 标记保留）。手写 harness Module 初始化补默认 surface。测试 2 项（surface 记录 package/exact+alias/star+public、root intern 单一 id）；fixtures 无漂移（surface 不进 dump）。注：`ImportedTargetBinding` 的 `targets` 字段随 T15 从单 target 演进为 NonEmpty sum（当前 Cone 内已可唯一解析；跨 origin 合并逻辑与 DirectDependency source 一同落地）。
+
 - **T14 SemanticWorld 与 binding group**：provider = `WorldConeId`（persistent `ConeIdentity`）；`ImportedBinding`/`ImportedTargetBinding`/`ImportBindingSource`（CurrentCone | DirectDependency）落地为 resolver 输入；diamond 按 origin id 合并、witness 排序去重；split-package 歧义诊断。
 - **T15 候选层接入**：无 receiver 层级 lexical → this member → exact import → current package → star → prelude → contextual variant fallback（M22）；extension scope exact → package → star → prelude；每层 shape filter + applicability + MSC 语义保持（M16）；同层 origin 去重；声明/依赖顺序不 tie-break。
 - **T16 public import / re-export**：re-export binding 写入当前文件 package、source 全部 DirectDependency、destination 冲突诊断、star 展开 snapshot、链式 re-export witness。

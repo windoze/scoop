@@ -10,6 +10,9 @@ pub struct Module {
     /// concretization consume source provenance without consulting the
     /// parser or filesystem again.
     pub source_files: Vec<SourceFileMetadata>,
+    /// Package and import surface of every source file, in the same file
+    /// order as `source_files`.
+    pub semantic_surface: crate::imports::SemanticSurface,
     /// Lexical source contexts referenced by expression origins. The typed id
     /// keeps function/type names out of every individual expression node.
     pub source_contexts: Arena<SourceContext>,
