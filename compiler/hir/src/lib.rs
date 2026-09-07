@@ -68,3 +68,13 @@ pub use source_interfaces::*;
 
 mod dump;
 pub use dump::{dump, dump_pattern};
+
+/// The product kind of one Cone's output, closed over the entry link
+/// (DESIGN section 1.3): a library has no entry linkage at all, and an
+/// executable's entry is structurally present, never an optional field
+/// that could disagree with the manifest kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConeOutputKind {
+    Library,
+    Executable { local_entry: FunctionId },
+}

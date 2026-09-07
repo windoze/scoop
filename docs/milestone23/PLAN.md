@@ -35,7 +35,7 @@
 
 ### 阶段 C：工具边界（DESIGN §1.3、§1.4、§5.5）
 
-- **T7 source discovery 与 ConeOutputKind**：`src/**/*.scoop` 递归收集（.scoop 精确扩展名、UTF-8、路径归一化、symlink 逃逸、空 Cone 诊断、byte 排序）、`ConeOutputKind::{Library, Executable { local_entry }}`（entry 规则：root 唯一、ordinary/non-generic/non-suspend/`() -> Unit`）、fixture runner 内部 synthetic `ResolvedConeInput` 能力。
+- **T7 source discovery 与 ConeOutputKind**（已完成）：driver `cone.rs`：`discover_cone`（`Cone.toml` 语义读取 + `src/**/*.scoop` 精确扩展名 regular file 递归收集、规范化 Cone-relative 路径、UTF-8 byte 排序、symlink 全拒、非 regular/非 UTF-8/重复归一化/空集合/缺 manifest/缺 src 七类错误）；`ResolvedConeInput::from_parts` 供 fixture runner 构造 synthetic 输入（不进 CLI/env/.slib）；`ConeSourceFile` 路径校验（无 `.`/`..`/空段/前导斜杠）。scoop-hir 增加 `ConeOutputKind::{Library, Executable{local_entry}}` 封闭类型（entry 规则接线随 T13 parser/T22 core 分离落地——当前 `Module.entry` 仍为必有字段，届时替换）。验证：cone_discovery 7/7、scoop-hir 14/14、clippy。提交 `<hash>`。
 - **T8 `compiler/scoop` graph**：只读解析全部 manifest（source）与 `.slib` bounded summary（prebuilt），建立 `ResolvedBuildGraph`：implicit core edge、coordinate/版本唯一、cycle（DFS + coordinate path）、canonical topological order（ready set + coordinate byte order）。fake/in-memory 测试锁定全部图错误与顺序。
 - **T9 `scoop` 调度与缓存（fake runner）**：cache key 计算（manifest semantic fields、source digests、language/schema/runtime ABI、target、三层 Merkle fingerprint —— 先保守纳入全部 direct dependency）、prebuilt/cache 候选必须双 view（Compile+Link）门禁后命中、每个 source cache miss 恰好一次 `scoopc` 调用、失败停止 dependents。先以 trait `ScoopcRunner` 的 recording fake 锁定行为；真实子进程调用随后续任务接入。
 - **T10 `scoopc build` CLI 契约**：`scoopc build <cone-root> --direct-slib ... --support-slib ... --out-slib ...`；解析当前 manifest semantic projection、发现当前 src、验证显式 `.slib` 闭包（T6 验证器）在 parse 源码前完成；不跟随 locator、不读上游 source。错误诊断分层（manifest/输入集合 vs 源码）。
@@ -126,3 +126,4 @@
 - 2026-09-07：完成 T4 `compiler/protocol`（CBOR frame + CompilerIdentity exact match + typed 诊断，9 测试）。开始 T5 slib envelope。
 - 2026-09-07：完成 T5 `.slib` envelope 基础（canonical ar、typed member directory、manifest.cbor、Graph view、SlibBuilder、集中 decode 预算，12 测试）。开始 T6 显式闭包一致性验证。
 - 2026-09-07：完成 T6 显式闭包一致性验证（closure.rs，15 测试：chain/diamond/core-only 正向 + 10 类错误）。开始 T7 source discovery 与 ConeOutputKind。
+- 2026-09-07：完成 T7 source discovery 与 ResolvedConeInput/ConeOutputKind 类型（7 测试）。开始 T8 compiler/scoop graph。

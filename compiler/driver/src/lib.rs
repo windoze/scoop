@@ -8,6 +8,7 @@
 use scoop_ast::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
 
+pub mod cone;
 mod inputs;
 mod linking;
 
