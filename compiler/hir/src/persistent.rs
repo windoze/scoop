@@ -10,8 +10,11 @@
 
 use std::collections::BTreeMap;
 
+pub use scoop_identity::GeneratedRole;
 pub use scoop_identity::persistent::{
-    ExactTypeKey, ManagedFunctionEffect, NativeCallingConvention, PersistentExactTypeId,
+    CallableArguments, ExactTypeKey, ManagedFunctionEffect, NativeCallingConvention,
+    NoCallableArguments, NoOwnerApplication, OdrGroupId, OdrMemberId, OdrMemberRole,
+    OwnerApplication, PersistentExactTypeId, SpecializationKey,
 };
 use scoop_identity::persistent::{
     PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId, PersistentTypeId,
@@ -463,9 +466,10 @@ impl<'a> PersistentIds<'a> {
                     "interface",
                 )
             }
-            // Methods of tuple/pointer/function types do not exist in the
-            // current language subset.
-            _ => return None,
+            // Structural owners (Unit, tuples, primitives) and `Any` have
+            // no nominal declaration: the receiver type is already part
+            // of the signature key, so the owner chain stays empty.
+            _ => return Some(Vec::new()),
         };
         let _ = kind;
         Some(vec![step])

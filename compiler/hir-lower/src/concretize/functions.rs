@@ -111,8 +111,10 @@ impl Concretizer<'_> {
             dispatch: self.lower_method_dispatch(method.dispatch, key),
         });
         let origin = self.function_origin(key, &source);
+        let symbol = self.function_symbol(key);
         concrete::Function {
             name: source.name,
+            symbol,
             origin,
             is_suspend: source.is_suspend,
             modifiers: source.modifiers,

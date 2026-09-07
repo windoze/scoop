@@ -324,7 +324,24 @@ impl Concretizer<'_> {
                         local: local_map[param.local.into_raw().into_u32() as usize],
                     })
                     .collect();
+                let owner_exact = self
+                    .exact_id(owner_ty)
+                    .expect("a structural derived owner has an exact identity");
+                let key_bytes = scoop_identity::DefinitionKey::GeneratedByRole {
+                    role: scoop_identity::GeneratedRole::CallableAdapter,
+                    operands: vec![*owner_exact.as_bytes()],
+                    discriminator: b"derived-equality".to_vec(),
+                }
+                .canonical_cbor();
+                let persistent =
+                    scoop_identity::persistent::PersistentFunctionId::from_definition_key(
+                        self.cone, &key_bytes,
+                    );
                 let value = concrete::Function {
+                    symbol: scoop_identity::mangle(
+                        scoop_identity::SymbolKind::Function,
+                        persistent.as_bytes(),
+                    ),
                     name: format!("$derived.equals.{}", source.into_raw().into_u32()),
                     origin: concrete::FunctionOrigin::Method(concrete::MethodOrigin {
                         owner: concrete::MethodOwner::Structural(owner_ty),

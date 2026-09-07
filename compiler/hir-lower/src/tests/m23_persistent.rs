@@ -256,3 +256,53 @@ fn concrete_module_carries_a_complete_exact_type_table() {
         }]
     );
 }
+
+#[test]
+fn concrete_functions_carry_persistent_symbols() {
+    let output = lower_user_output(file(vec![
+        fun("main", vec![stmt(call("work", vec![int_lit(1)]))]),
+        fun_sig(
+            "work",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            None,
+            vec![stmt(call("print", vec![str_lit("w")]))],
+        ),
+        fun_sig(
+            "work",
+            vec![],
+            vec![("value", ty_named("Boolean"))],
+            None,
+            vec![],
+        ),
+    ]))
+    .expect("lowers");
+    let module = &output.local;
+    let symbols: Vec<&str> = module
+        .functions
+        .iter()
+        .map(|(_, function)| function.symbol.as_str())
+        .collect();
+    // User functions and core methods all carry mangled symbols.
+    assert!(
+        symbols
+            .iter()
+            .all(|symbol| { symbol.is_empty() || symbol.starts_with("scoop$1$") })
+    );
+    // The two `work` overloads have distinct symbols despite one name.
+    let work_symbols: Vec<&str> = module
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == "work")
+        .map(|(_, function)| function.symbol.as_str())
+        .collect();
+    assert_eq!(work_symbols.len(), 2);
+    assert_ne!(work_symbols[0], work_symbols[1]);
+    assert!(work_symbols.iter().all(|s| s.starts_with("scoop$1$fn$")));
+
+    // Intrinsics carry no Scoop symbol.
+    assert!(module.functions.iter().any(|(_, function)| {
+        matches!(function.kind, hir::concrete::FunctionKind::Intrinsic(_))
+            && function.symbol.is_empty()
+    }));
+}

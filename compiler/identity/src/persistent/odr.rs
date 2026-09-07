@@ -19,10 +19,18 @@ pub const ODR_MEMBER_DOMAIN: &[u8] = "scoop-odr-member-v1".as_bytes();
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoOwnerApplication;
 
+impl NoOwnerApplication {
+    pub const OWNER_NONE: Self = Self;
+}
+
 /// Typed marker: a callable specialization without callable type
 /// arguments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoCallableArguments;
+
+impl NoCallableArguments {
+    pub const ARGUMENTS_NONE: Self = Self;
+}
 
 /// The origin of a delegated property specialization.
 pub type DelegatedPropertyOrigin = PersistentExtensionPropertyId;

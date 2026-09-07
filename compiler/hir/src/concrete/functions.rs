@@ -3,6 +3,10 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    /// The persistent linker symbol (`scoop$1$...`). Empty exactly when
+    /// the function links nothing (intrinsics); extern functions carry
+    /// their native symbol on the extern arena instead.
+    pub symbol: String,
     /// Complete source/application category. MIR consumes this sum type
     /// directly and never infers genericity or method ownership from an
     /// argument vector, function name, or the optional `method` field.

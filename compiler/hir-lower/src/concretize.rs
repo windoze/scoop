@@ -410,6 +410,163 @@ impl<'a> Concretizer<'a> {
         export::ExactTypeKey::application(origin, exact).ok()
     }
 
+    /// The persistent linker symbol of one concrete function
+    /// (`scoop$1$fn$...`). Plain declarations use their definition-key id;
+    /// every specialization uses its ODR body member; intrinsics and
+    /// externs link nothing under Scoop symbols.
+    fn function_symbol(&mut self, key: &FunctionKey) -> String {
+        use scoop_identity::persistent::{
+            CallableArguments, NoCallableArguments, NoOwnerApplication, OdrGroupId, OdrMemberId,
+            OdrMemberRole, OwnerApplication,
+        };
+        let source_id = key.source();
+        let source = self.source.functions[source_id].clone();
+        if matches!(
+            source.kind,
+            export::FunctionKind::Intrinsic(_) | export::FunctionKind::Extern(_)
+        ) {
+            return String::new();
+        }
+        let world = self.persistent_world();
+        let mut ids = export::PersistentIds::new(self.source, &world);
+        let owner_application = |this: &mut Self, owner: &concrete::MethodOwner| {
+            let owner_ty = this.method_owner_type(*owner);
+            OwnerApplication::Exact(
+                this.exact_id(owner_ty)
+                    .expect("a concrete method owner has an exact identity"),
+            )
+        };
+        let body_symbol = |group: &OdrGroupId| {
+            let member = OdrMemberId::of(group, OdrMemberRole::Body, b"");
+            scoop_identity::mangle(scoop_identity::SymbolKind::Function, member.as_bytes())
+        };
+        match key {
+            FunctionKey::Free { arguments, .. } => {
+                if arguments.is_empty()
+                    && matches!(source.genericity, export::FunctionGenericity::Plain)
+                {
+                    let id = ids
+                        .function_id(source_id)
+                        .expect("a plain free function has a persistent id");
+                    scoop_identity::mangle(scoop_identity::SymbolKind::Function, id.as_bytes())
+                } else {
+                    let origin = ids
+                        .generic_callable_id(source_id)
+                        .expect("an instantiated free function has a template id");
+                    let mut exact = Vec::with_capacity(arguments.len());
+                    for argument in arguments.clone() {
+                        exact.push(
+                            self.exact_id(argument)
+                                .expect("an instantiation argument has an exact identity"),
+                        );
+                    }
+                    let group = OdrGroupId::of(&export_specialization(
+                        origin,
+                        OwnerApplication::None(NoOwnerApplication::OWNER_NONE),
+                        CallableArguments::Exact(exact),
+                    ));
+                    body_symbol(&group)
+                }
+            }
+            FunctionKey::Method { owner, .. } => match source.genericity {
+                export::FunctionGenericity::Plain => {
+                    // A plain method of a parameterized owner: one
+                    // specialization per concrete owner application.
+                    let owner_is_parameterized =
+                        self.method_owner_is_parameterized(&self.source.functions[source_id]);
+                    if owner_is_parameterized {
+                        let origin = ids
+                            .generic_callable_id(source_id)
+                            .expect("an owner-parameterized method has a template id");
+                        let owner_app = owner_application(self, owner);
+                        let group = OdrGroupId::of(&export_specialization(
+                            origin,
+                            owner_app,
+                            CallableArguments::None(NoCallableArguments::ARGUMENTS_NONE),
+                        ));
+                        body_symbol(&group)
+                    } else {
+                        let id = ids
+                            .function_id(source_id)
+                            .expect("a plain method has a persistent id");
+                        scoop_identity::mangle(scoop_identity::SymbolKind::Function, id.as_bytes())
+                    }
+                }
+                export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                    let origin = ids
+                        .generic_callable_id(source_id)
+                        .expect("an owner-parameterized method has a template id");
+                    let owner_app = owner_application(self, owner);
+                    let group = OdrGroupId::of(&export_specialization(
+                        origin,
+                        owner_app,
+                        CallableArguments::None(NoCallableArguments::ARGUMENTS_NONE),
+                    ));
+                    body_symbol(&group)
+                }
+                export::FunctionGenericity::Generic { .. }
+                | export::FunctionGenericity::GenericMethod { .. } => {
+                    let origin = ids
+                        .generic_callable_id(source_id)
+                        .expect("a generic callable has a template id");
+                    let owner_app = owner_application(self, owner);
+                    let arguments = self.function_key_arguments(key);
+                    let mut exact = Vec::with_capacity(arguments.len());
+                    for argument in arguments {
+                        exact.push(
+                            self.exact_id(argument)
+                                .expect("an instantiation argument has an exact identity"),
+                        );
+                    }
+                    let group = OdrGroupId::of(&export_specialization(
+                        origin,
+                        owner_app,
+                        CallableArguments::Exact(exact),
+                    ));
+                    body_symbol(&group)
+                }
+            },
+        }
+    }
+
+    fn method_owner_type(&self, owner: concrete::MethodOwner) -> concrete::TypeId {
+        match owner {
+            concrete::MethodOwner::Class(id) => self.class_type[&id],
+            concrete::MethodOwner::Struct(id) => self.struct_type[&id],
+            concrete::MethodOwner::Enum(id) => self.enum_type[&id],
+            concrete::MethodOwner::Interface(id) => self.interface_type[&id],
+            concrete::MethodOwner::Object(id) => self.object_types[id].canonical_type,
+            concrete::MethodOwner::Structural(ty) => ty,
+        }
+    }
+
+    /// Whether a method's nominal owner template has type parameters (so
+    /// each concrete owner application is a distinct specialization).
+    fn method_owner_is_parameterized(&self, function: &export::Function) -> bool {
+        let Some(method) = function.method else {
+            return false;
+        };
+        match self.source.types[method.owner] {
+            export::Type::Struct(application) => {
+                let template = self.source.struct_applications[application].template;
+                !self.source.structs[template].type_params.is_empty()
+            }
+            export::Type::Enum(application) => {
+                let template = self.source.enum_applications[application].template;
+                !self.source.enums[template].type_params.is_empty()
+            }
+            export::Type::Class(application) => {
+                let template = self.source.class_applications[application].template;
+                !self.source.classes[template].type_params.is_empty()
+            }
+            export::Type::Interface(application) => {
+                let template = self.source.interface_applications[application].template;
+                !self.source.interfaces[template].type_params.is_empty()
+            }
+            _ => false,
+        }
+    }
+
     fn run(mut self) -> concrete::Module {
         let unit = self.lower_type(self.source.unit, &[]);
         for kind in export::IntegerKind::ALL {
@@ -984,4 +1141,16 @@ fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {
 
 fn exact_nominal(decl: scoop_identity::persistent::PersistentTypeId) -> export::ExactTypeKey {
     export::ExactTypeKey::Nominal { declaration: decl }
+}
+
+fn export_specialization(
+    origin: scoop_identity::persistent::PersistentGenericCallableId,
+    owner_application: scoop_identity::persistent::OwnerApplication,
+    callable_arguments: scoop_identity::persistent::CallableArguments,
+) -> export::SpecializationKey {
+    export::SpecializationKey::Callable {
+        origin,
+        owner_application,
+        callable_arguments,
+    }
 }
