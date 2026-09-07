@@ -10,6 +10,9 @@ use la_arena::Arena;
 use scoop_ast::Span;
 
 use crate::ids::PackageId;
+use crate::{
+    ClassId, EnumId, ExportTypeAliasId, FunctionId, InterfaceId, ObjectId, PropertyId, StructId,
+};
 
 /// One package name in this Cone, shared by every file declaring it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,33 +47,57 @@ impl PackageDecl {
 /// lookups distinct; dependency witnesses arrive with `.slib` loading.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportBindingSource {
-    /// The target is declared in the current Cone.
-    CurrentCone {
-        /// Import witness span in the importing file.
-        witness: Span,
-    },
+    /// The target is declared in the current Cone; the witness is the
+    /// import statement that granted the local binding.
+    CurrentCone { witness: Span },
 }
 
-/// One resolved exact-import binding.
+/// The namespace role of one import target, carrying the session-local
+/// typed id of the resolved declaration. Cross-Cone wire forms carry
+/// persistent ids instead and are produced at serialization time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportedTarget {
+    Function { function: FunctionId },
+    Struct { declaration: StructId },
+    Enum { declaration: EnumId },
+    Class { declaration: ClassId },
+    Interface { declaration: InterfaceId },
+    Object { declaration: ObjectId },
+    TypeAlias { alias: ExportTypeAliasId },
+    Property { property: PropertyId },
+}
+
+/// One target with the non-empty source set authorizing it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedTargetBinding {
-    /// Local short name (alias or target short name).
-    pub local_name: String,
-    /// The typed target; within one Cone this names a current-Cone
-    /// declaration namespace entry.
     pub target: ImportedTarget,
-    /// Non-empty in declaration order; diamond merges keep every path.
     pub sources: Vec<ImportBindingSource>,
 }
 
-/// The namespace role of an import target. The sum is closed per the
-/// language's declaration namespaces; adding a kind is a schema change.
+/// One resolved import binding: the local short name plus every target
+/// it may denote (overload sets contribute one entry per function;
+/// cross-namespace names contribute one entry per namespace).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ImportedTarget {
-    Function { qualified_name: String },
-    Property { qualified_name: String },
-    Type { qualified_name: String },
-    TypeAlias { qualified_name: String },
+pub struct ImportedBinding {
+    pub local_name: String,
+    /// Non-empty exactly when the import resolved.
+    pub targets: Vec<ImportedTargetBinding>,
+}
+
+impl ImportedBinding {
+    /// Constructs a binding from at least one target; the argument is
+    /// structurally non-empty by construction at every call site.
+    pub fn of(local_name: String, targets: Vec<ImportedTargetBinding>) -> Self {
+        debug_assert!(!targets.is_empty());
+        ImportedBinding {
+            local_name,
+            targets,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.targets.is_empty()
+    }
 }
 
 /// One file's import surface, recorded before any name resolution runs.
@@ -95,10 +122,23 @@ pub struct ExactImport {
     pub path: Vec<String>,
     pub alias: Option<String>,
     pub span: Span,
-    /// Resolved binding (alias or final segment short name). Resolution
-    /// fills this after declaration collection; `None` means unresolved
-    /// (diagnosed) rather than unknown.
-    pub binding: Option<ImportedTargetBinding>,
+    /// The resolved binding; `None` until resolution runs (or when the
+    /// import was diagnosed unresolved), never an unknown state.
+    pub binding: Option<ImportedBinding>,
+}
+
+impl ExactImport {
+    /// The short name this import binds locally.
+    pub fn local_name(&self) -> &str {
+        self.alias
+            .as_deref()
+            .unwrap_or_else(|| self.path.last().expect("import paths are non-empty"))
+    }
+
+    /// Diagnostic spelling of the selector.
+    pub fn display_path(&self) -> String {
+        self.path.join(".")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

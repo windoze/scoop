@@ -409,10 +409,12 @@ fn generic_template_ids_stay_distinct_across_nominal_kinds() {
 
 #[test]
 fn semantic_surface_records_packages_and_imports() {
+    // `import Option` resolves through the root package to the core
+    // enum; star imports are recorded (their layer lands with T15).
     let user = r#"package dev.example.app
 
-import org.foo.model.User
-import org.foo.ops.render as renderUser
+import Option
+import Option as Opt
 import org.foo.model.State.*
 public import org.foo.errors.*
 fun main() {}
@@ -431,14 +433,23 @@ fun main() {}
     );
     let imports = &surface.files[user_file].imports;
     assert_eq!(imports.exact.len(), 2);
-    assert_eq!(imports.exact[0].path, vec!["org", "foo", "model", "User"]);
+    assert_eq!(imports.exact[0].path, vec!["Option"]);
     assert!(imports.exact[0].alias.is_none());
     assert!(!imports.exact[0].public);
+    let binding = imports.exact[0].binding.as_ref().expect("resolved");
+    assert_eq!(binding.local_name, "Option");
+    assert_eq!(binding.targets.len(), 1);
+    assert!(matches!(
+        binding.targets[0].target,
+        hir::ImportedTarget::Enum { .. }
+    ));
     assert_eq!(
         imports.exact[1].alias.as_deref(),
-        Some("renderUser"),
+        Some("Opt"),
         "alias is recorded"
     );
+    let aliased = imports.exact[1].binding.as_ref().expect("resolved");
+    assert_eq!(aliased.local_name, "Opt");
     assert_eq!(imports.star.len(), 2);
     assert!(!imports.star[0].public);
     assert!(imports.star[1].public, "public star import is marked");

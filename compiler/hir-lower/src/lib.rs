@@ -107,6 +107,7 @@ mod expr;
 mod ffi;
 mod generic_entities;
 mod globals;
+mod imports;
 mod lowering_context;
 mod model;
 mod overload;
@@ -118,6 +119,8 @@ mod signatures;
 mod stmt;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_m23_imports;
 mod types;
 mod visibility;
 
@@ -560,6 +563,13 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
+    /// Interned package declarations shared by the semantic surface.
+    pub(crate) package_decls: Vec<hir::PackageDecl>,
+    /// File index -> interned package id.
+    pub(crate) file_packages: Vec<hir::PackageId>,
+    /// File index -> collected import surface (bindings filled after
+    /// declaration collection).
+    pub(crate) file_imports: Vec<hir::FileImports>,
     intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).

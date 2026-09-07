@@ -28,8 +28,6 @@ impl Lowerer {
         // File packages and imports are collected structurally before any
         // name resolution; packages intern by segment equality so files
         // declaring the same package share one id.
-        let mut package_arena: Vec<hir::PackageDecl> = Vec::new();
-        let mut file_surfaces = Vec::with_capacity(files.len());
         for file in files {
             let package = match &file.package {
                 ast::PackageSyntax::RootPackage => hir::PackageDecl::root(),
@@ -41,15 +39,16 @@ impl Lowerer {
                         .collect(),
                 },
             };
-            let package_id = match package_arena
+            let package_id = match self
+                .package_decls
                 .iter()
                 .position(|existing| *existing == package)
             {
-                Some(index) => la_arena::Idx::from_raw(la_arena::RawIdx::from_u32(index as u32)),
+                Some(index) => hir::PackageId::from_raw(la_arena::RawIdx::from_u32(index as u32)),
                 None => {
-                    let index = package_arena.len();
-                    package_arena.push(package);
-                    la_arena::Idx::from_raw(la_arena::RawIdx::from_u32(index as u32))
+                    let index = self.package_decls.len();
+                    self.package_decls.push(package);
+                    hir::PackageId::from_raw(la_arena::RawIdx::from_u32(index as u32))
                 }
             };
             let mut exact = Vec::new();
@@ -70,8 +69,6 @@ impl Lowerer {
                             .collect(),
                         alias: alias.as_ref().map(|alias| alias.text.clone()),
                         span: *span,
-                        // Resolution fills this in T15; until then the
-                        // import is recorded but contributes no binding.
                         binding: None,
                     }),
                     ast::ImportSyntax::Star { public, path, span } => {
@@ -87,15 +84,9 @@ impl Lowerer {
                     }
                 }
             }
-            file_surfaces.push(hir::FileSurface {
-                package: package_id,
-                imports: hir::FileImports { exact, star },
-            });
+            self.file_packages.push(package_id);
+            self.file_imports.push(hir::FileImports { exact, star });
         }
-        let semantic_surface = hir::SemanticSurface {
-            packages: package_arena.into_iter().collect(),
-            files: file_surfaces,
-        };
 
         let mut pending_interfaces = Vec::new();
         let mut pending_objects = Vec::new();
@@ -450,6 +441,11 @@ impl Lowerer {
         let exception_core = self.validate_exception_core(files);
         self.lower_runtime_top_level_initializers();
 
+        // Every declaration (including generated backing classes and
+        // finalized type aliases) exists before import bindings resolve;
+        // bodies then see a complete import surface.
+        self.resolve_import_bindings();
+
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
         // declaration time. Constructor edges were resolved after source
@@ -575,7 +571,18 @@ impl Lowerer {
                     source: source.source,
                 })
                 .collect(),
-            semantic_surface,
+            semantic_surface: hir::SemanticSurface {
+                packages: self.package_decls.clone().into_iter().collect(),
+                files: self
+                    .file_packages
+                    .iter()
+                    .zip(std::mem::take(&mut self.file_imports))
+                    .map(|(package, imports)| hir::FileSurface {
+                        package: *package,
+                        imports,
+                    })
+                    .collect(),
+            },
             source_contexts: self.source_contexts,
             types: self.types,
             function_types: self.function_types,
