@@ -54,7 +54,12 @@ impl Lowerer {
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
-            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("variance-adapter/{source_name}/{target_name}"),
+                &[],
+            ),
             params: Vec::new(),
             return_ty: target_signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),

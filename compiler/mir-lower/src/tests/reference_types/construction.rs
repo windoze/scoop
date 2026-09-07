@@ -57,7 +57,8 @@ fn class_initializers_chain_on_one_exact_allocation() {
     // The use site performs the only allocation. Each initializer receives
     // that object, calls the direct base initializer, then writes its own
     // complete-layout field.
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   class Root vtable=0 itables=0
   class Base vtable=0 itables=0
@@ -67,7 +68,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type Point
         ClassAlloc Point
-      call @scoop.init.Point.$c2 direct
+      call @{g1} direct
         Type Point
         Local $new.1
         Type Int
@@ -76,7 +77,7 @@ Module mangling=persistent-v1
         Type Point
         Local $new.1
       return
-  fun init.Root.$c0 @scoop.init.Root.$c0(this: Root, label: String) -> Unit
+  fun init.Root.$c0 @{g2}(this: Root, label: String) -> Unit
     bb0 entry
       field_set 0
         Type Root
@@ -84,9 +85,9 @@ Module mangling=persistent-v1
         Type String
         Local label
       return
-  fun init.Base.$c1 @scoop.init.Base.$c1(this: Base, name: String) -> Unit
+  fun init.Base.$c1 @{g0}(this: Base, name: String) -> Unit
     bb0 entry
-      call @scoop.init.Root.$c0 direct
+      call @{g2} direct
         Type Root
         Retype Root
           Type Base
@@ -99,9 +100,9 @@ Module mangling=persistent-v1
         Type String
         Local name
       return
-  fun init.Point.$c2 @scoop.init.Point.$c2(this: Point, x: Int) -> Unit
+  fun init.Point.$c2 @{g1}(this: Point, x: Int) -> Unit
     bb0 entry
-      call @scoop.init.Base.$c1 direct
+      call @{g0} direct
         Type Base
         Retype Base
           Type Point
@@ -117,7 +118,26 @@ Module mangling=persistent-v1
   str @scoop.str.0 \"root\"
   str @scoop.str.1 \"point\"
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.Base.$c1",
+            &[]
+        ),
+        g1 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.Point.$c2",
+            &[]
+        ),
+        g2 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.Root.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }
 

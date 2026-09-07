@@ -273,7 +273,8 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // The operand is evaluated once into `$opt.1`; the semantic variant test
     // guards the representation-independent extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   enum Option$I32
     Some(_1: Int)
@@ -305,7 +306,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c0 direct
+      call @{g0} direct
         Type UnwrapException
         Local $new.1
       throw
@@ -316,11 +317,18 @@ Module mangling=persistent-v1
         Type Int
         Local $uw.2
       return
-  fun init.UnwrapException.$c0 @scoop.init.UnwrapException.$c0(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c0 @{g0}(this: UnwrapException) -> Unit
     bb0 entry
       return
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.UnwrapException.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
 }

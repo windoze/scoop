@@ -67,7 +67,8 @@ fn try_and_throw_become_explicit_cfg() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   class MyError vtable=0 itables=0
   fun main @scoop_main() -> Unit
@@ -103,7 +104,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type MyError
         ClassAlloc MyError
-      call @scoop.init.MyError.$c0 direct
+      call @{g0} direct
         Type MyError
         Local $new.1
       throw unwind bb1
@@ -129,11 +130,18 @@ Module mangling=persistent-v1
       Type Int
       IntegerLiteral Int value=2 bits=0x00000002
       goto bb7
-  fun init.MyError.$c0 @scoop.init.MyError.$c0(this: MyError) -> Unit
+  fun init.MyError.$c0 @{g0}(this: MyError) -> Unit
     bb0 entry
       return
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.MyError.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }
 

@@ -12,6 +12,8 @@ mod statements;
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
     pub(super) module: &'a hir::Module,
+    /// Cone identity feeding generated-entity persistent symbols.
+    pub(super) cone: scoop_identity::ConeIdentity,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,

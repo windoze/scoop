@@ -1204,7 +1204,8 @@ fn destructuring_val_declarations_extract_bindings() {
 
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   struct Point (x: Int, y: Int)
   fun main @scoop_main() -> Unit
@@ -1226,7 +1227,7 @@ Module mangling=persistent-v1
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      call p: Point = @scoop.ctor.Point.$c0 direct
+      call p: Point = @{g0} direct
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
         Type Int
@@ -1240,7 +1241,7 @@ Module mangling=persistent-v1
           Type Point
           Local $bind.2
       return
-  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @{g0}(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point
@@ -1251,6 +1252,13 @@ Module mangling=persistent-v1
           Local y
   str @scoop.str.0 \"x\"
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "struct-constructor/ctor.Point.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }

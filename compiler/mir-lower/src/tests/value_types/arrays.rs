@@ -70,7 +70,8 @@ fn array_nodes_translate_one_to_one() {
     // The subscript read and the indexed store both get the M8
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   class IndexOutOfBoundsException vtable=0 itables=0
   fun main @scoop_main() -> Unit
@@ -121,7 +122,7 @@ Module mangling=persistent-v1
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.IndexOutOfBoundsException.$c0 direct
+      call @{g0} direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -182,7 +183,7 @@ Module mangling=persistent-v1
       assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.IndexOutOfBoundsException.$c0 direct
+      call @{g0} direct
         Type IndexOutOfBoundsException
         Local $new.4
       throw
@@ -197,11 +198,18 @@ Module mangling=persistent-v1
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       return
-  fun init.IndexOutOfBoundsException.$c0 @scoop.init.IndexOutOfBoundsException.$c0(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c0 @{g0}(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.IndexOutOfBoundsException.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }
 

@@ -106,7 +106,12 @@ impl BodyLowerer<'_> {
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
-            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("closure-adapter/{source_name}/{target_name}"),
+                &[],
+            ),
             params: Vec::new(),
             return_ty: target_signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),
@@ -265,7 +270,12 @@ impl BodyLowerer<'_> {
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$dynamic_adapter.{encoded}"),
-            symbol: format!("scoop.$dynamic_adapter.{encoded}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("dynamic-adapter/{encoded}"),
+                &[],
+            ),
             params: Vec::new(),
             return_ty: signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),

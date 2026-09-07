@@ -595,7 +595,8 @@ fn division_by_zero_throws_arithmetic_exception() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   class ArithmeticException vtable=0 itables=0
   fun main @scoop_main() -> Unit
@@ -617,7 +618,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c0 direct
+      call @{g0} direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -668,11 +669,18 @@ Module mangling=persistent-v1
         Type Int
         Local $div.result.3
       return
-  fun init.ArithmeticException.$c0 @scoop.init.ArithmeticException.$c0(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c0 @{g0}(this: ArithmeticException) -> Unit
     bb0 entry
       return
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.ArithmeticException.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }
 

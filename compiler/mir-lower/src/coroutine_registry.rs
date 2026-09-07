@@ -166,6 +166,7 @@ impl CoroutineRegistry {
 
     pub(super) fn continuation_shells(
         &mut self,
+        cone: scoop_identity::ConeIdentity,
         result: &mir::Type,
         continuation: mir::InterfaceId,
         throwable: mir::Type,
@@ -195,7 +196,12 @@ impl CoroutineRegistry {
         let resume = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resume${encoded}"),
-            symbol: format!("scoop.Continuation.resume${encoded}"),
+            symbol: crate::generated_function_symbol(
+                cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("continuation-resume/{encoded}"),
+                &[],
+            ),
             params: vec![
                 mir::Param {
                     name: "this".to_string(),
@@ -225,7 +231,12 @@ impl CoroutineRegistry {
         let failure = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resumeWithException${encoded}"),
-            symbol: format!("scoop.Continuation.resumeWithException${encoded}"),
+            symbol: crate::generated_function_symbol(
+                cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("continuation-resume-exception/{encoded}"),
+                &[],
+            ),
             params: vec![
                 mir::Param {
                     name: "this".to_string(),
@@ -249,6 +260,7 @@ impl CoroutineRegistry {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn start_helper(
         &mut self,
+        cone: scoop_identity::ConeIdentity,
         result: &mir::Type,
         task_interface: mir::InterfaceId,
         continuation_interface: mir::InterfaceId,
@@ -425,7 +437,12 @@ impl CoroutineRegistry {
         let function = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine${encoded}"),
-            symbol: format!("scoop.coroutine.start${encoded}"),
+            symbol: crate::generated_function_symbol(
+                cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("coroutine-start/{encoded}"),
+                &[],
+            ),
             params: vec![
                 mir::Param {
                     name: "task".to_string(),

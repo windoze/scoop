@@ -38,7 +38,12 @@ impl Lowerer {
             };
             let global = self.globals.alloc(mir::Global {
                 name: format!("$singleton${}", source.link_name),
-                symbol: mir::mangle_singleton_root(&source.link_name),
+                symbol: crate::generated_function_symbol(
+                    self.cone,
+                    scoop_identity::GeneratedRole::InitStorage,
+                    &format!("singleton-root/{}", source.link_name),
+                    &[],
+                ),
                 ty,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {

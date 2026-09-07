@@ -64,7 +64,8 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
     // `ClassCastException` on failure (M8); `as?` wraps in
     // Some / None. The value-type checks registered the boxed
     // payload class. Capabilities are not synthesized from boxing.
-    let expected = "\
+    let expected = format!(
+        "\
 Module mangling=persistent-v1
   struct S (x: Int)
   enum Option$D1_SX
@@ -93,7 +94,7 @@ Module mangling=persistent-v1
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c0 direct
+      call @{g1} direct
         Type ClassCastException
         Local $new.1
       throw
@@ -135,10 +136,10 @@ Module mangling=persistent-v1
         Type Option$D1_SX<S>
         Local $cast.4
       return
-  fun init.ClassCastException.$c0 @scoop.init.ClassCastException.$c0(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c0 @{g1}(this: ClassCastException) -> Unit
     bb0 entry
       return
-  fun ctor.S.$c0 @scoop.ctor.S.$c0(x: Int) -> S <no-gc>
+  fun ctor.S.$c0 @{g0}(x: Int) -> S <no-gc>
     bb0 entry
       return
         Type S
@@ -146,6 +147,19 @@ Module mangling=persistent-v1
           Type Int
           Local x
   entry @scoop_main
-";
+",
+        g0 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "struct-constructor/ctor.S.$c0",
+            &[]
+        ),
+        g1 = generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "class-initializer/init.ClassCastException.$c0",
+            &[]
+        ),
+    );
     assert_eq!(dump(&module), expected);
 }

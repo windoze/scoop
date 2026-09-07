@@ -155,10 +155,18 @@ impl Lowerer {
                 });
                 source_args.push(smir::Expr::local(local, ty));
             }
+            let reference_index = id.into_raw().into_u32();
+            let encoded = mir::encode_type(&self.shell, &mir::Type::Function(function_type))
+                .expect("callable reference signatures are source-level MIR types");
             let function = self.functions.alloc(mir::Function {
                 gc_effect: mir::GcEffect::Managed,
-                name: format!("$reference.{}", id.into_raw()),
-                symbol: format!("scoop.$reference.{}", id.into_raw()),
+                name: format!("$reference.{encoded}"),
+                symbol: crate::generated_function_symbol(
+                    self.cone,
+                    scoop_identity::GeneratedRole::CallableAdapter,
+                    &format!("callable-reference/{reference_index}/{encoded}"),
+                    &[],
+                ),
                 params: Vec::new(),
                 return_ty: signature.return_type.clone(),
                 body: mir::Body::unreachable(Arena::new()),

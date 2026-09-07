@@ -38,7 +38,12 @@ fn boxed_interfaces_come_from_the_declaration() {
     // value's describe implementation.
     assert_eq!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.Describable.describe"
+        generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::AdjustThunk,
+            "thunk.D1_SX.Describable.describe",
+            &[],
+        )
     );
 }
 

@@ -26,6 +26,7 @@ impl Lowerer {
             .unwrap_or_default();
         let current_closure = self.closure_by_function.get(&hir_id).copied();
         BodyLowerer {
+            cone: self.cone,
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,

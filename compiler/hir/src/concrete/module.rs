@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Cone identity of the compilation; feeds generated-entity keys.
+    pub cone: scoop_identity::ConeIdentity,
     pub types: Arena<Type>,
     /// Exact-type identity of every interned type; consumed by MIR/LIR
     /// for specializations and runtime type identity.

@@ -126,7 +126,12 @@ impl Lowerer {
         );
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::CallableAdapter,
+                &format!("function-bridge/{name}"),
+                &[],
+            ),
             name,
             params,
             return_ty: target_signature.return_type.clone(),

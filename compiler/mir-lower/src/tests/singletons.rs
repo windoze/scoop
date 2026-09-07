@@ -87,7 +87,12 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     );
     assert_eq!(
         module.globals[root.global].symbol,
-        "scoop.singleton.Registry"
+        generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::InitStorage,
+            "singleton-root/Registry",
+            &[],
+        )
     );
     assert!(matches!(
         module.initialization_units[singleton.initialization].kind,

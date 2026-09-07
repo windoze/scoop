@@ -80,7 +80,15 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
     let thunk_symbol = slot_fn(&module, &record.slots[0]);
-    assert!(thunk_symbol.starts_with("scoop.thunk."));
+    assert_eq!(
+        thunk_symbol,
+        generated_function_symbol(
+            scoop_hir_lower::test_cone_identity(),
+            scoop_identity::GeneratedRole::AdjustThunk,
+            "thunk.D1_SX.Describable.describe",
+            &[],
+        )
+    );
 
     // The thunk takes the boxed object as `this`, unboxes it and
     // tail-calls the value method.

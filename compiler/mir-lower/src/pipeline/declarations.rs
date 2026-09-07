@@ -8,11 +8,19 @@ impl Lowerer {
         }
         let throwable_ty =
             mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
-        for (source_id, _) in module.initialization_failure_roots.iter() {
+        for (source_id, root) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
+            // The owning unit's stable key is the structural identity;
+            // the raw id is display-only.
+            let unit_key = &module.initialization_units[root.unit].stable_key;
             let global = self.globals.alloc(mir::Global {
                 name: format!("$init$failure${raw}"),
-                symbol: format!("scoop.init.failure.{raw}"),
+                symbol: crate::generated_function_symbol(
+                    self.cone,
+                    scoop_identity::GeneratedRole::FailureStorage,
+                    &format!("init-failure/{unit_key}"),
+                    &[],
+                ),
                 ty: throwable_ty.clone(),
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
@@ -224,9 +232,18 @@ impl Lowerer {
                     thread_local: *thread_local,
                 },
             };
+            let symbol = match &storage {
+                mir::GlobalStorage::Extern { .. } => mir::mangle_global(&global.name),
+                _ => crate::generated_function_symbol(
+                    self.cone,
+                    scoop_identity::GeneratedRole::InitStorage,
+                    &format!("global/{}", global.name),
+                    &[],
+                ),
+            };
             let id = self.globals.alloc(mir::Global {
                 name: global.name.clone(),
-                symbol: mir::mangle_global(&global.name),
+                symbol,
                 ty,
                 mutable: global.mutable,
                 storage,

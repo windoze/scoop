@@ -930,6 +930,7 @@ impl<'a> Concretizer<'a> {
             .collect();
 
         concrete::Module {
+            cone: self.cone,
             exact_of,
             exact_types,
             types: self.types,

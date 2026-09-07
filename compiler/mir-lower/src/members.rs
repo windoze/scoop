@@ -117,10 +117,12 @@ impl Lowerer {
             &mut self.shell,
         );
         let name = format!("{}.{}", declaration.name, method.name);
-        let symbol = format!(
-            "scoop.$interface_signature.{}.{}",
-            interface.into_raw().into_u32(),
-            slot
+        let interface_name = &self.interfaces.defs[self.interfaces.mir_id(interface)].name;
+        let symbol = crate::generated_function_symbol(
+            self.cone,
+            scoop_identity::GeneratedRole::CallableAdapter,
+            &format!("interface-signature/{interface_name}/{name}"),
+            &[],
         );
         self.functions.alloc(mir::Function {
             gc_effect: lower_gc_effect(method.attributes.gc_effect),
@@ -189,7 +191,12 @@ impl Lowerer {
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::InitStorage,
+                &format!("class-initializer/{name}"),
+                &[],
+            ),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -217,7 +224,12 @@ impl Lowerer {
         };
         let id = self.functions.alloc(mir::Function {
             gc_effect,
-            symbol: format!("scoop.{name}"),
+            symbol: crate::generated_function_symbol(
+                self.cone,
+                scoop_identity::GeneratedRole::InitStorage,
+                &format!("struct-constructor/{name}"),
+                &[],
+            ),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -240,6 +252,7 @@ impl Lowerer {
         let class = constructor.class;
         let mir_class = self.class_map[&class];
         let mut lowerer = BodyLowerer {
+            cone: self.cone,
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
@@ -345,6 +358,7 @@ impl Lowerer {
         let constructor = module.struct_constructors[constructor_id].clone();
         let structure = constructor.structure;
         let mut lowerer = BodyLowerer {
+            cone: self.cone,
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,

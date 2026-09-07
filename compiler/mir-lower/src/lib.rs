@@ -137,6 +137,7 @@ use types::{
 /// Lower HIR to MIR.
 pub fn lower(module: &hir::Module) -> mir::Module {
     Lowerer {
+        cone: module.cone,
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -191,6 +192,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
 }
 
 struct Lowerer {
+    /// Cone identity feeding generated-entity persistent symbols.
+    cone: scoop_identity::ConeIdentity,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
@@ -267,3 +270,22 @@ use body::BodyLowerer;
 
 #[cfg(test)]
 mod tests;
+
+/// Persistent symbol for one compiler-generated function, keyed by role
+/// plus a structural discriminator (never an arena ordinal) and optional
+/// exact-type operands.
+pub(crate) fn generated_function_symbol(
+    cone: scoop_identity::ConeIdentity,
+    role: scoop_identity::GeneratedRole,
+    discriminator: &str,
+    operands: &[scoop_identity::persistent::PersistentExactTypeId],
+) -> String {
+    let key = scoop_identity::DefinitionKey::GeneratedByRole {
+        role,
+        operands: operands.iter().map(|id| *id.as_bytes()).collect(),
+        discriminator: discriminator.as_bytes().to_vec(),
+    }
+    .canonical_cbor();
+    let id = scoop_identity::persistent::PersistentFunctionId::from_definition_key(cone, &key);
+    scoop_identity::mangle(scoop_identity::SymbolKind::Function, id.as_bytes())
+}
