@@ -5,11 +5,13 @@ use crate::defaults::DefaultExprTemplateRef;
 use crate::{Lowerer, Type};
 
 mod entities;
+mod iteration;
 
 struct InstantiationContext {
     bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     locals: Vec<hir::Expr>,
     captures: HashMap<hir::BindingId, hir::Expr>,
+    loop_targets: Vec<(hir::LoopId, hir::LoopId)>,
     evaluation: InstantiationEvaluation,
 }
 
@@ -96,6 +98,7 @@ impl Lowerer {
                     (capture.binding, value)
                 })
                 .collect(),
+            loop_targets: Vec::new(),
             evaluation: if self.lowering_default_template {
                 InstantiationEvaluation::Template
             } else {
@@ -105,6 +108,7 @@ impl Lowerer {
         for statement in &template.statements {
             sink.push(self.instantiate_default_statement(statement, &mut context));
         }
+        debug_assert!(context.loop_targets.is_empty());
         self.instantiate_default_expr(&template.value, &mut context)
     }
 
@@ -153,20 +157,55 @@ impl Lowerer {
                 }),
             },
             hir::StatementKind::While {
+                target,
                 condition_setup,
                 cond,
                 body,
-            } => hir::StatementKind::While {
-                condition_setup: condition_setup
+            } => {
+                let mapped_target = self.fresh_loop();
+                context.loop_targets.push((*target, mapped_target));
+                let condition_setup = condition_setup
                     .iter()
                     .map(|statement| self.instantiate_default_statement(statement, context))
-                    .collect(),
-                cond: self.instantiate_default_expr(cond, context),
-                body: body
+                    .collect();
+                let cond = self.instantiate_default_expr(cond, context);
+                let body = body
                     .iter()
                     .map(|statement| self.instantiate_default_statement(statement, context))
-                    .collect(),
-            },
+                    .collect();
+                assert_eq!(context.loop_targets.pop(), Some((*target, mapped_target)));
+                hir::StatementKind::While {
+                    target: mapped_target,
+                    condition_setup,
+                    cond,
+                    body,
+                }
+            }
+            hir::StatementKind::For(plan) => {
+                hir::StatementKind::For(Box::new(self.instantiate_default_for(plan, context)))
+            }
+            hir::StatementKind::Break { target } => {
+                let &(source, mapped) = context
+                    .loop_targets
+                    .last()
+                    .expect("a default-template break has an active loop target");
+                assert_eq!(
+                    source, *target,
+                    "an unlabelled break targets the innermost loop"
+                );
+                hir::StatementKind::Break { target: mapped }
+            }
+            hir::StatementKind::Continue { target } => {
+                let &(source, mapped) = context
+                    .loop_targets
+                    .last()
+                    .expect("a default-template continue has an active loop target");
+                assert_eq!(
+                    source, *target,
+                    "an unlabelled continue targets the innermost loop"
+                );
+                hir::StatementKind::Continue { target: mapped }
+            }
             hir::StatementKind::When(when) => hir::StatementKind::When(hir::When {
                 subject: self.instantiate_default_expr(&when.subject, context),
                 arms: when
@@ -192,11 +231,39 @@ impl Lowerer {
                         span: arm.span,
                     })
                     .collect(),
-                else_body: when.else_body.as_ref().map(|body| {
-                    body.iter()
-                        .map(|statement| self.instantiate_default_statement(statement, context))
-                        .collect()
-                }),
+                fallback: match &when.fallback {
+                    hir::WhenFallback::Else(body) => hir::WhenFallback::Else(
+                        body.iter()
+                            .map(|statement| self.instantiate_default_statement(statement, context))
+                            .collect(),
+                    ),
+                    hir::WhenFallback::Impossible(proof) => {
+                        let proof = match proof {
+                            hir::ExhaustivenessProof::IrrefutableArm { subject_ty } => {
+                                hir::ExhaustivenessProof::IrrefutableArm {
+                                    subject_ty: self
+                                        .instantiate_method_ty(*subject_ty, &context.bindings),
+                                }
+                            }
+                            hir::ExhaustivenessProof::PatternMatrix { subject_ty } => {
+                                hir::ExhaustivenessProof::PatternMatrix {
+                                    subject_ty: self
+                                        .instantiate_method_ty(*subject_ty, &context.bindings),
+                                }
+                            }
+                            hir::ExhaustivenessProof::EnumPatternMatrix {
+                                subject_ty,
+                                application,
+                            } => hir::ExhaustivenessProof::EnumPatternMatrix {
+                                subject_ty: self
+                                    .instantiate_method_ty(*subject_ty, &context.bindings),
+                                application: self
+                                    .instantiate_default_enum_application(*application, context),
+                            },
+                        };
+                        hir::WhenFallback::Impossible(proof)
+                    }
+                },
             }),
             hir::StatementKind::Try(value) => hir::StatementKind::Try(hir::Try {
                 body: value
@@ -279,11 +346,20 @@ impl Lowerer {
             hir::Pattern::Wildcard => hir::Pattern::Wildcard,
             hir::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => hir::Pattern::Literal {
                 value: self.instantiate_default_expr(value, context),
-                equals: self.instantiate_default_callable(*equals, context),
+                equality: match *equality {
+                    hir::LiteralPatternEquality::Integer { kind, target } => {
+                        hir::LiteralPatternEquality::Integer { kind, target }
+                    }
+                    hir::LiteralPatternEquality::Ordinary { equals } => {
+                        hir::LiteralPatternEquality::Ordinary {
+                            equals: self.instantiate_default_callable(equals, context),
+                        }
+                    }
+                },
                 subject_ty: self.instantiate_method_ty(*subject_ty, &context.bindings),
             },
             hir::Pattern::Variant {
@@ -342,7 +418,7 @@ impl Lowerer {
         }
         let kind = match &source.kind {
             hir::ExprKind::StringLiteral(value) => hir::ExprKind::StringLiteral(value.clone()),
-            hir::ExprKind::IntLiteral(value) => hir::ExprKind::IntLiteral(*value),
+            hir::ExprKind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral(*value),
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
@@ -355,6 +431,13 @@ impl Lowerer {
                 constructor: self.instantiate_default_struct_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::StructConstruct {
+                application,
+                fields,
+            } => hir::ExprKind::StructConstruct {
+                application: self.instantiate_default_struct_application(*application, context),
+                fields: self.instantiate_default_exprs(fields, context),
+            },
             hir::ExprKind::ClassInit { constructor, args } => hir::ExprKind::ClassInit {
                 constructor: self.instantiate_default_class_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
@@ -362,15 +445,20 @@ impl Lowerer {
             hir::ExprKind::ConstructorParam(parameter) => {
                 hir::ExprKind::ConstructorParam(*parameter)
             }
-            hir::ExprKind::VariantConstruct {
-                application,
-                variant,
-                args,
-            } => hir::ExprKind::VariantConstruct {
-                application: self.instantiate_default_enum_application(*application, context),
-                variant: *variant,
+            hir::ExprKind::VariantConstruct { variant, args } => hir::ExprKind::VariantConstruct {
+                variant: self.instantiate_default_applied_enum_variant(*variant, context),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+                variant: self.instantiate_default_applied_enum_variant(*variant, context),
+            },
+            hir::ExprKind::VariantPayloadProject { operand, field } => {
+                hir::ExprKind::VariantPayloadProject {
+                    operand: Box::new(self.instantiate_default_expr(operand, context)),
+                    field: self.instantiate_default_applied_enum_field(*field, context),
+                }
+            }
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),
             hir::ExprKind::GlobalRead(global) => hir::ExprKind::GlobalRead(*global),
             hir::ExprKind::SingletonValue(value) => hir::ExprKind::SingletonValue(*value),
@@ -393,11 +481,11 @@ impl Lowerer {
                 coercion: self.instantiate_default_coercion(*coercion, context),
                 target_type: self.instantiate_default_function_type(*target_type, context),
             },
-            hir::ExprKind::PtrFromUInt(value) => {
-                hir::ExprKind::PtrFromUInt(Box::new(self.instantiate_default_expr(value, context)))
-            }
-            hir::ExprKind::PtrToUInt(value) => {
-                hir::ExprKind::PtrToUInt(Box::new(self.instantiate_default_expr(value, context)))
+            hir::ExprKind::PtrFromNonZeroULong(value) => hir::ExprKind::PtrFromNonZeroULong(
+                Box::new(self.instantiate_default_expr(value, context)),
+            ),
+            hir::ExprKind::PtrToULong(value) => {
+                hir::ExprKind::PtrToULong(Box::new(self.instantiate_default_expr(value, context)))
             }
             hir::ExprKind::PtrCast(value) => {
                 hir::ExprKind::PtrCast(Box::new(self.instantiate_default_expr(value, context)))
@@ -438,7 +526,6 @@ impl Lowerer {
             hir::ExprKind::AlignOf(ty) => {
                 hir::ExprKind::AlignOf(self.instantiate_method_ty(*ty, &context.bindings))
             }
-            hir::ExprKind::FunPtrNull => hir::ExprKind::FunPtrNull,
             hir::ExprKind::FunctionAddress(function) => hir::ExprKind::FunctionAddress(*function),
             hir::ExprKind::ForeignCallbackRegister {
                 registration,
@@ -586,6 +673,32 @@ impl Lowerer {
             },
             hir::ExprKind::PrimitiveUnary { kind, operand } => hir::ExprKind::PrimitiveUnary {
                 kind: *kind,
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+            },
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => hir::ExprKind::IntegerOperation {
+                operation: *operation,
+                arguments: match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                        hir::HirIntegerOperationArguments::Unary(Box::new(
+                            self.instantiate_default_expr(operand, context),
+                        ))
+                    }
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        hir::HirIntegerOperationArguments::Binary {
+                            lhs: Box::new(self.instantiate_default_expr(lhs, context)),
+                            rhs: Box::new(self.instantiate_default_expr(rhs, context)),
+                        }
+                    }
+                },
+            },
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => hir::ExprKind::IntegerConversion {
+                conversion: *conversion,
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
             },
             hir::ExprKind::Binary { op, lhs, rhs } => hir::ExprKind::Binary {

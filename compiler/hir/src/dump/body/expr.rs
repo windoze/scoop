@@ -13,7 +13,9 @@ pub(super) fn dump_expr(
         ExprKind::StringLiteral(value) => {
             out.push_str(&format!("{pad}StringLiteral {value:?} : {ty}\n"));
         }
-        ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value} : {ty}\n")),
+        ExprKind::IntegerLiteral(value) => {
+            out.push_str(&format!("{pad}IntegerLiteral {value} : {ty}\n"));
+        }
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value} : {ty}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral : {ty}\n")),
         ExprKind::TupleLiteral(elements) => {
@@ -56,12 +58,21 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        ExprKind::VariantConstruct {
+        ExprKind::StructConstruct {
             application,
-            variant,
-            args,
+            fields,
         } => {
-            let application = &module.enum_applications[*application];
+            let application = &module.struct_applications[*application];
+            out.push_str(&format!(
+                "{pad}StructConstruct {} : {ty}\n",
+                type_name(module, application.canonical_type)
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
+        ExprKind::VariantConstruct { variant, args } => {
+            let application = &module.enum_applications[variant.application()];
             let decl = &module.enums[application.template];
             let type_args = if application.arguments.is_empty() {
                 String::new()
@@ -75,11 +86,35 @@ pub(super) fn dump_expr(
             };
             out.push_str(&format!(
                 "{pad}VariantConstruct {}.{}{type_args} : {ty}\n",
-                decl.name, decl.variants[*variant as usize].name
+                decl.name,
+                decl.variants[variant.local_index() as usize].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
+        }
+        ExprKind::VariantTest { operand, variant } => {
+            let application = &module.enum_applications[variant.application()];
+            let declaration = &module.enums[application.template];
+            out.push_str(&format!(
+                "{pad}VariantTest {}.{} : {ty}\n",
+                type_name(module, application.canonical_type),
+                declaration.variants[variant.local_index() as usize].name
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            let variant = field.variant();
+            let application = &module.enum_applications[variant.application()];
+            let declaration = &module.enums[application.template];
+            let payload = &declaration.variants[variant.local_index() as usize];
+            out.push_str(&format!(
+                "{pad}VariantPayloadProject {}.{}.{} : {ty}\n",
+                type_name(module, application.canonical_type),
+                payload.name,
+                payload.fields[field.local_index() as usize].name
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
@@ -199,12 +234,12 @@ pub(super) fn dump_expr(
             ));
             dump_expr(module, locals, source, indent + 1, out);
         }
-        ExprKind::PtrFromUInt(operand) => {
-            out.push_str(&format!("{pad}PtrFromUInt : {ty}\n"));
+        ExprKind::PtrFromNonZeroULong(operand) => {
+            out.push_str(&format!("{pad}PtrFromNonZeroULong : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::PtrToUInt(operand) => {
-            out.push_str(&format!("{pad}PtrToUInt : {ty}\n"));
+        ExprKind::PtrToULong(operand) => {
+            out.push_str(&format!("{pad}PtrToULong : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::PtrCast(operand) => {
@@ -254,7 +289,6 @@ pub(super) fn dump_expr(
             "{pad}AlignOf {} : {ty}\n",
             type_name(module, *value_ty)
         )),
-        ExprKind::FunPtrNull => out.push_str(&format!("{pad}FunPtrNull : {ty}\n")),
         ExprKind::FunctionAddress(function) => out.push_str(&format!(
             "{pad}FunctionAddress {} : {ty}\n",
             module.functions[*function].name
@@ -265,13 +299,17 @@ pub(super) fn dump_expr(
         } => {
             let registration_id = *registration;
             let registration = &module.foreign_callback_registrations[registration_id];
+            let mode_application = &module.enum_applications[registration.mode.application()];
+            let mode_declaration = &module.enums[mode_application.template];
+            let mode = &mode_declaration.variants[registration.mode.local_index() as usize].name;
             out.push_str(&format!(
-                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={:?} : {ty}\n",
+                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={}.{} : {ty}\n",
                 registration_id.into_raw(),
                 registration.native_function_type.into_raw(),
                 registration.managed_function_type.into_raw(),
                 registration.context_index,
-                registration.mode,
+                type_name(module, mode_application.canonical_type),
+                mode,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
@@ -284,7 +322,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
-                FieldRef::StructField { index, .. } => format!("field {index}"),
+                FieldRef::StructField(field) => format!("field {}", field.local_index()),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
                 FieldRef::ClassField { field, .. } => {
                     format!(
@@ -364,6 +402,54 @@ pub(super) fn dump_expr(
         }
         ExprKind::PrimitiveUnary { kind, operand } => {
             out.push_str(&format!("{pad}PrimitiveUnary {kind:?} : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IntegerOperation {
+            operation,
+            arguments,
+        } => {
+            match operation {
+                IntegerOperation::NoGc {
+                    kind,
+                    operation,
+                    target,
+                } => out.push_str(&format!(
+                    "{pad}IntegerOperation {}.{} target=function{} <no-gc> : {ty}\n",
+                    kind.registry_key(),
+                    operation.registry_key(),
+                    target.function().into_raw()
+                )),
+                IntegerOperation::Managed {
+                    kind,
+                    operation,
+                    target,
+                } => out.push_str(&format!(
+                    "{pad}IntegerOperation {}.{} target=function{} <managed> : {ty}\n",
+                    kind.registry_key(),
+                    operation.registry_key(),
+                    target.function().into_raw()
+                )),
+            }
+            match arguments {
+                HirIntegerOperationArguments::Unary(operand) => {
+                    dump_expr(module, locals, operand, indent + 1, out);
+                }
+                HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    dump_expr(module, locals, lhs, indent + 1, out);
+                    dump_expr(module, locals, rhs, indent + 1, out);
+                }
+            }
+        }
+        ExprKind::IntegerConversion {
+            conversion,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerConversion {} -> {} target=function{} <no-gc> : {ty}\n",
+                conversion.source.canonical_name(),
+                conversion.target_kind.canonical_name(),
+                conversion.target.function().into_raw()
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::Binary { op, lhs, rhs } => {

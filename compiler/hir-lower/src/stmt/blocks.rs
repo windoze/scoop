@@ -23,6 +23,20 @@ impl Lowerer {
         }
     }
 
+    /// Stable strength of a contextual branch's nested integer defaults.
+    /// Probing the strongest available seed first lets the branch fixed point
+    /// discover a representation accepted by smaller peer literals without
+    /// making source order part of type inference.
+    pub(super) fn value_block_default_seed_rank(
+        &self,
+        block: &ast::Block,
+    ) -> Option<(u32, hir::IntegerSignedness)> {
+        match block.statements.last().map(|statement| &statement.kind) {
+            Some(ast::StatementKind::Expr(expr)) => self.expr_default_seed_rank(expr),
+            _ => None,
+        }
+    }
+
     /// Lower a control-expression branch in a fresh scope. The final
     /// expression is removed from statement position and returned as the
     /// block's value. A final legacy control statement is interpreted as a
@@ -64,7 +78,7 @@ impl Lowerer {
             } else {
                 None
             };
-            let value = if statements_can_fall_through(&statements) {
+            let value = if statements_control_outcomes(&statements).can_fall_through() {
                 Some(value.unwrap_or(hir::Expr {
                     kind: hir::ExprKind::UnitLiteral,
                     ty: self.unit,
@@ -130,14 +144,7 @@ impl Lowerer {
 
         if self.types_equal(result_ty, self.unit) {
             for block in blocks.iter_mut() {
-                if let Some(value) = block.value.take()
-                    && !matches!(value.kind, hir::ExprKind::UnitLiteral)
-                {
-                    block.statements.push(hir::Statement {
-                        span: value.span,
-                        kind: hir::StatementKind::Expr(value),
-                    });
-                }
+                block.discard_value();
             }
             return Some(hir::Expr {
                 kind: hir::ExprKind::UnitLiteral,
@@ -212,6 +219,31 @@ impl Lowerer {
                 this.lower_value_block(else_block, expected)
             })?)
         };
+        let has_hint = then_value
+            .as_ref()
+            .is_some_and(|block| block.value.as_ref().is_some())
+            || else_value
+                .as_ref()
+                .is_some_and(|block| block.value.as_ref().is_some());
+        if !has_hint {
+            let then_rank = then_value
+                .is_none()
+                .then(|| self.value_block_default_seed_rank(&if_.then_block))
+                .flatten();
+            let else_rank = else_value
+                .is_none()
+                .then(|| self.value_block_default_seed_rank(else_block))
+                .flatten();
+            if then_rank.is_some() && then_rank >= else_rank {
+                then_value = Some(self.with_smart_casts(then_narrowings.clone(), |this| {
+                    this.lower_value_block(&if_.then_block, None)
+                })?);
+            } else if else_rank.is_some() {
+                else_value = Some(self.with_smart_casts(else_narrowings.clone(), |this| {
+                    this.lower_value_block(else_block, None)
+                })?);
+            }
+        }
         let hint = self.value_block_hint(then_value.iter().chain(else_value.iter()));
         if then_value.is_none() {
             then_value = Some(self.with_smart_casts(then_narrowings, |this| {

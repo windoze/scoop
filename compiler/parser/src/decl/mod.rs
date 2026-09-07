@@ -1,5 +1,5 @@
-//! Top-level declaration parsing: annotations, functions, structs, enums,
-//! classes and interfaces.
+//! Top-level declaration parsing: annotations, functions, properties,
+//! transparent aliases, structs, enums, classes, interfaces and objects.
 
 use scoop_ast::{
     AccessorBodySyntax, AccessorSyntax, Annotation, AnnotationArg, AnnotationLiteral,
@@ -10,7 +10,7 @@ use scoop_ast::{
     PrimaryClassParameter, PrimaryConstructorDecl, PrimaryParameterProperty, PropertyBodySyntax,
     PropertyDecl, SecondaryConstructorDecl, SetterDecl, SetterParameterSyntax,
     SetterVisibilitySyntax, Span, StructDecl, StructMember, StructRepresentationDecl,
-    SupertypeSpec, TypeBound, TypeConstraint, TypeParamDecl, TypeParamKindBound,
+    SupertypeSpec, TypeAliasDecl, TypeBound, TypeConstraint, TypeParamDecl, TypeParamKindBound,
     VarargDefaultSyntax, VariantDecl, VariantDeclKind, VariantFieldDecl, VisibilitySyntax,
     WhereClause,
 };
@@ -41,6 +41,7 @@ pub(crate) struct Modifiers {
     pub is_suspend: bool,
     pub suspend_span: Option<Span>,
     pub is_override: bool,
+    pub override_span: Option<Span>,
     pub operator: Option<OperatorModifier>,
     pub infix: Option<InfixModifier>,
     pub method_modifier: Option<MethodModifier>,
@@ -80,6 +81,7 @@ mod functions;
 mod generics;
 mod nominals;
 mod properties;
+mod type_aliases;
 
 pub(super) use properties::PropertyContext;
 
@@ -128,6 +130,9 @@ impl Parser {
                     self.parse_property(prefix, PropertyContext::TopLevel)?,
                 ))
             }
+            TokenKind::Ident(text) if text == "typealias" => {
+                self.parse_type_alias(prefix).map(Decl::TypeAlias)
+            }
             TokenKind::Class => {
                 self.require_nominal_prefix(&prefix, "class")?;
                 let modifier = match prefix.modifiers.method_modifier {
@@ -170,7 +175,9 @@ impl Parser {
                 self.peek().span,
                 "`sealed` classes are not supported yet (milestone M6)",
             )),
-            _ => self.unexpected("`fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`"),
+            _ => self.unexpected(
+                "`fun`, `val`, `var`, `typealias`, `struct`, `enum`, `class` or `interface`",
+            ),
         }
     }
 }

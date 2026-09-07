@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun consume(callback: FunPtr<Int>) {
+    println(0)
+}
+
+fun main() {
+    println(1)
+}

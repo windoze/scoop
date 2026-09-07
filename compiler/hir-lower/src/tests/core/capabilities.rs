@@ -20,7 +20,7 @@ pub(super) fn capability_interfaces() -> Vec<Decl> {
                 true,
                 "hash",
                 Vec::new(),
-                Some(ty_named("Int")),
+                Some(ty_named("Long")),
                 FunctionBody::None,
             )],
         ),

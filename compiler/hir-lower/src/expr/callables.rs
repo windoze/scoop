@@ -145,27 +145,68 @@ impl Lowerer {
                 );
             }
         }
-        // An intrinsic array class in constructor position denotes the
-        // opposite-family snapshot conversion. The class namespace resolves
-        // the source name; the typed declaration kind selects the operation.
-        if let Some(&(class, _)) = self.classes_by_name.get(&call.callee.text) {
-            if let Some(target_kind) = self.array_class_kind(class) {
-                return self.lower_array_conversion(call, sink, class, target_kind, expected);
+        let constructor = self.classify_constructor(&call.callee)?;
+        if !matches!(&constructor, Constructor::Unmatched) {
+            if call.callee.text.contains('.') {
+                return self.lower_nominal_constructor_call(constructor, call, sink, expected);
             }
+            return match self.probe_expr_layer(move |state, layer_sink| {
+                state.lower_nominal_constructor_call(constructor, call, layer_sink, expected)
+            }) {
+                Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => self.lower_function_call(call, sink, expected, Some(failure)),
+            };
         }
-        match self.classify_constructor(&call.callee)? {
-            Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
-                enum_id,
-                variant,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-            ),
-            Constructor::Struct { struct_id, ty } => {
+
+        let object = self
+            .lexical_nested_nominal_target(&call.callee.text)
+            .or_else(|| self.top_level_nominal_target(&call.callee.text))
+            .and_then(|target| match target {
+                crate::NominalTarget::Object(object) => Some(object),
+                _ => None,
+            });
+        let object_failure = object.map(|object| {
+            let kind = match self.objects[object].kind {
+                hir::ObjectKind::Standalone => "object",
+                hir::ObjectKind::Companion(_) => "companion object",
+            };
+            let mut failure = self.clone();
+            failure.error(
+                call.span,
+                format!("{kind} `{}` cannot be constructed", call.callee.text),
+            );
+            Box::new(failure)
+        });
+        self.lower_function_call(call, sink, expected, object_failure)
+    }
+
+    fn lower_nominal_constructor_call(
+        &mut self,
+        constructor: Constructor,
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match constructor {
+            Constructor::Variant { target, alias } => {
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
+                self.lower_variant_construct(
+                    target,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    sink,
+                    expected,
+                )
+            }
+            Constructor::Struct {
+                struct_id,
+                ty,
+                alias,
+            } => {
                 if Some(struct_id) == self.ffi_foreign_callback {
                     self.error(
                         call.span,
@@ -174,6 +215,8 @@ impl Lowerer {
                     );
                     return None;
                 }
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
                 let site = CallSite {
                     type_args: &call.type_args,
                     args: &call.args,
@@ -185,40 +228,25 @@ impl Lowerer {
                     self.lower_struct_init(struct_id, ty, site, sink, expected)
                 }
             }
-            Constructor::Class { class_id } => self.lower_class_construct(
-                class_id,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-            ),
-            Constructor::Unmatched => {
-                let object = self
-                    .lexical_nested_nominal_target(&call.callee.text)
-                    .or_else(|| self.top_level_nominal_target(&call.callee.text))
-                    .and_then(|target| match target {
-                        crate::NominalTarget::Object(object) => Some(object),
-                        _ => None,
-                    });
-                if let Some(object) = object
-                    && !self.functions_by_name.contains_key(&call.callee.text)
-                {
-                    let kind = match self.objects[object].kind {
-                        hir::ObjectKind::Standalone => "object",
-                        hir::ObjectKind::Companion(_) => "companion object",
-                    };
-                    self.error(
-                        call.span,
-                        format!("{kind} `{}` cannot be constructed", call.callee.text),
-                    );
-                    None
+            Constructor::Class { class_id, alias } => {
+                let expected =
+                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
+                if let Some(target_kind) = self.array_class_kind(class_id) {
+                    self.lower_array_conversion(call, sink, class_id, target_kind, expected)
                 } else {
-                    self.lower_function_call(call, sink, expected)
+                    self.lower_class_construct(
+                        class_id,
+                        CallSite {
+                            type_args: &call.type_args,
+                            args: &call.args,
+                            span: call.span,
+                        },
+                        sink,
+                        expected,
+                    )
                 }
             }
+            Constructor::Unmatched => None,
         }
     }
 

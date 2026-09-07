@@ -3,9 +3,9 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Unit,
-    Int,
-    /// Unsigned 64-bit integer (`UInt`, spec 11.2).
-    UInt,
+    /// One of the eight canonical fixed-width source integer types. The
+    /// corresponding nominal owner is available through `IntegerTypeCore`.
+    Integer(IntegerKind),
     Boolean,
     String,
     /// A struct type with resolved type arguments (empty for
@@ -62,10 +62,9 @@ pub struct FunctionType {
 pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
     match (&module.types[a], &module.types[b]) {
         (Type::Unit, Type::Unit)
-        | (Type::Int, Type::Int)
-        | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
+        (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
@@ -98,8 +97,7 @@ pub(crate) fn type_name_with_params(
 ) -> String {
     match &module.types[ty] {
         Type::Unit => "Unit".to_string(),
-        Type::Int => "Int".to_string(),
-        Type::UInt => "UInt".to_string(),
+        Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(application) => {

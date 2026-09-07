@@ -40,11 +40,26 @@ fn when_wildcard_is_not_a_field_name() {
 }
 
 #[test]
-fn when_wildcard_is_not_a_field_rename() {
-    let (span, message) =
-        err("fun main() {\n    when (s) {\n        S { x: _ } -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(43, 44));
-    assert_eq!(message, "`_` is not allowed in a field pattern");
+fn malformed_recursive_field_rhs_recovers_to_later_declarations() {
+    let source = "fun first() {\n    val { child: } = value\n}\n\
+                  fun second() {\n    when (value) {\n        S { child: } -> {}\n    }\n}\n\
+                  fun main() {}\n";
+    let diagnostics = crate::parse(source).expect_err("both malformed subpatterns must fail");
+    assert_eq!(diagnostics.len(), 2);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.message == "expected pattern, found `}`")
+    );
+    let expected_starts = source
+        .match_indices("child: }")
+        .map(|(start, _)| u32::try_from(start + "child: ".len()).expect("test source fits u32"))
+        .collect::<Vec<_>>();
+    let actual_starts = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.span.expect("parser diagnostic span").start)
+        .collect::<Vec<_>>();
+    assert_eq!(actual_starts, expected_starts);
 }
 
 #[test]

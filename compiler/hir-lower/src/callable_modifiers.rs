@@ -305,7 +305,12 @@ impl Lowerer {
             K::PlusAssign | K::MinusAssign | K::TimesAssign | K::DivAssign | K::RemAssign => {
                 self.require_operator_return(decl, return_ty, self.unit, "Unit")
             }
-            K::CompareTo => self.require_operator_return(decl, return_ty, self.int, "Int"),
+            K::CompareTo => self.require_operator_return(
+                decl,
+                return_ty,
+                self.integer_type(hir::IntegerKind::SIGNED_64),
+                "Long",
+            ),
             K::Equals => {
                 self.require_operator_return(decl, return_ty, self.boolean, "Boolean");
                 if !is_member {

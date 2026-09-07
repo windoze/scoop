@@ -14,8 +14,9 @@ pub(crate) use values::*;
 /// and every tuple type that appears in the module. Concrete arrays have a
 /// separate, typed metadata arena rather than a second layout identity.
 pub(crate) fn layouts(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     from_code: &[mir::Type],
 ) -> (Arena<lir::Layout>, lir::WellKnownLayouts) {
     // Tuple types reachable from struct / enum / class declarations
@@ -63,16 +64,16 @@ pub(crate) fn layouts(
 
     let mut layouts = Arena::new();
     for (_, def) in module.structs.iter() {
-        layouts.alloc(struct_layout(module, enums, def));
+        layouts.alloc(struct_layout(context, module, enums, def));
     }
     for (id, def) in module.enums.iter() {
-        layouts.alloc(enum_layout(module, enums, id, def));
+        layouts.alloc(enum_layout(context, enums, id, def));
     }
     let mut string = None;
     for (_, def) in module.classes.iter() {
         match def.representation {
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
-                let layout = class_definition_layout(module, enums, def);
+                let layout = class_definition_layout(context, module, enums, def);
                 assert!(
                     string.replace(layouts.alloc(layout)).is_none(),
                     "one typed String representation"
@@ -83,12 +84,12 @@ pub(crate) fn layouts(
                 | mir::IntrinsicTypeRepresentation::MutableArray { .. },
             ) => {}
             _ => {
-                layouts.alloc(class_definition_layout(module, enums, def));
+                layouts.alloc(class_definition_layout(context, module, enums, def));
             }
         }
     }
     for (_, def) in module.closure_classes.iter() {
-        let (_, size, align, scan) = closure_shape(module, enums, def);
+        let (_, size, align, scan) = closure_shape(context, module, enums, def);
         layouts.alloc(lir::Layout {
             name: def.name.clone(),
             size,
@@ -103,6 +104,7 @@ pub(crate) fn layouts(
     for ty in &types {
         if let mir::Type::Tuple(elements) = ty {
             layouts.alloc(aggregate_layout(
+                context,
                 module,
                 enums,
                 mir::type_name(module, ty),

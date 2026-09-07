@@ -6,8 +6,12 @@ pub(super) use protocol::LoweredCallDestination;
 use protocol::{NativeCallDestination, runtime_call_destination};
 
 impl<'a> FunctionLowerer<'a> {
-    pub(super) fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
-        match call.target.callee {
+    pub(super) fn lower_call(
+        &mut self,
+        call: &mir::Call,
+        result_ty: &mir::Type,
+    ) -> Option<lir::Value> {
+        let value = match call.target.callee {
             mir::Callee::Extern(id) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
                 let extern_ = &self.module.extern_functions[id];
@@ -29,12 +33,9 @@ impl<'a> FunctionLowerer<'a> {
                             let ty = self.value_type(&ty);
                             let local = self.new_hidden_local(ty);
                             self.push(lir::Instruction::Store { local, value });
-                            let address = self.new_temp(lir::RAW_PTR);
-                            self.push(lir::Instruction::LocalAddress {
-                                out: address,
-                                local,
-                            });
-                            bridge_args.push(lir::Value::Temp(address));
+                            bridge_args.push(lir::Value::CArgumentStorage(
+                                lir::CArgumentStorage::address_of(local),
+                            ));
                         }
                         let bridge_parameter_types = vec![lir::RAW_PTR; bridge_args.len()];
                         if returns_unit {
@@ -59,16 +60,13 @@ impl<'a> FunctionLowerer<'a> {
                         let destination = NativeCallDestination::Borrowed(
                             lir::NativeBorrowedCallDestination::extern_function(function),
                         );
-                        let parameter_types = parameter_types
-                            .iter()
-                            .map(|ty| self.value_type(ty))
-                            .collect();
-                        let result_type = if returns_unit {
-                            lir::LirType::Void
-                        } else {
-                            self.value_type(result_ty)
+                        let signature = match &self.extern_functions[function.declaration()].kind {
+                            lir::ExternFunctionKind::Scoop { signature, .. } => signature.clone(),
+                            lir::ExternFunctionKind::C { .. } => {
+                                unreachable!("Scoop extern reference names a Scoop declaration")
+                            }
                         };
-                        self.emit_native_call(destination, parameter_types, result_type, args)
+                        self.emit_native_call_with_signature(destination, &signature, args)
                     }
                 }
             }
@@ -87,7 +85,11 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
-                let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
+                let td = self.load_at_offset(
+                    args[0],
+                    self.context.object_type_descriptor_offset(),
+                    lir::METADATA_PTR,
+                );
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
                 let table = self.emit_plain_call(
                     LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
@@ -97,13 +99,20 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let destination =
                     self.managed_dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
-                self.finish_indirect(
-                    destination,
-                    args,
-                    parameter_types,
-                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
-                    result_ty,
-                )
+                let returns_unit =
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit;
+                let call_signature = abi::classify_mir_signature(
+                    self.context,
+                    parameter_types.iter(),
+                    if returns_unit {
+                        &mir::Type::Unit
+                    } else {
+                        result_ty
+                    },
+                    self.structs,
+                    self.enums,
+                );
+                self.finish_indirect(destination, args, &call_signature)
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
@@ -143,10 +152,12 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];
-                let param_types: Vec<mir::Type> =
-                    callee.params.iter().map(|param| param.ty.clone()).collect();
-                let returns_unit = callee.return_ty == mir::Type::Unit;
-                assert_eq!(call.args.len(), param_types.len(), "user call arity");
+                let signature = self.function_signatures[&id].clone();
+                assert_eq!(
+                    call.args.len(),
+                    signature.logical_argument_count(),
+                    "user call arity"
+                );
                 // Arguments are evaluated left to right, before the call.
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
@@ -154,34 +165,39 @@ impl<'a> FunctionLowerer<'a> {
                     mir::CallKind::Direct => {
                         let destination =
                             LoweredCallDestination::local(self.local_function_map[&id]);
-                        self.finish_call(destination, args, param_types, returns_unit, result_ty)
+                        self.finish_call(destination, args, &signature)
                     }
                     // vtable dispatch (impl spec 2.9): the receiver's
                     // object header holds the TypeDescriptor, whose
                     // vtable pointer is `ScoopTypeDescriptor` field 5.
                     mir::CallKind::Virtual { slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
-                        let vtable =
-                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::METADATA_PTR);
+                        let td = self.load_at_offset(
+                            args[0],
+                            self.context.object_type_descriptor_offset(),
+                            lir::METADATA_PTR,
+                        );
+                        let vtable = self.load_at_offset(
+                            lir::Value::Temp(td),
+                            self.context.type_descriptor_vtable_offset(),
+                            lir::METADATA_PTR,
+                        );
                         let destination = self.dispatch_destination(
                             lir::Value::Temp(vtable),
                             lir::DispatchKind::Virtual,
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(
-                            destination,
-                            args,
-                            param_types,
-                            returns_unit,
-                            result_ty,
-                        )
+                        self.finish_indirect(destination, args, &signature)
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
                     // TypeDescriptor key.
                     mir::CallKind::Interface { interface, slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
+                        let td = self.load_at_offset(
+                            args[0],
+                            self.context.object_type_descriptor_offset(),
+                            lir::METADATA_PTR,
+                        );
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
                         let table = self.emit_plain_call(
                             LoweredCallDestination::no_gc_runtime(
@@ -197,13 +213,7 @@ impl<'a> FunctionLowerer<'a> {
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(
-                            destination,
-                            args,
-                            param_types,
-                            returns_unit,
-                            result_ty,
-                        )
+                        self.finish_indirect(destination, args, &signature)
                     }
                     mir::CallKind::Closure { .. } => {
                         unreachable!("closure calls have no statically selected user callee")
@@ -229,8 +239,7 @@ impl<'a> FunctionLowerer<'a> {
                 let trap = self.trap_block(&message);
                 self.seal(lir::Terminator::Br(trap));
                 self.current_sealed = true;
-                // Dead value: the block is sealed, nothing consumes it.
-                lir::Value::IntConst(0)
+                return None;
             }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
@@ -269,6 +278,11 @@ impl<'a> FunctionLowerer<'a> {
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::StringCompare => {
+                        assert_eq!(
+                            *result_ty,
+                            mir::Type::Integer(mir::IntegerKind::SIGNED_64),
+                            "the closed string-compare runtime ABI returns signed 64-bit",
+                        );
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::LirType::I64)
                     }
                     // The pin / handle intrinsics exchange a word with
@@ -293,9 +307,10 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::MaterializeException => {
                         (vec![lir::MANAGED_PTR], lir::MANAGED_PTR)
                     }
-                    mir::RuntimeFn::InitializationEnter => {
-                        (vec![lir::METADATA_PTR], lir::LirType::I64)
-                    }
+                    mir::RuntimeFn::InitializationEnter => (
+                        vec![lir::METADATA_PTR],
+                        lir::LirType::MachineScalar(lir::MachineScalarKind::InitializationOutcome),
+                    ),
                     mir::RuntimeFn::InitializationSucceed => {
                         (vec![lir::METADATA_PTR], lir::LirType::Void)
                     }
@@ -325,7 +340,8 @@ impl<'a> FunctionLowerer<'a> {
                     args,
                 )
             }
-        }
+        };
+        Some(value)
     }
 
     /// Load a value of `ty` at a fixed byte offset from a raw pointer.
@@ -335,13 +351,58 @@ impl<'a> FunctionLowerer<'a> {
         offset: u64,
         ty: lir::LirType,
     ) -> lir::TempId {
-        let out = self.new_temp(ty);
-        self.push(lir::Instruction::HeapLoad {
-            out,
-            object,
-            offset,
-        });
+        let out = self.new_temp(ty.clone());
+        match ty {
+            lir::LirType::MachineScalar(kind) => {
+                assert!(
+                    kind.is_atomic_state(),
+                    "only compiler-owned coroutine state has heap storage"
+                );
+                self.push(lir::Instruction::MachineHeapLoad {
+                    out,
+                    kind,
+                    object,
+                    offset,
+                });
+            }
+            _ => self.push(lir::Instruction::HeapLoad {
+                out,
+                object,
+                offset,
+            }),
+        }
         out
+    }
+
+    /// Store a value of `ty` at a fixed byte offset. Compiler-owned state uses
+    /// a closed instruction family so it cannot pass through a source `i64`
+    /// heap operation before final LLVM lowering.
+    pub(super) fn store_at_offset(
+        &mut self,
+        object: lir::Value,
+        offset: u64,
+        value: lir::Value,
+        ty: lir::LirType,
+    ) {
+        match ty {
+            lir::LirType::MachineScalar(kind) => {
+                assert!(
+                    kind.is_atomic_state(),
+                    "only compiler-owned coroutine state has heap storage"
+                );
+                self.push(lir::Instruction::MachineHeapStore {
+                    kind,
+                    object,
+                    offset,
+                    value,
+                });
+            }
+            _ => self.push(lir::Instruction::HeapStore {
+                object,
+                offset,
+                value,
+            }),
+        }
     }
 
     /// A direct call: Unit-returning callees are void at the LLVM
@@ -354,20 +415,9 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
-        parameter_types: Vec<mir::Type>,
-        returns_unit: bool,
-        result_ty: &mir::Type,
+        signature: &lir::ScoopAbiSignature,
     ) -> lir::Value {
-        let parameter_types = parameter_types
-            .iter()
-            .map(|ty| self.value_type(ty))
-            .collect();
-        let result_type = if returns_unit {
-            lir::LirType::Void
-        } else {
-            self.value_type(result_ty)
-        };
-        self.emit_non_native_call(destination, parameter_types, result_type, args)
+        self.emit_non_native_call_with_signature(destination, signature, args)
     }
 
     /// An indirect call through a function table (vtable / itable
@@ -377,11 +427,9 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
-        parameter_types: Vec<mir::Type>,
-        returns_unit: bool,
-        result_ty: &mir::Type,
+        signature: &lir::ScoopAbiSignature,
     ) -> lir::Value {
-        self.finish_call(destination, args, parameter_types, returns_unit, result_ty)
+        self.finish_call(destination, args, signature)
     }
 
     /// A managed closure call through the code pointer already loaded from
@@ -395,7 +443,22 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        let destination = self.managed_dispatch_destination(closure, lir::DispatchKind::Closure, 2);
-        self.finish_indirect(destination, args, parameter_types, returns_unit, result_ty)
+        let destination = self.managed_dispatch_destination(
+            closure,
+            lir::DispatchKind::Closure,
+            self.context.closure_invoke_dispatch_slot(),
+        );
+        let signature = abi::classify_mir_signature(
+            self.context,
+            parameter_types.iter(),
+            if returns_unit {
+                &mir::Type::Unit
+            } else {
+                result_ty
+            },
+            self.structs,
+            self.enums,
+        );
+        self.finish_indirect(destination, args, &signature)
     }
 }

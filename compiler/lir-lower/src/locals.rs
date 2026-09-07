@@ -18,6 +18,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 elements: values, ..
             }
             | mir::ExprKind::StructInit { args: values, .. }
+            | mir::ExprKind::StructConstruct { fields: values, .. }
             | mir::ExprKind::ClosureAlloc {
                 captures: values, ..
             }
@@ -57,10 +58,14 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::ArrayLen { operand, .. }
             | mir::ExprKind::ArrayClone { operand, .. }
             | mir::ExprKind::Unary { operand, .. }
+            | mir::ExprKind::IntegerUnary { operand, .. }
+            | mir::ExprKind::IntegerConversion { operand, .. }
             | mir::ExprKind::EnumTag(operand)
             | mir::ExprKind::EnumField { operand, .. }
-            | mir::ExprKind::PtrFromUInt { operand, .. }
-            | mir::ExprKind::PtrToUInt(operand)
+            | mir::ExprKind::VariantTest { operand, .. }
+            | mir::ExprKind::VariantPayloadProject { operand, .. }
+            | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
+            | mir::ExprKind::PtrToULong(operand)
             | mir::ExprKind::PtrCast { operand, .. } => collect_expr(operand, out),
             mir::ExprKind::ClassAlloc { .. } => {}
             mir::ExprKind::AtomicFieldCompareExchange {
@@ -77,6 +82,31 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::Binary {
                 lhs: array,
                 rhs: index,
+                ..
+            }
+            | mir::ExprKind::IntegerBinary {
+                lhs: array,
+                rhs: index,
+                ..
+            }
+            | mir::ExprKind::SafeIntegerDivRem {
+                lhs: array,
+                rhs: index,
+                ..
+            }
+            | mir::ExprKind::IntegerCompare {
+                lhs: array,
+                rhs: index,
+                ..
+            }
+            | mir::ExprKind::IntegerCompareTo {
+                lhs: array,
+                rhs: index,
+                ..
+            }
+            | mir::ExprKind::IntegerShift {
+                value: array,
+                count: index,
                 ..
             }
             | mir::ExprKind::PtrOffset {
@@ -108,7 +138,8 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 collect_expr(value, out);
             }
             mir::ExprKind::StringConst(_)
-            | mir::ExprKind::IntLiteral(_)
+            | mir::ExprKind::IntegerLiteral(_)
+            | mir::ExprKind::MachineScalarLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
             | mir::ExprKind::Local(_)
@@ -118,7 +149,6 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::CaughtException
             | mir::ExprKind::SizeOf(_)
             | mir::ExprKind::AlignOf(_)
-            | mir::ExprKind::FunPtrNull(_)
             | mir::ExprKind::FunctionAddress { .. } => {}
         }
     }

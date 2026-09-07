@@ -47,13 +47,10 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
                 lowerer.classes[class].name
             )
         }
-        NominalConstructorSource::Variant {
-            enumeration,
-            variant,
-        } => format!(
+        NominalConstructorSource::Variant(variant) => format!(
             "variant {}{parameters}.{}({fields})",
-            lowerer.enums[enumeration].name,
-            lowerer.enums[enumeration].variants[variant as usize].name,
+            lowerer.enums[variant.enumeration()].name,
+            lowerer.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
         ),
     }
 }

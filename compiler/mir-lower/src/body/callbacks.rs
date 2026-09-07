@@ -1,6 +1,74 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    pub(super) fn ensure_foreign_callback_family(
+        &mut self,
+        callback: mir::StructId,
+    ) -> mir::ForeignCallbackFamilyId {
+        if let Some(&family) = self.foreign_callback_family_by_callback.get(&callback) {
+            return family;
+        }
+
+        let types = Types {
+            module: self.module,
+            struct_map: self.struct_map,
+            class_map: self.class_map,
+        };
+        let core = self.module.foreign_callback_core;
+        for enumeration in [
+            core.modes.enumeration(),
+            core.states.enumeration(),
+            core.failure_result.enumeration(),
+        ] {
+            self.enums.get_or_create(
+                &types,
+                self.structs,
+                self.interfaces,
+                self.shell,
+                enumeration,
+            );
+        }
+        let reusable = self.enums.lower_variant_ref(core.modes.reusable());
+        let one_shot = self.enums.lower_variant_ref(core.modes.one_shot());
+        let modes = mir::ForeignCallbackModes::checked(&self.enums.defs, reusable, one_shot)
+            .expect("the concrete callback mode protocol maps to checked MIR refs");
+        let registered = self.enums.lower_variant_ref(core.states.registered());
+        let active = self.enums.lower_variant_ref(core.states.active());
+        let completed = self.enums.lower_variant_ref(core.states.completed());
+        let failed = self.enums.lower_variant_ref(core.states.failed());
+        let states = mir::ForeignCallbackStates::checked(
+            &self.enums.defs,
+            registered,
+            active,
+            completed,
+            failed,
+        )
+        .expect("the concrete callback state protocol maps to checked MIR refs");
+        let failure_some = self
+            .enums
+            .lower_variant_field_ref(core.failure_result.some_payload());
+        let failure_none = self.enums.lower_variant_ref(core.failure_result.none());
+        let failure_option = mir::OptionCore::checked(&self.enums.defs, failure_some, failure_none)
+            .expect("the concrete callback failure protocol maps to checked MIR refs");
+        let failure_result = mir::ForeignCallbackFailureResult::checked(
+            &self.enums.defs,
+            failure_option,
+            self.class_map[&core.failure_result.throwable()],
+        )
+        .expect("callback failure remains the exact MIR Option<Throwable> specialization");
+        let family = self
+            .foreign_callback_families
+            .alloc(mir::ForeignCallbackFamily {
+                callback,
+                modes,
+                states,
+                failure_result,
+            });
+        self.foreign_callback_family_by_callback
+            .insert(callback, family);
+        family
+    }
+
     pub(super) fn ensure_callback_bridge(
         &mut self,
         source: mir::FunctionId,
@@ -64,6 +132,7 @@ impl BodyLowerer<'_> {
                 callee: mir::Callee::User(source),
             },
             args,
+            pending: mir::CoroutinePendingContext::Root,
         };
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {
@@ -121,6 +190,7 @@ impl BodyLowerer<'_> {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(bridge_function);
@@ -147,6 +217,12 @@ impl BodyLowerer<'_> {
         let native_signature = self.lower_function_type_id(registration.native_function_type);
         let managed_signature = self.lower_function_type_id(registration.managed_function_type);
         let callback = self.struct_map[&registration.callback];
+        let family = self.ensure_foreign_callback_family(callback);
+        let mode = self.enums.lower_variant_ref(registration.mode);
+        assert!(
+            self.foreign_callback_families[family].modes.contains(mode),
+            "a callback registration mode belongs to the validated core protocol"
+        );
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
 
@@ -212,7 +288,11 @@ impl BodyLowerer<'_> {
                         arguments_pointer_ty.clone(),
                     )),
                     pointee: Box::new(opaque_pointer.clone()),
-                    offset: Some(Box::new(mir::Expr::int(index as i64))),
+                    offset: Some(Box::new(mir::Expr::machine_scalar(
+                        mir::MachineScalarValue::PointerElementOffset(
+                            u64::try_from(index).expect("callback argument index fits u64"),
+                        ),
+                    ))),
                 },
             );
             let parameter_pointer = mir::Type::Ptr(Box::new(parameter_ty.clone()));
@@ -239,6 +319,7 @@ impl BodyLowerer<'_> {
                 callee: mir::Callee::Closure(managed_signature),
             },
             args: call_args,
+            pending: mir::CoroutinePendingContext::Root,
         };
 
         let exception = locals.alloc(mir::Local {
@@ -263,6 +344,7 @@ impl BodyLowerer<'_> {
                             callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                         },
                         args: vec![mir::Expr::caught_exception()],
+                        pending: mir::CoroutinePendingContext::Root,
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -280,9 +362,10 @@ impl BodyLowerer<'_> {
                 ))),
             ],
             terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::new(
-                    mir::Type::UInt,
-                    mir::ExprKind::IntLiteral(1),
+                value: Some(mir::Expr::machine_scalar(
+                    mir::MachineScalarValue::ForeignCallbackStatus(
+                        mir::ForeignCallbackStatus::Threw,
+                    ),
                 )),
             },
             unwind: None,
@@ -319,9 +402,10 @@ impl BodyLowerer<'_> {
             name: "entry".to_string(),
             statements: success_statements,
             terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::new(
-                    mir::Type::UInt,
-                    mir::ExprKind::IntLiteral(0),
+                value: Some(mir::Expr::machine_scalar(
+                    mir::MachineScalarValue::ForeignCallbackStatus(
+                        mir::ForeignCallbackStatus::Returned,
+                    ),
                 )),
             },
             unwind: Some(catch),
@@ -332,11 +416,12 @@ impl BodyLowerer<'_> {
             name: format!("foreign callback adapter {adapter_index}"),
             symbol: format!("scoop_foreign_callback_adapter_{adapter_index}"),
             params,
-            return_ty: mir::Type::UInt,
+            return_ty: mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus),
             body: mir::Body {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(function);
@@ -350,13 +435,10 @@ impl BodyLowerer<'_> {
             .foreign_callback_bridges
             .alloc(mir::ForeignCallbackBridge {
                 adapter,
-                callback,
+                family,
                 native_signature,
                 context_index: registration.context_index,
-                mode: match registration.mode {
-                    hir::ForeignCallbackMode::Reusable => mir::ForeignCallbackMode::Reusable,
-                    hir::ForeignCallbackMode::OneShot => mir::ForeignCallbackMode::OneShot,
-                },
+                mode,
             });
         self.foreign_callback_by_registration
             .insert(registration_id, bridge);

@@ -7,24 +7,25 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     let mut b = Builder::new();
     let inner = b.c_strukt(
         "Inner",
-        8,
-        1,
+        mir::MirCLayoutValue::A8,
+        mir::MirCLayoutValue::A1,
         false,
-        &[("flag", mir::Type::Boolean), ("value", mir::Type::Int)],
+        &[("flag", mir::Type::Boolean), ("value", INT)],
     );
     let outer = b.c_strukt(
         "Outer",
-        16,
-        2,
+        mir::MirCLayoutValue::A16,
+        mir::MirCLayoutValue::A2,
         true,
         &[
             ("tag", mir::Type::Boolean),
             ("inner", mir::Type::Struct(inner)),
-            ("tail", mir::Type::Int),
+            ("tail", INT),
         ],
     );
     let wrapped = b.enums.alloc(mir::EnumDef {
         name: "Wrapped".to_string(),
+        type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
             mir::VariantDef {
@@ -45,7 +46,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
                 gc_free: true,
                 fields: vec![mir::Field {
                     name: "value".to_string(),
-                    ty: mir::Type::Int,
+                    ty: INT,
                 }],
             },
         ],
@@ -59,10 +60,11 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     let module = lower(&b.finish(main));
 
     let inner_def = &module.structs[struct_def_id(inner)];
-    assert_eq!((inner_def.size, inner_def.align), (16, 8));
+    assert_eq!((inner_def.size, inner_def.align), (8, 8));
     assert_eq!(
         inner_def
-            .fields
+            .c_fields()
+            .expect("Inner is a C-layout struct")
             .iter()
             .map(|field| field.layout)
             .collect::<Vec<_>>(),
@@ -80,13 +82,16 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
 
     let outer_def = &module.structs[struct_def_id(outer)];
     assert_eq!(
-        outer_def.fields[1].ty,
+        outer_def.c_fields().expect("Outer is a C-layout struct")[1]
+            .ty
+            .storage_type(),
         lir::LirType::Struct(struct_def_id(inner))
     );
-    assert_eq!((outer_def.size, outer_def.align), (32, 16));
+    assert_eq!((outer_def.size, outer_def.align), (16, 16));
     assert_eq!(
         outer_def
-            .fields
+            .c_fields()
+            .expect("Outer is a C-layout struct")
             .iter()
             .map(|field| field.layout)
             .collect::<Vec<_>>(),
@@ -100,21 +105,29 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
                 access_align: 2,
             },
             lir::FieldLayout {
-                offset: 18,
+                offset: 10,
                 access_align: 2,
             },
         ]
     );
     assert!(outer_def.interior_mutable);
+    assert_eq!(
+        outer_def.c_layout(),
+        Some(lir::LirCLayoutContract {
+            aligned: lir::LirCLayoutValue::A16,
+            packed: lir::LirCLayoutValue::A2,
+        })
+    );
 
     let outer_layout = layout_values(&module)
         .find(|layout| layout.name == "Outer")
         .expect("Outer layout");
-    assert_eq!((outer_layout.size, outer_layout.align), (32, 16));
+    assert_eq!((outer_layout.size, outer_layout.align), (16, 16));
     assert_eq!(
         outer_layout.fields,
         outer_def
-            .fields
+            .c_fields()
+            .expect("Outer is a C-layout struct")
             .iter()
             .map(|field| field.layout)
             .collect::<Vec<_>>()
@@ -123,19 +136,19 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     let array_layout = array_metadata(&module, "Array<Outer>");
     assert_eq!(
         (array_layout.element_size, array_layout.element_align),
-        (32, 16)
+        (16, 16)
     );
     let wrapped_layout = layout_values(&module)
         .find(|layout| layout.name == "Wrapped")
         .expect("enum layout");
-    assert_eq!((wrapped_layout.size, wrapped_layout.align), (48, 16));
+    assert_eq!((wrapped_layout.size, wrapped_layout.align), (32, 16));
     let wrapped_array = array_metadata(&module, "Array<Wrapped>");
     assert_eq!(
         (wrapped_array.element_size, wrapped_array.element_align),
-        (48, 16)
+        (32, 16)
     );
     assert!(lir::dump(&module).contains(
-            "layout-meta Outer c-layout(aligned=16,packed=2) fields=[0@1,2@2,18@2] interior-mutable=true"
+            "layout-meta Outer c-layout(aligned=16,packed=2) fields=[0@1,2@2,10@2] interior-mutable=true"
         ));
 }
 
@@ -145,6 +158,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     // enum Msg { Text(String), Pair(Boolean, String), Empty }
     let msg = b.enums.alloc(mir::EnumDef {
         name: "Msg".to_string(),
+        type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
             mir::VariantDef {

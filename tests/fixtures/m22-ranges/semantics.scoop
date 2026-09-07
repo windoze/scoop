@@ -1,0 +1,375 @@
+// EXPECT-COMPILE
+
+fun showIntRange(label: String, range: IntRange) {
+    println(label)
+    for (value in range) {
+        println(value)
+    }
+}
+
+fun showLongRange(label: String, range: LongRange) {
+    println(label)
+    for (value in range) {
+        println(value)
+    }
+}
+
+fun showUIntRange(label: String, range: UIntRange) {
+    println(label)
+    for (value in range) {
+        println(value)
+    }
+}
+
+fun showULongRange(label: String, range: ULongRange) {
+    println(label)
+    for (value in range) {
+        println(value)
+    }
+}
+
+fun showNext(iterator: Iterator<Int>) {
+    val next = iterator.next()
+    when (next) {
+        Some(value) -> println(value)
+        None -> println("none")
+    }
+}
+
+fun showLongNext(iterator: Iterator<Long>) {
+    val next = iterator.next()
+    when (next) {
+        Some(value) -> println(value)
+        None -> println("none-long")
+    }
+}
+
+fun showUIntNext(iterator: Iterator<UInt>) {
+    val next = iterator.next()
+    when (next) {
+        Some(value) -> println(value)
+        None -> println("none-uint")
+    }
+}
+
+fun showULongNext(iterator: Iterator<ULong>) {
+    val next = iterator.next()
+    when (next) {
+        Some(value) -> println(value)
+        None -> println("none-ulong")
+    }
+}
+
+fun rejectIntStep(label: String, range: IntRange, amount: Int) {
+    try {
+        val invalid = range step amount
+        println("unexpected-" + label)
+    } catch (error: IllegalArgumentException) {
+        println("invalid-" + label)
+    }
+}
+
+fun rejectLongStep(label: String, range: LongRange, amount: Long) {
+    try {
+        val invalid = range step amount
+        println("unexpected-" + label)
+    } catch (error: IllegalArgumentException) {
+        println("invalid-" + label)
+    }
+}
+
+fun rejectUIntStep(label: String, range: UIntRange, amount: UInt) {
+    try {
+        val invalid = range step amount
+        println("unexpected-" + label)
+    } catch (error: IllegalArgumentException) {
+        println("invalid-" + label)
+    }
+}
+
+fun rejectULongStep(label: String, range: ULongRange, amount: ULong) {
+    try {
+        val invalid = range step amount
+        println("unexpected-" + label)
+    } catch (error: IllegalArgumentException) {
+        println("invalid-" + label)
+    }
+}
+
+fun ownerMappings() {
+    val int8First: Int8 = -2
+    val int8Last: Int8 = 2
+    val int16First: Int16 = -1
+    val int16End: Int16 = 2
+    val intFirst: Int = 1
+    val intEnd: Int = 4
+    val longFirst: Long = 3L
+    val longLast: Long = 1L
+    val uint8First: UInt8 = 1u
+    val uint8Last: UInt8 = 3u
+    val uint16First: UInt16 = 1u
+    val uint16End: UInt16 = 4u
+    val uintFirst: UInt = 1u
+    val uintEnd: UInt = 4u
+    val ulongFirst: ULong = 3uL
+    val ulongLast: ULong = 1uL
+
+    val fromInt8: IntRange = int8First..int8Last
+    val fromInt16: IntRange = int16First..<int16End
+    val fromInt: IntRange = intFirst until intEnd
+    val fromLong: LongRange = longFirst downTo longLast
+    val fromUInt8: UIntRange = uint8First..uint8Last
+    val fromUInt16: UIntRange = uint16First..<uint16End
+    val fromUInt: UIntRange = uintFirst until uintEnd
+    val fromULong: ULongRange = ulongFirst downTo ulongLast
+
+    showIntRange("owner-int8", fromInt8)
+    showIntRange("owner-int16", fromInt16)
+    showIntRange("owner-int", fromInt)
+    showLongRange("owner-long", fromLong)
+    showUIntRange("owner-uint8", fromUInt8)
+    showUIntRange("owner-uint16", fromUInt16)
+    showUIntRange("owner-uint", fromUInt)
+    showULongRange("owner-ulong", fromULong)
+
+    val aliasFirst: Int64 = 1L
+    val aliasLast: Int64 = 2L
+    val aliasRange: LongRange = aliasFirst..aliasLast
+    showLongRange("owner-alias", aliasRange)
+}
+
+fun namedConstruction() {
+    showIntRange("named-rangeTo", 1.rangeTo(endpoint = 3))
+    showIntRange("named-rangeUntil", 1.rangeUntil(endpoint = 3))
+    showIntRange("named-until", 1.until(endpoint = 3))
+    showIntRange("named-downTo", 3.downTo(endpoint = 1))
+}
+
+fun emptySingletonAndDirection() {
+    println("empty-closed")
+    showNext((3..2).iterator())
+    println("empty-open")
+    showNext((2..<2).iterator())
+    println("empty-open-int-min")
+    showNext(((-2147483648)..<(-2147483648)).iterator())
+    println("empty-open-long-min")
+    showLongNext(((-9223372036854775808L)..<(-9223372036854775808L)).iterator())
+    println("empty-open-uint-zero")
+    showUIntNext((0u..<0u).iterator())
+    println("empty-open-ulong-zero")
+    showULongNext((0uL..<0uL).iterator())
+    println("empty-until")
+    showNext((2 until 2).iterator())
+    println("empty-downTo")
+    showNext((1 downTo 2).iterator())
+    println("single-closed")
+    val closedSingleton = (2..2).iterator()
+    showNext(closedSingleton)
+    showNext(closedSingleton)
+    println("single-downTo")
+    val descendingSingleton = (2 downTo 2).iterator()
+    showNext(descendingSingleton)
+    showNext(descendingSingleton)
+
+    showIntRange("ascending-aligned", (1..7) step 3)
+    showIntRange("open-aligned", (1..<7) step 3)
+    showIntRange("descending-aligned", (7 downTo 1) step 3)
+    showIntRange("step-replaces", ((1..7) step 3) step 2)
+
+    val original = 1..4
+    val sameBounds = 1..4
+    val firstOpen = 1..<4
+    val secondOpen = 1..<4
+    val firstUntil = 1 until 4
+    val secondUntil = 1 until 4
+    val firstDescending = 4 downTo 1
+    val secondDescending = 4 downTo 1
+    val stepped = original step 2
+    val empty = 3..2
+    val sameEmpty = 3..2
+    val steppedEmpty = empty step 2
+    println(original !== sameBounds)
+    println(firstOpen !== secondOpen)
+    println(firstUntil !== secondUntil)
+    println(firstDescending !== secondDescending)
+    println(stepped !== original)
+    println(empty !== sameEmpty)
+    println(steppedEmpty !== empty)
+    showIntRange("step-original", original)
+    showIntRange("step-result", stepped)
+}
+
+fun containsAndAlignment() {
+    val ascending = (1..7) step 3
+    val open = (1..<7) step 3
+    val descending = (7 downTo 1) step 3
+    println(1 in ascending)
+    println(4 in ascending)
+    println(7 in ascending)
+    println(5 !in ascending)
+    println(7 !in open)
+    println(4 in descending)
+    println(5 !in descending)
+    println(2 !in (3..<3))
+
+    val fullInt = ((-2147483648)..2147483647) step 3
+    val fullLong = ((-9223372036854775808L)..9223372036854775807L) step 3L
+    val descendingInt = (2147483647 downTo (-2147483648)) step 3
+    val descendingLong =
+        (9223372036854775807L downTo (-9223372036854775808L)) step 3L
+    println(1 in fullInt)
+    println(0 !in fullInt)
+    println(1L in fullLong)
+    println(0L !in fullLong)
+    println((-2) in descendingInt)
+    println((-1) !in descendingInt)
+    println((-2L) in descendingLong)
+    println((-1L) !in descendingLong)
+
+    val fullUInt = (0u..4294967295u) step 4294967295u
+    val fullULong =
+        (0uL..18446744073709551615uL) step 18446744073709551615uL
+    println(4294967295u in fullUInt)
+    println(1u !in fullUInt)
+    println(18446744073709551615uL in fullULong)
+    println(1uL !in fullULong)
+
+    val intStepTwo = ((-2147483648)..2147483647) step 2
+    val longStepTwo =
+        ((-9223372036854775808L)..9223372036854775807L) step 2L
+    println(2147483646 in intStepTwo)
+    println(2147483647 !in intStepTwo)
+    println(9223372036854775806L in longStepTwo)
+    println(9223372036854775807L !in longStepTwo)
+}
+
+fun fullDomainsHaveFiniteIterators() {
+    println("int-full-four")
+    val intRange: IntRange = ((-2147483648)..2147483647) step 1431655765
+    val ints: Iterator<Int> = intRange.iterator()
+    showNext(ints)
+    showNext(ints)
+    showNext(ints)
+    showNext(ints)
+    showNext(ints)
+
+    println("long-full-four")
+    val longRange: LongRange =
+        ((-9223372036854775808L)..9223372036854775807L) step 6148914691236517205L
+    val longs: Iterator<Long> = longRange.iterator()
+    showLongNext(longs)
+    showLongNext(longs)
+    showLongNext(longs)
+    showLongNext(longs)
+    showLongNext(longs)
+
+    println("uint-full-two")
+    val uintRange: UIntRange = (0u..4294967295u) step 4294967295u
+    val uints: Iterator<UInt> = uintRange.iterator()
+    showUIntNext(uints)
+    showUIntNext(uints)
+    showUIntNext(uints)
+
+    println("ulong-full-two")
+    val ulongRange: ULongRange =
+        (0uL..18446744073709551615uL) step 18446744073709551615uL
+    val ulongs: Iterator<ULong> = ulongRange.iterator()
+    showULongNext(ulongs)
+    showULongNext(ulongs)
+    showULongNext(ulongs)
+}
+
+fun endpointsDoNotWrap() {
+    println("int-max")
+    val intMaximum = (2147483646..2147483647).iterator()
+    showNext(intMaximum)
+    showNext(intMaximum)
+    showNext(intMaximum)
+    println("int-min")
+    val intMinimum = ((-2147483647) downTo (-2147483648)).iterator()
+    showNext(intMinimum)
+    showNext(intMinimum)
+    showNext(intMinimum)
+
+    println("long-max")
+    val longMaximum =
+        (9223372036854775806L..9223372036854775807L).iterator()
+    showLongNext(longMaximum)
+    showLongNext(longMaximum)
+    showLongNext(longMaximum)
+    println("long-min")
+    val longMinimum =
+        ((-9223372036854775807L) downTo (-9223372036854775808L)).iterator()
+    showLongNext(longMinimum)
+    showLongNext(longMinimum)
+    showLongNext(longMinimum)
+
+    println("uint-max")
+    val uintMaximum = (4294967294u..4294967295u).iterator()
+    showUIntNext(uintMaximum)
+    showUIntNext(uintMaximum)
+    showUIntNext(uintMaximum)
+    println("uint-min")
+    val uintMinimum = (1u downTo 0u).iterator()
+    showUIntNext(uintMinimum)
+    showUIntNext(uintMinimum)
+    showUIntNext(uintMinimum)
+
+    println("ulong-single-max")
+    val ulongSingleton =
+        (18446744073709551615uL..18446744073709551615uL).iterator()
+    showULongNext(ulongSingleton)
+    showULongNext(ulongSingleton)
+    println("ulong-max-downTo")
+    val ulongDescending =
+        (18446744073709551615uL downTo 18446744073709551614uL).iterator()
+    showULongNext(ulongDescending)
+    showULongNext(ulongDescending)
+    showULongNext(ulongDescending)
+    println("uint-wrapped-positive-step")
+    val wrappedUInt = ((0u..4294967295u) step -1u).iterator()
+    showUIntNext(wrappedUInt)
+    showUIntNext(wrappedUInt)
+    showUIntNext(wrappedUInt)
+}
+
+fun cursorsAreFreshAndStayExhausted() {
+    val range = 1..2
+    val first: Iterator<Int> = range.iterator()
+    val second: Iterator<Int> = range.iterator()
+    println(first !== second)
+    showNext(first)
+    showNext(first)
+    showNext(first)
+    showNext(first)
+    showNext(second)
+
+    val longIterator: Iterator<Long> = (1L..1L).iterator()
+    val uintIterator: Iterator<UInt> = (1u..1u).iterator()
+    val ulongIterator: Iterator<ULong> = (1uL..1uL).iterator()
+    showLongNext(longIterator)
+    showUIntNext(uintIterator)
+    showULongNext(ulongIterator)
+}
+
+fun invalidStepsThrow() {
+    rejectIntStep("int-zero", 1..2, 0)
+    rejectIntStep("int-negative-empty", 2..<2, -1)
+    rejectLongStep("long-zero", 1L..2L, 0L)
+    rejectLongStep("long-negative-empty", 2L..<2L, -1L)
+    rejectUIntStep("uint-zero", 1u..2u, 0u)
+    rejectUIntStep("uint-zero-empty", 2u..<2u, 0u)
+    rejectULongStep("ulong-zero", 1uL..2uL, 0uL)
+    rejectULongStep("ulong-zero-empty", 2uL..<2uL, 0uL)
+}
+
+fun main() {
+    ownerMappings()
+    namedConstruction()
+    emptySingletonAndDirection()
+    containsAndAlignment()
+    fullDomainsHaveFiniteIterators()
+    endpointsDoNotWrap()
+    cursorsAreFreshAndStayExhausted()
+    invalidStepsThrow()
+}

@@ -4,6 +4,18 @@ use scoop_hir as hir;
 use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
+mod dependencies;
+mod integer_calls;
+mod integer_intrinsics;
+mod integer_values;
+
+pub(super) use integer_intrinsics::{ConstIntegerIntrinsicKind, ResolvedConstIntegerIntrinsic};
+pub(super) use integer_values::{
+    IntegerBinaryResult, convert_integer_constant, evaluate_integer_binary,
+    evaluate_integer_no_gc_operation,
+};
+pub(crate) use integer_values::{evaluate_hir_integer_constant, integer_wrapping_neg};
+
 #[derive(Clone)]
 enum ConstState {
     Pending,
@@ -90,99 +102,6 @@ impl Lowerer {
             self.property_files.insert(property, declaration.file);
         }
         self.current_owner = None;
-    }
-
-    fn diagnose_const_dependency_cycles(
-        &mut self,
-        declarations: &[PendingConst<'_>],
-    ) -> std::collections::HashSet<usize> {
-        let previous_file = self.current_file;
-        let previous_owner = self.current_owner;
-        let mut graph = Vec::with_capacity(declarations.len());
-        for declaration in declarations {
-            self.current_file = declaration.file;
-            self.current_owner = match declaration.owner {
-                hir::PropertyOwner::TopLevel => None,
-                hir::PropertyOwner::Object(object) => Some(crate::Owner::Object(object)),
-                _ => unreachable!("the const worklist contains only top-level and object values"),
-            };
-            let ast::PropertyBodySyntax::Const(expression) = &declaration.declaration.body else {
-                unreachable!("the const worklist contains only const properties")
-            };
-            let mut dependencies = Vec::new();
-            self.collect_const_dependencies(
-                expression,
-                declaration.owner,
-                declaration.file,
-                declarations,
-                &mut dependencies,
-            );
-            graph.push(dependencies);
-        }
-        self.current_file = previous_file;
-        self.current_owner = previous_owner;
-
-        let labels = declarations
-            .iter()
-            .map(|declaration| self.const_definition_name(declaration))
-            .collect::<Vec<_>>();
-        let mut states = vec![DependencyState::Pending; declarations.len()];
-        let mut stack = Vec::new();
-        let mut cycles = Vec::new();
-        for index in 0..declarations.len() {
-            find_const_cycles(index, &graph, &labels, &mut states, &mut stack, &mut cycles);
-        }
-        let mut cyclic = std::collections::HashSet::new();
-        for (source, span, path, members) in cycles {
-            self.current_file = source;
-            self.error(
-                span,
-                format!("const dependency cycle: {}", path.join(" -> ")),
-            );
-            cyclic.extend(members);
-        }
-        cyclic
-    }
-
-    fn collect_const_dependencies(
-        &self,
-        expression: &ast::Expr,
-        owner: hir::PropertyOwner,
-        file: usize,
-        declarations: &[PendingConst<'_>],
-        dependencies: &mut Vec<(usize, ast::Span, usize)>,
-    ) {
-        match expression {
-            ast::Expr::Var(name) => {
-                if let Some(index) =
-                    self.find_const_definition(declarations, owner, &name.text, file, true)
-                {
-                    dependencies.push((index, name.span, file));
-                }
-            }
-            ast::Expr::FieldAccess(access)
-                if access.navigation == ast::Navigation::Direct
-                    && matches!(access.selector, ast::FieldSelector::Name(_)) =>
-            {
-                let ast::FieldSelector::Name(name) = &access.selector else {
-                    unreachable!("the match guard selected a named field")
-                };
-                if let Some(target) = self.nominal_qualifier_target(&access.receiver)
-                    && let Some(index) =
-                        self.find_qualified_const_definition(declarations, target, &name.text, file)
-                {
-                    dependencies.push((index, name.span, file));
-                }
-            }
-            ast::Expr::Unary { operand, .. } => {
-                self.collect_const_dependencies(operand, owner, file, declarations, dependencies)
-            }
-            ast::Expr::Binary { lhs, rhs, .. } => {
-                self.collect_const_dependencies(lhs, owner, file, declarations, dependencies);
-                self.collect_const_dependencies(rhs, owner, file, declarations, dependencies);
-            }
-            _ => {}
-        }
     }
 
     fn evaluate_const_definition(
@@ -276,12 +195,9 @@ impl Lowerer {
         stack: &mut Vec<usize>,
     ) -> Option<EvaluatedConst> {
         match expression {
-            ast::Expr::IntLiteral { value, .. } => Some(EvaluatedConst {
-                value: hir::ConstPropertyValue::Integer(*value),
-                ty: expected
-                    .filter(|ty| matches!(self.types[*ty], hir::Type::Int | hir::Type::UInt))
-                    .unwrap_or(self.int),
-            }),
+            ast::Expr::IntLiteral(literal) => {
+                self.evaluate_integer_literal(*literal, expected, false, literal.span)
+            }
             ast::Expr::BoolLiteral { value, .. } => Some(EvaluatedConst {
                 value: hir::ConstPropertyValue::Boolean(*value),
                 ty: self.boolean,
@@ -336,7 +252,14 @@ impl Lowerer {
                 let ast::FieldSelector::Name(name) = &access.selector else {
                     unreachable!("the match guard selected a named field")
                 };
-                let Some(target) = self.nominal_qualifier_target(&access.receiver) else {
+                let alias_target = match self.resolve_direct_type_alias_qualifier(&access.receiver)
+                {
+                    Ok(alias) => alias.map(|(_, target)| target),
+                    Err(()) => return None,
+                };
+                let target =
+                    alias_target.or_else(|| self.nominal_qualifier_target(&access.receiver));
+                let Some(target) = target else {
                     self.error(
                         access.span,
                         "const initializer qualifiers must name an object or a companion host"
@@ -366,6 +289,15 @@ impl Lowerer {
                 )
             }
             ast::Expr::Unary { op, operand, span } => {
+                if *op == ast::UnOp::Neg
+                    && let ast::Expr::IntLiteral(literal) = &**operand
+                    && matches!(
+                        literal.suffix,
+                        ast::IntegerSuffix::None | ast::IntegerSuffix::Long
+                    )
+                {
+                    return self.evaluate_integer_literal(*literal, expected, true, *span);
+                }
                 let operand = self.evaluate_const_expression(
                     operand,
                     expected,
@@ -389,10 +321,48 @@ impl Lowerer {
                 stack,
                 *span,
             ),
+            ast::Expr::InfixCall {
+                lhs,
+                target,
+                rhs,
+                span,
+            } => self.evaluate_const_integer_infix(
+                lhs,
+                target,
+                rhs,
+                expected,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+                *span,
+            ),
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                navigation,
+                type_args,
+                args,
+                span,
+            } => self.evaluate_const_integer_method(
+                receiver,
+                name,
+                *navigation,
+                type_args,
+                args,
+                expected,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+                *span,
+            ),
             _ => {
                 self.error(
                     expression.span(),
-                    "const initializer must contain only literals, const references, and built-in primitive operators"
+                    "const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls"
                         .to_string(),
                 );
                 None
@@ -400,6 +370,7 @@ impl Lowerer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn find_qualified_const_definition(
         &self,
         declarations: &[PendingConst<'_>],
@@ -476,16 +447,36 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<EvaluatedConst> {
         match (operator, operand.value) {
-            (ast::UnOp::Plus, hir::ConstPropertyValue::Integer(value)) => Some(EvaluatedConst {
-                value: hir::ConstPropertyValue::Integer(value),
-                ty: operand.ty,
-            }),
-            (ast::UnOp::Neg, hir::ConstPropertyValue::Integer(value))
-                if matches!(self.types[operand.ty], hir::Type::Int) =>
-            {
+            (ast::UnOp::Plus | ast::UnOp::Neg, hir::ConstPropertyValue::Integer(value)) => {
+                let hir::Type::Integer(kind) = self.types[operand.ty] else {
+                    self.error(
+                        span,
+                        "integer const operator requires an integer operand".to_string(),
+                    );
+                    return None;
+                };
+                let operation = match operator {
+                    ast::UnOp::Plus => hir::NoGcIntegerOperation::UnaryPlus,
+                    ast::UnOp::Neg => hir::NoGcIntegerOperation::UnaryMinus,
+                    ast::UnOp::Not => {
+                        unreachable!("the outer match selected an integer unary operator")
+                    }
+                };
+                if self
+                    .registered_no_gc_integer_operation(kind, operation)
+                    .is_none()
+                {
+                    self.error(
+                        span,
+                        "const integer operator did not resolve to the exact typed core intrinsic"
+                            .to_string(),
+                    );
+                    return None;
+                }
                 Some(EvaluatedConst {
-                    value: hir::ConstPropertyValue::Integer(value.wrapping_neg()),
-                    ty: operand.ty,
+                    value: evaluate_integer_no_gc_operation(operation, value, None)
+                        .expect("a typed unary integer intrinsic accepts one owner operand"),
+                    ty: self.integer_no_gc_result_type(kind, operation),
                 })
             }
             (ast::UnOp::Not, hir::ConstPropertyValue::Boolean(value)) => Some(EvaluatedConst {
@@ -525,20 +516,7 @@ impl Lowerer {
                 ordinary,
                 states,
                 stack,
-            )?;
-            let hir::ConstPropertyValue::Boolean(lhs) = lhs.value else {
-                self.error(
-                    span,
-                    "boolean const operator requires Boolean operands".to_string(),
-                );
-                return None;
-            };
-            if (operator == ast::BinOp::And && !lhs) || (operator == ast::BinOp::Or && lhs) {
-                return Some(EvaluatedConst {
-                    value: hir::ConstPropertyValue::Boolean(lhs),
-                    ty: self.boolean,
-                });
-            }
+            );
             let rhs = self.evaluate_const_expression(
                 rhs,
                 Some(self.boolean),
@@ -547,28 +525,78 @@ impl Lowerer {
                 ordinary,
                 states,
                 stack,
-            )?;
-            let hir::ConstPropertyValue::Boolean(rhs) = rhs.value else {
+            );
+            let (Some(lhs), Some(rhs)) = (lhs, rhs) else {
+                return None;
+            };
+            if !self.types_equal(lhs.ty, rhs.ty) {
+                self.error(
+                    span,
+                    format!(
+                        "const operator operands must have the same type, found {} and {}",
+                        self.type_name(lhs.ty),
+                        self.type_name(rhs.ty)
+                    ),
+                );
+                return None;
+            }
+            let (hir::ConstPropertyValue::Boolean(lhs), hir::ConstPropertyValue::Boolean(rhs)) =
+                (lhs.value, rhs.value)
+            else {
                 self.error(
                     span,
                     "boolean const operator requires Boolean operands".to_string(),
                 );
                 return None;
             };
+            let value = match operator {
+                ast::BinOp::And => lhs && rhs,
+                ast::BinOp::Or => lhs || rhs,
+                _ => unreachable!("the outer match selected a boolean short-circuit operator"),
+            };
             return Some(EvaluatedConst {
-                value: hir::ConstPropertyValue::Boolean(rhs),
+                value: hir::ConstPropertyValue::Boolean(value),
                 ty: self.boolean,
             });
         }
 
-        let operand_expected = match operator {
-            ast::BinOp::Add
-            | ast::BinOp::Sub
-            | ast::BinOp::Mul
-            | ast::BinOp::Div
-            | ast::BinOp::Rem => expected,
+        let equality = matches!(operator, ast::BinOp::Eq | ast::BinOp::Ne);
+        let source_name = match operator {
+            ast::BinOp::Add => Some("plus"),
+            ast::BinOp::Sub => Some("minus"),
+            ast::BinOp::Mul => Some("times"),
+            ast::BinOp::Div => Some("div"),
+            ast::BinOp::Rem => Some("rem"),
+            ast::BinOp::Lt | ast::BinOp::Le | ast::BinOp::Gt | ast::BinOp::Ge => Some("compareTo"),
             _ => None,
         };
+        let operand_kind = if equality {
+            self.select_const_equality_integer_kind(
+                lhs,
+                rhs,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+            )
+        } else {
+            source_name.and_then(|source_name| {
+                self.select_const_integer_literal_receiver_kind(
+                    lhs,
+                    Some(rhs),
+                    source_name,
+                    expected,
+                    false,
+                    file,
+                    declarations,
+                    ordinary,
+                    states,
+                    stack,
+                )
+            })
+        };
+        let operand_expected = operand_kind.map(|kind| self.integer_type(kind));
         let lhs = self.evaluate_const_expression(
             lhs,
             operand_expected,
@@ -578,9 +606,14 @@ impl Lowerer {
             states,
             stack,
         )?;
+        let rhs_expected = if equality {
+            operand_expected
+        } else {
+            Some(lhs.ty)
+        };
         let rhs = self.evaluate_const_expression(
             rhs,
-            Some(lhs.ty),
+            rhs_expected,
             file,
             declarations,
             ordinary,
@@ -601,7 +634,19 @@ impl Lowerer {
 
         let result = match (lhs.value, rhs.value) {
             (hir::ConstPropertyValue::Integer(left), hir::ConstPropertyValue::Integer(right)) => {
-                self.const_integer_binary(operator, left, right, lhs.ty, span)
+                let hir::Type::Integer(kind) = self.types[lhs.ty] else {
+                    unreachable!("integer constant values have integer types")
+                };
+                debug_assert_eq!(left.kind(), kind);
+                debug_assert_eq!(right.kind(), kind);
+                match self.evaluate_typed_integer_binary_operator(operator, left, right) {
+                    IntegerBinaryResult::Value(value) => Some(value),
+                    IntegerBinaryResult::DivisionByZero => {
+                        self.error(span, "division by zero in const initializer".to_string());
+                        return None;
+                    }
+                    IntegerBinaryResult::Unsupported => None,
+                }
             }
             (hir::ConstPropertyValue::Boolean(left), hir::ConstPropertyValue::Boolean(right)) => {
                 match operator {
@@ -639,103 +684,20 @@ impl Lowerer {
         Some(EvaluatedConst { value, ty })
     }
 
-    fn const_integer_binary(
+    fn evaluate_integer_literal(
         &mut self,
-        operator: ast::BinOp,
-        left: i64,
-        right: i64,
-        operand_ty: hir::TypeId,
+        literal: ast::IntegerLiteralSyntax,
+        expected: Option<hir::TypeId>,
+        negative: bool,
         span: ast::Span,
-    ) -> Option<hir::ConstPropertyValue> {
-        let unsigned = matches!(self.types[operand_ty], hir::Type::UInt);
-        let arithmetic = match operator {
-            ast::BinOp::Add => Some(left.wrapping_add(right)),
-            ast::BinOp::Sub => Some(left.wrapping_sub(right)),
-            ast::BinOp::Mul => Some(left.wrapping_mul(right)),
-            ast::BinOp::Div if right != 0 && unsigned => {
-                Some(((left as u64) / (right as u64)) as i64)
-            }
-            ast::BinOp::Rem if right != 0 && unsigned => {
-                Some(((left as u64) % (right as u64)) as i64)
-            }
-            ast::BinOp::Div if right != 0 => Some(left.checked_div(right).unwrap_or(i64::MIN)),
-            ast::BinOp::Rem if right != 0 => Some(left.checked_rem(right).unwrap_or(0)),
-            ast::BinOp::Div | ast::BinOp::Rem => {
-                self.error(span, "division by zero in const initializer".to_string());
-                return None;
-            }
-            _ => None,
+    ) -> Option<EvaluatedConst> {
+        let expression = self.lower_integer_literal(literal, expected, negative, span)?;
+        let hir::ExprKind::IntegerLiteral(value) = expression.kind else {
+            unreachable!("integer literal lowering produces a typed integer constant")
         };
-        if matches!(
-            operator,
-            ast::BinOp::Add | ast::BinOp::Sub | ast::BinOp::Mul | ast::BinOp::Div | ast::BinOp::Rem
-        ) {
-            return arithmetic.map(hir::ConstPropertyValue::Integer);
-        }
-        let comparison = if unsigned {
-            let left = left as u64;
-            let right = right as u64;
-            match operator {
-                ast::BinOp::Lt => left < right,
-                ast::BinOp::Le => left <= right,
-                ast::BinOp::Gt => left > right,
-                ast::BinOp::Ge => left >= right,
-                ast::BinOp::Eq => left == right,
-                ast::BinOp::Ne => left != right,
-                _ => return None,
-            }
-        } else {
-            match operator {
-                ast::BinOp::Lt => left < right,
-                ast::BinOp::Le => left <= right,
-                ast::BinOp::Gt => left > right,
-                ast::BinOp::Ge => left >= right,
-                ast::BinOp::Eq => left == right,
-                ast::BinOp::Ne => left != right,
-                _ => return None,
-            }
-        };
-        Some(hir::ConstPropertyValue::Boolean(comparison))
+        Some(EvaluatedConst {
+            value: hir::ConstPropertyValue::Integer(value),
+            ty: expression.ty,
+        })
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum DependencyState {
-    Pending,
-    Visiting,
-    Complete,
-}
-
-fn find_const_cycles(
-    index: usize,
-    graph: &[Vec<(usize, ast::Span, usize)>],
-    labels: &[String],
-    states: &mut [DependencyState],
-    stack: &mut Vec<usize>,
-    cycles: &mut Vec<(usize, ast::Span, Vec<String>, Vec<usize>)>,
-) {
-    match states[index] {
-        DependencyState::Complete | DependencyState::Visiting => return,
-        DependencyState::Pending => {}
-    }
-    states[index] = DependencyState::Visiting;
-    stack.push(index);
-    for &(dependency, span, file) in &graph[index] {
-        if states[dependency] == DependencyState::Visiting {
-            let cycle_start = stack
-                .iter()
-                .position(|candidate| *candidate == dependency)
-                .expect("a visiting const is present on the dependency stack");
-            let mut path = stack[cycle_start..]
-                .iter()
-                .map(|candidate| labels[*candidate].clone())
-                .collect::<Vec<_>>();
-            path.push(labels[dependency].clone());
-            cycles.push((file, span, path, stack[cycle_start..].to_vec()));
-        } else {
-            find_const_cycles(dependency, graph, labels, states, stack, cycles);
-        }
-    }
-    stack.pop();
-    states[index] = DependencyState::Complete;
 }

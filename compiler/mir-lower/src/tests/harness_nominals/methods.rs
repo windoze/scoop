@@ -23,6 +23,7 @@ impl Harness {
                     hir::FunctionGenericity::OwnerParameterizedMethod {
                         owner_parameters: parameters,
                         no_gc_type_params: Vec::new(),
+                        gc_free_pointee_requirements: Vec::new(),
                     }
                 }
             }
@@ -36,6 +37,7 @@ impl Harness {
                     hir::FunctionGenericity::OwnerParameterizedMethod {
                         owner_parameters: parameters,
                         no_gc_type_params: Vec::new(),
+                        gc_free_pointee_requirements: Vec::new(),
                     }
                 }
             }
@@ -49,6 +51,7 @@ impl Harness {
                     hir::FunctionGenericity::OwnerParameterizedMethod {
                         owner_parameters: parameters,
                         no_gc_type_params: Vec::new(),
+                        gc_free_pointee_requirements: Vec::new(),
                     }
                 }
             }
@@ -62,6 +65,7 @@ impl Harness {
                     hir::FunctionGenericity::OwnerParameterizedMethod {
                         owner_parameters: parameters,
                         no_gc_type_params: Vec::new(),
+                        gc_free_pointee_requirements: Vec::new(),
                     }
                 }
             }

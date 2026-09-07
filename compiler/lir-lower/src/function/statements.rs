@@ -19,11 +19,13 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::StatementKind::Call(effect) => match effect {
                 mir::CallEffect::Unit(call) => {
-                    self.lower_call(call, &mir::Type::Unit);
+                    let _ = self.lower_call(call, &mir::Type::Unit);
                 }
                 mir::CallEffect::Value { destination, call } => {
                     let ty = self.mir_locals[*destination].ty.clone();
-                    let value = self.lower_call(call, &ty);
+                    let value = self
+                        .lower_call(call, &ty)
+                        .expect("a value-producing MIR call cannot diverge");
                     self.push(lir::Instruction::Store {
                         local: self.local_slot(*destination),
                         value,
@@ -97,18 +99,26 @@ impl<'a> FunctionLowerer<'a> {
                 let mir::Type::Class(class_id) = &object_ty else {
                     unreachable!("a field store targets a class object")
                 };
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let field_ty =
+                    &self.module.classes[*class_id].declared_fields()[*index as usize].ty;
+                assert_eq!(
+                    &value.ty, field_ty,
+                    "a field store value must match its declared field type"
+                );
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let offset = offsets[*index as usize];
+                let field_lir_ty = self.value_type(field_ty);
                 let object = self.lower_expr(object);
                 let value = self.lower_expr(value);
-                self.push(lir::Instruction::HeapStore {
-                    object,
-                    offset,
-                    value,
-                });
+                self.store_at_offset(object, offset, value, field_lir_ty);
             }
             mir::StatementKind::AtomicFieldStore {
+                kind,
                 object,
                 index,
                 value,
@@ -117,16 +127,28 @@ impl<'a> FunctionLowerer<'a> {
                 let mir::Type::Class(class_id) = &object_ty else {
                     unreachable!("an atomic field store targets a class object")
                 };
+                assert!(kind.is_atomic_state(), "only coroutine state is atomic");
                 assert_eq!(
                     self.module.classes[*class_id].declared_fields()[*index as usize].ty,
-                    mir::Type::Int,
-                    "an atomic state field is a 64-bit Int"
+                    mir::Type::MachineScalar(*kind),
+                    "an atomic state operation must match its field domain"
                 );
-                let (offsets, _, _) =
-                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                assert_eq!(
+                    value.ty,
+                    mir::Type::MachineScalar(*kind),
+                    "an atomic store value must match its field domain"
+                );
+                let (offsets, _, _) = class_shape(
+                    self.context,
+                    self.module,
+                    self.enums,
+                    &self.module.classes[*class_id],
+                );
                 let object = self.lower_expr(object);
                 let value = self.lower_expr(value);
+                let kind = machine_scalar_kind(*kind);
                 self.push(lir::Instruction::AtomicStore {
+                    kind,
                     object,
                     offset: offsets[*index as usize],
                     value,

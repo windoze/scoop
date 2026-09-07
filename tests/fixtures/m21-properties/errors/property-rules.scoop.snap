@@ -15,5 +15,5 @@ m21-properties/errors/property-rules.scoop:6:5: error: property `fixed` cannot o
 m21-properties/errors/property-rules.scoop:14:5: error: immutable property `value` cannot override a mutable property
 m21-properties/errors/property-rules.scoop:56:9: error: cannot assign to immutable property `computed`
 m21-properties/errors/property-rules.scoop:57:9: error: operator `plus` is applicable, but compound-assignment fallback is not writable
-m21-properties/errors/property-rules.scoop:32:17: error: unknown variable `field`
+m21-properties/errors/property-rules.scoop:32:17: error: unknown variable `field`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
 m21-properties/errors/property-rules.scoop:36:31: error: `field` is only available in the direct property accessor body

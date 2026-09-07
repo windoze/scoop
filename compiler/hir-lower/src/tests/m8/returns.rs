@@ -3,10 +3,10 @@ use super::*;
 #[test]
 fn throw_non_throwable_is_an_error() {
     let value_span = Span::new(10, 12);
-    let value = Expr::IntLiteral {
-        value: 42,
+    let value = Expr::IntLiteral(ast::IntegerLiteralSyntax {
         span: value_span,
-    };
+        ..integer_syntax(42)
+    });
     let file = file(vec![fun("main", vec![throw_stmt(value)])]);
     let errors = lower_user_with_exceptions(file).expect_err("throwing an Int must fail");
     assert_eq!(errors.len(), 1);

@@ -57,6 +57,15 @@ fn main() -> ExitCode {
             },
         ) {
             Ok(success) => {
+                if !success.warnings.is_empty() {
+                    let inputs = scoopc::load_inputs(&file).unwrap_or_default();
+                    let name = file.display().to_string();
+                    let source = std::fs::read_to_string(&file).unwrap_or_default();
+                    eprintln!(
+                        "{}",
+                        scoopc::render_diagnostics(&success.warnings, &inputs, &name, &source)
+                    );
+                }
                 if let Some(emit) = emit {
                     let dump = match emit {
                         Emit::Ast => success.dumps.ast,

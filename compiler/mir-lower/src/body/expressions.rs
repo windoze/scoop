@@ -33,7 +33,9 @@ impl BodyLowerer<'_> {
                 });
                 smir::ExprKind::StringConst(id)
             }
-            hir::ExprKind::IntLiteral(value) => smir::ExprKind::IntLiteral(*value),
+            hir::ExprKind::IntegerLiteral(value) => {
+                smir::ExprKind::IntegerLiteral(lower_integer_constant(*value))
+            }
             hir::ExprKind::BoolLiteral(value) => smir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => smir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => {
@@ -50,6 +52,24 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::StructInit {
                     struct_id,
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                }
+            }
+            hir::ExprKind::StructConstruct { struct_id, fields } => {
+                assert!(
+                    matches!(&ty, mir::Type::Struct(found) if *found == self.struct_map[struct_id])
+                );
+                let expected_fields = self.module.structs[*struct_id]
+                    .declared_fields()
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>();
+                assert_eq!(fields.len(), expected_fields.len());
+                for (field, expected) in fields.iter().zip(expected_fields) {
+                    assert_eq!(self.lower_type(field.ty), self.lower_type(expected));
+                }
+                smir::ExprKind::StructConstruct {
+                    struct_id: self.struct_map[struct_id],
+                    fields: fields.iter().map(|field| self.lower_expr(field)).collect(),
                 }
             }
             hir::ExprKind::StructConstructorCall { constructor, args } => {
@@ -88,11 +108,54 @@ impl BodyLowerer<'_> {
                     return_ty: mir::Type::Unit,
                 })
             }
-            hir::ExprKind::VariantConstruct { variant, args, .. } => {
+            hir::ExprKind::VariantConstruct { variant, args } => {
+                let mir::Type::Enum(enum_id, _) = &ty else {
+                    unreachable!("a variant construction has an enum type")
+                };
+                assert_eq!(self.enums.hir_ids[enum_id], variant.enumeration());
+                let expected_fields = self.module.enums[variant.enumeration()].variants
+                    [variant.variant().into_raw() as usize]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>();
+                assert_eq!(args.len(), expected_fields.len());
+                for (argument, expected) in args.iter().zip(expected_fields) {
+                    assert_eq!(self.lower_type(argument.ty), self.lower_type(expected));
+                }
+                let variant = self.enums.lower_variant_ref(*variant);
+                assert_eq!(variant.enum_id(), *enum_id);
                 smir::ExprKind::VariantConstruct {
-                    variant: variant.into_raw(),
+                    variant,
                     fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
+            }
+            hir::ExprKind::VariantTest { operand, variant } => {
+                assert_eq!(ty, mir::Type::Boolean);
+                let operand = self.lower_expr(operand);
+                let mir::Type::Enum(enum_id, _) = &operand.ty else {
+                    unreachable!("a variant test has an enum operand")
+                };
+                assert_eq!(self.enums.hir_ids[enum_id], variant.enumeration());
+                let variant = self.enums.lower_variant_ref(*variant);
+                assert_eq!(variant.enum_id(), *enum_id);
+                return smir::Expr::variant_test(&self.enums.defs, operand, variant);
+            }
+            hir::ExprKind::VariantPayloadProject { operand, field } => {
+                let operand = self.lower_expr(operand);
+                let mir::Type::Enum(enum_id, _) = &operand.ty else {
+                    unreachable!("a variant payload projection has an enum operand")
+                };
+                let source_variant = field.variant();
+                assert_eq!(self.enums.hir_ids[enum_id], source_variant.enumeration());
+                let expected = self.module.enums[source_variant.enumeration()].variants
+                    [source_variant.variant().into_raw() as usize]
+                    .fields[field.local_index() as usize]
+                    .ty;
+                assert_eq!(ty, self.lower_type(expected));
+                let field = self.enums.lower_variant_field_ref(*field);
+                assert_eq!(field.variant().enum_id(), *enum_id);
+                return smir::Expr::variant_payload_project(&self.enums.defs, operand, field);
             }
             hir::ExprKind::Local(local) => {
                 let local = self.local_map[local];
@@ -274,7 +337,8 @@ impl BodyLowerer<'_> {
                     unreachable!("an array subscript has an intrinsic class receiver")
                 };
                 let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
-                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                 let array = self.lower_expr(receiver);
                 self.prelude.push(smir::StatementKind::ValDecl {
                     local: array_slot,
@@ -289,7 +353,7 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::ArrayGet {
                     array_type,
                     array: Box::new(smir::Expr::local(array_slot, mir::Type::Class(array_type))),
-                    index: Box::new(smir::Expr::local(index_slot, mir::Type::Int)),
+                    index: Box::new(smir::Expr::local(index_slot, index_ty)),
                 }
             }
             hir::ExprKind::ArraySet {
@@ -304,7 +368,8 @@ impl BodyLowerer<'_> {
                     unreachable!("an array store has an intrinsic class receiver")
                 };
                 let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
-                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                 let value_ty = self.lower_type(value.ty);
                 let value_slot = self.new_hidden("value", value_ty.clone(), false);
                 let array = self.lower_expr(receiver);
@@ -326,7 +391,7 @@ impl BodyLowerer<'_> {
                 self.prelude.push(smir::StatementKind::ArraySet {
                     array_type,
                     array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
-                    index: smir::Expr::local(index_slot, mir::Type::Int),
+                    index: smir::Expr::local(index_slot, index_ty),
                     value: smir::Expr::local(value_slot, value_ty),
                 });
                 smir::ExprKind::UnitLiteral
@@ -353,17 +418,23 @@ impl BodyLowerer<'_> {
                     operand: Box::new(self.lower_expr(operand)),
                 }
             }
-            hir::ExprKind::PtrFromUInt(operand) => {
+            hir::ExprKind::PtrFromNonZeroULong(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
-                    unreachable!("PtrFromUInt has a pointer type")
+                    unreachable!("PtrFromNonZeroULong has a pointer type")
                 };
-                smir::ExprKind::PtrFromUInt {
-                    operand: Box::new(self.lower_expr(operand)),
+                let operand = self.lower_expr(operand);
+                assert_eq!(
+                    operand.ty,
+                    mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+                    "PtrFromNonZeroULong consumes the validated ULong carrier"
+                );
+                smir::ExprKind::PtrFromNonZeroULong {
+                    operand: Box::new(operand),
                     pointee,
                 }
             }
-            hir::ExprKind::PtrToUInt(operand) => {
-                smir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand)))
+            hir::ExprKind::PtrToULong(operand) => {
+                smir::ExprKind::PtrToULong(Box::new(self.lower_expr(operand)))
             }
             hir::ExprKind::PtrCast(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
@@ -431,12 +502,6 @@ impl BodyLowerer<'_> {
             },
             hir::ExprKind::SizeOf(ty) => smir::ExprKind::SizeOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::AlignOf(ty) => smir::ExprKind::AlignOf(Box::new(self.lower_type(*ty))),
-            hir::ExprKind::FunPtrNull => {
-                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
-                    unreachable!("FunPtrNull has a FunPtr type")
-                };
-                smir::ExprKind::FunPtrNull(signature)
-            }
             hir::ExprKind::FunctionAddress(function) => {
                 let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
                     unreachable!("FunctionAddress has a FunPtr type")
@@ -458,28 +523,60 @@ impl BodyLowerer<'_> {
             hir::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-            } => smir::ExprKind::ForeignCallbackOperation {
-                operation: match operation {
-                    hir::ForeignCallbackOperation::Retain => mir::ForeignCallbackOperation::Retain,
+            } => {
+                let mir::Type::Struct(callback_type) = self.lower_type(callback.ty) else {
+                    unreachable!("validated foreign callback operation has a callback struct")
+                };
+                let family = self.ensure_foreign_callback_family(callback_type);
+                let contract = self.foreign_callback_families[family];
+                let operation = match operation {
+                    hir::ForeignCallbackOperation::Retain => {
+                        assert_eq!(ty, mir::Type::Struct(contract.callback));
+                        mir::ForeignCallbackOperation::Retain(family)
+                    }
                     hir::ForeignCallbackOperation::Release => {
-                        mir::ForeignCallbackOperation::Release
+                        assert_eq!(ty, mir::Type::Unit);
+                        mir::ForeignCallbackOperation::Release(family)
                     }
-                    hir::ForeignCallbackOperation::State => mir::ForeignCallbackOperation::State,
+                    hir::ForeignCallbackOperation::State => {
+                        assert!(
+                            matches!(ty, mir::Type::Enum(id, _) if id == contract.states.enum_id())
+                        );
+                        mir::ForeignCallbackOperation::State(family)
+                    }
                     hir::ForeignCallbackOperation::Failure => {
-                        mir::ForeignCallbackOperation::Failure
+                        assert!(
+                            matches!(ty, mir::Type::Enum(id, _) if id == contract.failure_result.enum_id())
+                        );
+                        mir::ForeignCallbackOperation::Failure(family)
                     }
-                },
-                callback: Box::new(self.lower_expr(callback)),
-            },
+                };
+                smir::ExprKind::ForeignCallbackOperation {
+                    operation,
+                    callback: Box::new(self.lower_expr(callback)),
+                }
+            }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
                 // properties are all 0-based here (the class index
                 // follows the flattened base-prefix layout; LIR turns
                 // it into a heap object load).
                 let index = match field {
-                    hir::FieldRef::StructField { index, .. }
-                    | hir::FieldRef::ClassField { index, .. }
-                    | hir::FieldRef::TupleIndex(index) => *index,
+                    hir::FieldRef::StructField(field) => {
+                        let receiver_ty = self.lower_type(receiver.ty);
+                        assert_eq!(
+                            receiver_ty,
+                            mir::Type::Struct(self.struct_map[&field.structure()])
+                        );
+                        let expected = self.module.structs[field.structure()].declared_fields()
+                            [field.local_index() as usize]
+                            .ty;
+                        assert_eq!(ty, self.lower_type(expected));
+                        field.local_index()
+                    }
+                    hir::FieldRef::ClassField { index, .. } | hir::FieldRef::TupleIndex(index) => {
+                        *index
+                    }
                 };
                 smir::ExprKind::FieldAccess {
                     receiver: Box::new(self.lower_expr(receiver)),
@@ -539,6 +636,8 @@ impl BodyLowerer<'_> {
                 args,
                 ..
             } => {
+                let function = self.module.callable_function(*callee);
+                self.record_suspend_function_call(function);
                 let callee = self.lower_user_callee(*callee);
                 let call_args: Vec<_> = captures.iter().chain(args).collect();
                 let return_ty = self.lower_type(expr.ty);
@@ -549,6 +648,7 @@ impl BodyLowerer<'_> {
                 function_type,
                 args,
             } => {
+                self.contains_suspend_call |= self.module.function_types[*function_type].is_suspend;
                 let function_type = self.lower_function_type_id(*function_type);
                 let mut call_args = Vec::with_capacity(args.len() + 1);
                 call_args.push(self.lower_expr(callee));
@@ -563,11 +663,19 @@ impl BodyLowerer<'_> {
                 })
             }
             hir::ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
-                return self.lower_primitive_binary(*kind, lhs, rhs, expr.span);
+                return self.lower_primitive_binary(*kind, lhs, rhs);
             }
             hir::ExprKind::PrimitiveUnary { kind, operand } => {
                 return self.lower_primitive_unary(*kind, operand);
             }
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => return self.lower_integer_operation(operation, arguments, expr.span),
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => return self.lower_integer_conversion(conversion, operand),
             hir::ExprKind::Binary { op, lhs, rhs } => {
                 return self.lower_binary(*op, lhs, rhs);
             }
@@ -579,50 +687,50 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::Unary { op, operand }
             }
             // The Option nodes (hir-lower's `?.` / `?:` / `!!`
-            // desugars) become generic enum operations on core's
-            // `Option` enum (DESIGN 3.3).
+            // desugars) become generic construction and checked semantic
+            // variant operations on core's `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
-                let (some, _) = self.option_variants;
+                let some = option_core_for_type(self.module, self.enums, &ty).some();
                 smir::ExprKind::VariantConstruct {
                     variant: some,
                     fields: vec![self.lower_expr(operand)],
                 }
             }
             hir::ExprKind::NoneLiteral => {
-                let (_, none) = self.option_variants;
+                let none = option_core_for_type(self.module, self.enums, &ty).none();
                 smir::ExprKind::VariantConstruct {
                     variant: none,
                     fields: Vec::new(),
                 }
             }
             hir::ExprKind::IsSome(operand) => {
-                let (some, _) = self.option_variants;
-                let operand = self.lower_expr(operand);
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::EnumTag(Box::new(operand)),
-                    )),
-                    rhs: Box::new(smir::Expr::int(i64::from(some))),
-                }
+                let option_ty = self.lower_type(operand.ty);
+                let some = option_some_refs_for_type(self.module, self.enums, &option_ty);
+                let operand = self.lower_stable_option_operand(operand);
+                return smir::Expr::variant_test(&self.enums.defs, operand, some.variant);
             }
             hir::ExprKind::Unwrap {
                 operand,
                 trap_on_none,
             } => {
-                let (some, _) = self.option_variants;
+                let option_ty = self.lower_type(operand.ty);
+                let some = option_some_refs_for_type(self.module, self.enums, &option_ty);
                 if *trap_on_none {
                     return self.trapping_unwrap(operand, expr.ty, expr.span, some);
                 } else {
-                    // The surrounding control flow already guarantees
-                    // `Some` (`?.` / `?:` desugars, the equality
-                    // expansion).
-                    smir::ExprKind::EnumField {
-                        operand: Box::new(self.lower_expr(operand)),
-                        variant: some,
-                        index: 0,
-                    }
+                    // The surrounding `?.` / `?:` control flow already
+                    // guarantees `Some` on this exact stable local.
+                    let operand = self.lower_stable_option_operand(operand);
+                    let projection = smir::Expr::variant_payload_project(
+                        &self.enums.defs,
+                        operand,
+                        some.payload,
+                    );
+                    assert_eq!(
+                        projection.ty, ty,
+                        "the checked Option payload is the HIR unwrap result type"
+                    );
+                    return projection;
                 }
             }
         };

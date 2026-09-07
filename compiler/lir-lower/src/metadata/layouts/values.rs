@@ -4,14 +4,15 @@ use super::*;
 /// declaration order at their natural alignment. The recursive scan
 /// program preserves references nested in aggregates and tagged enums.
 pub(crate) fn aggregate_layout(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     name: String,
     fields: &[mir::Type],
 ) -> lir::Layout {
-    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-    let (offsets, size, align) = aggregate_shape(module, &enum_shape, fields);
-    let scan = scan_fields(module, enums, fields, &offsets, 0);
+    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+    let (offsets, size, align) = aggregate_shape(context, module, &enum_shape, fields);
+    let scan = scan_fields(context, module, enums, fields, &offsets, 0);
     lir::Layout {
         name,
         size,
@@ -20,7 +21,7 @@ pub(crate) fn aggregate_layout(
             .iter()
             .zip(fields)
             .map(|(&offset, field)| {
-                let (_, access_align) = size_align(module, &enum_shape, field);
+                let (_, access_align) = size_align(context, module, &enum_shape, field);
                 lir::FieldLayout {
                     offset,
                     access_align,
@@ -34,18 +35,49 @@ pub(crate) fn aggregate_layout(
 }
 
 pub(crate) fn struct_layout(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     definition: &mir::StructDef,
 ) -> lir::Layout {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
-            mir::IntrinsicTypeRepresentation::Int => (8, 8, lir::IntrinsicTypeRepresentation::Int),
-            mir::IntrinsicTypeRepresentation::UInt => {
-                (8, 8, lir::IntrinsicTypeRepresentation::UInt)
+            mir::IntrinsicTypeRepresentation::Integer(kind) => {
+                let kind = integer_kind(*kind);
+                let layout = context.integer_layout(kind);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Integer(kind),
+                )
             }
             mir::IntrinsicTypeRepresentation::Boolean => {
-                (1, 1, lir::IntrinsicTypeRepresentation::Boolean)
+                let layout = context.scalar_layout(lir::BackendScalarKind::I1);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Boolean,
+                )
+            }
+            mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                let layout = context.pointer_layout(lir::PointerKind::Raw);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Ptr {
+                        pointee: compiler_data_pointee(pointee),
+                    },
+                )
+            }
+            mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+                let layout = context.pointer_layout(lir::PointerKind::Code);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::FunPtr {
+                        signature: compiler_function_type(module, *signature),
+                    },
+                )
             }
             mir::IntrinsicTypeRepresentation::String
             | mir::IntrinsicTypeRepresentation::Array { .. }
@@ -63,8 +95,8 @@ pub(crate) fn struct_layout(
             kind: lir::LayoutKind::Intrinsic(representation),
         };
     }
-    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-    let (fields, size, align) = struct_shape(module, &enum_shape, definition);
+    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition);
     let mir::StructRepresentation::Declared {
         c_layout,
         interior_mutable,
@@ -78,16 +110,13 @@ pub(crate) fn struct_layout(
         .map(|field| field.ty.clone())
         .collect();
     let offsets: Vec<_> = fields.iter().map(|field| field.offset).collect();
-    let scan = scan_fields(module, enums, &field_types, &offsets, 0);
+    let scan = scan_fields(context, module, enums, &field_types, &offsets, 0);
     lir::Layout {
         name: definition.name.clone(),
         size,
         align,
         fields,
-        c_layout: c_layout.map(|layout| lir::CLayout {
-            aligned: layout.aligned,
-            packed: layout.packed,
-        }),
+        c_layout: c_layout.map(lower_c_layout),
         interior_mutable: *interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
     }
@@ -96,25 +125,28 @@ pub(crate) fn struct_layout(
 /// Layout of an enum value. Tagged enums expose one unconditional scan
 /// over their disjoint ref-bearing slots; the runtime never reads tag.
 pub(crate) fn enum_layout(
-    _module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    context: &LoweringContext,
+    enums: &lir::EnumDefs,
     id: mir::EnumId,
     def: &mir::EnumDef,
 ) -> lir::Layout {
     match &enums[enum_def_id(id)].repr {
-        lir::EnumRepr::Niche { .. } => lir::Layout {
-            name: def.name.clone(),
-            size: 8,
-            align: 8,
-            fields: Vec::new(),
-            c_layout: None,
-            interior_mutable: false,
-            kind: lir::LayoutKind::Enum {
-                scan: enums[enum_def_id(id)].scan.clone(),
-            },
-        },
+        lir::EnumRepr::Niche { .. } => {
+            let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
+            lir::Layout {
+                name: def.name.clone(),
+                size,
+                align,
+                fields: Vec::new(),
+                c_layout: None,
+                interior_mutable: false,
+                kind: lir::LayoutKind::Enum {
+                    scan: enums[enum_def_id(id)].scan.clone(),
+                },
+            }
+        }
         lir::EnumRepr::Tagged { .. } => {
-            let (size, align) = repr_shape(&enums[enum_def_id(id)].repr);
+            let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
             lir::Layout {
                 name: def.name.clone(),
                 size,

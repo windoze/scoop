@@ -1,13 +1,16 @@
 use super::*;
 
 mod layout;
+mod render;
 
 pub use layout::c_layout_assertions;
+use render::{CTypeRenderer, collect_module_function_types};
 
 /// Generate the host-C translation unit that owns outbound C ABI wrappers
 /// and inbound callback trampolines. `None` means the module needs no second
 /// object file.
 pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> {
+    validation::validate_module(module)?;
     let c_externs = module
         .extern_functions
         .iter()
@@ -21,130 +24,38 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         return Ok(None);
     }
 
-    fn collect_function_pointers(ty: &scoop_lir::CType, found: &mut Vec<scoop_lir::CType>) {
-        if let scoop_lir::CType::FunctionPointer {
-            params,
-            return_type,
-        } = ty
-        {
-            for parameter in params {
-                collect_function_pointers(parameter, found);
-            }
-            collect_function_pointers(return_type, found);
-            if !found.contains(ty) {
-                found.push(ty.clone());
-            }
-        }
-    }
-
-    fn type_name(ty: &scoop_lir::CType, function_pointers: &[scoop_lir::CType]) -> String {
-        match ty {
-            scoop_lir::CType::Unit => "void".to_string(),
-            scoop_lir::CType::Int => "int64_t".to_string(),
-            scoop_lir::CType::UInt => "uint64_t".to_string(),
-            scoop_lir::CType::Boolean => "_Bool".to_string(),
-            scoop_lir::CType::Pointer => "void *".to_string(),
-            scoop_lir::CType::Struct(id) => {
-                format!("scoop_c_layout_{}", arena_index(*id))
-            }
-            scoop_lir::CType::FunctionPointer { .. } => {
-                let index = function_pointers
-                    .iter()
-                    .position(|candidate| candidate == ty)
-                    .expect("function pointer type was collected");
-                format!("scoop_c_funptr_{index}")
-            }
-        }
-    }
-
-    let mut function_pointers = Vec::new();
-    for (_, function) in &c_externs {
-        let ExternFunctionKind::C {
-            params,
-            return_type,
-            ..
-        } = &function.kind
-        else {
-            unreachable!()
-        };
-        for parameter in params {
-            collect_function_pointers(parameter, &mut function_pointers);
-        }
-        collect_function_pointers(return_type, &mut function_pointers);
-    }
-    for (_, global) in module.native_globals.iter() {
-        collect_function_pointers(&global.c_type, &mut function_pointers);
-    }
-    for (_, callback) in module.callback_bridges.iter() {
-        for parameter in &callback.params {
-            collect_function_pointers(parameter, &mut function_pointers);
-        }
-        collect_function_pointers(&callback.return_type, &mut function_pointers);
-    }
-    for (_, callback) in module.foreign_callback_bridges.iter() {
-        for parameter in &callback.params {
-            collect_function_pointers(parameter, &mut function_pointers);
-        }
-        collect_function_pointers(&callback.return_type, &mut function_pointers);
-    }
-
+    let function_types = collect_module_function_types(module)?;
+    let renderer = CTypeRenderer::new(&function_types);
     let mut out = c_layout_assertions(module)?;
     out.push_str("#include <string.h>\n\n");
-    for (index, ty) in function_pointers.iter().enumerate() {
-        let scoop_lir::CType::FunctionPointer {
-            params,
-            return_type,
-        } = ty
-        else {
-            unreachable!()
-        };
-        let params = if params.is_empty() {
-            "void".to_string()
-        } else {
-            params
-                .iter()
-                .map(|parameter| type_name(parameter, &function_pointers))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        out.push_str(&format!(
-            "typedef {} (*scoop_c_funptr_{index})({params});\n",
-            type_name(return_type, &function_pointers)
-        ));
-    }
-    if !function_pointers.is_empty() {
-        out.push('\n');
-    }
-
     let mut declared_symbols = HashSet::new();
     for (id, function) in c_externs {
         let ExternFunctionKind::C {
             bridge_symbol,
-            params,
-            return_type,
+            signature,
         } = &function.kind
         else {
             unreachable!()
         };
+        let params = &signature.params;
+        let return_type = &signature.return_type;
         let parameter_names = params
             .iter()
-            .map(|parameter| type_name(parameter, &function_pointers))
-            .collect::<Vec<_>>();
+            .map(|parameter| renderer.declaration(parameter, ""))
+            .collect::<Result<Vec<_>, _>>()?;
         if declared_symbols.insert(function.native_symbol.clone()) {
             let prototype_params = if parameter_names.is_empty() {
                 "void".to_string()
             } else {
                 parameter_names.join(", ")
             };
-            out.push_str(&format!(
-                "extern {} {}({});\n",
-                type_name(return_type, &function_pointers),
-                function.native_symbol,
-                prototype_params
-            ));
+            let declarator = format!("{}({prototype_params})", function.native_symbol);
+            out.push_str("extern ");
+            out.push_str(&renderer.return_declaration(return_type, &declarator)?);
+            out.push_str(";\n");
         }
 
-        let has_result = *return_type != scoop_lir::CType::Unit;
+        let has_result = !return_type.is_void();
         let mut wrapper_params = Vec::new();
         if has_result {
             wrapper_params.push("void *result".to_string());
@@ -164,9 +75,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             wrapper_params.join(", ")
         ));
         for (index, parameter) in params.iter().enumerate() {
-            let name = type_name(parameter, &function_pointers);
+            let declaration = renderer.declaration(parameter, &format!("value{index}"))?;
             out.push_str(&format!(
-                "  {name} value{index};\n  memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
+                "  {declaration};\n  memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
             ));
         }
         let arguments = (0..params.len())
@@ -174,9 +85,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             .collect::<Vec<_>>()
             .join(", ");
         if has_result {
-            let result_name = type_name(return_type, &function_pointers);
+            let result_declaration = renderer.return_declaration(return_type, "native_result")?;
             out.push_str(&format!(
-                "  {result_name} native_result = {}({arguments});\n  memcpy(result, &native_result, sizeof(native_result));\n",
+                "  {result_declaration} = {}({arguments});\n  memcpy(result, &native_result, sizeof(native_result));\n",
                 function.native_symbol
             ));
         } else {
@@ -186,7 +97,6 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         let _ = id;
     }
     for (_, global) in module.native_globals.iter() {
-        let native_type = type_name(&global.c_type, &function_pointers);
         let get = &module.native_global_bridges.gets[global.access.get()].symbol;
         let address = &module.native_global_bridges.addresses[global.access.address()].symbol;
         let thread_local = if global.thread_local {
@@ -195,10 +105,8 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             ""
         };
         if declared_symbols.insert(global.native_symbol.clone()) {
-            out.push_str(&format!(
-                "extern {thread_local}{native_type} {};\n",
-                global.native_symbol
-            ));
+            let declaration = renderer.declaration(&global.c_type, &global.native_symbol)?;
+            out.push_str(&format!("extern {thread_local}{declaration};\n"));
         }
         out.push_str(&format!(
             "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n\n",
@@ -217,7 +125,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         ));
     }
     for (_, callback) in module.callback_bridges.iter() {
-        let has_result = callback.return_type != scoop_lir::CType::Unit;
+        let has_result = !callback.return_type.is_void();
         let mut storage_params = Vec::new();
         if has_result {
             storage_params.push("void *result".to_string());
@@ -245,22 +153,16 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
                 .params
                 .iter()
                 .enumerate()
-                .map(|(index, parameter)| {
-                    format!("{} arg{index}", type_name(parameter, &function_pointers))
-                })
-                .collect::<Vec<_>>()
+                .map(|(index, parameter)| renderer.declaration(parameter, &format!("arg{index}")))
+                .collect::<Result<Vec<_>, _>>()?
                 .join(", ")
         };
-        out.push_str(&format!(
-            "{} {}({callback_params}) {{\n",
-            type_name(&callback.return_type, &function_pointers),
-            callback.trampoline_symbol
-        ));
+        let declarator = format!("{}({callback_params})", callback.trampoline_symbol);
+        out.push_str(&renderer.return_declaration(&callback.return_type, &declarator)?);
+        out.push_str(" {\n");
         if has_result {
-            out.push_str(&format!(
-                "  {} result;\n",
-                type_name(&callback.return_type, &function_pointers)
-            ));
+            let declaration = renderer.return_declaration(&callback.return_type, "result")?;
+            out.push_str(&format!("  {declaration};\n"));
         }
         let mut storage_args = Vec::new();
         if has_result {
@@ -295,27 +197,21 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             .params
             .iter()
             .enumerate()
-            .map(|(index, parameter)| {
-                format!("{} arg{index}", type_name(parameter, &function_pointers))
-            })
-            .collect::<Vec<_>>()
+            .map(|(index, parameter)| renderer.declaration(parameter, &format!("arg{index}")))
+            .collect::<Result<Vec<_>, _>>()?
             .join(", ");
-        out.push_str(&format!(
-            "{} {}({}) {{\n",
-            type_name(&callback.return_type, &function_pointers),
-            callback.trampoline_symbol,
-            if callback_params.is_empty() {
-                "void"
-            } else {
-                &callback_params
-            }
-        ));
-        let has_result = callback.return_type != scoop_lir::CType::Unit;
+        let callback_params = if callback_params.is_empty() {
+            "void"
+        } else {
+            &callback_params
+        };
+        let declarator = format!("{}({callback_params})", callback.trampoline_symbol);
+        out.push_str(&renderer.return_declaration(&callback.return_type, &declarator)?);
+        out.push_str(" {\n");
+        let has_result = !callback.return_type.is_void();
         if has_result {
-            out.push_str(&format!(
-                "  {} result = {{0}};\n",
-                type_name(&callback.return_type, &function_pointers)
-            ));
+            let declaration = renderer.return_declaration(&callback.return_type, "result")?;
+            out.push_str(&format!("  {declaration} = {{0}};\n"));
         }
         let argument_indices = (0..callback.params.len())
             .filter(|index| *index != callback.context_index as usize)

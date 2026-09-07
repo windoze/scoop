@@ -42,8 +42,8 @@ fn array_basics_golden() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property9: Option<String>
+    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -52,7 +52,11 @@ fn array_basics_golden() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -60,20 +64,18 @@ fn array_basics_golden() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -104,44 +106,44 @@ fn array_basics_golden() {
   fun main(): Unit
     val local0
       ArrayLiteral : Array<Int>
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
-        IntLiteral 3 : Int
+        IntegerLiteral 1 : Int
+        IntegerLiteral 2 : Int
+        IntegerLiteral 3 : Int
     val local1
       ArrayLiteral : MutableArray<Int>
-        IntLiteral 4 : Int
-        IntLiteral 5 : Int
+        IntegerLiteral 4 : Int
+        IntegerLiteral 5 : Int
     val local2
       ArrayLiteral : Array<Int>
     val local3
       Local a : Array<Int>
     val local4
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Long
     val local5
-      Local $argument.0 : Int
+      Local $argument.0 : Long
     val local6
       Index ImmutableGet : Int
         Local $receiver : Array<Int>
-        Local $parameter.index : Int
+        Local $parameter.index : Long
     val local7
-      ArrayLen : Int
+      ArrayLen : Long
         Local a : Array<Int>
     val local8
-      ArrayLen : Int
+      ArrayLen : Long
         Local m : MutableArray<Int>
     val local9
       Local m : MutableArray<Int>
     val local10
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Long
     val local11
-      IntLiteral 40 : Int
+      IntegerLiteral 40 : Int
     val local12
-      Local $argument.0 : Int
+      Local $argument.0 : Long
     val local13
       Local $argument.1 : Int
     ArraySet MutableSet : Unit
       Local $receiver : MutableArray<Int>
-      Local $parameter.index : Int
+      Local $parameter.index : Long
       Local $parameter.value : Int
     val local14
       Local m : MutableArray<Int>
@@ -160,10 +162,10 @@ fn array_basics_golden() {
     val local20
       ArrayLiteral : Array<Array<Int>>
         ArrayLiteral : Array<Int>
-          IntLiteral 1 : Int
-          IntLiteral 2 : Int
+          IntegerLiteral 1 : Int
+          IntegerLiteral 2 : Int
         ArrayLiteral : Array<Int>
-          IntLiteral 3 : Int
+          IntegerLiteral 3 : Int
   entry main
 "#;
     assert_eq!(hir::dump(&module), expected);
@@ -196,8 +198,8 @@ fn generic_function_over_array_elements() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property9: Option<String>
+    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -206,7 +208,11 @@ fn generic_function_over_array_elements() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -214,20 +220,18 @@ fn generic_function_over_array_elements() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -259,18 +263,18 @@ fn generic_function_over_array_elements() {
     val local1
       Local a : Array<T0>
     val local2
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Long
     val local3
-      Local $argument.0 : Int
+      Local $argument.0 : Long
     return
       Index ImmutableGet : T0
         Local $receiver : Array<T0>
-        Local $parameter.index : Int
+        Local $parameter.index : Long
   fun main(): Unit
     val local0
       ArrayLiteral : Array<Int>
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
+        IntegerLiteral 1 : Int
+        IntegerLiteral 2 : Int
     val local1
       Local $argument.0 : Array<Int>
     val local2

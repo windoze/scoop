@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m11-functions/errors/local-before-declaration.scoop:2:13: error: unknown function `answer`
+m11-functions/errors/local-before-declaration.scoop:2:13: error: unknown function `answer`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

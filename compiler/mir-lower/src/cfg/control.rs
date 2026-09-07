@@ -78,6 +78,7 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_statement(&mut self, statement: &'a smir::Statement) {
         let span = statement.span;
         match &statement.kind {
+            smir::StatementKind::Unreachable => self.seal(mir::Terminator::Unreachable),
             smir::StatementKind::Expr(expr) => {
                 if let Some(message) = trap_message(expr) {
                     self.seal(mir::Terminator::Trap { message });
@@ -162,12 +163,22 @@ impl<'a> CfgLowerer<'a> {
                 );
             }
             smir::StatementKind::Return { value } => self.lower_return(value.as_ref(), span),
+            smir::StatementKind::Break { target } => self.lower_break(*target),
+            smir::StatementKind::Continue { target } => self.lower_continue(*target),
             smir::StatementKind::If {
                 cond,
                 then_body,
                 else_body,
             } => self.lower_if(cond, then_body, else_body.as_deref(), span),
-            smir::StatementKind::While { cond, body } => self.lower_while(cond, body, span),
+            smir::StatementKind::PatternDecision(decision) => {
+                self.lower_pattern_decision(decision, span)
+            }
+            smir::StatementKind::While {
+                target,
+                condition_setup,
+                cond,
+                body,
+            } => self.lower_while(*target, condition_setup, cond, body, span),
             smir::StatementKind::Try(try_) => self.lower_try(try_),
             smir::StatementKind::Throw(exception) => {
                 let exception = self.lower_expr(exception, span);
@@ -178,34 +189,8 @@ impl<'a> CfgLowerer<'a> {
     }
 
     pub(super) fn lower_return(&mut self, value: Option<&smir::Expr>, span: Span) {
-        let mut result = value.map(|value| self.lower_expr(value, span));
-        if !self.return_cleanups.is_empty() {
-            if self.return_ty == mir::Type::Unit {
-                if let Some(value) = result.take() {
-                    self.push(mir::StatementKind::Expr(value), span);
-                }
-            } else {
-                let local = self.new_hidden("return", self.return_ty.clone());
-                self.push(
-                    mir::StatementKind::ValDecl {
-                        local,
-                        init: result
-                            .take()
-                            .expect("non-Unit returns carry a value before MIR CFG lowering"),
-                    },
-                    span,
-                );
-                result = Some(mir::Expr::new(
-                    self.return_ty.clone(),
-                    mir::ExprKind::Local(local),
-                ));
-            }
-            self.emit_return_cleanups();
-            if self.current_sealed {
-                return;
-            }
-        }
-        self.seal(mir::Terminator::Return { value: result });
+        let payload = self.prepare_return(value, span);
+        self.route_transfer(PendingTransfer::Return(payload));
     }
 
     pub(super) fn lower_if(
@@ -224,33 +209,50 @@ impl<'a> CfgLowerer<'a> {
             then_block,
             else_block: else_block.unwrap_or(merge_block),
         });
+        let mut merge_reachable = else_body.is_none();
         self.enter(then_block);
         self.lower_statements(then_body);
         if !self.current_sealed {
             self.seal(mir::Terminator::Goto(merge_block));
+            merge_reachable = true;
         }
         if let (Some(else_body), Some(else_block)) = (else_body, else_block) {
             self.enter(else_block);
             self.lower_statements(else_body);
             if !self.current_sealed {
                 self.seal(mir::Terminator::Goto(merge_block));
+                merge_reachable = true;
             }
         }
         self.enter(merge_block);
+        if !merge_reachable {
+            self.seal(mir::Terminator::Unreachable);
+        }
     }
 
     pub(super) fn lower_while(
         &mut self,
+        target: smir::LoopId,
+        condition_setup: &'a [smir::Statement],
         cond: &smir::Expr,
         body: &'a [smir::Statement],
         span: Span,
     ) {
-        let cond_block = self.new_block("while.cond");
-        self.seal(mir::Terminator::Goto(cond_block));
-        self.enter(cond_block);
+        let header = self.new_block("while.cond");
+        let exit_block = self.new_block("while.exit");
+        self.seal(mir::Terminator::Goto(header));
+        self.push_loop_target(target, header, exit_block);
+        self.enter(header);
+        self.lower_statements(condition_setup);
+        if self.current_sealed {
+            let target = self.pop_loop_target(target);
+            if target.break_reachable {
+                self.enter(exit_block);
+            }
+            return;
+        }
         let cond = self.lower_expr(cond, span);
         let body_block = self.new_block("while.body");
-        let exit_block = self.new_block("while.exit");
         self.seal(mir::Terminator::Branch {
             cond,
             then_block: body_block,
@@ -259,8 +261,9 @@ impl<'a> CfgLowerer<'a> {
         self.enter(body_block);
         self.lower_statements(body);
         if !self.current_sealed {
-            self.seal(mir::Terminator::Goto(cond_block));
+            self.lower_continue(target);
         }
+        self.pop_loop_target(target);
         self.enter(exit_block);
     }
 }

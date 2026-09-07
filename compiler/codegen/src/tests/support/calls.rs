@@ -24,17 +24,22 @@ pub(in crate::tests) enum TestCallProtocol {
 pub(in crate::tests) enum TestTypedCall {
     Void {
         signature: scoop_lir::VoidCallSignatureId,
-        args: Vec<Value>,
+        args: Vec<scoop_lir::AbiCallArgument>,
+    },
+    ElidedZst {
+        signature: scoop_lir::ElidedZstCallSignatureId,
+        out: TempId,
+        args: Vec<scoop_lir::AbiCallArgument>,
     },
     Direct {
         signature: scoop_lir::DirectCallSignatureId,
         out: TempId,
-        args: Vec<Value>,
+        args: Vec<scoop_lir::AbiCallArgument>,
     },
     IndirectResult {
         signature: scoop_lir::IndirectResultCallSignatureId,
         storage: scoop_lir::LocalId,
-        args: Vec<Value>,
+        args: Vec<scoop_lir::AbiCallArgument>,
     },
 }
 
@@ -50,6 +55,17 @@ pub(in crate::tests) fn bind_test_call<Destination: Copy>(
                 signature,
             });
             scoop_lir::TypedCall::Void { target, args }
+        }
+        TestTypedCall::ElidedZst {
+            signature,
+            out,
+            args,
+        } => {
+            let target = targets.elided_zst.alloc(scoop_lir::CallTarget {
+                destination,
+                signature,
+            });
+            scoop_lir::TypedCall::ElidedZst { target, out, args }
         }
         TestTypedCall::Direct {
             signature,
@@ -78,6 +94,34 @@ pub(in crate::tests) fn bind_test_call<Destination: Copy>(
             }
         }
     }
+}
+
+fn plain_call_arguments(params: Vec<LirType>) -> Vec<scoop_lir::AbiArgument> {
+    plain_scoop_signature(params, LirType::Void)
+        .arguments()
+        .to_vec()
+}
+
+fn call_values(
+    arguments: &[scoop_lir::AbiArgument],
+    values: Vec<Value>,
+) -> Vec<scoop_lir::AbiCallArgument> {
+    assert_eq!(
+        arguments.len(),
+        values.len(),
+        "test call argument/value arity must agree"
+    );
+    arguments
+        .iter()
+        .zip(values)
+        .map(|(argument, value)| match argument {
+            scoop_lir::AbiArgument::ElidedZst(_) => scoop_lir::AbiCallArgument::ElidedZst(value),
+            scoop_lir::AbiArgument::Direct(_) => scoop_lir::AbiCallArgument::Direct(value),
+            scoop_lir::AbiArgument::Indirect(_) => {
+                panic!("indirect test call arguments require exact local storage")
+            }
+        })
+        .collect()
 }
 
 pub(in crate::tests) fn test_safepoint(raw: u64) -> scoop_lir::SafepointId {
@@ -163,10 +207,12 @@ pub(in crate::tests) fn void_site(
     params: Vec<LirType>,
     args: Vec<Value>,
 ) -> CallSite {
-    let signature = targets.void_signatures.alloc(VoidCallSignature {
-        params,
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let arguments = plain_call_arguments(params);
+    let args = call_values(&arguments, args);
+    let signature = targets.void_signatures.alloc(VoidCallSignature::new(
+        arguments,
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     protocol_site(targets, protocol, TestTypedCall::Void { signature, args })
 }
 
@@ -178,16 +224,53 @@ pub(in crate::tests) fn direct_site(
     out: TempId,
     args: Vec<Value>,
 ) -> CallSite {
-    let signature = targets.direct_signatures.alloc(DirectCallSignature {
-        params,
-        result: result.0,
-        result_scan: result.1,
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let arguments = plain_call_arguments(params);
+    let args = call_values(&arguments, args);
+    let empty_structs = scoop_lir::StructDefs::default();
+    let empty_enums = scoop_lir::EnumDefs::default();
+    let (size, align) = abi_layout(&empty_structs, &empty_enums, &result.0);
+    let result = abi_value_with_layout(result.0, size, align, result.1);
+    let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
+        arguments,
+        result,
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     protocol_site(
         targets,
         protocol,
         TestTypedCall::Direct {
+            signature,
+            out,
+            args,
+        },
+    )
+}
+
+pub(in crate::tests) fn elided_zst_site(
+    targets: &mut CallTargets,
+    protocol: TestCallProtocol,
+    params: Vec<LirType>,
+    result: LirType,
+    out: TempId,
+    args: Vec<Value>,
+) -> CallSite {
+    let arguments = plain_call_arguments(params);
+    let args = call_values(&arguments, args);
+    let signature = plain_scoop_signature(Vec::new(), result);
+    let scoop_lir::AbiReturn::ElidedZst(result) = signature.result() else {
+        panic!("elided-ZST test calls require a non-Unit zero-sized result")
+    };
+    let signature = targets
+        .elided_zst_signatures
+        .alloc(scoop_lir::ElidedZstCallSignature::new(
+            arguments,
+            result.clone(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    protocol_site(
+        targets,
+        protocol,
+        TestTypedCall::ElidedZst {
             signature,
             out,
             args,
@@ -203,16 +286,37 @@ pub(in crate::tests) fn indirect_result_site(
     storage: scoop_lir::LocalId,
     args: Vec<Value>,
 ) -> CallSite {
-    let signature = targets
-        .indirect_result_signatures
-        .alloc(IndirectResultCallSignature {
-            params,
-            result: ResultStorage {
-                ty: result.0,
-                scan: result.1,
-            },
-            calling_convention: scoop_lir::CallingConvention::Cdecl,
-        });
+    let empty_structs = scoop_lir::StructDefs::default();
+    let empty_enums = scoop_lir::EnumDefs::default();
+    let (size, align) = abi_layout(&empty_structs, &empty_enums, &result.0);
+    indirect_result_site_with_layout(
+        targets,
+        protocol,
+        params,
+        (result.0, size, align, result.1),
+        storage,
+        args,
+    )
+}
+
+pub(in crate::tests) fn indirect_result_site_with_layout(
+    targets: &mut CallTargets,
+    protocol: TestCallProtocol,
+    params: Vec<LirType>,
+    result: (LirType, u64, u64, RefScan),
+    storage: scoop_lir::LocalId,
+    args: Vec<Value>,
+) -> CallSite {
+    let arguments = plain_call_arguments(params);
+    let args = call_values(&arguments, args);
+    let signature =
+        targets
+            .indirect_result_signatures
+            .alloc(IndirectResultCallSignature::scoop_sret(
+                arguments,
+                abi_value_with_layout(result.0, result.1, result.2, result.3),
+                scoop_lir::CallingConvention::Cdecl,
+            ));
     protocol_site(
         targets,
         protocol,
@@ -253,6 +357,18 @@ pub(in crate::tests) fn dispatch_destination(
     scoop_lir::ManagedCallDestination::dispatch(table, slot)
 }
 
+pub(in crate::tests) fn closure_dispatch_destination(
+    targets: &mut CallTargets,
+    closure: Value,
+    index: u32,
+) -> scoop_lir::ManagedCallDestination {
+    let slot = targets.dispatch_slots.alloc_managed(DispatchSlot {
+        kind: DispatchKind::Closure,
+        index,
+    });
+    scoop_lir::ManagedCallDestination::dispatch(closure, slot)
+}
+
 pub(in crate::tests) fn managed_runtime(
     function: scoop_lir::ManagedRuntimeFunction,
 ) -> scoop_lir::ManagedCallDestination {
@@ -273,4 +389,14 @@ pub(in crate::tests) fn managed_local(index: u32) -> scoop_lir::ManagedCallDesti
     }
     assert_eq!(reference.declaration().into_u32(), index);
     scoop_lir::ManagedCallDestination::local(reference)
+}
+
+pub(in crate::tests) fn no_gc_local(index: u32) -> scoop_lir::NoGcCallDestination {
+    let mut identities = scoop_lir::LocalFunctionIdentities::default();
+    let mut reference = identities.alloc_no_gc();
+    for _ in 0..index {
+        reference = identities.alloc_no_gc();
+    }
+    assert_eq!(reference.declaration().into_u32(), index);
+    scoop_lir::NoGcCallDestination::local(reference)
 }

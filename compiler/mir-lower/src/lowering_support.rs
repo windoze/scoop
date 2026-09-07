@@ -51,9 +51,36 @@ pub(super) fn clone_fields(fields: &[mir::Field]) -> Vec<mir::Field> {
         .collect()
 }
 
-/// The declaration indices of `Option`'s `Some` / `None` variants.
-/// hir-lower guarantees scoop.core defines a suitable `Option`.
-pub(super) fn option_variants(module: &hir::Module) -> (u32, u32) {
-    let (some, none) = module.option_variants;
-    (some.into_raw(), none.into_raw())
+/// Resolve one already-lowered core `Option` by exact enum identity. Shape is
+/// deliberately irrelevant: a user enum with the same fields is not Option.
+pub(super) fn option_core_for_type(
+    module: &hir::Module,
+    enums: &EnumRegistry,
+    ty: &mir::Type,
+) -> mir::OptionCore {
+    let mir::Type::Enum(enum_id, _) = ty else {
+        unreachable!("core Option values have an enum type")
+    };
+    enums
+        .option_core(module, *enum_id)
+        .expect("local-concrete HIR marks every core Option specialization")
+}
+
+/// The representation-independent identities needed to consume `Some`.
+#[derive(Clone, Copy)]
+pub(super) struct OptionSomeRefs {
+    pub(super) variant: mir::MirVariantRef,
+    pub(super) payload: mir::MirVariantFieldRef,
+}
+
+pub(super) fn option_some_refs_for_type(
+    module: &hir::Module,
+    enums: &EnumRegistry,
+    ty: &mir::Type,
+) -> OptionSomeRefs {
+    let option = option_core_for_type(module, enums, ty);
+    OptionSomeRefs {
+        variant: option.some(),
+        payload: option.some_payload(),
+    }
 }

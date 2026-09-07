@@ -5,11 +5,12 @@ use super::*;
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
-    pub(crate) structs: &'a Arena<StructDef>,
-    pub(crate) enums: &'a Arena<EnumDef>,
+    pub(crate) structs: &'a StructDefs,
+    pub(crate) enums: &'a EnumDefs,
     pub(crate) extern_functions: &'a ExternFunctions,
     pub(crate) native_globals: &'a Arena<NativeGlobal>,
     pub(crate) native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    pub(crate) foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,
     pub(crate) globals: &'a [Option<GlobalValue<'ctx>>],
@@ -82,9 +83,17 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
     let first = match instruction {
         Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
+        | Instruction::IntegerUnary { out, .. }
+        | Instruction::IntegerBinary { out, .. }
+        | Instruction::SafeIntegerDivRem { out, .. }
+        | Instruction::IntegerCompare { out, .. }
+        | Instruction::IntegerCompareTo { out, .. }
+        | Instruction::IntegerShift { out, .. }
+        | Instruction::IntegerConvert { out, .. }
         | Instruction::MakeAggregate { out, .. }
         | Instruction::ExtractValue { out, .. }
         | Instruction::HeapLoad { out, .. }
+        | Instruction::MachineHeapLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
         | Instruction::AtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
@@ -93,8 +102,8 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::NativeGlobalAddress { out, .. }
         | Instruction::FunctionAddress { out, .. }
         | Instruction::ForeignCallbackRegister { out, .. }
-        | Instruction::IntToPtr { out, .. }
-        | Instruction::PtrToInt { out, .. }
+        | Instruction::ULongToPtr { out, .. }
+        | Instruction::PtrToULong { out, .. }
         | Instruction::RawLoad { out, .. }
         | Instruction::PtrOffset { out, .. }
         | Instruction::LocalAddress { out, .. }
@@ -106,9 +115,11 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayClone { out, .. }
         | Instruction::EnumWrap { out, .. }
         | Instruction::EnumTag { out, .. }
-        | Instruction::EnumField { out, .. } => Some(*out),
-        Instruction::Call { site } => site.direct_out(),
-        Instruction::Invoke { site } => site.direct_out(),
+        | Instruction::EnumField { out, .. }
+        | Instruction::VariantTest { out, .. }
+        | Instruction::VariantPayloadProject { out, .. } => Some(*out),
+        Instruction::Call { site } => site.result_temp(),
+        Instruction::Invoke { site } => site.result_temp(),
         Instruction::LandingPad { record, .. } | Instruction::CleanupPad { record, .. } => {
             Some(*record)
         }
@@ -117,6 +128,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::GlobalStore { .. }
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
+        | Instruction::MachineHeapStore { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::RawStore { .. }
         | Instruction::ManagedPoll { .. }

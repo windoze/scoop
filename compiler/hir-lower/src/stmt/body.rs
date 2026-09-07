@@ -35,25 +35,50 @@ impl Lowerer {
                     };
                 }
                 hir::StatementKind::While {
+                    target: loop_target,
                     condition_setup,
                     cond,
                     body,
                 } => {
                     statement.kind = hir::StatementKind::While {
+                        target: loop_target,
                         condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,
                         body: self.adapt_inferred_returns(body, target),
                     };
+                }
+                hir::StatementKind::For(plan) => {
+                    let mut parts = (*plan).into_parts();
+                    parts.source_setup = self.adapt_inferred_returns(parts.source_setup, target);
+                    parts.iterator_setup =
+                        self.adapt_inferred_returns(parts.iterator_setup, target);
+                    for action in &mut parts.binding.actions {
+                        if let hir::IrrefutableBindingAction::Component { setup, .. } = action {
+                            *setup = self.adapt_inferred_returns(std::mem::take(setup), target);
+                        }
+                    }
+                    parts.body = self.adapt_inferred_returns(parts.body, target);
+                    statement.kind = hir::StatementKind::For(Box::new(hir::ForIterationPlan::new(
+                        parts.target,
+                        parts.source_setup,
+                        parts.source,
+                        parts.source_init,
+                        parts.iterator_setup,
+                        parts.iterator_call,
+                        parts.conformance,
+                        parts.next,
+                        parts.binding,
+                        parts.body,
+                    )));
                 }
                 hir::StatementKind::When(mut when) => {
                     for arm in &mut when.arms {
                         arm.body =
                             self.adapt_inferred_returns(std::mem::take(&mut arm.body), target);
                     }
-                    when.else_body = when
-                        .else_body
-                        .take()
-                        .map(|body| self.adapt_inferred_returns(body, target));
+                    if let hir::WhenFallback::Else(body) = &mut when.fallback {
+                        *body = self.adapt_inferred_returns(std::mem::take(body), target);
+                    }
                     statement.kind = hir::StatementKind::When(when);
                 }
                 hir::StatementKind::Try(mut try_) => {
@@ -76,6 +101,7 @@ impl Lowerer {
     }
 
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
@@ -150,7 +176,7 @@ impl Lowerer {
                 // an earlier error.
                 if !returns_unit
                     && self.diagnostics.len() == diagnostics_before
-                    && statements_can_fall_through(&statements)
+                    && statements_control_outcomes(&statements).can_fall_through()
                 {
                     self.error(
                         block.span,
@@ -199,6 +225,8 @@ impl Lowerer {
         self.current_source_context = outer_source_context;
         self.pop_safety_context();
         self.pop_suspension_context();
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
 
         hir::Body {
             locals: std::mem::take(&mut self.locals),

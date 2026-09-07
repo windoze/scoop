@@ -16,6 +16,9 @@ pub enum StatementKind {
     },
     LocalFunction(LocalFunctionId),
     Return {
+        /// Absent in `Unit` functions (bare `return`). If substitution makes
+        /// a generic return expression exactly `Unit`, concretization emits
+        /// that expression as a preceding statement to preserve evaluation.
         value: Option<Expr>,
     },
     ValDecl {
@@ -32,9 +35,16 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
+    },
+    Break {
+        target: LoopId,
+    },
+    Continue {
+        target: LoopId,
     },
     When(When),
     Try(Try),
@@ -75,7 +85,31 @@ pub enum AssignTarget {
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
-    pub else_body: Option<Vec<Statement>>,
+    pub fallback: WhenFallback,
+}
+
+/// Local-concrete counterpart of the checked Export HIR fallback edge.
+#[derive(Debug, Clone)]
+pub enum WhenFallback {
+    Else(Vec<Statement>),
+    Impossible(ExhaustivenessProof),
+}
+
+/// A fully instantiated exhaustiveness witness.
+#[derive(Debug, Clone)]
+pub enum ExhaustivenessProof {
+    IrrefutableArm {
+        subject_ty: TypeId,
+    },
+    /// A tuple, struct, or exact integer domain is covered by the complete
+    /// recursive pattern matrix.
+    PatternMatrix {
+        subject_ty: TypeId,
+    },
+    EnumPatternMatrix {
+        subject_ty: TypeId,
+        enum_id: EnumId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -100,8 +134,8 @@ pub enum Pattern {
     Wildcard,
     Literal {
         value: Expr,
-        /// Exact ordinary operator target selected by Export HIR.
-        equals: Callable,
+        /// Exact equality plan selected by Export HIR.
+        equality: LiteralPatternEquality,
         /// Static subject type used to select dispatch. This is explicit so
         /// MIR never reconstructs it from its recursive pattern context.
         subject_ty: TypeId,
@@ -118,6 +152,20 @@ pub enum Pattern {
     },
 }
 
+/// Fully instantiated literal-pattern equality plan. The mutually exclusive
+/// variants prevent an integer intrinsic from being mistaken for a user
+/// function by MIR lowering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralPatternEquality {
+    Integer {
+        kind: IntegerKind,
+        target: NoGcCallableRef,
+    },
+    Ordinary {
+        equals: Callable,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
@@ -129,13 +177,17 @@ pub struct Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     StringLiteral(String),
-    IntLiteral(i64),
+    IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
         struct_id: StructId,
         args: Vec<Expr>,
+    },
+    StructConstruct {
+        struct_id: StructId,
+        fields: Vec<Expr>,
     },
     StructConstructorCall {
         constructor: StructConstructorId,
@@ -155,9 +207,16 @@ pub enum ExprKind {
     ConstructorReceiver,
     ConstructorParam(ConstructorParamId),
     VariantConstruct {
-        enum_id: EnumId,
-        variant: VariantId,
+        variant: EnumVariantRef,
         args: Vec<Expr>,
+    },
+    VariantTest {
+        operand: Box<Expr>,
+        variant: EnumVariantRef,
+    },
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: EnumVariantFieldRef,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
@@ -171,8 +230,8 @@ pub enum ExprKind {
         coercion: FunctionCoercionId,
         target_type: FunctionTypeId,
     },
-    PtrFromUInt(Box<Expr>),
-    PtrToUInt(Box<Expr>),
+    PtrFromNonZeroULong(Box<Expr>),
+    PtrToULong(Box<Expr>),
     PtrCast(Box<Expr>),
     PtrLoad {
         pointer: Box<Expr>,
@@ -191,7 +250,6 @@ pub enum ExprKind {
     AddressOf(Place),
     SizeOf(TypeId),
     AlignOf(TypeId),
-    FunPtrNull,
     FunctionAddress(FunctionId),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
@@ -264,6 +322,14 @@ pub enum ExprKind {
         kind: PrimitiveUnaryKind,
         operand: Box<Expr>,
     },
+    IntegerOperation {
+        operation: HirIntegerOperation,
+        arguments: HirIntegerOperationArguments,
+    },
+    IntegerConversion {
+        conversion: HirIntegerConversion,
+        operand: Box<Expr>,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -280,6 +346,12 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum HirIntegerOperationArguments {
+    Unary(Box<Expr>),
+    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
 }
 
 #[derive(Debug, Clone)]
@@ -303,7 +375,7 @@ pub enum Place {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    StructField { struct_id: StructId, index: u32 },
+    StructField(StructFieldRef),
     TupleIndex(u32),
     ClassField { class_id: ClassId, index: u32 },
 }

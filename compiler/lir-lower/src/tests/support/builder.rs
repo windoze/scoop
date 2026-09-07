@@ -11,6 +11,8 @@ pub(in crate::tests) struct Builder {
     pub(in crate::tests) enums: Arena<mir::EnumDef>,
     pub(in crate::tests) classes: Arena<mir::ClassDef>,
     pub(in crate::tests) interfaces: Arena<mir::InterfaceDef>,
+    pub(in crate::tests) function_types: Arena<mir::FunctionType>,
+    pub(in crate::tests) option_core: Vec<mir::OptionCore>,
     pub(in crate::tests) top_level: Vec<mir::FunctionId>,
 }
 
@@ -24,6 +26,8 @@ impl Builder {
             enums: Arena::new(),
             classes: Arena::new(),
             interfaces: Arena::new(),
+            function_types: Arena::new(),
+            option_core: Vec::new(),
             top_level: Vec::new(),
         }
     }
@@ -32,32 +36,48 @@ impl Builder {
     /// `payload`, named as mir-lower names its instances.
     pub(in crate::tests) fn option_enum(&mut self, name: &str, payload: mir::Type) -> mir::EnumId {
         let payload_gc_free = self.type_gc_free(&payload);
-        self.enums.alloc(mir::EnumDef {
-            name: name.to_string(),
+        let mut variants = Vec::new();
+        let some_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
+        let mut some_fields = Vec::new();
+        let some_payload_index =
+            u32::try_from(some_fields.len()).expect("test field arity fits u32");
+        some_fields.push(mir::Field {
+            name: "_1".to_string(),
+            ty: payload.clone(),
+        });
+        variants.push(mir::VariantDef {
+            name: "Some".to_string(),
             gc_free: payload_gc_free,
-            variants: vec![
-                mir::VariantDef {
-                    name: "Some".to_string(),
-                    gc_free: payload_gc_free,
-                    fields: vec![mir::Field {
-                        name: "_1".to_string(),
-                        ty: payload,
-                    }],
-                },
-                mir::VariantDef {
-                    name: "None".to_string(),
-                    gc_free: true,
-                    fields: Vec::new(),
-                },
-            ],
-        })
+            fields: some_fields,
+        });
+        let none_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
+        variants.push(mir::VariantDef {
+            name: "None".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
+        let id = self.enums.alloc(mir::EnumDef {
+            name: name.to_string(),
+            type_arguments: vec![payload],
+            gc_free: payload_gc_free,
+            variants,
+        });
+        let some = mir::MirVariantRef::new(&self.enums, id, some_index).expect("Some variant");
+        let some_payload = mir::MirVariantFieldRef::new(&self.enums, some, some_payload_index)
+            .expect("Some payload");
+        let none = mir::MirVariantRef::new(&self.enums, id, none_index).expect("None variant");
+        self.option_core.push(
+            mir::OptionCore::checked(&self.enums, some_payload, none)
+                .expect("test Option metadata matches its enum"),
+        );
+        id
     }
 
     pub(in crate::tests) fn type_gc_free(&self, ty: &mir::Type) -> bool {
         match ty {
             mir::Type::Unit
-            | mir::Type::Int
-            | mir::Type::UInt
+            | mir::Type::Integer(_)
+            | mir::Type::MachineScalar(_)
             | mir::Type::Boolean
             | mir::Type::Ptr(_)
             | mir::Type::FunPtr(_) => true,
@@ -99,6 +119,25 @@ impl Builder {
         })
     }
 
+    pub(in crate::tests) fn c_extern(
+        &mut self,
+        source_name: &str,
+        native_symbol: &str,
+        params: Vec<mir::Type>,
+        return_type: mir::Type,
+    ) -> mir::ExternFunctionId {
+        self.extern_functions.alloc(mir::ExternFunction {
+            source_name: source_name.to_string(),
+            native_symbol: native_symbol.to_string(),
+            library: String::new(),
+            abi: mir::ExternAbi::C,
+            calling_convention: mir::CallingConvention::Cdecl,
+            gc_effect: mir::GcEffect::Managed,
+            params,
+            return_type,
+        })
+    }
+
     pub(in crate::tests) fn strukt(
         &mut self,
         name: &str,
@@ -125,8 +164,8 @@ impl Builder {
     pub(in crate::tests) fn c_strukt(
         &mut self,
         name: &str,
-        aligned: u8,
-        packed: u8,
+        aligned: mir::MirCLayoutValue,
+        packed: mir::MirCLayoutValue,
         interior_mutable: bool,
         fields: &[(&str, mir::Type)],
     ) -> mir::StructId {
@@ -135,7 +174,7 @@ impl Builder {
             name: name.to_string(),
             gc_free,
             representation: mir::StructRepresentation::Declared {
-                c_layout: Some(mir::CLayout { aligned, packed }),
+                c_layout: Some(mir::MirCLayoutContract { aligned, packed }),
                 interior_mutable,
                 fields: fields
                     .iter()
@@ -292,6 +331,7 @@ impl Builder {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         self.top_level.push(id);
@@ -327,11 +367,16 @@ impl Builder {
     }
 
     pub(in crate::tests) fn finish(mut self, entry: mir::FunctionId) -> mir::Module {
-        for (name, representation) in [
-            ("Int", mir::IntrinsicTypeRepresentation::Int),
-            ("UInt", mir::IntrinsicTypeRepresentation::UInt),
-            ("Boolean", mir::IntrinsicTypeRepresentation::Boolean),
-        ] {
+        for (name, representation) in mir::IntegerKind::ALL
+            .map(|kind| {
+                (
+                    kind.canonical_name(),
+                    mir::IntrinsicTypeRepresentation::Integer(kind),
+                )
+            })
+            .into_iter()
+            .chain([("Boolean", mir::IntrinsicTypeRepresentation::Boolean)])
+        {
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
                 gc_free: true,
@@ -360,8 +405,10 @@ impl Builder {
             singleton_published_roots: Arena::new(),
             callback_bridges: Arena::new(),
             foreign_callback_adapters: Arena::new(),
+            foreign_callback_families: Arena::new(),
             foreign_callback_bridges: Arena::new(),
-            function_types: Arena::new(),
+            option_core: self.option_core,
+            function_types: self.function_types,
             closure_classes: Arena::new(),
             closure_invoke_functions: Arena::new(),
             top_level: self.top_level,

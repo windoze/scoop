@@ -50,17 +50,20 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
         let mut live = live_out[raw(block_id)].clone();
         live.extend(terminator_uses(&block.terminator));
         for (statement_index, statement) in block.statements.iter().enumerate().rev() {
-            if let Some((destination, result, kind)) = suspend_effect(lowerer, body, statement) {
+            if let Some((destination, result, kind, pending)) =
+                suspend_effect(lowerer, body, statement)
+            {
+                pending_uses(&pending, &mut live);
                 let mut live_after: Vec<_> = live.iter().copied().collect();
                 live_after.sort_by_key(|local| raw(*local));
-                sites.push(SuspendSite {
+                sites.push(DiscoveredSuspendSite {
                     block: block_id,
                     statement: statement_index,
                     destination,
                     result,
                     kind,
                     live_after,
-                    state: 0,
+                    pending,
                 });
             }
             let (statement_uses, statement_defs) = statement_use_def(statement);
@@ -72,13 +75,39 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
     }
     sites.sort_by_key(|site| (raw(site.block), site.statement));
     sites
+        .into_iter()
+        .enumerate()
+        .map(|(index, site)| {
+            let one_based = index
+                .checked_add(1)
+                .expect("coroutine suspension-site count fits usize");
+            SuspendSite {
+                block: site.block,
+                statement: site.statement,
+                destination: site.destination,
+                result: site.result,
+                kind: site.kind,
+                live_after: site.live_after,
+                pending: site.pending,
+                state: mir::CoroutineSuspendStateId::new(
+                    u32::try_from(one_based).expect("coroutine suspension-site count fits u32"),
+                )
+                .expect("coroutine suspension states are one-based"),
+            }
+        })
+        .collect()
 }
 
 fn suspend_effect(
     lowerer: &Lowerer,
     body: &mir::Body,
     statement: &mir::Statement,
-) -> Option<(Option<mir::LocalId>, mir::Type, SuspendKind)> {
+) -> Option<(
+    Option<mir::LocalId>,
+    mir::Type,
+    SuspendKind,
+    mir::CoroutinePendingContext,
+)> {
     let mir::StatementKind::Call(effect) = &statement.kind else {
         return None;
     };
@@ -90,7 +119,12 @@ fn suspend_effect(
         let result = destination
             .map(|local| body.locals[local].ty.clone())
             .unwrap_or(mir::Type::Unit);
-        return Some((destination, result, SuspendKind::Intrinsic { register }));
+        return Some((
+            destination,
+            result,
+            SuspendKind::Intrinsic { register },
+            call.pending.clone(),
+        ));
     }
     let function = match call.target.callee {
         mir::Callee::User(function) => function,
@@ -102,6 +136,7 @@ fn suspend_effect(
                     destination,
                     signature.return_type.clone(),
                     SuspendKind::Call,
+                    call.pending.clone(),
                 )
             });
         }
@@ -119,9 +154,32 @@ fn suspend_effect(
                     destination,
                     coroutine.source_return.clone(),
                     SuspendKind::Call,
+                    call.pending.clone(),
                 )
             })
         })
+}
+
+fn pending_uses(pending: &mir::CoroutinePendingContext, uses: &mut HashSet<mir::LocalId>) {
+    let mir::CoroutinePendingContext::Chain(chain) = pending else {
+        return;
+    };
+    for transfer in chain.iter() {
+        match transfer {
+            mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Value(value),
+            ) => expr_uses(value.expression(), uses),
+            mir::CoroutinePendingSourceTransfer::ManagedThrow(throw_) => {
+                expr_uses(throw_.exception(), uses);
+            }
+            mir::CoroutinePendingSourceTransfer::Fallthrough(_)
+            | mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Unit,
+            )
+            | mir::CoroutinePendingSourceTransfer::Break(_)
+            | mir::CoroutinePendingSourceTransfer::Continue(_) => {}
+        }
+    }
 }
 
 fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, HashSet<mir::LocalId>) {
@@ -230,6 +288,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         mir::ExprKind::TupleLiteral(elements)
         | mir::ExprKind::ArrayLiteral { elements, .. }
         | mir::ExprKind::StructInit { args: elements, .. }
+        | mir::ExprKind::StructConstruct {
+            fields: elements, ..
+        }
         | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }
@@ -273,12 +334,16 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::Cast { operand, .. }
         | mir::ExprKind::ArrayLen { operand, .. }
         | mir::ExprKind::ArrayClone { operand, .. }
-        | mir::ExprKind::PtrFromUInt { operand, .. }
-        | mir::ExprKind::PtrToUInt(operand)
+        | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
+        | mir::ExprKind::PtrToULong(operand)
         | mir::ExprKind::PtrCast { operand, .. }
         | mir::ExprKind::Unary { operand, .. }
+        | mir::ExprKind::IntegerUnary { operand, .. }
+        | mir::ExprKind::IntegerConversion { operand, .. }
         | mir::ExprKind::EnumTag(operand)
-        | mir::ExprKind::EnumField { operand, .. } => expr_uses(operand, uses),
+        | mir::ExprKind::EnumField { operand, .. }
+        | mir::ExprKind::VariantTest { operand, .. }
+        | mir::ExprKind::VariantPayloadProject { operand, .. } => expr_uses(operand, uses),
         mir::ExprKind::AtomicFieldCompareExchange {
             object,
             expected,
@@ -293,6 +358,31 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::Binary {
             lhs: array,
             rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerBinary {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::SafeIntegerDivRem {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerCompare {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerCompareTo {
+            lhs: array,
+            rhs: index,
+            ..
+        }
+        | mir::ExprKind::IntegerShift {
+            value: array,
+            count: index,
             ..
         } => {
             expr_uses(array, uses);
@@ -329,7 +419,8 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         }
         mir::ExprKind::ClassAlloc { .. }
         | mir::ExprKind::StringConst(_)
-        | mir::ExprKind::IntLiteral(_)
+        | mir::ExprKind::IntegerLiteral(_)
+        | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::GlobalRead(_)
@@ -338,7 +429,6 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::CaughtException
         | mir::ExprKind::SizeOf(_)
         | mir::ExprKind::AlignOf(_)
-        | mir::ExprKind::FunPtrNull(_)
         | mir::ExprKind::FunctionAddress { .. } => {}
     }
 }

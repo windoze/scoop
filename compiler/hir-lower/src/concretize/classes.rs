@@ -344,10 +344,11 @@ impl Concretizer<'_> {
                     ..
                 } => {
                     let locals = self.append_source_locals(body, &initializer.locals, substitution);
-                    body.statements
-                        .extend(initializer.statements.iter().filter_map(|statement| {
-                            self.lower_statement(statement, substitution, &locals)
-                        }));
+                    body.statements.extend(self.lower_statement_region(
+                        &initializer.statements,
+                        substitution,
+                        &locals,
+                    ));
                     let value = self.lower_expr(&initializer.value, substitution, &locals);
                     let source_field = &self.source.class_fields[*field];
                     let application = self.source.classes[source_field.owner].self_application;
@@ -382,12 +383,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> Vec<concrete::Expr> {
         let locals = self.append_source_locals(body, &arguments.locals, substitution);
-        body.statements.extend(
-            arguments
-                .statements
-                .iter()
-                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
-        );
+        body.statements.extend(self.lower_statement_region(
+            &arguments.statements,
+            substitution,
+            &locals,
+        ));
         arguments
             .args
             .iter()
@@ -402,12 +402,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) {
         let locals = self.append_source_locals(body, &source.locals, substitution);
-        body.statements.extend(
-            source
-                .statements
-                .iter()
-                .filter_map(|statement| self.lower_statement(statement, substitution, &locals)),
-        );
+        body.statements.extend(self.lower_statement_region(
+            &source.statements,
+            substitution,
+            &locals,
+        ));
     }
 
     pub(super) fn append_source_locals(
@@ -553,15 +552,17 @@ impl Concretizer<'_> {
         storage: &export::GlobalStorage,
     ) -> concrete::GlobalStorage {
         match storage {
-            export::GlobalStorage::Managed { initializer } => concrete::GlobalStorage::Managed {
-                initializer: match initializer {
-                    export::ManagedGlobalInitializer::Image(value) => {
-                        concrete::ManagedGlobalInitializer::Image(self.lower_constant(value))
+            export::GlobalStorage::Managed { state } => concrete::GlobalStorage::Managed {
+                state: match state {
+                    export::HirStaticInitialState::EncodedStaticValue { payload } => {
+                        concrete::HirStaticInitialState::EncodedStaticValue {
+                            payload: self.lower_constant(payload),
+                        }
                     }
-                    export::ManagedGlobalInitializer::RuntimeZeroed(unit) => {
-                        concrete::ManagedGlobalInitializer::RuntimeZeroed(
-                            concrete::InitializationUnitId::from_raw(unit.into_raw()),
-                        )
+                    export::HirStaticInitialState::ZeroedForRuntimeUnit { unit } => {
+                        concrete::HirStaticInitialState::ZeroedForRuntimeUnit {
+                            unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                        }
                     }
                 },
             },
@@ -586,27 +587,31 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_constant(
         &mut self,
-        value: &export::ConstantValue,
-    ) -> concrete::ConstantValue {
+        value: &export::HirConstantImage,
+    ) -> concrete::HirConstantImage {
         match value {
-            export::ConstantValue::Int(value) => concrete::ConstantValue::Int(*value),
-            export::ConstantValue::Bool(value) => concrete::ConstantValue::Bool(*value),
-            export::ConstantValue::String(value) => concrete::ConstantValue::String(value.clone()),
-            export::ConstantValue::NullPtr => concrete::ConstantValue::NullPtr,
-            export::ConstantValue::NullFunPtr => concrete::ConstantValue::NullFunPtr,
-            export::ConstantValue::EnumUnit {
-                application,
-                variant,
-            } => concrete::ConstantValue::EnumUnit {
-                enum_id: self.lower_enum_application(*application, &[]),
-                variant: *variant,
-            },
-            export::ConstantValue::Struct {
+            export::HirConstantImage::Integer(value) => concrete::HirConstantImage::Integer(*value),
+            export::HirConstantImage::Boolean(value) => concrete::HirConstantImage::Boolean(*value),
+            export::HirConstantImage::String(value) => {
+                concrete::HirConstantImage::String(value.clone())
+            }
+            export::HirConstantImage::NullPointer(kind) => {
+                concrete::HirConstantImage::NullPointer(match kind {
+                    export::HirPointerNullKind::Raw => concrete::HirPointerNullKind::Raw,
+                    export::HirPointerNullKind::Code => concrete::HirPointerNullKind::Code,
+                })
+            }
+            export::HirConstantImage::EnumUnit { variant } => {
+                concrete::HirConstantImage::EnumUnit {
+                    variant: self.lower_applied_enum_variant_ref(*variant, &[]),
+                }
+            }
+            export::HirConstantImage::Struct {
                 application,
                 fields,
             } => {
                 let struct_id = self.lower_struct_application(*application, &[]);
-                concrete::ConstantValue::Struct {
+                concrete::HirConstantImage::Struct {
                     struct_id,
                     fields: fields
                         .iter()

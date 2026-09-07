@@ -89,10 +89,60 @@ impl Lowerer {
             );
             return None;
         }
-        let mut lowered = Vec::with_capacity(elements.len());
-        for element in elements {
-            lowered.push(self.lower_expr(element, sink, None)?);
+        let literal_elements = elements.iter().collect::<Vec<_>>();
+        let all_direct_literals = literal_elements
+            .iter()
+            .all(|element| crate::expr::integer_literal_candidate_kinds(element).is_some());
+        let common_literal = crate::expr::common_integer_literal_kind(&literal_elements)
+            .map(|kind| self.integer_type(kind));
+        let mut lowered: Vec<Option<hir::Expr>> = (0..elements.len()).map(|_| None).collect();
+        let mut element_sinks: Vec<Vec<hir::Statement>> =
+            (0..elements.len()).map(|_| Vec::new()).collect();
+        if let Some(hint) = common_literal {
+            for (index, element) in elements.iter().enumerate() {
+                lowered[index] =
+                    Some(self.lower_expr(element, &mut element_sinks[index], Some(hint))?);
+            }
+        } else if all_direct_literals {
+            for (index, element) in elements.iter().enumerate() {
+                lowered[index] = Some(self.lower_expr(element, &mut element_sinks[index], None)?);
+            }
+        } else {
+            for (index, element) in elements.iter().enumerate() {
+                if !self.expr_requires_expected_type(element) {
+                    lowered[index] =
+                        Some(self.lower_expr(element, &mut element_sinks[index], None)?);
+                }
+            }
+            if lowered.iter().all(Option::is_none)
+                && let Some(seed) = elements
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, element)| {
+                        self.expr_default_seed_rank(element)
+                            .map(|rank| (rank, index))
+                    })
+                    .max_by_key(|(rank, _)| *rank)
+                    .map(|(_, index)| index)
+            {
+                lowered[seed] =
+                    Some(self.lower_expr(&elements[seed], &mut element_sinks[seed], None)?);
+            }
+            let hint = self.array_element_hint(&lowered);
+            for (index, element) in elements.iter().enumerate() {
+                if lowered[index].is_none() {
+                    lowered[index] =
+                        Some(self.lower_expr(element, &mut element_sinks[index], hint)?);
+                }
+            }
         }
+        for mut element_sink in element_sinks {
+            sink.append(&mut element_sink);
+        }
+        let lowered = lowered
+            .into_iter()
+            .map(|element| element.expect("every array element was lowered"))
+            .collect::<Vec<_>>();
         let first_ty = lowered[0].ty;
         if lowered.iter().any(|element| self.is_value_ty(element.ty)) {
             for element in &lowered[1..] {
@@ -127,6 +177,24 @@ impl Lowerer {
             span,
             origin: self.expression_origin(span),
         })
+    }
+
+    /// Derive the provisional array element from expressions already lowered
+    /// in this fixed point. Value types must agree exactly; reference types
+    /// use the same least upper bound as the final array validation.
+    fn array_element_hint(&mut self, elements: &[Option<hir::Expr>]) -> Option<TypeId> {
+        let types = elements
+            .iter()
+            .filter_map(|element| element.as_ref().map(|element| element.ty))
+            .collect::<Vec<_>>();
+        let &first = types.first()?;
+        if types.iter().any(|ty| self.is_value_ty(*ty)) {
+            return types
+                .iter()
+                .all(|ty| self.types_equal(*ty, first))
+                .then_some(first);
+        }
+        Some(self.reference_lob(&types))
     }
 
     /// `receiver[indices]` enters the ordinary typed `operator get`

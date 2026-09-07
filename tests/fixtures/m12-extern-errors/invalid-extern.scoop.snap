@@ -3,19 +3,18 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m12-extern-errors/invalid-extern.scoop:10:1: error: an `@Extern` function must not have a body
-m12-extern-errors/invalid-extern.scoop:13:1: error: `@Extern` cannot be used on a suspend function
-m12-extern-errors/invalid-extern.scoop:16:1: error: an `@Extern` function must not be generic
-m12-extern-errors/invalid-extern.scoop:34:1: error: a C ABI `@Extern` function cannot be marked `@Safe`
-m12-extern-errors/invalid-extern.scoop:38:1: error: `@Extern` library must be a logical library name, not a path or linker flag
-m12-extern-errors/invalid-extern.scoop:38:1: error: extern symbol `not-a-symbol` is not a portable C identifier
-m12-extern-errors/invalid-extern.scoop:38:1: error: extern ABI `unknown` is not supported; expected `c` or `scoop`
-m12-extern-errors/invalid-extern.scoop:45:5: error: `@Extern` is only allowed on a top-level function
-m12-extern-errors/invalid-extern.scoop:49:1: error: an `@Extern` function must not have an extension receiver
-m12-extern-errors/invalid-extern.scoop:46:9: error: function `memberExtern` must have a body
-m12-extern-errors/invalid-extern.scoop:19:1: error: extern parameter is not ABI-safe: cRef.parameter1: ref type `String` is managed
-m12-extern-errors/invalid-extern.scoop:22:1: error: extern parameter is not ABI-safe: cStruct.parameter1: ordinary struct `OrdinaryPair` has no stable C layout
-m12-extern-errors/invalid-extern.scoop:25:1: error: extern parameter is not ABI-safe: cEnum.parameter1: enum types have no M12 C ABI representation
-m12-extern-errors/invalid-extern.scoop:28:1: error: extern parameter is not ABI-safe: cTuple.parameter1: tuple types have no stable C layout
-m12-extern-errors/invalid-extern.scoop:31:1: error: extern parameter is not ABI-safe: scoopAggregate.parameter1: value aggregate `ManagedBox` contains a managed reference and has no M12 native-root layout
-m12-extern-errors/invalid-extern.scoop:53:5: error: unsafe function `nativeCall` may only be called from an unsafe context
+m12-extern-errors/invalid-extern.scoop:8:1: error: an `@Extern` function must not have a body
+m12-extern-errors/invalid-extern.scoop:11:1: error: `@Extern` cannot be used on a suspend function
+m12-extern-errors/invalid-extern.scoop:14:1: error: an `@Extern` function must not be generic
+m12-extern-errors/invalid-extern.scoop:29:1: error: a C ABI `@Extern` function cannot be marked `@Safe`
+m12-extern-errors/invalid-extern.scoop:33:1: error: `@Extern` library must be a logical library name, not a path or linker flag
+m12-extern-errors/invalid-extern.scoop:33:1: error: extern symbol `not-a-symbol` is not a portable C identifier
+m12-extern-errors/invalid-extern.scoop:33:1: error: extern ABI `unknown` is not supported; expected `c` or `scoop`
+m12-extern-errors/invalid-extern.scoop:40:5: error: `@Extern` is only allowed on a top-level function
+m12-extern-errors/invalid-extern.scoop:44:1: error: an `@Extern` function must not have an extension receiver
+m12-extern-errors/invalid-extern.scoop:41:9: error: function `memberExtern` must have a body
+m12-extern-errors/invalid-extern.scoop:17:1: error: extern parameter is not ABI-safe: cRef.parameter1: ref type `String` is managed
+m12-extern-errors/invalid-extern.scoop:20:1: error: extern parameter is not ABI-safe: cStruct.parameter1: ordinary struct `OrdinaryPair` has no stable C layout
+m12-extern-errors/invalid-extern.scoop:23:1: error: extern parameter is not ABI-safe: cEnum.parameter1: enum types have no M12 C ABI representation
+m12-extern-errors/invalid-extern.scoop:26:1: error: extern parameter is not ABI-safe: cTuple.parameter1: tuple types have no stable C layout
+m12-extern-errors/invalid-extern.scoop:48:5: error: unsafe function `nativeCall` may only be called from an unsafe context

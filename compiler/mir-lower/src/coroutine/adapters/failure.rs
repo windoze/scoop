@@ -8,6 +8,7 @@ pub(super) fn generate_failure_method(
     module: &hir::Module,
     adapter: mir::ClassId,
     frame_class: mir::ClassId,
+    frame_layout: FrameLayout,
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
@@ -15,17 +16,26 @@ pub(super) fn generate_failure_method(
     outer_failure: mir::FunctionId,
     driver: mir::FunctionId,
     source_symbol: &str,
-    state: u32,
-    failure_state: i64,
+    state: mir::CoroutineSuspendStateId,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
+    let completed = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .completed();
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
     let step = locals.alloc(local("$step", outer_step.clone()));
-    let adapter_claim = locals.alloc(local("$adapter_claim", mir::Type::Int));
-    let frame_claim = locals.alloc(local("$frame_claim", mir::Type::Int));
+    let adapter_claim = locals.alloc(local(
+        "$adapter_claim",
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+    ));
+    let frame_claim = locals.alloc(local(
+        "$frame_claim",
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+    ));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
     let exits = drive_exit_blocks(
@@ -37,6 +47,7 @@ pub(super) fn generate_failure_method(
         step,
         adapter,
         frame_class,
+        frame_layout,
         outer_step,
         outer_continuation,
         outer_resume,
@@ -56,7 +67,7 @@ pub(super) fn generate_failure_method(
             atomic_field_store(
                 mir::Expr::local(this, mir::Type::Class(adapter)),
                 1,
-                mir::Expr::int(ADAPTER_CONSUMED),
+                adapter_state(ADAPTER_CONSUMED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: step,
@@ -67,13 +78,14 @@ pub(super) fn generate_failure_method(
                     },
                     args: vec![
                         adapter_frame(this, adapter, frame_class),
-                        mir::Expr::int(failure_state),
+                        frame_state(failure_state(state)),
                     ],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
         ],
         terminator: mir::Terminator::Branch {
-            cond: is_completed(step, outer_step.clone()),
+            cond: is_completed(step, outer_step.clone(), completed),
             then_block: exits.completed,
             else_block: exits.suspended,
         },
@@ -84,7 +96,7 @@ pub(super) fn generate_failure_method(
         statements: vec![atomic_field_store(
             mir::Expr::local(this, mir::Type::Class(adapter)),
             1,
-            mir::Expr::int(ADAPTER_CONSUMED),
+            adapter_state(ADAPTER_CONSUMED),
         )],
         terminator: mir::Terminator::Goto(invalid),
         unwind: None,
@@ -95,15 +107,18 @@ pub(super) fn generate_failure_method(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 adapter_frame(this, adapter, frame_class),
-                0,
-                i64::from(state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(state)),
             ),
             then_block: valid,
             else_block: invalid_frame,
@@ -117,14 +132,17 @@ pub(super) fn generate_failure_method(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(this, mir::Type::Class(adapter)),
                 1,
-                ADAPTER_WAITING,
-                ADAPTER_COMPLETING_FAILURE,
+                adapter_state_value(ADAPTER_WAITING),
+                adapter_state_value(ADAPTER_COMPLETING_FAILURE),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(adapter_claim, mir::Type::Int),
-                ADAPTER_WAITING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    adapter_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_WAITING),
             ),
             then_block: claim_frame,
             else_block: invalid,
@@ -143,7 +161,7 @@ pub(super) fn generate_failure_method(
                 atomic_field_store(
                     mir::Expr::local(this, mir::Type::Class(adapter)),
                     1,
-                    mir::Expr::int(ADAPTER_LATCHED_FAILURE),
+                    adapter_state(ADAPTER_LATCHED_FAILURE),
                 ),
             ],
             terminator: mir::Terminator::Return { value: None },
@@ -156,14 +174,17 @@ pub(super) fn generate_failure_method(
                 init: atomic_field_compare_exchange(
                     mir::Expr::local(this, mir::Type::Class(adapter)),
                     1,
-                    ADAPTER_REGISTERING,
-                    ADAPTER_COMPLETING_FAILURE,
+                    adapter_state_value(ADAPTER_REGISTERING),
+                    adapter_state_value(ADAPTER_COMPLETING_FAILURE),
                 ),
             })],
             terminator: mir::Terminator::Branch {
-                cond: int_eq(
-                    mir::Expr::local(adapter_claim, mir::Type::Int),
-                    ADAPTER_REGISTERING,
+                cond: machine_eq(
+                    mir::Expr::local(
+                        adapter_claim,
+                        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                    ),
+                    adapter_state_value(ADAPTER_REGISTERING),
                 ),
                 then_block: latched,
                 else_block: claim_waiting,
@@ -194,6 +215,7 @@ pub(super) fn generate_failure_method(
             locals,
             blocks,
             entry,
+            loop_header_polls: Vec::new(),
         },
     });
     lowerer.top_level.push(function);

@@ -1,4 +1,4 @@
-use crate::{Block, CallArgument, Expr, Ident, Span, TypeRef};
+use crate::{Block, CallArgument, Expr, Ident, IntegerLiteralSyntax, Span, TypeRef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
@@ -10,11 +10,25 @@ pub struct SourceFile {
 pub enum Decl {
     Global(GlobalDecl),
     Function(FunctionDecl),
+    TypeAlias(TypeAliasDecl),
     Struct(StructDecl),
     Enum(EnumDecl),
     Class(ClassDecl),
     Interface(InterfaceDecl),
     Object(ObjectDecl),
+}
+
+/// A top-level, non-generic transparent type alias (spec 3.2.1).
+///
+/// The declaration has source identity and visibility, while its target is
+/// the only type represented by the alias. Generic and nested/local aliases
+/// are rejected by the parser in the M22 language subset.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeAliasDecl {
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    pub target: TypeRef,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -706,7 +720,7 @@ pub struct AnnotationArg {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnnotationLiteral {
     String(String),
-    Int(i64),
+    Int(IntegerLiteralSyntax),
     Boolean(bool),
 }
 

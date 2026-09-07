@@ -1,5 +1,11 @@
 use super::*;
 
+#[derive(Default)]
+struct SignatureValidation {
+    visiting: HashSet<hir::FunctionTypeId>,
+    safe: HashSet<hir::FunctionTypeId>,
+}
+
 impl Lowerer {
     pub(super) fn classify_c_ffi_type(
         &mut self,
@@ -8,6 +14,25 @@ impl Lowerer {
         allow_unit: bool,
         path: Vec<String>,
         visiting: &mut HashSet<hir::TypeId>,
+    ) -> Result<Classification, CAbiError> {
+        self.classify_c_ffi_type_inner(
+            ty,
+            substitution,
+            allow_unit,
+            path,
+            visiting,
+            &mut SignatureValidation::default(),
+        )
+    }
+
+    fn classify_c_ffi_type_inner(
+        &mut self,
+        ty: hir::TypeId,
+        substitution: &[hir::TypeId],
+        allow_unit: bool,
+        path: Vec<String>,
+        visiting: &mut HashSet<hir::TypeId>,
+        signatures: &mut SignatureValidation,
     ) -> Result<Classification, CAbiError> {
         let resolved = match self.types[ty] {
             hir::Type::Param(index) => match substitution.get(index.into_raw() as usize) {
@@ -22,37 +47,50 @@ impl Lowerer {
                 path,
                 reason: "`Unit` is only allowed as a C ABI return type".to_string(),
             }),
-            hir::Type::Int | hir::Type::UInt | hir::Type::Boolean | hir::Type::Ptr(_) => {
-                Ok(Classification::Safe)
+            hir::Type::Integer(_) | hir::Type::Boolean => Ok(Classification::Safe),
+            hir::Type::Ptr(pointee) => {
+                self.classify_c_pointer_pointee(pointee, substitution, path, visiting, signatures)
             }
             hir::Type::FunPtr(signature) => {
-                let function = self.function_types[signature].clone();
-                let mut deferred = false;
-                for (index, parameter) in function.parameter_types.into_iter().enumerate() {
-                    let mut parameter_path = path.clone();
-                    parameter_path.push(format!("parameter{}", index + 1));
-                    deferred |= self.classify_c_ffi_type(
-                        parameter,
-                        substitution,
-                        false,
-                        parameter_path,
-                        visiting,
-                    )? == Classification::Deferred;
+                if signatures.safe.contains(&signature) || !signatures.visiting.insert(signature) {
+                    return Ok(Classification::Safe);
                 }
-                let mut return_path = path;
-                return_path.push("return".to_string());
-                deferred |= self.classify_c_ffi_type(
-                    function.return_type,
-                    substitution,
-                    true,
-                    return_path,
-                    visiting,
-                )? == Classification::Deferred;
-                Ok(if deferred {
-                    Classification::Deferred
-                } else {
-                    Classification::Safe
-                })
+                let function = self.function_types[signature].clone();
+                let result = (|| {
+                    let mut deferred = false;
+                    for (index, parameter) in function.parameter_types.into_iter().enumerate() {
+                        let mut parameter_path = path.clone();
+                        parameter_path.push(format!("parameter{}", index + 1));
+                        deferred |= self.classify_c_ffi_type_inner(
+                            parameter,
+                            substitution,
+                            false,
+                            parameter_path,
+                            &mut HashSet::new(),
+                            signatures,
+                        )? == Classification::Deferred;
+                    }
+                    let mut return_path = path;
+                    return_path.push("return".to_string());
+                    deferred |= self.classify_c_ffi_type_inner(
+                        function.return_type,
+                        substitution,
+                        true,
+                        return_path,
+                        &mut HashSet::new(),
+                        signatures,
+                    )? == Classification::Deferred;
+                    Ok(if deferred {
+                        Classification::Deferred
+                    } else {
+                        Classification::Safe
+                    })
+                })();
+                signatures.visiting.remove(&signature);
+                if matches!(result, Ok(Classification::Safe)) {
+                    signatures.safe.insert(signature);
+                }
+                result
             }
             hir::Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
@@ -78,9 +116,14 @@ impl Lowerer {
                     let field_ty = self.instantiate_ty(field.ty, &application.arguments);
                     let mut field_path = path.clone();
                     field_path.push(field.name);
-                    deferred |=
-                        self.classify_c_ffi_type(field_ty, &[], false, field_path, visiting)?
-                            == Classification::Deferred;
+                    deferred |= self.classify_c_ffi_type_inner(
+                        field_ty,
+                        &[],
+                        false,
+                        field_path,
+                        visiting,
+                        signatures,
+                    )? == Classification::Deferred;
                 }
                 visiting.remove(&resolved);
                 Ok(if deferred {
@@ -91,7 +134,7 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                if Some(application.template) != self.option_enum
+                if Some(application.template) != self.option_enumeration()
                     || application.arguments.len() != 1
                 {
                     return Err(CAbiError {
@@ -100,12 +143,13 @@ impl Lowerer {
                     });
                 }
                 match self.types[application.arguments[0]] {
-                    hir::Type::Ptr(_) | hir::Type::FunPtr(_) => self.classify_c_ffi_type(
+                    hir::Type::Ptr(_) | hir::Type::FunPtr(_) => self.classify_c_ffi_type_inner(
                         application.arguments[0],
                         substitution,
                         false,
                         path,
                         visiting,
+                        signatures,
                     ),
                     _ => Err(CAbiError {
                         path,
@@ -130,35 +174,140 @@ impl Lowerer {
         }
     }
 
+    fn classify_c_pointer_pointee(
+        &mut self,
+        pointee: hir::TypeId,
+        substitution: &[hir::TypeId],
+        path: Vec<String>,
+        visiting: &mut HashSet<hir::TypeId>,
+        signatures: &mut SignatureValidation,
+    ) -> Result<Classification, CAbiError> {
+        let pointee = match self.types[pointee] {
+            hir::Type::Param(parameter) => match substitution.get(parameter.into_raw() as usize) {
+                Some(&argument) => argument,
+                None => return Ok(Classification::Deferred),
+            },
+            _ => pointee,
+        };
+        if matches!(self.types[pointee], hir::Type::Unit) {
+            return Ok(Classification::Safe);
+        }
+        match self.is_zero_sized_type(pointee, substitution, &mut HashSet::new()) {
+            Some(true) => {
+                return Err(CAbiError {
+                    path,
+                    reason: format!(
+                        "pointer pointee `{}` is zero-sized; only `Ptr<Unit>` maps to `void *`",
+                        self.type_name(pointee)
+                    ),
+                });
+            }
+            Some(false) => {}
+            None => return Ok(Classification::Deferred),
+        }
+
+        if let hir::Type::Struct(application) = self.types[pointee] {
+            let application = &self.struct_applications[application];
+            if self.structs[application.template]
+                .attributes
+                .c_layout
+                .is_some()
+            {
+                // A pointer edge names the refined C-layout object instead of
+                // recursively embedding its fields. This permits ordinary C
+                // self-reference while by-value cycles remain rejected.
+                return Ok(Classification::Safe);
+            }
+        }
+        self.classify_c_ffi_type_inner(pointee, substitution, false, path, visiting, signatures)
+    }
+
+    fn is_zero_sized_type(
+        &mut self,
+        ty: hir::TypeId,
+        substitution: &[hir::TypeId],
+        visiting: &mut HashSet<hir::TypeId>,
+    ) -> Option<bool> {
+        let ty = match self.types[ty] {
+            hir::Type::Param(parameter) => *substitution.get(parameter.into_raw() as usize)?,
+            _ => ty,
+        };
+        match self.types[ty].clone() {
+            hir::Type::Unit => Some(true),
+            hir::Type::Integer(_)
+            | hir::Type::Boolean
+            | hir::Type::String
+            | hir::Type::Class(_)
+            | hir::Type::Interface(_)
+            | hir::Type::Any
+            | hir::Type::Function(_)
+            | hir::Type::Ptr(_)
+            | hir::Type::FunPtr(_)
+            | hir::Type::Enum(_) => Some(false),
+            hir::Type::Param(_) => None,
+            hir::Type::Tuple(elements) => {
+                for element in elements {
+                    if !self.is_zero_sized_type(element, substitution, visiting)? {
+                        return Some(false);
+                    }
+                }
+                Some(true)
+            }
+            hir::Type::Struct(application) => {
+                if !visiting.insert(ty) {
+                    return None;
+                }
+                let application = self.struct_applications[application].clone();
+                let fields = self.structs[application.template]
+                    .semantic_fields()
+                    .to_vec();
+                for field in fields {
+                    let field_ty = self.instantiate_ty(field.ty, &application.arguments);
+                    if !self.is_zero_sized_type(field_ty, substitution, visiting)? {
+                        visiting.remove(&ty);
+                        return Some(false);
+                    }
+                }
+                visiting.remove(&ty);
+                Some(true)
+            }
+        }
+    }
+
     pub(super) fn classify_scoop_abi_type(
         &mut self,
         ty: hir::TypeId,
         allow_unit: bool,
         path: Vec<String>,
     ) -> Result<(), CAbiError> {
+        if self.type_contains_param(ty) {
+            return Err(CAbiError {
+                path,
+                reason: "an extern signature must be fully concrete".to_string(),
+            });
+        }
         match self.types[ty].clone() {
             hir::Type::Unit if allow_unit => Ok(()),
             hir::Type::Unit => Err(CAbiError {
                 path,
                 reason: "`Unit` is only allowed as a Scoop ABI return type".to_string(),
             }),
-            hir::Type::String
-            | hir::Type::Class(..)
-            | hir::Type::Interface(_)
-            | hir::Type::Any
-            | hir::Type::Function(_) => Ok(()),
             hir::Type::Param(_) => Err(CAbiError {
                 path,
                 reason: "an extern signature must be fully concrete".to_string(),
             }),
-            _ if self.is_gc_free(ty) => Ok(()),
-            _ => Err(CAbiError {
-                path,
-                reason: format!(
-                    "value aggregate `{}` contains a managed reference and has no M12 native-root layout",
-                    self.type_name(ty)
-                ),
-            }),
+            hir::Type::Integer(_)
+            | hir::Type::Boolean
+            | hir::Type::String
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
+            | hir::Type::Any
+            | hir::Type::Function(_)
+            | hir::Type::Ptr(_)
+            | hir::Type::FunPtr(_)
+            | hir::Type::Struct(_)
+            | hir::Type::Enum(_)
+            | hir::Type::Tuple(_) => Ok(()),
         }
     }
 }

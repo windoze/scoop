@@ -13,15 +13,23 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
-            Instruction::BinOp { .. } | Instruction::UnaryOp { .. } => {
-                self.emit_operator_instruction(instruction)
-            }
+            Instruction::BinOp { .. }
+            | Instruction::UnaryOp { .. }
+            | Instruction::IntegerUnary { .. }
+            | Instruction::IntegerBinary { .. }
+            | Instruction::SafeIntegerDivRem { .. }
+            | Instruction::IntegerCompare { .. }
+            | Instruction::IntegerCompareTo { .. }
+            | Instruction::IntegerShift { .. }
+            | Instruction::IntegerConvert { .. } => self.emit_operator_instruction(instruction),
             Instruction::MakeAggregate { .. } | Instruction::ExtractValue { .. } => {
                 self.emit_aggregate_instruction(instruction)
             }
             Instruction::HeapLoad { .. }
+            | Instruction::MachineHeapLoad { .. }
             | Instruction::AtomicLoad { .. }
             | Instruction::HeapStore { .. }
+            | Instruction::MachineHeapStore { .. }
             | Instruction::AtomicStore { .. }
             | Instruction::AtomicCompareExchange { .. } => self.emit_heap_instruction(instruction),
             Instruction::FunctionAddress { .. }
@@ -29,8 +37,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::ForeignCallbackOperation(_) => {
                 self.emit_callback_instruction(instruction)
             }
-            Instruction::IntToPtr { .. }
-            | Instruction::PtrToInt { .. }
+            Instruction::ULongToPtr { .. }
+            | Instruction::PtrToULong { .. }
             | Instruction::RawLoad { .. }
             | Instruction::RawStore { .. }
             | Instruction::PtrOffset { .. }
@@ -58,7 +66,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::ArrayClone { .. } => self.emit_array_instruction(instruction),
             Instruction::EnumWrap { .. }
             | Instruction::EnumTag { .. }
-            | Instruction::EnumField { .. } => self.emit_enum_instruction(instruction),
+            | Instruction::EnumField { .. }
+            | Instruction::VariantTest { .. }
+            | Instruction::VariantPayloadProject { .. } => self.emit_enum_instruction(instruction),
         }
     }
 }

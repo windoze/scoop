@@ -16,6 +16,34 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 safepoint,
                 live,
             } => {
+                let (array_metadata, td) = self.array_type(*array_type);
+                let element_lir_ty = array_metadata.element.clone();
+                let element_size = array_metadata.element_size;
+                let element_align = array_metadata.element_align;
+                if function.temps[*out].ty != scoop_lir::MANAGED_PTR
+                    || validation::contains_machine_scalar(
+                        self.structs,
+                        self.enums,
+                        &element_lir_ty,
+                    )
+                {
+                    return Err(CodegenError(format!(
+                        "array_alloc @{} has an invalid result or internal machine-scalar element type",
+                        function.symbol
+                    )));
+                }
+                for (index, element_value) in elements.iter().enumerate() {
+                    let actual = function.value_ty(self.globals_arena, *element_value);
+                    if actual != element_lir_ty {
+                        return Err(CodegenError(format!(
+                            "array_alloc @{} element {} has type {}, expected {}",
+                            function.symbol,
+                            index,
+                            actual.dump(),
+                            element_lir_ty.dump()
+                        )));
+                    }
+                }
                 let live = self.materialize_statepoint_live(live, *safepoint)?;
                 // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
                 // (runtime spec 2.5; the 16-byte header is M9):
@@ -23,18 +51,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // bytes, store the size at offset 16, then store each
                 // element in order. The rounded data offset is visible
                 // for over-aligned C-layout elements.
-                let (array_metadata, td) = self.array_type(*array_type);
                 let element_ty = basic_ty(
                     context,
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &array_metadata.element,
+                    &element_lir_ty,
                 )?;
-                let stride = array_metadata.element_size;
-                let data_offset = array_data_offset(array_metadata.element_align);
+                let stride = element_size;
+                let data_offset = array_data_offset(element_align);
                 let td = td.as_pointer_value();
-                let total = data_offset + elements.len() as u64 * stride;
+                let element_count = u64::try_from(elements.len()).map_err(|_| {
+                    CodegenError(format!(
+                        "array_alloc @{} element count does not fit the runtime size word",
+                        function.symbol
+                    ))
+                })?;
+                let total = element_count
+                    .checked_mul(stride)
+                    .and_then(|bytes| data_offset.checked_add(bytes))
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "array_alloc @{} allocation size overflows the runtime size word",
+                            function.symbol
+                        ))
+                    })?;
                 let array = self.managed_alloc_value(
                     td,
                     context.i64_type().const_int(total, false),
@@ -43,10 +84,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
-                    .build_store(
-                        size_ptr,
-                        context.i64_type().const_int(elements.len() as u64, false),
-                    )
+                    .build_store(size_ptr, context.i64_type().const_int(element_count, false))
                     .map_err(|e| {
                         CodegenError(format!(
                             "array size @{symbol}: {e}",
@@ -79,6 +117,44 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 live,
             } => {
                 let (array_metadata, td) = self.array_type(*array_type);
+                if function.temps[*out].ty != scoop_lir::MANAGED_PTR
+                    || validation::contains_machine_scalar(
+                        self.structs,
+                        self.enums,
+                        &array_metadata.element,
+                    )
+                {
+                    return Err(CodegenError(format!(
+                        "array_assembly @{} has an invalid result or internal machine-scalar element type",
+                        function.symbol
+                    )));
+                }
+                for (index, part) in parts.iter().enumerate() {
+                    match part {
+                        scoop_lir::ArrayAssemblyPart::Element(value) => {
+                            let actual = function.value_ty(self.globals_arena, *value);
+                            if actual != array_metadata.element {
+                                return Err(CodegenError(format!(
+                                    "array_assembly @{} element part {} has type {}, expected {}",
+                                    function.symbol,
+                                    index,
+                                    actual.dump(),
+                                    array_metadata.element.dump()
+                                )));
+                            }
+                        }
+                        scoop_lir::ArrayAssemblyPart::CopyArray(value)
+                            if function.value_ty(self.globals_arena, *value)
+                                != scoop_lir::MANAGED_PTR =>
+                        {
+                            return Err(CodegenError(format!(
+                                "array_assembly @{} copy part {} is not a managed array",
+                                function.symbol, index
+                            )));
+                        }
+                        scoop_lir::ArrayAssemblyPart::CopyArray(_) => {}
+                    }
+                }
                 let element_layout = array_metadata.element.clone();
                 let stride = array_metadata.element_size;
                 let element_align = array_metadata.element_align;
@@ -134,6 +210,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                     self.array_size_check(overflow, &format!("assembly.size.sum.ok.{part_index}"))?;
+                    let exceeds_long_max = builder
+                        .build_int_compare(
+                            IntPredicate::UGT,
+                            next_total,
+                            i64_ty.const_int(i64::MAX as u64, false),
+                            "assembly_long_size_overflow",
+                        )
+                        .map_err(|error| {
+                            CodegenError(format!(
+                                "check array assembly Long size limit @{symbol}: {error}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.array_size_check(
+                        exceeds_long_max,
+                        &format!("assembly.size.long.ok.{part_index}"),
+                    )?;
                     total = next_total;
                 }
 
@@ -361,6 +454,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, array.into());
             }
             Instruction::ArrayLen { out, operand, .. } => {
+                if function.temps[*out].ty != LirType::I64
+                    || function.value_ty(self.globals_arena, *operand) != scoop_lir::MANAGED_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "array_len @{} requires ptr<managed> -> i64",
+                        function.symbol
+                    )));
+                }
                 let array = self.value(*operand)?.into_pointer_value();
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -381,6 +482,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 array_type,
             } => {
                 let (array_metadata, _) = self.array_type(*array_type);
+                let actual_out = &function.temps[*out].ty;
+                let array_ty = function.value_ty(self.globals_arena, *array);
+                let index_ty = function.value_ty(self.globals_arena, *index);
+                if actual_out != &array_metadata.element
+                    || array_ty != scoop_lir::MANAGED_PTR
+                    || index_ty != LirType::I64
+                {
+                    return Err(CodegenError(format!(
+                        "array_get @{} requires ptr<managed>[i64] -> {}, got {}[{}] -> {}",
+                        function.symbol,
+                        array_metadata.element.dump(),
+                        array_ty.dump(),
+                        index_ty.dump(),
+                        actual_out.dump()
+                    )));
+                }
                 let element_ty = basic_ty(
                     context,
                     self.structs,
@@ -410,6 +527,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 array_type,
             } => {
                 let (array_metadata, _) = self.array_type(*array_type);
+                let array_ty = function.value_ty(self.globals_arena, *array);
+                let index_ty = function.value_ty(self.globals_arena, *index);
+                let value_ty = function.value_ty(self.globals_arena, *value);
+                if array_ty != scoop_lir::MANAGED_PTR
+                    || index_ty != LirType::I64
+                    || value_ty != array_metadata.element
+                {
+                    return Err(CodegenError(format!(
+                        "array_set @{} requires ptr<managed>[i64] = {}, got {}[{}] = {}",
+                        function.symbol,
+                        array_metadata.element.dump(),
+                        array_ty.dump(),
+                        index_ty.dump(),
+                        value_ty.dump()
+                    )));
+                }
                 let element_ty = basic_ty(
                     context,
                     self.structs,
@@ -440,13 +573,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 safepoint,
                 live,
             } => {
+                let (array_metadata, target_td) = self.array_type(*array_type);
+                let element = array_metadata.element.clone();
+                let stride = array_metadata.element_size;
+                let element_align = array_metadata.element_align;
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                if function.temps[*out].ty != scoop_lir::MANAGED_PTR
+                    || operand_ty != scoop_lir::MANAGED_PTR
+                    || validation::contains_machine_scalar(self.structs, self.enums, &element)
+                {
+                    return Err(CodegenError(format!(
+                        "array_clone @{} requires a machine-scalar-free managed array -> managed array",
+                        function.symbol
+                    )));
+                }
                 let live = self.materialize_statepoint_live(live, *safepoint)?;
                 let operand = self.statepoint_value(*operand, &live)?;
                 // The target descriptor is explicit: converting Array<T> to
                 // MutableArray<T> (or back) changes nominal runtime identity.
-                let (array_metadata, target_td) = self.array_type(*array_type);
-                let stride = array_metadata.element_size;
-                let data_offset = array_data_offset(array_metadata.element_align);
+                let data_offset = array_data_offset(element_align);
                 let clone = self.runtime_fn(
                     scoop_lir::ARRAY_CLONE_SYMBOL,
                     managed_ptr_ty(context, self.managed_address_space).fn_type(

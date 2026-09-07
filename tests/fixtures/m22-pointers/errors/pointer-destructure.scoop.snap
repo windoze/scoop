@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-pointers/errors/pointer-destructure.scoop:4:9: error: intrinsic pointer type `Ptr<Int>` cannot be destructured

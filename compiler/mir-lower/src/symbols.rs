@@ -84,6 +84,7 @@ pub(super) fn mangling_shell(
     for (_, def) in enums.iter() {
         shell_enums.alloc(mir::EnumDef {
             name: def.name.clone(),
+            type_arguments: def.type_arguments.clone(),
             gc_free: def.gc_free,
             variants: Vec::new(),
         });
@@ -136,6 +137,7 @@ pub(super) fn mangling_shell(
         singleton_published_roots: Arena::new(),
         callback_bridges: Arena::new(),
         foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
@@ -146,6 +148,7 @@ pub(super) fn mangling_shell(
         enums: shell_enums,
         classes: shell_classes,
         interfaces: shell_interfaces,
+        option_core: Vec::new(),
         entry,
         meta: mir::MirMeta::default(),
     }

@@ -6,6 +6,33 @@ mod builder;
 pub(super) use builder::Builder;
 
 pub(super) const SPAN: Span = Span { start: 0, end: 0 };
+pub(super) const INT: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
+pub(super) const LONG: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+pub(super) const UINT: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_32);
+pub(super) const ULONG: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_64);
+
+pub(super) fn int_expr(value: i32) -> mir::Expr {
+    mir::Expr::integer(mir::MirIntegerConstant::Signed32(value as u32))
+}
+
+pub(super) fn long_expr(value: i64) -> mir::Expr {
+    mir::Expr::integer(mir::MirIntegerConstant::Signed64(value as u64))
+}
+
+pub(super) fn uint_expr(value: u32) -> mir::Expr {
+    mir::Expr::integer(mir::MirIntegerConstant::Unsigned32(value))
+}
+
+pub(super) fn ulong_expr(value: u64) -> mir::Expr {
+    mir::Expr::integer(mir::MirIntegerConstant::Unsigned64(value))
+}
+
+pub(super) fn integer_expr(kind: mir::IntegerKind, raw_bits: u64) -> mir::Expr {
+    mir::Expr::integer(
+        mir::MirIntegerConstant::from_raw_bits(kind, raw_bits)
+            .expect("test integer bits fit the requested exact width"),
+    )
+}
 
 /// The reference-field offsets of a plain (non-enum) layout.
 pub(super) fn plain_refs(layout: &lir::Layout) -> &[u64] {
@@ -123,6 +150,28 @@ pub(super) fn binary(op: mir::BinOp, lhs: mir::Expr, rhs: mir::Expr, ty: mir::Ty
     )
 }
 
+pub(super) fn integer_binary_expr(
+    kind: mir::IntegerKind,
+    operator: mir::IntegerBinaryOperator,
+    lhs: mir::Expr,
+    rhs: mir::Expr,
+) -> mir::Expr {
+    mir::Expr::integer_binary(mir::IntegerBinaryOperation::new(kind, operator), lhs, rhs)
+}
+
+pub(super) fn integer_compare_expr(
+    kind: mir::IntegerKind,
+    operator: mir::IntegerComparisonOperator,
+    lhs: mir::Expr,
+    rhs: mir::Expr,
+) -> mir::Expr {
+    mir::Expr::integer_compare(
+        mir::IntegerComparisonOperation::new(kind, operator),
+        lhs,
+        rhs,
+    )
+}
+
 pub(super) fn call_symbol(module: &lir::Module, destination: lir::CallDestination) -> &str {
     match destination {
         lir::CallDestination::Local(id) => &module.functions[id.into_u32() as usize].symbol,
@@ -147,6 +196,7 @@ pub(super) fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mi
             callee: mir::Callee::Runtime(function),
         },
         args,
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -157,6 +207,7 @@ pub(super) fn extern_call(function: mir::ExternFunctionId, args: Vec<mir::Expr>)
             callee: mir::Callee::Extern(function),
         },
         args,
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -167,6 +218,7 @@ pub(super) fn user_call(function: mir::FunctionId) -> mir::Call {
             callee: mir::Callee::User(function),
         },
         args: Vec::new(),
+        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -205,6 +257,7 @@ pub(super) fn body_with_terminator(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 
@@ -377,6 +430,7 @@ pub(super) fn single_catch_body(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 

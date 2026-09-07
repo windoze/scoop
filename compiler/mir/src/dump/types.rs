@@ -4,8 +4,8 @@ use super::super::*;
 pub fn type_name(module: &Module, ty: &Type) -> String {
     match ty {
         Type::Unit => "Unit".to_string(),
-        Type::Int => "Int".to_string(),
-        Type::UInt => "UInt".to_string(),
+        Type::Integer(kind) => kind.canonical_name().to_string(),
+        Type::MachineScalar(kind) => format!("machine<{}>", kind.name()),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),

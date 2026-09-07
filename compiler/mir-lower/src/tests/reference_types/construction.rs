@@ -58,7 +58,7 @@ fn class_initializers_chain_on_one_exact_allocation() {
     // that object, calls the direct base initializer, then writes its own
     // complete-layout field.
     let expected = "\
-Module
+Module mangling=compact-v2
   class Root vtable=0 itables=0
   class Base vtable=0 itables=0
   class Point vtable=0 itables=0
@@ -71,7 +71,7 @@ Module
         Type Point
         Local $new.1
         Type Int
-        IntLiteral 1
+        IntegerLiteral Int value=1 bits=0x00000001
       val p: Point
         Type Point
         Local $new.1
@@ -182,5 +182,8 @@ fn field_assignment_lowers_to_field_set() {
         panic!("a class property assignment must lower to FieldSet")
     };
     assert!(matches!(object.kind, mir::ExprKind::Local(_)));
-    assert!(matches!(value.kind, mir::ExprKind::IntLiteral(3)));
+    assert!(matches!(
+        value.kind,
+        mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(3))
+    ));
 }

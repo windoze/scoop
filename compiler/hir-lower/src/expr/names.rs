@@ -1,11 +1,9 @@
 use super::*;
 
 impl Lowerer {
-    /// A bare identifier in expression position. The `Option` variants
-    /// (`Some` / `None`) are visible without a prefix (spec 7.2 default
-    /// import) and take precedence over locals (M3 behavior); every
-    /// other enum's variants need the `E.V` prefix (M4 simplification,
-    /// milestone4 DESIGN.md 3.2).
+    /// A bare identifier in expression position. Ordinary lexical/member/
+    /// top-level values are resolved first, then typed core-prelude unit
+    /// variants, then the lowest-priority exact-enum contextual fallback.
     ///
     /// M6: an active smart-cast narrowing retypes the reference (an
     /// immutable local narrowed by an enclosing `if (x is T)`); a
@@ -22,20 +20,6 @@ impl Lowerer {
             return self
                 .contextual_backing_field(name.span)
                 .map(|(read, _)| read);
-        }
-        if let Some((enum_id, variant)) = self.option_variant(&name.text) {
-            if self.enums[enum_id].variants[variant as usize]
-                .fields
-                .is_empty()
-            {
-                return self.lower_unit_variant(name, enum_id, variant, expected);
-            }
-            let text = &name.text;
-            self.error(
-                name.span,
-                format!("variant `{text}` of `Option` takes arguments; use `{text}(...)` to construct it"),
-            );
-            return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
             if !self.capture_contexts.is_empty()
@@ -114,6 +98,78 @@ impl Lowerer {
             {
                 return self.lower_singleton_value(object, name.span);
             }
+            let prelude = self.core_prelude_variant_refs(&name.text).to_vec();
+            let mut prelude_successes = Vec::new();
+            let mut prelude_failure = None;
+            let mut payload_only_prelude = Vec::new();
+            for target in prelude {
+                if self.resolved_variant_style(target) != VariantStyle::Unit {
+                    payload_only_prelude.push(target);
+                    continue;
+                }
+                match self
+                    .probe_expr_layer(|state, _| state.lower_unit_variant(name, target, expected))
+                {
+                    Ok(layer) => prelude_successes.push((target, layer)),
+                    Err(failure) => {
+                        prelude_failure.get_or_insert(failure);
+                    }
+                }
+            }
+            match prelude_successes.len() {
+                1 => {
+                    let (_, layer) = prelude_successes.pop().expect("one prelude winner");
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                2.. => {
+                    let targets = prelude_successes
+                        .iter()
+                        .map(|(target, _)| *target)
+                        .collect::<Vec<_>>();
+                    self.ambiguous_prelude_variant(name, &targets);
+                    return None;
+                }
+                0 => {}
+            }
+            if let Some(target) = self.contextual_variant_ref(&name.text, expected) {
+                let enumeration = target.enumeration();
+                if self.resolved_variant_style(target) != VariantStyle::Unit {
+                    self.error(
+                        name.span,
+                        format!(
+                            "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
+                            name.text, self.enums[enumeration].name, name.text
+                        ),
+                    );
+                    return None;
+                }
+                return self.lower_unit_variant(name, target, expected);
+            }
+            if let Some(enumeration) = self.exact_expected_enum(expected) {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` has no variant `{}`",
+                        self.enums[enumeration].name, name.text
+                    ),
+                );
+                return None;
+            }
+            if let Some(failure) = prelude_failure {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+            if let Some(target) = payload_only_prelude.first() {
+                let enumeration = target.enumeration();
+                self.error(
+                    name.span,
+                    format!(
+                        "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
+                        name.text, self.enums[enumeration].name, name.text
+                    ),
+                );
+                return None;
+            }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
                 || self.extensions_by_name.contains_key(&name.text)
@@ -139,7 +195,23 @@ impl Lowerer {
                 );
                 return None;
             }
-            self.error(name.span, format!("unknown variable `{}`", name.text));
+            if self.lexical_nested_nominal_target(&name.text).is_none()
+                && self.source_type_alias_named(&name.text).is_some()
+            {
+                self.resolve_type_alias_reference(name, false)?;
+                self.error(
+                    name.span,
+                    format!("typealias `{}` is a type, not a value", name.text),
+                );
+                return None;
+            }
+            self.error(
+                name.span,
+                format!(
+                    "unknown variable `{}`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+                    name.text
+                ),
+            );
             return None;
         };
         let declared = self.locals[local].ty;
@@ -185,6 +257,32 @@ impl Lowerer {
             span: name.span,
             origin: self.expression_origin(name.span),
         })
+    }
+
+    pub(in crate::expr) fn ambiguous_prelude_variant(
+        &mut self,
+        name: &ast::Ident,
+        candidates: &[hir::EnumVariantRef],
+    ) {
+        let mut targets = candidates
+            .iter()
+            .map(|target| {
+                format!(
+                    "{}.{}",
+                    self.enums[target.enumeration()].name,
+                    self.enums[target.enumeration()].variants[target.local_index() as usize].name
+                )
+            })
+            .collect::<Vec<_>>();
+        targets.sort();
+        self.error(
+            name.span,
+            format!(
+                "ambiguous core-prelude variant `{}`: {}",
+                name.text,
+                targets.join(", ")
+            ),
+        );
     }
 
     pub(crate) fn lower_singleton_value(

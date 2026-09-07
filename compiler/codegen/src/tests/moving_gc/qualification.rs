@@ -10,10 +10,10 @@ fn stackmap_qualification_module() -> Module {
         return_value: Option<Value>,
     ) -> Function {
         let mut call_targets = CallTargets::default();
-        let signature = call_targets.void_signatures.alloc(VoidCallSignature {
-            params: Vec::new(),
-            calling_convention: scoop_lir::CallingConvention::Cdecl,
-        });
+        let signature = call_targets.void_signatures.alloc(VoidCallSignature::new(
+            Vec::new(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
         let target = call_targets
             .managed_targets
             .void
@@ -40,8 +40,7 @@ fn stackmap_qualification_module() -> Module {
         Function {
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
-            params,
-            return_ty,
+            signature: plain_scoop_signature(params, return_ty),
             call_targets,
             locals: Arena::default(),
             temps: Arena::default(),
@@ -54,12 +53,13 @@ fn stackmap_qualification_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![
             poll_function(

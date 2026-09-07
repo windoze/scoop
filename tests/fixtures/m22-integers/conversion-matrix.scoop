@@ -1,0 +1,83 @@
+// EXPECT-COMPILE
+
+fun main() {
+    val i8: Int8 = -1
+    println(i8.toInt8())
+    println(i8.toInt16())
+    println(i8.toInt32())
+    println(i8.toInt64())
+    println(i8.toUInt8())
+    println(i8.toUInt16())
+    println(i8.toUInt32())
+    println(i8.toUInt64())
+
+    val i16: Int16 = -257
+    println(i16.toInt8())
+    println(i16.toInt16())
+    println(i16.toInt32())
+    println(i16.toInt64())
+    println(i16.toUInt8())
+    println(i16.toUInt16())
+    println(i16.toUInt32())
+    println(i16.toUInt64())
+
+    val i32: Int = -65537
+    println(i32.toInt8())
+    println(i32.toInt16())
+    println(i32.toInt32())
+    println(i32.toInt64())
+    println(i32.toUInt8())
+    println(i32.toUInt16())
+    println(i32.toUInt32())
+    println(i32.toUInt64())
+
+    val i64: Long = -4294967297L
+    println(i64.toInt8())
+    println(i64.toInt16())
+    println(i64.toInt32())
+    println(i64.toInt64())
+    println(i64.toUInt8())
+    println(i64.toUInt16())
+    println(i64.toUInt32())
+    println(i64.toUInt64())
+
+    val u8: UInt8 = 255u
+    println(u8.toInt8())
+    println(u8.toInt16())
+    println(u8.toInt32())
+    println(u8.toInt64())
+    println(u8.toUInt8())
+    println(u8.toUInt16())
+    println(u8.toUInt32())
+    println(u8.toUInt64())
+
+    val u16: UInt16 = 65535u
+    println(u16.toInt8())
+    println(u16.toInt16())
+    println(u16.toInt32())
+    println(u16.toInt64())
+    println(u16.toUInt8())
+    println(u16.toUInt16())
+    println(u16.toUInt32())
+    println(u16.toUInt64())
+
+    val u32: UInt = 4294967295u
+    println(u32.toInt8())
+    println(u32.toInt16())
+    println(u32.toInt32())
+    println(u32.toInt64())
+    println(u32.toUInt8())
+    println(u32.toUInt16())
+    println(u32.toUInt32())
+    println(u32.toUInt64())
+
+    val u64: ULong = 18446744073709551615uL
+    println(u64.toInt8())
+    println(u64.toInt16())
+    println(u64.toInt32())
+    println(u64.toInt64())
+    println(u64.toUInt8())
+    println(u64.toUInt16())
+    println(u64.toUInt32())
+    println(u64.toUInt64())
+}

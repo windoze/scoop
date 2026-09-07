@@ -35,13 +35,14 @@ fn struct_methods_and_bare_field_access() {
         .unwrap();
     match &returned(body_of(&module, "S.get")).kind {
         hir::ExprKind::FieldAccess { receiver, field } => {
-            assert_eq!(
-                *field,
-                hir::FieldRef::StructField {
-                    application: module.structs[struct_id].self_application,
-                    index: 0
-                }
-            );
+            let expected = hir::AppliedStructFieldRef::checked(
+                &module.structs,
+                &module.struct_applications,
+                module.structs[struct_id].self_application,
+                0,
+            )
+            .expect("S.v is a checked applied struct field");
+            assert_eq!(*field, hir::FieldRef::StructField(expected));
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
         }
         other => panic!("expected `this.v`, found {other:?}"),

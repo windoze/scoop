@@ -208,8 +208,15 @@ impl Lowerer {
         let constructor = &module.struct_constructors[constructor_id];
         let decl = &module.structs[constructor.structure];
         let name = format!("ctor.{}.$c{}", decl.name, constructor.source_discriminator);
+        let gc_effect = match &constructor.kind {
+            // Primary struct construction only assembles an already-evaluated
+            // value. Defaults and source arguments are evaluated by the
+            // caller, so the generated constructor has no managed entry.
+            hir::StructConstructorKind::Primary => mir::GcEffect::NoGc,
+            hir::StructConstructorKind::Secondary { .. } => mir::GcEffect::Managed,
+        };
         let id = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
+            gc_effect,
             symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
@@ -247,6 +254,8 @@ impl Lowerer {
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
             foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_families: &mut self.foreign_callback_families,
+            foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
             foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
@@ -260,12 +269,13 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
@@ -282,6 +292,7 @@ impl Lowerer {
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
+            contains_suspend_call: false,
         };
         let receiver_ty = mir::Type::Class(mir_class);
         let receiver = lowerer.locals.alloc(mir::Local {
@@ -313,9 +324,15 @@ impl Lowerer {
         }
         lowerer.allocate_fragment_locals(constructor.body());
         let statements = lowerer.lower_statements(&constructor.body().statements);
+        assert!(
+            lowerer.active_loops.is_empty(),
+            "class-constructor loop remapping is balanced"
+        );
+        let coroutine_eh = lowerer.coroutine_eh_mode();
         let body = smir::Body {
             locals: lowerer.locals,
             statements,
+            coroutine_eh,
         };
         (params, mir::Type::Unit, body)
     }
@@ -342,6 +359,8 @@ impl Lowerer {
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
             foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_families: &mut self.foreign_callback_families,
+            foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
             foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
@@ -355,12 +374,13 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
@@ -377,6 +397,7 @@ impl Lowerer {
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
+            contains_suspend_call: false,
         };
         let return_ty = mir::Type::Struct(lowerer.struct_map[&structure]);
         let mut params = Vec::new();
@@ -459,12 +480,18 @@ impl Lowerer {
                 statements
             }
         };
+        assert!(
+            lowerer.active_loops.is_empty(),
+            "struct-constructor loop remapping is balanced"
+        );
+        let coroutine_eh = lowerer.coroutine_eh_mode();
         (
             params,
             return_ty,
             smir::Body {
                 locals: lowerer.locals,
                 statements,
+                coroutine_eh,
             },
         )
     }

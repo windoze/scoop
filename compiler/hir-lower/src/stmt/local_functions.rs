@@ -138,6 +138,7 @@ impl Lowerer {
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
         let outer_smart_casts = std::mem::take(&mut self.smart_casts);
@@ -183,7 +184,7 @@ impl Lowerer {
                     let statements = self.lower_block(block);
                     if !returns_unit
                         && self.diagnostics.len() == diagnostics_before
-                        && statements_can_fall_through(&statements)
+                        && statements_control_outcomes(&statements).can_fall_through()
                     {
                         self.error(
                             block.span,
@@ -257,6 +258,8 @@ impl Lowerer {
         self.current_source_context = outer_source_context;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
         self.type_params_in_scope = outer_type_params;
 
         let (statements, captures, params, body_locals) = lowered?;

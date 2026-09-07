@@ -42,8 +42,8 @@ fn enum_declaration_all_variant_forms() {
     WithDefault(d: Int)
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property9: Option<String>
+    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -52,7 +52,11 @@ fn enum_declaration_all_variant_forms() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -60,20 +64,18 @@ fn enum_declaration_all_variant_forms() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -105,21 +107,21 @@ fn enum_declaration_all_variant_forms() {
     val local0
       VariantConstruct Color.Red : Color
     val local1
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local2
       Local $argument.0 : Int
     val local3
       VariantConstruct Shape.Circle : Shape
         Local $parameter._1 : Int
     val local4
-      IntLiteral 0 : Int
+      IntegerLiteral 0 : Int
     val local5
       VariantConstruct Shape.WithDefault : Shape
         Local $parameter.d : Int
     val local6
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local7
-      IntLiteral 3 : Int
+      IntegerLiteral 3 : Int
     val local8
       Local $argument.0 : Int
     val local9
@@ -290,6 +292,43 @@ fn non_literal_variant_default_is_typed_at_the_definition() {
     assert!(
         dump.contains("VariantConstruct Shape.WithDefault : Shape"),
         "{dump}"
+    );
+}
+
+#[test]
+fn variant_parameter_interface_keeps_its_checked_owner_identity() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_constructor(
+                "WithDefault",
+                vec![("d", ty_named("Int"), Some(int_lit(9)))],
+            )],
+        ),
+        fun("main", vec![]),
+    ]);
+    let module = lower_user(file).expect("the variant default must lower");
+    let shape = module
+        .enums
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == "Shape").then_some(id))
+        .expect("Shape enum");
+    let variant = hir::EnumVariantRef::checked(&module.enums, shape, 0)
+        .expect("Shape.WithDefault checked identity");
+    let interface = module
+        .source_parameter_interfaces
+        .iter()
+        .find(|interface| interface.owner == hir::ExportParameterOwner::VariantConstructor(variant))
+        .expect("variant constructor parameter protocol");
+    assert_eq!(interface.parameters.len(), 1);
+    assert!(matches!(
+        interface.parameters[0].calling,
+        hir::ExportParameterCalling::Default { .. }
+    ));
+    assert_eq!(
+        module.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
+        "WithDefault"
     );
 }
 

@@ -5,19 +5,33 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
-        lir::Instruction::BinOp { lhs, rhs, .. } => vec![*lhs, *rhs],
+        lir::Instruction::BinOp { lhs, rhs, .. }
+        | lir::Instruction::IntegerBinary { lhs, rhs, .. }
+        | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
+        | lir::Instruction::IntegerCompare { lhs, rhs, .. }
+        | lir::Instruction::IntegerCompareTo { lhs, rhs, .. } => vec![*lhs, *rhs],
+        lir::Instruction::IntegerShift {
+            value,
+            normalized_count,
+            ..
+        } => vec![*value, *normalized_count],
         lir::Instruction::UnaryOp { operand, .. }
+        | lir::Instruction::IntegerUnary { operand, .. }
+        | lir::Instruction::IntegerConvert { operand, .. }
         | lir::Instruction::ExtractValue {
             aggregate: operand, ..
         }
         | lir::Instruction::HeapLoad {
             object: operand, ..
         }
+        | lir::Instruction::MachineHeapLoad {
+            object: operand, ..
+        }
         | lir::Instruction::AtomicLoad {
             object: operand, ..
         }
-        | lir::Instruction::IntToPtr { value: operand, .. }
-        | lir::Instruction::PtrToInt { value: operand, .. }
+        | lir::Instruction::ULongToPtr { value: operand, .. }
+        | lir::Instruction::PtrToULong { value: operand, .. }
         | lir::Instruction::RawLoad {
             pointer: operand, ..
         }
@@ -27,6 +41,8 @@ pub(super) fn instruction_uses(
         | lir::Instruction::ArrayClone { operand, .. }
         | lir::Instruction::EnumTag { operand, .. }
         | lir::Instruction::EnumField { operand, .. }
+        | lir::Instruction::VariantTest { operand, .. }
+        | lir::Instruction::VariantPayloadProject { operand, .. }
         | lir::Instruction::ForeignCallbackRegister {
             closure: operand, ..
         } => vec![*operand],
@@ -50,6 +66,7 @@ pub(super) fn instruction_uses(
             call_uses(site.args(), site.destination(&function.call_targets))
         }
         lir::Instruction::HeapStore { object, value, .. }
+        | lir::Instruction::MachineHeapStore { object, value, .. }
         | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
         lir::Instruction::AtomicCompareExchange {
             object,
@@ -58,7 +75,11 @@ pub(super) fn instruction_uses(
             ..
         } => vec![*object, *expected, *replacement],
         lir::Instruction::RawStore { pointer, value, .. } => vec![*pointer, *value],
-        lir::Instruction::PtrOffset { pointer, bytes, .. } => vec![*pointer, *bytes],
+        lir::Instruction::PtrOffset {
+            pointer,
+            element_offset,
+            ..
+        } => vec![*pointer, *element_offset],
         lir::Instruction::LocalAddress { local, .. } => vec![lir::Value::Local(*local)],
         lir::Instruction::ArrayGet { array, index, .. } => vec![*array, *index],
         lir::Instruction::ArraySet {
@@ -80,8 +101,14 @@ pub(super) fn instruction_uses(
     }
 }
 
-pub(super) fn call_uses(args: &[lir::Value], destination: lir::CallDestination) -> Vec<lir::Value> {
-    let mut values = args.to_vec();
+pub(super) fn call_uses(
+    args: &[lir::AbiCallArgument],
+    destination: lir::CallDestination,
+) -> Vec<lir::Value> {
+    let mut values = args
+        .iter()
+        .map(|argument| argument.logical_value())
+        .collect::<Vec<_>>();
     if let lir::CallDestination::Dispatch { table, .. } = destination {
         values.push(table);
     }
@@ -92,9 +119,17 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
     let out = match instruction {
         lir::Instruction::BinOp { out, .. }
         | lir::Instruction::UnaryOp { out, .. }
+        | lir::Instruction::IntegerUnary { out, .. }
+        | lir::Instruction::IntegerBinary { out, .. }
+        | lir::Instruction::SafeIntegerDivRem { out, .. }
+        | lir::Instruction::IntegerCompare { out, .. }
+        | lir::Instruction::IntegerCompareTo { out, .. }
+        | lir::Instruction::IntegerShift { out, .. }
+        | lir::Instruction::IntegerConvert { out, .. }
         | lir::Instruction::MakeAggregate { out, .. }
         | lir::Instruction::ExtractValue { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
+        | lir::Instruction::MachineHeapLoad { out, .. }
         | lir::Instruction::AtomicLoad { out, .. }
         | lir::Instruction::AtomicCompareExchange { out, .. }
         | lir::Instruction::GlobalLoad { out, .. }
@@ -102,8 +137,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::NativeGlobalLoad { out, .. }
         | lir::Instruction::NativeGlobalAddress { out, .. }
         | lir::Instruction::FunctionAddress { out, .. }
-        | lir::Instruction::IntToPtr { out, .. }
-        | lir::Instruction::PtrToInt { out, .. }
+        | lir::Instruction::ULongToPtr { out, .. }
+        | lir::Instruction::PtrToULong { out, .. }
         | lir::Instruction::RawLoad { out, .. }
         | lir::Instruction::PtrOffset { out, .. }
         | lir::Instruction::LocalAddress { out, .. }
@@ -116,6 +151,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::EnumWrap { out, .. }
         | lir::Instruction::EnumTag { out, .. }
         | lir::Instruction::EnumField { out, .. }
+        | lir::Instruction::VariantTest { out, .. }
+        | lir::Instruction::VariantPayloadProject { out, .. }
         | lir::Instruction::ForeignCallbackRegister { out, .. } => Some(*out),
         lir::Instruction::Call { site } => return call_defs(site.result()),
         lir::Instruction::Invoke { site } => return call_defs(site.result()),
@@ -128,6 +165,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         lir::Instruction::GlobalStore { .. }
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }
+        | lir::Instruction::MachineHeapStore { .. }
         | lir::Instruction::AtomicStore { .. }
         | lir::Instruction::RawStore { .. }
         | lir::Instruction::ArraySet { .. }
@@ -141,7 +179,9 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
 pub(super) fn call_defs(result: lir::TypedCallResult) -> Vec<LiveValue> {
     match result {
         lir::TypedCallResult::Void => Vec::new(),
-        lir::TypedCallResult::Direct(out) => vec![LiveValue::Temp(out)],
+        lir::TypedCallResult::ElidedZst(out) | lir::TypedCallResult::Direct(out) => {
+            vec![LiveValue::Temp(out)]
+        }
         lir::TypedCallResult::IndirectResult(storage) => vec![LiveValue::Local(storage)],
     }
 }
@@ -178,4 +218,87 @@ pub(super) fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
         }
     }
     successors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variant_primitives_track_their_operand_use_and_temp_definition() {
+        let mut enums = lir::EnumDefs::default();
+        let enum_id = enums.alloc(lir::EnumDef {
+            name: "Tracked".to_string(),
+            repr: lir::EnumRepr::Tagged {
+                variants: vec![lir::EnumVariantRepr {
+                    fields: vec![lir::EnumFieldRepr {
+                        ty: lir::MANAGED_PTR,
+                        offset: 8,
+                    }],
+                    slot_offset: 8,
+                    slot_size: 8,
+                    slot_align: 8,
+                    gc_free: false,
+                }],
+                size: 16,
+                align: 8,
+            },
+            scan: lir::RefScan::References(vec![8]),
+        });
+        let variant = enums.variant_ref(enum_id, 0).expect("variant exists");
+        let field = enums
+            .variant_field_ref(variant, 0)
+            .expect("payload field exists");
+
+        let mut temps = Arena::default();
+        let tested = temps.alloc(lir::Temp {
+            ty: lir::LirType::I1,
+        });
+        let projected = temps.alloc(lir::Temp {
+            ty: lir::MANAGED_PTR,
+        });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(lir::BasicBlock {
+            name: "entry".to_string(),
+            instructions: Vec::new(),
+            terminator: lir::Terminator::Unreachable,
+        });
+        let function = lir::Function {
+            gc_effect: lir::GcEffect::Managed,
+            symbol: "scoop.dataflow.variant".to_string(),
+            signature: lir::ScoopAbiSignature::new(
+                vec![lir::AbiArgument::Indirect(
+                    lir::AbiValue::new(
+                        lir::LirType::Enum(enum_id),
+                        lir::AbiNonZeroLayout::new(16, 8).expect("test enum has a valid layout"),
+                        lir::RefScan::References(vec![8]),
+                    )
+                    .expect("test enum is a non-void ABI value"),
+                )],
+                lir::AbiReturn::UnitVoid,
+                lir::CallingConvention::Cdecl,
+            ),
+            call_targets: lir::CallTargets::default(),
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        };
+        let operand = lir::Value::Param(0);
+        let test = lir::Instruction::VariantTest {
+            out: tested,
+            operand,
+            variant,
+        };
+        let project = lir::Instruction::VariantPayloadProject {
+            out: projected,
+            operand,
+            field,
+        };
+
+        assert_eq!(instruction_uses(&test, &function), vec![operand]);
+        assert_eq!(instruction_defs(&test), vec![LiveValue::Temp(tested)]);
+        assert_eq!(instruction_uses(&project, &function), vec![operand]);
+        assert_eq!(instruction_defs(&project), vec![LiveValue::Temp(projected)]);
+    }
 }

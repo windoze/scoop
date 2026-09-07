@@ -1,9 +1,9 @@
 interface Base {
-    fun collect(vararg values: Int): Int
+    fun collect(vararg values: Int): Long
 }
 
 class Derived : Base {
-    final override fun collect(values: Array<Int>): Int = values.size
+    final override fun collect(values: Array<Int>): Long = values.size
 }
 
 fun main() {}

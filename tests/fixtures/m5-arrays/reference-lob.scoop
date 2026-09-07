@@ -20,11 +20,11 @@ struct Tag(val text: String) : Named {
     override fun name(): String = text
 }
 
-fun baseCount(values: Array<Base>): Int = values.size
+fun baseCount(values: Array<Base>): Long = values.size
 
 fun secondName(values: Array<Named>): String = values[1].name()
 
-fun anyCount(values: Array<Any>): Int = values.size
+fun anyCount(values: Array<Any>): Long = values.size
 
 fun main() {
     val bases = [Left(), Right()]

@@ -97,8 +97,10 @@ impl BodyLowerer<'_> {
             target_signature.parameter_types.len(),
             "function variance preserves arity"
         );
-        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source));
-        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source))
+            .expect("closure adapter sources are source-level MIR types");
+        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target))
+            .expect("closure adapter targets are source-level MIR types");
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
@@ -215,8 +217,10 @@ impl BodyLowerer<'_> {
             smir::Body {
                 locals,
                 statements: std::mem::take(&mut statements),
+                coroutine_eh: None,
             },
             target_signature.return_type,
+            &self.enums.defs,
         );
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
@@ -256,7 +260,8 @@ impl BodyLowerer<'_> {
             self.function_bridge_targets.push(target);
         }
         let signature = self.shell.function_types[target].clone();
-        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target))
+            .expect("dynamic adapter targets are source-level MIR types");
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$dynamic_adapter.{encoded}"),
@@ -348,8 +353,13 @@ impl BodyLowerer<'_> {
         };
         self.functions[function].params = params;
         self.functions[function].body = cfg::lower(
-            smir::Body { locals, statements },
+            smir::Body {
+                locals,
+                statements,
+                coroutine_eh: None,
+            },
             signature.return_type.clone(),
+            &self.enums.defs,
         );
         if signature.is_suspend {
             self.suspend_sources.push(SuspendSource {

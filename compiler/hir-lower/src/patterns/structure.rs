@@ -70,11 +70,51 @@ impl Lowerer {
                     };
                     Some(PatternTarget::Variant(application, variant))
                 }
-                Type::Struct(application)
-                    if self.structs[self.struct_applications[application].template].name
-                        == name.text =>
-                {
-                    Some(PatternTarget::Struct(application))
+                Type::Struct(application) => {
+                    let struct_id = self.struct_applications[application].template;
+                    if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                        if target == crate::NominalTarget::Struct(struct_id) {
+                            return Some(PatternTarget::Struct(application));
+                        }
+                        let found = self.type_name(matched_ty);
+                        self.error(
+                            name.span,
+                            format!(
+                                "pattern `{}` does not match a subject of type {found}",
+                                name.text
+                            ),
+                        );
+                        return None;
+                    }
+                    if self.structs[struct_id].name == name.text {
+                        return Some(PatternTarget::Struct(application));
+                    }
+                    if self.source_type_alias_named(&name.text).is_some() {
+                        let target = self.resolve_type_alias_reference(name, false)?;
+                        if self.types_equal(target, matched_ty) {
+                            let Type::Struct(application) = self.types[target] else {
+                                unreachable!("a type equal to a struct has struct representation")
+                            };
+                            return Some(PatternTarget::Struct(application));
+                        }
+                    }
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        name.span,
+                        format!(
+                            "pattern `{}` does not match a subject of type {found}",
+                            name.text
+                        ),
+                    );
+                    None
+                }
+                Type::Ptr(_) | Type::FunPtr(_) => {
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        span,
+                        format!("intrinsic pointer type `{found}` cannot be destructured"),
+                    );
+                    None
                 }
                 _ => {
                     let found = self.type_name(matched_ty);
@@ -89,8 +129,42 @@ impl Lowerer {
                 }
             },
             [enum_name, variant_name] => {
-                let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
-                    self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
+                let lexical_target = self.lexical_nested_nominal_target(&enum_name.text);
+                let (enum_id, required_type) = if let Some(target) = lexical_target {
+                    let crate::NominalTarget::Enum(enum_id) = target else {
+                        self.error(
+                            enum_name.span,
+                            format!("type `{}` does not name an enum", enum_name.text),
+                        );
+                        return None;
+                    };
+                    (enum_id, None)
+                } else if self.source_type_alias_named(&enum_name.text).is_some() {
+                    let target = self.resolve_type_alias_reference(enum_name, false)?;
+                    let Type::Enum(application) = self.types[target] else {
+                        self.error(
+                            enum_name.span,
+                            format!("typealias `{}` does not name an enum", enum_name.text),
+                        );
+                        return None;
+                    };
+                    (self.enum_applications[application].template, Some(target))
+                } else {
+                    let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
+                        self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
+                        return None;
+                    };
+                    (enum_id, None)
+                };
+                if required_type.is_some_and(|required| !self.types_equal(required, matched_ty)) {
+                    let found = self.type_name(matched_ty);
+                    self.error(
+                        span,
+                        format!(
+                            "pattern `{}.{}` does not match a subject of type {found}",
+                            enum_name.text, variant_name.text
+                        ),
+                    );
                     return None;
                 };
                 let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
@@ -142,7 +216,7 @@ impl Lowerer {
         let indices = self.positional_pattern_indices(elements, rest, total, owner, span)?;
         let mut fields = Vec::with_capacity(elements.len());
         for (element, field_index) in elements.iter().zip(indices) {
-            let sub = self.lower_pattern(element, field_types[field_index], ctx)?;
+            let sub = self.lower_pattern_inner(element, field_types[field_index], ctx)?;
             fields.push((field_index as u32, sub));
         }
         Some(fields)
@@ -201,38 +275,38 @@ impl Lowerer {
             return None;
         }
         let mut seen = HashSet::new();
-        let mut pairs = Vec::with_capacity(fields.len());
+        let mut normalized: Vec<(u32, hir::Pattern)> = (0..field_types.len())
+            .map(|index| (index as u32, hir::Pattern::Wildcard))
+            .collect();
         for field in fields {
-            if field.name.text == "_" {
+            if field.field.text == "_" {
                 self.error(
-                    field.name.span,
+                    field.field.span,
                     "`_` is not allowed in a field pattern".to_string(),
                 );
                 return None;
             }
-            if !seen.insert(field.name.text.clone()) {
+            if !seen.insert(field.field.text.clone()) {
                 self.error(
-                    field.name.span,
-                    format!("duplicate field `{}` in pattern", field.name.text),
+                    field.field.span,
+                    format!("duplicate field `{}` in pattern", field.field.text),
                 );
                 return None;
             }
             let Some(index) = field_types
                 .iter()
-                .position(|(name, _)| name == &field.name.text)
+                .position(|(name, _)| name == &field.field.text)
             else {
                 self.error(
-                    field.name.span,
-                    format!("{owner} has no field `{}`", field.name.text),
+                    field.field.span,
+                    format!("{owner} has no field `{}`", field.field.text),
                 );
                 return None;
             };
-            let binding = field.rename.as_ref().unwrap_or(&field.name);
-            let local = self.bind_local(binding, field_types[index].1, ctx.mutable)?;
-            pairs.push((index as u32, hir::Pattern::Binding { local }));
+            normalized[index].1 =
+                self.lower_pattern_inner(&field.subpattern, field_types[index].1, ctx)?;
         }
-        pairs.sort_by_key(|(index, _)| *index);
-        Some(pairs)
+        Some(normalized)
     }
 
     pub(super) fn variant_field_types(

@@ -18,8 +18,7 @@ pub(super) fn exceptions_module() -> Module {
     let thrower = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.thrower".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -32,14 +31,13 @@ pub(super) fn exceptions_module() -> Module {
         name: "entry".to_string(),
         instructions: Vec::new(),
         terminator: Terminator::Return {
-            value: Some(Value::IntConst(1)),
+            value: Some(signed64(1)),
         },
     });
     let may_throw = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.may_throw".to_string(),
-        params: Vec::new(),
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(Vec::new(), LirType::I64),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: Arena::default(),
@@ -134,9 +132,10 @@ pub(super) fn exceptions_module() -> Module {
     };
     blocks[done] = BasicBlock {
         name: "done".to_string(),
-        instructions: vec![Instruction::BinOp {
+        instructions: vec![Instruction::IntegerBinary {
             out: t2,
-            op: BinOp::Add,
+            kind: IntegerKind::SIGNED_64,
+            operation: IntegerBinaryOperation::Add,
             lhs: Value::Temp(t0),
             rhs: Value::Temp(t1),
         }],
@@ -165,7 +164,7 @@ pub(super) fn exceptions_module() -> Module {
         name: "handler_done".to_string(),
         instructions: vec![Instruction::EndCatch],
         terminator: Terminator::Return {
-            value: Some(Value::IntConst(0)),
+            value: Some(signed64(0)),
         },
     };
     blocks[cleanup] = BasicBlock {
@@ -184,8 +183,7 @@ pub(super) fn exceptions_module() -> Module {
     let eh_test = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.eh_test".to_string(),
-        params: vec![METADATA_PTR],
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(vec![METADATA_PTR], LirType::I64),
         call_targets,
         locals: Arena::default(),
         temps,
@@ -196,12 +194,13 @@ pub(super) fn exceptions_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![thrower, may_throw, eh_test],
         entry_symbol: "scoop.eh_test".to_string(),

@@ -2,12 +2,12 @@ use inkwell::OptimizationLevel;
 use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
-    BasicBlock, CallSite, CallTargets, DirectCallSignature, DispatchKind, DispatchSlot, EnumDef,
-    EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
-    IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR,
-    METADATA_PTR, NativeBorrowedResultRoot, PointerKind, RAW_PTR, ResultStorage, Temp,
-    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState, DirectCallSignature,
+    DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect,
+    Global, GlobalInit, IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta,
+    Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot, PointerKind,
+    RAW_PTR, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall,
+    VoidCallSignature, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;
@@ -31,14 +31,17 @@ mod runtime_eh_personality_tests;
 mod arrays;
 mod c_layout;
 mod closures;
+mod constants;
 mod enums;
 mod exceptions;
 mod initialization;
 mod moving_gc;
 mod objects;
 mod platform;
+mod scoop_abi;
 mod smoke;
 mod statepoints;
+mod validation_boundaries;
 
 use enums::enum_module;
 use exceptions::exceptions_module;

@@ -20,23 +20,21 @@ void run_core_runtime_tests(void) {
         abort();
     }
 
-    /* int / boolean output (print variants run into the println line) */
-    scoop_rt_print_int(42);
-    scoop_rt_println_int(-7);
+    /* Long / Boolean output (print variants run into the println line). */
+    scoop_rt_print_long(42);
+    scoop_rt_println_long(-7);
     scoop_rt_print_boolean(true);
     scoop_rt_println_boolean(false);
 
     /* Core representation helpers used by ordinary Scoop methods. */
-    scoop_rt_println(scoop_rt_int_to_string(42));
-    scoop_rt_println(scoop_rt_int_to_string(-7));
-    scoop_rt_println(scoop_rt_uint_to_string(UINT64_MAX));
+    scoop_rt_println(scoop_rt_long_to_string(42));
+    scoop_rt_println(scoop_rt_long_to_string(-7));
+    scoop_rt_println(scoop_rt_ulong_to_string(UINT64_MAX));
     scoop_rt_println(scoop_rt_bool_to_string(true));
     scoop_rt_println(scoop_rt_bool_to_string(false));
-    scoop_rt_println_boolean(scoop_rt_int_equals(-7, -7));
-    scoop_rt_println_boolean(!scoop_rt_uint_equals(1, 2));
     scoop_rt_println_boolean(scoop_rt_bool_equals(true, true));
-    scoop_rt_println_boolean(scoop_rt_int_hash(42) == scoop_rt_int_hash(42));
-    scoop_rt_println_boolean(scoop_rt_uint_hash(42) == scoop_rt_uint_hash(42));
+    scoop_rt_println_boolean(scoop_rt_long_hash(42) == scoop_rt_long_hash(42));
+    scoop_rt_println_boolean(scoop_rt_ulong_hash(42) == scoop_rt_ulong_hash(42));
     scoop_rt_println_boolean(scoop_rt_bool_hash(true) == scoop_rt_bool_hash(true));
     scoop_rt_println_boolean(scoop_rt_string_hash(a) == scoop_rt_string_hash(a));
 
@@ -45,9 +43,9 @@ void run_core_runtime_tests(void) {
      * receives the complete target nominal descriptor. The source is a stack object
      * laid out like a codegen array (16-byte header). */
     const ScoopTypeDescriptor array_td = {
-        100, 8, 8, NULL, NULL, NULL, NULL, 0, "Array<Int>"};
+        100, 8, 8, NULL, NULL, NULL, NULL, 0, "Array<Long>"};
     const ScoopTypeDescriptor mutable_array_td = {
-        101, 8, 8, NULL, NULL, NULL, NULL, 0, "MutableArray<Int>"};
+        101, 8, 8, NULL, NULL, NULL, NULL, 0, "MutableArray<Long>"};
     struct {
         const ScoopTypeDescriptor *td;
         uint64_t gc_word;
@@ -80,7 +78,7 @@ void run_core_runtime_tests(void) {
     const void *const *slots = scoop_rt_itable_lookup(&point_td, &describable_td);
     scoop_rt_println_boolean(slots == point_describable_slots);
     typedef int64_t (*DescribeFn)(const void *);
-    scoop_rt_println_int(((DescribeFn)slots[0])(boxed));
+    scoop_rt_println_long(((DescribeFn)slots[0])(boxed));
 
     /* scoop_rt_trap (M3) aborts the process, so it is not exercised
      * here; its trap path is covered end-to-end by EXPECT-TRAP compiler

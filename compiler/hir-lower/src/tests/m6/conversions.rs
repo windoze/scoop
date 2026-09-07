@@ -171,7 +171,7 @@ fn is_cast_and_ref_eq() {
         hir::ExprKind::Cast { optional: true, .. } => match &module.types[down_opt.ty] {
             hir::Type::Enum(application) => {
                 let application = &module.enum_applications[*application];
-                assert_eq!(application.template, module.option_enum);
+                assert_eq!(application.template, module.option_core.enumeration());
                 assert_eq!(application.arguments.len(), 1);
                 assert!(matches!(
                     module.types[application.arguments[0]],
@@ -226,7 +226,10 @@ fn smart_cast_narrows_value_types_with_unbox() {
             let value = return_value(then_body);
             match &value.kind {
                 hir::ExprKind::FieldAccess { receiver, field } => {
-                    assert!(matches!(field, hir::FieldRef::StructField { index: 0, .. }));
+                    assert!(matches!(
+                        field,
+                        hir::FieldRef::StructField(field) if field.local_index() == 0
+                    ));
                     // The narrowed access unboxes the Any local.
                     assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
                 }

@@ -67,7 +67,7 @@ fn annotation_integer_argument_is_preserved() {
     let file = ok("@Intrinsic(42) fun f() {}");
     assert!(matches!(
         only_function(&file).annotations[0].args[0].value,
-        scoop_ast::AnnotationLiteral::Int(42)
+        scoop_ast::AnnotationLiteral::Int(literal) if literal.magnitude == 42
     ));
 }
 

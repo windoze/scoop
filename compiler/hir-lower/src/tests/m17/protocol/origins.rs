@@ -14,10 +14,10 @@ fn concrete_default_origins_keep_definition_and_outermost_evaluation_sites() {
             vec![ret(Some(var("value")))],
         ),
         0,
-        Expr::IntLiteral {
-            value: 41,
+        Expr::IntLiteral(ast::IntegerLiteralSyntax {
             span: inner_definition,
-        },
+            ..integer_syntax(41)
+        }),
     );
     let outer = with_default(
         fun_sig(
@@ -63,22 +63,25 @@ fn concrete_default_origins_keep_definition_and_outermost_evaluation_sites() {
     );
 
     let main = concrete_function_body(&output.local, "main");
-    let origin = main
-        .statements
-        .iter()
-        .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::ValDecl {
-                init:
-                    hir::concrete::Expr {
-                        kind: hir::concrete::ExprKind::IntLiteral(41),
-                        origin,
-                        ..
-                    },
-                ..
-            } => Some(*origin),
-            _ => None,
-        })
-        .expect("instantiated inner default literal");
+    let origin =
+        main.statements
+            .iter()
+            .find_map(|statement| match &statement.kind {
+                hir::concrete::StatementKind::ValDecl {
+                    init:
+                        hir::concrete::Expr {
+                            kind:
+                                hir::concrete::ExprKind::IntegerLiteral(
+                                    hir::HirIntegerConstant::Signed32(41),
+                                ),
+                            origin,
+                            ..
+                        },
+                    ..
+                } => Some(*origin),
+                _ => None,
+            })
+            .expect("instantiated inner default literal");
     assert_eq!(origin.definition.span, inner_definition);
     assert_eq!(origin.evaluation.span, outer_call_site);
 }
@@ -97,10 +100,10 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
             vec![ret(Some(var("value")))],
         ),
         0,
-        Expr::IntLiteral {
-            value: 42,
+        Expr::IntLiteral(ast::IntegerLiteralSyntax {
             span: inner_definition,
-        },
+            ..integer_syntax(42)
+        }),
     );
     let callback_type = ty_function(false, vec![], ty_named("Int"));
     let factory = with_default(
@@ -142,22 +145,25 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
     let hir::concrete::FunctionKind::User(body) = &lambda.kind else {
         unreachable!()
     };
-    let origin = body
-        .statements
-        .iter()
-        .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::ValDecl {
-                init:
-                    hir::concrete::Expr {
-                        kind: hir::concrete::ExprKind::IntLiteral(42),
-                        origin,
-                        ..
-                    },
-                ..
-            } => Some(*origin),
-            _ => None,
-        })
-        .expect("inner default in lambda body");
+    let origin =
+        body.statements
+            .iter()
+            .find_map(|statement| match &statement.kind {
+                hir::concrete::StatementKind::ValDecl {
+                    init:
+                        hir::concrete::Expr {
+                            kind:
+                                hir::concrete::ExprKind::IntegerLiteral(
+                                    hir::HirIntegerConstant::Signed32(42),
+                                ),
+                            origin,
+                            ..
+                        },
+                    ..
+                } => Some(*origin),
+                _ => None,
+            })
+            .expect("inner default in lambda body");
     assert_eq!(origin.definition.span, inner_definition);
     assert_eq!(origin.evaluation.span, lambda_call_site);
     assert_ne!(origin.evaluation.span, factory_call_site);
@@ -253,8 +259,8 @@ fn location_fields(expr: &hir::concrete::Expr) -> Option<(&str, i64, i64, &str, 
     };
     let (
         hir::concrete::ExprKind::StringLiteral(file),
-        hir::concrete::ExprKind::IntLiteral(line),
-        hir::concrete::ExprKind::IntLiteral(column),
+        hir::concrete::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(line)),
+        hir::concrete::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(column)),
         hir::concrete::ExprKind::StringLiteral(function_name),
         hir::concrete::ExprKind::StringLiteral(type_name),
     ) = (
@@ -267,7 +273,7 @@ fn location_fields(expr: &hir::concrete::Expr) -> Option<(&str, i64, i64, &str, 
     else {
         return None;
     };
-    Some((file, *line, *column, function_name, type_name))
+    Some((file, *line as i64, *column as i64, function_name, type_name))
 }
 
 #[test]

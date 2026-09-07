@@ -20,11 +20,11 @@ fn array_literal() {
     assert_eq!(*span, Span::new(25, 34));
     assert_eq!(elements.len(), 3);
     for (element, (value, start)) in elements.iter().zip([(1, 26), (2, 29), (3, 32)]) {
-        let Expr::IntLiteral { value: v, span } = element else {
+        let Expr::IntLiteral(literal) = element else {
             panic!("expected an integer literal element");
         };
-        assert_eq!(*v, value);
-        assert_eq!(*span, Span::new(start, start + 1));
+        assert_eq!(literal.magnitude, value);
+        assert_eq!(literal.span, Span::new(start, start + 1));
     }
     assert_eq!(
         stmt_dump("val a = [1, 2, 3]"),
@@ -119,10 +119,8 @@ fn subscript_read() {
     assert_eq!(name.span, Span::new(25, 26));
     assert!(matches!(
         indices.first(),
-        Expr::IntLiteral {
-            value: 0,
-            span: Span { start: 27, end: 28 }
-        }
+        Expr::IntLiteral(literal)
+            if literal.magnitude == 0 && literal.span == Span::new(27, 28)
     ));
 }
 
@@ -135,7 +133,10 @@ fn subscript_chains_left() {
     else {
         panic!("expected an index expression");
     };
-    assert!(matches!(indices.first(), Expr::IntLiteral { value: 1, .. }));
+    assert!(matches!(
+        indices.first(),
+        Expr::IntLiteral(literal) if literal.magnitude == 1
+    ));
     let Expr::Index {
         receiver: inner_receiver,
         indices: inner_indices,
@@ -147,7 +148,7 @@ fn subscript_chains_left() {
     assert!(matches!(inner_receiver.as_ref(), Expr::Var(name) if name.text == "a"));
     assert!(matches!(
         inner_indices.first(),
-        Expr::IntLiteral { value: 0, .. }
+        Expr::IntLiteral(literal) if literal.magnitude == 0
     ));
     assert_eq!(
         stmt_dump("val x = a[0][1]"),
@@ -235,17 +236,13 @@ fn subscript_assignment() {
     assert!(matches!(receiver.as_ref(), Expr::Var(name) if name.text == "m"));
     assert!(matches!(
         indices.first(),
-        Expr::IntLiteral {
-            value: 0,
-            span: Span { start: 19, end: 20 }
-        }
+        Expr::IntLiteral(literal)
+            if literal.magnitude == 0 && literal.span == Span::new(19, 20)
     ));
     assert!(matches!(
         assign.value,
-        Expr::IntLiteral {
-            value: 40,
-            span: Span { start: 24, end: 26 }
-        }
+        Expr::IntLiteral(literal)
+            if literal.magnitude == 40 && literal.span == Span::new(24, 26)
     ));
     assert_eq!(
         stmt_dump("m[0] = 40"),

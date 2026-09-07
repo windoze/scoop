@@ -88,16 +88,29 @@ impl Lowerer {
                 )
             },
         );
+        let deferred_fun_ptr = matches!(
+            &representation,
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::FunPtr { function }
+            ) if matches!(self.types[*function], Type::Param(_))
+        );
         let canonical_type = match &representation {
             hir::StructApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::Int,
-            ) => self.int,
-            hir::StructApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::UInt,
-            ) => self.uint,
+                hir::IntrinsicTypeRepresentation::Integer(kind),
+            ) => self.integer_type(*kind),
             hir::StructApplicationRepresentation::Intrinsic(
                 hir::IntrinsicTypeRepresentation::Boolean,
             ) => self.boolean,
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Ptr { pointee },
+            ) => self.intern_type(Type::Ptr(*pointee)),
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::FunPtr { function },
+            ) => match self.types[*function] {
+                Type::Function(signature) => self.intern_type(Type::FunPtr(signature)),
+                Type::Param(_) => hir::TypeId::from_raw((self.types.len() as u32).into()),
+                _ => unreachable!("a concrete FunPtr argument is a function type"),
+            },
             hir::StructApplicationRepresentation::Declared => {
                 hir::TypeId::from_raw((self.types.len() as u32).into())
             }
@@ -111,10 +124,12 @@ impl Lowerer {
             canonical_type,
             representation,
         });
-        if matches!(
-            self.struct_applications[application].representation,
-            hir::StructApplicationRepresentation::Declared
-        ) {
+        if deferred_fun_ptr
+            || matches!(
+                self.struct_applications[application].representation,
+                hir::StructApplicationRepresentation::Declared
+            )
+        {
             let allocated_type = self.types.alloc(Type::Struct(application));
             assert_eq!(allocated_type, canonical_type);
         }

@@ -38,6 +38,33 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
 }
 
 #[test]
+fn scoop_extern_accepts_fully_concrete_value_aggregates_with_managed_leaves() {
+    let aggregate = struct_decl(
+        "ManagedAggregate",
+        vec![
+            ("value", ty_named("String")),
+            ("left", ty_named("Long")),
+            ("right", ty_named("Long")),
+        ],
+    );
+    let round_trip = extern_fun(
+        "nativeAggregateRoundTrip",
+        vec![("value", ty_named("ManagedAggregate"))],
+        Some(ty_named("ManagedAggregate")),
+        extern_annotation("fixture_native", "native_aggregate_round_trip", "scoop"),
+    );
+    let module = lower_user(file(vec![aggregate, round_trip, fun("main", vec![])]))
+        .expect("Scoop ABI reuses the ordinary typed ABI for managed value aggregates");
+    let (_, external) = module
+        .extern_functions
+        .iter()
+        .find(|(_, function)| function.source_name == "nativeAggregateRoundTrip")
+        .expect("managed aggregate Scoop extern has a typed entity");
+    assert_eq!(external.abi, hir::ExternAbi::Scoop);
+    assert_eq!(external.gc_effect, hir::GcEffect::Managed);
+}
+
+#[test]
 fn extern_functions_reject_invalid_declarations_and_boundary_types() {
     let c_string = extern_fun(
         "cString",

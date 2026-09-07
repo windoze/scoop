@@ -1,0 +1,77 @@
+// EXPECT-COMPILE
+
+fun traceInt(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun traceText(label: String, value: String): String {
+    println(label)
+    return value
+}
+
+struct Point(val x: Int, val y: Int)
+
+fun tracePoint(value: Point): Point {
+    println("base")
+    return value
+}
+
+fun defaultMarker(): String {
+    println("default-marker")
+    return "marker"
+}
+
+struct Stamped(val value: Int, val marker: String = defaultMarker())
+
+struct NamedEvent(val code: Int, val text: String)
+
+struct ConstructorEvent(val count: Int, val label: String)
+
+class Token(val text: String)
+
+struct ManagedValue(val token: Token)
+
+fun printNamed(value: NamedEvent) {
+    println(value.code)
+    println(value.text)
+}
+
+fun printConstructor(value: ConstructorEvent) {
+    println(value.count)
+    println(value.label)
+}
+
+fun main() {
+    val original = Point(1, 2)
+    val changed = tracePoint(original).{
+        y: traceInt("rhs-y", 20),
+        x: traceInt("rhs-x", 10)
+    }
+    println(original.x)
+    println(original.y)
+    println(changed.x)
+    println(changed.y)
+
+    val stamped = Stamped(3)
+    val restamped = stamped.{ value: 4 }
+    println(stamped.marker)
+    println(restamped.marker)
+
+    val named = NamedEvent(5, "old")
+    val namedChanged = named.{ text: traceText("named-rhs", "new") }
+    printNamed(named)
+    printNamed(namedChanged)
+
+    val constructor = ConstructorEvent(6, "before")
+    val constructorChanged = constructor.{
+        label: traceText("constructor-rhs", "after")
+    }
+    printConstructor(constructor)
+    printConstructor(constructorChanged)
+
+    val managed = ManagedValue(Token("managed-before"))
+    val managedChanged = managed.{ token: Token("managed-after") }
+    println(managed.token.text)
+    println(managedChanged.token.text)
+}

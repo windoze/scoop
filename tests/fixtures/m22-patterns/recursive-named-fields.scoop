@@ -1,0 +1,71 @@
+// EXPECT-COMPILE
+
+struct Leaf<T>(val value: T, val flag: Boolean)
+
+struct Envelope<T>(
+    val label: String,
+    val payload: T,
+    val marker: (Boolean, Int),
+    val serial: Int
+)
+
+enum Event {
+    Data { envelope: Envelope<Leaf<Int>>, enabled: Boolean },
+    Empty
+}
+
+fun once(value: Event): Event {
+    println("subject")
+    return value
+}
+
+fun classify(value: Event): Int = when (once(value)) {
+    Data {
+        envelope: { payload: { value: 0, flag: false }, marker: (_, _), .. },
+        enabled: false
+    } -> 10
+    Data {
+        enabled: false,
+        envelope: { marker: (_, _), payload: { flag: false, value }, .. }
+    } -> value
+    Data {
+        envelope: { payload: { value, flag: false }, marker: (_, _), .. },
+        enabled: true
+    } -> value + 100
+    Data {
+        enabled,
+        envelope: { payload: { flag: true, value }, marker: (_, _), .. }
+    } -> value + 200
+    Empty -> -1
+}
+
+fun makeEnvelope(): Envelope<Leaf<Int>> {
+    println("binding-rhs")
+    return Envelope("binding", Leaf(11, true), (false, 12), 13)
+}
+
+fun bindingValue(): Int {
+    val { payload: { value, .. }, .. } = makeEnvelope()
+    return value
+}
+
+fun main() {
+    println(classify(Event.Data(
+        envelope = Envelope("zero", Leaf(0, false), (true, 1), 2),
+        enabled = false
+    )))
+    println(classify(Event.Data(
+        enabled = false,
+        envelope = Envelope("seven", Leaf(7, false), (false, 3), 4)
+    )))
+    println(classify(Event.Data(
+        envelope = Envelope("eight", Leaf(8, false), (true, 5), 6),
+        enabled = true
+    )))
+    println(classify(Event.Data(
+        enabled = false,
+        envelope = Envelope("nine", Leaf(9, true), (false, 7), 8)
+    )))
+    println(classify(Event.Empty))
+    println(bindingValue())
+}

@@ -11,7 +11,6 @@ use super::Lowerer;
 
 mod adapters;
 mod construction;
-mod eh;
 mod intrinsics;
 mod liveness;
 mod sites;
@@ -30,7 +29,19 @@ struct SuspendSite {
     result: mir::Type,
     kind: SuspendKind,
     live_after: Vec<mir::LocalId>,
-    state: u32,
+    pending: mir::CoroutinePendingContext,
+    state: mir::CoroutineSuspendStateId,
+}
+
+#[derive(Clone)]
+struct DiscoveredSuspendSite {
+    block: mir::BlockId,
+    statement: usize,
+    destination: Option<mir::LocalId>,
+    result: mir::Type,
+    kind: SuspendKind,
+    live_after: Vec<mir::LocalId>,
+    pending: mir::CoroutinePendingContext,
 }
 
 #[derive(Clone, Copy)]
@@ -50,18 +61,26 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         .collect();
     for coroutine in coroutine_ids {
         let function = lowerer.coroutines.functions[coroutine].function;
-        let mut sites = analyze_sites(lowerer, &lowerer.functions[function].body);
+        let sites = analyze_sites(lowerer, &lowerer.functions[function].body);
+        clear_pending_contexts(&mut lowerer.functions[function].body);
         if sites.is_empty() {
             continue;
         }
-        let throwable =
-            mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
-        eh::materialize_exceptions(&mut lowerer.functions[function].body, throwable);
-        sites = analyze_sites(lowerer, &lowerer.functions[function].body);
-        for (index, site) in sites.iter_mut().enumerate() {
-            site.state = index as u32 + 1;
-        }
         transform_function(lowerer, module, coroutine, sites);
+    }
+}
+
+fn clear_pending_contexts(body: &mut mir::Body) {
+    for (_, block) in body.blocks.iter_mut() {
+        for statement in &mut block.statements {
+            let mir::StatementKind::Call(effect) = &mut statement.kind else {
+                continue;
+            };
+            let call = match effect {
+                mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => call,
+            };
+            call.pending = mir::CoroutinePendingContext::Root;
+        }
     }
 }
 
@@ -112,7 +131,7 @@ fn transform_function(
     let mut frame_fields = vec![
         mir::Field {
             name: "state".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         },
         mir::Field {
             name: "completion".to_string(),
@@ -122,7 +141,7 @@ fn transform_function(
     let mut frame_slots = HashMap::new();
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
-        let (_, slot_ty) = lowerer.coroutines.slot_for(
+        let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
             &value_ty,
             &lowerer.structs,
             &mut lowerer.enums,
@@ -135,34 +154,86 @@ fn transform_function(
         });
         frame_slots.insert(
             *local,
-            FrameSlot {
+            FrameSlot::new(
                 field,
-                slot_ty: slot_ty.clone(),
-                value_ty,
-            },
+                slot_id,
+                slot_ty.clone(),
+                &lowerer.coroutines.slots[slot_id],
+            ),
         );
     }
-    let (_, failure_slot_ty) = lowerer.coroutines.slot_for(
+    let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
         &throwable_ty,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let failure_slot = FrameSlot {
-        field: frame_fields.len() as u32,
-        slot_ty: failure_slot_ty.clone(),
-        value_ty: throwable_ty.clone(),
-    };
+    let failure_slot = FrameSlot::new(
+        frame_fields.len() as u32,
+        failure_slot_id,
+        failure_slot_ty.clone(),
+        &lowerer.coroutines.slots[failure_slot_id],
+    );
     frame_fields.push(mir::Field {
         name: "failure".to_string(),
         ty: failure_slot_ty,
     });
     let frame_name = format!("CoroutineFrame${}", sanitize(&source_symbol));
     let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
-    let frame = lowerer.coroutines.frames.alloc(mir::CoroutineFrame {
-        class: frame_class,
-        owner: coroutine,
-    });
+    let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
+        .expect("the generated coroutine frame has a state field");
+    let completion_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 1)
+        .expect("the generated coroutine frame has a completion field");
+    let frame_layout = FrameLayout {
+        state: state_field,
+        completion: completion_field,
+    };
+    let mut saved_value_by_local = HashMap::new();
+    let mut saved_values = Vec::with_capacity(saved.len());
+    for local in &saved {
+        let slot = &frame_slots[local];
+        let field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, slot.field)
+            .expect("each generated coroutine saved slot has a typed frame field");
+        let metadata = mir::CoroutineSavedValue::checked(
+            &lowerer.classes,
+            &lowerer.coroutines.slots,
+            field,
+            slot.slot,
+        )
+        .expect("each generated coroutine saved slot has its exact value type");
+        let value = lowerer.coroutines.saved_values.alloc(metadata);
+        saved_value_by_local.insert(*local, value);
+        saved_values.push(value);
+    }
+    let failure_field =
+        mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, failure_slot.field)
+            .expect("the generated coroutine frame has a typed failure field");
+    let mir::Type::Class(throwable_class) = &throwable_ty else {
+        unreachable!("the coroutine failure slot carries the canonical Throwable class")
+    };
+    let throwable_class = *throwable_class;
+    let failure_metadata = mir::CoroutineFailureValue::checked(
+        &lowerer.classes,
+        &lowerer.coroutines.slots,
+        failure_field,
+        failure_slot.slot,
+        throwable_class,
+    )
+    .expect("the generated coroutine failure slot carries exact Throwable");
+    let failure_value = lowerer.coroutines.failure_values.alloc(failure_metadata);
+    let frame_metadata = mir::CoroutineFrame::checked(
+        &lowerer.classes,
+        &lowerer.coroutines.saved_values,
+        &lowerer.coroutines.failure_values,
+        frame_class,
+        coroutine,
+        state_field,
+        completion_field,
+        saved_values,
+        failure_value,
+    )
+    .expect("the generated coroutine frame has disjoint typed field roles");
+    let frame = lowerer.coroutines.frames.alloc(frame_metadata);
 
     let driver = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
@@ -180,7 +251,7 @@ fn transform_function(
     });
     let dispatch_state = body.locals.alloc(mir::Local {
         name: "$dispatch_state".to_string(),
-        ty: mir::Type::Int,
+        ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         mutable: false,
     });
 
@@ -198,7 +269,6 @@ fn transform_function(
 
     sites.sort_by_key(|site| (raw(site.block), site.statement));
     sites.reverse();
-    let mut resume_targets = Vec::new();
     let mut resume_points = Vec::new();
     for site in sites {
         let generated = rewrite_site(
@@ -208,8 +278,11 @@ fn transform_function(
             frame_local,
             frame_class,
             frame,
+            frame_layout,
             &frame_slots,
+            &saved_value_by_local,
             failure_slot.clone(),
+            failure_value,
             &step_ty,
             continuation,
             outer_resume,
@@ -218,12 +291,24 @@ fn transform_function(
             driver,
             site,
         );
-        resume_targets.push((generated.state, generated.resume_block));
-        resume_targets.push((generated.failure_state, generated.failure_block));
         resume_points.push(generated.point);
     }
-    resume_targets.sort_by_key(|(state, _)| *state);
-    resume_points.sort_by_key(|point| lowerer.coroutines.resume_points[*point].state);
+    resume_points.sort_by_key(|point| lowerer.coroutines.resume_points[*point].site());
+    let mut dispatch_entries = resume_points
+        .iter()
+        .flat_map(|point| {
+            let point = &lowerer.coroutines.resume_points[*point];
+            [
+                (point.success_state(), point.success().entry().block()),
+                (point.failure_state(), point.failure().entry().block()),
+            ]
+        })
+        .collect::<Vec<_>>();
+    // Keep dispatch construction deterministic in the signed order of the
+    // frozen state-word encoding: exceptional states precede positive
+    // suspension-site ids. Entries are derived only from checked point
+    // metadata; there is no second state-to-block source of truth.
+    dispatch_entries.sort_by_key(|(state, _)| frame_state_value(*state).raw_bits() ^ (1_u64 << 63));
 
     let original_entry = body.entry;
     let initial = body.blocks.alloc(mir::BasicBlock {
@@ -239,8 +324,8 @@ fn transform_function(
             })
             .chain(std::iter::once(atomic_field_store(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                mir::Expr::int(STATE_RUNNING),
+                frame_layout.state.field_index(),
+                frame_state(STATE_RUNNING),
             )))
             .collect(),
         terminator: mir::Terminator::Goto(original_entry),
@@ -248,7 +333,7 @@ fn transform_function(
     });
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, None);
     let mut next = invalid;
-    for (state, target) in resume_targets.iter().rev() {
+    for (state, target) in dispatch_entries.iter().rev() {
         next = dispatch_block(&mut body.blocks, dispatch_state, *state, *target, next);
     }
     let entry = dispatch_block(
@@ -268,7 +353,7 @@ fn transform_function(
         },
         mir::Param {
             name: "$dispatch_state".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
             local: dispatch_state,
         },
     ];
@@ -295,32 +380,145 @@ fn transform_function(
     };
 }
 
-const STATE_INITIAL: i64 = 0;
-const STATE_RUNNING: i64 = -1;
-const STATE_COMPLETED: i64 = -2;
-const ADAPTER_REGISTERING: i64 = 0;
-const ADAPTER_WAITING: i64 = 1;
-const ADAPTER_COMPLETING_SUCCESS: i64 = 2;
-const ADAPTER_COMPLETING_FAILURE: i64 = 3;
-const ADAPTER_LATCHED_SUCCESS: i64 = 4;
-const ADAPTER_LATCHED_FAILURE: i64 = 5;
-const ADAPTER_CONSUMED: i64 = 6;
+const STATE_INITIAL: mir::CoroutineFrameState = mir::CoroutineFrameState::Initial;
+const STATE_RUNNING: mir::CoroutineFrameState = mir::CoroutineFrameState::Running;
+const STATE_COMPLETED: mir::CoroutineFrameState = mir::CoroutineFrameState::Completed;
+const ADAPTER_REGISTERING: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Registering;
+const ADAPTER_WAITING: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Waiting;
+const ADAPTER_COMPLETING_SUCCESS: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::CompletingSuccess;
+const ADAPTER_COMPLETING_FAILURE: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::CompletingFailure;
+const ADAPTER_LATCHED_SUCCESS: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::LatchedSuccess;
+const ADAPTER_LATCHED_FAILURE: mir::CoroutineAdapterState =
+    mir::CoroutineAdapterState::LatchedFailure;
+const ADAPTER_CONSUMED: mir::CoroutineAdapterState = mir::CoroutineAdapterState::Consumed;
 
-fn failure_state(state: u32) -> i64 {
-    -i64::from(state) - 2
+fn suspended_state(state: mir::CoroutineSuspendStateId) -> mir::CoroutineFrameState {
+    mir::CoroutineFrameState::Suspended(state)
+}
+
+fn failure_state(state: mir::CoroutineSuspendStateId) -> mir::CoroutineFrameState {
+    mir::CoroutineFrameState::ResumeFailure(state)
 }
 
 #[derive(Clone)]
 struct FrameSlot {
     field: u32,
+    slot: mir::CoroutineSlotId,
     slot_ty: mir::Type,
     value_ty: mir::Type,
+    empty: mir::MirVariantRef,
+    value_payload: mir::MirVariantFieldRef,
+}
+
+#[derive(Clone, Copy)]
+struct FrameLayout {
+    state: mir::CoroutineFrameFieldRef,
+    completion: mir::CoroutineFrameFieldRef,
+}
+
+impl FrameSlot {
+    fn new(
+        field: u32,
+        slot: mir::CoroutineSlotId,
+        slot_ty: mir::Type,
+        metadata: &mir::CoroutineSlot,
+    ) -> Self {
+        assert_eq!(slot_ty, mir::Type::Enum(metadata.enum_id(), Vec::new()));
+        Self {
+            field,
+            slot,
+            slot_ty,
+            value_ty: metadata.value().clone(),
+            empty: metadata.empty(),
+            value_payload: metadata.value_payload(),
+        }
+    }
 }
 
 struct GeneratedSite {
-    state: i64,
-    resume_block: mir::BlockId,
-    failure_state: i64,
-    failure_block: mir::BlockId,
     point: mir::CoroutineResumePointId,
+}
+
+fn freeze_pending_context(
+    pending: mir::CoroutinePendingContext,
+    saved_values: &HashMap<mir::LocalId, mir::CoroutineSavedValueId>,
+) -> Vec<mir::CoroutinePendingTransfer> {
+    let mir::CoroutinePendingContext::Chain(chain) = pending else {
+        return Vec::new();
+    };
+    chain
+        .into_vec()
+        .into_iter()
+        .map(|transfer| match transfer {
+            mir::CoroutinePendingSourceTransfer::Fallthrough(target) => {
+                mir::CoroutinePendingTransfer::Fallthrough(target)
+            }
+            mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Unit,
+            ) => mir::CoroutinePendingTransfer::Return(mir::CoroutineReturnTransfer::Unit),
+            mir::CoroutinePendingSourceTransfer::Return(
+                mir::CoroutinePendingSourceReturn::Value(value),
+            ) => mir::CoroutinePendingTransfer::Return(mir::CoroutineReturnTransfer::Saved(
+                *saved_values
+                    .get(&value.local())
+                    .expect("a pending return value is saved in its owner frame"),
+            )),
+            mir::CoroutinePendingSourceTransfer::Break(target) => {
+                mir::CoroutinePendingTransfer::Break(target)
+            }
+            mir::CoroutinePendingSourceTransfer::Continue(target) => {
+                mir::CoroutinePendingTransfer::Continue(target)
+            }
+            mir::CoroutinePendingSourceTransfer::ManagedThrow(throw_) => {
+                mir::CoroutinePendingTransfer::ManagedThrow(
+                    mir::CoroutineManagedThrowTransfer::new(
+                        *saved_values
+                            .get(&throw_.exception_local())
+                            .expect("a pending managed Throwable is saved in its owner frame"),
+                        throw_.unwind(),
+                    ),
+                )
+            }
+        })
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn register_resume_point(
+    lowerer: &mut Lowerer,
+    frame: mir::CoroutineFrameId,
+    site: mir::CoroutineSuspendStateId,
+    result: mir::Type,
+    adapter: &GeneratedAdapter,
+    parents: Vec<mir::CoroutinePendingTransfer>,
+    post: mir::BlockId,
+    resume: mir::BlockId,
+    failure: mir::BlockId,
+    failure_value: mir::CoroutineFailureValueId,
+    unwind: Option<mir::BlockId>,
+) -> mir::CoroutineResumePointId {
+    lowerer
+        .coroutines
+        .resume_points
+        .alloc(mir::CoroutineResumePoint::new(
+            frame,
+            site,
+            result,
+            adapter.class,
+            adapter.resume,
+            adapter.resume_with_exception,
+            parents,
+            mir::CoroutineResumeSuccess::new(
+                mir::CoroutineResumeEntryTarget::new(resume),
+                mir::CoroutineCleanupFallthroughTarget::new(post),
+            ),
+            mir::CoroutineResumeFailure::new(
+                mir::CoroutineResumeEntryTarget::new(failure),
+                failure_value,
+                unwind.map(mir::CoroutineUnwindTarget::new),
+            ),
+        ))
 }

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/callback-context-index-requires-long.scoop:7:13: error: no applicable candidate for `foreignCallback` in implicit-import candidate layer:
+  - fun foreignCallback<F>(callback: Any, contextIndex: Long, mode: ForeignCallbackMode): ForeignCallback<F> — argument for `contextIndex` (expected Long): integer literal `1u` is not representable as Long

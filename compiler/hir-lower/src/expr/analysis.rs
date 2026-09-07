@@ -65,6 +65,10 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
         ast::StatementKind::While(while_) => {
             expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
         }
+        ast::StatementKind::For(for_) => {
+            expr_contains_return(&for_.iterable) || block_contains_return(&for_.body)
+        }
+        ast::StatementKind::Break | ast::StatementKind::Continue => false,
         ast::StatementKind::Block(block) | ast::StatementKind::SafetyBlock { block, .. } => {
             block_contains_return(block)
         }
@@ -103,6 +107,12 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
             .iter()
             .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
+        ast::Expr::CopyUpdate { base, fields, .. } => {
+            expr_contains_return(base)
+                || fields
+                    .iter()
+                    .any(|field| expr_contains_return(&field.value))
+        }
         ast::Expr::Call(call) => call
             .args
             .iter()
@@ -163,7 +173,7 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                     .is_some_and(block_contains_return)
         }
         ast::Expr::StringLiteral { .. }
-        | ast::Expr::IntLiteral { .. }
+        | ast::Expr::IntLiteral(_)
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. }
         | ast::Expr::Var(_)

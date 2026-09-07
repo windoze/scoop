@@ -18,13 +18,11 @@ pub enum GlobalStorage {
     /// Compiler-managed backing storage for an ordinary top-level property.
     /// Unlike M12 raw storage, this may contain managed references and is
     /// never exposed through `addressOf`.
-    Managed {
-        initializer: ManagedGlobalInitializer,
-    },
+    Managed { state: HirStaticInitialState },
     /// Explicitly addressable M12 `@Global` / `@ThreadLocal` raw storage.
     Local {
         thread_local: bool,
-        initializer: ConstantValue,
+        initializer: HirConstantImage,
     },
     Extern {
         library: String,
@@ -33,27 +31,31 @@ pub enum GlobalStorage {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum ManagedGlobalInitializer {
-    Image(ConstantValue),
-    RuntimeZeroed(InitializationUnitId),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirStaticInitialState {
+    ZeroedForRuntimeUnit { unit: InitializationUnitId },
+    EncodedStaticValue { payload: HirConstantImage },
 }
 
 /// A typed initializer whose complete representation can be emitted directly
 /// into the program image. Raw storage accepts only its GC-free subset.
-#[derive(Debug, Clone)]
-pub enum ConstantValue {
-    Int(i64),
-    Bool(bool),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirConstantImage {
+    Integer(HirIntegerConstant),
+    Boolean(bool),
     String(String),
-    NullPtr,
-    NullFunPtr,
+    NullPointer(HirPointerNullKind),
     EnumUnit {
-        application: EnumApplicationId,
-        variant: u32,
+        variant: AppliedEnumVariantRef,
     },
     Struct {
         application: StructApplicationId,
-        fields: Vec<ConstantValue>,
+        fields: Vec<HirConstantImage>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirPointerNullKind {
+    Raw,
+    Code,
 }

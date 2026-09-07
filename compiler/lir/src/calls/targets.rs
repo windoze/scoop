@@ -9,6 +9,7 @@ pub enum GcEffect {
 #[derive(Debug, Default)]
 pub struct CallTargets {
     pub void_signatures: Arena<VoidCallSignature>,
+    pub elided_zst_signatures: Arena<ElidedZstCallSignature>,
     pub direct_signatures: Arena<DirectCallSignature>,
     pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
     pub managed_targets: ProtocolCallTargets<ManagedCallDestination>,
@@ -23,34 +24,156 @@ pub struct CallTargets {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VoidCallSignature {
-    pub params: Vec<LirType>,
-    pub calling_convention: CallingConvention,
+    arguments: Vec<AbiArgument>,
+    calling_convention: CallingConvention,
+}
+
+impl VoidCallSignature {
+    pub const fn new(arguments: Vec<AbiArgument>, calling_convention: CallingConvention) -> Self {
+        Self {
+            arguments,
+            calling_convention,
+        }
+    }
+
+    pub fn arguments(&self) -> &[AbiArgument] {
+        &self.arguments
+    }
+
+    pub const fn calling_convention(&self) -> CallingConvention {
+        self.calling_convention
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElidedZstCallSignature {
+    arguments: Vec<AbiArgument>,
+    result: AbiZst,
+    calling_convention: CallingConvention,
+}
+
+impl ElidedZstCallSignature {
+    pub const fn new(
+        arguments: Vec<AbiArgument>,
+        result: AbiZst,
+        calling_convention: CallingConvention,
+    ) -> Self {
+        Self {
+            arguments,
+            result,
+            calling_convention,
+        }
+    }
+
+    pub fn arguments(&self) -> &[AbiArgument] {
+        &self.arguments
+    }
+
+    pub const fn result(&self) -> &AbiZst {
+        &self.result
+    }
+
+    pub const fn calling_convention(&self) -> CallingConvention {
+        self.calling_convention
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirectCallSignature {
-    pub params: Vec<LirType>,
-    pub result: LirType,
-    /// Recursive scan of a direct result. Native transitions use it to
-    /// publish result storage before re-entering managed code.
-    pub result_scan: RefScan,
-    pub calling_convention: CallingConvention,
+    arguments: Vec<AbiArgument>,
+    result: AbiValue,
+    calling_convention: CallingConvention,
+}
+
+impl DirectCallSignature {
+    pub const fn new(
+        arguments: Vec<AbiArgument>,
+        result: AbiValue,
+        calling_convention: CallingConvention,
+    ) -> Self {
+        Self {
+            arguments,
+            result,
+            calling_convention,
+        }
+    }
+
+    pub fn arguments(&self) -> &[AbiArgument] {
+        &self.arguments
+    }
+
+    pub const fn result(&self) -> &AbiValue {
+        &self.result
+    }
+
+    pub const fn calling_convention(&self) -> CallingConvention {
+        self.calling_convention
+    }
+}
+
+/// The physical meaning of the leading storage pointer on an indirect-result
+/// call. Only Scoop ABI calls may use `ScoopSret`; a C storage bridge receives
+/// an ordinary pointer and must never inherit Scoop `sret` attributes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IndirectResultConvention {
+    ScoopSret,
+    CStoragePointer,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndirectResultCallSignature {
-    pub params: Vec<LirType>,
-    pub result: ResultStorage,
-    pub calling_convention: CallingConvention,
+    arguments: Vec<AbiArgument>,
+    result: AbiValue,
+    convention: IndirectResultConvention,
+    calling_convention: CallingConvention,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResultStorage {
-    pub ty: LirType,
-    pub scan: RefScan,
+impl IndirectResultCallSignature {
+    pub const fn scoop_sret(
+        arguments: Vec<AbiArgument>,
+        result: AbiValue,
+        calling_convention: CallingConvention,
+    ) -> Self {
+        Self {
+            arguments,
+            result,
+            convention: IndirectResultConvention::ScoopSret,
+            calling_convention,
+        }
+    }
+
+    pub const fn c_storage_pointer(
+        arguments: Vec<AbiArgument>,
+        result: AbiValue,
+        calling_convention: CallingConvention,
+    ) -> Self {
+        Self {
+            arguments,
+            result,
+            convention: IndirectResultConvention::CStoragePointer,
+            calling_convention,
+        }
+    }
+
+    pub fn arguments(&self) -> &[AbiArgument] {
+        &self.arguments
+    }
+
+    pub const fn result(&self) -> &AbiValue {
+        &self.result
+    }
+
+    pub const fn convention(&self) -> IndirectResultConvention {
+        self.convention
+    }
+
+    pub const fn calling_convention(&self) -> CallingConvention {
+        self.calling_convention
+    }
 }
 
 pub type VoidCallSignatureId = Idx<VoidCallSignature>;
+pub type ElidedZstCallSignatureId = Idx<ElidedZstCallSignature>;
 pub type DirectCallSignatureId = Idx<DirectCallSignature>;
 pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
 
@@ -64,20 +187,26 @@ pub struct CallTarget<Destination, Signature> {
 }
 
 pub type VoidCallTargetId<Destination> = Idx<CallTarget<Destination, VoidCallSignatureId>>;
+pub type ElidedZstCallTargetId<Destination> =
+    Idx<CallTarget<Destination, ElidedZstCallSignatureId>>;
 pub type DirectCallTargetId<Destination> = Idx<CallTarget<Destination, DirectCallSignatureId>>;
 pub type IndirectResultCallTargetId<Destination> =
     Idx<CallTarget<Destination, IndirectResultCallSignatureId>>;
 
 pub type ManagedVoidTargetId = VoidCallTargetId<ManagedCallDestination>;
+pub type ManagedElidedZstTargetId = ElidedZstCallTargetId<ManagedCallDestination>;
 pub type ManagedDirectTargetId = DirectCallTargetId<ManagedCallDestination>;
 pub type ManagedIndirectResultTargetId = IndirectResultCallTargetId<ManagedCallDestination>;
 pub type NoGcVoidTargetId = VoidCallTargetId<NoGcCallDestination>;
+pub type NoGcElidedZstTargetId = ElidedZstCallTargetId<NoGcCallDestination>;
 pub type NoGcDirectTargetId = DirectCallTargetId<NoGcCallDestination>;
 pub type NoGcIndirectResultTargetId = IndirectResultCallTargetId<NoGcCallDestination>;
 pub type NativeSafeVoidTargetId = VoidCallTargetId<NativeSafeCallDestination>;
+pub type NativeSafeElidedZstTargetId = ElidedZstCallTargetId<NativeSafeCallDestination>;
 pub type NativeSafeDirectTargetId = DirectCallTargetId<NativeSafeCallDestination>;
 pub type NativeSafeIndirectResultTargetId = IndirectResultCallTargetId<NativeSafeCallDestination>;
 pub type NativeBorrowedVoidTargetId = VoidCallTargetId<NativeBorrowedCallDestination>;
+pub type NativeBorrowedElidedZstTargetId = ElidedZstCallTargetId<NativeBorrowedCallDestination>;
 pub type NativeBorrowedDirectTargetId = DirectCallTargetId<NativeBorrowedCallDestination>;
 pub type NativeBorrowedIndirectResultTargetId =
     IndirectResultCallTargetId<NativeBorrowedCallDestination>;
@@ -85,6 +214,7 @@ pub type NativeBorrowedIndirectResultTargetId =
 #[derive(Debug)]
 pub struct ProtocolCallTargets<Destination> {
     pub void: Arena<CallTarget<Destination, VoidCallSignatureId>>,
+    pub elided_zst: Arena<CallTarget<Destination, ElidedZstCallSignatureId>>,
     pub direct: Arena<CallTarget<Destination, DirectCallSignatureId>>,
     pub indirect_result: Arena<CallTarget<Destination, IndirectResultCallSignatureId>>,
 }
@@ -93,6 +223,7 @@ impl<Destination> Default for ProtocolCallTargets<Destination> {
     fn default() -> Self {
         Self {
             void: Arena::new(),
+            elided_zst: Arena::new(),
             direct: Arena::new(),
             indirect_result: Arena::new(),
         }
@@ -311,6 +442,11 @@ impl DispatchSlots {
 
     pub fn alloc_no_gc(&mut self, slot: DispatchSlot) -> NoGcDispatchSlotRef {
         NoGcDispatchSlotRef(self.declarations.alloc(slot))
+    }
+
+    pub fn get(&self, id: DispatchSlotId) -> Option<&DispatchSlot> {
+        let index = id.into_raw().into_u32() as usize;
+        (index < self.declarations.len()).then(|| &self.declarations[id])
     }
 }
 

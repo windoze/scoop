@@ -172,6 +172,36 @@ impl Lowerer {
         self.enum_application_id(source.template, arguments)
     }
 
+    pub(super) fn instantiate_default_applied_enum_variant(
+        &mut self,
+        source: hir::AppliedEnumVariantRef,
+        context: &InstantiationContext,
+    ) -> hir::AppliedEnumVariantRef {
+        let application = self.instantiate_default_enum_application(source.application(), context);
+        hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            application,
+            source.declaration(),
+        )
+        .expect("default substitution preserves the enum variant template")
+    }
+
+    pub(super) fn instantiate_default_applied_enum_field(
+        &mut self,
+        source: hir::AppliedEnumVariantFieldRef,
+        context: &InstantiationContext,
+    ) -> hir::AppliedEnumVariantFieldRef {
+        let variant = self.instantiate_default_applied_enum_variant(source.variant(), context);
+        hir::AppliedEnumVariantFieldRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            variant,
+            source.local_index(),
+        )
+        .expect("default substitution preserves the enum payload field")
+    }
+
     pub(super) fn instantiate_default_class_application(
         &mut self,
         source: hir::ClassApplicationId,
@@ -239,10 +269,18 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::FieldRef {
         match source {
-            hir::FieldRef::StructField { application, index } => hir::FieldRef::StructField {
-                application: self.instantiate_default_struct_application(application, context),
-                index,
-            },
+            hir::FieldRef::StructField(field) => {
+                let application =
+                    self.instantiate_default_struct_application(field.application(), context);
+                let field = hir::AppliedStructFieldRef::checked(
+                    &self.structs,
+                    &self.struct_applications,
+                    application,
+                    field.local_index(),
+                )
+                .expect("default substitution preserves a checked struct field");
+                hir::FieldRef::StructField(field)
+            }
             hir::FieldRef::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
             hir::FieldRef::ClassField { application, field } => hir::FieldRef::ClassField {
                 application: self.instantiate_default_class_application(application, context),

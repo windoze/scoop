@@ -1,0 +1,54 @@
+struct Slot<T>(val value: T)
+
+class Container<T>(val value: T) {
+    companion object Factory {
+        fun makeInt(value: Int): Container<Int> = Container(value)
+    }
+
+    class Tag(val text: String)
+}
+
+enum Choice<T> {
+    Value(T),
+    Empty
+}
+
+typealias Whole = Int
+typealias Count = Whole
+typealias IntSlot = Slot<Int>
+typealias TextContainer = Container<String>
+typealias IntContainer = Container<Int>
+typealias IntChoice = Choice<Int>
+typealias TaggedCount = (Count, String)
+typealias ChoiceRenderer = (IntChoice) -> String
+
+fun <T> keep(value: T): T = value
+
+fun render(choice: IntChoice): String = when (choice) {
+    IntChoice.Value(value) -> "value-" + value.toString()
+    IntChoice.Empty -> "empty"
+}
+
+fun main() {
+    val slot: IntSlot = IntSlot(40)
+    val text: TextContainer = TextContainer("container")
+    val made: IntContainer = IntContainer.makeInt(41)
+    val named: IntContainer = IntContainer.Factory.makeInt(42)
+    val tag: TextContainer.Tag = TextContainer.Tag("nested")
+    val tagged: TaggedCount = (slot.value, tag.text)
+    val choice: IntChoice = IntChoice.Value(made.value)
+    val empty: IntChoice = IntChoice.Empty
+    val renderer: ChoiceRenderer = ::render
+    val kept: IntSlot = keep(IntSlot(named.value))
+
+    println(slot.value)
+    println(text.value)
+    println(made.value)
+    println(named.value)
+    println(tag.text)
+    println(tagged._1)
+    println(tagged._2)
+    println(renderer(choice))
+    println(render(empty))
+    println(kept.value)
+}

@@ -4,12 +4,18 @@
 //! flat public data model while keeping identity/types, module entities,
 //! metadata, functions, instructions and calls in separate source modules.
 
-use std::num::NonZeroU64;
+use std::num::{NonZeroU32, NonZeroU64};
 
 use la_arena::{Arena, Idx};
 
 mod types;
 pub use types::*;
+
+mod target;
+pub use target::*;
+
+mod abi;
+pub use abi::*;
 
 mod externs;
 pub use externs::*;
@@ -25,6 +31,9 @@ pub use metadata::*;
 
 mod function;
 pub use function::*;
+
+mod integer;
+pub use integer::*;
 
 mod instruction;
 pub use instruction::*;

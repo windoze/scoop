@@ -2,60 +2,87 @@ use super::*;
 
 impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_try(&mut self, try_: &'a smir::Try) {
-        let enclosing = self.try_stack.last().copied();
+        if self.coroutine_eh.is_some() {
+            self.lower_managed_coroutine_try(try_);
+        } else {
+            self.lower_native_try(try_);
+        }
+    }
+
+    /// The ordinary non-coroutine EH path keeps the native catch token live
+    /// until the selected catch/finally path has completed.
+    fn lower_native_try(&mut self, try_: &'a smir::Try) {
+        let enclosing = self.try_stack.last().cloned();
         let unwind = self.new_block_with("try.unwind", None);
         let dispatch = self.new_block_with("try.dispatch", None);
         let handler_target = if try_.catches.is_empty() {
             None
         } else {
-            Some(UnwindTarget {
-                pad: self.new_block_with("try.handler_pad", None),
-                continuation: self
-                    .new_block_with("try.handler_cleanup", enclosing.map(|target| target.pad)),
-                handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-            })
+            let pad = self.new_block_with("try.handler_pad", None);
+            let continuation = self.new_block_with(
+                "try.handler_cleanup",
+                enclosing.as_ref().map(|target| target.pad),
+            );
+            Some(
+                self.new_unwind_target(
+                    pad,
+                    continuation,
+                    enclosing
+                        .as_ref()
+                        .is_some_and(|target| target.handles_in_function),
+                ),
+            )
         };
-        let exit_target = UnwindTarget {
-            pad: self.new_block_with("try.exit_pad", None),
-            continuation: self
-                .new_block_with("try.exit_cleanup", enclosing.map(|target| target.pad)),
-            handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-        };
-        let end = self.new_block_with("try.end", enclosing.map(|target| target.pad));
-        let own_target = UnwindTarget {
-            pad: unwind,
-            continuation: dispatch,
-            handles_in_function: true,
+        let exit_pad = self.new_block_with("try.exit_pad", None);
+        let exit_continuation = self.new_block_with(
+            "try.exit_cleanup",
+            enclosing.as_ref().map(|target| target.pad),
+        );
+        let exit_target = self.new_unwind_target(
+            exit_pad,
+            exit_continuation,
+            enclosing
+                .as_ref()
+                .is_some_and(|target| target.handles_in_function),
+        );
+        let end = self.new_block_with("try.end", enclosing.as_ref().map(|target| target.pad));
+        let own_target = self.new_unwind_target(unwind, dispatch, true);
+        let cleanup_base = self.cleanup_depth();
+        let end_target = ResumeTarget {
+            block: end,
+            cleanup_depth: cleanup_base,
+            context: self.active_pending.clone(),
         };
 
         let body_entry = self.new_block_with("try.body", Some(unwind));
         self.seal(mir::Terminator::Goto(body_entry));
-        self.try_stack.push(own_target);
+        self.try_stack.push(own_target.clone());
         if let Some(finally) = &try_.finally_body {
-            self.return_cleanups.push(ReturnCleanup::Finally {
-                owner_unwind: unwind,
+            self.normal_cleanups.push(NormalCleanup::Finally {
+                owner: own_target.owner,
                 body: finally,
             });
         }
         self.enter(body_entry);
         self.lower_statements(&try_.body);
-        self.try_stack.pop();
         let finally = try_.finally_body.as_deref();
-        if finally.is_some() {
-            self.return_cleanups.pop();
-        }
-
         let mut end_reachable = false;
         if !self.current_sealed {
-            self.ensure_unwind_context();
-            if let Some(finally) = finally {
-                self.lower_statements(finally);
-            }
-            if !self.current_sealed {
-                self.seal(mir::Terminator::Goto(end));
-                end_reachable = true;
-            }
+            end_reachable |= self.route_transfer(PendingTransfer::Fallthrough(end_target.clone()));
         }
+        if finally.is_some() {
+            let cleanup = self.normal_cleanups.pop();
+            assert!(matches!(
+                cleanup,
+                Some(NormalCleanup::Finally { owner, .. }) if owner == own_target.owner
+            ));
+        }
+        let active = self.try_stack.pop();
+        assert_eq!(
+            active.map(|target| target.owner),
+            Some(own_target.owner),
+            "try body unwind scopes are lexically nested"
+        );
 
         self.enter(unwind);
         self.push(
@@ -70,7 +97,10 @@ impl<'a> CfgLowerer<'a> {
             synthetic_span(),
         );
         for catch in &try_.catches {
-            let handler_target = handler_target.expect("a catch has a handler cleanup");
+            let handler_target = handler_target
+                .as_ref()
+                .expect("a catch has a handler cleanup")
+                .clone();
             let catch_block = self.new_block_with("try.catch", Some(handler_target.pad));
             let next = self.new_block_with("try.next", None);
             self.seal(mir::Terminator::Branch {
@@ -104,51 +134,51 @@ impl<'a> CfgLowerer<'a> {
                 },
                 catch.span,
             );
-            self.try_stack.push(handler_target);
-            let cleanup_base = self.return_cleanups.len();
+            self.try_stack.push(handler_target.clone());
             if let Some(finally) = finally {
-                self.return_cleanups.push(ReturnCleanup::Finally {
-                    owner_unwind: unwind,
+                self.normal_cleanups.push(NormalCleanup::Finally {
+                    owner: own_target.owner,
                     body: finally,
                 });
             }
-            self.return_cleanups.push(ReturnCleanup::EndCatch {
-                cleanup_pad: handler_target.pad,
+            self.normal_cleanups.push(NormalCleanup::EndCatch {
+                owner: handler_target.owner,
             });
             self.lower_statements(&catch.body);
-            self.return_cleanups.truncate(cleanup_base);
-            self.try_stack.pop();
             if !self.current_sealed {
-                self.push(
-                    mir::StatementKind::Eh(mir::EhStatement::EndCatch),
-                    synthetic_span(),
-                );
-                if let Some(finally) = finally {
-                    self.lower_statements(finally);
-                }
-                if !self.current_sealed {
-                    self.seal(mir::Terminator::Goto(end));
-                    end_reachable = true;
-                }
+                end_reachable |=
+                    self.route_transfer(PendingTransfer::Fallthrough(end_target.clone()));
             }
+            self.normal_cleanups.truncate(cleanup_base.0);
+            let active = self.try_stack.pop();
+            assert_eq!(
+                active.map(|target| target.owner),
+                Some(handler_target.owner),
+                "catch body unwind scopes are lexically nested"
+            );
             self.enter(next);
         }
 
-        self.try_stack.push(exit_target);
-        let cleanup_base = self.return_cleanups.len();
-        self.return_cleanups.push(ReturnCleanup::EndCatch {
-            cleanup_pad: exit_target.pad,
+        self.try_stack.push(exit_target.clone());
+        let unmatched_cleanup_base = self.cleanup_depth();
+        self.normal_cleanups.push(NormalCleanup::EndCatch {
+            owner: exit_target.owner,
         });
         if let Some(finally) = finally {
             self.lower_statements(finally);
         }
-        self.return_cleanups.truncate(cleanup_base);
+        self.normal_cleanups.truncate(unmatched_cleanup_base.0);
         if !self.current_sealed {
             self.seal(mir::Terminator::Rethrow {
                 unwind: Some(exit_target.pad),
             });
         }
-        self.try_stack.pop();
+        let active = self.try_stack.pop();
+        assert_eq!(
+            active.map(|target| target.owner),
+            Some(exit_target.owner),
+            "unmatched catch cleanup scopes are lexically nested"
+        );
 
         if let Some(handler_target) = handler_target {
             self.enter(handler_target.pad);
@@ -169,7 +199,7 @@ impl<'a> CfgLowerer<'a> {
                 self.lower_statements(finally);
             }
             if !self.current_sealed {
-                match enclosing {
+                match enclosing.as_ref() {
                     Some(target) => self.seal(mir::Terminator::Goto(target.continuation)),
                     None => self.seal(mir::Terminator::Resume),
                 }
@@ -190,7 +220,7 @@ impl<'a> CfgLowerer<'a> {
             mir::StatementKind::Eh(mir::EhStatement::EndCatch),
             synthetic_span(),
         );
-        match enclosing {
+        match enclosing.as_ref() {
             Some(target) => self.seal(mir::Terminator::Goto(target.continuation)),
             None => self.seal(mir::Terminator::Resume),
         }
@@ -201,41 +231,210 @@ impl<'a> CfgLowerer<'a> {
         }
     }
 
-    pub(super) fn emit_return_cleanups(&mut self) {
-        let all = std::mem::take(&mut self.return_cleanups);
-        let saved_try_stack = self.try_stack.clone();
-        let mut remaining = all.clone();
-        while let Some(cleanup) = remaining.pop() {
-            if self.current_sealed {
-                break;
-            }
-            self.return_cleanups = remaining.clone();
-            match cleanup {
-                ReturnCleanup::Finally { owner_unwind, body } => {
-                    if let Some(pos) = self
-                        .try_stack
-                        .iter()
-                        .rposition(|target| target.pad == owner_unwind)
-                    {
-                        self.try_stack.truncate(pos);
-                    }
-                    self.lower_statements(body);
-                }
-                ReturnCleanup::EndCatch { cleanup_pad } => {
-                    self.push(
-                        mir::StatementKind::Eh(mir::EhStatement::EndCatch),
-                        synthetic_span(),
-                    );
-                    let active = self.try_stack.pop();
-                    assert_eq!(
-                        active.map(|target| target.pad),
-                        Some(cleanup_pad),
-                        "active catch cleanup nesting"
-                    );
-                }
-            }
+    /// A body that actually calls a suspend function cannot keep a native
+    /// catch token live while a source catch/finally may suspend. Every
+    /// unwind scope therefore materializes its own exact Throwable local and
+    /// ends the native catch before dispatching or entering cleanup code.
+    fn lower_managed_coroutine_try(&mut self, try_: &'a smir::Try) {
+        let enclosing = self.try_stack.last().cloned();
+        let unwind = self.new_block_with("try.unwind", None);
+        let dispatch = self.new_block_with("try.dispatch", None);
+        let handler_target = if try_.catches.is_empty() {
+            None
+        } else {
+            let pad = self.new_block_with("try.handler_pad", None);
+            let continuation = self.new_block_with(
+                "try.handler_cleanup",
+                enclosing.as_ref().map(|target| target.pad),
+            );
+            Some(
+                self.new_unwind_target(
+                    pad,
+                    continuation,
+                    enclosing
+                        .as_ref()
+                        .is_some_and(|target| target.handles_in_function),
+                ),
+            )
+        };
+        let end = self.new_block_with("try.end", enclosing.as_ref().map(|target| target.pad));
+        let own_target = self.new_unwind_target(unwind, dispatch, true);
+        let cleanup_base = self.cleanup_depth();
+        let end_target = ResumeTarget {
+            block: end,
+            cleanup_depth: cleanup_base,
+            context: self.active_pending.clone(),
+        };
+
+        let body_entry = self.new_block_with("try.body", Some(unwind));
+        self.seal(mir::Terminator::Goto(body_entry));
+        self.try_stack.push(own_target.clone());
+        if let Some(finally) = &try_.finally_body {
+            self.normal_cleanups.push(NormalCleanup::Finally {
+                owner: own_target.owner,
+                body: finally,
+            });
         }
-        self.return_cleanups = all;
-        self.try_stack = saved_try_stack;
+        self.enter(body_entry);
+        self.lower_statements(&try_.body);
+        let finally = try_.finally_body.as_deref();
+        let mut end_reachable = false;
+        if !self.current_sealed {
+            end_reachable |= self.route_transfer(PendingTransfer::Fallthrough(end_target.clone()));
+        }
+        if finally.is_some() {
+            let cleanup = self.normal_cleanups.pop();
+            assert!(matches!(
+                cleanup,
+                Some(NormalCleanup::Finally { owner, .. }) if owner == own_target.owner
+            ));
+        }
+        let active = self.try_stack.pop();
+        assert_eq!(
+            active.map(|target| target.owner),
+            Some(own_target.owner),
+            "try body unwind scopes are lexically nested"
+        );
+
+        self.materialize_unwind_target(&own_target);
+        self.enter(dispatch);
+        let caught = self.managed_exception_expr(&own_target);
+        for catch in &try_.catches {
+            let handler_target = handler_target
+                .as_ref()
+                .expect("a catch has a handler cleanup")
+                .clone();
+            let catch_block = self.new_block_with("try.catch", Some(handler_target.pad));
+            let next = self.new_block_with("try.next", None);
+            self.seal(mir::Terminator::Branch {
+                cond: mir::Expr::new(
+                    mir::Type::Boolean,
+                    mir::ExprKind::IsInstance {
+                        operand: Box::new(caught.clone()),
+                        check_ty: catch.ty.clone(),
+                    },
+                ),
+                then_block: catch_block,
+                else_block: next,
+            });
+            self.enter(catch_block);
+            self.push(
+                mir::StatementKind::ValDecl {
+                    local: catch.local,
+                    init: mir::Expr::new(
+                        catch.ty.as_ref().clone(),
+                        mir::ExprKind::Retype {
+                            operand: Box::new(caught.clone()),
+                            ty: catch.ty.clone(),
+                        },
+                    ),
+                },
+                catch.span,
+            );
+            self.try_stack.push(handler_target.clone());
+            if let Some(finally) = finally {
+                self.normal_cleanups.push(NormalCleanup::Finally {
+                    owner: handler_target.owner,
+                    body: finally,
+                });
+            }
+            self.lower_statements(&catch.body);
+            if !self.current_sealed {
+                end_reachable |=
+                    self.route_transfer(PendingTransfer::Fallthrough(end_target.clone()));
+            }
+            self.normal_cleanups.truncate(cleanup_base.0);
+            let active = self.try_stack.pop();
+            assert_eq!(
+                active.map(|target| target.owner),
+                Some(handler_target.owner),
+                "catch body unwind scopes are lexically nested"
+            );
+            self.enter(next);
+        }
+
+        if let Some(finally) = finally {
+            self.normal_cleanups.push(NormalCleanup::Finally {
+                owner: own_target.owner,
+                body: finally,
+            });
+        }
+        self.route_transfer(PendingTransfer::ManagedThrow(ManagedThrowPayload {
+            exception: caught,
+            unwind: enclosing.clone(),
+            cleanup_depth: cleanup_base,
+        }));
+        self.normal_cleanups.truncate(cleanup_base.0);
+
+        if let Some(handler_target) = handler_target {
+            self.materialize_unwind_target(&handler_target);
+            self.enter(handler_target.continuation);
+            if let Some(finally) = finally {
+                self.normal_cleanups.push(NormalCleanup::Finally {
+                    owner: handler_target.owner,
+                    body: finally,
+                });
+            }
+            let exception = self.managed_exception_expr(&handler_target);
+            self.route_transfer(PendingTransfer::ManagedThrow(ManagedThrowPayload {
+                exception,
+                unwind: enclosing,
+                cleanup_depth: cleanup_base,
+            }));
+            self.normal_cleanups.truncate(cleanup_base.0);
+        }
+
+        self.enter(end);
+        if !end_reachable {
+            self.seal(mir::Terminator::Unreachable);
+        }
+    }
+
+    fn materialize_unwind_target(&mut self, target: &UnwindTarget) {
+        let destination = target
+            .managed_exception
+            .expect("coroutine EH targets own an exact managed exception local");
+        self.enter(target.pad);
+        let span = synthetic_span();
+        let pending = self.call_pending_context();
+        self.push(
+            mir::StatementKind::Eh(mir::EhStatement::LandingPad { cleanup: false }),
+            span,
+        );
+        self.push(mir::StatementKind::Eh(mir::EhStatement::BeginCatch), span);
+        self.push(
+            mir::StatementKind::Call(mir::CallEffect::Value {
+                destination,
+                call: mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                    },
+                    args: vec![mir::Expr::new(
+                        mir::Type::Any,
+                        mir::ExprKind::CaughtException,
+                    )],
+                    pending,
+                },
+            }),
+            span,
+        );
+        self.push(mir::StatementKind::Eh(mir::EhStatement::EndCatch), span);
+        self.seal(mir::Terminator::Goto(target.continuation));
+    }
+
+    fn managed_exception_expr(&self, target: &UnwindTarget) -> mir::Expr {
+        let mode = self
+            .coroutine_eh
+            .as_ref()
+            .expect("managed exception expressions belong to coroutine EH bodies");
+        mir::Expr::new(
+            mode.throwable.clone(),
+            mir::ExprKind::Local(
+                target
+                    .managed_exception
+                    .expect("coroutine EH targets own a managed exception local"),
+            ),
+        )
     }
 }

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/mixed-width.scoop:6:22: error: no applicable candidate for `plus` in member candidate layer:
+  - fun Int8.plus(other: Int8): Int8 — argument for `other` has type Int16, which is not a subtype of Int8; primitive integer operands require one exact type; convert this operand explicitly with `toInt8()`

@@ -7,6 +7,10 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let direct_alias = match self.resolve_direct_alias_qualifier(&access.receiver) {
+            Ok(alias) => alias,
+            Err(()) => return None,
+        };
         // A qualified nested object is a value only at the final path
         // component. Resolving the owner chain itself is structural and must
         // not initialize any outer object.
@@ -25,11 +29,17 @@ impl Lowerer {
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).
-        let qualifier = self.nominal_qualifier_target(&access.receiver);
+        let qualifier = direct_alias
+            .as_ref()
+            .map(|(_, target)| *target)
+            .or_else(|| self.nominal_qualifier_target(&access.receiver));
         if let (Some(crate::NominalTarget::Enum(enum_id)), ast::FieldSelector::Name(name)) =
             (qualifier, &access.selector)
             && self.find_variant(enum_id, &name.text).is_some()
         {
+            let expected = direct_alias
+                .as_ref()
+                .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if let (Some(qualifier), ast::FieldSelector::Name(name)) = (qualifier, &access.selector)
@@ -50,6 +60,9 @@ impl Lowerer {
             }
         }
         if let Some(crate::NominalTarget::Enum(enum_id)) = qualifier {
+            let expected = direct_alias
+                .as_ref()
+                .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if matches!(&*access.receiver, ast::Expr::This { .. })
@@ -75,7 +88,7 @@ impl Lowerer {
             if field.text == "size" && self.array_element_ty(receiver.ty).is_some() {
                 return Some(hir::Expr {
                     kind: ExprKind::ArrayLen(Box::new(receiver)),
-                    ty: self.int,
+                    ty: self.integer_type(hir::IntegerKind::SIGNED_64),
                     span: access.span,
                     origin: self.expression_origin(access.span),
                 });
@@ -126,14 +139,16 @@ impl Lowerer {
             );
             return None;
         };
-        let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
+        let Some(target) = self.find_variant_ref(enum_id, &variant_name.text) else {
             self.error(
                 variant_name.span,
                 format!("enum `{enum_name}` has no variant `{}`", variant_name.text),
             );
             return None;
         };
-        let arity = self.enums[enum_id].variants[variant as usize].fields.len();
+        let arity = self.enums[enum_id].variants[target.local_index() as usize]
+            .fields
+            .len();
         if arity != 0 {
             let vname = &variant_name.text;
             self.error(
@@ -144,7 +159,7 @@ impl Lowerer {
             );
             return None;
         }
-        self.lower_unit_variant(variant_name, enum_id, variant, expected)
+        self.lower_unit_variant(variant_name, target, expected)
     }
 
     /// `receiver?.field`: the receiver must be an `Option<S>`; the
@@ -492,13 +507,14 @@ impl Lowerer {
                         };
                         let ty = fields[index].ty;
                         let ty = self.instantiate_ty(ty, &application_value.arguments);
-                        Some((
-                            hir::FieldRef::StructField {
-                                application,
-                                index: index as u32,
-                            },
-                            ty,
-                        ))
+                        let field = hir::AppliedStructFieldRef::checked(
+                            &self.structs,
+                            &self.struct_applications,
+                            application,
+                            index as u32,
+                        )
+                        .expect("the selected semantic struct field is in range");
+                        Some((hir::FieldRef::StructField(field), ty))
                     }
                     ast::FieldSelector::Index(index, span) => {
                         self.error(

@@ -91,8 +91,8 @@ fn ref_equality_maps_to_a_primitive_pointer_comparison() {
         };
         *op
     };
-    assert_eq!(op_of(0), mir::BinOp::IntEq);
-    assert_eq!(op_of(1), mir::BinOp::IntNe);
+    assert_eq!(op_of(0), mir::BinOp::RefEq);
+    assert_eq!(op_of(1), mir::BinOp::RefNe);
 }
 
 #[test]

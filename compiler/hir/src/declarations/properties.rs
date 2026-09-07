@@ -79,7 +79,7 @@ pub enum PropertyRepresentation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstPropertyValue {
-    Integer(i64),
+    Integer(HirIntegerConstant),
     Boolean(bool),
     String(String),
 }

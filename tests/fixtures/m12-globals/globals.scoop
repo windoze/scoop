@@ -11,10 +11,10 @@ var scoopTlsCounter: Int = 2
 var pair: NativePair = NativePair(3, 4)
 
 @Global
-var emptyPointer: Ptr<Int> = Ptr<Int>(0)
+var emptyPointer: Ptr<Int>? = None
 
 @Global
-var emptyCallback: FunPtr<(Int) -> Int> = FunPtr<(Int) -> Int>()
+var emptyCallback: FunPtr<(Int) -> Int>? = None
 
 @Extern(lib = "fixture_native", name = "native_counter")
 @Global

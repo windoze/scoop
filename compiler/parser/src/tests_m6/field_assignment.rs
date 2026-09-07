@@ -27,7 +27,10 @@ fn field_assignment() {
     assert_eq!(name.text, "y");
     assert_eq!(name.span, Span::new(19, 20));
     assert!(matches!(receiver.as_ref(), Expr::Var(name) if name.text == "p"));
-    assert!(matches!(assign.value, Expr::IntLiteral { value: 3, .. }));
+    assert!(matches!(
+        assign.value,
+        Expr::IntLiteral(literal) if literal.magnitude == 3
+    ));
     assert_eq!(stmt_dump("p.y = 3"), "assign .y\n  Var p\n  IntLiteral 3\n");
 }
 

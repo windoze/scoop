@@ -14,7 +14,7 @@ impl Lowerer {
         let mut locals = Arena::new();
         let state = locals.alloc(mir::Local {
             name: "$init.state".to_string(),
-            ty: mir::Type::Int,
+            ty: mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome),
             mutable: false,
         });
         let caught = locals.alloc(mir::Local {
@@ -44,7 +44,7 @@ impl Lowerer {
                 init: runtime_call(
                     mir::RuntimeFn::InitializationEnter,
                     vec![unit_address(unit)],
-                    mir::Type::Int,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome),
                 ),
             },
             span,
@@ -127,10 +127,11 @@ impl Lowerer {
             ),
         ];
         let cycle_message = smir::Expr::local(message, mir::Type::String);
+        let option = option_core_for_type(module, &self.enums, &cycle.message_type);
         let some_message = smir::Expr::new(
             cycle.message_type.clone(),
             smir::ExprKind::VariantConstruct {
-                variant: self.option_variants.0,
+                variant: option.some(),
                 fields: vec![cycle_message],
             },
         );
@@ -160,7 +161,7 @@ impl Lowerer {
         ];
         let terminal = vec![statement(
             smir::StatementKind::If {
-                cond: int_state(state, 2),
+                cond: initialization_outcome(state, mir::InitializationOutcome::Failed),
                 then_body: failed,
                 else_body: Some(cycle_body),
             },
@@ -168,7 +169,7 @@ impl Lowerer {
         )];
         let ready_or_terminal = vec![statement(
             smir::StatementKind::If {
-                cond: int_state(state, 1),
+                cond: initialization_outcome(state, mir::InitializationOutcome::Ready),
                 then_body: Vec::new(),
                 else_body: Some(terminal),
             },
@@ -176,7 +177,7 @@ impl Lowerer {
         )];
         let dispatch = statement(
             smir::StatementKind::If {
-                cond: int_state(state, 0),
+                cond: initialization_outcome(state, mir::InitializationOutcome::RunInitializer),
                 then_body: run,
                 else_body: Some(ready_or_terminal),
             },
@@ -188,6 +189,7 @@ impl Lowerer {
             smir::Body {
                 locals,
                 statements: vec![enter, dispatch],
+                coroutine_eh: None,
             },
         )
     }
@@ -240,13 +242,12 @@ fn direct_call(
     )
 }
 
-fn int_state(state: mir::LocalId, expected: i64) -> smir::Expr {
-    smir::Expr::new(
-        mir::Type::Boolean,
-        smir::ExprKind::Binary {
-            op: mir::BinOp::IntEq,
-            lhs: Box::new(smir::Expr::local(state, mir::Type::Int)),
-            rhs: Box::new(smir::Expr::int(expected)),
-        },
+fn initialization_outcome(state: mir::LocalId, expected: mir::InitializationOutcome) -> smir::Expr {
+    smir::Expr::machine_eq(
+        smir::Expr::local(
+            state,
+            mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome),
+        ),
+        mir::MachineScalarValue::InitializationOutcome(expected),
     )
 }

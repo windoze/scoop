@@ -4,7 +4,13 @@ impl Harness {
     pub(super) fn new() -> Self {
         let mut types = Arena::new();
         let unit = types.alloc(hir::Type::Unit);
-        let int = types.alloc(hir::Type::Int);
+        let integer_types = hir::IntegerKind::ALL.map(|kind| types.alloc(hir::Type::Integer(kind)));
+        let integers = hir::IntegerTypeCore::new(integer_types)
+            .expect("the eight integer kinds receive distinct canonical types");
+        let int = integers.owner(hir::IntegerKind::SIGNED_32);
+        let long = integers.owner(hir::IntegerKind::SIGNED_64);
+        let uint = integers.owner(hir::IntegerKind::UNSIGNED_32);
+        let ulong = integers.owner(hir::IntegerKind::UNSIGNED_64);
         let boolean = types.alloc(hir::Type::Boolean);
         let string = types.alloc(hir::Type::String);
         let functions = Arena::new();
@@ -20,6 +26,7 @@ impl Harness {
             access: hir::NominalAccess::public(),
             self_application: option_self_application,
             type_params: vec![type_param("T")],
+            gc_free_pointee_requirements: Vec::new(),
             no_gc: false,
             variants: vec![
                 hir::Variant {
@@ -84,12 +91,17 @@ impl Harness {
             interface_applications_by_key: HashMap::new(),
             top_level: Vec::new(),
             unit,
+            integers,
             int,
+            long,
+            uint,
+            ulong,
             boolean,
             string,
             option_enum,
+            needs_initialization_core: false,
             write: None,
-            int_to_string: None,
+            long_to_string: None,
             bool_to_string: None,
             print_string: None,
             print_int: None,
@@ -98,12 +110,15 @@ impl Harness {
             println_int: None,
             println_boolean: None,
             instantiations: Arena::new(),
-            uint: None,
             gc_core: None,
             intrinsic_array: None,
             intrinsic_mutable_array: None,
             next_constructor_param: 0,
         }
+    }
+
+    pub(super) fn integer(&self, kind: hir::IntegerKind) -> hir::TypeId {
+        self.integers.owner(kind)
     }
 
     /// Adds core's managed `write` extern on first use so tests unrelated
@@ -145,23 +160,23 @@ impl Harness {
     /// scoop.core's representation-level integer formatter. This is an
     /// ordinary Scoop-ABI extern declaration, never an intrinsic/runtime
     /// function kind.
-    pub(super) fn int_to_string(&mut self) -> hir::FunctionId {
-        if let Some(id) = self.int_to_string {
+    pub(super) fn long_to_string(&mut self) -> hir::FunctionId {
+        if let Some(id) = self.long_to_string {
             return id;
         }
         let extern_id = self.extern_functions.alloc(hir::ExternFunction {
-            source_name: "coreIntToString".to_string(),
-            native_symbol: "scoop_rt_int_to_string".to_string(),
+            source_name: "coreLongToString".to_string(),
+            native_symbol: "scoop_rt_long_to_string".to_string(),
             library: String::new(),
             abi: hir::ExternAbi::Scoop,
             calling_convention: hir::CallingConvention::Cdecl,
             gc_effect: hir::GcEffect::Managed,
             safety: hir::Safety::Safe,
-            params: vec![self.int],
+            params: vec![self.long],
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "coreIntToString".to_string(),
+            name: "coreLongToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
@@ -175,7 +190,7 @@ impl Harness {
             span: SPAN,
         });
         self.top_level.push(id);
-        self.int_to_string = Some(id);
+        self.long_to_string = Some(id);
         id
     }
 
@@ -244,16 +259,22 @@ impl Harness {
         id
     }
 
-    /// core's `fun print(message: Int) = write(intToString(message))`.
+    /// core's `fun print(message: Int) = write(coreLongToString(message.toInt64()))`.
     pub(super) fn print_int(&mut self) -> hir::FunctionId {
         if let Some(id) = self.print_int {
             return id;
         }
         let (unit, int, string) = (self.unit, self.int, self.string);
         let write = self.write();
-        let int_to_string = self.int_to_string();
+        let long_to_string = self.long_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", int));
+        let message_as_long = integer_conversion(
+            self,
+            hir::IntegerKind::SIGNED_32,
+            hir::IntegerKind::SIGNED_64,
+            local_ref(message, int),
+        );
         let id = self.user_fn_full(
             "print",
             Vec::new(),
@@ -263,11 +284,7 @@ impl Harness {
                 locals,
                 statements: vec![expr_stmt(call_typed(
                     write,
-                    vec![call_typed(
-                        int_to_string,
-                        vec![local_ref(message, int)],
-                        string,
-                    )],
+                    vec![call_typed(long_to_string, vec![message_as_long], string)],
                     unit,
                 ))],
             },
@@ -338,16 +355,22 @@ impl Harness {
         id
     }
 
-    /// core's `fun println(message: Int) = println(intToString(message))`.
+    /// core's `fun println(message: Int) = println(coreLongToString(message.toInt64()))`.
     pub(super) fn println_int(&mut self) -> hir::FunctionId {
         if let Some(id) = self.println_int {
             return id;
         }
         let println_string = self.println_string();
         let (unit, int, string) = (self.unit, self.int, self.string);
-        let int_to_string = self.int_to_string();
+        let long_to_string = self.long_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", int));
+        let message_as_long = integer_conversion(
+            self,
+            hir::IntegerKind::SIGNED_32,
+            hir::IntegerKind::SIGNED_64,
+            local_ref(message, int),
+        );
         let id = self.user_fn_full(
             "println",
             Vec::new(),
@@ -357,11 +380,7 @@ impl Harness {
                 locals,
                 statements: vec![expr_stmt(call_typed(
                     println_string,
-                    vec![call_typed(
-                        int_to_string,
-                        vec![local_ref(message, int)],
-                        string,
-                    )],
+                    vec![call_typed(long_to_string, vec![message_as_long], string)],
                     unit,
                 ))],
             },

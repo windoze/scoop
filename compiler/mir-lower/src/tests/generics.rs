@@ -13,11 +13,11 @@ fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
     registry.record(
         hir_function(0),
         mir_function(0),
-        "scoop.identity$I".to_string(),
+        "scoop.identity$I32".to_string(),
         "identity".to_string(),
         LoweredFunctionInstance::GenericFunction {
             origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
-            arguments: arguments(mir::Type::Int, Vec::new()),
+            arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
         },
     );
     registry.record(
@@ -33,12 +33,12 @@ fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
     registry.record(
         hir_function(2),
         mir_function(2),
-        "scoop.Box$I.get$I".to_string(),
+        "scoop.Box$I32.get$I32".to_string(),
         "Box.get".to_string(),
         LoweredFunctionInstance::ParameterizedMethod {
             origin: hir::concrete::OwnerParameterizedMethodOriginId::from_raw(11),
             owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(3_u32.into())),
-            owner_arguments: arguments(mir::Type::Int, Vec::new()),
+            owner_arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
         },
     );
     registry.record(
@@ -79,7 +79,10 @@ fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
         panic!("the owner-parameterized method category must be retained")
     };
     assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
-    assert_eq!(owner_arguments.to_vec(), vec![mir::Type::Int]);
+    assert_eq!(
+        owner_arguments.to_vec(),
+        vec![mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
 
     let mir::MonomorphizedSource::GenericMethod {
         owner,
@@ -115,21 +118,24 @@ fn generic_structs_instantiate_per_argument_list() {
     let b = locals.alloc(local("b", pinned_ptr_s));
     let c = locals.alloc(local("c", pinned_ptr_s));
     let d = locals.alloc(local("d", box2_s));
+    let raw_one = integer_lit(&h, hir::IntegerKind::UNSIGNED_64, 1);
+    let raw_two = integer_lit(&h, hir::IntegerKind::UNSIGNED_64, 2);
+    let raw_three = integer_lit(&h, hir::IntegerKind::UNSIGNED_64, 3);
     let main = h.user_fn(
         "main",
         hir::Body {
             locals,
             statements: vec![
-                val_decl(a, struct_init(&h, pinned_ptr_v, vec![int_lit(&h, 1)])),
-                val_decl(b, struct_init(&h, pinned_ptr_s, vec![int_lit(&h, 2)])),
-                val_decl(c, struct_init(&h, pinned_ptr_s, vec![int_lit(&h, 3)])),
+                val_decl(a, struct_init(&h, pinned_ptr_v, vec![raw_one])),
+                val_decl(b, struct_init(&h, pinned_ptr_s, vec![raw_two])),
+                val_decl(c, struct_init(&h, pinned_ptr_s, vec![raw_three])),
                 val_decl(d, struct_init(&h, box2_s, vec![str_lit(&h, "x")])),
             ],
         },
     );
     let module = lower(&h.finish(main));
 
-    // One instance per (struct, args): `PinnedPtr$V` once,
+    // One instance per (struct, args): `PinnedPtr$V32` once,
     // `PinnedPtr$S` once despite two uses, `Box2$S` once — named
     // like the enum instances. Generic definitions themselves do
     // not survive into MIR: MIR contains no generic types.
@@ -143,12 +149,12 @@ fn generic_structs_instantiate_per_argument_list() {
     };
     assert!(defs("PinnedPtr").is_empty());
     assert!(defs("Box2").is_empty());
-    assert_eq!(defs("PinnedPtr$V").len(), 1);
+    assert_eq!(defs("PinnedPtr$V32").len(), 1);
     assert_eq!(
-        defs("PinnedPtr$V")[0].declared_fields()[0].ty,
-        mir::Type::UInt
+        defs("PinnedPtr$V32")[0].declared_fields()[0].ty,
+        mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
     );
-    assert!(defs("PinnedPtr$V")[0].gc_free);
+    assert!(defs("PinnedPtr$V32")[0].gc_free);
     assert_eq!(defs("PinnedPtr$S").len(), 1);
     assert!(defs("PinnedPtr$S")[0].gc_free);
     assert_eq!(defs("Box2$S").len(), 1);
@@ -174,13 +180,18 @@ fn generic_structs_instantiate_per_argument_list() {
         lc.expect("struct constructor returns its value"),
         ld.expect("struct constructor returns its value"),
     );
-    assert_eq!(instance_of(la), "PinnedPtr$V");
+    assert_eq!(instance_of(la), "PinnedPtr$V32");
     assert_eq!(instance_of(lb), "PinnedPtr$S");
     assert_eq!(instance_of(lc), "PinnedPtr$S");
     assert_eq!(instance_of(ld), "Box2$S");
     let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
         panic!("a struct constructor is a direct user function")
     };
+    assert_eq!(
+        module.functions[first_constructor].gc_effect,
+        mir::GcEffect::NoGc,
+        "primary struct construction only assembles evaluated fields"
+    );
     let mir::Terminator::Return {
         value:
             Some(mir::Expr {
@@ -193,7 +204,7 @@ fn generic_structs_instantiate_per_argument_list() {
     else {
         panic!("a primary struct constructor returns a StructInit")
     };
-    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V");
+    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V32");
 }
 
 #[test]
@@ -244,7 +255,7 @@ fn generic_interface_applications_get_distinct_mir_identities() {
         .iter()
         .map(|(_, interface)| interface.name.as_str())
         .collect();
-    assert_eq!(names, ["Channel$I", "Channel$S"]);
+    assert_eq!(names, ["Channel$I32", "Channel$S"]);
     let class_interfaces: Vec<_> = module
         .classes
         .iter()
@@ -305,10 +316,10 @@ fn print_overloads_are_ordinary_calls() {
         symbols,
         [
             "scoop.print.S",
-            "scoop.print.I",
+            "scoop.print.I32",
             "scoop.print.B",
             "scoop.println.S",
-            "scoop.println.I",
+            "scoop.println.I32",
             "scoop.println.B",
         ]
     );

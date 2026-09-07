@@ -1,5 +1,9 @@
 use super::*;
 
+fn next_index<T>(values: &[T]) -> u32 {
+    u32::try_from(values.len()).expect("compiler-synthesized enum arity fits in u32")
+}
+
 #[derive(Clone)]
 pub(super) struct SuspendSource {
     pub(super) function: mir::FunctionId,
@@ -14,6 +18,8 @@ pub(super) struct CoroutineRegistry {
     pub(super) steps_by_result: Vec<(mir::Type, mir::CoroutineStepId)>,
     pub(super) slots: Arena<mir::CoroutineSlot>,
     pub(super) slots_by_value: Vec<(mir::Type, mir::CoroutineSlotId)>,
+    pub(super) saved_values: Arena<mir::CoroutineSavedValue>,
+    pub(super) failure_values: Arena<mir::CoroutineFailureValue>,
     pub(super) frames: Arena<mir::CoroutineFrame>,
     pub(super) resume_points: Arena<mir::CoroutineResumePoint>,
     pub(super) continuation_shells: Vec<(mir::Type, mir::FunctionId, mir::FunctionId)>,
@@ -34,40 +40,51 @@ impl CoroutineRegistry {
             .find(|(found, _)| found == result)
         {
             let step = &self.steps[*id];
-            return (*id, mir::Type::Enum(step.enum_id, Vec::new()));
+            return (*id, mir::Type::Enum(step.enum_id(), Vec::new()));
         }
-        let name = format!("CoroutineStep${}", mir::encode_type(shell, result));
+        let encoded = mir::encode_type(shell, result)
+            .expect("coroutine result types are source-level MIR types");
+        let name = format!("CoroutineStep${encoded}");
         let result_gc_free = mir_type_gc_free(result, structs, enums);
-        let variants = vec![
-            mir::VariantDef {
-                name: "Completed".to_string(),
-                gc_free: result_gc_free,
-                fields: vec![mir::Field {
-                    name: "value".to_string(),
-                    ty: result.clone(),
-                }],
-            },
-            mir::VariantDef {
-                name: "Suspended".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
-        ];
+        let mut variants = Vec::new();
+        let completed_index = next_index(&variants);
+        let mut completed_fields = Vec::new();
+        let completed_payload_index = next_index(&completed_fields);
+        completed_fields.push(mir::Field {
+            name: "value".to_string(),
+            ty: result.clone(),
+        });
+        variants.push(mir::VariantDef {
+            name: "Completed".to_string(),
+            gc_free: result_gc_free,
+            fields: completed_fields,
+        });
+        let suspended_index = next_index(&variants);
+        variants.push(mir::VariantDef {
+            name: "Suspended".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
         let enum_id = enums.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
             name,
+            type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants: Vec::new(),
         });
         assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
-        let id = self.steps.alloc(mir::CoroutineStep {
-            enum_id,
-            result: result.clone(),
-        });
+        let completed = enums.variant_ref(enum_id, completed_index);
+        let completed_payload = enums.variant_field_ref(completed, completed_payload_index);
+        let suspended = enums.variant_ref(enum_id, suspended_index);
+        let step =
+            mir::CoroutineStep::checked(&enums.defs, completed_payload, suspended, result.clone())
+                .expect("synthesized CoroutineStep metadata matches its enum definition");
+        let id = self.steps.alloc(step);
         self.steps_by_result.push((result.clone(), id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
@@ -76,7 +93,18 @@ impl CoroutineRegistry {
         self.steps_by_result
             .iter()
             .find(|(found, _)| found == result)
-            .map(|(_, id)| mir::Type::Enum(self.steps[*id].enum_id, Vec::new()))
+            .map(|(_, id)| mir::Type::Enum(self.steps[*id].enum_id(), Vec::new()))
+    }
+
+    pub(super) fn step_metadata_for_type(&self, step_ty: &mir::Type) -> &mir::CoroutineStep {
+        let mir::Type::Enum(enum_id, arguments) = step_ty else {
+            unreachable!("CoroutineStep has an enum type")
+        };
+        assert!(arguments.is_empty(), "CoroutineStep is already concrete");
+        self.steps
+            .iter()
+            .find_map(|(_, step)| (step.enum_id() == *enum_id).then_some(step))
+            .expect("every synthesized CoroutineStep type has typed metadata")
     }
 
     pub(super) fn slot_for(
@@ -88,40 +116,50 @@ impl CoroutineRegistry {
     ) -> (mir::CoroutineSlotId, mir::Type) {
         if let Some((_, id)) = self.slots_by_value.iter().find(|(found, _)| found == value) {
             let slot = &self.slots[*id];
-            return (*id, mir::Type::Enum(slot.enum_id, Vec::new()));
+            return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
-        let name = format!("CoroutineSlot${}", mir::encode_type(shell, value));
+        let encoded = mir::encode_type(shell, value)
+            .expect("coroutine slot types are source-level MIR types");
+        let name = format!("CoroutineSlot${encoded}");
         let value_gc_free = mir_type_gc_free(value, structs, enums);
-        let variants = vec![
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
-            mir::VariantDef {
-                name: "Value".to_string(),
-                gc_free: value_gc_free,
-                fields: vec![mir::Field {
-                    name: "value".to_string(),
-                    ty: value.clone(),
-                }],
-            },
-        ];
+        let mut variants = Vec::new();
+        let empty_index = next_index(&variants);
+        variants.push(mir::VariantDef {
+            name: "Empty".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
+        let value_index = next_index(&variants);
+        let mut value_fields = Vec::new();
+        let value_payload_index = next_index(&value_fields);
+        value_fields.push(mir::Field {
+            name: "value".to_string(),
+            ty: value.clone(),
+        });
+        variants.push(mir::VariantDef {
+            name: "Value".to_string(),
+            gc_free: value_gc_free,
+            fields: value_fields,
+        });
         let enum_id = enums.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
             name,
+            type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants: Vec::new(),
         });
         assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
-        let id = self.slots.alloc(mir::CoroutineSlot {
-            enum_id,
-            value: value.clone(),
-        });
+        let empty = enums.variant_ref(enum_id, empty_index);
+        let value_variant = enums.variant_ref(enum_id, value_index);
+        let value_payload = enums.variant_field_ref(value_variant, value_payload_index);
+        let slot = mir::CoroutineSlot::checked(&enums.defs, value_payload, empty, value.clone())
+            .expect("synthesized CoroutineSlot metadata matches its enum definition");
+        let id = self.slots.alloc(slot);
         self.slots_by_value.push((value.clone(), id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
@@ -141,7 +179,8 @@ impl CoroutineRegistry {
         {
             return (*resume, *failure);
         }
-        let encoded = mir::encode_type(shell, result);
+        let encoded = mir::encode_type(shell, result)
+            .expect("continuation result types are source-level MIR types");
         let mut resume_locals = Arena::new();
         let receiver = resume_locals.alloc(mir::Local {
             name: "this".to_string(),
@@ -222,9 +261,28 @@ impl CoroutineRegistry {
         top_level: &mut Vec<mir::FunctionId>,
         shell: &mir::Module,
     ) -> mir::FunctionId {
+        let step_id = self
+            .steps_by_result
+            .iter()
+            .find(|(found, _)| found == result)
+            .map(|(_, id)| *id)
+            .expect("start helpers are created after their CoroutineStep metadata");
+        let step_metadata = &self.steps[step_id];
+        assert_eq!(
+            step_ty,
+            &mir::Type::Enum(step_metadata.enum_id(), Vec::new()),
+            "the start helper result and CoroutineStep type must identify the same metadata",
+        );
+        assert_eq!(
+            self.step_metadata_for_type(step_ty).result(),
+            result,
+            "the start helper CoroutineStep metadata must carry its result type",
+        );
         if let Some((_, function)) = self.start_helpers.iter().find(|(found, _)| found == result) {
             return *function;
         }
+        let completed_variant = step_metadata.completed();
+        let completed_payload = step_metadata.completed_payload();
 
         let mut locals = Arena::new();
         let task = locals.alloc(mir::Local {
@@ -273,11 +331,12 @@ impl CoroutineRegistry {
                             result.clone(),
                             mir::ExprKind::EnumField {
                                 operand: Box::new(mir::Expr::local(step, step_ty.clone())),
-                                variant: 0,
-                                index: 0,
+                                variant: completed_payload.variant().variant_index(),
+                                index: completed_payload.field_index(),
                             },
                         ),
                     ],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
             terminator: mir::Terminator::Return { value: None },
@@ -298,6 +357,7 @@ impl CoroutineRegistry {
                         mir::Expr::local(completion, mir::Type::Interface(continuation_interface)),
                         mir::Expr::local(exception, throwable.clone()),
                     ],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
             terminator: mir::Terminator::Return { value: None },
@@ -318,6 +378,7 @@ impl CoroutineRegistry {
                             callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                         },
                         args: vec![mir::Expr::caught_exception()],
+                        pending: mir::CoroutinePendingContext::Root,
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -345,24 +406,22 @@ impl CoroutineRegistry {
                                 mir::Type::Interface(continuation_interface),
                             ),
                         ],
+                        pending: mir::CoroutinePendingContext::Root,
                     },
                 },
             ))],
             terminator: mir::Terminator::Branch {
-                cond: mir::Expr::new(
-                    mir::Type::Boolean,
-                    mir::ExprKind::Binary {
-                        op: mir::BinOp::IntEq,
-                        lhs: Box::new(mir::Expr::enum_tag(mir::Expr::local(step, step_ty.clone()))),
-                        rhs: Box::new(mir::Expr::int(0)),
-                    },
+                cond: mir::Expr::machine_eq(
+                    mir::Expr::enum_tag(mir::Expr::local(step, step_ty.clone())),
+                    mir::MachineScalarValue::EnumTag(completed_variant.variant_index()),
                 ),
                 then_block: completed,
                 else_block: suspended,
             },
             unwind: Some(catch_pad),
         });
-        let encoded = mir::encode_type(shell, result);
+        let encoded = mir::encode_type(shell, result)
+            .expect("coroutine result types are source-level MIR types");
         let function = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine${encoded}"),
@@ -384,6 +443,7 @@ impl CoroutineRegistry {
                 locals,
                 blocks,
                 entry,
+                loop_header_polls: Vec::new(),
             },
         });
         top_level.push(function);

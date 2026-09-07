@@ -10,6 +10,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         match instruction {
             Instruction::FunctionAddress { out, symbol } => {
+                if function.temps[*out].ty != scoop_lir::CODE_PTR {
+                    return Err(CodegenError(format!(
+                        "function_address @{} must produce ptr<code>",
+                        function.symbol
+                    )));
+                }
                 let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
                         "function_address @{}: unknown function @{}",
@@ -27,6 +33,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 closure,
             } => {
                 let bridge = &self.foreign_callback_bridges[*bridge];
+                let family = &self.foreign_callback_families[bridge.family];
+                let closure_ty = function.value_ty(self.globals_arena, *closure);
+                let out_ty = &function.temps[*out].ty;
+                if closure_ty != scoop_lir::MANAGED_PTR
+                    || out_ty != &LirType::Struct(family.callback)
+                {
+                    return Err(CodegenError(format!(
+                        "foreign callback registration @{} requires a managed closure and its exact nominal callback result, got closure {} and result {}",
+                        function.symbol,
+                        closure_ty.dump(),
+                        out_ty.dump()
+                    )));
+                }
                 let closure = self.value(*closure)?.into_pointer_value();
                 let adapter = self
                     .llvm
@@ -56,10 +75,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         false,
                     ),
                 );
-                let mode = match bridge.mode {
-                    scoop_lir::ForeignCallbackMode::Reusable => 0,
-                    scoop_lir::ForeignCallbackMode::OneShot => 1,
-                };
+                let mode = family
+                    .modes
+                    .runtime_code(bridge.mode)
+                    .expect("validated callback bridge mode belongs to its family");
                 let callback_context = builder
                     .build_call(
                         register,
@@ -67,7 +86,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             closure.into(),
                             adapter.into(),
                             signature.into(),
-                            context.i32_type().const_int(mode, false).into(),
+                            context.i32_type().const_int(u64::from(mode), false).into(),
                         ],
                         "foreign_callback_context",
                     )
@@ -108,6 +127,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, value.into_struct_value().into());
             }
             Instruction::ForeignCallbackOperation(operation) => {
+                let family = &self.foreign_callback_families[operation.family()];
                 let callback = self.value(operation.callback())?.into_struct_value();
                 let function_pointer = builder
                     .build_extract_value(callback, 0, "callback_function")
@@ -203,20 +223,83 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .basic()
                             .expect("state query returns a tag")
                             .into_int_value();
-                        let state = builder
-                            .build_int_z_extend(state, context.i64_type(), "callback_state_tag")
+                        let valid = builder
+                            .build_int_compare(
+                                IntPredicate::ULE,
+                                state,
+                                context.i32_type().const_int(3, false),
+                                "callback_state_valid",
+                            )
                             .map_err(|error| {
-                                CodegenError(format!("extend callback state: {error}"))
+                                CodegenError(format!("validate callback state: {error}"))
                             })?;
-                        let LirType::Enum(enum_id) = function.temps[out].ty else {
-                            return Err(CodegenError(
-                                "callback state result is not an enum".to_string(),
-                            ));
+                        let valid_block =
+                            context.append_basic_block(self.llvm_function, "callback_state_valid");
+                        let invalid_block = context
+                            .append_basic_block(self.llvm_function, "callback_state_invalid");
+                        builder
+                            .build_conditional_branch(valid, valid_block, invalid_block)
+                            .map_err(|error| {
+                                CodegenError(format!("branch on callback state: {error}"))
+                            })?;
+                        builder.position_at_end(invalid_block);
+                        let trap = self.llvm.get_function("llvm.trap").unwrap_or_else(|| {
+                            self.llvm.add_function(
+                                "llvm.trap",
+                                context.void_type().fn_type(&[], false),
+                                None,
+                            )
+                        });
+                        builder
+                            .build_call(trap, &[], "callback_state_trap")
+                            .map_err(|error| {
+                                CodegenError(format!("trap invalid callback state: {error}"))
+                            })?;
+                        builder.build_unreachable().map_err(|error| {
+                            CodegenError(format!("trap invalid callback state: {error}"))
+                        })?;
+                        builder.position_at_end(valid_block);
+                        let state_tag = |wire_code: u64,
+                                         variant: scoop_lir::LirVariantRef,
+                                         fallback: inkwell::values::IntValue<'ctx>|
+                         -> Result<_, CodegenError> {
+                            let matches = builder
+                                .build_int_compare(
+                                    IntPredicate::EQ,
+                                    state,
+                                    context.i32_type().const_int(wire_code, false),
+                                    "callback_state_case",
+                                )
+                                .map_err(|error| {
+                                    CodegenError(format!("decode callback state: {error}"))
+                                })?;
+                            builder
+                                .build_select(
+                                    matches,
+                                    context
+                                        .i64_type()
+                                        .const_int(u64::from(variant.index()), false),
+                                    fallback,
+                                    "callback_state_tag",
+                                )
+                                .map(|value| value.into_int_value())
+                                .map_err(|error| {
+                                    CodegenError(format!("decode callback state: {error}"))
+                                })
                         };
+                        let states = family.states;
+                        let state = state_tag(
+                            2,
+                            states.completed(),
+                            context
+                                .i64_type()
+                                .const_int(u64::from(states.failed().index()), false),
+                        )?;
+                        let state = state_tag(1, states.active(), state)?;
+                        let state = state_tag(0, states.registered(), state)?;
+                        let enum_id = states.definition();
                         let EnumRepr::Tagged { size, align, .. } = &self.enums[enum_id].repr else {
-                            return Err(CodegenError(
-                                "callback state enum unexpectedly uses a niche".to_string(),
-                            ));
+                            unreachable!("validated callback state enum uses a tagged layout")
                         };
                         let ty = tagged_ty(
                             context,

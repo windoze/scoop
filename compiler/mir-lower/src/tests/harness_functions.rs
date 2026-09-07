@@ -22,6 +22,7 @@ impl Harness {
         let generic = self.generic_functions.alloc(hir::GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
         });
         self.functions[function].genericity = hir::FunctionGenericity::Generic {
             definition: generic,
@@ -265,6 +266,7 @@ impl Harness {
                 hir::FunctionGenericity::OwnerParameterizedMethod {
                     owner_parameters: vec![type_param()],
                     no_gc_type_params: Vec::new(),
+                    gc_free_pointee_requirements: Vec::new(),
                 };
         }
         let start_coroutine = self.functions.alloc(hir::Function {
@@ -318,8 +320,53 @@ impl Harness {
         }
     }
 
+    fn test_iteration_core(&mut self, option_core: hir::OptionCore) -> hir::IterationCore {
+        let parameter = hir::TypeParamDecl {
+            id: hir::TypeParamId::with_substitution_slot(u32::MAX, 0),
+            name: "T".to_string(),
+            bounds: hir::TypeParamBounds::Unconstrained,
+            span: SPAN,
+        };
+        let parameter_ty = self.types.alloc(hir::Type::Param(parameter.id));
+        let iterator =
+            self.declare_interface("Iterator", vec![parameter], vec![parameter_ty], Vec::new());
+        let option_application = self.enum_application(self.option_enum, vec![parameter_ty]);
+        let option_ty = self.enum_applications[option_application].canonical_type;
+        self.add_interface_method_signature(
+            iterator,
+            hir::MethodSig {
+                name: "next".to_string(),
+                is_suspend: false,
+                attributes: hir::FunctionAttributes::default(),
+                type_params: Vec::new(),
+                params: Vec::new(),
+                return_ty: option_ty,
+                span: SPAN,
+            },
+        );
+        let next = self.interfaces[iterator].methods[0];
+        hir::IterationCore::checked(
+            &self.interfaces,
+            &self.interface_applications,
+            &self.interface_methods,
+            &self.functions,
+            &self.enums,
+            &self.enum_applications,
+            &self.types,
+            option_core,
+            iterator,
+            next,
+        )
+        .expect("test Iterator has the core shape")
+    }
+
     pub(super) fn finish(self, entry: hir::FunctionId) -> hir::Module {
         self.finish_with_coroutine_core(entry, false)
+    }
+
+    pub(super) fn finish_with_initialization_core(mut self, entry: hir::FunctionId) -> hir::Module {
+        self.needs_initialization_core = true;
+        self.finish(entry)
     }
 
     pub(super) fn finish_coroutines(self, entry: hir::FunctionId) -> hir::Module {
@@ -345,7 +392,7 @@ impl Harness {
             fun_ptr,
             pinned_ptr,
             gc_handle,
-            ptr_to_uint: entry,
+            ptr_to_ulong: entry,
             ptr_cast: entry,
             ptr_load: entry,
             ptr_load_offset: entry,
@@ -382,11 +429,16 @@ impl Harness {
             Vec::new(),
             unit_variants(&["Registered", "Active", "Completed", "Failed"]),
         );
-        let uint = self.uint();
-        let intrinsic_int =
-            self.declare_fixed_intrinsic_struct("Int", hir::IntrinsicTypeKind::Int, self.int);
-        let intrinsic_uint =
-            self.declare_fixed_intrinsic_struct("UInt", hir::IntrinsicTypeKind::UInt, uint);
+        let integer_types = self.integers;
+        let integer_owners = hir::IntegerKind::ALL.map(|kind| {
+            self.declare_fixed_intrinsic_struct(
+                kind.canonical_name(),
+                hir::IntrinsicTypeKind::Integer(kind),
+                integer_types.owner(kind),
+            )
+        });
+        let intrinsic_integers = hir::IntegerTypeCore::new(integer_owners)
+            .expect("the eight integer kinds receive distinct nominal owners");
         let intrinsic_boolean = self.declare_fixed_intrinsic_struct(
             "Boolean",
             hir::IntrinsicTypeKind::Boolean,
@@ -407,6 +459,85 @@ impl Harness {
             function_name: String::new(),
             type_name: String::new(),
         });
+        let option_some = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 0)
+            .expect("test Option has Some");
+        let option_some_payload = hir::EnumVariantFieldRef::checked(&self.enums, option_some, 0)
+            .expect("test Option Some has its payload");
+        let option_none = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 1)
+            .expect("test Option has None");
+        let option_core =
+            hir::OptionCore::checked(&self.enums, &self.types, option_some_payload, option_none)
+                .expect("test Option has the core shape");
+        let iteration_core = self.test_iteration_core(option_core);
+        let callback_mode_application = self.enums[callback_mode].self_application;
+        let callback_modes = hir::ForeignCallbackModes::checked(
+            &self.enums,
+            &self.enum_applications,
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_mode_application,
+                0,
+            )
+            .expect("test callback mode has Reusable"),
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_mode_application,
+                1,
+            )
+            .expect("test callback mode has OneShot"),
+        )
+        .expect("test callback mode has the core shape");
+        let callback_state_application = self.enums[callback_state].self_application;
+        let callback_state_ref = |index| {
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                callback_state_application,
+                index,
+            )
+            .expect("test callback state variant exists")
+        };
+        let callback_states = hir::ForeignCallbackStates::checked(
+            &self.enums,
+            &self.enum_applications,
+            callback_state_ref(0),
+            callback_state_ref(1),
+            callback_state_ref(2),
+            callback_state_ref(3),
+        )
+        .expect("test callback state has the core shape");
+        let throwable = self.class_ty(exception_core.throwable.class());
+        let callback_failure_application = self.enum_application(self.option_enum, vec![throwable]);
+        let callback_failure_some = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            callback_failure_application,
+            option_core.some(),
+        )
+        .expect("test callback failure has Some");
+        let callback_failure_result = hir::ForeignCallbackFailureResult::checked(
+            &self.enums,
+            &self.enum_applications,
+            option_core,
+            throwable,
+            hir::AppliedEnumVariantFieldRef::checked(
+                &self.enums,
+                &self.enum_applications,
+                callback_failure_some,
+                option_core.some_payload().local_index(),
+            )
+            .expect("test callback failure Some has a payload"),
+            hir::AppliedEnumVariantRef::checked(
+                &self.enums,
+                &self.enum_applications,
+                callback_failure_application,
+                option_core.none(),
+            )
+            .expect("test callback failure has None"),
+        )
+        .expect("test callback failure has the core shape");
         hir::Module {
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
@@ -443,6 +574,7 @@ impl Harness {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: Arena::new(),
+            type_aliases: Arena::new(),
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,
@@ -464,17 +596,18 @@ impl Harness {
             interface_methods: self.interface_methods,
             top_level: self.top_level,
             unit: self.unit,
-            int: self.int,
             boolean: self.boolean,
             string: self.string,
-            option_enum: self.option_enum,
+            option_core,
+            iteration_core,
             exception_core,
             coroutine_core,
             ffi_core,
             foreign_callback_core: hir::ForeignCallbackCore {
                 callback: ptr,
-                mode: callback_mode,
-                state: callback_state,
+                modes: callback_modes,
+                states: callback_states,
+                failure_result: callback_failure_result,
                 register: entry,
                 retain: entry,
                 release: entry,
@@ -482,12 +615,13 @@ impl Harness {
                 failure: entry,
             },
             intrinsic_type_core: hir::IntrinsicTypeCore {
-                int: intrinsic_int,
-                uint: intrinsic_uint,
+                integers: intrinsic_integers,
                 boolean: intrinsic_boolean,
                 string: intrinsic_string,
                 array: intrinsic_array,
                 mutable_array: intrinsic_mutable_array,
+                ptr,
+                fun_ptr,
             },
             source_location_core: hir::SourceLocationCore {
                 location: ptr,

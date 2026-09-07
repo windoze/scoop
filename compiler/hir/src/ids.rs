@@ -49,6 +49,7 @@ pub type ExportDefaultExprId = Idx<ExportDefaultExpr>;
 pub type ExportDefaultSourceId = Idx<ExportDefaultSource>;
 pub type ExportVarargParameterTypeId = Idx<ExportVarargParameterType>;
 pub type SourceContextId = Idx<SourceContext>;
+pub type ExportTypeAliasId = Idx<TypeAliasDecl>;
 
 /// Export-side identity of one class virtual-dispatch family. Every override
 /// in the family carries the same id; overloads always receive distinct ids.
@@ -133,6 +134,22 @@ impl ConstructorParamId {
 pub struct BindingId(u32);
 
 impl BindingId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
+/// Cone-wide identity of one structured loop occurrence. Loop identities are
+/// allocated monotonically, while lexical target stacks are reset at every
+/// callable boundary so a jump cannot bind across callables.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LoopId(u32);
+
+impl LoopId {
     pub const fn from_raw(raw: u32) -> Self {
         Self(raw)
     }

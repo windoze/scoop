@@ -47,10 +47,15 @@ impl Lowerer {
                 let mut comparisons = Vec::with_capacity(fields.len());
                 for (index, field) in fields.into_iter().enumerate() {
                     let field_ty = self.instantiate_ty(field.ty, &value.arguments);
-                    let field_ref = hir::FieldRef::StructField {
-                        application,
-                        index: index as u32,
-                    };
+                    let field_ref = hir::FieldRef::StructField(
+                        hir::AppliedStructFieldRef::checked(
+                            &self.structs,
+                            &self.struct_applications,
+                            application,
+                            index as u32,
+                        )
+                        .expect("a derived struct field is declared by its application"),
+                    );
                     let left = self.field_expr(this_expr.clone(), field_ref, field_ty, span);
                     let right = self.field_expr(other_expr.clone(), field_ref, field_ty, span);
                     let path = format!("{}.{}", self.structs[value.template].name, field.name);
@@ -116,7 +121,7 @@ impl Lowerer {
                                 body: vec![return_statement(equal, span)],
                                 span,
                             }],
-                            else_body: Some(vec![return_statement(
+                            fallback: hir::WhenFallback::Else(vec![return_statement(
                                 self.bool_expr(false, self.boolean, span),
                                 span,
                             )]),
@@ -138,7 +143,12 @@ impl Lowerer {
                     kind: hir::StatementKind::When(hir::When {
                         subject: this_expr,
                         arms,
-                        else_body: None,
+                        fallback: hir::WhenFallback::Impossible(
+                            hir::ExhaustivenessProof::EnumPatternMatrix {
+                                subject_ty: ty,
+                                application,
+                            },
+                        ),
                     }),
                     span,
                 }]
@@ -280,13 +290,23 @@ impl Lowerer {
             return Err(reason);
         };
         let (candidate, arguments, parameter) = applicable.swap_remove(*winner);
+        let args = vec![self.adapt_to(rhs, parameter)];
+        if let Some(normalized) = self.normalize_primitive_method_call(
+            candidate.function,
+            lhs.clone(),
+            &args,
+            self.boolean,
+            span,
+        ) {
+            return Ok(normalized);
+        }
         let callable = self.materialize_candidate_callable(&candidate, &arguments);
         let callee = self.materialize_method_callee(candidate.source, callable, &arguments);
         Ok(hir::Expr {
             kind: hir::ExprKind::MethodCall {
                 receiver: Box::new(lhs),
                 callee,
-                args: vec![self.adapt_to(rhs, parameter)],
+                args,
             },
             ty: self.boolean,
             span,

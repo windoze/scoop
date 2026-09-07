@@ -244,6 +244,7 @@ impl Lowerer {
             &mut self.current_fn_name,
             format!("`{}` of `{}`", parameter.name.text, context.callable_name),
         );
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
         let outer_owner = self.current_owner;
@@ -332,6 +333,8 @@ impl Lowerer {
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
         self.smart_casts = outer_smart_casts;
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
         value.map(|value| {
             (
                 hir::ExportDefaultExpr {
@@ -339,6 +342,7 @@ impl Lowerer {
                     statements,
                     value,
                     result_type: parameter.ty,
+                    allows_suspend: context.is_suspend,
                     type_parameters: context
                         .type_parameters
                         .iter()
@@ -415,13 +419,9 @@ fn source_owner(owner: hir::ExportParameterOwner) -> SourceParameterOwner {
         hir::ExportParameterOwner::ClassConstructor(class) => {
             SourceParameterOwner::ClassConstructor(class)
         }
-        hir::ExportParameterOwner::VariantConstructor {
-            enumeration,
-            variant,
-        } => SourceParameterOwner::VariantConstructor {
-            enumeration,
-            variant,
-        },
+        hir::ExportParameterOwner::VariantConstructor(variant) => {
+            SourceParameterOwner::VariantConstructor(variant)
+        }
     }
 }
 

@@ -134,6 +134,7 @@ impl ReferenceCollector<'_> {
     fn statement(&mut self, statement: &hir::Statement) {
         match &statement.kind {
             hir::StatementKind::InitializationEnsure(_) => {}
+            hir::StatementKind::Break { .. } | hir::StatementKind::Continue { .. } => {}
             hir::StatementKind::Expr(value) | hir::StatementKind::Throw(value) => {
                 self.expression(value);
             }
@@ -168,6 +169,7 @@ impl ReferenceCollector<'_> {
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,
@@ -175,6 +177,35 @@ impl ReferenceCollector<'_> {
                 self.statements(condition_setup);
                 self.expression(cond);
                 self.statements(body);
+            }
+            hir::StatementKind::For(plan) => {
+                self.statements(plan.source_setup());
+                self.expression(plan.source_init());
+                self.statements(plan.iterator_setup());
+                self.expression(plan.iterator_call());
+                let next = plan.next();
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Method(
+                        next.callable(),
+                    )),
+                    next.origin().definition(),
+                );
+                for action in &plan.binding().actions {
+                    match action {
+                        hir::IrrefutableBindingAction::Project {
+                            projection: hir::BindingProjection::StructField(field),
+                            origin,
+                            ..
+                        } => self.field(hir::FieldRef::StructField(*field), origin.definition()),
+                        hir::IrrefutableBindingAction::Project { .. }
+                        | hir::IrrefutableBindingAction::Bind { .. } => {}
+                        hir::IrrefutableBindingAction::Component { setup, call, .. } => {
+                            self.statements(setup);
+                            self.expression(call);
+                        }
+                    }
+                }
+                self.statements(plan.body());
             }
             hir::StatementKind::When(value) => {
                 self.expression(&value.subject);
@@ -186,8 +217,8 @@ impl ReferenceCollector<'_> {
                     }
                     self.statements(&arm.body);
                 }
-                if let Some(else_body) = &value.else_body {
-                    self.statements(else_body);
+                if let hir::WhenFallback::Else(body) = &value.fallback {
+                    self.statements(body);
                 }
             }
             hir::StatementKind::Try(value) => {
@@ -233,12 +264,18 @@ impl ReferenceCollector<'_> {
             hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => {}
             hir::Pattern::Literal {
                 value,
-                equals,
+                equality,
                 subject_ty,
             } => {
                 self.expression(value);
+                let equals = match equality {
+                    hir::LiteralPatternEquality::Integer { target, .. } => {
+                        hir::Callable::Function(target.function())
+                    }
+                    hir::LiteralPatternEquality::Ordinary { equals } => *equals,
+                };
                 self.callable(
-                    hir::ExportDefaultCallableTarget::Callable(*equals),
+                    hir::ExportDefaultCallableTarget::Callable(equals),
                     value.origin.definition(),
                 );
                 self.type_reference(*subject_ty, value.origin.definition());
@@ -248,11 +285,15 @@ impl ReferenceCollector<'_> {
                 variant,
                 fields,
             } => {
+                let variant = hir::AppliedEnumVariantRef::checked_index(
+                    &self.lowerer.enums,
+                    &self.lowerer.enum_applications,
+                    *application,
+                    *variant,
+                )
+                .expect("a resolved pattern variant belongs to its exact application");
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Variant {
-                        application: *application,
-                        variant: *variant,
-                    },
+                    hir::ExportDefaultConstructorTarget::Variant(variant),
                     self.fallback_origin,
                 );
                 for (_, field) in fields {
@@ -280,13 +321,12 @@ impl ReferenceCollector<'_> {
         self.type_reference(expression.ty, origin);
         match &expression.kind {
             hir::ExprKind::StringLiteral(_)
-            | hir::ExprKind::IntLiteral(_)
+            | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::ConstructorParam(_)
             | hir::ExprKind::Local(_)
             | hir::ExprKind::Capture(_)
-            | hir::ExprKind::FunPtrNull
             | hir::ExprKind::NoneLiteral => {}
             hir::ExprKind::InitializingClassFieldAccess { .. }
             | hir::ExprKind::InitializingStructFieldAccess { .. } => {}
@@ -300,6 +340,7 @@ impl ReferenceCollector<'_> {
                 );
                 self.expressions(args);
             }
+            hir::ExprKind::StructConstruct { fields, .. } => self.expressions(fields),
             hir::ExprKind::ClassInit { constructor, args } => {
                 self.constructor(
                     hir::ExportDefaultConstructorTarget::Class(*constructor),
@@ -307,20 +348,15 @@ impl ReferenceCollector<'_> {
                 );
                 self.expressions(args);
             }
-            hir::ExprKind::VariantConstruct {
-                application,
-                variant,
-                args,
-            } => {
+            hir::ExprKind::VariantConstruct { variant, args } => {
                 self.constructor(
-                    hir::ExportDefaultConstructorTarget::Variant {
-                        application: *application,
-                        variant: *variant,
-                    },
+                    hir::ExportDefaultConstructorTarget::Variant(*variant),
                     origin,
                 );
                 self.expressions(args);
             }
+            hir::ExprKind::VariantTest { operand, .. }
+            | hir::ExprKind::VariantPayloadProject { operand, .. } => self.expression(operand),
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
             hir::ExprKind::SingletonValue(value) => self.singleton_value(*value, origin),
             hir::ExprKind::Lambda(lambda) => {
@@ -335,8 +371,8 @@ impl ReferenceCollector<'_> {
                 origin,
             ),
             hir::ExprKind::FunctionCoercion { source, .. }
-            | hir::ExprKind::PtrFromUInt(source)
-            | hir::ExprKind::PtrToUInt(source)
+            | hir::ExprKind::PtrFromNonZeroULong(source)
+            | hir::ExprKind::PtrToULong(source)
             | hir::ExprKind::PtrCast(source)
             | hir::ExprKind::Box(source)
             | hir::ExprKind::Unbox(source)
@@ -462,6 +498,38 @@ impl ReferenceCollector<'_> {
             hir::ExprKind::CallableCall { callee, args, .. } => {
                 self.expression(callee);
                 self.expressions(args);
+            }
+            hir::ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                let function = match operation {
+                    hir::IntegerOperation::NoGc { target, .. } => target.function(),
+                    hir::IntegerOperation::Managed { target, .. } => target.function(),
+                };
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Function(function)),
+                    origin,
+                );
+                match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => self.expression(operand),
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        self.expression(lhs);
+                        self.expression(rhs);
+                    }
+                }
+            }
+            hir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => {
+                self.callable(
+                    hir::ExportDefaultCallableTarget::Callable(hir::Callable::Function(
+                        conversion.target.function(),
+                    )),
+                    origin,
+                );
+                self.expression(operand);
             }
         }
     }

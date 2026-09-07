@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-copy-update/errors/statement-rhs.scoop:7:34: error: copy update field values must be expressions, not statements

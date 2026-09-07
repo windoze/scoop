@@ -98,12 +98,25 @@ impl Lowerer {
                     if matches!(failure.kind, ConstraintFailureKind::NoUniqueSolution { .. })
                         && lowered.iter().any(Option::is_none) =>
                 {
-                    // No other relation can type the first postponed input.
-                    // Lower it without a hint to preserve its focused source
-                    // diagnostic (`None`, `[]`, or an untyped callable).
+                    // Prefer a postponed input that can synthesize a complete
+                    // type through the integer-literal default ladder. This
+                    // is only a fixed-point escape hatch: ordinary candidate
+                    // probing still postpones the expression so each
+                    // candidate can supply its own expected type.
                     let source_index = lowered
                         .iter()
-                        .position(Option::is_none)
+                        .enumerate()
+                        .filter_map(|(index, argument)| argument.is_none().then_some(index))
+                        .filter_map(|index| {
+                            self.expr_default_seed_rank(&arg_exprs[index].expression)
+                                .map(|rank| (rank, index))
+                        })
+                        .max_by_key(|(rank, _)| *rank)
+                        .map(|(_, index)| index)
+                        // No input can seed inference. Lower the first one
+                        // without a hint to preserve its focused source
+                        // diagnostic (`None`, `[]`, or an untyped callable).
+                        .or_else(|| lowered.iter().position(Option::is_none))
                         .expect("a postponed nominal argument remains");
                     lowered[source_index] = Some(self.lower_expr(
                         &arg_exprs[source_index].expression,
@@ -289,13 +302,10 @@ impl Lowerer {
                 .name
                 .clone(),
             NominalConstructorSource::IntrinsicClass(class) => self.classes[class].name.clone(),
-            NominalConstructorSource::Variant {
-                enumeration,
-                variant,
-            } => format!(
+            NominalConstructorSource::Variant(variant) => format!(
                 "{}.{}",
-                self.enums[enumeration].name,
-                self.enums[enumeration].variants[variant as usize].name,
+                self.enums[variant.enumeration()].name,
+                self.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
             ),
         }
     }
@@ -306,12 +316,16 @@ impl Lowerer {
     /// this lets nested calls perform their own fixed-point inference.
     pub(crate) fn expr_requires_expected_type(&self, expr: &ast::Expr) -> bool {
         match expr {
-            ast::Expr::Var(name) => {
-                name.text == "None"
-                    && self.scopes.lookup(&name.text).is_none()
-                    && !self.host_has_property(&name.text)
+            ast::Expr::IntLiteral(_) => true,
+            ast::Expr::Unary { op, operand, .. }
+                if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+                    && matches!(&**operand, ast::Expr::IntLiteral(_)) =>
+            {
+                true
             }
+            ast::Expr::Var(name) => self.bare_value_requires_expected(name),
             ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
+            ast::Expr::CopyUpdate { base, .. } => self.expr_requires_expected_type(base),
             ast::Expr::TupleLiteral { elements, .. } => {
                 elements.is_empty()
                     || elements
@@ -321,8 +335,10 @@ impl Lowerer {
             // The surrounding type also chooses between Array and
             // MutableArray, even when every element is independently typed.
             ast::Expr::ArrayLiteral { .. } => true,
-            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
-            ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
+            ast::Expr::Call(call) => {
+                self.constructor_requires_expected(&call.callee, &call.args)
+                    || self.bare_call_requires_contextual_lookup(call)
+            }
             ast::Expr::StructInit { name, args, .. } => {
                 self.constructor_requires_expected(name, args)
             }
@@ -355,11 +371,158 @@ impl Lowerer {
         }
     }
 
+    fn bare_value_requires_expected(&self, name: &ast::Ident) -> bool {
+        if self.scopes.lookup(&name.text).is_some()
+            || self.available_capture(&name.text).is_some()
+            || self.constructor_params_in_scope.contains_key(&name.text)
+            || self.host_has_property(&name.text)
+            || self.visible_property(&name.text, None).is_some()
+            || self
+                .lexical_nested_nominal_target(&name.text)
+                .or_else(|| self.top_level_nominal_target(&name.text))
+                .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)))
+        {
+            return false;
+        }
+        let candidates = self.core_prelude_variant_refs(&name.text);
+        match candidates {
+            [target] if self.resolved_variant_style(*target) == VariantStyle::Unit => {
+                !self.enums[target.enumeration()].type_params.is_empty()
+            }
+            [_] => false,
+            [] => true,
+            _ => true,
+        }
+    }
+
+    fn bare_call_requires_contextual_lookup(&self, call: &ast::CallExpr) -> bool {
+        if call.callee.text.contains('.') {
+            return false;
+        }
+        if let Some(local) = self.scopes.lookup(&call.callee.text) {
+            let mut probe = self.clone();
+            let ty = self.locals[local].ty;
+            if probe.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
+                return false;
+            }
+        }
+        if let Some(capture) = self.available_capture(&call.callee.text) {
+            let mut probe = self.clone();
+            if probe.type_exposes_invoke(capture.ty, false)
+                || matches!(self.types[capture.ty], Type::FunPtr(_))
+            {
+                return false;
+            }
+        }
+        let mut probe = self.clone();
+        let mut sink = Vec::new();
+        probe.lower_call(call, &mut sink, None).is_none()
+    }
+
+    /// Whether a contextual expression can nevertheless synthesize a
+    /// complete type when a surrounding inference fixed point has no other
+    /// evidence. Integer literals use their suffix/default-width ladder;
+    /// aggregate constructors may use such literals transitively.
+    ///
+    /// This is deliberately separate from `expr_requires_expected_type`:
+    /// overload candidates must still probe `Some(1)` against their own
+    /// `Option<Int8>` / `Option<Int16>` parameter types before any default is
+    /// committed.
+    pub(crate) fn expr_can_provide_default_seed(&self, expr: &ast::Expr) -> bool {
+        match expr {
+            ast::Expr::IntLiteral(_) => true,
+            ast::Expr::Unary { op, operand, .. }
+                if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+                    && matches!(&**operand, ast::Expr::IntLiteral(_)) =>
+            {
+                true
+            }
+            ast::Expr::TupleLiteral { elements, .. } => {
+                !elements.is_empty()
+                    && elements.iter().all(|element| {
+                        !self.expr_requires_expected_type(element)
+                            || self.expr_can_provide_default_seed(element)
+                    })
+            }
+            ast::Expr::ArrayLiteral { elements, .. } => {
+                !elements.is_empty()
+                    && elements.iter().all(|element| {
+                        !self.expr_requires_expected_type(element)
+                            || self.expr_can_provide_default_seed(element)
+                    })
+            }
+            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
+            ast::Expr::Call(call) => {
+                self.constructor_can_provide_default_seed(&call.callee, &call.args)
+            }
+            ast::Expr::StructInit { name, args, .. } => {
+                self.constructor_can_provide_default_seed(name, args)
+            }
+            ast::Expr::CopyUpdate { base, .. } => self.expr_can_provide_default_seed(base),
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                type_args,
+                args,
+                ..
+            } if type_args.is_empty() => {
+                let ast::Expr::Var(enum_name) = &**receiver else {
+                    return false;
+                };
+                if self.scopes.lookup(&enum_name.text).is_some()
+                    || self.host_has_property(&enum_name.text)
+                {
+                    return false;
+                }
+                let qualified = ast::Ident {
+                    text: format!("{}.{}", enum_name.text, name.text),
+                    span: Span::new(enum_name.span.start, name.span.end),
+                };
+                self.constructor_can_provide_default_seed(&qualified, args)
+            }
+            _ => false,
+        }
+    }
+
+    fn constructor_can_provide_default_seed(
+        &self,
+        name: &ast::Ident,
+        args: &[ast::CallArgument],
+    ) -> bool {
+        let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
+            return false;
+        };
+        if type_param_count == 0 {
+            return false;
+        }
+        let mut bound = vec![false; type_param_count];
+        for (arg, field) in args.iter().zip(fields) {
+            if !self.expr_requires_expected_type(&arg.expression)
+                || self.expr_can_provide_default_seed(&arg.expression)
+            {
+                self.mark_type_params(field, &mut bound);
+            }
+        }
+        bound.into_iter().all(|bound| bound)
+    }
+
     pub(super) fn constructor_requires_expected(
         &self,
         name: &ast::Ident,
         args: &[ast::CallArgument],
     ) -> bool {
+        let qualifier = name
+            .text
+            .split_once('.')
+            .map_or(name.text.as_str(), |(qualifier, _)| qualifier);
+        // A non-generic alias already fixes the complete target application.
+        // Invalid/inaccessible aliases are also lowered immediately so their
+        // focused diagnostic is not hidden behind contextual postponement.
+        if self.lexical_nested_nominal_target(qualifier).is_none()
+            && self.source_type_alias_named(qualifier).is_some()
+        {
+            return false;
+        }
         if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
             && self.array_class_kind(class).is_some()
         {
@@ -396,6 +559,13 @@ impl Lowerer {
         {
             return false;
         }
+        if self
+            .lexical_nested_nominal_target(&enum_name.text)
+            .is_none()
+            && self.source_type_alias_named(&enum_name.text).is_some()
+        {
+            return false;
+        }
         let qualified = format!("{}.{}", enum_name.text, name.text);
         self.constructor_requires_expected(
             &ast::Ident {
@@ -415,7 +585,10 @@ impl Lowerer {
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
-            self.option_variant(name)
+            let [target] = self.core_prelude_variant_refs(name) else {
+                return None;
+            };
+            Some((target.enumeration(), target.local_index()))
         };
         if let Some((enum_id, variant)) = variant {
             return Some((
@@ -513,6 +686,15 @@ impl Lowerer {
             return None;
         };
         if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
+        {
+            return None;
+        }
+        // An alias target is a complete application, so even a generic enum's
+        // unit variant no longer needs an expected type to infer owner args.
+        if self
+            .lexical_nested_nominal_target(&enum_name.text)
+            .is_none()
+            && self.source_type_alias_named(&enum_name.text).is_some()
         {
             return None;
         }

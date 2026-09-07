@@ -64,6 +64,9 @@ pub struct Module {
     /// Hidden effective-delegate storage, separate from both logical
     /// properties and the physical field/global identity it occupies.
     pub delegate_storages: Arena<DelegateStorage>,
+    /// Top-level transparent aliases exported as source API. Alias identities
+    /// are deliberately absent from `types` and LocalConcrete HIR.
+    pub type_aliases: Arena<TypeAliasDecl>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
@@ -102,15 +105,19 @@ pub struct Module {
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
-    /// Well-known types, allocated first by hir-lower.
+    /// Non-integer well-known types allocated by HIR lowering. Canonical
+    /// integer owners are held by `intrinsic_type_core.integers`; expression
+    /// types carry their exact `IntegerKind` directly.
     pub unit: TypeId,
-    pub int: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// The `Option` enum from `scoop.core` (the desugar target of
-    /// `T?`, spec 7.1). Guaranteed present: a core library without a
-    /// suitable `Option` definition is a driver-level error.
-    pub option_enum: EnumId,
+    /// The complete checked `Option` contract from `scoop.core` (the
+    /// desugar target of `T?`, spec 7.1). Guaranteed present: a core library
+    /// without the exact `Some(T)` / `None` shape is rejected before HIR.
+    pub option_core: OptionCore,
+    /// Compiler-owned source iteration protocol. Per-use exact applications
+    /// and conformance witnesses remain in `ForIterationPlan`.
+    pub iteration_core: IterationCore,
     /// Compiler-generated exception construction targets. Every entry is a
     /// validated, zero-argument class constructor; later stages never find
     /// these entities by source or link name.
@@ -146,7 +153,7 @@ pub struct FfiCore {
     pub fun_ptr: StructId,
     pub pinned_ptr: StructId,
     pub gc_handle: StructId,
-    pub ptr_to_uint: FunctionId,
+    pub ptr_to_ulong: FunctionId,
     pub ptr_cast: FunctionId,
     pub ptr_load: FunctionId,
     pub ptr_load_offset: FunctionId,
@@ -166,8 +173,9 @@ pub struct FfiCore {
 #[derive(Debug, Clone, Copy)]
 pub struct ForeignCallbackCore {
     pub callback: StructId,
-    pub mode: EnumId,
-    pub state: EnumId,
+    pub modes: ForeignCallbackModes,
+    pub states: ForeignCallbackStates,
+    pub failure_result: ForeignCallbackFailureResult,
     pub register: FunctionId,
     pub retain: FunctionId,
     pub release: FunctionId,
@@ -175,14 +183,222 @@ pub struct ForeignCallbackCore {
     pub failure: FunctionId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackModes {
+    reusable: AppliedEnumVariantRef,
+    one_shot: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackModes {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        reusable: AppliedEnumVariantRef,
+        one_shot: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        for variant in [reusable, one_shot] {
+            if AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                variant.application(),
+                variant.declaration(),
+            ) != Some(variant)
+            {
+                return None;
+            }
+        }
+        if reusable.application() != one_shot.application() {
+            return None;
+        }
+        let application = &applications[reusable.application()];
+        let declaration = &enums[application.template];
+        let reusable_definition = declaration.variants.get(reusable.local_index() as usize)?;
+        let one_shot_definition = declaration.variants.get(one_shot.local_index() as usize)?;
+        (declaration.name == "ForeignCallbackMode"
+            && declaration.self_application == reusable.application()
+            && declaration.type_params.is_empty()
+            && declaration.interfaces.is_empty()
+            && declaration.variants.len() == 2
+            && reusable != one_shot
+            && reusable.local_index() == 0
+            && one_shot.local_index() == 1
+            && reusable_definition.name == "Reusable"
+            && reusable_definition.fields.is_empty()
+            && one_shot_definition.name == "OneShot"
+            && one_shot_definition.fields.is_empty())
+        .then_some(Self { reusable, one_shot })
+    }
+
+    pub const fn reusable(self) -> AppliedEnumVariantRef {
+        self.reusable
+    }
+
+    pub const fn one_shot(self) -> AppliedEnumVariantRef {
+        self.one_shot
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.reusable.application()
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.reusable.declaration().enumeration()
+    }
+
+    pub fn contains(self, variant: AppliedEnumVariantRef) -> bool {
+        variant == self.reusable || variant == self.one_shot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackStates {
+    registered: AppliedEnumVariantRef,
+    active: AppliedEnumVariantRef,
+    completed: AppliedEnumVariantRef,
+    failed: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackStates {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        registered: AppliedEnumVariantRef,
+        active: AppliedEnumVariantRef,
+        completed: AppliedEnumVariantRef,
+        failed: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        let variants = [registered, active, completed, failed];
+        for variant in variants {
+            if AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                variant.application(),
+                variant.declaration(),
+            ) != Some(variant)
+            {
+                return None;
+            }
+        }
+        if variants
+            .iter()
+            .any(|variant| variant.application() != registered.application())
+        {
+            return None;
+        }
+        let application = &applications[registered.application()];
+        let declaration = &enums[application.template];
+        let expected = [
+            (registered, "Registered"),
+            (active, "Active"),
+            (completed, "Completed"),
+            (failed, "Failed"),
+        ];
+        (declaration.name == "ForeignCallbackState"
+            && declaration.self_application == registered.application()
+            && declaration.type_params.is_empty()
+            && declaration.interfaces.is_empty()
+            && declaration.variants.len() == 4
+            && expected.iter().enumerate().all(|(index, (variant, name))| {
+                variant.local_index() as usize == index
+                    && declaration.variants[index].name == *name
+                    && declaration.variants[index].fields.is_empty()
+            }))
+        .then_some(Self {
+            registered,
+            active,
+            completed,
+            failed,
+        })
+    }
+
+    pub const fn registered(self) -> AppliedEnumVariantRef {
+        self.registered
+    }
+
+    pub const fn active(self) -> AppliedEnumVariantRef {
+        self.active
+    }
+
+    pub const fn completed(self) -> AppliedEnumVariantRef {
+        self.completed
+    }
+
+    pub const fn failed(self) -> AppliedEnumVariantRef {
+        self.failed
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.registered.application()
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.registered.declaration().enumeration()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackFailureResult {
+    some_payload: AppliedEnumVariantFieldRef,
+    none: AppliedEnumVariantRef,
+}
+
+impl ForeignCallbackFailureResult {
+    pub fn checked(
+        enums: &Arena<EnumDecl>,
+        applications: &Arena<EnumApplication>,
+        option: OptionCore,
+        throwable: TypeId,
+        some_payload: AppliedEnumVariantFieldRef,
+        none: AppliedEnumVariantRef,
+    ) -> Option<Self> {
+        let some = some_payload.variant();
+        if AppliedEnumVariantFieldRef::checked(
+            enums,
+            applications,
+            some,
+            some_payload.local_index(),
+        ) != Some(some_payload)
+            || AppliedEnumVariantRef::checked(
+                enums,
+                applications,
+                none.application(),
+                none.declaration(),
+            ) != Some(none)
+            || some.application() != none.application()
+        {
+            return None;
+        }
+        let application = &applications[some.application()];
+        (application.template == option.enumeration()
+            && application.arguments.as_slice() == [throwable]
+            && some.declaration() == option.some()
+            && some_payload.local_index() == option.some_payload().local_index()
+            && none.declaration() == option.none())
+        .then_some(Self { some_payload, none })
+    }
+
+    pub const fn application(self) -> EnumApplicationId {
+        self.some_payload.variant().application()
+    }
+
+    pub const fn some_payload(self) -> AppliedEnumVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> AppliedEnumVariantRef {
+        self.none
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTypeCore {
-    pub int: StructId,
-    pub uint: StructId,
+    pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,
     pub array: ClassId,
     pub mutable_array: ClassId,
+    pub ptr: StructId,
+    pub fun_ptr: StructId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -191,18 +407,12 @@ pub struct SourceLocationCore {
     pub current: FunctionId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForeignCallbackMode {
-    Reusable,
-    OneShot,
-}
-
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: ForeignCallbackMode,
+    pub mode: AppliedEnumVariantRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -395,6 +605,15 @@ impl FunctionCallee for MethodCallee {
     }
 }
 
+/// A generic type parameter that must denote a recursively GC-free value
+/// whenever it is used as the pointee of the compiler-represented `Ptr`
+/// family. This condition is intentionally distinct from a callable's
+/// `@NoGC` effect requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RequiresGcFreePointee {
+    pub type_param: TypeParamId,
+}
+
 /// A generic HIR function definition. Generic identity is deliberately
 /// separate from the underlying function identity (AGENTS.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -405,6 +624,9 @@ pub struct GenericFunction {
     /// is inferred from the resolved signature/body and checked at every
     /// instantiation; unused/representation-erased parameters are omitted.
     pub no_gc_type_params: Vec<TypeParamId>,
+    /// Pointee constraints inferred from this template's signature/body and
+    /// transitively required generic calls.
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
 }
 
 /// A generic function with every call-site type argument resolved.
@@ -465,6 +687,7 @@ pub struct DerivedEqualityApplication {
 pub struct GenericMethod {
     pub function: FunctionId,
     pub no_gc_type_params: Vec<TypeParamId>,
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
 }
 
 /// Exact owner kinds accepted by non-interface generic methods.

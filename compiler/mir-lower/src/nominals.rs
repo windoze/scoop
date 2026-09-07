@@ -1,6 +1,18 @@
 use super::*;
 
 impl Lowerer {
+    /// Reserve raw-id-preserving nominal maps before any intrinsic pointer
+    /// shell lowers its complete pointee type. The subsequent arena
+    /// allocations assert this one-to-one ordering.
+    pub(super) fn reserve_nominal_ids(&mut self, module: &hir::Module) {
+        for (hir_id, _) in module.structs.iter() {
+            self.struct_map.insert(hir_id, remap_idx(hir_id));
+        }
+        for (hir_id, _) in module.classes.iter() {
+            self.class_map.insert(hir_id, remap_idx(hir_id));
+        }
+    }
+
     /// Transpose local-concrete HIR structs into MIR in declaration order
     /// (ids only; field types are filled by `fill_struct_fields`).
     pub(super) fn lower_structs(&mut self, module: &hir::Module) {
@@ -8,9 +20,9 @@ impl Lowerer {
             let representation = match &decl.representation {
                 hir::StructRepresentation::Declared { attributes, .. } => {
                     mir::StructRepresentation::Declared {
-                        c_layout: attributes.c_layout.map(|layout| mir::CLayout {
-                            aligned: layout.aligned,
-                            packed: layout.packed,
+                        c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
+                            aligned: lower_c_layout_value(layout.aligned),
+                            packed: lower_c_layout_value(layout.packed),
                         }),
                         interior_mutable: attributes.interior_mutable,
                         fields: Vec::new(),
@@ -18,14 +30,32 @@ impl Lowerer {
                 }
                 hir::StructRepresentation::Intrinsic { application, .. } => {
                     mir::StructRepresentation::Intrinsic(match application {
-                        hir::IntrinsicTypeRepresentation::Int => {
-                            mir::IntrinsicTypeRepresentation::Int
-                        }
-                        hir::IntrinsicTypeRepresentation::UInt => {
-                            mir::IntrinsicTypeRepresentation::UInt
+                        hir::IntrinsicTypeRepresentation::Integer(kind) => {
+                            mir::IntrinsicTypeRepresentation::Integer(lower_integer_kind(*kind))
                         }
                         hir::IntrinsicTypeRepresentation::Boolean => {
                             mir::IntrinsicTypeRepresentation::Boolean
+                        }
+                        hir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                            let types = Types {
+                                module,
+                                struct_map: &self.struct_map,
+                                class_map: &self.class_map,
+                            };
+                            mir::IntrinsicTypeRepresentation::Ptr {
+                                pointee: types.lower(
+                                    *pointee,
+                                    &mut self.enums,
+                                    &mut self.structs,
+                                    &mut self.interfaces,
+                                    &mut self.shell,
+                                ),
+                            }
+                        }
+                        hir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+                            mir::IntrinsicTypeRepresentation::FunPtr {
+                                signature: remap_idx(*signature),
+                            }
                         }
                         hir::IntrinsicTypeRepresentation::String
                         | hir::IntrinsicTypeRepresentation::Array { .. }
@@ -40,7 +70,7 @@ impl Lowerer {
                 gc_free: decl.gc_free,
                 representation,
             });
-            self.struct_map.insert(hir_id, mir_id);
+            assert_eq!(mir_id, self.struct_map[&hir_id]);
             self.structs.hir_ids.insert(mir_id, hir_id);
         }
     }
@@ -110,10 +140,6 @@ impl Lowerer {
     /// Fields / vtable / itables are filled later (they need the base
     /// class and the method list, respectively).
     pub(super) fn declare_classes(&mut self, module: &hir::Module) {
-        for (hir_id, _) in module.classes.iter() {
-            self.class_map
-                .insert(hir_id, mir::ClassId::from_raw(hir_id.into_raw()));
-        }
         for (hir_id, decl) in module.classes.iter() {
             let modifier = match decl.modifier {
                 hir::ClassModifier::Final => mir::ClassModifier::Final,
@@ -157,9 +183,10 @@ impl Lowerer {
                                 ),
                             }
                         }
-                        hir::IntrinsicTypeRepresentation::Int
-                        | hir::IntrinsicTypeRepresentation::UInt
-                        | hir::IntrinsicTypeRepresentation::Boolean => {
+                        hir::IntrinsicTypeRepresentation::Integer(_)
+                        | hir::IntrinsicTypeRepresentation::Boolean
+                        | hir::IntrinsicTypeRepresentation::Ptr { .. }
+                        | hir::IntrinsicTypeRepresentation::FunPtr { .. } => {
                             unreachable!("the registry fixes intrinsic declaration targets")
                         }
                     })
@@ -257,7 +284,8 @@ impl Lowerer {
                 hir::InstanceSymbol::Overloaded { discriminator } => {
                     mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
                 }
-            };
+            }
+            .expect("local-concrete source instances have source-mangleable types");
         }
         if hir_id == module.entry || !self.overloaded.contains(&name) {
             return mir::mangle_function(&name, hir_id == module.entry);
@@ -268,6 +296,7 @@ impl Lowerer {
         let skip = usize::from(function.method.is_some());
         let params = self.lower_params(module, &function.params[skip..]);
         mir::mangle_overload(&self.shell, &name, &params)
+            .expect("local-concrete source overloads have source-mangleable parameters")
     }
 
     /// Lower a parameter list to MIR types (concrete enum definitions are
@@ -347,5 +376,42 @@ impl Lowerer {
             unreachable!("lowering a function type preserves its category")
         };
         id
+    }
+}
+
+const fn lower_c_layout_value(value: hir::HirCLayoutValue) -> mir::MirCLayoutValue {
+    match value {
+        hir::HirCLayoutValue::Natural => mir::MirCLayoutValue::Natural,
+        hir::HirCLayoutValue::A1 => mir::MirCLayoutValue::A1,
+        hir::HirCLayoutValue::A2 => mir::MirCLayoutValue::A2,
+        hir::HirCLayoutValue::A4 => mir::MirCLayoutValue::A4,
+        hir::HirCLayoutValue::A8 => mir::MirCLayoutValue::A8,
+        hir::HirCLayoutValue::A16 => mir::MirCLayoutValue::A16,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn c_layout_contract_values_transpose_exhaustively() {
+        let source = [
+            hir::HirCLayoutValue::Natural,
+            hir::HirCLayoutValue::A1,
+            hir::HirCLayoutValue::A2,
+            hir::HirCLayoutValue::A4,
+            hir::HirCLayoutValue::A8,
+            hir::HirCLayoutValue::A16,
+        ];
+        let expected = [
+            mir::MirCLayoutValue::Natural,
+            mir::MirCLayoutValue::A1,
+            mir::MirCLayoutValue::A2,
+            mir::MirCLayoutValue::A4,
+            mir::MirCLayoutValue::A8,
+            mir::MirCLayoutValue::A16,
+        ];
+        assert_eq!(source.map(lower_c_layout_value), expected);
     }
 }

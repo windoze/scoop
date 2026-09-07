@@ -1,0 +1,8 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/const-division-zero.scoop:3:27: error: division by zero in const initializer
+m22-integers/errors/const-division-zero.scoop:4:38: error: division by zero in const initializer
+m22-integers/errors/const-division-zero.scoop:5:39: error: division by zero in const initializer

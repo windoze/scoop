@@ -4,13 +4,13 @@ interface Label {
 
 struct Point(val x: Int, val y: Int) : ToString, Hash, Label {
     public override fun toString(): String = "Point"
-    public override fun hash(): Int = x
+    public override fun hash(): Long = x.toInt64()
     override fun label(): String = toString()
 }
 
 class User(val id: Int) : ToString, Hash {
     public override fun toString(): String = "User"
-    public override fun hash(): Int = id
+    public override fun hash(): Long = id.toInt64()
     operator fun equals(other: User): Boolean = id == other.id
 }
 

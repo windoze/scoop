@@ -6,7 +6,10 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> mir::Expr {
         let kind = match &expr.kind {
             smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
-            smir::ExprKind::IntLiteral(value) => mir::ExprKind::IntLiteral(*value),
+            smir::ExprKind::IntegerLiteral(value) => mir::ExprKind::IntegerLiteral(*value),
+            smir::ExprKind::MachineScalarLiteral(value) => {
+                mir::ExprKind::MachineScalarLiteral(*value)
+            }
             smir::ExprKind::BoolLiteral(value) => mir::ExprKind::BoolLiteral(*value),
             smir::ExprKind::UnitLiteral => mir::ExprKind::UnitLiteral,
             smir::ExprKind::TupleLiteral(elements) => mir::ExprKind::TupleLiteral(
@@ -19,6 +22,15 @@ impl<'a> CfgLowerer<'a> {
                 struct_id: *struct_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
+            smir::ExprKind::StructConstruct { struct_id, fields } => {
+                mir::ExprKind::StructConstruct {
+                    struct_id: *struct_id,
+                    fields: fields
+                        .iter()
+                        .map(|field| self.lower_expr(field, span))
+                        .collect(),
+                }
+            }
             smir::ExprKind::ClassNew {
                 class_id,
                 initializer,
@@ -79,12 +91,14 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::InitializationUnitAddress(unit) => {
                 mir::ExprKind::InitializationUnitAddress(*unit)
             }
-            smir::ExprKind::PtrFromUInt { operand, pointee } => mir::ExprKind::PtrFromUInt {
-                operand: Box::new(self.lower_expr(operand, span)),
-                pointee: pointee.clone(),
-            },
-            smir::ExprKind::PtrToUInt(operand) => {
-                mir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::PtrFromNonZeroULong { operand, pointee } => {
+                return mir::Expr::ptr_from_non_zero_ulong(
+                    self.lower_expr(operand, span),
+                    (**pointee).clone(),
+                );
+            }
+            smir::ExprKind::PtrToULong(operand) => {
+                mir::ExprKind::PtrToULong(Box::new(self.lower_expr(operand, span)))
             }
             smir::ExprKind::PtrCast { operand, pointee } => mir::ExprKind::PtrCast {
                 operand: Box::new(self.lower_expr(operand, span)),
@@ -135,7 +149,6 @@ impl<'a> CfgLowerer<'a> {
             },
             smir::ExprKind::SizeOf(ty) => mir::ExprKind::SizeOf(ty.clone()),
             smir::ExprKind::AlignOf(ty) => mir::ExprKind::AlignOf(ty.clone()),
-            smir::ExprKind::FunPtrNull(signature) => mir::ExprKind::FunPtrNull(*signature),
             smir::ExprKind::FunctionAddress { callback } => mir::ExprKind::FunctionAddress {
                 callback: *callback,
             },
@@ -255,6 +268,62 @@ impl<'a> CfgLowerer<'a> {
                 op: *op,
                 operand: Box::new(self.lower_expr(operand, span)),
             },
+            smir::ExprKind::IntegerUnary { operation, operand } => mir::ExprKind::IntegerUnary {
+                operation: *operation,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
+            smir::ExprKind::IntegerBinary {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerBinary {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::SafeIntegerDivRem {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::SafeIntegerDivRem {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerCompare {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerCompare {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerCompareTo {
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::IntegerCompareTo {
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::IntegerShift {
+                operation,
+                value,
+                count,
+            } => mir::ExprKind::IntegerShift {
+                operation: *operation,
+                value: Box::new(self.lower_expr(value, span)),
+                count: Box::new(self.lower_expr(count, span)),
+            },
+            smir::ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => mir::ExprKind::IntegerConversion {
+                conversion: *conversion,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
             smir::ExprKind::VariantConstruct { variant, fields } => {
                 mir::ExprKind::VariantConstruct {
                     variant: *variant,
@@ -264,18 +333,20 @@ impl<'a> CfgLowerer<'a> {
                         .collect(),
                 }
             }
-            smir::ExprKind::EnumTag(operand) => {
-                mir::ExprKind::EnumTag(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::VariantTest { operand, variant } => {
+                let operand = self.lower_expr(operand, span);
+                let lowered = mir::Expr::variant_test(self.enums, operand, *variant)
+                    .expect("structured MIR preserves its checked variant-test contract");
+                assert_eq!(lowered.ty, expr.ty);
+                return lowered;
             }
-            smir::ExprKind::EnumField {
-                operand,
-                variant,
-                index,
-            } => mir::ExprKind::EnumField {
-                operand: Box::new(self.lower_expr(operand, span)),
-                variant: *variant,
-                index: *index,
-            },
+            smir::ExprKind::VariantPayloadProject { operand, field } => {
+                let operand = self.lower_expr(operand, span);
+                let lowered = mir::Expr::variant_payload_project(self.enums, operand, *field)
+                    .expect("structured MIR preserves its checked payload-projection contract");
+                assert_eq!(lowered.ty, expr.ty);
+                return lowered;
+            }
         };
         mir::Expr::new(expr.ty.clone(), kind)
     }
@@ -356,7 +427,11 @@ impl<'a> CfgLowerer<'a> {
         destination: Option<mir::LocalId>,
         span: Span,
     ) -> mir::Expr {
-        let normalized = mir::Call { target, args };
+        let normalized = mir::Call {
+            target,
+            args,
+            pending: self.call_pending_context(),
+        };
         if return_ty == mir::Type::Unit {
             assert!(
                 destination.is_none(),

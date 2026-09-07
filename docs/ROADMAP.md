@@ -169,15 +169,15 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 默认visibility改为`internal`，对外API逐项显式写`public`；四种visibility以typed access domain贯穿候选、override、signature exposure、M17 default witness及未来`.slib`。M12的raw `@Global`/`@ThreadLocal`与普通managed top-level property正式分离；
 - 支持static nested nominal/object声明；`inner`/anonymous/local object、generic delegated extension及class/interface delegation仍不在本里程碑。
 
-### M22 循环、值模式与定宽整数（设计见 `docs/milestone22/DESIGN.md`）
+### M22 循环、值模式与定宽整数 ✅（2026-09-07 完成，设计见 `docs/milestone22/DESIGN.md`）
 
 - `for`、不带标签的`break`/`continue`与typed loop target；统一while/for header，控制转移按目标cleanup深度穿越catch/finally/suspend状态，所有回边继续满足M15 poll契约；
-- public exact `Iterator<T>`/`Iterable<T>`协议、Array/MutableArray迭代器，以及普通core `IntRange`/`UIntRange`、`until`/`downTo`/`step`；
-- struct/enum命名字段副本更新，固定base/表示无关的active-variant检查/RHS求值顺序与enum variant歧义/运行期错误；
+- public exact `Iterator<T>`/`Iterable<T>`协议、Array/MutableArray迭代器，以及四个不同nominal identity的普通core `IntRange`/`UIntRange`/`LongRange`/`ULongRange`、`until`/`downTo`/`step`；
+- struct命名字段副本更新，固定base只求值一次、RHS源码顺序与声明序重建；任何enum目标都是稳定编译错误，必须通过`when`匹配后显式重建；
 - binding pattern与match pattern分流、命名字段递归subpattern、sound pattern-matrix完备性/witness，以及由import或唯一expected enum application驱动的通用裸variant；
-- 八种signed/unsigned定宽整数、candidate-local literal fit、显式转换与全宽layout/C ABI；`Int`/`UInt`永久固定64位，算术采用定义良好的wrapping并显式处理LLVM division/shift边界；当前可执行profile同时要求64位data/code pointer、全零null carrier及合法地址逐bit往返，裸pointer固定非零、null只由`Option`的niche表示；
-- `Ptr<T>`/`FunPtr<F>`迁为无公开representation field的compiler-represented family，阻断解构/copy update伪造；`Ptr`仅保留typed unsafe nonzero-UInt入口且pointee必须GC-free，`FunPtr`不提供源码constructor；
-- 为整数与range名称提供top-level非generic透明`typealias`；alias只有声明/可见性身份，不产生第二个类型/layout/RTTI/ABI。generic alias及真实跨Cone编码仍留后续。
+- 八种signed/unsigned定宽整数、candidate-local literal fit、显式转换与全宽layout/C ABI；`Int`/`UInt`固定32位且`Int32`/`UInt32`为alias，`Long`/`ULong`固定64位且`Int64`/`UInt64`为alias；无上下文literal采用`Int → Long`/`UInt → ULong`默认阶梯，算术采用定义良好的wrapping并显式处理LLVM division/shift边界；既有64位source/core契约整体迁名为`Long`/`ULong`，包括Array size/index（上限仍`INT64_MAX`）、Hash、integer及String的compareTo、integer shift count、SourceLocation、`@CLayout`的aligned/packed与其他M22触及的API，内部machine metadata继续使用独立typed scalar；String length/index/slice尚未进入实现子集，由M24首次以`Long`表面引入；
+- 当前可执行profile仍要求64位data/code pointer、全零null carrier及合法地址逐bit往返；`Ptr<T>`/`FunPtr<F>`迁为无公开representation field的compiler-represented family，阻断解构/copy update伪造；`Ptr`的raw/to与`sizeOf`/`alignOf`暂用`ULong`，element offset暂用`Long`，且只保留typed unsafe nonzero-ULong入口并要求pointee GC-free；`FunPtr`不提供源码constructor或integer转换，裸pointer固定非零、null只由`Option`的niche表示；platform-native integer及这些临时底层surface的最终迁移留待后续设计；
+- 为固定宽度/Kotlin整数拼写及普通用户别名提供top-level非generic透明`typealias`；alias只有声明/可见性身份，不产生第二个类型/layout/RTTI/ABI。四种range本身不是alias；generic alias及真实跨Cone编码仍留后续。
 
 ### M23 多 Cone 与 `.slib`（设计见 `docs/milestone23/DESIGN.md`）
 
@@ -218,7 +218,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 2026-09-04 M21可见性修订：默认visibility由Kotlin式public改为internal；public API、public interface contract、public override与public constructor都要求源码显式标记，`main`仍可internal。sysroot不享有默认public特权，计划导出的core API也必须显式标记。
 - 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
 - 2026-09-05 完成M25：Scoop runtime自有record/personality/caught栈与moving-GC external payload生命周期落地；object与最终Mach-O门禁锁定LLVM 22.1封闭LSDA、八个Level-I导入及`libSystem` provider，生成程序不再链接`libc++abi`。
-- 2026-09-05 M22设计决定：`Int`/`UInt`永久固定64位并通过非generic透明alias承载`Int64`/`Long`等拼写；整数算术采用按位宽wrapping语义，可执行target须有64位data/code pointer及对应内部carrier逐bit往返能力。为保持普通Option语义，裸`Ptr`/`FunPtr`固定非零并由`Option`唯一承载null。M22只实现无标签break/continue与for，以exact Iterator协议、递归pattern matrix和typed cleanup target闭合控制流/模式；label、do-while、CharRange与generic alias继续留后续。
+- 2026-09-05 M22设计决定（后续修订）：`Int`/`UInt`永久固定32位并以`Int32`/`UInt32`为alias，`Long`/`ULong`永久固定64位并以`Int64`/`UInt64`为alias；无上下文literal采用32位优先、越界升至64位的默认阶梯。为避免同时改变既有API值域，原来使用64位`Int`/`UInt`的array、String、Hash、compareTo、shift、SourceLocation、`@CLayout`参数、pointer/size等source/core契约整体迁名为`Long`/`ULong`，Array上限仍为`INT64_MAX`，internal machine metadata不伪装成源码integer。四种整数range均为真实nominal type。当前target仍须有64位data/code pointer及对应内部carrier逐bit往返能力，裸`Ptr`/`FunPtr`固定非零并由`Option`唯一承载null；platform-native integer留待后续。M22其余范围仍为无标签break/continue与for、exact Iterator协议、递归pattern matrix和typed cleanup target；label、do-while、CharRange与generic alias继续留后续。
 - 2026-09-05 M23设计决定：Cone与source package分离，以canonical `group:name:version`及按kind隔离的persistent typed id表达跨artifact identity，v1只消费exact、静态、无环resolved graph。`package`、exact/star/alias/public import与re-export只扩展既有typed resolver层；target-specific确定性`.slib`显式打包三层metadata、native object与闭合export surface，下游完成generic concretization并以完整ODR group coalesce。跨artifact ABI同时固定ZST为零payload/typed elision/显式address token，并为Array采用zero-sized element分支而非零stride通用路径。最终静态程序通过唯一program descriptor登记全部Cone image及runtime metadata后按canonical dependency order初始化；package registry/版本求解、动态加载、generic typealias、interface方法级泛型与跨版本ABI不属于M23。
 
 ## 4. 待补齐清单（backlog）
@@ -234,9 +234,10 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 ### 来自 M2
 
 - struct字段默认值与命名参数调用 → M17；次构造函数 → M19；
-- 副本更新表达式 `s.{ f: v }`（spec 4.5）→ M22；
-- 不带标签的`break`/`continue`/`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
-- 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；`Int` 已固定 i64）→ M22；
+- struct副本更新表达式 `s.{ f: v }`（spec 4.5）→ M22；
+- 不带标签的`break`/`continue` jump statement、`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
+- 源码可命名的底类型`Nothing`（含signature、generic application与cast）及一般jump expression（例如`value ?: break`、argument/initializer中的jump）→ 后续里程碑；M22只以`ControlOutcome`表达jump路径的semantic bottom，不物化`Nothing` expression/type；
+- 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；M22修订为`Int`/`UInt`固定i32、`Long`/`ULong`固定i64）→ M22；
 - 整数溢出语义 → M22（spec 11.2已固定wrapping、除法与shift边界）；
 - 内建 print 重载 → M7 转为 core 普通重载（设计已含）。
 
@@ -315,7 +316,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - ~~多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13~~（已完成：pthread registry、合作式epoch握手、per-thread TLAB及同步heap/root/handle/pin元数据；parallel/concurrent collector仍待后续）；
 - ~~tagged enum的精确扫描描述发射~~（M13修订：移除`SCOOP_REFS_ENUM`按tag分派，独占ref-bearing slot的固定偏移可与`SCOOP_REFS_SEQUENCE`及数组元素扫描组合）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
-- 其余定宽整数族（Int8/16/32、UInt8/16/32）及固定宽度alias（含Int64/UInt64）→ M22；既有Int/UInt实现保留为canonical 64位identity。
+- 其余定宽整数族与固定宽度alias → M22；既有64位`Int`/`UInt`实现迁为canonical `Long`/`ULong` identity，新canonical `Int`/`UInt`为32位，`Int32`/`UInt32`与`Int64`/`UInt64`分别作为对应透明alias。
 
 ### 来自 M10
 
@@ -350,3 +351,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 ### 来自 M15（设计预留）
 
 - GC-free release hook：用于遗漏显式`release`/`close`时兜底清理native resource。未来设计只允许具有唯一managed identity的`ref` owner使用，值类型因复制语义禁止；hook只接收编译器验证为GC-free的typed payload副本，只可调用`@NoGC` native release primitive，不接收managed对象/`this`，不能分配、抛异常、挂起、回调managed代码、操作root/handle/pin或复活对象；显式释放可原子disarm，collector至多claim一次，moving只转移armed状态。执行时机、顺序及正常/异常退出时执行均不保证，shutdown不做全堆finalization pass。全功能GC finalizer永久不支持，不是本backlog的一部分。
+
+### 来自 M22（设计预留）
+
+- platform-native integer另行设计：决定`ISize`/`USize`与`IntPtr`/`UIntPtr`是否分立、data/code pointer表示资格及target-dependent const/layout规则，再逐项决定M22临时使用`Long`/`ULong`的Ptr raw/to/offset、`sizeOf`/`alignOf`、Array/String size/index及其他相关surface是否迁到相应native type；普通`Int`/`UInt`与`Long`/`ULong`自身的固定宽度不随target改变，迁移范围不能在本里程碑预判或静默扩大。

@@ -14,6 +14,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 object,
                 offset,
             } => {
+                let object_ty = function.value_ty(self.globals_arena, *object);
+                if !matches!(
+                    object_ty,
+                    LirType::Ptr(PointerKind::Managed | PointerKind::Metadata)
+                ) || validation::contains_machine_scalar(
+                    self.structs,
+                    self.enums,
+                    &function.temps[*out].ty,
+                ) {
+                    return Err(CodegenError(format!(
+                        "heap_load @{} requires a managed/metadata object and cannot produce a machine scalar; got object {}",
+                        function.symbol,
+                        object_ty.dump()
+                    )));
+                }
                 let name = format!("t{}", out.into_raw().into_u32());
                 let object = self.value(*object)?.into_pointer_value();
                 let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
@@ -34,16 +49,57 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*out, element);
             }
-            Instruction::AtomicLoad {
+            Instruction::MachineHeapLoad {
                 out,
+                kind,
                 object,
                 offset,
             } => {
-                if *offset < 16 {
+                let expected = LirType::MachineScalar(*kind);
+                if !kind.is_atomic_state()
+                    || function.temps[*out].ty != expected
+                    || function.value_ty(self.globals_arena, *object) != scoop_lir::MANAGED_PTR
+                    || *offset < 16
+                    || *offset % 8 != 0
+                {
                     return Err(CodegenError(format!(
-                        "atomic_load @{symbol}: offset {offset} is inside the object header",
+                        "machine_heap_load @{} must read one aligned managed field of its declared machine state {:?}",
+                        function.symbol, kind
+                    )));
+                }
+                let name = format!("t{}", out.into_raw().into_u32());
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "machine_field_ptr")?;
+                let element = builder
+                    .build_load(context.i64_type(), field_ptr, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "machine heap load @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, element);
+            }
+            Instruction::AtomicLoad {
+                out,
+                kind,
+                object,
+                offset,
+            } => {
+                if *offset < 16 || *offset % 8 != 0 {
+                    return Err(CodegenError(format!(
+                        "atomic_load @{symbol}: offset {offset} is not an aligned object field",
                         symbol = function.symbol,
                         offset = *offset
+                    )));
+                }
+                if !kind.is_atomic_state()
+                    || function.temps[*out].ty != LirType::MachineScalar(*kind)
+                    || function.value_ty(self.globals_arena, *object) != scoop_lir::MANAGED_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "atomic_load @{} must produce its declared 64-bit machine state {:?}",
+                        function.symbol, kind
                     )));
                 }
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -89,6 +145,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         offset = *offset
                     )));
                 }
+                let object_ty = function.value_ty(self.globals_arena, *object);
+                let value_ty = function.value_ty(self.globals_arena, *value);
+                if object_ty != scoop_lir::MANAGED_PTR
+                    || validation::contains_machine_scalar(self.structs, self.enums, &value_ty)
+                {
+                    return Err(CodegenError(format!(
+                        "heap_store @{} requires a managed object and cannot consume {}, got object {}",
+                        function.symbol,
+                        value_ty.dump(),
+                        object_ty.dump()
+                    )));
+                }
                 let object = self.value(*object)?.into_pointer_value();
                 let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
                 builder
@@ -102,16 +170,57 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // M9 write barrier: mark the stored-to address's card.
                 self.card_mark(field_ptr)?;
             }
-            Instruction::AtomicStore {
+            Instruction::MachineHeapStore {
+                kind,
                 object,
                 offset,
                 value,
             } => {
-                if *offset < 16 {
+                let expected = LirType::MachineScalar(*kind);
+                if !kind.is_atomic_state()
+                    || function.value_ty(self.globals_arena, *value) != expected
+                    || function.value_ty(self.globals_arena, *object) != scoop_lir::MANAGED_PTR
+                    || *offset < 16
+                    || *offset % 8 != 0
+                {
                     return Err(CodegenError(format!(
-                        "atomic_store @{symbol}: offset {offset} is inside the object header",
+                        "machine_heap_store @{} must write one aligned managed field of its declared machine state {:?}",
+                        function.symbol, kind
+                    )));
+                }
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "machine_field_ptr")?;
+                builder
+                    .build_store(field_ptr, self.value(*value)?)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "machine heap store @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.card_mark(field_ptr)?;
+            }
+            Instruction::AtomicStore {
+                kind,
+                object,
+                offset,
+                value,
+            } => {
+                if *offset < 16 || *offset % 8 != 0 {
+                    return Err(CodegenError(format!(
+                        "atomic_store @{symbol}: offset {offset} is not an aligned object field",
                         symbol = function.symbol,
                         offset = *offset
+                    )));
+                }
+                if !kind.is_atomic_state()
+                    || function.value_ty(self.globals_arena, *value)
+                        != LirType::MachineScalar(*kind)
+                    || function.value_ty(self.globals_arena, *object) != scoop_lir::MANAGED_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "atomic_store @{} must consume its declared 64-bit machine state {:?}",
+                        function.symbol, kind
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
@@ -135,16 +244,29 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::AtomicCompareExchange {
                 out,
+                kind,
                 object,
                 offset,
                 expected,
                 replacement,
             } => {
-                if *offset < 16 {
+                if *offset < 16 || *offset % 8 != 0 {
                     return Err(CodegenError(format!(
-                        "atomic_cmpxchg @{symbol}: offset {offset} is inside the object header",
+                        "atomic_cmpxchg @{symbol}: offset {offset} is not an aligned object field",
                         symbol = function.symbol,
                         offset = *offset
+                    )));
+                }
+                let expected_ty = LirType::MachineScalar(*kind);
+                if !kind.is_atomic_state()
+                    || function.temps[*out].ty != expected_ty
+                    || function.value_ty(self.globals_arena, *expected) != expected_ty
+                    || function.value_ty(self.globals_arena, *replacement) != expected_ty
+                    || function.value_ty(self.globals_arena, *object) != scoop_lir::MANAGED_PTR
+                {
+                    return Err(CodegenError(format!(
+                        "atomic_cmpxchg @{} must use one declared 64-bit machine state {:?}",
+                        function.symbol, kind
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();

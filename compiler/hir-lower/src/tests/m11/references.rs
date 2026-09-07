@@ -146,7 +146,10 @@ fn generic_top_level_reference_is_fixed_by_its_expected_type() {
     else {
         panic!("expected a resolved generic reference")
     };
-    assert_eq!(module.instantiations[*resolved].type_args, vec![module.int]);
+    assert_eq!(
+        module.instantiations[*resolved].type_args,
+        vec![int_type(&module)]
+    );
 }
 
 #[test]
@@ -226,7 +229,7 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
     assert!(extension.method.is_none());
     assert_eq!(extension.params.len(), 2);
     assert_eq!(extension.params[0].name, "this");
-    assert_eq!(extension.params[0].ty, module.int);
+    assert_eq!(extension.params[0].ty, int_type(&module));
 
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main body")
@@ -240,7 +243,7 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
         "bump"
     );
     assert_eq!(args.len(), 2);
-    assert_eq!(args[0].ty, module.int);
+    assert_eq!(args[0].ty, int_type(&module));
 }
 
 #[test]

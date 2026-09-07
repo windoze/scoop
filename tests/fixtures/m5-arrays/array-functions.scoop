@@ -2,7 +2,7 @@ fun <T> firstOf(a: Array<T>): T = a[0]
 
 fun sum(a: Array<Int>): Int {
     var total = 0
-    var i = 0
+    var i: Long = 0
     while (i < a.size) {
         total = total + a[i]
         i = i + 1

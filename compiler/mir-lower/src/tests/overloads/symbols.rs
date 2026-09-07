@@ -52,9 +52,9 @@ fn overloads_mangle_with_param_encoding() {
     assert_eq!(
         top_level_symbols(&module),
         [
-            "scoop.show.I",
+            "scoop.show.I32",
             "scoop.show.S",
-            "scoop.show.I_I",
+            "scoop.show.I32_I32",
             "scoop.helper",
             "scoop_main"
         ]
@@ -72,7 +72,7 @@ fn zero_parameter_overload_mangles_with_an_empty_encoding() {
 
     assert_eq!(
         top_level_symbols(&module),
-        ["scoop.f.", "scoop.f.I", "scoop_main"]
+        ["scoop.f.", "scoop.f.I32", "scoop_main"]
     );
 }
 
@@ -101,7 +101,7 @@ fn overload_symbols_do_not_collide_with_instance_symbols() {
     let module = lower(&h.finish(main));
 
     let symbols = top_level_symbols(&module);
-    for expected in ["scoop.show.I", "scoop.show.S", "scoop.show$I"] {
+    for expected in ["scoop.show.I32", "scoop.show.S", "scoop.show$I32"] {
         assert!(
             symbols.contains(&expected),
             "missing {expected} in {symbols:?}"
@@ -140,12 +140,15 @@ fn method_overloads_mangle_with_param_encoding() {
         .iter()
         .map(|(_, f)| f.symbol.as_str())
         .collect();
-    assert!(symbols.contains("scoop.Doc.describe.I"));
+    assert!(symbols.contains("scoop.Doc.describe.I32"));
     assert!(symbols.contains("scoop.Doc.describe.S"));
     // Each overload gets its own vtable slot (keyed by signature),
     // referencing the final (overload-encoded) symbol by id.
     let doc_def = &module.classes[class_index(0)];
     assert_eq!(doc_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &doc_def.vtable[0]), "scoop.Doc.describe.I");
+    assert_eq!(
+        slot_fn(&module, &doc_def.vtable[0]),
+        "scoop.Doc.describe.I32"
+    );
     assert_eq!(slot_fn(&module, &doc_def.vtable[1]), "scoop.Doc.describe.S");
 }

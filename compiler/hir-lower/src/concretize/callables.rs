@@ -37,15 +37,8 @@ impl Concretizer<'_> {
         };
         let required_interface = self.lower_interface_application(interface_bound, substitution);
         match self.types[receiver].kind.clone() {
-            concrete::TypeKind::Int => {
-                let source = self.source.intrinsic_type_core.int;
-                let conformances = self.source.structs[source]
-                    .interface_implementations
-                    .clone();
-                self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
-            }
-            concrete::TypeKind::UInt => {
-                let source = self.source.intrinsic_type_core.uint;
+            concrete::TypeKind::Integer(kind) => {
+                let source = self.source.intrinsic_type_core.integers.owner(kind);
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
@@ -176,8 +169,7 @@ impl Concretizer<'_> {
         let value = matches!(
             self.types[receiver.ty].kind,
             concrete::TypeKind::Unit
-                | concrete::TypeKind::Int
-                | concrete::TypeKind::UInt
+                | concrete::TypeKind::Integer(_)
                 | concrete::TypeKind::Boolean
                 | concrete::TypeKind::Struct(_)
                 | concrete::TypeKind::Enum(_)
@@ -425,13 +417,9 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
-            export::FieldRef::StructField { application, index } => {
-                let concrete_id = self.lower_struct_application(application, substitution);
-                concrete::FieldRef::StructField {
-                    struct_id: concrete_id,
-                    index,
-                }
-            }
+            export::FieldRef::StructField(field) => concrete::FieldRef::StructField(
+                self.lower_applied_struct_field_ref(field, substitution),
+            ),
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),
             export::FieldRef::ClassField { application, field } => {
                 let concrete_id = self.lower_class_application(application, substitution);
@@ -442,6 +430,37 @@ impl Concretizer<'_> {
                 }
             }
         }
+    }
+
+    pub(super) fn lower_applied_struct_field_ref(
+        &mut self,
+        source: export::AppliedStructFieldRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::StructFieldRef {
+        let structure = self.lower_struct_application(source.application(), substitution);
+        concrete::StructFieldRef::checked(&self.structs, structure, source.local_index())
+            .expect("a checked applied struct field concretizes to the same declared field")
+    }
+
+    pub(super) fn lower_applied_enum_variant_ref(
+        &mut self,
+        source: export::AppliedEnumVariantRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::EnumVariantRef {
+        let enumeration = self.lower_enum_application(source.application(), substitution);
+        let variant = concrete::VariantId::from_raw(source.local_index());
+        concrete::EnumVariantRef::checked(&self.enums, enumeration, variant)
+            .expect("a checked applied enum variant concretizes to the same variant")
+    }
+
+    pub(super) fn lower_applied_enum_variant_field_ref(
+        &mut self,
+        source: export::AppliedEnumVariantFieldRef,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::EnumVariantFieldRef {
+        let variant = self.lower_applied_enum_variant_ref(source.variant(), substitution);
+        concrete::EnumVariantFieldRef::checked(&self.enums, variant, source.local_index())
+            .expect("a checked applied enum field concretizes to the same payload field")
     }
 
     pub(super) fn source_class_field_layout_index(&self, field: export::ClassFieldId) -> u32 {

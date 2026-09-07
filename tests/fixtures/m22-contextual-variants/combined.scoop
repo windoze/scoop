@@ -1,0 +1,64 @@
+// EXPECT-COMPILE
+
+enum Token {
+    Number(Int),
+    Text(Int),
+    Empty
+}
+
+enum LocalOption {
+    Some(Int, Int),
+    None
+}
+
+fun mark(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun <T> choose(first: T, second: T): T = first
+
+fun Text(value: String): String = value
+
+fun tokenValue(value: Token): Int = when (value) {
+    Number(number) -> number
+    Text(number) -> number
+    Empty -> -1
+}
+
+fun localValue(value: LocalOption): Int = when (value) {
+    Some(left, right) -> left + right
+    None -> 0
+}
+
+fun localNonCallableDoesNotShadowCall(): Token {
+    val Number = 99
+    return Number(8)
+}
+
+fun ordinaryMissFallsThrough(): Token = Text(9)
+
+fun main() {
+    val fixedForward = choose(Number(5), Token.Number(6))
+    val fixedReverse = choose(Token.Number(7), Number(8))
+    println(tokenValue(fixedForward))
+    println(tokenValue(fixedReverse))
+
+    println(
+        Number(mark("left", 7)) ==
+            Token.Number(mark("right", 7))
+    )
+
+    println(tokenValue(localNonCallableDoesNotShadowCall()))
+    println(tokenValue(ordinaryMissFallsThrough()))
+
+    val localSome: LocalOption = Some(3, 4)
+    val localNone: LocalOption = None
+    println(localValue(localSome))
+    println(localValue(localNone))
+
+    val coreSome: Int? = Some(8)
+    val coreNone: Int? = None
+    println(coreSome!!)
+    println(coreNone == None)
+}

@@ -19,6 +19,7 @@ impl Lowerer {
         let generic = self.generic_functions.alloc(GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
         });
         self.functions[function].genericity = hir::FunctionGenericity::Generic {
             definition: generic,
@@ -64,6 +65,7 @@ impl Lowerer {
                 hir::FunctionGenericity::OwnerParameterizedMethod {
                     owner_parameters,
                     no_gc_type_params: Vec::new(),
+                    gc_free_pointee_requirements: Vec::new(),
                 }
             };
             return;
@@ -73,6 +75,7 @@ impl Lowerer {
         let definition = self.generic_methods.alloc(hir::GenericMethod {
             function,
             no_gc_type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
         });
         self.functions[function].genericity = hir::FunctionGenericity::GenericMethod {
             definition,

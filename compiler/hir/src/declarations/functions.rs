@@ -58,6 +58,7 @@ pub enum FunctionGenericity {
     OwnerParameterizedMethod {
         owner_parameters: Vec<TypeParamDecl>,
         no_gc_type_params: Vec<TypeParamId>,
+        gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     },
     /// A non-virtual method with its own parameters. The two groups are
     /// structurally separate; no downstream consumer receives a merged
@@ -253,4 +254,127 @@ pub enum FunctionKind {
 pub struct IntrinsicFunction {
     pub kind: IntrinsicFunctionKind,
     pub provider: IntrinsicProviderId,
+}
+
+/// A validated reference to a non-generic `@NoGC` function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoGcCallableRef(FunctionId);
+
+impl NoGcCallableRef {
+    pub fn try_from_function(function: FunctionId, functions: &Arena<Function>) -> Option<Self> {
+        let declaration = &functions[function];
+        (declaration.attributes.gc_effect == GcEffect::NoGc
+            && !declaration.is_suspend
+            && matches!(&declaration.genericity, FunctionGenericity::Plain)
+            && declaration.method.is_some()
+            && matches!(
+                &declaration.kind,
+                FunctionKind::Intrinsic(intrinsic)
+                    if intrinsic.kind.integer_gc_effect() == Some(GcEffect::NoGc)
+            ))
+        .then_some(Self(function))
+    }
+
+    pub const fn function(self) -> FunctionId {
+        self.0
+    }
+}
+
+/// A validated reference to a non-generic managed function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ManagedCallableRef(FunctionId);
+
+impl ManagedCallableRef {
+    pub fn try_from_function(function: FunctionId, functions: &Arena<Function>) -> Option<Self> {
+        let declaration = &functions[function];
+        (declaration.attributes.gc_effect == GcEffect::Managed
+            && !declaration.is_suspend
+            && matches!(&declaration.genericity, FunctionGenericity::Plain)
+            && declaration.method.is_some()
+            && matches!(
+                &declaration.kind,
+                FunctionKind::Intrinsic(intrinsic)
+                    if intrinsic.kind.integer_gc_effect() == Some(GcEffect::Managed)
+            ))
+        .then_some(Self(function))
+    }
+
+    pub const fn function(self) -> FunctionId {
+        self.0
+    }
+}
+
+pub type HirIntegerOperation = IntegerOperation<NoGcCallableRef, ManagedCallableRef>;
+pub type HirIntegerConversion = IntegerConversion<NoGcCallableRef>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
+        Function {
+            name: "Int.plus".to_string(),
+            access: DeclarationAccess::public(),
+            override_access: Vec::new(),
+            genericity: FunctionGenericity::Plain,
+            is_suspend: false,
+            modifiers: CallableModifiers::default(),
+            params: Vec::new(),
+            return_ty: ty,
+            attributes: FunctionAttributes {
+                gc_effect: effect,
+                ..FunctionAttributes::default()
+            },
+            kind: FunctionKind::Intrinsic(IntrinsicFunction {
+                kind: IntrinsicFunctionKind::Integer(match effect {
+                    GcEffect::NoGc => IntegerIntrinsicKind::NoGcOperation {
+                        kind: IntegerKind::SIGNED_32,
+                        operation: NoGcIntegerOperation::Add,
+                    },
+                    GcEffect::Managed => IntegerIntrinsicKind::ManagedOperation {
+                        kind: IntegerKind::SIGNED_32,
+                        operation: IntegerDivRem::Div,
+                    },
+                }),
+                provider: IntrinsicProviderId::from_raw(0),
+            }),
+            method: Some(Method {
+                owner: ty,
+                modifier: MethodModifier::Final,
+                dispatch: MethodDispatch::Direct,
+            }),
+            span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn effect_refined_targets_are_minted_only_for_matching_functions() {
+        let mut types = Arena::new();
+        let ty = types.alloc(Type::Integer(IntegerKind::SIGNED_32));
+        let mut functions = Arena::new();
+        let no_gc = functions.alloc(integer_intrinsic(ty, GcEffect::NoGc));
+        let managed = functions.alloc(integer_intrinsic(ty, GcEffect::Managed));
+
+        assert_eq!(
+            NoGcCallableRef::try_from_function(no_gc, &functions).map(NoGcCallableRef::function),
+            Some(no_gc)
+        );
+        assert!(ManagedCallableRef::try_from_function(no_gc, &functions).is_none());
+        assert_eq!(
+            ManagedCallableRef::try_from_function(managed, &functions)
+                .map(ManagedCallableRef::function),
+            Some(managed)
+        );
+        assert!(NoGcCallableRef::try_from_function(managed, &functions).is_none());
+
+        functions[no_gc].kind = FunctionKind::Intrinsic(IntrinsicFunction {
+            kind: IntrinsicFunctionKind::Integer(IntegerIntrinsicKind::ManagedOperation {
+                kind: IntegerKind::SIGNED_32,
+                operation: IntegerDivRem::Rem,
+            }),
+            provider: IntrinsicProviderId::from_raw(0),
+        });
+        assert!(NoGcCallableRef::try_from_function(no_gc, &functions).is_none());
+        assert!(ManagedCallableRef::try_from_function(no_gc, &functions).is_none());
+    }
 }

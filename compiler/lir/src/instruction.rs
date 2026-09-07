@@ -7,6 +7,25 @@ pub struct BasicBlock {
     pub terminator: Terminator,
 }
 
+/// Address-only operand for one outbound C-ABI argument.
+///
+/// The operand names the local that owns the argument's complete physical
+/// storage. It cannot be forged from an arbitrary raw pointer: codegen binds
+/// the local's exact [`LirType`] to the corresponding [`CType::storage_type`]
+/// before passing its address to the generated C bridge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CArgumentStorage(LocalId);
+
+impl CArgumentStorage {
+    pub const fn address_of(local: LocalId) -> Self {
+        Self(local)
+    }
+
+    pub const fn local(self) -> LocalId {
+        self.0
+    }
+}
+
 /// A value usable as an instruction operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Value {
@@ -15,7 +34,8 @@ pub enum Value {
     /// A function parameter (0-based).
     Param(u32),
     Temp(TempId),
-    IntConst(i64),
+    IntegerConst(LirIntegerConstant),
+    MachineScalar(MachineScalarValue),
     BoolConst(bool),
     NullPointer(PointerKind),
     /// Address of a local or external TypeDescriptor.
@@ -26,21 +46,78 @@ pub enum Value {
     Global(GlobalId),
     /// Address of one codegen-emitted initialization-unit descriptor.
     InitializationUnit(InitializationUnitId),
+    /// Address of exact typed local storage, consumable only as an outbound
+    /// C-ABI bridge argument.
+    CArgumentStorage(CArgumentStorage),
 }
 
 #[derive(Debug)]
 pub enum Instruction {
-    /// `out = <op> lhs, rhs` (integer or boolean; the type is on `out`).
+    /// Equality over Boolean, raw pointer-shaped values, or one internal
+    /// machine scalar domain. Source integer operations use the typed variants
+    /// below and cannot enter this generic path.
     BinOp {
         out: TempId,
         op: BinOp,
         lhs: Value,
         rhs: Value,
     },
-    /// `out = -operand` / `out = !operand`.
+    /// Boolean negation. Source integer unary operations use `IntegerUnary`.
     UnaryOp {
         out: TempId,
         op: UnOp,
+        operand: Value,
+    },
+    IntegerUnary {
+        out: TempId,
+        kind: IntegerKind,
+        operation: IntegerUnaryOperation,
+        operand: Value,
+    },
+    IntegerBinary {
+        out: TempId,
+        kind: IntegerKind,
+        operation: IntegerBinaryOperation,
+        lhs: Value,
+        rhs: Value,
+    },
+    /// Division and remainder whose exceptional and signed-overflow cases
+    /// have already been split in MIR. Codegen may emit the primitive LLVM
+    /// operation directly and must not reconstruct those branches.
+    SafeIntegerDivRem {
+        out: TempId,
+        kind: IntegerKind,
+        operation: IntegerDivRemOperation,
+        lhs: Value,
+        rhs: Value,
+    },
+    IntegerCompare {
+        out: TempId,
+        kind: IntegerKind,
+        comparison: IntegerComparison,
+        lhs: Value,
+        rhs: Value,
+    },
+    /// Three-way comparison always produces canonical source `Long` (`I64`).
+    IntegerCompareTo {
+        out: TempId,
+        operand_kind: IntegerKind,
+        lhs: Value,
+        rhs: Value,
+    },
+    /// `normalized_count` is the source `Long` count after MIR has masked it
+    /// and converted it to the operand's scalar width.
+    IntegerShift {
+        out: TempId,
+        kind: IntegerKind,
+        operation: IntegerShiftOperation,
+        value: Value,
+        normalized_count: Value,
+    },
+    IntegerConvert {
+        out: TempId,
+        source_kind: IntegerKind,
+        target_kind: IntegerKind,
         operand: Value,
     },
     /// Build an aggregate value (struct / tuple construction, or the
@@ -64,9 +141,19 @@ pub enum Instruction {
         object: Value,
         offset: u64,
     },
+    /// Non-atomic load of one compiler-owned state word from managed storage.
+    /// This is separate from `HeapLoad` so an `i64` field access cannot relabel
+    /// a machine state, and one machine domain cannot be read as another.
+    MachineHeapLoad {
+        out: TempId,
+        kind: MachineScalarKind,
+        object: Value,
+        offset: u64,
+    },
     /// Acquire-load a 64-bit synthetic state word from managed storage.
     AtomicLoad {
         out: TempId,
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
     },
@@ -114,8 +201,17 @@ pub enum Instruction {
         offset: u64,
         value: Value,
     },
+    /// Non-atomic initialization store of one compiler-owned state word into
+    /// managed storage. Later concurrent accesses use the atomic variants.
+    MachineHeapStore {
+        kind: MachineScalarKind,
+        object: Value,
+        offset: u64,
+        value: Value,
+    },
     /// Release-store a 64-bit synthetic state word in managed storage.
     AtomicStore {
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
         value: Value,
@@ -124,6 +220,7 @@ pub enum Instruction {
     /// `out` receives the observed old word.
     AtomicCompareExchange {
         out: TempId,
+        kind: MachineScalarKind,
         object: Value,
         offset: u64,
         expected: Value,
@@ -141,11 +238,11 @@ pub enum Instruction {
         closure: Value,
     },
     ForeignCallbackOperation(ForeignCallbackOperation),
-    IntToPtr {
+    ULongToPtr {
         out: TempId,
         value: Value,
     },
-    PtrToInt {
+    PtrToULong {
         out: TempId,
         value: Value,
     },
@@ -159,11 +256,16 @@ pub enum Instruction {
         value: Value,
         align: u64,
     },
-    /// Byte-wise pointer displacement. `bytes` may be negative.
+    /// Pointer displacement by `element_offset * element_size`.  The offset
+    /// remains either a source pointer index or the compiler-owned
+    /// `PointerElementOffset` domain; the layout stride is a dedicated field
+    /// and never becomes a source integer value.
     PtrOffset {
         out: TempId,
         pointer: Value,
-        bytes: Value,
+        element_offset: Value,
+        element_size: u64,
+        subtract: bool,
     },
     LocalAddress {
         out: TempId,
@@ -235,7 +337,7 @@ pub enum Instruction {
         safepoint: SafepointId,
         live: StatepointLiveSet,
     },
-    /// `array.size` (result `I64`).
+    /// `array.size` (canonical source `Long`, represented by `I64`).
     ArrayLen {
         out: TempId,
         operand: Value,
@@ -270,11 +372,11 @@ pub enum Instruction {
     /// Construct a variant value.
     EnumWrap {
         out: TempId,
-        enum_id: EnumDefId,
-        variant: u32,
+        variant: LirVariantRef,
         fields: Vec<Value>,
     },
-    /// Read the variant tag (result `I64`; niche: null test).
+    /// Read the variant tag (result `MachineScalar(EnumTag)`; niche: null
+    /// test).
     EnumTag {
         out: TempId,
         enum_id: EnumDefId,
@@ -289,6 +391,22 @@ pub enum Instruction {
         index: u32,
         operand: Value,
     },
+    /// Test whether `operand` contains one checked variant.  The result is
+    /// canonical Boolean (`I1`); physical tag/null details remain private to
+    /// the selected enum representation.
+    VariantTest {
+        out: TempId,
+        operand: Value,
+        variant: LirVariantRef,
+    },
+    /// Project one payload field after a matching [`Instruction::VariantTest`]
+    /// true edge.  Module validation proves that edge dominates this use and
+    /// derives the exact result type from `variant` plus `field`.
+    VariantPayloadProject {
+        out: TempId,
+        operand: Value,
+        field: LirVariantFieldRef,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -299,27 +417,56 @@ pub enum ArrayAssemblyPart {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    SDiv,
-    SRem,
-    UDiv,
-    URem,
-    SCompareTo,
-    UCompareTo,
-    Lt,
-    Le,
-    Gt,
-    Ge,
     Eq,
     Ne,
+    /// Equality in one internal scalar domain.  The kind is part of the
+    /// opcode rather than inferred from the current `i64` representation.
+    MachineEq(MachineScalarKind),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
-    Neg,
     Not,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerUnaryOperation {
+    Plus,
+    Negate,
+    BitwiseNot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerBinaryOperation {
+    Add,
+    Subtract,
+    Multiply,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerDivRemOperation {
+    Divide,
+    Remainder,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerComparison {
+    Less,
+    LessOrEqual,
+    Greater,
+    GreaterOrEqual,
+    Equal,
+    NotEqual,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerShiftOperation {
+    Left,
+    ArithmeticRight,
+    LogicalRight,
 }
 
 #[derive(Debug)]

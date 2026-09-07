@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m1-hello/errors/unknown-function.scoop:2:5: error: unknown function `greet`
+m1-hello/errors/unknown-function.scoop:2:5: error: unknown function `greet`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

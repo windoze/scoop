@@ -56,11 +56,24 @@ fn val_struct_field_destructuring() {
     };
     assert_eq!(path.len(), 1);
     assert_eq!(fields.len(), 2);
-    assert_eq!(
-        fields[1].rename.as_ref().map(|ident| ident.text.as_str()),
-        Some("yy")
-    );
+    assert!(matches!(
+        &*fields[1].subpattern,
+        Pattern::Binding(name) if name.text == "yy"
+    ));
     assert!(rest.is_some());
+}
+
+#[test]
+fn field_shorthand_preserves_the_unit_literal_classification() {
+    let decl = val_target("Record { Unit }");
+    let Pattern::Named { fields, .. } = &decl.target else {
+        panic!("expected a named pattern");
+    };
+    assert!(matches!(
+        &*fields[0].subpattern,
+        Pattern::Literal { expr, .. }
+            if matches!(&**expr, Expr::UnitLiteral { .. })
+    ));
 }
 
 #[test]

@@ -1,6 +1,10 @@
 use super::*;
 
-pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::CallbackBridge> {
+pub(super) fn lower_callback_bridges(
+    module: &mir::Module,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+) -> Arena<lir::CallbackBridge> {
     let mut callbacks = Arena::new();
     for (id, callback) in module.callback_bridges.iter() {
         let signature = &module.function_types[callback.signature];
@@ -11,9 +15,9 @@ pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::Callbac
             params: signature
                 .parameter_types
                 .iter()
-                .map(|ty| c_ffi_type(module, ty))
+                .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
-            return_type: c_ffi_type(module, &signature.return_type),
+            return_type: c_return_type(module, structs, enums, &signature.return_type),
         });
     }
     callbacks
@@ -21,6 +25,8 @@ pub(super) fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::Callbac
 
 pub(super) fn lower_foreign_callback_bridges(
     module: &mir::Module,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
     let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
@@ -42,21 +48,60 @@ pub(super) fn lower_foreign_callback_bridges(
                 symbols
             };
         bridges.alloc(lir::ForeignCallbackBridge {
+            family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
             adapter_symbol: module.functions[adapter.function].symbol.clone(),
             trampoline_symbol,
             signature_symbol,
             params: signature
                 .parameter_types
                 .iter()
-                .map(|ty| c_ffi_type(module, ty))
+                .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
-            return_type: c_ffi_type(module, &signature.return_type),
+            return_type: c_return_type(module, structs, enums, &signature.return_type),
             context_index: bridge.context_index,
-            mode: match bridge.mode {
-                mir::ForeignCallbackMode::Reusable => lir::ForeignCallbackMode::Reusable,
-                mir::ForeignCallbackMode::OneShot => lir::ForeignCallbackMode::OneShot,
-            },
+            mode: variant_ref(enums, bridge.mode),
         });
     }
     bridges
+}
+
+pub(super) fn lower_foreign_callback_families(
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+) -> Arena<lir::ForeignCallbackFamily> {
+    let mut families = Arena::new();
+    for (id, family) in module.foreign_callback_families.iter() {
+        let modes = lir::ForeignCallbackModes::checked(
+            enums,
+            variant_ref(enums, family.modes.reusable()),
+            variant_ref(enums, family.modes.one_shot()),
+        )
+        .expect("the checked MIR callback modes map to the LIR enum store");
+        let states = lir::ForeignCallbackStates::checked(
+            enums,
+            variant_ref(enums, family.states.registered()),
+            variant_ref(enums, family.states.active()),
+            variant_ref(enums, family.states.completed()),
+            variant_ref(enums, family.states.failed()),
+        )
+        .expect("the checked MIR callback states map to the LIR enum store");
+        let failure_result = lir::ForeignCallbackFailureResult::checked(
+            enums,
+            variant_field_ref(enums, family.failure_result.some_payload()),
+            variant_ref(enums, family.failure_result.none()),
+        )
+        .expect("the checked MIR callback failure result maps to the LIR enum store");
+        let lowered = families.alloc(lir::ForeignCallbackFamily {
+            callback: struct_def_id(family.callback),
+            modes,
+            states,
+            failure_result,
+        });
+        assert_eq!(
+            lowered.into_raw(),
+            id.into_raw(),
+            "foreign callback family ids transpose one-to-one"
+        );
+    }
+    families
 }

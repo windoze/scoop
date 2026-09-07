@@ -165,6 +165,13 @@ impl Lowerer {
                         .then_some(declaration.singleton_value)
                 })
                 .collect(),
+            type_aliases: self
+                .type_aliases
+                .iter()
+                .filter_map(|(id, alias)| {
+                    Self::declaration_is_exported(&alias.access).then_some(id)
+                })
+                .collect(),
         }
     }
 
@@ -586,8 +593,9 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
-            hir::Type::Int => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Int),
-            hir::Type::UInt => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::UInt),
+            hir::Type::Integer(kind) => {
+                self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
+            }
             hir::Type::Boolean => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
@@ -652,8 +660,8 @@ impl Lowerer {
                 &self.class_constructors[constructor].access.lookup.0
             }
             NominalConstructorSource::IntrinsicClass(class) => &self.classes[class].access.lookup.0,
-            NominalConstructorSource::Variant { enumeration, .. } => {
-                &self.enums[enumeration].access.lookup.0
+            NominalConstructorSource::Variant(variant) => {
+                &self.enums[variant.enumeration()].access.lookup.0
             }
         };
         self.access_domain_allows(domain, None)
@@ -676,8 +684,9 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
-            hir::Type::Int => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Int),
-            hir::Type::UInt => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::UInt),
+            hir::Type::Integer(kind) => {
+                self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
+            }
             hir::Type::Boolean => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
@@ -763,8 +772,7 @@ impl Lowerer {
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
             hir::Type::Unit
-            | hir::Type::Int
-            | hir::Type::UInt
+            | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::String
             | hir::Type::Any
@@ -791,12 +799,9 @@ impl Lowerer {
             hir::ExportParameterOwner::ClassConstructor(constructor) => {
                 &self.class_constructors[constructor].access
             }
-            hir::ExportParameterOwner::VariantConstructor {
-                enumeration,
-                variant: _,
-            } => {
+            hir::ExportParameterOwner::VariantConstructor(variant) => {
                 return hir::CallDomain {
-                    direct: self.enums[enumeration].access.lookup.clone(),
+                    direct: self.enums[variant.enumeration()].access.lookup.clone(),
                     slot: None,
                 };
             }
@@ -828,11 +833,8 @@ impl Lowerer {
                 let constructor = self.class_constructor_applications[application].constructor;
                 self.class_constructors[constructor].access.lookup.0.clone()
             }
-            hir::ExportDefaultConstructorTarget::Variant {
-                application,
-                variant: _,
-            } => {
-                let enumeration = self.enum_applications[application].template;
+            hir::ExportDefaultConstructorTarget::Variant(variant) => {
+                let enumeration = self.enum_applications[variant.application()].template;
                 self.enums[enumeration].access.lookup.0.clone()
             }
         }
@@ -846,8 +848,8 @@ impl Lowerer {
                 .lookup
                 .0
                 .clone(),
-            hir::FieldRef::StructField { application, .. } => {
-                let owner = self.struct_applications[application].template;
+            hir::FieldRef::StructField(field) => {
+                let owner = self.struct_applications[field.application()].template;
                 self.structs[owner].access.lookup.0.clone()
             }
             hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),
@@ -875,7 +877,7 @@ impl Lowerer {
         result
     }
 
-    fn signature_exposure_witnesses(
+    pub(crate) fn signature_exposure_witnesses(
         &mut self,
         access: &hir::DeclarationAccess,
         signature_types: &[hir::TypeId],

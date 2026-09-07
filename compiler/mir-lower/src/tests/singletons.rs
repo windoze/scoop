@@ -6,7 +6,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let backing = harness.class("Registry", hir::ClassModifier::Final, &[], None, &[]);
     let backing_ty = harness.class_ty(backing);
     let main = empty_main(&mut harness);
-    let mut source = harness.finish(main);
+    let mut source = harness.finish_with_initialization_core(main);
 
     let object = hir::ObjectId::from_raw(0_u32.into());
     let object_type = hir::ObjectTypeId::from_raw(0_u32.into());
@@ -97,4 +97,24 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         } if mir_value == mir::SingletonValueId::from_raw(0_u32.into())
             && mir_root == singleton.published_root
     ));
+
+    let ensure = &module.functions[module.initialization_units[singleton.initialization].ensure];
+    let state = ensure
+        .body
+        .locals
+        .iter()
+        .find_map(|(_, local)| (local.name == "$init.state").then_some(local))
+        .expect("the generated ensure function has an initialization outcome local");
+    assert_eq!(
+        state.ty,
+        mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome)
+    );
+
+    let dump = mir::dump(&module);
+    assert!(dump.contains("$init.state: machine<initialization-outcome>"));
+    assert!(dump.contains("Binary MachineEq(InitializationOutcome)"));
+    assert!(dump.contains("MachineScalarLiteral InitializationOutcome(RunInitializer)"));
+    assert!(dump.contains("MachineScalarLiteral InitializationOutcome(Ready)"));
+    assert!(dump.contains("MachineScalarLiteral InitializationOutcome(Failed)"));
+    assert!(!dump.contains("$init.state: Int"));
 }

@@ -437,7 +437,7 @@ impl Lowerer {
                     unreachable!("constant accessors belong only to const properties")
                 };
                 let kind = match value {
-                    hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntLiteral(value),
+                    hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntegerLiteral(value),
                     hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
                     hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral(value),
                 };
@@ -574,7 +574,7 @@ impl Lowerer {
                     hir::DelegateStorageLocation::ManagedGlobal(global) => {
                         match self.globals[global].storage {
                             hir::GlobalStorage::Managed {
-                                initializer: hir::ManagedGlobalInitializer::RuntimeZeroed(unit),
+                                state: hir::HirStaticInitialState::ZeroedForRuntimeUnit { unit },
                             } => Some(unit),
                             _ => {
                                 unreachable!("a global delegate storage has runtime initialization")
@@ -642,9 +642,16 @@ impl Lowerer {
                     else {
                         unreachable!("struct storage access has a struct owner application")
                     };
+                    let field = hir::AppliedStructFieldRef::checked(
+                        &self.structs,
+                        &self.struct_applications,
+                        application,
+                        index,
+                    )
+                    .expect("a struct-backed property names its declaring field");
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
-                        field: hir::FieldRef::StructField { application, index },
+                        field: hir::FieldRef::StructField(field),
                     }
                 }
             },

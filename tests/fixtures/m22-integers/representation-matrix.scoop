@@ -1,0 +1,161 @@
+// EXPECT-COMPILE
+
+struct Widths(
+    val i8: Int8,
+    val i16: Int16,
+    val i32: Int,
+    val i64: Long,
+    val u8: UInt8,
+    val u16: UInt16,
+    val u32: UInt,
+    val u64: ULong
+)
+
+enum WidthValue {
+    I8(Int8),
+    I16(Int16),
+    I32(Int),
+    I64(Long),
+    U8(UInt8),
+    U16(UInt16),
+    U32(UInt),
+    U64(ULong)
+}
+
+fun <T> keep(value: T): T = value
+
+fun <T : ToString> render(value: T): String = value.toString()
+
+fun <T : Hash> equalValuesHaveEqualHashes(left: T, right: T): Boolean = left.hash() == right.hash()
+
+fun renderWidth(value: WidthValue): String = when (value) {
+    I8(number) -> number.toString()
+    I16(number) -> number.toString()
+    I32(number) -> number.toString()
+    I64(number) -> number.toString()
+    U8(number) -> number.toString()
+    U16(number) -> number.toString()
+    U32(number) -> number.toString()
+    U64(number) -> number.toString()
+}
+
+fun main() {
+    println(sizeOf<Int8>())
+    println(alignOf<Int8>())
+    println(sizeOf<Int16>())
+    println(alignOf<Int16>())
+    println(sizeOf<Int>())
+    println(alignOf<Int>())
+    println(sizeOf<Long>())
+    println(alignOf<Long>())
+    println(sizeOf<UInt8>())
+    println(alignOf<UInt8>())
+    println(sizeOf<UInt16>())
+    println(alignOf<UInt16>())
+    println(sizeOf<UInt>())
+    println(alignOf<UInt>())
+    println(sizeOf<ULong>())
+    println(alignOf<ULong>())
+
+    val widths = Widths(
+        -1,
+        -257,
+        -65537,
+        -4294967297L,
+        255u,
+        65535u,
+        4294967295u,
+        18446744073709551615u
+    )
+    println(widths.i8)
+    println(widths.i16)
+    println(widths.i32)
+    println(widths.i64)
+    println(widths.u8)
+    println(widths.u16)
+    println(widths.u32)
+    println(widths.u64)
+    println(sizeOf<Widths>())
+    println(alignOf<Widths>())
+
+    val tuple = (widths.i8, widths.i16, widths.i32, widths.i64, widths.u8, widths.u16, widths.u32, widths.u64)
+    val (tupleI8, tupleI16, tupleI32, tupleI64, tupleU8, tupleU16, tupleU32, tupleU64) = tuple
+    println(tupleI8)
+    println(tupleI16)
+    println(tupleI32)
+    println(tupleI64)
+    println(tupleU8)
+    println(tupleU16)
+    println(tupleU32)
+    println(tupleU64)
+
+    val i8s: Array<Int8> = [-1, 0]
+    val i16s: Array<Int16> = [-257, 0]
+    val i32s: Array<Int> = [-65537, 0]
+    val i64s: Array<Long> = [-4294967297L, 0L]
+    val u8s: Array<UInt8> = [255u, 0u]
+    val u16s: Array<UInt16> = [65535u, 0u]
+    val u32s: Array<UInt> = [4294967295u, 0u]
+    val u64s: Array<ULong> = [18446744073709551615u, 0u]
+    println(i8s[0L])
+    println(i16s[0L])
+    println(i32s[0L])
+    println(i64s[0L])
+    println(u8s[0L])
+    println(u16s[0L])
+    println(u32s[0L])
+    println(u64s[0L])
+
+    println(keep<Int8>(-1))
+    println(keep<Int16>(-257))
+    println(keep<Int>(-65537))
+    println(keep<Long>(-4294967297L))
+    println(keep<UInt8>(255u))
+    println(keep<UInt16>(65535u))
+    println(keep<UInt>(4294967295u))
+    println(keep<ULong>(18446744073709551615u))
+
+    println(render<Int8>(-1))
+    println(render<Int16>(-257))
+    println(render<Int>(-65537))
+    println(render<Long>(-4294967297L))
+    println(render<UInt8>(255u))
+    println(render<UInt16>(65535u))
+    println(render<UInt>(4294967295u))
+    println(render<ULong>(18446744073709551615u))
+
+    println(equalValuesHaveEqualHashes<Int8>(widths.i8, -1))
+    println(equalValuesHaveEqualHashes<Int16>(widths.i16, -257))
+    println(equalValuesHaveEqualHashes<Int>(widths.i32, -65537))
+    println(equalValuesHaveEqualHashes<Long>(widths.i64, -4294967297L))
+    println(equalValuesHaveEqualHashes<UInt8>(widths.u8, 255u))
+    println(equalValuesHaveEqualHashes<UInt16>(widths.u16, 65535u))
+    println(equalValuesHaveEqualHashes<UInt>(widths.u32, 4294967295u))
+    println(equalValuesHaveEqualHashes<ULong>(widths.u64, 18446744073709551615u))
+
+    val boxedI8: Any = widths.i8
+    val boxedI16: Any = widths.i16
+    val boxedI32: Any = widths.i32
+    val boxedI64: Any = widths.i64
+    val boxedU8: Any = widths.u8
+    val boxedU16: Any = widths.u16
+    val boxedU32: Any = widths.u32
+    val boxedU64: Any = widths.u64
+    println(boxedI8 as Int8)
+    println(boxedI16 as Int16)
+    println(boxedI32 as Int)
+    println(boxedI64 as Long)
+    println(boxedU8 as UInt8)
+    println(boxedU16 as UInt16)
+    println(boxedU32 as UInt)
+    println(boxedU64 as ULong)
+
+    println(renderWidth(WidthValue.I8(-1)))
+    println(renderWidth(WidthValue.I16(-257)))
+    println(renderWidth(WidthValue.I32(-65537)))
+    println(renderWidth(WidthValue.I64(-4294967297L)))
+    println(renderWidth(WidthValue.U8(255u)))
+    println(renderWidth(WidthValue.U16(65535u)))
+    println(renderWidth(WidthValue.U32(4294967295u)))
+    println(renderWidth(WidthValue.U64(18446744073709551615u)))
+}

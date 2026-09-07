@@ -32,9 +32,90 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             CodegenError(format!("load rooted param {index}: {error}"))
                         })?
                 } else {
-                    self.llvm_function
-                        .get_nth_param(index + self.param_offset)
-                        .ok_or_else(|| CodegenError(format!("param {index} out of range")))?
+                    let logical_index = index as usize;
+                    let argument = self
+                        .function
+                        .signature
+                        .arguments()
+                        .get(logical_index)
+                        .ok_or_else(|| CodegenError(format!("param {index} out of range")))?;
+                    let location = self
+                        .function
+                        .signature
+                        .argument_location(logical_index)
+                        .expect("an existing ABI argument has a location");
+                    match (argument, location) {
+                        (
+                            scoop_lir::AbiArgument::ElidedZst(value),
+                            scoop_lir::AbiArgumentLocation::Elided,
+                        ) => basic_ty(
+                            context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            value.storage_type(),
+                        )?
+                        .const_zero(),
+                        (
+                            scoop_lir::AbiArgument::Direct(_),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for logical param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            self.llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for logical param {index} is out of range"
+                                    ))
+                                })?
+                        }
+                        (
+                            scoop_lir::AbiArgument::Indirect(value),
+                            scoop_lir::AbiArgumentLocation::Parameter(physical_index),
+                        ) => {
+                            let physical_index = u32::try_from(physical_index).map_err(|_| {
+                                CodegenError(format!(
+                                    "physical parameter for logical param {index} exceeds u32::MAX"
+                                ))
+                            })?;
+                            let storage = self
+                                .llvm_function
+                                .get_nth_param(physical_index)
+                                .ok_or_else(|| {
+                                    CodegenError(format!(
+                                        "physical parameter for logical param {index} is out of range"
+                                    ))
+                                })?;
+                            let BasicValueEnum::PointerValue(storage) = storage else {
+                                return Err(CodegenError(format!(
+                                    "indirect logical param {index} does not use pointer storage"
+                                )));
+                            };
+                            let ty = basic_ty(
+                                context,
+                                self.structs,
+                                self.enums,
+                                self.managed_address_space,
+                                value.storage_type(),
+                            )?;
+                            self.builder
+                                .build_load(ty, storage, "indirect_param")
+                                .map_err(|error| {
+                                    CodegenError(format!(
+                                        "load indirect logical param {index}: {error}"
+                                    ))
+                                })?
+                        }
+                        _ => {
+                            return Err(CodegenError(format!(
+                                "logical param {index} has an inconsistent Scoop ABI location"
+                            )));
+                        }
+                    }
                 }
             }
             Value::Temp(id) => {
@@ -57,7 +138,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?
                 }
             }
-            Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
+            Value::IntegerConst(value) => integer_ty(context, value.kind().width())
+                .const_int(value.raw_bits(), false)
+                .into(),
+            Value::MachineScalar(value) => {
+                context.i64_type().const_int(value.raw_bits(), false).into()
+            }
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
             Value::NullPointer(kind) => pointer_ty(context, self.managed_address_space, kind)
                 .const_null()
@@ -75,7 +161,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::InitializationUnit(id) => self.initialization_units[arena_index(id)]
                 .as_pointer_value()
                 .into(),
+            Value::CArgumentStorage(_) => {
+                return Err(CodegenError(
+                    "C argument storage address escaped its native-safe call operand".to_string(),
+                ));
+            }
         })
+    }
+
+    /// Materialize a typed call operand. Exact C argument storage is an
+    /// address-only operand and therefore bypasses the ordinary implicit
+    /// local load; every other operand follows the regular/statepoint path.
+    pub(in crate::function) fn typed_call_argument_value(
+        &self,
+        value: Value,
+        live: Option<&MaterializedStatepointLive<'ctx>>,
+    ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+        match value {
+            Value::CArgumentStorage(storage) => {
+                Ok(self.allocas[arena_index(storage.local())].into())
+            }
+            _ => match live {
+                Some(live) => self.statepoint_value(value, live),
+                None => self.value(value),
+            },
+        }
     }
 
     pub(in crate::function) fn statepoint_value(
@@ -87,13 +197,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Param(index) => Some(scoop_lir::CallerRootSource::Param(index)),
             Value::Local(id) => Some(scoop_lir::CallerRootSource::Local(id)),
             Value::Temp(id) => Some(scoop_lir::CallerRootSource::Temp(id)),
-            Value::IntConst(_)
+            Value::IntegerConst(_)
+            | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
             | Value::RootScan(_)
             | Value::Global(_)
-            | Value::InitializationUnit(_) => None,
+            | Value::InitializationUnit(_)
+            | Value::CArgumentStorage(_) => None,
         };
         source
             .and_then(|source| live.arguments.get(&source).copied())

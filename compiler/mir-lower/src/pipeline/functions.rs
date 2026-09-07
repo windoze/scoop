@@ -40,6 +40,8 @@ impl Lowerer {
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
             foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_families: &mut self.foreign_callback_families,
+            foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
             foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
@@ -53,12 +55,13 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            active_loops: Vec::new(),
+            next_loop_id: 0,
             constructor_param_map: HashMap::new(),
             constructor_receiver: None,
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
-            option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
@@ -75,6 +78,7 @@ impl Lowerer {
             current_closure,
             current_closure_local: None,
             current_local_capture_params,
+            contains_suspend_call: false,
         }
         .lower_function(function, body)
     }

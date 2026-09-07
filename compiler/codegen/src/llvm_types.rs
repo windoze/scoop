@@ -5,8 +5,8 @@ use super::*;
 /// enums follow their fixed representation (spec 7.4).
 pub(crate) fn basic_ty<'ctx>(
     context: &'ctx Context,
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     managed_address_space: ManagedAddressSpace,
     ty: &LirType,
 ) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
@@ -17,7 +17,13 @@ pub(crate) fn basic_ty<'ctx>(
             ));
         }
         LirType::I1 => context.bool_type().into(),
+        LirType::I8 => context.i8_type().into(),
+        LirType::I16 => context.i16_type().into(),
+        LirType::I32 => context.i32_type().into(),
         LirType::I64 => context.i64_type().into(),
+        // Machine scalar domains remain distinct in LIR and converge only at
+        // this final physical lowering boundary.
+        LirType::MachineScalar(_) => context.i64_type().into(),
         LirType::Ptr(kind) => pointer_ty(context, managed_address_space, *kind).into(),
         LirType::ExceptionRecord => context
             .struct_type(
@@ -40,12 +46,8 @@ pub(crate) fn basic_ty<'ctx>(
         }
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
-            EnumRepr::Niche { .. } => {
-                if enums[*id].scan.contains_reference() {
-                    managed_ptr_ty(context, managed_address_space).into()
-                } else {
-                    ptr_ty(context).into()
-                }
+            EnumRepr::Niche { kind, .. } => {
+                pointer_ty(context, managed_address_space, kind.pointer_kind()).into()
             }
             EnumRepr::Tagged { size, align, .. } => tagged_ty(
                 context,
@@ -61,22 +63,63 @@ pub(crate) fn basic_ty<'ctx>(
 
 pub(crate) fn llvm_constant<'ctx>(
     context: &'ctx Context,
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     globals: &[Option<GlobalValue<'ctx>>],
     managed_address_space: ManagedAddressSpace,
-    ty: BasicTypeEnum<'ctx>,
-    value: &ConstantValue,
+    expected_lir_ty: &LirType,
+    value: &LirConstantImage,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+    let ty = basic_ty(
+        context,
+        structs,
+        enums,
+        managed_address_space,
+        expected_lir_ty,
+    )?;
     Ok(match value {
-        ConstantValue::Zero => ty.const_zero(),
-        ConstantValue::Int(value) => context.i64_type().const_int(*value as u64, true).into(),
-        ConstantValue::Bool(value) => context
-            .bool_type()
-            .const_int(u64::from(*value), false)
-            .into(),
-        ConstantValue::NullPointer(_) => ty.into_pointer_type().const_null().into(),
-        ConstantValue::GlobalPointer { global, kind } => {
+        LirConstantImage::Integer(value) => {
+            if expected_lir_ty != &value.scalar_type() {
+                return Err(CodegenError(format!(
+                    "{} constant does not match storage type {}",
+                    value.kind().canonical_name(),
+                    expected_lir_ty.dump(),
+                )));
+            }
+            integer_ty(context, value.kind().width())
+                .const_int(value.raw_bits(), false)
+                .into()
+        }
+        LirConstantImage::Bool(value) => {
+            if expected_lir_ty != &LirType::I1 {
+                return Err(CodegenError(format!(
+                    "Boolean constant does not match storage type {}",
+                    expected_lir_ty.dump(),
+                )));
+            }
+            context
+                .bool_type()
+                .const_int(u64::from(*value), false)
+                .into()
+        }
+        LirConstantImage::NullPointer(kind) => {
+            if expected_lir_ty != &LirType::Ptr(*kind) {
+                return Err(CodegenError(format!(
+                    "{} null constant does not match storage type {}",
+                    kind.dump(),
+                    expected_lir_ty.dump(),
+                )));
+            }
+            ty.into_pointer_type().const_null().into()
+        }
+        LirConstantImage::GlobalPointer { global, kind } => {
+            if expected_lir_ty != &LirType::Ptr(*kind) {
+                return Err(CodegenError(format!(
+                    "{} global pointer constant does not match storage type {}",
+                    kind.dump(),
+                    expected_lir_ty.dump(),
+                )));
+            }
             let expected = pointer_ty(context, managed_address_space, *kind);
             if ty.into_pointer_type() != expected {
                 return Err(CodegenError(
@@ -100,99 +143,138 @@ pub(crate) fn llvm_constant<'ctx>(
             }
             pointer.into()
         }
-        ConstantValue::EnumUnit { enum_id, variant } => match &enums[*enum_id].repr {
-            EnumRepr::Niche { payload_variant } => {
-                if *variant > 1 || variant == payload_variant {
-                    return Err(CodegenError(
-                        "a payload enum variant cannot be encoded as a unit constant".to_string(),
-                    ));
-                }
-                ty.into_pointer_type().const_null().into()
+        LirConstantImage::EnumUnit { variant } => {
+            if !enums.contains_variant(*variant) {
+                return Err(CodegenError(
+                    "enum unit constant carries an invalid variant reference".to_string(),
+                ));
             }
-            EnumRepr::Tagged { variants, .. } => {
-                let Some(representation) = variants.get(*variant as usize) else {
-                    return Err(CodegenError(format!(
-                        "enum unit constant has invalid variant {variant}"
-                    )));
-                };
-                if !representation.fields.is_empty() {
-                    return Err(CodegenError(
-                        "a payload enum variant cannot be encoded as a unit constant".to_string(),
-                    ));
-                }
-                let struct_type = ty.into_struct_type();
-                let mut values = struct_type
-                    .get_field_types()
-                    .into_iter()
-                    .map(BasicTypeEnum::const_zero)
-                    .collect::<Vec<_>>();
-                values[0] = context.i64_type().const_int(*variant as u64, false).into();
-                struct_type.const_named_struct(&values).into()
+            let enum_id = variant.definition();
+            let variant_index = variant.index();
+            if expected_lir_ty != &LirType::Enum(enum_id) {
+                return Err(CodegenError(format!(
+                    "enum unit constant for e{} does not match storage type {}",
+                    enum_id.into_raw(),
+                    expected_lir_ty.dump(),
+                )));
             }
-        },
-        ConstantValue::Struct { struct_id, fields } => {
+            match &enums[enum_id].repr {
+                EnumRepr::Niche {
+                    payload_variant, ..
+                } => {
+                    if variant_index == *payload_variant {
+                        return Err(CodegenError(
+                            "a payload enum variant cannot be encoded as a unit constant"
+                                .to_string(),
+                        ));
+                    }
+                    ty.into_pointer_type().const_null().into()
+                }
+                EnumRepr::Tagged { variants, .. } => {
+                    let representation = &variants[variant_index as usize];
+                    if !representation.fields.is_empty() {
+                        return Err(CodegenError(
+                            "a payload enum variant cannot be encoded as a unit constant"
+                                .to_string(),
+                        ));
+                    }
+                    let struct_type = ty.into_struct_type();
+                    let mut values = struct_type
+                        .get_field_types()
+                        .into_iter()
+                        .map(BasicTypeEnum::const_zero)
+                        .collect::<Vec<_>>();
+                    values[0] = context
+                        .i64_type()
+                        .const_int(variant_index as u64, false)
+                        .into();
+                    struct_type.const_named_struct(&values).into()
+                }
+            }
+        }
+        LirConstantImage::Struct { struct_id, fields } => {
+            if expected_lir_ty != &LirType::Struct(*struct_id) {
+                return Err(CodegenError(format!(
+                    "struct constant for s{} does not match storage type {}",
+                    struct_id.into_raw(),
+                    expected_lir_ty.dump(),
+                )));
+            }
             let definition = &structs[*struct_id];
-            if fields.len() != definition.fields.len() {
+            if fields.len() != definition.field_count() {
                 return Err(CodegenError(format!(
                     "global constant for `{}` has the wrong field count",
                     definition.name
                 )));
             }
             let struct_type = ty.into_struct_type();
-            if definition.c_layout.is_none() {
-                let values = fields
-                    .iter()
-                    .zip(&definition.fields)
-                    .map(|(value, field)| {
-                        let ty =
-                            basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
-                        llvm_constant(
+            match &definition.representation {
+                StructRepresentation::Scoop { fields: field_defs } => {
+                    let values = fields
+                        .iter()
+                        .zip(field_defs)
+                        .map(|(value, field)| {
+                            llvm_constant(
+                                context,
+                                structs,
+                                enums,
+                                globals,
+                                managed_address_space,
+                                &field.ty,
+                                value,
+                            )
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    struct_type.const_named_struct(&values).into()
+                }
+                StructRepresentation::C {
+                    fields: field_defs, ..
+                } => {
+                    let payload_types = c_payload_fields(
+                        context,
+                        structs,
+                        enums,
+                        managed_address_space,
+                        definition,
+                    )?;
+                    let mut payload_values = Vec::with_capacity(payload_types.len());
+                    let mut cursor = 0u64;
+                    for (field, value) in field_defs.iter().zip(fields) {
+                        if field.layout.offset > cursor {
+                            let ty = payload_types[payload_values.len()];
+                            payload_values.push(ty.const_zero());
+                        }
+                        let storage_type = field.ty.storage_type();
+                        payload_values.push(llvm_constant(
                             context,
                             structs,
                             enums,
                             globals,
                             managed_address_space,
-                            ty,
+                            &storage_type,
                             value,
-                        )
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                struct_type.const_named_struct(&values).into()
-            } else {
-                let payload_types =
-                    c_payload_fields(context, structs, enums, managed_address_space, definition)?;
-                let mut payload_values = Vec::with_capacity(payload_types.len());
-                let mut cursor = 0u64;
-                for (field, value) in definition.fields.iter().zip(fields) {
-                    if field.layout.offset > cursor {
-                        let ty = payload_types[payload_values.len()];
-                        payload_values.push(ty.const_zero());
+                        )?);
+                        cursor = field.layout.offset + c_field_size(structs, enums, &storage_type)?;
                     }
-                    let field_ty =
-                        basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
-                    payload_values.push(llvm_constant(
-                        context,
-                        structs,
-                        enums,
-                        globals,
-                        managed_address_space,
-                        field_ty,
-                        value,
-                    )?);
-                    cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
+                    if payload_values.len() < payload_types.len() {
+                        payload_values.push(payload_types[payload_values.len()].const_zero());
+                    }
+                    let payload_ty = context.struct_type(&payload_types, true);
+                    let payload = payload_ty.const_named_struct(&payload_values);
+                    let anchor = struct_type
+                        .get_field_type_at_index(0)
+                        .expect("C layout has an alignment anchor")
+                        .const_zero();
+                    struct_type
+                        .const_named_struct(&[anchor, payload.into()])
+                        .into()
                 }
-                if payload_values.len() < payload_types.len() {
-                    payload_values.push(payload_types[payload_values.len()].const_zero());
+                StructRepresentation::Intrinsic(representation) => {
+                    return Err(CodegenError(format!(
+                        "compiler intrinsic declaration shell `{}` ({representation:?}) cannot be emitted as an aggregate constant",
+                        definition.name
+                    )));
                 }
-                let payload_ty = context.struct_type(&payload_types, true);
-                let payload = payload_ty.const_named_struct(&payload_values);
-                let anchor = struct_type
-                    .get_field_type_at_index(0)
-                    .expect("C layout has an alignment anchor")
-                    .const_zero();
-                struct_type
-                    .const_named_struct(&[anchor, payload.into()])
-                    .into()
             }
         }
     })
@@ -217,14 +299,25 @@ pub(crate) fn alignment_anchor<'ctx>(
     Ok(element.array_type(0).into())
 }
 
+pub(crate) fn integer_ty(context: &Context, width: IntegerWidth) -> inkwell::types::IntType<'_> {
+    match width {
+        IntegerWidth::W8 => context.i8_type(),
+        IntegerWidth::W16 => context.i16_type(),
+        IntegerWidth::W32 => context.i32_type(),
+        IntegerWidth::W64 => context.i64_type(),
+    }
+}
+
 pub(crate) fn c_field_size(
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     ty: &LirType,
 ) -> Result<u64, CodegenError> {
     Ok(match ty {
-        LirType::I1 => 1,
-        LirType::I64 | LirType::Ptr(_) => 8,
+        LirType::I1 | LirType::I8 => 1,
+        LirType::I16 => 2,
+        LirType::I32 => 4,
+        LirType::I64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
         LirType::Struct(id) => structs[*id].size,
         LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
         other => {
@@ -238,14 +331,17 @@ pub(crate) fn c_field_size(
 
 pub(crate) fn c_payload_fields<'ctx>(
     context: &'ctx Context,
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     managed_address_space: ManagedAddressSpace,
     definition: &StructDef,
 ) -> Result<Vec<BasicTypeEnum<'ctx>>, CodegenError> {
     let mut physical = Vec::new();
     let mut cursor = 0u64;
-    for field in &definition.fields {
+    let fields = definition
+        .c_fields()
+        .expect("C payload fields require a C-layout struct");
+    for field in fields {
         let padding = field.layout.offset.checked_sub(cursor).ok_or_else(|| {
             CodegenError(format!(
                 "overlapping fields in C layout `{}`",
@@ -255,14 +351,15 @@ pub(crate) fn c_payload_fields<'ctx>(
         if padding != 0 {
             physical.push(context.i8_type().array_type(padding as u32).into());
         }
+        let storage_type = field.ty.storage_type();
         physical.push(basic_ty(
             context,
             structs,
             enums,
             managed_address_space,
-            &field.ty,
+            &storage_type,
         )?);
-        cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
+        cursor = field.layout.offset + c_field_size(structs, enums, &storage_type)?;
     }
     let tail = definition
         .size
@@ -278,14 +375,17 @@ pub(crate) fn c_payload_fields<'ctx>(
 /// payload struct. Explicit padding arrays occupy physical fields but
 /// are deliberately absent from LIR's source-level field numbering.
 pub(crate) fn c_physical_field_index(
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     definition: &StructDef,
     logical_index: u32,
 ) -> Result<u32, CodegenError> {
     let mut physical_index = 0u32;
     let mut cursor = 0u64;
-    for (index, field) in definition.fields.iter().enumerate() {
+    let fields = definition
+        .c_fields()
+        .expect("C physical field lookup requires a C-layout struct");
+    for (index, field) in fields.iter().enumerate() {
         if field.layout.offset > cursor {
             physical_index += 1;
         }
@@ -293,7 +393,7 @@ pub(crate) fn c_physical_field_index(
             return Ok(physical_index);
         }
         physical_index += 1;
-        cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
+        cursor = field.layout.offset + c_field_size(structs, enums, &field.ty.storage_type())?;
     }
     Err(CodegenError(format!(
         "field {logical_index} out of range for C layout `{}`",
@@ -303,19 +403,24 @@ pub(crate) fn c_physical_field_index(
 
 pub(crate) fn struct_ty<'ctx>(
     context: &'ctx Context,
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
     managed_address_space: ManagedAddressSpace,
     id: scoop_lir::StructDefId,
 ) -> Result<StructType<'ctx>, CodegenError> {
     let definition = &structs[id];
-    if definition.c_layout.is_none() {
-        let fields = definition
-            .fields
+    if let StructRepresentation::Scoop { fields } = &definition.representation {
+        let llvm_fields = fields
             .iter()
             .map(|field| basic_ty(context, structs, enums, managed_address_space, &field.ty))
             .collect::<Result<Vec<_>, _>>()?;
-        return Ok(context.struct_type(&fields, false));
+        return Ok(context.struct_type(&llvm_fields, false));
+    }
+    if let StructRepresentation::Intrinsic(representation) = &definition.representation {
+        return Err(CodegenError(format!(
+            "compiler intrinsic declaration shell `{}` ({representation:?}) cannot be emitted as an aggregate struct",
+            definition.name
+        )));
     }
     let anchor = alignment_anchor(context, definition.align)?;
     let payload = context.struct_type(
@@ -323,18 +428,6 @@ pub(crate) fn struct_ty<'ctx>(
         true,
     );
     Ok(context.struct_type(&[anchor, payload.into()], false))
-}
-
-/// Aggregate values cannot be returned directly from a statepoint call:
-/// LLVM's statepoint rewrite lowers such results incompletely on the
-/// supported native targets. Keep LIR's value-returning contract, but use
-/// an explicit caller-provided result slot in the physical LLVM ABI.
-pub(crate) fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
-    match ty {
-        LirType::Aggregate(_) | LirType::Struct(_) | LirType::ExceptionRecord => true,
-        LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
-        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr(_) => false,
-    }
 }
 
 /// Physical storage for a tagged enum. Non-reference payload remains opaque,
@@ -465,29 +558,4 @@ pub(crate) fn pointer_ty(
         | scoop_lir::PointerKind::Code
         | scoop_lir::PointerKind::Metadata => ptr_ty(context),
     }
-}
-
-/// Translate one LIR function. Signature (parameters and return type)
-/// comes from LIR; parameters are SSA values (`Value::Param`).
-pub(crate) fn fn_type_of<'ctx>(
-    context: &'ctx Context,
-    structs: &Arena<StructDef>,
-    enums: &Arena<EnumDef>,
-    managed_address_space: ManagedAddressSpace,
-    function: &Function,
-) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
-    let mut param_tys: Vec<BasicMetadataTypeEnum> = function
-        .params
-        .iter()
-        .map(|ty| basic_ty(context, structs, enums, managed_address_space, ty).map(Into::into))
-        .collect::<Result<_, _>>()?;
-    if uses_return_slot(enums, &function.return_ty) {
-        param_tys.insert(0, ptr_ty(context).into());
-        return Ok(context.void_type().fn_type(&param_tys, false));
-    }
-    Ok(match &function.return_ty {
-        LirType::Void => context.void_type().fn_type(&param_tys, false),
-        return_ty => basic_ty(context, structs, enums, managed_address_space, return_ty)?
-            .fn_type(&param_tys, false),
-    })
 }

@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m4-enum/errors/when-on-int.scoop:2:11: error: `when` subject must be an enum, tuple or struct, found Int

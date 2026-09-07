@@ -22,12 +22,9 @@ impl Parser {
                     span: token.span,
                 })
             }
-            TokenKind::Int(value) => {
+            TokenKind::Int(lexeme) => {
                 self.pos += 1;
-                Ok(Expr::IntLiteral {
-                    value,
-                    span: token.span,
-                })
+                Ok(Expr::IntLiteral(lexeme.with_span(token.span)))
             }
             TokenKind::True => {
                 self.pos += 1;
@@ -49,6 +46,8 @@ impl Parser {
                 self.pos += 1;
                 Ok(Expr::This { span: token.span })
             }
+            TokenKind::Break => Err(loop_jump_expression_diagnostic("break", token.span)),
+            TokenKind::Continue => Err(loop_jump_expression_diagnostic("continue", token.span)),
             TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),
             TokenKind::Ident(text) => {
                 self.pos += 1;

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-pointers/errors/generic-pointee-predicate.scoop:13:17: error: generic function `forwardRaw` requires type argument ManagedValue for `T` to be a GC-free `Ptr` pointee

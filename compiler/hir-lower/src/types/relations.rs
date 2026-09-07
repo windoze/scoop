@@ -72,12 +72,8 @@ impl Lowerer {
                         .all(|(target, source)| self.is_subtype(target, source))
                     && self.is_subtype(source.return_type, target.return_type)
             }
-            (Type::Int, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int)
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::UInt, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt)
+            (Type::Integer(kind), Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
             (Type::Boolean, Type::Interface(..)) => self
@@ -186,6 +182,88 @@ impl Lowerer {
         }
     }
 
+    /// Collect every distinct exact application of `target` reachable from a
+    /// type's complete class/interface/bound closure. Unlike ordinary
+    /// subtyping queries this deliberately retains multiple applications with
+    /// different arguments so source iteration can diagnose an ambiguous
+    /// element type.
+    pub(crate) fn exact_interface_applications(
+        &mut self,
+        ty: TypeId,
+        target: hir::InterfaceId,
+    ) -> Vec<hir::InterfaceApplicationId> {
+        let mut roots = Vec::new();
+        match self.types[ty].clone() {
+            Type::Interface(application) => {
+                roots.push(self.interface_applications[application].canonical_type)
+            }
+            Type::Class(application) => {
+                roots.extend(self.class_interfaces_for_application(application));
+            }
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                for interface in self.structs[application.template].interfaces.clone() {
+                    roots.push(self.instantiate_ty(interface, &application.arguments));
+                }
+            }
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                for interface in self.enums[application.template].interfaces.clone() {
+                    roots.push(self.instantiate_ty(interface, &application.arguments));
+                }
+            }
+            Type::Integer(kind) => {
+                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)));
+            }
+            Type::Boolean => {
+                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean));
+            }
+            Type::String => {
+                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String));
+            }
+            Type::Param(parameter) => {
+                let declaration = self
+                    .type_params_in_scope
+                    .iter()
+                    .find(|candidate| candidate.id == parameter)
+                    .expect("the result parameter is in the active declaration scope")
+                    .clone();
+                for bound in declaration.nominal_bounds_in_source_order() {
+                    match bound {
+                        hir::NominalBoundRef::Class(bound) => {
+                            roots.extend(self.class_interfaces_for_application(bound.application));
+                        }
+                        hir::NominalBoundRef::Interface(bound) => roots
+                            .push(self.interface_applications[bound.application].canonical_type),
+                    }
+                }
+            }
+            Type::Unit
+            | Type::Any
+            | Type::Tuple(_)
+            | Type::Function(_)
+            | Type::Ptr(_)
+            | Type::FunPtr(_) => {}
+        }
+
+        let mut closure = Vec::new();
+        for root in roots {
+            self.append_interface_closure(root, &mut closure);
+        }
+        let mut applications = Vec::new();
+        for interface in closure {
+            let Type::Interface(application) = self.types[interface] else {
+                unreachable!("interface closure contains only interface types")
+            };
+            if self.interface_applications[application].template == target
+                && !applications.contains(&application)
+            {
+                applications.push(application);
+            }
+        }
+        applications
+    }
+
     /// Whether a value of static type `a` could ever hold a `b` at run
     /// time — the static premise of `is` / `as` / `as?` (a check
     /// between unrelated types is diagnosed as useless). Beyond the
@@ -213,8 +291,7 @@ impl Lowerer {
     pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
         match self.types[ty] {
             Type::Unit
-            | Type::Int
-            | Type::UInt
+            | Type::Integer(_)
             | Type::Boolean
             | Type::Struct(..)
             | Type::Enum(..)

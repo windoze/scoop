@@ -31,36 +31,6 @@ impl Lowerer {
         )
     }
 
-    pub(crate) fn component_operator_indices(
-        &mut self,
-        receiver_ty: TypeId,
-    ) -> Vec<std::num::NonZeroU32> {
-        let mut indices = self
-            .signatures
-            .values()
-            .filter_map(|signature| match signature.modifiers.operator {
-                Some(hir::OperatorKind::Component { index }) => Some(index),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        indices.sort_unstable();
-        indices.dedup();
-        indices.retain(|&index| {
-            let operator = hir::OperatorKind::Component { index };
-            !self.methods_by_operator(receiver_ty, operator).is_empty()
-                || self
-                    .extension_operator_candidate_layers(operator)
-                    .into_iter()
-                    .flatten()
-                    .any(|function| {
-                        let extension_ty = self.extension_receivers[&function];
-                        matches!(self.types[extension_ty], Type::Param(_))
-                            || self.is_subtype(receiver_ty, extension_ty)
-                    })
-        });
-        indices
-    }
-
     pub(super) fn lower_conventional_binary(
         &mut self,
         op: ast::BinOp,
@@ -68,6 +38,7 @@ impl Lowerer {
         rhs: &ast::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let (kind, name, receiver, argument, negate, comparison) = match op {
             ast::BinOp::Add => (hir::OperatorKind::Plus, "plus", lhs, rhs, false, None),
@@ -134,37 +105,55 @@ impl Lowerer {
             ),
             _ => unreachable!("only conventional binary operators enter this path"),
         };
-        let receiver = self.lower_expr(receiver, sink, None)?;
         let name = ast::Ident {
             text: name.to_string(),
             span,
         };
         let args = [ast::CallArgument::positional(argument.clone())];
-        let value = self.lower_named_call_on_receiver(
+        let call = CallSite {
+            type_args: &[],
+            args: &args,
+            span,
+        };
+        let required = RequiredCallableModifiers {
+            operator: Some(kind),
+            infix: false,
+            ..Default::default()
+        };
+        let value = if let Some(layer) = self.probe_integer_literal_receiver(
             receiver,
-            &name,
-            CallSite {
-                type_args: &[],
-                args: &args,
-                span,
+            expected,
+            |state, receiver, layer_sink| {
+                state
+                    .lower_named_call_on_receiver(receiver, &name, call, layer_sink, None, required)
             },
-            sink,
-            None,
-            RequiredCallableModifiers {
-                operator: Some(kind),
-                infix: false,
-                ..Default::default()
-            },
-        )?;
+        ) {
+            self.commit_expr_layer(layer, sink)
+        } else {
+            let receiver = self.lower_expr(receiver, sink, None)?;
+            self.lower_named_call_on_receiver(
+                receiver,
+                &name,
+                call,
+                sink,
+                None,
+                RequiredCallableModifiers {
+                    operator: Some(kind),
+                    infix: false,
+                    ..Default::default()
+                },
+            )?
+        };
         if let Some(comparison) = comparison {
-            debug_assert_eq!(value.ty, self.int);
+            let long = self.integer_type(hir::IntegerKind::SIGNED_64);
+            debug_assert_eq!(value.ty, long);
             return Some(hir::Expr {
                 kind: ExprKind::Binary {
                     op: comparison,
                     lhs: Box::new(value),
                     rhs: Box::new(hir::Expr {
-                        kind: ExprKind::IntLiteral(0),
-                        ty: self.int,
+                        kind: ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(0)),
+                        ty: long,
                         span,
                         origin: self.expression_origin(span),
                     }),
@@ -196,6 +185,7 @@ impl Lowerer {
         rhs: &ast::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if matches!(op, ast::BinOp::And | ast::BinOp::Or) {
             return self.lower_short_circuit(op, lhs, rhs, span, sink);
@@ -216,7 +206,7 @@ impl Lowerer {
                 | ast::BinOp::Gt
                 | ast::BinOp::Ge
         ) {
-            return self.lower_conventional_binary(op, lhs, rhs, span, sink);
+            return self.lower_conventional_binary(op, lhs, rhs, span, sink, expected);
         }
         // `===` / `!==` (spec 4.4.2): reference identity, only on
         // reference types; on value types it is a compile error.
@@ -226,17 +216,60 @@ impl Lowerer {
         debug_assert!(matches!(op, ast::BinOp::Eq | ast::BinOp::Ne));
         let negate = op == ast::BinOp::Ne;
         let symbol = if negate { "!=" } else { "==" };
-        // `x == None` / `None == x`: the `None` construction takes its
-        // type from the other operand (expected-type hint), so the
-        // other side is lowered first. (`None` itself is side-effect
-        // free, so lowering order is unobservable here.)
-        let (lhs, rhs) = if is_none_literal(lhs) && !is_none_literal(rhs) {
+        // A contextual operand takes its exact type from the independently
+        // typed peer. A clone-only probe discovers that type; real lowering
+        // still appends both operand sinks in source order because a payload
+        // variant may evaluate effectful arguments.
+        let lhs_is_integer_literal = crate::expr::integer_literal_default_kind(lhs).is_some();
+        let rhs_is_integer_literal = crate::expr::integer_literal_default_kind(rhs).is_some();
+        let lhs_requires_expected = self.expr_requires_expected_type(lhs);
+        let rhs_requires_expected = self.expr_requires_expected_type(rhs);
+        let direct_integer_kind = crate::expr::common_integer_literal_kind(&[lhs, rhs]);
+        let (lhs, rhs) = if let Some(kind) = direct_integer_kind {
+            let expected = self.integer_type(kind);
+            let lhs = self.lower_expr(lhs, sink, Some(expected))?;
+            let rhs = self.lower_expr(rhs, sink, Some(expected))?;
+            (lhs, rhs)
+        } else if lhs_is_integer_literal && !rhs_is_integer_literal {
+            // Integer literal syntax is side-effect free. Typing the other
+            // operand first therefore preserves evaluation semantics while
+            // letting the closed integer family provide the exact context.
             let rhs = self.lower_expr(rhs, sink, None)?;
-            let lhs = self.lower_expr(lhs, sink, Some(rhs.ty))?;
+            let lhs_expected = match self.types[rhs.ty] {
+                Type::Integer(kind) if crate::expr::integer_literal_accepts_kind(lhs, kind) => {
+                    Some(rhs.ty)
+                }
+                _ => None,
+            };
+            let lhs = self.lower_expr(lhs, sink, lhs_expected)?;
+            (lhs, rhs)
+        } else if lhs_requires_expected && !rhs_requires_expected {
+            let mut probe = self.clone();
+            let mut probe_sink = Vec::new();
+            let Some(rhs_probe) = probe.lower_expr(rhs, &mut probe_sink, None) else {
+                if probe.diagnostics.len() > self.diagnostics.len() {
+                    self.commit_layer_diagnostics(probe);
+                } else {
+                    self.error(
+                        rhs.span(),
+                        "cannot determine equality operand type".to_string(),
+                    );
+                }
+                return None;
+            };
+            let lhs = self.lower_expr(lhs, sink, Some(rhs_probe.ty))?;
+            let rhs = self.lower_expr(rhs, sink, Some(lhs.ty))?;
             (lhs, rhs)
         } else {
             let lhs = self.lower_expr(lhs, sink, None)?;
-            let rhs_hint = if is_none_literal(rhs) {
+            let rhs_hint = if rhs_is_integer_literal {
+                match self.types[lhs.ty] {
+                    Type::Integer(kind) if crate::expr::integer_literal_accepts_kind(rhs, kind) => {
+                        Some(lhs.ty)
+                    }
+                    _ => None,
+                }
+            } else if rhs_requires_expected {
                 Some(lhs.ty)
             } else {
                 None
@@ -421,24 +454,45 @@ impl Lowerer {
             debug_assert_eq!(resolved.return_ty, self.boolean);
             let function = resolved.function();
             self.check_call_effects(hir::Callable::Function(function), span);
-            let callee = match derived {
+            let derived_callee = match derived {
                 Some((derived_function, application)) if function == derived_function => {
-                    hir::MethodCallee::DerivedEquality(application)
+                    Some(hir::MethodCallee::DerivedEquality(application))
                 }
-                _ => {
-                    let callee = self.materialize_resolved_callee(&resolved);
-                    self.materialize_method_callee(resolved.source, callee, &resolved.type_args)
-                }
+                _ => None,
             };
-            let call = hir::Expr {
-                kind: ExprKind::MethodCall {
-                    receiver: Box::new(lhs),
-                    callee,
-                    args: resolved.args,
-                },
-                ty: self.boolean,
+            let call = if let Some(callee) = derived_callee {
+                hir::Expr {
+                    kind: ExprKind::MethodCall {
+                        receiver: Box::new(lhs),
+                        callee,
+                        args: resolved.args,
+                    },
+                    ty: self.boolean,
+                    span,
+                    origin: self.expression_origin(span),
+                }
+            } else if let Some(normalized) = self.normalize_primitive_method_call(
+                function,
+                lhs.clone(),
+                &resolved.args,
+                self.boolean,
                 span,
-                origin: self.expression_origin(span),
+            ) {
+                normalized
+            } else {
+                let callee = self.materialize_resolved_callee(&resolved);
+                let callee =
+                    self.materialize_method_callee(resolved.source, callee, &resolved.type_args);
+                hir::Expr {
+                    kind: ExprKind::MethodCall {
+                        receiver: Box::new(lhs),
+                        callee,
+                        args: resolved.args,
+                    },
+                    ty: self.boolean,
+                    span,
+                    origin: self.expression_origin(span),
+                }
             };
             return Some(if negate {
                 hir::Expr {
@@ -473,16 +527,15 @@ impl Lowerer {
     }
 
     /// Resolve the equality operation used by a literal pattern while the
-    /// matched subject type is still explicit. Literal patterns are limited
-    /// to primitive/String literals, so this is always an ordinary core
-    /// member call; the exact callable crosses HIR instead of being selected
-    /// again from the literal kind in MIR.
+    /// matched subject type is still explicit. Integer `equals` is normalized
+    /// to its typed representation-level plan here; Boolean and String retain
+    /// the exact ordinary callable chosen by overload resolution.
     pub(crate) fn resolve_literal_pattern_equality(
         &mut self,
         subject_ty: hir::TypeId,
         literal: hir::Expr,
         span: Span,
-    ) -> Option<(hir::Expr, hir::Callable)> {
+    ) -> Option<(hir::Expr, hir::LiteralPatternEquality)> {
         let candidates = self
             .methods_by_name(subject_ty, "equals")
             .into_iter()
@@ -507,16 +560,37 @@ impl Lowerer {
             sink.is_empty(),
             "literal equality with identical static types needs no temporary"
         );
-        let callable = self.materialize_resolved_callee(&resolved);
-        self.check_call_effects(callable, span);
-        let callee = self.materialize_method_callee(resolved.source, callable, &resolved.type_args);
-        let hir::MethodCallee::Callable(callee) = callee else {
-            unreachable!("literal core equality is an ordinary concrete member")
+        let function = resolved.function();
+        let integer_kind = match &self.functions[function].kind {
+            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                kind:
+                    hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
+                        kind,
+                        operation: hir::NoGcIntegerOperation::Equals,
+                    }),
+                ..
+            }) => Some(*kind),
+            _ => None,
+        };
+        let equality = if let Some(kind) = integer_kind {
+            self.check_call_effects(hir::Callable::Function(function), span);
+            let target = hir::NoGcCallableRef::try_from_function(function, &self.functions)
+                .expect("core validation proves integer equals is a no-GC intrinsic");
+            hir::LiteralPatternEquality::Integer { kind, target }
+        } else {
+            let callable = self.materialize_resolved_callee(&resolved);
+            self.check_call_effects(callable, span);
+            let callee =
+                self.materialize_method_callee(resolved.source, callable, &resolved.type_args);
+            let hir::MethodCallee::Callable(equals) = callee else {
+                unreachable!("literal equality is an ordinary concrete member")
+            };
+            hir::LiteralPatternEquality::Ordinary { equals }
         };
         let [literal] = resolved.args.as_slice() else {
             unreachable!("equals has exactly one explicit argument")
         };
-        Some((literal.clone(), callee))
+        Some((literal.clone(), equality))
     }
 
     /// `===` / `!==` (spec 4.4.2): both operands must be reference
@@ -568,31 +642,57 @@ impl Lowerer {
         operand: &ast::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let receiver = self.lower_expr(operand, sink, None)?;
+        if op == ast::UnOp::Neg
+            && let ast::Expr::IntLiteral(literal) = operand
+            && matches!(
+                literal.suffix,
+                ast::IntegerSuffix::None | ast::IntegerSuffix::Long
+            )
+        {
+            return self.lower_integer_literal(*literal, expected, true, span);
+        }
         let (kind, name) = match op {
             ast::UnOp::Plus => (hir::OperatorKind::UnaryPlus, "unaryPlus"),
             ast::UnOp::Neg => (hir::OperatorKind::UnaryMinus, "unaryMinus"),
             ast::UnOp::Not => (hir::OperatorKind::Not, "not"),
         };
-        self.lower_named_call_on_receiver(
-            receiver,
-            &ast::Ident {
-                text: name.to_string(),
-                span,
-            },
-            CallSite {
-                type_args: &[],
-                args: &[],
-                span,
-            },
-            sink,
-            None,
-            RequiredCallableModifiers {
-                operator: Some(kind),
-                infix: false,
-                ..Default::default()
-            },
-        )
+        let name = ast::Ident {
+            text: name.to_string(),
+            span,
+        };
+        let call = CallSite {
+            type_args: &[],
+            args: &[],
+            span,
+        };
+        let required = RequiredCallableModifiers {
+            operator: Some(kind),
+            infix: false,
+            ..Default::default()
+        };
+        if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+            && crate::expr::integer_literal_candidate_kinds(operand).is_some()
+        {
+            if let Some(layer) = self.probe_integer_literal_receiver(
+                operand,
+                expected,
+                |state, receiver, layer_sink| {
+                    state.lower_named_call_on_receiver(
+                        receiver, &name, call, layer_sink, None, required,
+                    )
+                },
+            ) {
+                return Some(self.commit_expr_layer(layer, sink));
+            }
+            let receiver = self.lower_expr(operand, sink, None)?;
+            return self.lower_named_call_on_receiver(receiver, &name, call, sink, None, required);
+        }
+        let receiver_expected = matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+            .then_some(expected)
+            .flatten();
+        let receiver = self.lower_expr(operand, sink, receiver_expected)?;
+        self.lower_named_call_on_receiver(receiver, &name, call, sink, None, required)
     }
 }

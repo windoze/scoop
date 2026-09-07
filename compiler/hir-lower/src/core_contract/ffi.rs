@@ -19,8 +19,8 @@ impl Lowerer {
             self.validate_ffi_handle_struct(id, "GcHandle");
         }
 
-        let ptr_to_uint = self.require_intrinsic(
-            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::ToUInt),
+        let ptr_to_ulong = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::ToULong),
             files,
         );
         let ptr_cast = self.require_intrinsic(
@@ -83,7 +83,7 @@ impl Lowerer {
 
         if let Some(ptr) = ptr {
             for (id, kind) in [
-                (ptr_to_uint, hir::PointerIntrinsic::ToUInt),
+                (ptr_to_ulong, hir::PointerIntrinsic::ToULong),
                 (ptr_cast, hir::PointerIntrinsic::Cast),
                 (ptr_load, hir::PointerIntrinsic::Load),
                 (ptr_load_offset, hir::PointerIntrinsic::LoadOffset),
@@ -112,7 +112,7 @@ impl Lowerer {
             fun_ptr: fun_ptr?,
             pinned_ptr: pinned_ptr?,
             gc_handle: gc_handle?,
-            ptr_to_uint: ptr_to_uint?,
+            ptr_to_ulong: ptr_to_ulong?,
             ptr_cast: ptr_cast?,
             ptr_load: ptr_load?,
             ptr_load_offset: ptr_load_offset?,

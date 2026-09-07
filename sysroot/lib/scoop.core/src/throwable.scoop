@@ -14,4 +14,6 @@ public class ArithmeticException public constructor() : Exception(Some("arithmet
 
 public class IndexOutOfBoundsException public constructor() : Exception(Some("array index out of bounds"))
 
+public class IllegalArgumentException public constructor(message: String? = Some("illegal argument")) : Exception(message)
+
 public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)

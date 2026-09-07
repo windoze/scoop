@@ -44,8 +44,8 @@ impl TypeDescriptorRefs {
             mir::Type::Struct(_)
             | mir::Type::Enum(..)
             | mir::Type::Tuple(_)
-            | mir::Type::Int
-            | mir::Type::UInt
+            | mir::Type::Integer(_)
+            | mir::Type::MachineScalar(_)
             | mir::Type::Boolean
             | mir::Type::Unit
             | mir::Type::Ptr(_)
@@ -81,8 +81,9 @@ const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
 /// Parent, interface, dispatch and operand references can therefore use typed
 /// ids directly; symbols remain emission attributes only.
 pub(crate) fn type_descriptors(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> (
     Arena<lir::TypeDescriptor>,
@@ -112,6 +113,7 @@ pub(crate) fn type_descriptors(
         let name = format!(
             "function${}",
             mir::encode_type(module, &mir::Type::Function(id))
+                .expect("MIR function types have a compact-v2 source encoding")
         );
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             symbol: td_symbol(&name),
@@ -142,8 +144,15 @@ pub(crate) fn type_descriptors(
             next_type_id += 1;
             assigned
         };
-        let descriptor =
-            class_type_descriptor(module, enums, id, runtime_type_id, &refs, local_functions);
+        let descriptor = class_type_descriptor(
+            context,
+            module,
+            enums,
+            id,
+            runtime_type_id,
+            &refs,
+            local_functions,
+        );
         let descriptor = lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor));
         assert!(refs.classes.insert(id, descriptor).is_none());
         if is_string {
@@ -155,7 +164,7 @@ pub(crate) fn type_descriptors(
         }
     }
     for (closure, def) in module.closure_classes.iter() {
-        let (_, size, align, scan) = closure_shape(module, enums, def);
+        let (_, size, align, scan) = closure_shape(context, module, enums, def);
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&def.name),
@@ -192,15 +201,16 @@ pub(crate) fn type_descriptors(
 }
 
 pub(crate) fn class_type_descriptor(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     id: mir::ClassId,
     runtime_type_id: u64,
     refs: &TypeDescriptorRefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> lir::TypeDescriptor {
     let def = &module.classes[id];
-    let (size, align, scan) = class_layout(module, enums, def);
+    let (size, align, scan) = class_layout(context, module, enums, def);
     let scan = match &def.representation {
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicTypeRepresentation::Array { .. }
@@ -247,8 +257,9 @@ pub(crate) fn class_type_descriptor(
 /// LIR metadata record. The MIR class id -> LIR array id map is complete before
 /// function lowering starts, so no instruction discovers metadata on demand.
 pub(crate) fn array_types(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     descriptors: &TypeDescriptorRefs,
 ) -> (
     Arena<lir::ArrayType>,
@@ -268,7 +279,7 @@ pub(crate) fn array_types(
                 continue;
             }
         };
-        let (element_size, element_align, _) = class_layout(module, enums, class);
+        let (element_size, element_align, _) = class_layout(context, module, enums, class);
         let id = arrays.alloc(lir::ArrayType {
             kind,
             element: lir_type(element),

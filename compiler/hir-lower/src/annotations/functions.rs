@@ -43,7 +43,7 @@ impl Lowerer {
                         continue;
                     };
                     let target_matches = matches!(
-                        (spec.target, target),
+                        (spec.target(), target),
                         (hir::IntrinsicTarget::TopLevel, FunctionTarget::TopLevel)
                             | (hir::IntrinsicTarget::Member, FunctionTarget::Member(_))
                     );
@@ -59,7 +59,7 @@ impl Lowerer {
                         );
                     } else {
                         intrinsic = Some(hir::IntrinsicFunction {
-                            kind: spec.kind,
+                            kind: spec.kind(),
                             provider: self.current_intrinsic_provider(),
                         });
                         intrinsic_spec = Some(spec);
@@ -195,23 +195,23 @@ impl Lowerer {
             }
         }
         if let (Some(intrinsic), Some(spec)) = (intrinsic, intrinsic_spec) {
-            if spec.effects == hir::IntrinsicEffects::NONE
+            if spec.effects() == hir::IntrinsicEffects::NONE
                 && (saw_safe || saw_unsafe || saw_no_gc || saw_calling_convention)
             {
                 self.error(
                     decl.span,
                     "this intrinsic does not allow effect annotations".to_string(),
                 );
-            } else if spec.effects.no_gc != saw_no_gc
-                || spec.effects.unsafe_ != saw_unsafe
+            } else if spec.effects().no_gc != saw_no_gc
+                || spec.effects().unsafe_ != saw_unsafe
                 || saw_safe
                 || saw_calling_convention
             {
                 let mut required = Vec::new();
-                if spec.effects.no_gc {
+                if spec.effects().no_gc {
                     required.push("`@NoGC`");
                 }
-                if spec.effects.unsafe_ {
+                if spec.effects().unsafe_ {
                     required.push("`@Unsafe`");
                 }
                 self.error(

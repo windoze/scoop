@@ -512,9 +512,9 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
     };
     assert_eq!(
         arguments.to_vec(),
-        vec![output.local.int, output.local.string]
+        vec![concrete_int_type(&output.local), output.local.string]
     );
-    assert_eq!(concrete.params[0].ty, output.local.int);
+    assert_eq!(concrete.params[0].ty, concrete_int_type(&output.local));
     assert_eq!(concrete.params[1].ty, output.local.string);
     assert_eq!(concrete.return_ty, output.local.string);
 }

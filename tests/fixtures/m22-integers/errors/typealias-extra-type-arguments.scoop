@@ -1,0 +1,5 @@
+typealias Count = Int
+
+fun consume(value: Count<String>) {}
+
+fun main() {}

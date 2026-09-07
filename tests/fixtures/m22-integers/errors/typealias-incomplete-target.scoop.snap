@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-incomplete-target.scoop:3:27: error: generic class `Box` requires 1 type argument(s)

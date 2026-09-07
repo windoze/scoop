@@ -1,0 +1,19 @@
+@CLayout
+struct Node(
+    val next: Ptr<Node>?,
+    val value: Int
+)
+
+@Extern(lib = "fixture_native", name = "bump_node")
+fun bumpNode(node: Node): Node
+
+fun main() {
+    @Unsafe {
+        val result = bumpNode(Node(None, 41))
+        println(result.value)
+        when (result.next) {
+            Some(pointer) -> println(pointer.toULong())
+            None -> println(0)
+        }
+    }
+}

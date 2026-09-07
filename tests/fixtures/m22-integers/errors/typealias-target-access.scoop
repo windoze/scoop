@@ -1,0 +1,5 @@
+private class Hidden private constructor()
+
+public typealias Exposed = Array<Hidden>
+
+fun main() {}

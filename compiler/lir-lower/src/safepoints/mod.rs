@@ -1,7 +1,7 @@
 //! Explicit safepoint placement and complete root-plan construction.
 //!
 //! This pass runs after one function's CFG and physical LIR types are final.
-//! It inserts managed entry/back-edge polls, computes backward liveness once,
+//! It inserts managed entry/explicit-loop-header polls, computes backward liveness once,
 //! and fills every protocol-specific root plan. Codegen consumes these plans;
 //! it never rediscovers CFG safepoints or source liveness.
 
@@ -10,6 +10,8 @@ use std::collections::HashSet;
 use la_arena::{Arena, Idx};
 use scoop_lir as lir;
 
+use super::LoweringContext;
+use super::function::{LoweredFunction, MappedLoopHeaderPollTarget};
 use super::metadata::{repr_shape, sequence};
 
 mod cfg;
@@ -20,11 +22,11 @@ mod scans;
 use cfg::*;
 use dataflow::*;
 use plans::*;
-pub(super) use scans::root_scan;
 use scans::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
     statepoint_live_set,
 };
+pub(crate) use scans::{lir_size_align, root_scan};
 
 #[derive(Debug)]
 pub(super) struct SafepointIds {
@@ -60,7 +62,9 @@ impl LiveValue {
             lir::Value::Param(index) => Some(Self::Param(index)),
             lir::Value::Local(id) => Some(Self::Local(id)),
             lir::Value::Temp(id) => Some(Self::Temp(id)),
-            lir::Value::IntConst(_)
+            lir::Value::CArgumentStorage(storage) => Some(Self::Local(storage.local())),
+            lir::Value::IntegerConst(_)
+            | lir::Value::MachineScalar(_)
             | lir::Value::BoolConst(_)
             | lir::Value::NullPointer(_)
             | lir::Value::TypeDescriptor(_)
@@ -88,15 +92,16 @@ impl LiveValue {
 }
 
 pub(super) fn complete_function(
-    function: &mut lir::Function,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    context: &LoweringContext,
+    lowered: &mut LoweredFunction,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
     ids: &mut SafepointIds,
 ) {
-    fold_constant_branches(function);
-    prune_unreachable_blocks(function);
-    insert_polls(function, ids);
-    annotate_root_plans(function, structs, enums);
+    fold_constant_branches(&mut lowered.function);
+    prune_unreachable_blocks(lowered);
+    insert_polls(&mut lowered.function, &lowered.loop_header_polls, ids);
+    annotate_root_plans(context, &mut lowered.function, structs, enums);
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {

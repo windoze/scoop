@@ -1,0 +1,680 @@
+use std::collections::{HashMap, HashSet};
+
+use super::*;
+
+pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirValidationError> {
+    validate_saved_values(module)?;
+    validate_failure_values(module)?;
+
+    let mut saved_owners = vec![0_u32; module.meta.coroutine_saved_values.len()];
+    let mut failure_owners = vec![0_u32; module.meta.coroutine_failure_values.len()];
+    let mut frame_classes = HashSet::new();
+    for (frame_id, frame) in module.meta.coroutine_frames.iter() {
+        validate_frame(module, frame_id, frame)?;
+        if !frame_classes.insert(frame.class()) {
+            return Err(error(
+                MirValidationLocation::CoroutineFrame { frame: frame_id },
+                "a generated frame class cannot be shared by two coroutine frames",
+            ));
+        }
+        for value in frame.saved_values() {
+            saved_owners[raw(*value)] += 1;
+        }
+        failure_owners[raw(frame.failure())] += 1;
+    }
+    for (value, _) in module.meta.coroutine_saved_values.iter() {
+        if saved_owners[raw(value)] != 1 {
+            return Err(error(
+                MirValidationLocation::CoroutineSavedValue { value },
+                "saved value must belong to exactly one coroutine frame",
+            ));
+        }
+    }
+    for (value, _) in module.meta.coroutine_failure_values.iter() {
+        if failure_owners[raw(value)] != 1 {
+            return Err(error(
+                MirValidationLocation::CoroutineFailureValue { value },
+                "failure value must belong to exactly one coroutine frame",
+            ));
+        }
+    }
+
+    let mut frame_owners = vec![0_u32; module.meta.coroutine_frames.len()];
+    let mut point_owners = vec![0_u32; module.meta.coroutine_resume_points.len()];
+    let mut callables = HashSet::new();
+    let mut drivers = HashSet::new();
+    for (coroutine_id, coroutine) in module.meta.coroutine_functions.iter() {
+        if !callables.insert(coroutine.function) {
+            return Err(error(
+                MirValidationLocation::CoroutineFunction {
+                    coroutine: coroutine_id,
+                },
+                "a suspend callable cannot be owned by two coroutine records",
+            ));
+        }
+        if let CoroutineLowering::StateMachine { driver, .. } = &coroutine.lowering {
+            if coroutine.function == *driver || !drivers.insert(*driver) {
+                return Err(error(
+                    MirValidationLocation::CoroutineFunction {
+                        coroutine: coroutine_id,
+                    },
+                    "a coroutine driver must be distinct and uniquely owned",
+                ));
+            }
+        }
+        validate_coroutine_function(
+            module,
+            coroutine_id,
+            coroutine,
+            &mut frame_owners,
+            &mut point_owners,
+        )?;
+    }
+    for (frame, _) in module.meta.coroutine_frames.iter() {
+        if frame_owners[raw(frame)] != 1 {
+            return Err(error(
+                MirValidationLocation::CoroutineFrame { frame },
+                "frame must belong to exactly one state-machine coroutine",
+            ));
+        }
+    }
+    for (point, _) in module.meta.coroutine_resume_points.iter() {
+        if point_owners[raw(point)] != 1 {
+            return Err(error(
+                MirValidationLocation::CoroutineResumePoint { point },
+                "resume point must occur exactly once in its owner's point list",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_saved_values(module: &Module) -> Result<(), MirValidationError> {
+    for (value_id, value) in module.meta.coroutine_saved_values.iter() {
+        let Some(checked) = CoroutineSavedValue::checked(
+            &module.classes,
+            &module.meta.coroutine_slots,
+            value.field(),
+            value.slot(),
+        ) else {
+            return Err(error(
+                MirValidationLocation::CoroutineSavedValue { value: value_id },
+                "saved field is not the exact CoroutineSlot<T> named by its metadata",
+            ));
+        };
+        if checked.value() != value.value() {
+            return Err(error(
+                MirValidationLocation::CoroutineSavedValue { value: value_id },
+                "saved value type no longer matches its CoroutineSlot payload",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_failure_values(module: &Module) -> Result<(), MirValidationError> {
+    for (value_id, value) in module.meta.coroutine_failure_values.iter() {
+        if CoroutineFailureValue::checked(
+            &module.classes,
+            &module.meta.coroutine_slots,
+            value.field(),
+            value.slot(),
+            value.throwable(),
+        )
+        .is_none()
+        {
+            return Err(error(
+                MirValidationLocation::CoroutineFailureValue { value: value_id },
+                "failure field is not the exact CoroutineSlot<Throwable> named by its metadata",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_frame(
+    module: &Module,
+    frame_id: CoroutineFrameId,
+    frame: &CoroutineFrame,
+) -> Result<(), MirValidationError> {
+    let location = MirValidationLocation::CoroutineFrame { frame: frame_id };
+    if arena_get(&module.meta.coroutine_functions, frame.owner()).is_none() {
+        return Err(error(
+            location,
+            "frame refers to an unknown coroutine owner",
+        ));
+    }
+    if CoroutineFrame::checked(
+        &module.classes,
+        &module.meta.coroutine_saved_values,
+        &module.meta.coroutine_failure_values,
+        frame.class(),
+        frame.owner(),
+        frame.state(),
+        frame.completion(),
+        frame.saved_values().to_vec(),
+        frame.failure(),
+    )
+    .is_none()
+    {
+        return Err(error(
+            location,
+            "frame roles no longer name distinct fields of the exact frame class",
+        ));
+    }
+    if frame.state().field_index() != 0 || frame.completion().field_index() != 1 {
+        return Err(error(
+            location,
+            "frame state and completion must be the canonical first two fields",
+        ));
+    }
+    let Some(class) = arena_get(&module.classes, frame.class()) else {
+        return Err(error(location, "frame refers to an unknown class"));
+    };
+    let ClassRepresentation::Declared { fields, .. } = &class.representation else {
+        return Err(error(
+            location,
+            "frame class must have a declared representation",
+        ));
+    };
+    if fields.len() != frame.saved_values().len() + 3 {
+        return Err(error(
+            location,
+            "every frame field must have exactly one state, completion, saved, or failure role",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_coroutine_function(
+    module: &Module,
+    coroutine_id: CoroutineFunctionId,
+    coroutine: &CoroutineFunction,
+    frame_owners: &mut [u32],
+    point_owners: &mut [u32],
+) -> Result<(), MirValidationError> {
+    let location = MirValidationLocation::CoroutineFunction {
+        coroutine: coroutine_id,
+    };
+    let Some(function) = arena_get(&module.functions, coroutine.function) else {
+        return Err(error(location, "coroutine refers to an unknown callable"));
+    };
+    let Some(step) = arena_get(&module.meta.coroutine_steps, coroutine.step) else {
+        return Err(error(
+            location,
+            "coroutine refers to an unknown CoroutineStep",
+        ));
+    };
+    if step.result() != &coroutine.source_return
+        || function.return_ty != Type::Enum(step.enum_id(), Vec::new())
+    {
+        return Err(error(
+            location,
+            "callable result, source result, and CoroutineStep payload are not exact",
+        ));
+    }
+
+    let CoroutineLowering::StateMachine {
+        frame,
+        driver,
+        resume_points,
+    } = &coroutine.lowering
+    else {
+        return Ok(());
+    };
+    let Some(frame_metadata) = arena_get(&module.meta.coroutine_frames, *frame) else {
+        return Err(error(location, "state machine refers to an unknown frame"));
+    };
+    if frame_metadata.owner() != coroutine_id {
+        return Err(error(location, "state machine frame has a different owner"));
+    }
+    frame_owners[raw(*frame)] += 1;
+    let Some(driver_function) = arena_get(&module.functions, *driver) else {
+        return Err(error(location, "state machine refers to an unknown driver"));
+    };
+    let [frame_parameter, state_parameter] = driver_function.params.as_slice() else {
+        return Err(error(
+            location,
+            "coroutine driver must have exactly frame and state parameters",
+        ));
+    };
+    if frame_parameter.ty != Type::Class(frame_metadata.class())
+        || state_parameter.ty != Type::MachineScalar(MachineScalarKind::CoroutineFrameState)
+        || driver_function.return_ty != Type::Enum(step.enum_id(), Vec::new())
+    {
+        return Err(error(
+            location,
+            "coroutine driver has a non-exact frame, state, or CoroutineStep signature",
+        ));
+    }
+    let Some(completion_parameter) = function.params.last() else {
+        return Err(error(
+            location,
+            "state-machine wrapper has no hidden completion parameter",
+        ));
+    };
+    if frame_metadata
+        .completion()
+        .definition(&module.classes)
+        .is_none_or(|field| field.ty != completion_parameter.ty)
+    {
+        return Err(error(
+            location,
+            "frame completion field does not match the hidden completion parameter",
+        ));
+    }
+    if resume_points.is_empty() {
+        return Err(error(
+            location,
+            "a state-machine coroutine must have at least one resume point",
+        ));
+    }
+
+    let mut listed = HashSet::new();
+    let mut sites = HashSet::new();
+    for point_id in resume_points {
+        if !listed.insert(*point_id) {
+            return Err(error(
+                location,
+                "state-machine resume-point list contains a duplicate id",
+            ));
+        }
+        let Some(point) = arena_get(&module.meta.coroutine_resume_points, *point_id) else {
+            return Err(error(
+                location,
+                "state-machine resume-point list contains an unknown id",
+            ));
+        };
+        if point.frame() != *frame {
+            return Err(error(
+                MirValidationLocation::CoroutineResumePoint { point: *point_id },
+                "resume point belongs to a different frame",
+            ));
+        }
+        if !sites.insert(point.site()) {
+            return Err(error(
+                MirValidationLocation::CoroutineResumePoint { point: *point_id },
+                "suspension site is reused by another pending context",
+            ));
+        }
+        point_owners[raw(*point_id)] += 1;
+        validate_resume_point(
+            module,
+            *point_id,
+            point,
+            frame_metadata,
+            driver_function,
+            &coroutine.source_return,
+            frame_parameter.local,
+        )?;
+    }
+    validate_dispatch(
+        *driver,
+        driver_function,
+        state_parameter.local,
+        resume_points,
+        module,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_resume_point(
+    module: &Module,
+    point_id: CoroutineResumePointId,
+    point: &CoroutineResumePoint,
+    frame: &CoroutineFrame,
+    driver: &Function,
+    source_return: &Type,
+    frame_local: LocalId,
+) -> Result<(), MirValidationError> {
+    let location = MirValidationLocation::CoroutineResumePoint { point: point_id };
+    if arena_get(&module.classes, point.adapter()).is_none() {
+        return Err(error(
+            location,
+            "resume point refers to an unknown adapter class",
+        ));
+    }
+    let Some(resume) = arena_get(&module.functions, point.resume()) else {
+        return Err(error(
+            location,
+            "resume point refers to an unknown success callback",
+        ));
+    };
+    let Some(failure_callback) = arena_get(&module.functions, point.resume_with_exception()) else {
+        return Err(error(
+            location,
+            "resume point refers to an unknown failure callback",
+        ));
+    };
+    let failure = arena_get(&module.meta.coroutine_failure_values, frame.failure())
+        .expect("validated frame failure id remains in bounds");
+    if point.failure().exception() != frame.failure() {
+        return Err(error(
+            location,
+            "failure resume entry does not use its owner frame's failure value",
+        ));
+    }
+    if !callback_signature_is(resume, point.adapter(), point.result(), &Type::Unit)
+        || !callback_signature_is(
+            failure_callback,
+            point.adapter(),
+            &Type::Class(failure.throwable()),
+            &Type::Unit,
+        )
+    {
+        return Err(error(
+            location,
+            "resume callback signatures do not match adapter, result, and Throwable types",
+        ));
+    }
+
+    validate_target(driver, point.success().entry().block(), location)?;
+    validate_target(driver, point.success().post().block(), location)?;
+    validate_target(driver, point.failure().entry().block(), location)?;
+    validate_optional_unwind(driver, point.failure().unwind(), location)?;
+    for transfer in point.parents() {
+        validate_transfer(
+            module,
+            frame,
+            driver,
+            source_return,
+            failure,
+            *transfer,
+            location,
+        )?;
+    }
+    let returned: HashSet<_> = point
+        .parents()
+        .iter()
+        .filter_map(|transfer| match transfer {
+            CoroutinePendingTransfer::Return(CoroutineReturnTransfer::Saved(value)) => Some(*value),
+            _ => None,
+        })
+        .collect();
+    let aliases_throw = point.parents().iter().any(|transfer| match transfer {
+        CoroutinePendingTransfer::ManagedThrow(throw_) => returned.contains(&throw_.exception()),
+        _ => false,
+    });
+    if aliases_throw {
+        return Err(error(
+            location,
+            "pending return and managed throw must use distinct saved-value identities",
+        ));
+    }
+
+    let success_entry = &driver.body.blocks[point.success().entry().block()];
+    if !matches!(
+        &success_entry.terminator,
+        Terminator::Goto(target) if *target == point.success().post().block()
+    ) {
+        return Err(error(
+            location,
+            "success resume entry must go directly to its typed post target",
+        ));
+    }
+    let failure_entry = &driver.body.blocks[point.failure().entry().block()];
+    let Terminator::Throw { exception, unwind } = &failure_entry.terminator else {
+        return Err(error(
+            location,
+            "failure resume entry must end in a managed throw",
+        ));
+    };
+    let expected_unwind = point.failure().unwind().map(|target| target.block());
+    if *unwind != expected_unwind
+        || failure_entry.unwind != expected_unwind
+        || !reads_failure_value(module, exception, frame, failure, frame_local)
+    {
+        return Err(error(
+            location,
+            "failure resume entry must throw its exact frame failure slot along the typed unwind edge",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_transfer(
+    module: &Module,
+    frame: &CoroutineFrame,
+    driver: &Function,
+    source_return: &Type,
+    failure: &CoroutineFailureValue,
+    transfer: CoroutinePendingTransfer,
+    location: MirValidationLocation,
+) -> Result<(), MirValidationError> {
+    match transfer {
+        CoroutinePendingTransfer::Fallthrough(target) => {
+            validate_target(driver, target.block(), location)
+        }
+        CoroutinePendingTransfer::Break(target) => {
+            validate_target(driver, target.block(), location)
+        }
+        CoroutinePendingTransfer::Continue(target) => {
+            validate_target(driver, target.block(), location)?;
+            if !driver
+                .body
+                .loop_header_polls
+                .iter()
+                .any(|poll| poll.header() == target.block())
+            {
+                return Err(error(
+                    location,
+                    "pending continue target is not an explicit loop-header poll target",
+                ));
+            }
+            Ok(())
+        }
+        CoroutinePendingTransfer::Return(return_) => match return_ {
+            CoroutineReturnTransfer::Unit if source_return == &Type::Unit => Ok(()),
+            CoroutineReturnTransfer::Saved(value) if source_return != &Type::Unit => {
+                let Some(value_metadata) = arena_get(&module.meta.coroutine_saved_values, value)
+                else {
+                    return Err(error(
+                        location,
+                        "pending return refers to an unknown saved value",
+                    ));
+                };
+                if !frame.owns_saved_value(value) || value_metadata.value() != source_return {
+                    return Err(error(
+                        location,
+                        "pending return must use an owner-frame slot of the exact source result type",
+                    ));
+                }
+                Ok(())
+            }
+            CoroutineReturnTransfer::Unit | CoroutineReturnTransfer::Saved(_) => Err(error(
+                location,
+                "Return(Unit) is valid only for an exact Unit source result",
+            )),
+        },
+        CoroutinePendingTransfer::ManagedThrow(throw_) => {
+            let Some(value) = arena_get(&module.meta.coroutine_saved_values, throw_.exception())
+            else {
+                return Err(error(
+                    location,
+                    "pending managed throw refers to an unknown saved value",
+                ));
+            };
+            if !frame.owns_saved_value(throw_.exception())
+                || value.value() != &Type::Class(failure.throwable())
+            {
+                return Err(error(
+                    location,
+                    "pending managed throw must use an owner-frame slot of exact Throwable type",
+                ));
+            }
+            validate_optional_unwind(driver, throw_.unwind(), location)
+        }
+    }
+}
+
+fn validate_dispatch(
+    driver_id: FunctionId,
+    driver: &Function,
+    state_local: LocalId,
+    points: &[CoroutineResumePointId],
+    module: &Module,
+) -> Result<(), MirValidationError> {
+    let location = points
+        .first()
+        .copied()
+        .map(|point| MirValidationLocation::CoroutineResumePoint { point })
+        .unwrap_or(MirValidationLocation::FunctionBlock {
+            function: driver_id,
+            block: driver.body.entry,
+        });
+    let mut expected = HashMap::new();
+    for point_id in points {
+        let point = &module.meta.coroutine_resume_points[*point_id];
+        expected.insert(point.success_state(), point.success().entry().block());
+        expected.insert(point.failure_state(), point.failure().entry().block());
+    }
+    let mut found = HashMap::new();
+    let mut current = driver.body.entry;
+    let mut visited = HashSet::new();
+    while visited.insert(current) {
+        let Some(block) = arena_get(&driver.body.blocks, current) else {
+            return Err(error(location, "driver dispatch reaches an unknown block"));
+        };
+        if !block.statements.is_empty() || block.unwind.is_some() {
+            break;
+        }
+        let Terminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } = &block.terminator
+        else {
+            break;
+        };
+        let Some(state) = dispatch_state(cond, state_local) else {
+            break;
+        };
+        if found.insert(state, *then_block).is_some() {
+            return Err(error(
+                location,
+                "driver dispatch contains a duplicate state",
+            ));
+        }
+        current = *else_block;
+    }
+    if found.remove(&CoroutineFrameState::Initial).is_none() {
+        return Err(error(location, "driver dispatch has no initial-state case"));
+    }
+    if found != expected {
+        return Err(error(
+            location,
+            "driver dispatch cases do not exactly match resume-point metadata",
+        ));
+    }
+    Ok(())
+}
+
+fn dispatch_state(condition: &Expr, state_local: LocalId) -> Option<CoroutineFrameState> {
+    let ExprKind::Binary {
+        op: BinOp::MachineEq(MachineScalarKind::CoroutineFrameState),
+        lhs,
+        rhs,
+    } = &condition.kind
+    else {
+        return None;
+    };
+    if !matches!(&lhs.kind, ExprKind::Local(local) if *local == state_local) {
+        return None;
+    }
+    let ExprKind::MachineScalarLiteral(MachineScalarValue::CoroutineFrameState(state)) = &rhs.kind
+    else {
+        return None;
+    };
+    Some(*state)
+}
+
+fn callback_signature_is(
+    function: &Function,
+    adapter: ClassId,
+    value: &Type,
+    result: &Type,
+) -> bool {
+    matches!(
+        function.params.as_slice(),
+        [receiver, parameter]
+            if receiver.ty == Type::Class(adapter) && &parameter.ty == value
+    ) && &function.return_ty == result
+}
+
+fn reads_failure_value(
+    module: &Module,
+    expression: &Expr,
+    frame: &CoroutineFrame,
+    failure: &CoroutineFailureValue,
+    frame_local: LocalId,
+) -> bool {
+    if expression.ty != Type::Class(failure.throwable()) {
+        return false;
+    }
+    let slot = &module.meta.coroutine_slots[failure.slot()];
+    let ExprKind::EnumField {
+        operand,
+        variant,
+        index,
+    } = &expression.kind
+    else {
+        return false;
+    };
+    if *variant != slot.value_payload().variant().variant_index()
+        || *index != slot.value_payload().field_index()
+        || operand.ty != Type::Enum(slot.enum_id(), Vec::new())
+    {
+        return false;
+    }
+    let ExprKind::FieldAccess {
+        receiver,
+        index: field,
+    } = &operand.kind
+    else {
+        return false;
+    };
+    *field == failure.field().field_index()
+        && receiver.ty == Type::Class(frame.class())
+        && matches!(&receiver.kind, ExprKind::Local(local) if *local == frame_local)
+}
+
+fn validate_target(
+    driver: &Function,
+    target: BlockId,
+    location: MirValidationLocation,
+) -> Result<(), MirValidationError> {
+    if arena_get(&driver.body.blocks, target).is_none() {
+        Err(error(
+            location,
+            "typed continuation target is outside the driver body",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_optional_unwind(
+    driver: &Function,
+    target: Option<CoroutineUnwindTarget>,
+    location: MirValidationLocation,
+) -> Result<(), MirValidationError> {
+    if let Some(target) = target {
+        validate_target(driver, target.block(), location)?;
+    }
+    Ok(())
+}
+
+fn error(location: MirValidationLocation, reason: &'static str) -> MirValidationError {
+    MirValidationError {
+        location,
+        kind: MirValidationErrorKind::InvalidCoroutineMetadata { reason },
+    }
+}
+
+fn raw<T>(id: la_arena::Idx<T>) -> usize {
+    id.into_raw().into_u32() as usize
+}
+
+fn arena_get<T>(arena: &Arena<T>, id: Idx<T>) -> Option<&T> {
+    (raw(id) < arena.len()).then(|| &arena[id])
+}

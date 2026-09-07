@@ -76,14 +76,28 @@ impl BodyLowerer<'_> {
         } else {
             self.lower_statements(&body.statements)
         };
+        assert!(
+            self.active_loops.is_empty(),
+            "structured loop remapping is balanced at a callable boundary"
+        );
+        let coroutine_eh = self.coroutine_eh_mode();
         (
             params,
             return_ty,
             smir::Body {
                 locals: self.locals,
                 statements,
+                coroutine_eh,
             },
         )
+    }
+
+    pub(crate) fn coroutine_eh_mode(&self) -> Option<smir::CoroutineEhMode> {
+        self.contains_suspend_call.then(|| smir::CoroutineEhMode {
+            throwable: mir::Type::Class(
+                self.class_map[&self.module.exception_core.throwable.class()],
+            ),
+        })
     }
 
     pub(crate) fn lower_type(&mut self, ty: hir::TypeId) -> mir::Type {

@@ -1,0 +1,8 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-binding-patterns/errors/class-components.scoop:8:17: error: a class component pattern cannot contain `..`
+m22-binding-patterns/errors/class-components.scoop:18:17: error: type `Sparse` has no method `component2`
+m22-binding-patterns/errors/class-components.scoop:19:13: error: unknown variable `first`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

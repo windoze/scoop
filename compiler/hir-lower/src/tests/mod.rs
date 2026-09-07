@@ -3,9 +3,9 @@
 //!
 //! Every test compiles the user file together with a minimal
 //! `scoop.core` (`core_file()`: the `Option<T>` enum, the `Throwable`
-//! exception root, the M10 coroutine protocol, plus the M7 `io.scoop`
-//! overloads and their backing intrinsic), mirroring the driver's
-//! sysroot convention — core files first, the user file last.
+//! exception root, the M10 coroutine and M22 iteration protocols, plus
+//! the M7 `io.scoop` overloads and their backing intrinsic), mirroring
+//! the driver's sysroot convention — core files first, the user file last.
 
 mod basics;
 mod builders;
@@ -28,6 +28,20 @@ mod m21_objects;
 mod m21_properties;
 mod m21_top_level_storage;
 mod m21_visibility;
+mod m22_aliases;
+mod m22_binding_patterns;
+mod m22_contextual_inference;
+mod m22_contextual_variants;
+mod m22_copy_updates;
+mod m22_integer_diagnostics;
+mod m22_integer_exhaustiveness;
+mod m22_integers;
+mod m22_iteration;
+mod m22_joint_integer_inference;
+mod m22_loop_targets;
+mod m22_pattern_warnings;
+mod m22_ranges;
+mod m22_recursive_named_fields;
 mod m3;
 mod m4;
 mod m5;
@@ -45,6 +59,42 @@ use ast::{
 
 pub(crate) use builders::*;
 pub(crate) use core::*;
+
+fn integer_syntax(magnitude: u64) -> ast::IntegerLiteralSyntax {
+    ast::IntegerLiteralSyntax {
+        magnitude,
+        radix: ast::IntegerRadix::Decimal,
+        suffix: ast::IntegerSuffix::None,
+        span: sp(),
+    }
+}
+
+fn integer_type(module: &hir::Module, kind: hir::IntegerKind) -> hir::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(id, ty)| (*ty == hir::Type::Integer(kind)).then_some(id))
+        .expect("lowered module contains every canonical integer type")
+}
+
+fn int_type(module: &hir::Module) -> hir::TypeId {
+    integer_type(module, hir::IntegerKind::SIGNED_32)
+}
+
+fn concrete_integer_type(
+    module: &hir::concrete::Module,
+    kind: hir::IntegerKind,
+) -> hir::concrete::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(id, ty)| (ty.kind == hir::concrete::TypeKind::Integer(kind)).then_some(id))
+        .expect("concrete module contains every canonical integer type")
+}
+
+fn concrete_int_type(module: &hir::concrete::Module) -> hir::concrete::TypeId {
+    concrete_integer_type(module, hir::IntegerKind::SIGNED_32)
+}
 
 fn binding_local(pattern: &hir::Pattern) -> Option<hir::LocalId> {
     match pattern {

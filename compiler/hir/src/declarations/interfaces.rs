@@ -7,6 +7,7 @@ pub struct InterfaceDecl {
     pub access: NominalAccess,
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     /// Exact parent applications in declaration order.
     pub parents: Vec<InterfaceApplicationId>,
     /// Methods declared directly by this interface, in itable order after

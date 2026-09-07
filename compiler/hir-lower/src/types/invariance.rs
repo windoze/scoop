@@ -184,8 +184,9 @@ impl Lowerer {
                     }
                 })
                 .collect(),
-            Type::Int => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int),
-            Type::UInt => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt),
+            Type::Integer(kind) => {
+                self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
+            }
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::Unit

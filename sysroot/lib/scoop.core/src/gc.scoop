@@ -1,25 +1,25 @@
 // GC facilities (spec 14.1, M12 DESIGN section 4.2). Public operations are
 // ordinary unsafe core functions; only the raw runtime boundary is intrinsic.
 
-public struct PinnedPtr<T : ref>(val raw: UInt)
+public struct PinnedPtr<T : ref>(val raw: ULong)
 
-public struct GcHandle<T : ref>(val raw: UInt)
+public struct GcHandle<T : ref>(val raw: ULong)
 
 @Unsafe
 @Intrinsic("gc_pin_raw")
-internal fun <T : ref> _pin(v: T): UInt
+internal fun <T : ref> _pin(v: T): ULong
 
 @Unsafe
 @Intrinsic("gc_unpin_raw")
-internal fun <T : ref> _unpin(raw: UInt): T
+internal fun <T : ref> _unpin(raw: ULong): T
 
 @Unsafe
 @Intrinsic("gc_get_handle_raw")
-internal fun <T : ref> _getGcHandle(v: T): UInt
+internal fun <T : ref> _getGcHandle(v: T): ULong
 
 @Unsafe
 @Intrinsic("gc_release_handle_raw")
-internal fun <T : ref> _releaseGcHandle(raw: UInt): T
+internal fun <T : ref> _releaseGcHandle(raw: ULong): T
 
 @Unsafe
 public fun <T : ref> pin(v: T): PinnedPtr<T> = PinnedPtr<T>(_pin(v))
@@ -39,4 +39,4 @@ public fun <T : ref> releaseGcHandle(h: GcHandle<T>): T = _releaseGcHandle<T>(h.
 public fun gcCollect()
 
 @Intrinsic("rt_gc_stats")
-public fun gcStats(): UInt
+public fun gcStats(): ULong

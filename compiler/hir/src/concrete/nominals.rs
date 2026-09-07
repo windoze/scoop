@@ -110,11 +110,175 @@ pub struct EnumDef {
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
-    pub option_variants: Option<(VariantId, VariantId)>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+/// Checked local-concrete identity of one enum variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantRef {
+    enumeration: EnumId,
+    variant: VariantId,
+}
+
+impl EnumVariantRef {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        enumeration: EnumId,
+        variant: VariantId,
+    ) -> Option<Self> {
+        if enumeration.into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        enums[enumeration]
+            .variants
+            .get(variant.into_raw() as usize)
+            .map(|_| Self {
+                enumeration,
+                variant,
+            })
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.enumeration
+    }
+
+    pub const fn variant(self) -> VariantId {
+        self.variant
+    }
+}
+
+/// Checked local-concrete identity of one payload field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantFieldRef {
+    variant: EnumVariantRef,
+    local_index: u32,
+}
+
+impl EnumVariantFieldRef {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        variant: EnumVariantRef,
+        local_index: u32,
+    ) -> Option<Self> {
+        if variant.enumeration().into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        let declaration = enums[variant.enumeration()]
+            .variants
+            .get(variant.variant().into_raw() as usize)?;
+        declaration.fields.get(local_index as usize).map(|_| Self {
+            variant,
+            local_index,
+        })
+    }
+
+    pub const fn variant(self) -> EnumVariantRef {
+        self.variant
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
+}
+
+/// Complete local-concrete identity of one specialized core `Option` shape.
+/// The Some payload and None variants are inseparable from their checked
+/// owner, and their arities are verified when this value is constructed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct OptionCore {
+    some_payload: EnumVariantFieldRef,
+    none: EnumVariantRef,
+}
+
+impl OptionCore {
+    pub fn checked(
+        enums: &Arena<EnumDef>,
+        some_payload: EnumVariantFieldRef,
+        none: EnumVariantRef,
+    ) -> Option<Self> {
+        let some = some_payload.variant();
+        if some.enumeration() != none.enumeration() || some.variant() == none.variant() {
+            return None;
+        }
+        if some.enumeration().into_raw().into_u32() as usize >= enums.len() {
+            return None;
+        }
+        let enumeration = &enums[some.enumeration()];
+        let [argument] = enumeration.type_arguments.as_slice() else {
+            return None;
+        };
+        let some_definition = enumeration
+            .variants
+            .get(some.variant().into_raw() as usize)?;
+        let none_definition = enumeration
+            .variants
+            .get(none.variant().into_raw() as usize)?;
+        (enumeration.variants.len() == 2
+            && some_definition.name == "Some"
+            && some_definition.fields.len() == 1
+            && some_payload.local_index() == 0
+            && some_definition
+                .fields
+                .get(some_payload.local_index() as usize)
+                .is_some_and(|field| field.ty == *argument)
+            && none_definition.name == "None"
+            && none_definition.fields.is_empty())
+        .then_some(Self { some_payload, none })
+    }
+
+    pub const fn enumeration(self) -> EnumId {
+        self.some_payload.variant().enumeration()
+    }
+
+    pub const fn some(self) -> EnumVariantRef {
+        self.some_payload.variant()
+    }
+
+    pub const fn some_payload(self) -> EnumVariantFieldRef {
+        self.some_payload
+    }
+
+    pub const fn none(self) -> EnumVariantRef {
+        self.none
+    }
+}
+
+/// Checked local-concrete identity of one declared struct field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StructFieldRef {
+    structure: StructId,
+    local_index: u32,
+}
+
+impl StructFieldRef {
+    pub fn checked(
+        structs: &Arena<StructDef>,
+        structure: StructId,
+        local_index: u32,
+    ) -> Option<Self> {
+        if structure.into_raw().into_u32() as usize >= structs.len() {
+            return None;
+        }
+        let StructRepresentation::Declared { fields, .. } = &structs[structure].representation
+        else {
+            return None;
+        };
+        fields.get(local_index as usize).map(|_| Self {
+            structure,
+            local_index,
+        })
+    }
+
+    pub const fn structure(self) -> StructId {
+        self.structure
+    }
+
+    pub const fn local_index(self) -> u32 {
+        self.local_index
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -229,12 +393,13 @@ impl ClassDef {
 /// this application's already-lowered arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
+    Ptr { pointee: TypeId },
+    FunPtr { signature: FunctionTypeId },
 }
 
 #[derive(Debug, Clone)]
@@ -314,11 +479,11 @@ pub struct Global {
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
     Managed {
-        initializer: ManagedGlobalInitializer,
+        state: HirStaticInitialState,
     },
     Local {
         thread_local: bool,
-        initializer: ConstantValue,
+        initializer: HirConstantImage,
     },
     Extern {
         library: String,
@@ -327,25 +492,139 @@ pub enum GlobalStorage {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum ManagedGlobalInitializer {
-    Image(ConstantValue),
-    RuntimeZeroed(InitializationUnitId),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirStaticInitialState {
+    ZeroedForRuntimeUnit { unit: InitializationUnitId },
+    EncodedStaticValue { payload: HirConstantImage },
 }
 
-#[derive(Debug, Clone)]
-pub enum ConstantValue {
-    Int(i64),
-    Bool(bool),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirConstantImage {
+    Integer(HirIntegerConstant),
+    Boolean(bool),
     String(String),
-    NullPtr,
-    NullFunPtr,
+    NullPointer(HirPointerNullKind),
     EnumUnit {
-        enum_id: EnumId,
-        variant: u32,
+        variant: EnumVariantRef,
     },
     Struct {
         struct_id: StructId,
-        fields: Vec<ConstantValue>,
+        fields: Vec<HirConstantImage>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirPointerNullKind {
+    Raw,
+    Code,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn concrete_variant_and_struct_field_refs_are_checked() {
+        let ty = TypeId::from_raw(0.into());
+        let mut enums = Arena::new();
+        let enumeration = enums.alloc(EnumDef {
+            origin: EnumOriginId::from_raw(0),
+            name: "Option".to_string(),
+            owner: None,
+            type_arguments: vec![ty],
+            gc_free: true,
+            variants: vec![
+                Variant {
+                    name: "Some".to_string(),
+                    gc_free: true,
+                    fields: vec![Field {
+                        name: "value".to_string(),
+                        ty,
+                    }],
+                },
+                Variant {
+                    name: "None".to_string(),
+                    gc_free: true,
+                    fields: Vec::new(),
+                },
+            ],
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: Span::new(0, 0),
+        });
+        let data = EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(0))
+            .expect("Data exists");
+        let empty = EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(1))
+            .expect("Empty exists");
+        assert!(EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(2)).is_none());
+        assert!(
+            EnumVariantRef::checked(&enums, EnumId::from_raw(99.into()), VariantId::from_raw(0))
+                .is_none()
+        );
+        let field = EnumVariantFieldRef::checked(&enums, data, 0).expect("Data.value exists");
+        assert_eq!(field.variant(), data);
+        assert!(EnumVariantFieldRef::checked(&enums, data, 1).is_none());
+        assert!(EnumVariantFieldRef::checked(&enums, empty, 0).is_none());
+        let option = OptionCore::checked(&enums, field, empty).expect("valid Option shape");
+        assert_eq!(option.enumeration(), enumeration);
+        assert_eq!(option.some_payload(), field);
+        assert_eq!(option.some(), data);
+        assert_eq!(option.none(), empty);
+        assert!(OptionCore::checked(&enums, field, data).is_none());
+        enums[enumeration].type_arguments.clear();
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].type_arguments.push(ty);
+        enums[enumeration].type_arguments[0] = TypeId::from_raw(1.into());
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].type_arguments[0] = ty;
+        enums[enumeration].variants.push(Variant {
+            name: "Unexpected".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        });
+        assert!(OptionCore::checked(&enums, field, empty).is_none());
+        enums[enumeration].variants.pop();
+        let other = enums.alloc(EnumDef {
+            origin: EnumOriginId::from_raw(1),
+            name: "Other".to_string(),
+            owner: None,
+            type_arguments: Vec::new(),
+            gc_free: true,
+            variants: vec![Variant {
+                name: "Empty".to_string(),
+                gc_free: true,
+                fields: Vec::new(),
+            }],
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: Span::new(0, 0),
+        });
+        let other_empty = EnumVariantRef::checked(&enums, other, VariantId::from_raw(0)).unwrap();
+        assert!(OptionCore::checked(&enums, field, other_empty).is_none());
+
+        let mut structs = Arena::new();
+        let declared = structs.alloc(StructDef {
+            origin: StructOriginId::from_raw(0),
+            name: "Record".to_string(),
+            owner: None,
+            type_arguments: Vec::new(),
+            gc_free: true,
+            representation: StructRepresentation::Declared {
+                attributes: StructAttributes::default(),
+                fields: vec![Field {
+                    name: "value".to_string(),
+                    ty,
+                }],
+            },
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: Span::new(0, 0),
+        });
+        assert!(StructFieldRef::checked(&structs, declared, 0).is_some());
+        assert!(StructFieldRef::checked(&structs, declared, 1).is_none());
+        assert!(StructFieldRef::checked(&structs, StructId::from_raw(99.into()), 0).is_none());
+    }
 }

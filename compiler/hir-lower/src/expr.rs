@@ -4,8 +4,8 @@
 //! Every expression that survives this stage carries its type
 //! (`hir::Expr::ty`); calls resolve to a `FunctionId` (plus inferred
 //! type arguments for generic callees), struct constructions to a
-//! `StructId`, variant constructions to a `(EnumId, variant index)`
-//! pair, field accesses to a `FieldRef`.
+//! `StructId`, variant constructions to an application-bound checked
+//! variant reference, and field accesses to a checked `FieldRef`.
 //!
 //! Two cross-cutting mechanisms:
 //!
@@ -52,11 +52,11 @@ use hir::{ExprKind, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
-use crate::stmt::statements_can_fall_through;
+use crate::stmt::statements_control_outcomes;
 use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
-    PendingCapture, ReturnInference, SuspensionContext,
+    PendingCapture, ReturnInference, SuspensionContext, VariantStyle,
 };
 
 mod callable_literals;
@@ -70,11 +70,16 @@ mod aggregates;
 mod analysis;
 mod captures;
 mod constructors;
+mod copy_updates;
 mod fields;
 mod members;
 mod names;
 mod operators;
 mod support;
+pub(crate) use support::{
+    common_integer_literal_kind, integer_literal_accepts_kind, integer_literal_candidate_kinds,
+    integer_literal_default_kind,
+};
 mod type_checks;
 
 use analysis::*;
@@ -210,12 +215,9 @@ impl Lowerer {
                 span: *span,
                 origin: self.expression_origin(*span),
             }),
-            ast::Expr::IntLiteral { value, span } => Some(hir::Expr {
-                kind: ExprKind::IntLiteral(*value),
-                ty: self.int,
-                span: *span,
-                origin: self.expression_origin(*span),
-            }),
+            ast::Expr::IntLiteral(literal) => {
+                self.lower_integer_literal(*literal, expected, false, literal.span)
+            }
             ast::Expr::BoolLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::BoolLiteral(*value),
                 ty: self.boolean,
@@ -234,40 +236,63 @@ impl Lowerer {
             // `Name(args...)` where the parser already knows `Name` is
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
-                Constructor::Struct { struct_id, ty } => {
+                Constructor::Struct {
+                    struct_id,
+                    ty,
+                    alias,
+                } => {
                     let call = CallSite {
                         type_args: &[],
                         args,
                         span: *span,
                     };
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
                     if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
                         self.lower_ffi_struct_init(struct_id, call, sink, expected)
                     } else {
                         self.lower_struct_init(struct_id, ty, call, sink, expected)
                     }
                 }
-                Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
-                    enum_id,
-                    variant,
-                    CallSite {
-                        type_args: &[],
-                        args,
-                        span: *span,
-                    },
-                    sink,
-                    expected,
-                ),
-                Constructor::Class { class_id } => self.lower_class_construct(
-                    class_id,
-                    CallSite {
-                        type_args: &[],
-                        args,
-                        span: *span,
-                    },
-                    sink,
-                    expected,
-                ),
+                Constructor::Variant { target, alias } => {
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
+                    self.lower_variant_construct(
+                        target,
+                        CallSite {
+                            type_args: &[],
+                            args,
+                            span: *span,
+                        },
+                        sink,
+                        expected,
+                    )
+                }
+                Constructor::Class { class_id, alias } => {
+                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
+                    self.lower_class_construct(
+                        class_id,
+                        CallSite {
+                            type_args: &[],
+                            args,
+                            span: *span,
+                        },
+                        sink,
+                        expected,
+                    )
+                }
                 Constructor::Unmatched => {
+                    if self.lexical_nested_nominal_target(&name.text).is_none()
+                        && self.source_type_alias_named(&name.text).is_some()
+                    {
+                        self.resolve_type_alias_reference(name, false)?;
+                        self.error(
+                            name.span,
+                            format!(
+                                "typealias `{}` does not name a constructible type",
+                                name.text
+                            ),
+                        );
+                        return None;
+                    }
                     let object = self
                         .lexical_nested_nominal_target(&name.text)
                         .or_else(|| self.top_level_nominal_target(&name.text))
@@ -316,6 +341,9 @@ impl Lowerer {
                 self.lower_safe_field_access(access, sink)
             }
             ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
+            ast::Expr::CopyUpdate { base, fields, span } => {
+                self.lower_copy_update(base, fields, *span, sink, expected)
+            }
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
             ast::Expr::Invoke {
                 callee,
@@ -343,9 +371,11 @@ impl Lowerer {
                 span,
             } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
             ast::Expr::Binary { op, lhs, rhs, span } => {
-                self.lower_binary(*op, lhs, rhs, *span, sink)
+                self.lower_binary(*op, lhs, rhs, *span, sink, expected)
             }
-            ast::Expr::Unary { op, operand, span } => self.lower_unary(*op, operand, *span, sink),
+            ast::Expr::Unary { op, operand, span } => {
+                self.lower_unary(*op, operand, *span, sink, expected)
+            }
             ast::Expr::Update {
                 place,
                 op,
@@ -454,15 +484,26 @@ impl Lowerer {
 /// `classify_constructor`).
 enum Constructor {
     Variant {
-        enum_id: hir::EnumId,
-        variant: u32,
+        target: hir::EnumVariantRef,
+        alias: Option<AliasExpansion>,
     },
     Struct {
         struct_id: hir::StructId,
         ty: TypeId,
+        alias: Option<AliasExpansion>,
     },
     Class {
         class_id: hir::ClassId,
+        alias: Option<AliasExpansion>,
     },
     Unmatched,
+}
+
+/// Source-only information retained while an expression qualifier is being
+/// lowered. The target is already the fully expanded type; only the spelling
+/// is kept long enough to diagnose attempts to apply type arguments twice.
+#[derive(Clone)]
+struct AliasExpansion {
+    name: ast::Ident,
+    target: TypeId,
 }

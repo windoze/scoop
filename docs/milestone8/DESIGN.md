@@ -90,6 +90,8 @@ class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
 - catch：类型必须 is_subtype 于 `Throwable`（否则诊断）；遮蔽检查（见 1）；catch local 进分支作用域；
 - `try` 的语句级表达式形态沿用现有规则。
 
+**后续规则（取代本设计3.1对形态的待定描述及上文“类型为`Nothing`”）：** 以当前`SCOOP-SPEC`第5章、8.7和`SCOOP-IMPL-SPEC` 2.11为准，现行实现子集中的`throw`是jump statement；它终止当前路径且不参与外围控制表达式的结果类型合并，但不构造`Nothing`类型的expression。源码可命名的`Nothing`及一般jump expression属于后续语言子集；本段保留为M8当时的历史设计记录，不再构成当前MIR必须引入`Nothing` type id的要求。
+
 ### 3.3 MIR
 
 - 结构化 `StatementKind::Try` 保留（MIR 不做控制流展开）；`throw` → MIR 的 `Throw(expr)` 语句/终结节点；

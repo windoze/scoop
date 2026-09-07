@@ -1,13 +1,16 @@
 //! Pattern parsing (spec 4.6 and chapter 5).
 //!
-//! Pattern positions — destructuring `val` declarations and `when` arm
-//! conditions — are pure pattern syntax: `..` here is always the rest
-//! marker, never the range operator (the spec 4.6 disambiguation rule).
+//! Pattern positions — destructuring `val` declarations, `for` bindings,
+//! lambda parameters, and `when` arm conditions — are pure pattern syntax:
+//! `..` here is always the rest marker, never the range operator (the spec
+//! 4.6 disambiguation rule).
 //! Enum variant patterns and struct patterns share their shapes
 //! (`Path(...)`, `Path { ... }`, tuple patterns); HIR resolves which is
-//! which. A bare identifier is always a binding ("binding first", spec
-//! chapter 5); a dotted path without an argument list (`E.V`) is a unit
-//! variant pattern, encoded as a positional pattern with no elements.
+//! which. Except for the built-in `Unit` literal spelling, an unqualified
+//! bare identifier stays unresolved binding-shaped syntax; HIR classifies it
+//! according to the binding or match context. A dotted path without an
+//! argument list (`E.V`) is a unit variant pattern, encoded as a positional
+//! pattern with no elements.
 
 use scoop_ast::{Diagnostic, Expr, FieldPattern, Ident, Pattern, Span};
 
@@ -30,13 +33,11 @@ impl Parser {
     pub(crate) fn parse_pattern(&mut self) -> Result<Pattern, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Int(value) => {
+            TokenKind::Minus => self.parse_negated_integer_literal_pattern(token),
+            TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::IntLiteral {
-                        value,
-                        span: token.span,
-                    }),
+                    expr: Box::new(Expr::IntLiteral(lexeme.with_span(token.span))),
                     span: token.span,
                 })
             }
@@ -71,8 +72,50 @@ impl Parser {
                 })
             }
             TokenKind::LParen => self.parse_tuple_pattern(),
+            TokenKind::LBrace => self.parse_named_pattern(Vec::new(), token.span.start),
             TokenKind::Ident(text) => self.parse_ident_pattern(text, token.span),
             _ => self.unexpected("pattern"),
+        }
+    }
+
+    /// Unary minus is part of literal-pattern syntax only when its operand is
+    /// one integer token modulo parenthesized disambiguation. Parentheses do
+    /// not survive in AST, but their closing delimiter belongs to the unary
+    /// expression's source span.
+    fn parse_negated_integer_literal_pattern(
+        &mut self,
+        prefix: crate::lexer::Token,
+    ) -> Result<Pattern, Diagnostic> {
+        debug_assert!(matches!(prefix.kind, TokenKind::Minus));
+        self.pos += 1;
+        let (literal, end) = self.parse_integer_literal_pattern_operand()?;
+        let span = Span::new(prefix.span.start, end);
+        Ok(Pattern::Literal {
+            expr: Box::new(Expr::Unary {
+                op: scoop_ast::UnOp::Neg,
+                operand: Box::new(Expr::IntLiteral(literal)),
+                span,
+            }),
+            span,
+        })
+    }
+
+    fn parse_integer_literal_pattern_operand(
+        &mut self,
+    ) -> Result<(scoop_ast::IntegerLiteralSyntax, u32), Diagnostic> {
+        let token = self.peek().clone();
+        match token.kind {
+            TokenKind::Int(lexeme) => {
+                self.pos += 1;
+                Ok((lexeme.with_span(token.span), token.span.end))
+            }
+            TokenKind::LParen => {
+                self.pos += 1;
+                let (literal, _) = self.parse_integer_literal_pattern_operand()?;
+                let close = self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+                Ok((literal, close.span.end))
+            }
+            _ => self.unexpected("integer literal after unary minus"),
         }
     }
 
@@ -166,7 +209,7 @@ impl Parser {
         })
     }
 
-    /// `Path { f1, f2: renamed, .. }` — the `{` is the current token.
+    /// `Path? { f1, f2: subpattern, .. }` — the `{` is the current token.
     /// `..` is allowed only as the last element (spec 4.6).
     fn parse_named_pattern(&mut self, path: Vec<Ident>, start: u32) -> Result<Pattern, Diagnostic> {
         self.bump(); // `{`
@@ -196,31 +239,31 @@ impl Parser {
                     }
                 }
                 _ => {
-                    let name = self.expect_ident("field name")?;
-                    if name.text == "_" {
+                    let field = self.expect_ident("field name")?;
+                    if field.text == "_" {
                         return Err(Diagnostic::at(
-                            name.span,
+                            field.span,
                             "`_` is not allowed in a field pattern",
                         ));
                     }
-                    let rename = if matches!(self.peek().kind, TokenKind::Colon) {
+                    let subpattern = if matches!(self.peek().kind, TokenKind::Colon) {
                         self.bump();
-                        let rename = self.expect_ident("binding name")?;
-                        if rename.text == "_" {
-                            return Err(Diagnostic::at(
-                                rename.span,
-                                "`_` is not allowed in a field pattern",
-                            ));
+                        self.parse_pattern()?
+                    } else if field.text == "Unit" {
+                        // Shorthand is exactly `field: field`, including the
+                        // built-in Unit-literal classification of its RHS.
+                        Pattern::Literal {
+                            expr: Box::new(Expr::UnitLiteral { span: field.span }),
+                            span: field.span,
                         }
-                        Some(rename)
                     } else {
-                        None
+                        Pattern::Binding(field.clone())
                     };
-                    let end = rename.as_ref().map(|r| r.span.end).unwrap_or(name.span.end);
+                    let end = pattern_span(&subpattern).end;
                     fields.push(FieldPattern {
-                        span: Span::new(name.span.start, end),
-                        name,
-                        rename,
+                        span: Span::new(field.span.start, end),
+                        field,
+                        subpattern: Box::new(subpattern),
                     });
                     if matches!(self.peek().kind, TokenKind::Comma) {
                         self.bump();

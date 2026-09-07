@@ -1,0 +1,44 @@
+// EXPECT-DIAGNOSTICS
+
+enum Signal {
+    Ready,
+    Payload(Int)
+}
+
+struct UnitBox(val Unit: Unit)
+
+fun rejectUnitKeyword() {
+    val Unit = Unit
+}
+
+fun rejectUnitTuple() {
+    val () = Unit
+}
+
+fun rejectUnitFieldShorthand(box: UnitBox) {
+    val { Unit } = box
+}
+
+fun rejectQualifiedUnitVariant(signal: Signal) {
+    val Signal.Ready = signal
+}
+
+fun rejectExplicitPayloadVariant(signal: Signal) {
+    val Payload(value) = signal
+}
+
+fun rejectBarePayloadMatch(signal: Signal) {
+    when (signal) {
+        Payload -> {}
+        else -> {}
+    }
+}
+
+fun consume(value: Int) {}
+
+fun rejectAndCheckRollback(pair: (Int, Int)) {
+    val (escaped, escaped) = pair
+    consume(escaped)
+}
+
+fun main() {}

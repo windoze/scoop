@@ -1,0 +1,8 @@
+// EXPECT-DIAGNOSTICS
+
+infix fun Int8.glue(other: Int8): Int8 = this
+
+fun main() {
+    val endpoint: Int8 = 2
+    val invalid = 1 glue endpoint
+}

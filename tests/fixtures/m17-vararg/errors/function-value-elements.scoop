@@ -1,4 +1,4 @@
-fun collect(vararg values: Int): Int = values.size
+fun collect(vararg values: Int): Long = values.size
 
 fun main() {
     val reference: (Array<Int>) -> Int = ::collect

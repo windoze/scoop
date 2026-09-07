@@ -12,7 +12,7 @@ fn array_nodes_translate_one_to_one() {
     let mut locals = Arena::new();
     let a = locals.alloc(local("a", array_int));
     let x = locals.alloc(local("x", int));
-    let n = locals.alloc(local("n", int));
+    let n = locals.alloc(local("n", h.long));
     let m = locals.alloc(local("m", mutable_int));
     let main = h.user_fn(
         "main",
@@ -36,7 +36,7 @@ fn array_nodes_translate_one_to_one() {
                         hir::ExprKind::Index {
                             access: hir::ArrayAccessKind::ImmutableGet,
                             receiver: Box::new(local_ref(a, array_int)),
-                            index: Box::new(int_lit(&h, 0)),
+                            index: Box::new(integer_lit(&h, hir::IntegerKind::SIGNED_64, 0)),
                         },
                         int,
                     ),
@@ -45,7 +45,7 @@ fn array_nodes_translate_one_to_one() {
                     n,
                     expr(
                         hir::ExprKind::ArrayLen(Box::new(local_ref(a, array_int))),
-                        int,
+                        h.long,
                     ),
                 ),
                 val_decl(
@@ -58,7 +58,7 @@ fn array_nodes_translate_one_to_one() {
                 stmt(hir::StatementKind::Assign {
                     target: hir::AssignTarget::Index {
                         array: Box::new(local_ref(m, mutable_int)),
-                        index: Box::new(int_lit(&h, 0)),
+                        index: Box::new(integer_lit(&h, hir::IntegerKind::SIGNED_64, 0)),
                     },
                     value: int_lit(&h, 40),
                 }),
@@ -71,40 +71,40 @@ fn array_nodes_translate_one_to_one() {
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
     let expected = "\
-Module
+Module mangling=compact-v2
   class IndexOutOfBoundsException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I
+        ArrayLiteral Array$I32
           Type Int
-          IntLiteral 1
+          IntegerLiteral Int value=1 bits=0x00000001
           Type Int
-          IntLiteral 2
+          IntegerLiteral Int value=2 bits=0x00000002
           Type Int
-          IntLiteral 3
+          IntegerLiteral Int value=3 bits=0x00000003
       val $arr.1: Array<Int>
         Type Array<Int>
         Local a
-      val $idx.2: Int
-        Type Int
-        IntLiteral 0
+      val $idx.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       branch bb2 bb1
         Type Boolean
-        Binary IntLt
-          Type Int
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
           Local $idx.2
-          Type Int
-          IntLiteral 0
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 logic.rhs.1
       assign $logic.1
         Type Boolean
-        Binary IntGe
-          Type Int
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
           Local $idx.2
-          Type Int
-          ArrayLen Array$I
+          Type Long
+          ArrayLen Array$I32
             Type Array<Int>
             Local $arr.1
       goto bb3
@@ -130,42 +130,42 @@ Module
     bb5 if.merge.5
       val x: Int
         Type Int
-        ArrayGet Array$I
+        ArrayGet Array$I32
           Type Array<Int>
           Local $arr.1
-          Type Int
+          Type Long
           Local $idx.2
-      val n: Int
-        Type Int
-        ArrayLen Array$I
+      val n: Long
+        Type Long
+        ArrayLen Array$I32
           Type Array<Int>
           Local a
       val m: MutableArray<Int>
         Type MutableArray<Int>
-        ArrayClone Array$I -> MutableArray$I
+        ArrayClone Array$I32 -> MutableArray$I32
           Type Array<Int>
           Local a
       val $arr.3: MutableArray<Int>
         Type MutableArray<Int>
         Local m
-      val $idx.4: Int
-        Type Int
-        IntLiteral 0
+      val $idx.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       branch bb7 bb6
         Type Boolean
-        Binary IntLt
-          Type Int
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
           Local $idx.4
-          Type Int
-          IntLiteral 0
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
     bb6 logic.rhs.6
       assign $logic.3
         Type Boolean
-        Binary IntGe
-          Type Int
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
           Local $idx.4
-          Type Int
-          ArrayLen MutableArray$I
+          Type Long
+          ArrayLen MutableArray$I32
             Type MutableArray<Int>
             Local $arr.3
       goto bb8
@@ -189,13 +189,13 @@ Module
         Type IndexOutOfBoundsException
         Local $new.4
     bb10 if.merge.10
-      array_set MutableArray$I
+      array_set MutableArray$I32
         Type MutableArray<Int>
         Local $arr.3
-        Type Int
+        Type Long
         Local $idx.4
         Type Int
-        IntLiteral 40
+        IntegerLiteral Int value=40 bits=0x00000028
       return
   fun init.IndexOutOfBoundsException.$c0 @scoop.init.IndexOutOfBoundsException.$c0(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
@@ -244,7 +244,7 @@ fn array_assembly_preserves_typed_element_and_copy_parts() {
     );
     let module = lower(&h.finish(main));
     let dump = dump(&module);
-    assert!(dump.contains("ArrayAssembly Array$I"), "{dump}");
+    assert!(dump.contains("ArrayAssembly Array$I32"), "{dump}");
     assert!(dump.contains("Element\n"), "{dump}");
     assert!(dump.contains("CopyArray\n"), "{dump}");
 }
@@ -272,16 +272,22 @@ fn instance_symbols_encode_array_arguments() {
         .map(|&id| module.functions[id].symbol.as_str())
         .collect();
     // `mir::encode_type`: `A<element>X` / `M<element>X`.
-    assert_eq!(symbols, ["scoop.f$AIX", "scoop.f$MIX"]);
+    assert_eq!(symbols, ["scoop.f$AI32X", "scoop.f$MI32X"]);
     // Substitution recurses into the array element types.
     let array_instance = &module.functions[module.top_level[1]];
     assert_eq!(
         mir::array_type(&module, &array_instance.params[0].ty),
-        Some((mir::ArrayKind::Immutable, &mir::Type::Int))
+        Some((
+            mir::ArrayKind::Immutable,
+            &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+        ))
     );
     let mutable_instance = &module.functions[module.top_level[2]];
     assert_eq!(
         mir::array_type(&module, &mutable_instance.return_ty),
-        Some((mir::ArrayKind::Mutable, &mir::Type::Int))
+        Some((
+            mir::ArrayKind::Mutable,
+            &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+        ))
     );
 }

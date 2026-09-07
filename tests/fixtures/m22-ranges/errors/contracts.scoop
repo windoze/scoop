@@ -1,0 +1,80 @@
+// EXPECT-DIAGNOSTICS
+
+fun mixedWidthRangeTo() {
+    val first: Int = 1
+    val endpoint: Long = 2L
+    val invalid = first..endpoint
+}
+
+fun mixedWidthRangeUntil() {
+    val first: UInt = 1u
+    val endpoint: ULong = 2uL
+    val invalid = first..<endpoint
+}
+
+fun mixedSignednessUntil() {
+    val first: Int = 1
+    val endpoint: UInt = 2u
+    val invalid = first until endpoint
+}
+
+fun mixedSignednessDownTo() {
+    val first: ULong = 2uL
+    val endpoint: Long = 1L
+    val invalid = first downTo endpoint
+}
+
+fun narrowEndpointsStillProduceWideElements() {
+    val first: Int8 = 1
+    val endpoint: Int8 = 2
+    val invalid: Iterable<Int8> = first..endpoint
+}
+
+fun distinctSignedRangeNominals() {
+    val first: Int = 1
+    val endpoint: Int = 2
+    val invalid: LongRange = first..endpoint
+}
+
+fun distinctUnsignedRangeNominals() {
+    val first: UInt = 1u
+    val endpoint: UInt = 2u
+    val invalid: ULongRange = first..endpoint
+}
+
+fun stepRequiresTheRangeElementType() {
+    val narrow: Int8 = 1
+    val intStep = (1..3) step narrow
+    val intAmount: Int = 1
+    val longStep = (1L..3L) step intAmount
+    val ulongAmount: ULong = 1uL
+    val uintFirst: UInt = 1u
+    val uintEndpoint: UInt = 3u
+    val uintRange: UIntRange = uintFirst..uintEndpoint
+    val uintStep = uintRange step ulongAmount
+}
+
+fun containsRequiresTheRangeElementType() {
+    val narrow: Int8 = 2
+    val wrongNarrowContains = narrow in (1..3)
+    val signed: Int = 2
+    val wrongSignednessContains = signed in (1u..3u)
+}
+
+fun iteratorApplicationIsInvariant() {
+    val range: IntRange = 1..2
+    val invalid: Iterator<Long> = range.iterator()
+}
+
+fun endpointIsThePublicParameterName() {
+    val invalid = 1.rangeTo(other = 2)
+}
+
+fun constructorsAreNotPublic() {
+    val invalidInt = IntRange(0, 1, 1, false, true)
+    val invalidLong = LongRange(0L, 1L, 1L, false, true)
+    val invalidUInt = UIntRange(0u, 1u, 1u, false, true)
+    val invalidULong = ULongRange(0uL, 1uL, 1uL, false, true)
+}
+
+fun main() {}

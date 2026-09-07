@@ -646,6 +646,8 @@ MirExpr {
 
 `ty` 对所有源码表达式、desugared表达式和MIR synthetic表达式均为非可选；Unit、Nothing、null niche、box/unbox、array literal、enum payload、closure、callback及coroutine结果都不能例外。HIR→MIR转换在创建节点的同一操作填入类型。
 
+**后续规则（取代上文对`Nothing`已在现行IR出现的暗示）：** 以当前`SCOOP-SPEC`第5章、8.7和`SCOOP-IMPL-SPEC` 2.11为准，完整性约束适用于每个实际expression；Return/Throw/Break/Continue作为jump statement由`ControlOutcome`与normal-completion状态表达，不得为它们伪造`Nothing` type id。未来实现源码可命名的`Nothing`与一般jump expression时，届时产生的每个`Nothing` expression仍受上述非可选`ty`约束；本修订不删除该未来契约。
+
 LIR lowering删除 `expr_ty` 式递归重建、expected/context参数、空数组靠目标类型补元素类型、Unbox靠使用点猜payload等路径。若某个lowering操作需要storage/layout type，它只能读取表达式自身 `ty`及typed entity映射。
 
 ### 8.2 typed intrinsic 与完整exception core

@@ -48,17 +48,21 @@ impl Concretizer<'_> {
         self.struct_source.insert(id, source_id);
         let ty = match self.structs[id].representation {
             concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::Int,
+                application: concrete::IntrinsicTypeRepresentation::Integer(kind),
                 ..
-            } => self.intern_type(concrete::TypeKind::Int, true),
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::UInt,
-                ..
-            } => self.intern_type(concrete::TypeKind::UInt, true),
+            } => self.intern_type(concrete::TypeKind::Integer(kind), true),
             concrete::StructRepresentation::Intrinsic {
                 application: concrete::IntrinsicTypeRepresentation::Boolean,
                 ..
             } => self.intern_type(concrete::TypeKind::Boolean, true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Ptr { pointee },
+                ..
+            } => self.intern_type(concrete::TypeKind::Ptr(pointee), true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::FunPtr { signature },
+                ..
+            } => self.intern_type(concrete::TypeKind::FunPtr(signature), true),
             concrete::StructRepresentation::Declared { .. } => {
                 self.intern_type(concrete::TypeKind::Struct(id), false)
             }
@@ -186,11 +190,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> (concrete::ConstructorArguments, Vec<concrete::LocalId>) {
         let (locals, local_map) = self.lower_locals(&source.locals, substitution);
-        let statements = source
-            .statements
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
-            .collect();
+        let statements = self.lower_statement_region(&source.statements, substitution, &local_map);
         let args = source
             .args
             .iter()
@@ -226,7 +226,6 @@ impl Concretizer<'_> {
             type_arguments: arguments.clone(),
             gc_free: false,
             variants: Vec::new(),
-            option_variants: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -269,26 +268,9 @@ impl Concretizer<'_> {
             !source.no_gc || gc_free,
             "HIR diagnoses an invalid @NoGC enum specialization"
         );
-        let option_variants = (source_id == self.source.option_enum).then(|| {
-            let some = source
-                .variants
-                .iter()
-                .position(|variant| variant.name == "Some")
-                .expect("validated Option has Some");
-            let none = source
-                .variants
-                .iter()
-                .position(|variant| variant.name == "None")
-                .expect("validated Option has None");
-            (
-                concrete::VariantId::from_raw(some as u32),
-                concrete::VariantId::from_raw(none as u32),
-            )
-        });
         self.enums[id].variants = variants;
         self.enums[id].interfaces = interfaces;
         self.enums[id].interface_implementations = interface_implementations;
-        self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
         self.enums[id].methods = methods;
@@ -472,8 +454,16 @@ impl Concretizer<'_> {
     pub(super) fn encode_type(&self, ty: concrete::TypeId) -> String {
         match &self.types[ty].kind {
             concrete::TypeKind::Unit => "U".to_string(),
-            concrete::TypeKind::Int => "I".to_string(),
-            concrete::TypeKind::UInt => "V".to_string(),
+            concrete::TypeKind::Integer(kind) => match *kind {
+                export::IntegerKind::SIGNED_8 => "I8".to_string(),
+                export::IntegerKind::SIGNED_16 => "I16".to_string(),
+                export::IntegerKind::SIGNED_32 => "I32".to_string(),
+                export::IntegerKind::SIGNED_64 => "I64".to_string(),
+                export::IntegerKind::UNSIGNED_8 => "V8".to_string(),
+                export::IntegerKind::UNSIGNED_16 => "V16".to_string(),
+                export::IntegerKind::UNSIGNED_32 => "V32".to_string(),
+                export::IntegerKind::UNSIGNED_64 => "V64".to_string(),
+            },
             concrete::TypeKind::Boolean => "B".to_string(),
             concrete::TypeKind::String => "S".to_string(),
             concrete::TypeKind::Struct(id) => {

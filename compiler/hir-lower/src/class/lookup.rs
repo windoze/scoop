@@ -70,12 +70,10 @@ impl Lowerer {
     fn method_candidates(&mut self, ty: TypeId) -> Vec<(crate::CallableCandidate, usize, usize)> {
         let mut declared = Vec::<(crate::CallableCandidate, usize, usize)>::new();
         match self.types[ty].clone() {
-            Type::Int => {
-                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Int, &mut declared)
-            }
-            Type::UInt => {
-                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::UInt, &mut declared)
-            }
+            Type::Integer(kind) => self.collect_intrinsic_type_methods(
+                hir::IntrinsicTypeKind::Integer(kind),
+                &mut declared,
+            ),
             Type::Boolean => {
                 self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Boolean, &mut declared)
             }

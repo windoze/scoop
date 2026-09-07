@@ -1,0 +1,11 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-patterns/errors/recursive-named-fields.scoop:14:33: error: refutable patterns are only allowed in `when`
+m22-patterns/errors/recursive-named-fields.scoop:18:19: error: refutable patterns are only allowed in `when`
+m22-patterns/errors/recursive-named-fields.scoop:23:34: error: literal pattern of type String cannot match Int
+m22-patterns/errors/recursive-named-fields.scoop:32:29: error: `repeated` is already declared in this scope
+m22-patterns/errors/recursive-named-fields.scoop:39:25: error: pattern does not list all fields of struct `Leaf`; add `..` to ignore the rest
+m22-patterns/errors/recursive-named-fields.scoop:43:27: error: struct `Leaf` has no field `absent`

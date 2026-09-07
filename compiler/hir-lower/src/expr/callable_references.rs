@@ -57,6 +57,19 @@ impl Lowerer {
         }
         let candidate_layers = self.named_reference_candidate_layers(&name.text);
         if candidate_layers.is_empty() && first_failure.is_none() {
+            if self.lexical_nested_nominal_target(&name.text).is_none()
+                && self.source_type_alias_named(&name.text).is_some()
+            {
+                self.resolve_type_alias_reference(name, false)?;
+                self.error(
+                    span,
+                    format!(
+                        "constructor reference `::{}` is not supported; construct the value in a lambda",
+                        name.text
+                    ),
+                );
+                return None;
+            }
             if self.is_declared_type_name(&name.text) {
                 self.error(
                     span,
@@ -130,6 +143,20 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        let direct_alias = match self.resolve_direct_alias_qualifier(receiver) {
+            Ok(alias) => alias,
+            Err(()) => return None,
+        };
+        if let Some((alias, _)) = direct_alias {
+            self.error(
+                span,
+                format!(
+                    "unbound member reference `{}::{}` is not supported; bind an expression receiver first",
+                    alias.name.text, name.text
+                ),
+            );
+            return None;
+        }
         if let ast::Expr::Var(type_name) = receiver
             && self.scopes.lookup(&type_name.text).is_none()
             && !self.host_has_property(&type_name.text)

@@ -39,6 +39,7 @@ fn throw_outside_try_is_a_throw_instruction() {
                         callee: mir::Callee::User(make),
                     },
                     args: Vec::new(),
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             )],
             mir::Terminator::Throw {
@@ -56,7 +57,7 @@ Module
   fun @scoop.makeError() -> ptr<managed>
   block entry
     poll managed-void-target0 sp3 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 16)
+    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
@@ -68,7 +69,14 @@ Module
     unreachable
   td td0 MyError @scoop_td_MyError type-id=2 size=16 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
   entry @scoop_main

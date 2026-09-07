@@ -10,7 +10,8 @@ struct Score(val value: Int) {
     operator fun rem(other: Score): Score = Score(value % other.value)
     operator fun rangeTo(other: Score): Score = Score(other.value - value)
     operator fun rangeUntil(other: Score): Score = Score(other.value - value - 1)
-    operator fun compareTo(other: Score): Int = value - other.value
+    operator fun compareTo(other: Score): Long =
+        value.toInt64() - other.value.toInt64()
 }
 
 operator fun Score.times(scale: Int): Score = Score(value * scale)

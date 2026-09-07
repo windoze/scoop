@@ -10,7 +10,8 @@ impl Lowerer {
     pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
-        let encoded = mir::encode_type(&self.shell, &payload);
+        let encoded = mir::encode_type(&self.shell, &payload)
+            .expect("boxed payloads are source-level MIR types");
         debug_assert!(self.classes[class_id].vtable.is_empty());
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
@@ -202,7 +203,8 @@ impl Lowerer {
                 value: Some(self.adapt_variance_bridge(call, &implementation_return, &return_ty)),
             }
         };
-        let encoding = mir::encode_params(&self.shell, &target_params);
+        let encoding = mir::encode_params(&self.shell, &target_params)
+            .expect("interface method parameters are source-level MIR types");
         let iface_name = self.interfaces.defs[iface].name.clone();
         // An interface overloading the method name needs the parameter
         // encoding to keep the thunk symbols distinct.
@@ -224,8 +226,10 @@ impl Lowerer {
                     kind,
                     span: signature.span,
                 }],
+                coroutine_eh: None,
             },
             return_ty.clone(),
+            &self.enums.defs,
         );
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
@@ -309,8 +313,12 @@ impl Lowerer {
         payload: &mir::Type,
     ) -> Option<hir::StructId> {
         match payload {
-            mir::Type::Int => Some(module.intrinsic_type_core.int),
-            mir::Type::UInt => Some(module.intrinsic_type_core.uint),
+            mir::Type::Integer(kind) => Some(
+                module
+                    .intrinsic_type_core
+                    .integers
+                    .owner(raise_integer_kind(*kind)),
+            ),
             mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,

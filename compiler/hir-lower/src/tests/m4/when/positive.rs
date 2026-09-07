@@ -47,8 +47,8 @@ fn when_over_enum_with_bare_and_qualified_variants() {
     Blue()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property9: Option<String>
+    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -57,7 +57,11 @@ fn when_over_enum_with_bare_and_qualified_variants() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -65,20 +69,18 @@ fn when_over_enum_with_bare_and_qualified_variants() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -132,6 +134,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Color>
   entry main
   instance println<String>
 "#;
@@ -178,8 +181,8 @@ fn when_over_option_with_guard() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    field0 property9: Option<String>
+    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -188,7 +191,11 @@ fn when_over_option_with_guard() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -196,20 +203,18 @@ fn when_over_option_with_guard() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -239,7 +244,7 @@ fn when_over_option_with_guard() {
       Local $parameter.message : String
   fun main(): Unit
     val local0
-      IntLiteral 41 : Int
+      IntegerLiteral 41 : Int
     val local1
       Local $argument.0 : Int
     val local2
@@ -252,15 +257,15 @@ fn when_over_option_with_guard() {
           val local4
             Local x : Int
           val local5
-            IntLiteral 0 : Int
+            IntegerLiteral 0 : Int
           val local6
             Local $argument.0 : Int
         guard condition
           Binary Gt : Boolean
-            PrimitiveBinary IntCompareTo : Int
+            IntegerOperation int.compare_to target=function69 <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
-            IntLiteral 0 : Int
+            IntegerLiteral 0 : Long
         val local7
           Local x : Int
         val local8
@@ -269,7 +274,7 @@ fn when_over_option_with_guard() {
           Local $parameter.value : Int
       arm variant0(0: local9)
         val local10
-          IntLiteral 0 : Int
+          IntegerLiteral 0 : Int
         val local11
           Local $argument.0 : Int
         Call println<Int> : Unit
@@ -281,6 +286,7 @@ fn when_over_option_with_guard() {
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+      impossible <enum pattern matrix for Option<Int>>
   entry main
   instance println<Int>
   instance println<String>
@@ -347,15 +353,15 @@ fn when_over_tuple_and_struct() {
   struct Point
     field0 x: Int
     field1 y: Int
-    property11 val x: Int getter11=storage <stored struct9-field0>
-    property12 val y: Int getter12=storage <stored struct9-field1>
+    property9 val x: Int getter9=storage <stored struct15-field0>
+    property10 val y: Int getter10=storage <stored struct15-field1>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property13: Option<String>
-    property13 val message: Option<String> getter13=storage <stored field0 init=parameter13>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -364,7 +370,11 @@ fn when_over_tuple_and_struct() {
   interface ToString
     fun toString(): String
   interface Hash
-    fun hash(): Int
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -372,20 +382,18 @@ fn when_over_tuple_and_struct() {
     suspend fun run(): T0
   interface SuspendRegistration<T>
     fun register(continuation: Continuation<T0>): Unit
-  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
-  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
-  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
-  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
-  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
-  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
-  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
-  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
-  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
-  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
-  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -416,11 +424,11 @@ fn when_over_tuple_and_struct() {
   fun main(): Unit
     val local0
       TupleLiteral : (Int, String)
-        IntLiteral 1 : Int
+        IntegerLiteral 1 : Int
         StringLiteral "a" : String
     when
       Local t : (Int, String)
-      arm (<lit IntLiteral(0)>, _)
+      arm (<lit IntegerLiteral(Signed32(0))>, _)
         val local1
           StringLiteral "zero" : String
         val local2
@@ -434,10 +442,11 @@ fn when_over_tuple_and_struct() {
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <irrefutable (Int, String)>
     val local6
-      IntLiteral 1 : Int
+      IntegerLiteral 1 : Int
     val local7
-      IntLiteral 2 : Int
+      IntegerLiteral 2 : Int
     val local8
       Local $argument.0 : Int
     val local9
@@ -450,7 +459,7 @@ fn when_over_tuple_and_struct() {
       Local p : Point
       arm struct(0: local11, 1: local12) if <guard>
         guard condition
-          MethodCall Int.equals : Boolean
+          IntegerOperation int.equals target=function70 <no-gc> : Boolean
             Local x : Int
             Local yy : Int
         val local13
@@ -466,6 +475,7 @@ fn when_over_tuple_and_struct() {
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
+      impossible <irrefutable Point>
   entry main
   instance println<String>
   instance println<Int>

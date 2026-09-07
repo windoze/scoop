@@ -6,21 +6,22 @@ use super::{
 
 /// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2),
 /// the complete compiler exception core (spec 11.7), the M10 coroutine
-/// protocol, plus the M7
+/// protocol, the M22 iteration protocols, plus the M7
 /// `io.scoop` final shape
 /// (docs/milestone7/DESIGN.md section 2) — the managed `write` extern
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
+    declarations.extend(iteration_core_declarations());
     declarations.extend(intrinsic_type_declarations());
     declarations.extend([
         struct_decl(
             "SourceLocation",
             vec![
                 ("file", ty_named("String")),
-                ("line", ty_named("Int")),
-                ("column", ty_named("Int")),
+                ("line", ty_named("Long")),
+                ("column", ty_named("Long")),
                 ("functionName", ty_named("String")),
                 ("typeName", ty_named("String")),
             ],
@@ -84,6 +85,30 @@ pub(crate) fn core_file() -> SourceFile {
     let mut source = file(declarations);
     make_core_public(&mut source);
     source
+}
+
+fn iteration_core_declarations() -> Vec<Decl> {
+    let mut iterator_method = bodyless_method(
+        false,
+        "iterator",
+        Vec::new(),
+        Some(ty_generic("Iterator", vec![ty_named("T")])),
+    );
+    iterator_method.operator = Some(ast::OperatorModifier { span: sp() });
+
+    vec![
+        generic_interface_decl(
+            "Iterator",
+            vec!["T"],
+            vec![bodyless_method(
+                false,
+                "next",
+                Vec::new(),
+                Some(ty_generic("Option", vec![ty_named("T")])),
+            )],
+        ),
+        generic_interface_decl("Iterable", vec!["T"], vec![iterator_method]),
+    ]
 }
 
 pub(crate) fn make_core_public(source: &mut SourceFile) {
@@ -209,6 +234,7 @@ fn make_declaration_public(declaration: &mut Decl) {
     match declaration {
         Decl::Global(property) => make_property_public(property),
         Decl::Function(function) => make_function_public(function),
+        Decl::TypeAlias(declaration) => declaration.visibility = public_visibility(),
         Decl::Struct(declaration) => make_struct_public(declaration),
         Decl::Enum(declaration) => make_enum_public(declaration),
         Decl::Class(declaration) => make_class_public(declaration),

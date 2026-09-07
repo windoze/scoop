@@ -1,0 +1,41 @@
+// EXPECT-DIAGNOSTICS
+
+struct ManagedValue(val text: String)
+
+fun <T : value> requiresGcFreePointee() {
+    @Unsafe {
+        val pointer = Ptr<T>(1uL)
+    }
+}
+
+fun <T : value> makeLambda(): () -> Unit = {
+    requiresGcFreePointee<T>()
+}
+
+fun <T : value> makeAnonymous(): () -> Unit = fun(): Unit {
+    requiresGcFreePointee<T>()
+}
+
+class ClassHost<T : value> {
+    init {
+        requiresGcFreePointee<T>()
+    }
+}
+
+struct StructHost<T : value>(val token: Boolean) {
+    constructor(unit: Unit) : this(false) {
+        requiresGcFreePointee<T>()
+    }
+}
+
+fun <T : value> withDefault(unit: Unit = requiresGcFreePointee<T>()) {}
+
+val badGlobal: Unit = requiresGcFreePointee<ManagedValue>()
+
+fun main() {
+    makeLambda<ManagedValue>()
+    makeAnonymous<ManagedValue>()
+    val classHost = ClassHost<ManagedValue>()
+    val structHost = StructHost<ManagedValue>(Unit)
+    withDefault<ManagedValue>(Unit)
+}

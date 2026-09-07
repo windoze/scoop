@@ -38,6 +38,12 @@ pub enum StatementKind {
     Assign(Assign),
     If(If),
     While(While),
+    /// `for (pattern in iterable) { ... }` (spec 8.7 / 11.8).
+    For(For),
+    /// Unlabelled loop-control jumps. Their source spans live on the
+    /// containing [`Statement`], like the payload-free form of `return`.
+    Break,
+    Continue,
     Block(Block),
     /// A lexical safety override. Unlike annotations on declarations, this is
     /// a dedicated syntax node and cannot be mistaken for a function call.
@@ -78,7 +84,7 @@ pub enum Pattern {
     Binding(Ident),
     /// `_`
     Wildcard { span: Span },
-    /// A literal matched by equality (`0`, `"x"`, `true`).
+    /// A literal matched by equality (`0`, `-1u`, `"x"`, `true`).
     Literal { expr: Box<Expr>, span: Span },
     /// `Path?(p1, p2)` — enum positional variant or struct positional;
     /// `rest` is the `..` marker.
@@ -89,8 +95,9 @@ pub enum Pattern {
         rest: Option<Span>,
         span: Span,
     },
-    /// `Path?{ f1, f2: renamed, .. }` — enum named-field variant or
-    /// struct field pattern.
+    /// `Path?{ f1, f2: subpattern, .. }` — enum named-field variant or
+    /// struct field pattern. A shorthand field is normalized exactly like
+    /// parsing its identifier as the RHS; notably, `Unit` stays a literal.
     Named {
         path: Vec<Ident>,
         fields: Vec<FieldPattern>,
@@ -107,9 +114,8 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldPattern {
-    pub name: Ident,
-    /// `field: renamed` — the binding name when it differs.
-    pub rename: Option<Ident>,
+    pub field: Ident,
+    pub subpattern: Box<Pattern>,
     pub span: Span,
 }
 
@@ -216,6 +222,14 @@ pub struct If {
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
     pub cond: Expr,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct For {
+    pub pattern: Pattern,
+    pub iterable: Expr,
     pub body: Block,
     pub span: Span,
 }

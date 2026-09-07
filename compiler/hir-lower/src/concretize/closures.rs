@@ -198,10 +198,13 @@ impl Concretizer<'_> {
             self.lower_function_type(source.native_function_type, substitution);
         let managed_function_type =
             self.lower_function_type(source.managed_function_type, substitution);
-        let mode = match source.mode {
-            export::ForeignCallbackMode::Reusable => concrete::ForeignCallbackMode::Reusable,
-            export::ForeignCallbackMode::OneShot => concrete::ForeignCallbackMode::OneShot,
-        };
+        assert!(
+            self.source
+                .foreign_callback_core
+                .modes
+                .contains(source.mode)
+        );
+        let mode = self.lower_applied_enum_variant_ref(source.mode, substitution);
         let id = self
             .foreign_callback_registrations
             .alloc(concrete::ForeignCallbackRegistration {

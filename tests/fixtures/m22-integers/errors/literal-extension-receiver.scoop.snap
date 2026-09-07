@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/literal-extension-receiver.scoop:7:19: error: no applicable candidate for `glue` in extension candidate layer:
+  - fun Int8.glue(other: Int8): Int8 — Int is not a subtype of Int8

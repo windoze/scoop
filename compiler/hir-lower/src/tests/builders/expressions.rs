@@ -10,7 +10,9 @@ pub(crate) fn str_lit(value: &str) -> Expr {
 }
 
 pub(crate) fn int_lit(value: i64) -> Expr {
-    Expr::IntLiteral { value, span: sp() }
+    Expr::IntLiteral(integer_syntax(
+        u64::try_from(value).expect("test integer literals are non-negative"),
+    ))
 }
 
 pub(crate) fn bool_lit(value: bool) -> Expr {
@@ -167,6 +169,22 @@ pub(crate) fn field(receiver: Expr, name: &str) -> Expr {
         navigation: ast::Navigation::Direct,
         span: sp(),
     })
+}
+
+pub(crate) fn copy_update(base: Expr, fields: Vec<(&str, Expr)>) -> Expr {
+    let mut fields = fields.into_iter().map(|(name, value)| ast::FieldUpdate {
+        field: ident(name),
+        value,
+        span: sp(),
+    });
+    let first = fields
+        .next()
+        .expect("copy-update test builders require a non-empty field list");
+    Expr::CopyUpdate {
+        base: Box::new(base),
+        fields: ast::NonEmptyVec::new(first, fields.collect()),
+        span: sp(),
+    }
 }
 
 /// The `?.` safe field access.

@@ -17,6 +17,105 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+        Instruction::IntegerUnary {
+            out,
+            kind,
+            operation,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = integer_{:?}<{}> {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerBinary {
+            out,
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::SafeIntegerDivRem {
+            out,
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = safe_integer_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerCompare {
+            out,
+            kind,
+            comparison,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_compare_{:?}<{}> {}, {} : {}\n",
+            out.into_raw(),
+            comparison,
+            kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerCompareTo {
+            out,
+            operand_kind,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = integer_compare_to<{}> {}, {} : {}\n",
+            out.into_raw(),
+            operand_kind.canonical_name(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerShift {
+            out,
+            kind,
+            operation,
+            value,
+            normalized_count,
+        } => buf.push_str(&format!(
+            "    t{} = integer_shift_{:?}<{}> {}, normalized={} : {}\n",
+            out.into_raw(),
+            operation,
+            kind.canonical_name(),
+            value_name(*value),
+            value_name(*normalized_count),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::IntegerConvert {
+            out,
+            source_kind,
+            target_kind,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = integer_convert<{}->{}> {} : {}\n",
+            out.into_raw(),
+            source_kind.canonical_name(),
+            target_kind.canonical_name(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::MakeAggregate { out, elements } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
             buf.push_str(&format!(
@@ -48,13 +147,28 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             offset,
             function.temps[*out].ty.dump()
         )),
-        Instruction::AtomicLoad {
+        Instruction::MachineHeapLoad {
             out,
+            kind,
             object,
             offset,
         } => buf.push_str(&format!(
-            "    t{} = atomic_load acquire {} +{} : {}\n",
+            "    t{} = machine_heap_load {} {} +{} : {}\n",
             out.into_raw(),
+            kind.name(),
+            value_name(*object),
+            offset,
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::AtomicLoad {
+            out,
+            kind,
+            object,
+            offset,
+        } => buf.push_str(&format!(
+            "    t{} = atomic_load acquire {} {} +{} : {}\n",
+            out.into_raw(),
+            kind.name(),
             value_name(*object),
             offset,
             function.temps[*out].ty.dump()
@@ -122,25 +236,41 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             offset,
             value_name(*value)
         )),
-        Instruction::AtomicStore {
+        Instruction::MachineHeapStore {
+            kind,
             object,
             offset,
             value,
         } => buf.push_str(&format!(
-            "    atomic_store release {} +{} {}\n",
+            "    machine_heap_store {} {} +{} {}\n",
+            kind.name(),
+            value_name(*object),
+            offset,
+            value_name(*value)
+        )),
+        Instruction::AtomicStore {
+            kind,
+            object,
+            offset,
+            value,
+        } => buf.push_str(&format!(
+            "    atomic_store release {} {} +{} {}\n",
+            kind.name(),
             value_name(*object),
             offset,
             value_name(*value)
         )),
         Instruction::AtomicCompareExchange {
             out,
+            kind,
             object,
             offset,
             expected,
             replacement,
         } => buf.push_str(&format!(
-            "    t{} = atomic_cmpxchg acq_rel/acquire {} +{} expected={} replacement={} : {}\n",
+            "    t{} = atomic_cmpxchg acq_rel/acquire {} {} +{} expected={} replacement={} : {}\n",
             out.into_raw(),
+            kind.name(),
             value_name(*object),
             offset,
             value_name(*expected),
@@ -164,39 +294,55 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             function.temps[*out].ty.dump()
         )),
         Instruction::ForeignCallbackOperation(operation) => match *operation {
-            ForeignCallbackOperation::Retain { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::Retain {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "Retain",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::State { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::State {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "State",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::Failure { out, callback } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} {} : {}\n",
+            ForeignCallbackOperation::Failure {
+                family,
+                out,
+                callback,
+            } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} family{} {} : {}\n",
                 out.into_raw(),
                 "Failure",
+                family.into_raw(),
                 value_name(callback),
                 function.temps[out].ty.dump()
             )),
-            ForeignCallbackOperation::Release { callback } => buf.push_str(&format!(
-                "    foreign_callback_Release {}\n",
+            ForeignCallbackOperation::Release { family, callback } => buf.push_str(&format!(
+                "    foreign_callback_Release family{} {}\n",
+                family.into_raw(),
                 value_name(callback)
             )),
         },
-        Instruction::IntToPtr { out, value } => buf.push_str(&format!(
-            "    t{} = int_to_ptr {} : ptr\n",
+        Instruction::ULongToPtr { out, value } => buf.push_str(&format!(
+            "    t{} = ulong_to_ptr {} : ptr\n",
             out.into_raw(),
             value_name(*value)
         )),
-        Instruction::PtrToInt { out, value } => buf.push_str(&format!(
-            "    t{} = ptr_to_int {} : i64\n",
+        Instruction::PtrToULong { out, value } => buf.push_str(&format!(
+            "    t{} = ptr_to_ulong {} : i64\n",
             out.into_raw(),
             value_name(*value)
         )),
@@ -224,12 +370,16 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::PtrOffset {
             out,
             pointer,
-            bytes,
+            element_offset,
+            element_size,
+            subtract,
         } => buf.push_str(&format!(
-            "    t{} = ptr_offset {} {} : ptr\n",
+            "    t{} = ptr_offset {} element-offset={} element-size={} subtract={} : ptr\n",
             out.into_raw(),
             value_name(*pointer),
-            value_name(*bytes)
+            value_name(*element_offset),
+            element_size,
+            subtract,
         )),
         Instruction::LocalAddress { out, local } => buf.push_str(&format!(
             "    t{} = local_address local{} : ptr\n",
@@ -379,7 +529,6 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         )),
         Instruction::EnumWrap {
             out,
-            enum_id,
             variant,
             fields,
         } => {
@@ -387,8 +536,8 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             buf.push_str(&format!(
                 "    t{} = enum_wrap e{} v{} ({}) : {}\n",
                 out.into_raw(),
-                enum_id.into_raw(),
-                variant,
+                variant.definition().into_raw(),
+                variant.index(),
                 fields.join(", "),
                 function.temps[*out].ty.dump()
             ))
@@ -416,6 +565,31 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             enum_id.into_raw(),
             variant,
             index,
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::VariantTest {
+            out,
+            operand,
+            variant,
+        } => buf.push_str(&format!(
+            "    t{} = variant_test e{} v{} {} : {}\n",
+            out.into_raw(),
+            variant.definition().into_raw(),
+            variant.index(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::VariantPayloadProject {
+            out,
+            operand,
+            field,
+        } => buf.push_str(&format!(
+            "    t{} = variant_payload_project e{} v{} f{} {} : {}\n",
+            out.into_raw(),
+            field.definition().into_raw(),
+            field.variant().index(),
+            field.index(),
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),

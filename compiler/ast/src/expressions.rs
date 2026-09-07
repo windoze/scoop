@@ -1,6 +1,6 @@
 use crate::{
-    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, LambdaId, Param, Pattern,
-    PlaceExpr, Span, Try, TypeRef, When,
+    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, IntegerLiteralSyntax, LambdaId,
+    Param, Pattern, PlaceExpr, Span, Try, TypeRef, When,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,10 +9,7 @@ pub enum Expr {
         value: String,
         span: Span,
     },
-    IntLiteral {
-        value: i64,
-        span: Span,
-    },
+    IntLiteral(IntegerLiteralSyntax),
     BoolLiteral {
         value: bool,
         span: Span,
@@ -60,6 +57,13 @@ pub enum Expr {
         span: Span,
     },
     FieldAccess(FieldAccess),
+    /// `base.{ field: value, ... }`. The parser guarantees at least one
+    /// direct field update; target/type resolution belongs to HIR.
+    CopyUpdate {
+        base: Box<Expr>,
+        fields: NonEmptyVec<FieldUpdate>,
+        span: Span,
+    },
     Call(CallExpr),
     /// General function-value invocation. Bare `name(args)` remains
     /// `CallExpr` so HIR can apply the local-value shadowing rule before
@@ -193,8 +197,8 @@ pub enum InfixTarget {
 impl Expr {
     pub fn span(&self) -> Span {
         match self {
+            Expr::IntLiteral(literal) => literal.span,
             Expr::StringLiteral { span, .. }
-            | Expr::IntLiteral { span, .. }
             | Expr::BoolLiteral { span, .. }
             | Expr::UnitLiteral { span }
             | Expr::TupleLiteral { span, .. }
@@ -202,6 +206,7 @@ impl Expr {
             | Expr::Lambda { span, .. }
             | Expr::AnonymousFunction { span, .. }
             | Expr::CallableReference { span, .. }
+            | Expr::CopyUpdate { span, .. }
             | Expr::Invoke { span, .. }
             | Expr::InfixCall { span, .. }
             | Expr::Binary { span, .. }
@@ -242,6 +247,13 @@ pub struct FieldAccess {
     pub receiver: Box<Expr>,
     pub selector: FieldSelector,
     pub navigation: Navigation,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldUpdate {
+    pub field: Ident,
+    pub value: Expr,
     pub span: Span,
 }
 

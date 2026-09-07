@@ -89,6 +89,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         destination: scoop_lir::CallDestination,
         fn_ty: inkwell::types::FunctionType<'ctx>,
+        signature: &scoop_lir::ScoopAbiSignature,
+        apply_scoop_abi_attributes: bool,
     ) -> Result<inkwell::values::FunctionValue<'ctx>, CodegenError> {
         let symbol = match destination {
             scoop_lir::CallDestination::Local(id) => {
@@ -121,6 +123,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 unreachable!("dispatch destinations have no direct callee")
             }
         };
+        if apply_scoop_abi_attributes {
+            return abi::declare_or_get(
+                self.context,
+                self.llvm,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                symbol,
+                signature,
+            );
+        }
         if let Some(function) = self.llvm.get_function(symbol) {
             if function.get_type() != fn_ty {
                 return Err(CodegenError(format!(
@@ -138,8 +151,33 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         table: Value,
         slot: scoop_lir::DispatchSlotId,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let slot = *self
+            .function
+            .call_targets
+            .dispatch_slots
+            .get(slot)
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "typed dispatch @{} refers to an invalid slot declaration",
+                    self.function.symbol
+                ))
+            })?;
+        let table_ty = self.function.value_ty(self.globals_arena, table);
+        let expected_table_ty = if slot.kind == scoop_lir::DispatchKind::Closure {
+            scoop_lir::MANAGED_PTR
+        } else {
+            scoop_lir::METADATA_PTR
+        };
+        if table_ty != expected_table_ty {
+            return Err(CodegenError(format!(
+                "typed {:?} dispatch @{} requires table {}, got {}",
+                slot.kind,
+                self.function.symbol,
+                expected_table_ty.dump(),
+                table_ty.dump()
+            )));
+        }
         let table = self.value(table)?.into_pointer_value();
-        let slot = self.function.call_targets.dispatch_slots[slot];
         // SAFETY: the typed dispatch slot is assigned by lir-lower from the
         // complete vtable/itable/closure layout.
         let slot_pointer = unsafe {

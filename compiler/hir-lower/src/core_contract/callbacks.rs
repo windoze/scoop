@@ -50,6 +50,54 @@ impl Lowerer {
         self.validate_unit_enum(mode, &["Reusable", "OneShot"]);
         self.validate_unit_enum(state, &["Registered", "Active", "Completed", "Failed"]);
 
+        let mode_application = self.enums[mode].self_application;
+        let reusable = hir::AppliedEnumVariantRef::checked_index(
+            &self.enums,
+            &self.enum_applications,
+            mode_application,
+            0,
+        );
+        let one_shot = hir::AppliedEnumVariantRef::checked_index(
+            &self.enums,
+            &self.enum_applications,
+            mode_application,
+            1,
+        );
+        let modes = reusable.zip(one_shot).and_then(|(reusable, one_shot)| {
+            hir::ForeignCallbackModes::checked(
+                &self.enums,
+                &self.enum_applications,
+                reusable,
+                one_shot,
+            )
+        });
+
+        let state_application = self.enums[state].self_application;
+        let states = [0, 1, 2, 3].map(|index| {
+            hir::AppliedEnumVariantRef::checked_index(
+                &self.enums,
+                &self.enum_applications,
+                state_application,
+                index,
+            )
+        });
+        let states = match states {
+            [
+                Some(registered),
+                Some(active),
+                Some(completed),
+                Some(failed),
+            ] => hir::ForeignCallbackStates::checked(
+                &self.enums,
+                &self.enum_applications,
+                registered,
+                active,
+                completed,
+                failed,
+            ),
+            _ => None,
+        };
+
         for (id, operation) in [
             (register, "register"),
             (retain, "retain"),
@@ -76,7 +124,7 @@ impl Lowerer {
                 "register" => {
                     matches!(signature.params.as_slice(), [closure, index, mode_param]
                         if closure.ty == self.any
-                            && index.ty == self.int
+                            && index.ty == self.integer_type(hir::IntegerKind::SIGNED_64)
                             && mode_param.ty == self.interned_enum_type(mode))
                         && callback_param(signature.return_ty)
                 }
@@ -92,7 +140,9 @@ impl Lowerer {
                         if callback_param(param.ty)
                             && matches!(self.types[signature.return_ty], hir::Type::Enum(application)
                                 if self.enum_applications[application].template
-                                    == self.option_enum.expect("Option core exists")
+                                    == self
+                                        .option_enumeration()
+                                        .expect("Option core exists")
                                     && self.enum_applications[application].arguments.as_slice()
                                         == [throwable]))
                 }
@@ -108,15 +158,55 @@ impl Lowerer {
             }
         }
 
+        let failure_id = failure?;
+        let failure_application = match self.types[self.signatures[&failure_id].return_ty] {
+            hir::Type::Enum(application) => application,
+            _ => return None,
+        };
+        let option = self.option_core?;
+        let failure_some = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            failure_application,
+            option.some(),
+        );
+        let failure_none = hir::AppliedEnumVariantRef::checked(
+            &self.enums,
+            &self.enum_applications,
+            failure_application,
+            option.none(),
+        );
+        let failure_result = failure_some
+            .and_then(|some| {
+                hir::AppliedEnumVariantFieldRef::checked(
+                    &self.enums,
+                    &self.enum_applications,
+                    some,
+                    option.some_payload().local_index(),
+                )
+            })
+            .zip(failure_none)
+            .and_then(|(some_payload, none)| {
+                hir::ForeignCallbackFailureResult::checked(
+                    &self.enums,
+                    &self.enum_applications,
+                    option,
+                    throwable,
+                    some_payload,
+                    none,
+                )
+            });
+
         Some(hir::ForeignCallbackCore {
             callback,
-            mode,
-            state,
+            modes: modes?,
+            states: states?,
+            failure_result: failure_result?,
             register: register?,
             retain: retain?,
             release: release?,
             query_state: query_state?,
-            failure: failure?,
+            failure: failure_id,
         })
     }
 }

@@ -47,6 +47,12 @@ impl BodyLowerer<'_> {
                 self.drain_prelude(span, out);
                 smir::StatementKind::Return { value }
             }
+            hir::StatementKind::Break { target } => smir::StatementKind::Break {
+                target: self.active_loop(*target),
+            },
+            hir::StatementKind::Continue { target } => smir::StatementKind::Continue {
+                target: self.active_loop(*target),
+            },
             hir::StatementKind::ValDecl { pattern, init } => {
                 self.lower_val_decl(pattern, init, span, out);
                 return;
@@ -82,7 +88,8 @@ impl BodyLowerer<'_> {
                         };
                         let array_slot =
                             self.new_hidden("arr", mir::Type::Class(array_type), false);
-                        let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                        let index_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
+                        let index_slot = self.new_hidden("idx", index_ty.clone(), false);
                         let array_value = self.lower_expr(array);
                         self.prelude.push(smir::StatementKind::ValDecl {
                             local: array_slot,
@@ -98,7 +105,7 @@ impl BodyLowerer<'_> {
                         smir::StatementKind::ArraySet {
                             array_type,
                             array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
-                            index: smir::Expr::local(index_slot, mir::Type::Int),
+                            index: smir::Expr::local(index_slot, index_ty),
                             value,
                         }
                     }
@@ -137,11 +144,12 @@ impl BodyLowerer<'_> {
                 }
             }
             hir::StatementKind::While {
+                target,
                 condition_setup,
                 cond,
                 body,
             } => {
-                self.lower_while(condition_setup, cond, body, span, out);
+                self.lower_while(*target, condition_setup, cond, body, span, out);
                 return;
             }
             hir::StatementKind::When(when) => {
@@ -224,32 +232,31 @@ impl BodyLowerer<'_> {
         index: mir::LocalId,
         span: Span,
     ) {
+        let index_kind = mir::IntegerKind::SIGNED_64;
+        let index_ty = mir::Type::Integer(index_kind);
         let out_of_bounds = logic(
             smir::LogicOp::Or,
-            smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntLt,
-                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
-                    rhs: Box::new(smir::Expr::int(0)),
-                },
+            smir::Expr::integer_compare(
+                mir::IntegerComparisonOperation::new(
+                    index_kind,
+                    mir::IntegerComparisonOperator::LessThan,
+                ),
+                smir::Expr::local(index, index_ty.clone()),
+                smir::Expr::integer(mir::MirIntegerConstant::Signed64(0)),
             ),
-            smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntGe,
-                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
-                    rhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::ArrayLen {
-                            array_type,
-                            operand: Box::new(smir::Expr::local(
-                                array,
-                                mir::Type::Class(array_type),
-                            )),
-                        },
-                    )),
-                },
+            smir::Expr::integer_compare(
+                mir::IntegerComparisonOperation::new(
+                    index_kind,
+                    mir::IntegerComparisonOperator::GreaterThanOrEqual,
+                ),
+                smir::Expr::local(index, index_ty.clone()),
+                smir::Expr::new(
+                    index_ty,
+                    smir::ExprKind::ArrayLen {
+                        array_type,
+                        operand: Box::new(smir::Expr::local(array, mir::Type::Class(array_type))),
+                    },
+                ),
             ),
         );
         let throw = self.throw_builtin(
@@ -293,11 +300,12 @@ impl BodyLowerer<'_> {
             span,
         });
         let mut path = Vec::new();
+        let mut steps = Vec::new();
         let mut bindings = Vec::new();
-        let cond = self.lower_pattern(pattern, slot, &mut path, &ty, &mut bindings);
+        self.lower_pattern(pattern, slot, &mut path, &ty, &mut steps, &mut bindings);
         // hir-lower only emits irrefutable patterns (tuple / struct /
         // binding / wildcard) in destructuring declarations.
-        debug_assert!(cond.is_none(), "destructuring patterns are irrefutable");
+        debug_assert!(steps.is_empty(), "destructuring patterns are irrefutable");
         for (local, init) in bindings {
             out.push(smir::Statement {
                 kind: smir::StatementKind::ValDecl { local, init },
@@ -308,67 +316,56 @@ impl BodyLowerer<'_> {
 
     pub(super) fn lower_while(
         &mut self,
+        target: hir::LoopId,
         condition_setup: &[hir::Statement],
         cond: &hir::Expr,
         body: &[hir::Statement],
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
-        let mut initial_setup = self.lower_statements(condition_setup);
-        let initial_cond = self.lower_expr(cond);
-        initial_setup.extend(
-            std::mem::take(&mut self.prelude)
-                .into_iter()
-                .map(|kind| smir::Statement { kind, span }),
+        let loop_id = smir::LoopId::from_raw(self.next_loop_id);
+        self.next_loop_id = self
+            .next_loop_id
+            .checked_add(1)
+            .expect("one callable cannot contain u32::MAX structured loops");
+        assert!(
+            self.active_loops
+                .iter()
+                .all(|(active, _)| *active != target),
+            "a concrete HIR loop identity is established exactly once on its active path"
         );
-        if initial_setup.is_empty() {
-            let body = self.lower_statements(body);
-            out.push(smir::Statement {
-                kind: smir::StatementKind::While {
-                    cond: initial_cond,
-                    body,
-                },
-                span,
-            });
-            return;
-        }
-        // The condition contains explicit HIR setup and/or an expression
-        // prelude such as a trap test (`!!`), all of which must run on every
-        // iteration:
-        // `P; while (C) B` becomes `P; var $c = C; while ($c) { B; P;
-        // $c = C }`.
-        out.extend(initial_setup);
-        let cond_local = self.new_hidden("cond", mir::Type::Boolean, true);
-        out.push(smir::Statement {
-            kind: smir::StatementKind::ValDecl {
-                local: cond_local,
-                init: initial_cond,
-            },
-            span,
-        });
-        let mut body = self.lower_statements(body);
-        let mut repeated_setup = self.lower_statements(condition_setup);
-        let repeated_cond = self.lower_expr(cond);
-        repeated_setup.extend(
-            std::mem::take(&mut self.prelude)
-                .into_iter()
-                .map(|kind| smir::Statement { kind, span }),
+        self.active_loops.push((target, loop_id));
+        let mut condition_setup = self.lower_statements(condition_setup);
+        let cond = self.lower_expr(cond);
+        self.drain_prelude(span, &mut condition_setup);
+        let body = self.lower_statements(body);
+        let popped = self.active_loops.pop();
+        assert_eq!(
+            popped,
+            Some((target, loop_id)),
+            "structured loop remapping is lexically nested"
         );
-        body.extend(repeated_setup);
-        body.push(smir::Statement {
-            kind: smir::StatementKind::Assign {
-                local: cond_local,
-                value: repeated_cond,
-            },
-            span,
-        });
         out.push(smir::Statement {
             kind: smir::StatementKind::While {
-                cond: smir::Expr::local(cond_local, mir::Type::Boolean),
+                target: loop_id,
+                condition_setup,
+                cond,
                 body,
             },
             span,
         });
+    }
+
+    fn active_loop(&self, target: hir::LoopId) -> smir::LoopId {
+        let (source, lowered) = self
+            .active_loops
+            .last()
+            .expect("concrete HIR binds every break/continue inside an active loop");
+        assert_eq!(
+            *source, target,
+            "unlabelled break/continue targets the lexical innermost loop"
+        );
+        *lowered
     }
 
     /// `when` becomes a decision sequence (DESIGN 3.3): the subject is
@@ -380,6 +377,27 @@ impl BodyLowerer<'_> {
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
+        if let hir::WhenFallback::Impossible(proof) = &when.fallback {
+            let proof_subject = match proof {
+                hir::ExhaustivenessProof::IrrefutableArm { subject_ty } => *subject_ty,
+                hir::ExhaustivenessProof::PatternMatrix { subject_ty } => *subject_ty,
+                hir::ExhaustivenessProof::EnumPatternMatrix {
+                    subject_ty,
+                    enum_id,
+                } => {
+                    assert_eq!(
+                        self.module.types[*subject_ty].kind,
+                        hir::TypeKind::Enum(*enum_id),
+                        "an enum exhaustiveness proof must name its subject enum",
+                    );
+                    *subject_ty
+                }
+            };
+            assert_eq!(
+                proof_subject, when.subject.ty,
+                "an exhaustiveness proof must match its when subject",
+            );
+        }
         let subject_ty = self.lower_type(when.subject.ty);
         let subject_init = self.lower_expr(&when.subject);
         self.drain_prelude(span, out);
@@ -391,34 +409,60 @@ impl BodyLowerer<'_> {
             },
             span,
         });
-        let mut chain =
-            self.lower_arms(&when.arms, subject, &subject_ty, when.else_body.as_deref());
+        let mut chain = self.lower_arms(&when.arms, subject, &subject_ty, &when.fallback, span);
         out.append(&mut chain);
     }
 
-    /// Lower `arms` into the decision sequence: each arm is
-    /// `if (<pattern condition>) { <bindings>; [if (<guard>) <body>
-    /// else <next>] } else <next>` — a failed guard falls through to
-    /// the next arm. With no guard the arm body is the then branch
-    /// directly; an unconditionally matching arm (binding / wildcard,
-    /// no guard) is inlined and makes the remaining arms unreachable
-    /// (hir-lower rejects those). Exhaustiveness was checked at HIR,
-    /// so the innermost else can only be reached via `else_body`.
+    /// Lower `arms` into ordered pattern decisions. A failed test or guard
+    /// falls through to the next arm. Bindings are declared only after the
+    /// complete pattern succeeds. HIR exhaustiveness controls only the final
+    /// false edge; it never suppresses a refutable pattern's runtime tests.
     pub(super) fn lower_arms(
         &mut self,
         arms: &[hir::WhenArm],
         subject: mir::LocalId,
         subject_ty: &mir::Type,
-        else_body: Option<&[hir::Statement]>,
+        fallback: &hir::WhenFallback,
+        fallback_span: Span,
     ) -> Vec<smir::Statement> {
         let Some((arm, rest)) = arms.split_first() else {
-            return else_body
-                .map(|body| self.lower_statements(body))
-                .unwrap_or_default();
+            return match fallback {
+                hir::WhenFallback::Else(body) => self.lower_statements(body),
+                hir::WhenFallback::Impossible(_) => vec![smir::Statement {
+                    kind: smir::StatementKind::Unreachable,
+                    span: fallback_span,
+                }],
+            };
         };
         let mut path = Vec::new();
+        let mut steps = Vec::new();
         let mut bindings = Vec::new();
-        let cond = self.lower_pattern(&arm.pattern, subject, &mut path, subject_ty, &mut bindings);
+        let decision_subject = if pattern_requires_stable_variant_subject(&arm.pattern) {
+            self.new_hidden("pattern.subject", subject_ty.clone(), false)
+        } else {
+            subject
+        };
+        self.lower_pattern(
+            &arm.pattern,
+            decision_subject,
+            &mut path,
+            subject_ty,
+            &mut steps,
+            &mut bindings,
+        );
+        if decision_subject != subject {
+            assert!(
+                !steps.is_empty(),
+                "a refutable pattern emits a runtime test"
+            );
+            steps.insert(
+                0,
+                smir::PatternDecisionStep::Materialize {
+                    local: decision_subject,
+                    init: smir::Expr::local(subject, subject_ty.clone()),
+                },
+            );
+        }
         let mut then: Vec<smir::Statement> = bindings
             .into_iter()
             .map(|(local, init)| smir::Statement {
@@ -435,7 +479,7 @@ impl BodyLowerer<'_> {
                 span: arm.span,
             }));
             let body = self.lower_statements(&arm.body);
-            let next = self.lower_arms(rest, subject, subject_ty, else_body);
+            let next = self.lower_arms(rest, subject, subject_ty, fallback, fallback_span);
             then.push(smir::Statement {
                 kind: smir::StatementKind::If {
                     cond: guard_cond,
@@ -447,25 +491,17 @@ impl BodyLowerer<'_> {
         } else {
             then.extend(self.lower_statements(&arm.body));
         }
-        if rest.is_empty() && else_body.is_none() && arm.guard.is_none() {
-            // HIR has already proved the complete arm sequence exhaustive.
-            // Reaching its final unguarded arm therefore proves this pattern,
-            // even when the pattern itself is refutable in isolation. Keeping
-            // an impossible false edge would make values defined by every arm
-            // appear live before their definitions at a suspend site.
-            return then;
-        }
-        let Some(cond) = cond else {
+        if steps.is_empty() {
             // Matches unconditionally; `rest` is unreachable.
             return then;
-        };
-        let next = self.lower_arms(rest, subject, subject_ty, else_body);
+        }
+        let next = self.lower_arms(rest, subject, subject_ty, fallback, fallback_span);
         vec![smir::Statement {
-            kind: smir::StatementKind::If {
-                cond,
+            kind: smir::StatementKind::PatternDecision(smir::PatternDecision {
+                steps,
                 then_body: then,
-                else_body: non_empty(next),
-            },
+                else_body: next,
+            }),
             span: arm.span,
         }]
     }

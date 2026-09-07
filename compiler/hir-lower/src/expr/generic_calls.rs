@@ -22,9 +22,10 @@ impl Lowerer {
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
+        prior_ordinary_failure: Option<Box<Lowerer>>,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
-        let mut first_failure = None;
+        let mut ordinary_failure = prior_ordinary_failure;
 
         // Layer 1: the nearest lexical block containing local functions of
         // this name. Declarations enter it only as they are encountered.
@@ -40,7 +41,7 @@ impl Lowerer {
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+                Err(failure) => ordinary_failure = Some(failure),
             }
         }
 
@@ -80,7 +81,7 @@ impl Lowerer {
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure.get_or_insert(failure),
+                Err(failure) => ordinary_failure.get_or_insert(failure),
             };
         }
 
@@ -113,7 +114,7 @@ impl Lowerer {
             match layer {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                 Err(failure) => {
-                    first_failure.get_or_insert(failure);
+                    ordinary_failure.get_or_insert(failure);
                 }
             }
         }
@@ -145,7 +146,7 @@ impl Lowerer {
                     }) {
                         Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                         Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                            ordinary_failure.get_or_insert(failure);
                         }
                     }
                 }
@@ -180,7 +181,7 @@ impl Lowerer {
                                     return Some(self.commit_expr_layer(layer, sink));
                                 }
                                 Err(failure) => {
-                                    first_failure.get_or_insert(failure);
+                                    ordinary_failure.get_or_insert(failure);
                                 }
                             }
                         }
@@ -205,14 +206,14 @@ impl Lowerer {
                                     return Some(self.commit_expr_layer(layer, sink));
                                 }
                                 Err(failure) => {
-                                    first_failure.get_or_insert(failure);
+                                    ordinary_failure.get_or_insert(failure);
                                 }
                             }
                         }
                     }
                     crate::properties::ExtensionPropertyResolution::Failed => {
                         if extension_property_state.diagnostics.len() > self.diagnostics.len() {
-                            first_failure.get_or_insert(Box::new(extension_property_state));
+                            ordinary_failure.get_or_insert(Box::new(extension_property_state));
                         }
                     }
                     crate::properties::ExtensionPropertyResolution::NoCandidate => {}
@@ -233,7 +234,7 @@ impl Lowerer {
                     match layer {
                         Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                         Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                            ordinary_failure.get_or_insert(failure);
                         }
                     }
                 }
@@ -274,7 +275,7 @@ impl Lowerer {
                 }) {
                     Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                     Err(failure) => {
-                        first_failure.get_or_insert(failure);
+                        ordinary_failure.get_or_insert(failure);
                     }
                 }
             }
@@ -322,11 +323,129 @@ impl Lowerer {
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                 Err(failure) => {
-                    first_failure.get_or_insert(failure);
+                    ordinary_failure.get_or_insert(failure);
                 }
             }
         }
-        if !found_top_level_candidate && first_failure.is_none() {
+
+        // Ordinary core-prelude variant constructors form their own layer
+        // after source declarations. Probe every same-name target in an
+        // isolated state so only one applicable winner can commit.
+        let prelude = self.core_prelude_variant_refs(&name).to_vec();
+        let mut prelude_successes = Vec::new();
+        let mut prelude_failure = None;
+        let mut unit_only_prelude = Vec::new();
+        for target in prelude {
+            if self.resolved_variant_style(target) == VariantStyle::Unit {
+                unit_only_prelude.push(target);
+                continue;
+            }
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.lower_variant_construct(
+                    target,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => prelude_successes.push((target, layer)),
+                Err(failure) => {
+                    prelude_failure.get_or_insert(failure);
+                }
+            }
+        }
+        match prelude_successes.len() {
+            1 => {
+                let (_, layer) = prelude_successes.pop().expect("one prelude winner");
+                return Some(self.commit_expr_layer(layer, sink));
+            }
+            2.. => {
+                let targets = prelude_successes
+                    .iter()
+                    .map(|(target, _)| *target)
+                    .collect::<Vec<_>>();
+                self.ambiguous_prelude_variant(&call.callee, &targets);
+                return None;
+            }
+            0 => {}
+        }
+
+        // The final layer is contextual and considers only the exact enum
+        // application supplied by the expected type.
+        let mut contextual_failure = None;
+        if let Some(target) = self.contextual_variant_ref(&name, expected) {
+            if self.resolved_variant_style(target) == VariantStyle::Unit {
+                self.error(
+                    call.span,
+                    format!(
+                        "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
+                        call.callee.text,
+                        self.enums[target.enumeration()].name,
+                        call.callee.text
+                    ),
+                );
+                return None;
+            }
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.lower_variant_construct(
+                    target,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    contextual_failure = Some(failure);
+                }
+            }
+        }
+        if let Some(failure) = contextual_failure {
+            self.commit_layer_diagnostics(*failure);
+            return None;
+        }
+        if let Some(enumeration) = self.exact_expected_enum(expected) {
+            if let Some(failure) = ordinary_failure {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+            self.error(
+                call.callee.span,
+                format!(
+                    "enum `{}` has no variant `{}`",
+                    self.enums[enumeration].name, call.callee.text
+                ),
+            );
+            return None;
+        }
+        if let Some(failure) = ordinary_failure {
+            self.commit_layer_diagnostics(*failure);
+            return None;
+        }
+        if let Some(failure) = prelude_failure {
+            self.commit_layer_diagnostics(*failure);
+            return None;
+        }
+        if let Some(target) = unit_only_prelude.first() {
+            let enumeration = target.enumeration();
+            self.error(
+                call.span,
+                format!(
+                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
+                    call.callee.text, self.enums[enumeration].name, call.callee.text
+                ),
+            );
+            return None;
+        }
+        if !found_top_level_candidate {
             let message = if self
                 .functions_by_name
                 .get(&name)
@@ -347,14 +466,21 @@ impl Lowerer {
                 })
             {
                 format!("property `{}` is not accessible here", call.callee.text)
+            } else if self.lexical_nested_nominal_target(&name).is_none()
+                && self.source_type_alias_named(&name).is_some()
+                && self.type_alias_is_accessible(&name)
+            {
+                format!("typealias `{name}` does not name a constructible type")
             } else {
-                format!("unknown function `{}`", call.callee.text)
+                format!(
+                    "unknown function `{}`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+                    call.callee.text
+                )
             };
             self.error(call.callee.span, message);
             return None;
         }
-        self.commit_layer_diagnostics(*first_failure.expect("at least one callable layer failed"));
-        None
+        unreachable!("a discovered callable candidate either succeeded or recorded a failure")
     }
 
     fn lower_local_function_layer(

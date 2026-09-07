@@ -98,7 +98,7 @@ fn boxing_candidate_is_naturally_less_specific() {
     let (first, args) = call_in_main(&module, 0, true);
     assert_eq!(first, top_level_fn(&module, "f", &["Int"]));
     // The exact-match overload takes the literal unboxed.
-    assert_eq!(args[0].ty, module.int);
+    assert_eq!(args[0].ty, int_type(&module));
     assert!(!matches!(args[0].kind, hir::ExprKind::Box(_)));
     let (second, _) = call_in_main(&module, 1, true);
     assert_eq!(second, top_level_fn(&module, "f", &["Any"]));
@@ -183,7 +183,7 @@ fn non_generic_wins_ties_against_generic() {
     let (second, _) = call_in_main(&module, 1, true);
     assert_eq!(second, generic);
     assert!(has_instantiation(&module, generic, &[module.string]));
-    assert!(!has_instantiation(&module, generic, &[module.int]));
+    assert!(!has_instantiation(&module, generic, &[int_type(&module)]));
 }
 
 #[test]

@@ -10,7 +10,7 @@
 //! an entry point (`Module::entry`).
 
 use la_arena::{Arena, Idx};
-use scoop_ast::Span;
+use scoop_ast::{Diagnostic, Span};
 
 pub mod concrete;
 
@@ -28,6 +28,9 @@ pub type LocalConcreteHir = concrete::Module;
 pub struct Output {
     pub export: ExportHir,
     pub local: LocalConcreteHir,
+    /// Non-fatal source diagnostics produced while constructing this output.
+    /// They are not part of either HIR graph or serialized metadata.
+    pub warnings: Vec<Diagnostic>,
 }
 
 mod ids;
@@ -35,6 +38,9 @@ pub use ids::*;
 
 mod types;
 pub use types::*;
+
+mod integer;
+pub use integer::*;
 
 mod entities;
 pub use entities::*;
@@ -44,6 +50,12 @@ pub use declarations::*;
 
 mod body;
 pub use body::*;
+
+mod bindings;
+pub use bindings::*;
+
+mod iteration;
+pub use iteration::*;
 
 mod intrinsics;
 pub use intrinsics::*;

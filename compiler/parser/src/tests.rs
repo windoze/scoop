@@ -309,7 +309,7 @@ fn top_level_must_be_a_declaration() {
     assert_eq!(span, Span::new(0, 4));
     assert_eq!(
         message,
-        "expected `fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`, found `main`"
+        "expected `fun`, `val`, `var`, `typealias`, `struct`, `enum`, `class` or `interface`, found `main`"
     );
 }
 
@@ -331,7 +331,7 @@ fn missing_body() {
     let (_, message) = err("fun main() x");
     assert_eq!(
         message,
-        "expected `fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`, found `x`"
+        "expected `fun`, `val`, `var`, `typealias`, `struct`, `enum`, `class` or `interface`, found `x`"
     );
 }
 

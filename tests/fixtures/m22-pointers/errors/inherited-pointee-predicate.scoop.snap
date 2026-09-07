@@ -1,0 +1,18 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-pointers/errors/inherited-pointee-predicate.scoop:42:37: error: type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:25:1: error: type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:40:5: error: type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:44:40: error: type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:47:9: error: type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:27:1: error: type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:31:1: error: type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:37:1: error: type Base<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:53:1: error: type PrimaryWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:54:14: error: type BaseWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:55:29: error: type InitializerWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:58:9: error: type BlockWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument
+m22-pointers/errors/inherited-pointee-predicate.scoop:23:1: error: type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument

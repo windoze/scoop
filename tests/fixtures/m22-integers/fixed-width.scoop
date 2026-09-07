@@ -1,0 +1,118 @@
+fun defaultKind(value: Int): String = "Int"
+fun defaultKind(value: Long): String = "Long"
+
+fun unsignedDefaultKind(value: UInt): String = "UInt"
+fun unsignedDefaultKind(value: ULong): String = "ULong"
+
+fun <T> second(first: T, second: T): T = second
+
+fun main() {
+    val signed8: Int8 = 127
+    val signed16: Int16 = 32767
+    val signed32: Int = 2147483647
+    val signed64: Long = 9223372036854775807L
+    val unsigned8: UInt8 = 255u
+    val unsigned16: UInt16 = 65535u
+    val unsigned32: UInt = 4294967295u
+    val unsigned64: ULong = 18446744073709551615uL
+    val binary: UInt8 = 0b1111_0000u
+    val hexadecimal: Int16 = 0x7fff
+    val minimum8: Int8 = -128
+    val minimum16: Int16 = -32768
+    val minimum32: Int = -2147483648
+    val minimum64: Long = -9223372036854775808L
+
+    println(signed8 + 1)
+    println(signed16 + 1)
+    println(signed32 + 1)
+    println(signed64 + 1L)
+    println(unsigned8 + 1u)
+    println(unsigned16 + 1u)
+    println(unsigned32 + 1u)
+    println(unsigned64 + 1uL)
+    println(binary)
+    println(hexadecimal)
+    println(-unsigned8)
+    println(-1u)
+    println(minimum8 - 1)
+    println(signed8 * 2)
+
+    var incremented: Int8 = 127
+    val beforeIncrement = incremented++
+    println(incremented)
+    val beforeDecrement = incremented--
+    println(incremented)
+    println(beforeIncrement)
+    println(beforeDecrement)
+
+    println(minimum8 / -1)
+    println(minimum16 % -1)
+    println(minimum32 / -1)
+    println(minimum64 % -1L)
+    try {
+        println(signed8 / 0)
+    } catch (error: ArithmeticException) {
+        println("division-by-zero")
+    }
+
+    println(1 + minimum8)
+    println(1 == minimum8)
+    println(minimum8 == -128)
+    println(1 and signed8)
+    println(minimum8 < 0)
+    println(unsigned8 > 0u)
+
+    val unsignedMinusPattern: UInt8 = -1u
+    when (unsignedMinusPattern) {
+        -((1u)) -> println("unsigned-minus-pattern")
+        else -> println("unreachable")
+    }
+
+    println(1 shl -1L)
+    println((-1) ushr 1L)
+    println(unsigned8 shr 7L)
+    println(minimum8 shr 7L)
+
+    println(minimum8.toUInt64())
+    println(257.toUInt8())
+    println(unsigned64.toInt8())
+    println(unsigned32.toInt64())
+
+    println(defaultKind(1))
+    println(defaultKind(2147483648))
+    println(unsignedDefaultKind(1u))
+    println(unsignedDefaultKind(4294967296u))
+
+    println(second(1, 2147483648))
+    println(second(2147483648, 1))
+    val jointlyInferredArray = [1, 2147483648]
+    println(jointlyInferredArray[0L] + jointlyInferredArray[1L])
+    val jointlyInferredIf = if (false) {
+        1
+    } else {
+        2147483648
+    }
+    println(jointlyInferredIf)
+    val jointlyInferredWhen = when (signed8) {
+        127 -> 1
+        else -> 2147483648
+    }
+    println(jointlyInferredWhen)
+    val jointlyInferredTry = try {
+        1
+    } catch (error: ArithmeticException) {
+        2147483648
+    }
+    println(jointlyInferredTry)
+
+    val byte: Byte = 42
+    val short: Short = 42
+    val int32: Int32 = 42
+    val int64: Int64 = 42L
+    val ubyte: UByte = 42u
+    val ushort: UShort = 42u
+    val uint32: UInt32 = 42u
+    val uint64: UInt64 = 42uL
+    println(byte.toInt64() + short.toInt64() + int32.toInt64() + int64)
+    println(ubyte.toUInt64() + ushort.toUInt64() + uint32.toUInt64() + uint64)
+}

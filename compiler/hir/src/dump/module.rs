@@ -9,6 +9,13 @@ pub fn dump(module: &Module) -> String {
         .iter()
         .map(|(_, declaration)| declaration.backing_class)
         .collect::<std::collections::HashSet<_>>();
+    for (_, alias) in module.type_aliases.iter() {
+        out.push_str(&format!(
+            "  typealias {} = {}\n",
+            alias.name,
+            type_name(module, alias.target)
+        ));
+    }
     for (id, decl) in module.structs.iter() {
         if id == module.ffi_core.ptr
             || id == module.ffi_core.fun_ptr
@@ -48,7 +55,9 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, decl) in module.enums.iter() {
-        if id == module.foreign_callback_core.mode || id == module.foreign_callback_core.state {
+        if id == module.foreign_callback_core.modes.enumeration()
+            || id == module.foreign_callback_core.states.enumeration()
+        {
             continue;
         }
         let type_params = if decl.type_params.is_empty() {
@@ -700,7 +709,8 @@ fn dump_struct_attributes(attributes: StructAttributes) -> String {
     if let Some(layout) = attributes.c_layout {
         values.push(format!(
             "c-layout aligned={} packed={}",
-            layout.aligned, layout.packed
+            dump_c_layout_value(layout.aligned),
+            dump_c_layout_value(layout.packed)
         ));
     }
     if attributes.interior_mutable {
@@ -711,6 +721,10 @@ fn dump_struct_attributes(attributes: StructAttributes) -> String {
     } else {
         format!(" <{}>", values.join(" "))
     }
+}
+
+fn dump_c_layout_value(value: HirCLayoutValue) -> u8 {
+    value.bytes().unwrap_or(0)
 }
 
 fn dump_interface_list(module: &Module, interfaces: &[TypeId]) -> String {

@@ -17,7 +17,7 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
                         .unwrap_or_default();
                     let value = match &arg.value {
                         AnnotationLiteral::String(value) => format!("{value:?}"),
-                        AnnotationLiteral::Int(value) => value.to_string(),
+                        AnnotationLiteral::Int(literal) => literal.to_string(),
                         AnnotationLiteral::Boolean(value) => value.to_string(),
                     };
                     format!("{name}{value}")

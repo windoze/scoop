@@ -41,7 +41,9 @@ fn emits_complete_image_root_and_immortal_tables() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             ty: MANAGED_PTR,
-            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            initial_state: LirStaticInitialState::EncodedStaticValue {
+                payload: LirConstantImage::NullPointer(PointerKind::Managed),
+            },
             thread_local: false,
         },
     });
@@ -102,7 +104,9 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             ty: MANAGED_PTR,
-            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            initial_state: LirStaticInitialState::EncodedStaticValue {
+                payload: LirConstantImage::NullPointer(PointerKind::Managed),
+            },
             thread_local: true,
         },
     });
@@ -121,13 +125,15 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
 #[test]
 fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let mut module = exceptions_module();
-    module.functions[1].params.push(LirType::I64);
+    module.functions[1].signature = plain_scoop_signature(vec![LirType::I64], LirType::I64);
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("the local declaration and typed call target disagree");
     assert!(
-        error.0.contains("disagrees with its existing declaration"),
+        error
+            .0
+            .contains("signature or physical convention does not match"),
         "unexpected error: {error}"
     );
 }
@@ -153,28 +159,27 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
 fn native_calls_publish_roots_transition_and_reload() {
     let mut extern_functions = scoop_lir::ExternFunctions::default();
     let c_call = extern_functions.alloc_c(scoop_lir::CExternFunction {
-        declaration: scoop_lir::ExternFunctionDeclaration {
+        identity: scoop_lir::ExternFunctionIdentity {
             source_name: "wait".to_string(),
             native_symbol: "native_wait".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
-            params: Vec::new(),
-            return_type: LirType::Void,
         },
         bridge_symbol: "scoop_c_bridge_wait".to_string(),
-        params: Vec::new(),
-        return_type: scoop_lir::CType::Unit,
+        signature: scoop_lir::CFunctionType {
+            params: Vec::new(),
+            return_type: scoop_lir::CReturnType::Void,
+        },
     });
     let borrowed = extern_functions.alloc_scoop(scoop_lir::ScoopExternFunction {
-        declaration: scoop_lir::ExternFunctionDeclaration {
+        identity: scoop_lir::ExternFunctionIdentity {
             source_name: "borrowed".to_string(),
             native_symbol: "native_borrowed".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
-            params: vec![MANAGED_PTR],
-            return_type: MANAGED_PTR,
         },
         gc_effect: GcEffect::Managed,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
     });
 
     let mut safe_targets = CallTargets::default();
@@ -205,8 +210,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let safe = Function {
         gc_effect: GcEffect::Managed,
         symbol: "safe_root".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: safe_targets,
         locals: Arena::default(),
         temps: Arena::default(),
@@ -256,8 +260,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let borrowed_function = Function {
         gc_effect: GcEffect::Managed,
         symbol: "borrowed_result".to_string(),
-        params: vec![MANAGED_PTR],
-        return_ty: MANAGED_PTR,
+        signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: borrowed_targets,
         locals: borrowed_locals,
         temps: borrowed_temps,
@@ -268,12 +271,13 @@ fn native_calls_publish_roots_transition_and_reload() {
     let module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions,
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![safe, borrowed_function],
         entry_symbol: "safe_root".to_string(),
@@ -314,49 +318,61 @@ fn native_calls_publish_roots_transition_and_reload() {
 #[test]
 fn continuation_state_atomics_keep_their_llvm_orderings() {
     let mut temps = Arena::default();
-    let loaded = temps.alloc(Temp { ty: LirType::I64 });
-    let observed = temps.alloc(Temp { ty: LirType::I64 });
+    let state_ty = LirType::MachineScalar(MachineScalarKind::CoroutineAdapterState);
+    let loaded = temps.alloc(Temp {
+        ty: state_ty.clone(),
+    });
+    let observed = temps.alloc(Temp {
+        ty: state_ty.clone(),
+    });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
             Instruction::AtomicLoad {
                 out: loaded,
+                kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
             },
             Instruction::AtomicStore {
+                kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
-                value: Value::IntConst(2),
+                value: Value::MachineScalar(MachineScalarValue::CoroutineAdapterState(
+                    CoroutineAdapterState::CompletingSuccess,
+                )),
             },
             Instruction::AtomicCompareExchange {
                 out: observed,
+                kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
                 expected: Value::Temp(loaded),
-                replacement: Value::IntConst(6),
+                replacement: Value::MachineScalar(MachineScalarValue::CoroutineAdapterState(
+                    CoroutineAdapterState::Consumed,
+                )),
             },
         ],
         terminator: Terminator::Return {
             value: Some(Value::Temp(observed)),
         },
     });
-    let module = Module {
+    let mut module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "continuation_atomics".to_string(),
-            params: vec![MANAGED_PTR],
-            return_ty: LirType::I64,
+            signature: plain_scoop_signature(vec![MANAGED_PTR], state_ty),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps,
@@ -380,5 +396,38 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         ir.contains("cmpxchg ptr addrspace(1) %atomic_field_ptr2")
             && ir.contains("acq_rel acquire"),
         "continuation state claims must be acq_rel/acquire compare-exchange:\n{ir}"
+    );
+
+    {
+        let Instruction::AtomicLoad { offset, .. } =
+            &mut module.functions[0].blocks[entry].instructions[0]
+        else {
+            unreachable!("test fixture starts with an atomic load")
+        };
+        *offset = 20;
+    }
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("machine state atomics require 8-byte aligned fields");
+    assert!(error.0.contains("not an aligned object field"), "{error}");
+
+    {
+        let Instruction::AtomicLoad { offset, kind, .. } =
+            &mut module.functions[0].blocks[entry].instructions[0]
+        else {
+            unreachable!("test fixture starts with an atomic load")
+        };
+        *offset = 16;
+        *kind = MachineScalarKind::ByteSize;
+    }
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("non-state machine domains cannot use state atomics");
+    assert!(
+        error
+            .0
+            .contains("must produce its declared 64-bit machine state ByteSize"),
+        "{error}"
     );
 }

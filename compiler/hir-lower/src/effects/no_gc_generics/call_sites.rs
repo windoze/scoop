@@ -7,17 +7,21 @@ impl Lowerer {
             let hir::FunctionKind::User(body) = &function.kind else {
                 continue;
             };
-            self.collect_generic_calls_in_statements(caller, &body.statements, &mut out);
+            out.extend(
+                self.generic_calls_in_body(body)
+                    .into_iter()
+                    .map(|call| GenericCallSite {
+                        caller,
+                        callee: call.callee,
+                        arguments: call.arguments,
+                        span: call.span,
+                    }),
+            );
         }
         out
     }
 
-    fn generic_call_site(
-        &self,
-        caller: hir::FunctionId,
-        callable: hir::Callable,
-        span: Span,
-    ) -> Option<GenericCallSite> {
+    fn generic_call(&self, callable: hir::Callable, span: Span) -> Option<GenericCall> {
         let (callee, arguments) = match callable {
             hir::Callable::Function(_) => return None,
             hir::Callable::Generic(application) => {
@@ -83,10 +87,46 @@ impl Lowerer {
                 (method.function, arguments)
             }
         };
-        Some(GenericCallSite {
-            caller,
+        Some(GenericCall {
             callee,
             arguments,
+            span,
+        })
+    }
+
+    fn callable_body_generic_call(
+        &self,
+        function: hir::FunctionId,
+        body_type_arguments: &hir::CallableBodyTypeArguments,
+        span: Span,
+    ) -> Option<GenericCall> {
+        let parameters = self.functions[function].type_params();
+        if parameters.is_empty() {
+            return None;
+        }
+        let argument_types = match body_type_arguments {
+            hir::CallableBodyTypeArguments::Lexical => parameters
+                .iter()
+                .map(|parameter| {
+                    self.types
+                        .iter()
+                        .find_map(|(ty, candidate)| {
+                            matches!(candidate, hir::Type::Param(id) if *id == parameter.id)
+                                .then_some(ty)
+                        })
+                        .expect("every callable body parameter has a canonical parameter type")
+                })
+                .collect::<Vec<_>>(),
+            hir::CallableBodyTypeArguments::Explicit(arguments) => arguments.clone(),
+        };
+        assert_eq!(parameters.len(), argument_types.len());
+        Some(GenericCall {
+            callee: function,
+            arguments: parameters
+                .into_iter()
+                .zip(argument_types)
+                .map(|(parameter, argument)| (parameter.id, argument))
+                .collect(),
             span,
         })
     }
@@ -100,27 +140,132 @@ impl Lowerer {
         }
     }
 
+    pub(in crate::effects) fn generic_calls_in_body(&self, body: &hir::Body) -> Vec<GenericCall> {
+        let mut out = Vec::new();
+        self.collect_generic_calls_in_statements(&body.statements, &mut out);
+        out
+    }
+
+    pub(in crate::effects) fn generic_calls_in_default(
+        &self,
+        default: &hir::ExportDefaultExpr,
+    ) -> Vec<GenericCall> {
+        let mut out = Vec::new();
+        self.collect_generic_calls_in_statements(&default.statements, &mut out);
+        self.collect_generic_calls_in_expr(&default.value, &mut out);
+        out
+    }
+
+    pub(in crate::effects) fn generic_calls_in_struct_constructor(
+        &self,
+        constructor: &hir::StructConstructor,
+    ) -> Vec<GenericCall> {
+        let mut out = Vec::new();
+        if let hir::StructConstructorKind::Secondary { delegation, body } = &constructor.kind {
+            self.collect_generic_calls_in_constructor_arguments(&delegation.arguments, &mut out);
+            self.collect_generic_calls_in_statements(&body.statements, &mut out);
+        }
+        out
+    }
+
+    pub(in crate::effects) fn generic_calls_in_class_constructor(
+        &self,
+        constructor: &hir::ClassConstructor,
+    ) -> Vec<GenericCall> {
+        let mut out = Vec::new();
+        match &constructor.kind {
+            hir::ClassConstructorKind::Primary {
+                base,
+                common_initialization,
+                ..
+            } => {
+                self.collect_generic_calls_in_base_initialization(base, &mut out);
+                self.collect_generic_calls_in_class_initialization(common_initialization, &mut out);
+            }
+            hir::ClassConstructorKind::Secondary { delegation, body } => {
+                match delegation {
+                    hir::ClassSecondaryDelegation::This { arguments, .. } => {
+                        self.collect_generic_calls_in_constructor_arguments(arguments, &mut out)
+                    }
+                    hir::ClassSecondaryDelegation::Terminal {
+                        base,
+                        common_initialization,
+                    } => {
+                        self.collect_generic_calls_in_base_initialization(base, &mut out);
+                        self.collect_generic_calls_in_class_initialization(
+                            common_initialization,
+                            &mut out,
+                        );
+                    }
+                }
+                self.collect_generic_calls_in_statements(&body.statements, &mut out);
+            }
+        }
+        out
+    }
+
+    fn collect_generic_calls_in_constructor_arguments(
+        &self,
+        arguments: &hir::ConstructorArguments,
+        out: &mut Vec<GenericCall>,
+    ) {
+        self.collect_generic_calls_in_statements(&arguments.statements, out);
+        for argument in &arguments.args {
+            self.collect_generic_calls_in_expr(argument, out);
+        }
+    }
+
+    fn collect_generic_calls_in_base_initialization(
+        &self,
+        base: &hir::BaseInitialization,
+        out: &mut Vec<GenericCall>,
+    ) {
+        if let hir::BaseInitialization::Super { arguments, .. } = base {
+            self.collect_generic_calls_in_constructor_arguments(arguments, out);
+        }
+    }
+
+    fn collect_generic_calls_in_class_initialization(
+        &self,
+        initialization: &[hir::ClassInitializationStep],
+        out: &mut Vec<GenericCall>,
+    ) {
+        for step in initialization {
+            match step {
+                hir::ClassInitializationStep::StoredProperty { initializer, .. }
+                | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+                    self.collect_generic_calls_in_statements(&initializer.statements, out);
+                    self.collect_generic_calls_in_expr(&initializer.value, out);
+                }
+                hir::ClassInitializationStep::InitBlock { body, .. } => {
+                    self.collect_generic_calls_in_statements(&body.statements, out);
+                }
+            }
+        }
+    }
+
     fn collect_generic_calls_in_statements(
         &self,
-        caller: hir::FunctionId,
         statements: &[hir::Statement],
-        out: &mut Vec<GenericCallSite>,
+        out: &mut Vec<GenericCall>,
     ) {
         for statement in statements {
             match &statement.kind {
                 hir::StatementKind::InitializationEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
-                    self.collect_generic_calls_in_expr(caller, expr, out);
+                    self.collect_generic_calls_in_expr(expr, out);
                 }
-                hir::StatementKind::LocalFunction(_) => {}
+                hir::StatementKind::LocalFunction(_)
+                | hir::StatementKind::Break { .. }
+                | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
                     if let Some(value) = value {
-                        self.collect_generic_calls_in_expr(caller, value, out);
+                        self.collect_generic_calls_in_expr(value, out);
                     }
                 }
                 hir::StatementKind::ValDecl { pattern, init } => {
-                    self.collect_generic_calls_in_pattern(caller, pattern, out);
-                    self.collect_generic_calls_in_expr(caller, init, out);
+                    self.collect_generic_calls_in_pattern(pattern, out);
+                    self.collect_generic_calls_in_expr(init, out);
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
@@ -128,103 +273,112 @@ impl Lowerer {
                         | hir::AssignTarget::Global(_)
                         | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
-                            self.collect_generic_calls_in_expr(caller, array, out);
-                            self.collect_generic_calls_in_expr(caller, index, out);
+                            self.collect_generic_calls_in_expr(array, out);
+                            self.collect_generic_calls_in_expr(index, out);
                         }
                         hir::AssignTarget::Field { receiver, .. } => {
-                            self.collect_generic_calls_in_expr(caller, receiver, out);
+                            self.collect_generic_calls_in_expr(receiver, out);
                         }
                         hir::AssignTarget::InitializingClassField { .. } => {}
                     }
-                    self.collect_generic_calls_in_expr(caller, value, out);
+                    self.collect_generic_calls_in_expr(value, out);
                 }
                 hir::StatementKind::If {
                     cond,
                     then_body,
                     else_body,
                 } => {
-                    self.collect_generic_calls_in_expr(caller, cond, out);
-                    self.collect_generic_calls_in_statements(caller, then_body, out);
+                    self.collect_generic_calls_in_expr(cond, out);
+                    self.collect_generic_calls_in_statements(then_body, out);
                     if let Some(else_body) = else_body {
-                        self.collect_generic_calls_in_statements(caller, else_body, out);
+                        self.collect_generic_calls_in_statements(else_body, out);
                     }
                 }
                 hir::StatementKind::While {
+                    target: _,
                     condition_setup,
                     cond,
                     body,
                 } => {
-                    self.collect_generic_calls_in_statements(caller, condition_setup, out);
-                    self.collect_generic_calls_in_expr(caller, cond, out);
-                    self.collect_generic_calls_in_statements(caller, body, out);
+                    self.collect_generic_calls_in_statements(condition_setup, out);
+                    self.collect_generic_calls_in_expr(cond, out);
+                    self.collect_generic_calls_in_statements(body, out);
+                }
+                hir::StatementKind::For(plan) => {
+                    self.collect_generic_calls_in_statements(plan.source_setup(), out);
+                    self.collect_generic_calls_in_expr(plan.source_init(), out);
+                    self.collect_generic_calls_in_statements(plan.iterator_setup(), out);
+                    self.collect_generic_calls_in_expr(plan.iterator_call(), out);
+                    let next = plan.next();
+                    if let Some(call) =
+                        self.generic_call(hir::Callable::Method(next.callable()), next.span())
+                    {
+                        out.push(call);
+                    }
+                    for action in &plan.binding().actions {
+                        if let hir::IrrefutableBindingAction::Component { setup, call, .. } = action
+                        {
+                            self.collect_generic_calls_in_statements(setup, out);
+                            self.collect_generic_calls_in_expr(call, out);
+                        }
+                    }
+                    self.collect_generic_calls_in_statements(plan.body(), out);
                 }
                 hir::StatementKind::When(when) => {
-                    self.collect_generic_calls_in_expr(caller, &when.subject, out);
+                    self.collect_generic_calls_in_expr(&when.subject, out);
                     for arm in &when.arms {
-                        self.collect_generic_calls_in_pattern(caller, &arm.pattern, out);
+                        self.collect_generic_calls_in_pattern(&arm.pattern, out);
                         if let Some(guard) = &arm.guard {
-                            self.collect_generic_calls_in_statements(caller, &guard.setup, out);
-                            self.collect_generic_calls_in_expr(caller, &guard.condition, out);
+                            self.collect_generic_calls_in_statements(&guard.setup, out);
+                            self.collect_generic_calls_in_expr(&guard.condition, out);
                         }
-                        self.collect_generic_calls_in_statements(caller, &arm.body, out);
+                        self.collect_generic_calls_in_statements(&arm.body, out);
                     }
-                    if let Some(else_body) = &when.else_body {
-                        self.collect_generic_calls_in_statements(caller, else_body, out);
+                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                        self.collect_generic_calls_in_statements(body, out);
                     }
                 }
                 hir::StatementKind::Try(try_) => {
-                    self.collect_generic_calls_in_statements(caller, &try_.body, out);
+                    self.collect_generic_calls_in_statements(&try_.body, out);
                     for catch in &try_.catches {
-                        self.collect_generic_calls_in_statements(caller, &catch.body, out);
+                        self.collect_generic_calls_in_statements(&catch.body, out);
                     }
                     if let Some(finally_body) = &try_.finally_body {
-                        self.collect_generic_calls_in_statements(caller, finally_body, out);
+                        self.collect_generic_calls_in_statements(finally_body, out);
                     }
                 }
             }
         }
     }
 
-    fn collect_generic_calls_in_pattern(
-        &self,
-        caller: hir::FunctionId,
-        pattern: &hir::Pattern,
-        out: &mut Vec<GenericCallSite>,
-    ) {
+    fn collect_generic_calls_in_pattern(&self, pattern: &hir::Pattern, out: &mut Vec<GenericCall>) {
         match pattern {
-            hir::Pattern::Literal { value, .. } => {
-                self.collect_generic_calls_in_expr(caller, value, out)
-            }
+            hir::Pattern::Literal { value, .. } => self.collect_generic_calls_in_expr(value, out),
             hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
                 for (_, pattern) in fields {
-                    self.collect_generic_calls_in_pattern(caller, pattern, out);
+                    self.collect_generic_calls_in_pattern(pattern, out);
                 }
             }
             hir::Pattern::Tuple(elements) => {
                 for pattern in elements {
-                    self.collect_generic_calls_in_pattern(caller, pattern, out);
+                    self.collect_generic_calls_in_pattern(pattern, out);
                 }
             }
             hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => {}
         }
     }
 
-    fn collect_generic_calls_in_expr(
-        &self,
-        caller: hir::FunctionId,
-        expr: &hir::Expr,
-        out: &mut Vec<GenericCallSite>,
-    ) {
+    fn collect_generic_calls_in_expr(&self, expr: &hir::Expr, out: &mut Vec<GenericCall>) {
         use hir::ExprKind;
 
         let mut record = |callable: hir::Callable| {
-            if let Some(call_site) = self.generic_call_site(caller, callable, expr.span) {
-                out.push(call_site);
+            if let Some(call) = self.generic_call(callable, expr.span) {
+                out.push(call);
             }
         };
         match &expr.kind {
             ExprKind::StringLiteral(_)
-            | ExprKind::IntLiteral(_)
+            | ExprKind::IntegerLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -234,17 +388,40 @@ impl Lowerer {
             | ExprKind::GlobalRead(_)
             | ExprKind::SingletonValue(_)
             | ExprKind::Capture(_)
-            | ExprKind::Lambda(_)
-            | ExprKind::AnonymousFunction(_)
             | ExprKind::NoneLiteral
             | ExprKind::AddressOf(_)
             | ExprKind::SizeOf(_)
             | ExprKind::AlignOf(_)
-            | ExprKind::FunPtrNull
             | ExprKind::FunctionAddress(_) => {}
+            ExprKind::Lambda(lambda) => {
+                let lambda = &self.lambdas[*lambda];
+                if let Some(call) = self.callable_body_generic_call(
+                    lambda.function,
+                    &lambda.body_type_arguments,
+                    expr.span,
+                ) {
+                    out.push(call);
+                }
+                for capture in &lambda.captures {
+                    self.collect_generic_calls_in_expr(&capture.source, out);
+                }
+            }
+            ExprKind::AnonymousFunction(function) => {
+                let function = &self.anonymous_functions[*function];
+                if let Some(call) = self.callable_body_generic_call(
+                    function.function,
+                    &function.body_type_arguments,
+                    expr.span,
+                ) {
+                    out.push(call);
+                }
+                for capture in &function.captures {
+                    self.collect_generic_calls_in_expr(&capture.source, out);
+                }
+            }
             ExprKind::TupleLiteral(elements) | ExprKind::ArrayLiteral(elements) => {
                 for element in elements {
-                    self.collect_generic_calls_in_expr(caller, element, out);
+                    self.collect_generic_calls_in_expr(element, out);
                 }
             }
             ExprKind::ArrayAssembly(assembly) => {
@@ -252,7 +429,7 @@ impl Lowerer {
                     match part {
                         hir::ArrayAssemblyPart::Element(value)
                         | hir::ArrayAssemblyPart::CopyArray(value) => {
-                            self.collect_generic_calls_in_expr(caller, value, out)
+                            self.collect_generic_calls_in_expr(value, out)
                         }
                     }
                 }
@@ -261,8 +438,17 @@ impl Lowerer {
             | ExprKind::ClassInit { args, .. }
             | ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
-                    self.collect_generic_calls_in_expr(caller, arg, out);
+                    self.collect_generic_calls_in_expr(arg, out);
                 }
+            }
+            ExprKind::StructConstruct { fields, .. } => {
+                for field in fields {
+                    self.collect_generic_calls_in_expr(field, out);
+                }
+            }
+            ExprKind::VariantTest { operand, .. }
+            | ExprKind::VariantPayloadProject { operand, .. } => {
+                self.collect_generic_calls_in_expr(operand, out);
             }
             ExprKind::CallableReference(reference) => {
                 let reference = &self.callable_references[*reference];
@@ -273,17 +459,42 @@ impl Lowerer {
                         if let hir::MethodCallee::Callable(callee) = callee {
                             record(*callee);
                         }
-                        self.collect_generic_calls_in_expr(caller, receiver, out);
+                        self.collect_generic_calls_in_expr(receiver, out);
                     }
                     hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
                         record(*callee);
-                        self.collect_generic_calls_in_expr(caller, receiver, out);
+                        self.collect_generic_calls_in_expr(receiver, out);
                     }
                 }
             }
+            ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                record(hir::Callable::Function(match operation {
+                    hir::IntegerOperation::NoGc { target, .. } => target.function(),
+                    hir::IntegerOperation::Managed { target, .. } => target.function(),
+                }));
+                match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                        self.collect_generic_calls_in_expr(operand, out);
+                    }
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        self.collect_generic_calls_in_expr(lhs, out);
+                        self.collect_generic_calls_in_expr(rhs, out);
+                    }
+                }
+            }
+            ExprKind::IntegerConversion {
+                conversion,
+                operand,
+            } => {
+                record(hir::Callable::Function(conversion.target.function()));
+                self.collect_generic_calls_in_expr(operand, out);
+            }
             ExprKind::FunctionCoercion { source, .. }
-            | ExprKind::PtrFromUInt(source)
-            | ExprKind::PtrToUInt(source)
+            | ExprKind::PtrFromNonZeroULong(source)
+            | ExprKind::PtrToULong(source)
             | ExprKind::PtrCast(source)
             | ExprKind::Box(source)
             | ExprKind::Unbox(source)
@@ -305,11 +516,11 @@ impl Lowerer {
             | ExprKind::IsSome(source)
             | ExprKind::Unwrap {
                 operand: source, ..
-            } => self.collect_generic_calls_in_expr(caller, source, out),
+            } => self.collect_generic_calls_in_expr(source, out),
             ExprKind::PtrLoad { pointer, offset } => {
-                self.collect_generic_calls_in_expr(caller, pointer, out);
+                self.collect_generic_calls_in_expr(pointer, out);
                 if let Some(offset) = offset {
-                    self.collect_generic_calls_in_expr(caller, offset, out);
+                    self.collect_generic_calls_in_expr(offset, out);
                 }
             }
             ExprKind::PtrStore {
@@ -317,11 +528,11 @@ impl Lowerer {
                 offset,
                 value,
             } => {
-                self.collect_generic_calls_in_expr(caller, pointer, out);
+                self.collect_generic_calls_in_expr(pointer, out);
                 if let Some(offset) = offset {
-                    self.collect_generic_calls_in_expr(caller, offset, out);
+                    self.collect_generic_calls_in_expr(offset, out);
                 }
-                self.collect_generic_calls_in_expr(caller, value, out);
+                self.collect_generic_calls_in_expr(value, out);
             }
             ExprKind::PtrOffset {
                 pointer, offset, ..
@@ -341,8 +552,8 @@ impl Lowerer {
                 rhs: offset,
                 ..
             } => {
-                self.collect_generic_calls_in_expr(caller, pointer, out);
-                self.collect_generic_calls_in_expr(caller, offset, out);
+                self.collect_generic_calls_in_expr(pointer, out);
+                self.collect_generic_calls_in_expr(offset, out);
             }
             ExprKind::ArraySet {
                 receiver,
@@ -350,12 +561,12 @@ impl Lowerer {
                 value,
                 ..
             } => {
-                self.collect_generic_calls_in_expr(caller, receiver, out);
-                self.collect_generic_calls_in_expr(caller, index, out);
-                self.collect_generic_calls_in_expr(caller, value, out);
+                self.collect_generic_calls_in_expr(receiver, out);
+                self.collect_generic_calls_in_expr(index, out);
+                self.collect_generic_calls_in_expr(value, out);
             }
             ExprKind::FieldAccess { receiver, .. } => {
-                self.collect_generic_calls_in_expr(caller, receiver, out);
+                self.collect_generic_calls_in_expr(receiver, out);
             }
             ExprKind::MethodCall {
                 receiver,
@@ -370,15 +581,15 @@ impl Lowerer {
                 if let hir::MethodCallee::Callable(callee) = callee {
                     record(*callee);
                 }
-                self.collect_generic_calls_in_expr(caller, receiver, out);
+                self.collect_generic_calls_in_expr(receiver, out);
                 for arg in args {
-                    self.collect_generic_calls_in_expr(caller, arg, out);
+                    self.collect_generic_calls_in_expr(arg, out);
                 }
             }
             ExprKind::Call { callee, args } => {
                 record(*callee);
                 for arg in args {
-                    self.collect_generic_calls_in_expr(caller, arg, out);
+                    self.collect_generic_calls_in_expr(arg, out);
                 }
             }
             ExprKind::LocalFunctionCall {
@@ -389,20 +600,20 @@ impl Lowerer {
             } => {
                 record(*callee);
                 for value in captures.iter().chain(args) {
-                    self.collect_generic_calls_in_expr(caller, value, out);
+                    self.collect_generic_calls_in_expr(value, out);
                 }
             }
             ExprKind::CallableCall { callee, args, .. } => {
-                self.collect_generic_calls_in_expr(caller, callee, out);
+                self.collect_generic_calls_in_expr(callee, out);
                 for arg in args {
-                    self.collect_generic_calls_in_expr(caller, arg, out);
+                    self.collect_generic_calls_in_expr(arg, out);
                 }
             }
             ExprKind::ForeignCallbackRegister { closure, .. } => {
-                self.collect_generic_calls_in_expr(caller, closure, out);
+                self.collect_generic_calls_in_expr(closure, out);
             }
             ExprKind::ForeignCallbackOperation { callback, .. } => {
-                self.collect_generic_calls_in_expr(caller, callback, out);
+                self.collect_generic_calls_in_expr(callback, out);
             }
         }
     }

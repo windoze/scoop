@@ -75,7 +75,7 @@ pub(super) fn wrapper_body(
     let frame = locals.alloc(local("$frame", mir::Type::Class(frame_class)));
     let step = locals.alloc(local("$step", step_ty.clone()));
     let mut args = vec![
-        mir::Expr::int(STATE_INITIAL),
+        frame_state(STATE_INITIAL),
         mir::Expr::local(completion, locals[completion].ty.clone()),
     ];
     for old_local in saved {
@@ -98,8 +98,9 @@ pub(super) fn wrapper_body(
                 },
                 args: vec![
                     mir::Expr::local(frame, mir::Type::Class(frame_class)),
-                    mir::Expr::int(STATE_INITIAL),
+                    frame_state(STATE_INITIAL),
                 ],
+                pending: mir::CoroutinePendingContext::Root,
             },
         },
     )));
@@ -115,13 +116,14 @@ pub(super) fn wrapper_body(
         locals,
         blocks,
         entry,
+        loop_header_polls: Vec::new(),
     }
 }
 
 pub(super) fn dispatch_block(
     blocks: &mut Arena<mir::BasicBlock>,
     dispatch_state: mir::LocalId,
-    state: i64,
+    state: mir::CoroutineFrameState,
     target: mir::BlockId,
     otherwise: mir::BlockId,
 ) -> mir::BlockId {
@@ -129,7 +131,13 @@ pub(super) fn dispatch_block(
         name: format!("coroutine.dispatch.{state}"),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(mir::Expr::local(dispatch_state, mir::Type::Int), state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    dispatch_state,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                mir::MachineScalarValue::CoroutineFrameState(state),
+            ),
             then_block: target,
             else_block: otherwise,
         },
@@ -166,6 +174,7 @@ pub(super) fn protocol_error_block(
                     callee: mir::Callee::User(lowerer.ctors[&constructor]),
                 },
                 args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
+                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Throw {
@@ -195,8 +204,8 @@ pub(super) fn restore_statement(
             slot.value_ty.clone(),
             mir::ExprKind::EnumField {
                 operand: Box::new(frame_field(frame, slot.field, slot.slot_ty.clone())),
-                variant: 1,
-                index: 0,
+                variant: slot.value_payload.variant().variant_index(),
+                index: slot.value_payload.field_index(),
             },
         ),
     })
@@ -206,7 +215,7 @@ pub(super) fn slot_empty(slot: &FrameSlot) -> mir::Expr {
     mir::Expr::new(
         slot.slot_ty.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 0,
+            variant: slot.empty,
             fields: Vec::new(),
         },
     )
@@ -217,35 +226,55 @@ pub(super) fn slot_value(slot: &FrameSlot, value: mir::Expr) -> mir::Expr {
     mir::Expr::new(
         slot.slot_ty.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 1,
+            variant: slot.value_payload.variant(),
             fields: vec![value],
         },
     )
 }
 
-pub(super) fn suspended_value(step: &mir::Type) -> mir::Expr {
+pub(super) fn suspended_value(step: &mir::Type, suspended: mir::MirVariantRef) -> mir::Expr {
+    debug_assert_eq!(step, &mir::Type::Enum(suspended.enum_id(), Vec::new()));
     mir::Expr::new(
         step.clone(),
         mir::ExprKind::VariantConstruct {
-            variant: 1,
+            variant: suspended,
             fields: Vec::new(),
         },
     )
 }
 
-pub(super) fn is_completed(step: mir::LocalId, step_ty: mir::Type) -> mir::Expr {
-    int_eq(mir::Expr::enum_tag(mir::Expr::local(step, step_ty)), 0)
+pub(super) fn is_completed(
+    step: mir::LocalId,
+    step_ty: mir::Type,
+    completed: mir::MirVariantRef,
+) -> mir::Expr {
+    debug_assert_eq!(step_ty, mir::Type::Enum(completed.enum_id(), Vec::new()));
+    machine_eq(
+        mir::Expr::enum_tag(mir::Expr::local(step, step_ty)),
+        mir::MachineScalarValue::EnumTag(completed.variant_index()),
+    )
 }
 
-pub(super) fn int_eq(lhs: mir::Expr, rhs: i64) -> mir::Expr {
-    mir::Expr::new(
-        mir::Type::Boolean,
-        mir::ExprKind::Binary {
-            op: mir::BinOp::IntEq,
-            lhs: Box::new(lhs),
-            rhs: Box::new(mir::Expr::int(rhs)),
-        },
-    )
+pub(super) fn machine_eq(lhs: mir::Expr, rhs: mir::MachineScalarValue) -> mir::Expr {
+    mir::Expr::machine_eq(lhs, rhs)
+}
+
+pub(super) fn frame_state(state: mir::CoroutineFrameState) -> mir::Expr {
+    mir::Expr::machine_scalar(frame_state_value(state))
+}
+
+pub(super) fn adapter_state(state: mir::CoroutineAdapterState) -> mir::Expr {
+    mir::Expr::machine_scalar(adapter_state_value(state))
+}
+
+pub(super) const fn frame_state_value(state: mir::CoroutineFrameState) -> mir::MachineScalarValue {
+    mir::MachineScalarValue::CoroutineFrameState(state)
+}
+
+pub(super) const fn adapter_state_value(
+    state: mir::CoroutineAdapterState,
+) -> mir::MachineScalarValue {
+    mir::MachineScalarValue::CoroutineAdapterState(state)
 }
 
 pub(super) fn adapter_frame(
@@ -301,10 +330,19 @@ pub(super) fn initialized_generated_class(
     statements
 }
 
-pub(super) fn atomic_field_load(object: mir::Expr, index: u32) -> mir::Expr {
+pub(super) fn atomic_field_load(
+    object: mir::Expr,
+    index: u32,
+    kind: mir::MachineScalarKind,
+) -> mir::Expr {
+    assert!(
+        kind.is_atomic_state(),
+        "only coroutine state fields are atomic"
+    );
     mir::Expr::new(
-        mir::Type::Int,
+        mir::Type::MachineScalar(kind),
         mir::ExprKind::AtomicFieldLoad {
+            kind,
             object: Box::new(object),
             index,
         },
@@ -316,7 +354,16 @@ pub(super) fn atomic_field_store(
     index: u32,
     value: mir::Expr,
 ) -> mir::Statement {
+    let mir::Type::MachineScalar(kind) = &value.ty else {
+        panic!("an atomic state store requires a machine scalar value")
+    };
+    let kind = *kind;
+    assert!(
+        kind.is_atomic_state(),
+        "only coroutine state fields are atomic"
+    );
     statement(mir::StatementKind::AtomicFieldStore {
+        kind,
         object,
         index,
         value,
@@ -326,16 +373,27 @@ pub(super) fn atomic_field_store(
 pub(super) fn atomic_field_compare_exchange(
     object: mir::Expr,
     index: u32,
-    expected: i64,
-    replacement: i64,
+    expected: mir::MachineScalarValue,
+    replacement: mir::MachineScalarValue,
 ) -> mir::Expr {
+    let kind = expected.kind();
+    assert_eq!(
+        replacement.kind(),
+        kind,
+        "compare-exchange states have the same semantic kind"
+    );
+    assert!(
+        kind.is_atomic_state(),
+        "only coroutine state fields are atomic"
+    );
     mir::Expr::new(
-        mir::Type::Int,
+        mir::Type::MachineScalar(kind),
         mir::ExprKind::AtomicFieldCompareExchange {
+            kind,
             object: Box::new(object),
             index,
-            expected: Box::new(mir::Expr::int(expected)),
-            replacement: Box::new(mir::Expr::int(replacement)),
+            expected: Box::new(mir::Expr::machine_scalar(expected)),
+            replacement: Box::new(mir::Expr::machine_scalar(replacement)),
         },
     )
 }

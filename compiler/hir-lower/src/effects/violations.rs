@@ -16,7 +16,9 @@ impl Lowerer {
                 hir::StatementKind::Expr(expr) => {
                     self.collect_no_gc_expr_violations(expr, out, requirements)
                 }
-                hir::StatementKind::LocalFunction(_) => {}
+                hir::StatementKind::LocalFunction(_)
+                | hir::StatementKind::Break { .. }
+                | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
                     if let Some(value) = value {
                         self.collect_no_gc_expr_violations(value, out, requirements);
@@ -65,6 +67,7 @@ impl Lowerer {
                     }
                 }
                 hir::StatementKind::While {
+                    target: _,
                     condition_setup,
                     cond,
                     body,
@@ -72,6 +75,66 @@ impl Lowerer {
                     self.collect_no_gc_statement_violations(condition_setup, out, requirements);
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
+                }
+                hir::StatementKind::For(plan) => {
+                    self.collect_no_gc_statement_violations(plan.source_setup(), out, requirements);
+                    self.collect_no_gc_expr_violations(plan.source_init(), out, requirements);
+                    self.collect_no_gc_statement_violations(
+                        plan.iterator_setup(),
+                        out,
+                        requirements,
+                    );
+                    self.collect_no_gc_expr_violations(plan.iterator_call(), out, requirements);
+                    let conformance = plan.conformance();
+                    self.collect_no_gc_type_violations(
+                        conformance.iterator().ty,
+                        conformance.span(),
+                        out,
+                        requirements,
+                    );
+                    let next = plan.next();
+                    self.check_no_gc_callee(
+                        hir::Callable::Method(next.callable()),
+                        next.span(),
+                        out,
+                    );
+                    self.collect_no_gc_type_violations(
+                        next.result().ty,
+                        next.span(),
+                        out,
+                        requirements,
+                    );
+                    self.collect_no_gc_type_violations(
+                        next.element().ty,
+                        next.span(),
+                        out,
+                        requirements,
+                    );
+                    for action in &plan.binding().actions {
+                        match action {
+                            hir::IrrefutableBindingAction::Project { result, span, .. } => {
+                                self.collect_no_gc_type_violations(
+                                    result.ty,
+                                    *span,
+                                    out,
+                                    requirements,
+                                );
+                            }
+                            hir::IrrefutableBindingAction::Component { setup, call, .. } => {
+                                self.collect_no_gc_statement_violations(setup, out, requirements);
+                                self.collect_no_gc_expr_violations(call, out, requirements);
+                            }
+                            hir::IrrefutableBindingAction::Bind { target, span, .. } => {
+                                self.collect_no_gc_type_violations(
+                                    target.ty,
+                                    *span,
+                                    out,
+                                    requirements,
+                                );
+                            }
+                        }
+                    }
+                    self.collect_no_gc_statement_violations(plan.body(), out, requirements);
                 }
                 hir::StatementKind::When(when) => {
                     self.collect_no_gc_expr_violations(&when.subject, out, requirements);
@@ -86,8 +149,8 @@ impl Lowerer {
                         }
                         self.collect_no_gc_statement_violations(&arm.body, out, requirements);
                     }
-                    if let Some(else_body) = &when.else_body {
-                        self.collect_no_gc_statement_violations(else_body, out, requirements);
+                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                        self.collect_no_gc_statement_violations(body, out, requirements);
                     }
                 }
                 hir::StatementKind::Try(_) => out.push((
@@ -112,24 +175,13 @@ impl Lowerer {
         requirements: &mut HashSet<hir::TypeParamId>,
     ) {
         use hir::ExprKind;
-        match self.gc_free_requirements(expr.ty) {
-            Some(required) => requirements.extend(required),
-            None => {
-                out.push((
-                    expr.span,
-                    format!(
-                        "value of non-GC-free type {} is not allowed in `@NoGC` code",
-                        self.type_name(expr.ty)
-                    ),
-                ));
-            }
-        }
+        self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
             ExprKind::StringLiteral(_) => out.push((
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),
             )),
-            ExprKind::IntLiteral(_)
+            ExprKind::IntegerLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -171,6 +223,15 @@ impl Lowerer {
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
+            }
+            ExprKind::StructConstruct { fields, .. } => {
+                for field in fields {
+                    self.collect_no_gc_expr_violations(field, out, requirements);
+                }
+            }
+            ExprKind::VariantTest { operand, .. }
+            | ExprKind::VariantPayloadProject { operand, .. } => {
+                self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::ClassInit { args, .. } => {
                 out.push((
@@ -323,19 +384,7 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(callback, out, requirements);
             }
             ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
-                if matches!(
-                    kind,
-                    hir::PrimitiveBinaryKind::IntDiv
-                        | hir::PrimitiveBinaryKind::IntRem
-                        | hir::PrimitiveBinaryKind::UIntDiv
-                        | hir::PrimitiveBinaryKind::UIntRem
-                ) {
-                    out.push((
-                        expr.span,
-                        "integer division is not allowed in `@NoGC` code because it may throw"
-                            .to_string(),
-                    ));
-                } else if *kind == hir::PrimitiveBinaryKind::StringConcat {
+                if *kind == hir::PrimitiveBinaryKind::StringConcat {
                     out.push((
                         expr.span,
                         "string concatenation is not allowed in `@NoGC` code".to_string(),
@@ -348,12 +397,36 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
+            ExprKind::IntegerOperation {
+                operation,
+                arguments,
+            } => {
+                if matches!(operation, hir::IntegerOperation::Managed { .. }) {
+                    out.push((
+                        expr.span,
+                        "integer division is not allowed in `@NoGC` code because it may throw"
+                            .to_string(),
+                    ));
+                }
+                match arguments {
+                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                        self.collect_no_gc_expr_violations(operand, out, requirements);
+                    }
+                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                        self.collect_no_gc_expr_violations(lhs, out, requirements);
+                        self.collect_no_gc_expr_violations(rhs, out, requirements);
+                    }
+                }
+            }
+            ExprKind::IntegerConversion { operand, .. } => {
+                self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
             ExprKind::Unary { operand, .. }
             | ExprKind::PrimitiveUnary { operand, .. }
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
-            | ExprKind::PtrFromUInt(operand)
-            | ExprKind::PtrToUInt(operand)
+            | ExprKind::PtrFromNonZeroULong(operand)
+            | ExprKind::PtrToULong(operand)
             | ExprKind::PtrCast(operand) => {
                 self.collect_no_gc_expr_violations(operand, out, requirements)
             }
@@ -383,10 +456,7 @@ impl Lowerer {
             // `addressOf` only materializes an already validated GC-free
             // place. It is unsafe, but does not allocate or enter the GC.
             ExprKind::AddressOf(_) => {}
-            ExprKind::SizeOf(_)
-            | ExprKind::AlignOf(_)
-            | ExprKind::FunPtrNull
-            | ExprKind::FunctionAddress(_) => {}
+            ExprKind::SizeOf(_) | ExprKind::AlignOf(_) | ExprKind::FunctionAddress(_) => {}
             ExprKind::Unwrap {
                 operand,
                 trap_on_none,
@@ -398,6 +468,27 @@ impl Lowerer {
                     ));
                 }
                 self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
+        }
+    }
+
+    fn collect_no_gc_type_violations(
+        &self,
+        ty: hir::TypeId,
+        span: Span,
+        out: &mut Vec<(Span, String)>,
+        requirements: &mut HashSet<hir::TypeParamId>,
+    ) {
+        match self.gc_free_requirements(ty) {
+            Some(required) => requirements.extend(required),
+            None => {
+                out.push((
+                    span,
+                    format!(
+                        "value of non-GC-free type {} is not allowed in `@NoGC` code",
+                        self.type_name(ty)
+                    ),
+                ));
             }
         }
     }

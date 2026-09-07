@@ -30,8 +30,8 @@ fn anonymous_function_infers_return_and_owns_local_return() {
         .expect("anonymous function entity");
     assert_eq!(anonymous.captures.len(), 1);
     let signature = &module.function_types[anonymous.function_type];
-    assert_eq!(signature.parameter_types, vec![module.int]);
-    assert_eq!(signature.return_type, module.int);
+    assert_eq!(signature.parameter_types, vec![int_type(&module)]);
+    assert_eq!(signature.return_type, int_type(&module));
     let invoke = &module.functions[anonymous.function];
     let hir::FunctionKind::User(body) = &invoke.kind else {
         panic!("anonymous invoke body");

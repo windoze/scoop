@@ -1,9 +1,13 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn run(mut self, files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
+    pub(crate) fn run(
+        mut self,
+        files: &[ast::SourceFile],
+    ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic {
+                severity: ast::DiagnosticSeverity::Error,
                 file: 0,
                 span: None,
                 message: "no source files to compile".to_string(),
@@ -12,13 +16,12 @@ impl Lowerer {
         let user_file_index = files.len() - 1;
         self.user_file_index = user_file_index;
 
-        // Pass 1: declare structs, enums, classes, interfaces and
-        // functions across all files (core first), so bodies and field
-        // types resolve regardless of declaration order. Structs,
-        // enums, classes and interfaces share the *type* namespace and
-        // must not collide; functions occupy a separate namespace where
-        // one name may collect several overloads (M7), and member
-        // functions live in per-owner namespaces.
+        // Pass 1: declare aliases, nominals and functions across all files
+        // (core first), so bodies and field types resolve regardless of
+        // declaration order. Aliases and top-level nominals share the type
+        // namespace and must not collide; functions occupy a separate
+        // namespace where one name may collect several overloads (M7), and
+        // member functions live in per-owner namespaces.
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
@@ -80,6 +83,9 @@ impl Lowerer {
                             None,
                         );
                     }
+                    ast::Decl::TypeAlias(decl) => {
+                        self.declare_type_alias(decl, file_index);
+                    }
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, &mut pending_functions, file_index)
                     }
@@ -124,6 +130,19 @@ impl Lowerer {
         for (id, declaration, file) in root_objects {
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
+
+        // Alias targets may mention any declaration in the Cone, including a
+        // later alias, `Option<T>` through nullable syntax, and the special
+        // pointer families. Establish those source identities before the
+        // alias graph is expanded. Application bounds are checked again once
+        // every nominal constraint is complete below.
+        self.ffi_ptr = self.require_core_struct("Ptr", files);
+        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
+        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
+        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
+        self.validate_option_enum(files);
+        self.resolve_all_type_aliases();
 
         // Type-parameter names and arities are declared in pass 1. Resolve
         // their ordered constraints only after every nominal name is visible,
@@ -184,6 +203,23 @@ impl Lowerer {
         self.current_owner = None;
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
+        if let Some(core) = intrinsic_type_core {
+            if self.ffi_ptr != Some(core.ptr) {
+                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.error(
+                    files[0].span,
+                    "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
+                );
+            }
+            if self.ffi_fun_ptr != Some(core.fun_ptr) {
+                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.error(
+                    files[0].span,
+                    "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
+                        .to_string(),
+                );
+            }
+        }
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
@@ -201,15 +237,10 @@ impl Lowerer {
         self.current_owner = None;
         self.check_interface_inheritance_cycles(&pending_interfaces);
 
-        self.ffi_ptr = self.require_core_struct("Ptr", files);
-        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
-        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
-        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
-        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
-
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
-        self.validate_option_enum(files);
+        // It was validated before alias expansion above because an alias
+        // target may itself contain nullable syntax.
         // The core library's `Throwable` is the root every `throw`
         // operand and catch parameter type is checked against (spec
         // 11.7).
@@ -246,6 +277,7 @@ impl Lowerer {
             self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
+        self.validate_option_variants();
         for (id, decl, file_index) in &pending_classes {
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
@@ -257,6 +289,23 @@ impl Lowerer {
             self.resolve_object(id, decl);
         }
         self.current_owner = None;
+
+        // Inline value layout must be finite before signatures or bodies can
+        // request concrete applications. The declaration graph deliberately
+        // stops at every reference/pointer boundary and recognizes generic
+        // growth by template identity rather than materializing applications.
+        if !self.validate_value_layout_cycles() {
+            // No later pass may try to materialize an application whose
+            // inline layout grows forever. The validator has collected one
+            // stable definition-site diagnostic for every cyclic SCC.
+            return Err(self.diagnostics);
+        }
+
+        // Every nominal constraint and inheritance edge is now complete, so
+        // fixed alias applications can prove both kind and nominal bounds.
+        // Intrinsic owner lookup is also total, which lets exposure witnesses
+        // retain the real core declaration domain for primitive targets.
+        self.validate_type_alias_targets();
 
         // Pass 2.5: resolve function and method signatures, so calls
         // in any body see parameter and return types regardless of
@@ -278,6 +327,8 @@ impl Lowerer {
         self.validate_core_operator_intrinsics(files);
         self.validate_array_conversion_intrinsics(files);
         let source_location_core = self.validate_source_location_core(files);
+        let iteration_core = self.validate_iteration_core(files);
+        self.iteration_core = iteration_core;
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
@@ -287,7 +338,6 @@ impl Lowerer {
         self.ffi_core = ffi_core;
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
-        self.validate_pointer_type_uses();
         self.resolve_globals(&pending_globals, &pending_objects);
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
@@ -364,6 +414,7 @@ impl Lowerer {
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
         self.check_generic_recursion();
+        self.validate_gc_free_pointee_requirements();
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
@@ -412,15 +463,26 @@ impl Lowerer {
             }
         };
 
+        self.warnings.sort_by_key(|diagnostic| {
+            let span = diagnostic.span.unwrap_or(Span {
+                start: u32::MAX,
+                end: u32::MAX,
+            });
+            (diagnostic.file, span.start, span.end)
+        });
         if !self.diagnostics.is_empty() {
+            self.diagnostics.extend(self.warnings);
             return Err(self.diagnostics);
         }
+        let warnings = std::mem::take(&mut self.warnings);
         // Invariant: empty diagnostics implies `main` was found and the
         // core `Option<T>` validated above.
         let entry = entry.expect("missing `main` is always diagnosed");
-        let option_enum = self
-            .option_enum
+        let option_core = self
+            .option_core
             .expect("a missing or invalid core `Option` is always diagnosed");
+        let iteration_core = iteration_core
+            .expect("a missing or invalid core iteration protocol is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
         let exception_core = exception_core
@@ -430,7 +492,7 @@ impl Lowerer {
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
         let public_surface = self.public_semantic_surface();
-        Ok(hir::Module {
+        let module = hir::Module {
             public_surface,
             source_files: self
                 .intrinsic_sources
@@ -470,6 +532,7 @@ impl Lowerer {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: self.delegate_storages,
+            type_aliases: self.type_aliases,
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,
@@ -491,10 +554,10 @@ impl Lowerer {
             interface_methods: self.interface_method_entities,
             top_level: self.top_level,
             unit: self.unit,
-            int: self.int,
             boolean: self.boolean,
             string: self.string,
-            option_enum,
+            option_core,
+            iteration_core,
             exception_core,
             coroutine_core,
             ffi_core,
@@ -505,6 +568,7 @@ impl Lowerer {
             source_location_core,
             entry,
             instantiations: self.instantiations,
-        })
+        };
+        Ok((module, warnings))
     }
 }

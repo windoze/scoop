@@ -283,6 +283,7 @@ impl Lowerer {
             access: access.clone(),
             self_application,
             type_params: Vec::new(),
+            gc_free_pointee_requirements: Vec::new(),
             representation: hir::ClassRepresentation::Declared,
             fields: Vec::new(),
             properties: Vec::new(),

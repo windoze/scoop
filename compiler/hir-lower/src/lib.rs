@@ -90,6 +90,7 @@
 //! than a call-site intrinsic-name special case. `gcCollect` / `gcStats`
 //! are ordinary test-only intrinsics.
 
+mod aliases;
 mod annotations;
 mod argument_materialization;
 mod call_resolution;
@@ -148,10 +149,13 @@ use scope::{LocalFunctionScopes, Scopes};
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
     if files.is_empty() {
-        return Lowerer::new().run(files).map(|export| hir::Output {
-            local: concretize::lower(&export),
-            export,
-        });
+        return Lowerer::new()
+            .run(files)
+            .map(|(export, warnings)| hir::Output {
+                local: concretize::lower(&export),
+                export,
+                warnings,
+            });
     }
     let core_provider = hir::IntrinsicProviderId::from_raw(0);
     let user_provider = hir::IntrinsicProviderId::from_raw(1);
@@ -226,11 +230,15 @@ pub fn lower_compilation_unit(
         name: unit.user.name.to_string(),
         source: unit.user.source_text.to_string(),
     });
-    let export = Lowerer::new()
+    let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
     let local = concretize::lower(&export);
-    Ok(hir::Output { export, local })
+    Ok(hir::Output {
+        export,
+        local,
+        warnings,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -265,6 +273,10 @@ pub(crate) struct Lowerer {
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
     pub(crate) next_constructor_parameter_identity: u32,
+    /// Cone-wide identity allocator for structured loop occurrences. The
+    /// active target stack below is callable-local, but identities remain
+    /// unique when declaration-bound templates are materialized repeatedly.
+    pub(crate) next_loop_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -334,6 +346,12 @@ pub(crate) struct Lowerer {
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
     pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
+    /// Resolver-only alias declarations. Their ids and resolution state never
+    /// cross the Export HIR boundary.
+    pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) source_type_aliases_by_name: HashMap<String, aliases::SourceTypeAliasId>,
+    pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
+    pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
@@ -356,10 +374,10 @@ pub(crate) struct Lowerer {
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
-    pub(crate) int: TypeId,
-    /// The `UInt` well-known type (M9, spec 11.2); lowerer-internal
-    /// like `any` — `hir::Module`'s well-known list is unchanged.
-    pub(crate) uint: TypeId,
+    /// Total lowering-time map for the eight canonical integer identities.
+    /// Source spelling, width and signedness never need to be reconstructed
+    /// from arena order or nominal names.
+    pub(crate) integer_types: hir::IntegerTypeCore<TypeId>,
     pub(crate) boolean: TypeId,
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
@@ -454,7 +472,16 @@ pub(crate) struct Lowerer {
     /// The validated `Option<T>` enum of `scoop.core`; `None` only
     /// when the core library is misconfigured (diagnosed, so the
     /// module is rejected anyway).
-    pub(crate) option_enum: Option<EnumId>,
+    pub(crate) pending_option_enum: Option<EnumId>,
+    /// Complete typed Option contract, established only after pass 2 has
+    /// resolved and checked the `Some(T)` / `None` variant shapes.
+    pub(crate) option_core: Option<hir::OptionCore>,
+    /// Complete typed source-iteration contract, established after interface
+    /// method signatures and the canonical Option relation are available.
+    pub(crate) iteration_core: Option<hir::IterationCore>,
+    /// Ordinary core-prelude variant bindings. Contextual enum lookup is a
+    /// separate, lower-priority layer and never populates this table.
+    pub(crate) core_prelude_variants: CorePreludeVariantBindings,
     /// Classes named `Throwable` declared in core files, in
     /// declaration order ((declaration, reference type)). Validated
     /// after pass 1 (`validate_throwable`); a second `Throwable` was
@@ -527,6 +554,10 @@ pub(crate) struct Lowerer {
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
     pub(crate) local_function_scopes: LocalFunctionScopes,
+    /// Lexically active loop targets in the current callable or detached
+    /// declaration-bound expression. Callable boundaries replace this with an
+    /// empty stack and restore the enclosing stack on exit.
+    pub(crate) loop_targets: Vec<hir::LoopId>,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.
@@ -537,7 +568,10 @@ pub(crate) struct Lowerer {
     pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
+    /// Fatal semantic diagnostics. Candidate transactions use this vector's
+    /// length as their error baseline; warnings must remain separate.
     pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) warnings: Vec<Diagnostic>,
 }
 
 #[derive(Clone)]

@@ -154,6 +154,36 @@ impl Lowerer {
                 catches[index] = Some(self.lower_value_catch(catch, ty, local, expected)?);
             }
         }
+        let has_hint = body
+            .as_ref()
+            .is_some_and(|body| body.value.as_ref().is_some())
+            || catches.iter().any(|catch| {
+                catch
+                    .as_ref()
+                    .is_some_and(|catch| catch.body.value.as_ref().is_some())
+            });
+        if !has_hint {
+            let body_rank = body
+                .is_none()
+                .then(|| self.value_block_default_seed_rank(&try_.body))
+                .flatten();
+            let catch_seed = resolved
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| catches[*index].is_none() && catch_deferred[*index])
+                .filter_map(|(index, &(catch, ty, local))| {
+                    self.value_block_default_seed_rank(&catch.body)
+                        .map(|rank| (rank, index, catch, ty, local))
+                })
+                .max_by_key(|(rank, _, _, _, _)| *rank);
+            if body_rank.is_some()
+                && body_rank >= catch_seed.as_ref().map(|(rank, _, _, _, _)| *rank)
+            {
+                body = Some(self.lower_value_block(&try_.body, None)?);
+            } else if let Some((_, index, catch, ty, local)) = catch_seed {
+                catches[index] = Some(self.lower_value_catch(catch, ty, local, None)?);
+            }
+        }
         let mut hint_types = Vec::new();
         if let Some(ty) = body
             .as_ref()

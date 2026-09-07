@@ -242,8 +242,13 @@ impl Lowerer {
                 });
             }
             let body = cfg::lower(
-                smir::Body { locals, statements },
+                smir::Body {
+                    locals,
+                    statements,
+                    coroutine_eh: None,
+                },
                 signature.return_type.clone(),
+                &self.enums.defs,
             );
             self.functions[function].params = params;
             self.functions[function].body = body;

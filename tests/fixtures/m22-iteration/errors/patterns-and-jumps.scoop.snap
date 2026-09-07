@@ -1,0 +1,11 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-iteration/errors/patterns-and-jumps.scoop:4:10: error: refutable patterns are only allowed in `when`
+m22-iteration/errors/patterns-and-jumps.scoop:8:10: error: refutable patterns are only allowed in `when`
+m22-iteration/errors/patterns-and-jumps.scoop:12:5: error: `break` is only allowed inside a loop
+m22-iteration/errors/patterns-and-jumps.scoop:13:5: error: `continue` is only allowed inside a loop
+m22-iteration/errors/patterns-and-jumps.scoop:19:13: error: `break` is only allowed inside a loop
+m22-iteration/errors/patterns-and-jumps.scoop:22:13: error: `continue` is only allowed inside a loop

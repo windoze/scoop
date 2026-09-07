@@ -152,10 +152,7 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         "foreignCallback",
         vec![native_signature],
         vec![
-            named_argument(
-                "mode",
-                struct_init("ForeignCallbackMode.Reusable", Vec::new()),
-            ),
+            named_argument("mode", field(var("ForeignCallbackMode"), "Reusable")),
             named_argument("callback", callback),
             named_argument("contextIndex", int_lit(1)),
         ],
@@ -172,7 +169,10 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         .next()
         .expect("one callback registration");
     assert_eq!(registration.context_index, 1);
-    assert_eq!(registration.mode, hir::ForeignCallbackMode::Reusable);
+    assert_eq!(
+        registration.mode,
+        module.foreign_callback_core.modes.reusable()
+    );
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main has a user body")
     };
@@ -276,7 +276,7 @@ fn a_generic_default_callable_body_keeps_the_callee_application() {
         function.name.starts_with("$lambda")
             && matches!(
                 output.local.types[function.return_ty].kind,
-                hir::concrete::TypeKind::Int
+                hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
             )
     }));
 }
@@ -435,7 +435,7 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::IntLiteral(30),
+                kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(30)),
                 ..
             },
             ..
@@ -472,7 +472,7 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::IntLiteral(10),
+                kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(10)),
                 ..
             },
             ..

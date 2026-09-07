@@ -36,6 +36,14 @@ impl Lowerer {
         binding
     }
 
+    pub(crate) fn fresh_loop(&mut self) -> hir::LoopId {
+        let identity = self.next_loop_identity;
+        self.next_loop_identity = identity
+            .checked_add(1)
+            .expect("Export HIR loop identity space exhausted");
+        hir::LoopId::from_raw(identity)
+    }
+
     pub(crate) fn alloc_local(&mut self, name: String, ty: TypeId, mutable: bool) -> hir::LocalId {
         let binding = self.fresh_binding();
         self.locals.alloc(hir::Local {
@@ -56,15 +64,21 @@ impl Lowerer {
         self.local_function_scopes.pop();
     }
 
+    pub(crate) fn integer_type(&self, kind: hir::IntegerKind) -> TypeId {
+        self.integer_types.owner(kind)
+    }
+
     pub(super) fn new() -> Self {
-        // Well-known types are allocated first, in a fixed order
-        // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
-        // `Any` (M6) follows them; it is not part of the `hir::Module`
-        // well-known list, so hir-lower interns it once here.
+        // Well-known types are allocated first, in a fixed order (impl spec
+        // 2.2): Unit, the eight canonical integers in `IntegerKind::ALL`
+        // order, Boolean and String. `Any` follows them and remains an
+        // internal lowering identity.
         let mut types = Arena::new();
         let unit = types.alloc(Type::Unit);
-        let int = types.alloc(Type::Int);
-        let uint = types.alloc(Type::UInt);
+        let integer_types = hir::IntegerTypeCore::new(
+            hir::IntegerKind::ALL.map(|kind| types.alloc(Type::Integer(kind))),
+        )
+        .expect("fresh integer type ids are distinct");
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
@@ -85,6 +99,7 @@ impl Lowerer {
             next_type_param_identity: 0,
             next_virtual_method_identity: 0,
             next_constructor_parameter_identity: 0,
+            next_loop_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
@@ -136,6 +151,10 @@ impl Lowerer {
             property_getters: Arena::new(),
             property_setters: Arena::new(),
             delegate_storages: Arena::new(),
+            source_type_aliases: Arena::new(),
+            source_type_aliases_by_name: HashMap::new(),
+            type_aliases: Arena::new(),
+            type_alias_resolution_stack: Vec::new(),
             generic_functions: Arena::new(),
             method_applications: Arena::new(),
             method_application_by_key: HashMap::new(),
@@ -146,8 +165,7 @@ impl Lowerer {
             derived_equality_application_by_type: HashMap::new(),
             top_level: Vec::new(),
             unit,
-            int,
-            uint,
+            integer_types,
             boolean,
             string,
             any,
@@ -193,7 +211,10 @@ impl Lowerer {
             override_sources: HashMap::new(),
             override_default_type_arguments: HashMap::new(),
             option_candidates: Vec::new(),
-            option_enum: None,
+            pending_option_enum: None,
+            option_core: None,
+            iteration_core: None,
+            core_prelude_variants: CorePreludeVariantBindings::default(),
             throwable_candidates: Vec::new(),
             throwable: None,
             variant_styles: HashMap::new(),
@@ -223,11 +244,13 @@ impl Lowerer {
             locals: Arena::new(),
             scopes: Scopes::new(),
             local_function_scopes: LocalFunctionScopes::new(),
+            loop_targets: Vec::new(),
             capture_contexts: Vec::new(),
             next_binding_id: 0,
             instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
+            warnings: Vec::new(),
         }
     }
 

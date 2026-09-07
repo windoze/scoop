@@ -140,12 +140,24 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<TypeId> {
         let first = path.first().expect("a qualified type path is non-empty");
-        let Some(mut target) = self
-            .top_level_nominal_target(&first.text)
-            .or_else(|| self.lexical_nested_nominal_target(&first.text))
-        else {
-            self.error(first.span, format!("unknown type `{}`", first.text));
-            return None;
+        let mut target = if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
+            target
+        } else if self.source_type_alias_named(&first.text).is_some() {
+            let alias = self.resolve_type_alias_reference(first, false)?;
+            let Some(target) = self.nominal_target_for_type(alias) else {
+                self.error(
+                    first.span,
+                    format!("typealias `{}` does not name a type qualifier", first.text),
+                );
+                return None;
+            };
+            target
+        } else {
+            let Some(target) = self.top_level_nominal_target(&first.text) else {
+                self.error(first.span, format!("unknown type `{}`", first.text));
+                return None;
+            };
+            target
         };
         for segment in &path[1..] {
             let owner = target.owner();
@@ -237,6 +249,9 @@ impl Lowerer {
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
+                if self.source_type_alias_named(&name.text).is_some() {
+                    return self.resolve_type_alias_reference(name, true);
+                }
                 // Generic structs (M9, spec 3.2).
                 if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
                     let arity = self.structs[struct_id].type_params.len();
@@ -270,15 +285,6 @@ impl Lowerer {
                     }
                     if Some(struct_id) == self.ffi_ptr {
                         let pointee = resolved[0];
-                        if self.type_contains_param(pointee)
-                            && self.current_file >= self.user_file_index
-                        {
-                            self.error(
-                                name.span,
-                                "`Ptr` pointee must be a concrete GC-free value type".to_string(),
-                            );
-                            return None;
-                        }
                         let ty = self.intern_type(Type::Ptr(pointee));
                         self.pointer_type_uses
                             .push((ty, self.current_file, name.span));
@@ -457,10 +463,19 @@ impl Lowerer {
                         &name.text,
                     );
                 }
+                if self.source_type_alias_named(&name.text).is_some() {
+                    return self.resolve_type_alias_reference(name, false);
+                }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
-                    "Int" => Some(self.int),
-                    "UInt" => Some(self.uint),
+                    "Int8" => Some(self.integer_type(hir::IntegerKind::SIGNED_8)),
+                    "Int16" => Some(self.integer_type(hir::IntegerKind::SIGNED_16)),
+                    "Int" => Some(self.integer_type(hir::IntegerKind::SIGNED_32)),
+                    "Long" => Some(self.integer_type(hir::IntegerKind::SIGNED_64)),
+                    "UInt8" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_8)),
+                    "UInt16" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_16)),
+                    "UInt" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_32)),
+                    "ULong" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_64)),
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
                     // `Any` is a compiler built-in (milestone6 DESIGN.md
@@ -566,7 +581,7 @@ impl Lowerer {
             // `Option<Option<T>>` and deliberately does not collapse.
             ast::TypeRefKind::Nullable(inner) => {
                 let inner = self.resolve_type_ref(inner)?;
-                match self.option_enum {
+                match self.option_enumeration() {
                     Some(_) => Some(self.option_type(inner)),
                     None => {
                         self.error(

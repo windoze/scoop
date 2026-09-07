@@ -2,17 +2,30 @@ use super::super::*;
 use super::{block_number, dump_statements, dump_terminator, type_name};
 
 pub fn dump(module: &Module) -> String {
-    let mut out = String::from("Module\n");
+    let mut out = format!(
+        "Module mangling={}\n",
+        module.meta.mangling_schema.canonical_name()
+    );
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
-            GlobalStorage::Managed { .. } => "managed".to_string(),
+            GlobalStorage::Managed { initial_state } => format!(
+                "managed initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Local {
                 thread_local: false,
-                ..
-            } => "global".to_string(),
+                initial_state,
+            } => format!(
+                "global initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Local {
-                thread_local: true, ..
-            } => "thread_local".to_string(),
+                thread_local: true,
+                initial_state,
+            } => format!(
+                "thread_local initial={}",
+                static_initial_state_name(module, initial_state)
+            ),
             GlobalStorage::Extern {
                 native_symbol,
                 thread_local,
@@ -103,6 +116,31 @@ pub fn dump(module: &Module) -> String {
             callback.signature.into_raw().into_u32()
         ));
     }
+    for (id, family) in module.foreign_callback_families.iter() {
+        out.push_str(&format!(
+            "  foreign_callback_family fcf{} callback={} state={} failure={}\n",
+            id.into_raw().into_u32(),
+            module.structs[family.callback].name,
+            module.enums[family.states.enum_id()].name,
+            module.enums[family.failure_result.enum_id()].name,
+        ));
+    }
+    for (id, bridge) in module.foreign_callback_bridges.iter() {
+        let adapter = &module.foreign_callback_adapters[bridge.adapter];
+        let mode_enum = &module.enums[bridge.mode.enum_id()];
+        let mode = &mode_enum.variants[bridge.mode.variant_index() as usize].name;
+        out.push_str(&format!(
+            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={}.{} adapter=@{}\n",
+            id.into_raw().into_u32(),
+            bridge.family.into_raw().into_u32(),
+            bridge.native_signature.into_raw().into_u32(),
+            adapter.managed_signature.into_raw().into_u32(),
+            bridge.context_index,
+            mode_enum.name,
+            mode,
+            module.functions[adapter.function].symbol,
+        ));
+    }
     for (_, def) in module.structs.iter() {
         match &def.representation {
             StructRepresentation::Declared {
@@ -118,7 +156,8 @@ pub fn dump(module: &Module) -> String {
                 if let Some(layout) = c_layout {
                     attributes.push(format!(
                         "c-layout aligned={} packed={}",
-                        layout.aligned, layout.packed
+                        layout.aligned.name(),
+                        layout.packed.name()
                     ));
                 }
                 if *interior_mutable {
@@ -219,14 +258,25 @@ pub fn dump(module: &Module) -> String {
             }
         ));
         for (block_id, block) in function.body.blocks.iter() {
+            let loop_header_poll = if function
+                .body
+                .loop_header_polls
+                .iter()
+                .any(|target| target.header() == block_id)
+            {
+                " <loop-header-poll>"
+            } else {
+                ""
+            };
             let unwind = block
                 .unwind
                 .map(|target| format!(" unwind bb{}", block_number(target)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "    bb{} {}{}\n",
+                "    bb{} {}{}{}\n",
                 block_number(block_id),
                 block.name,
+                loop_header_poll,
                 unwind
             ));
             dump_statements(
@@ -249,36 +299,102 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_step cs{} {} result={}\n",
             id.into_raw().into_u32(),
-            module.enums[step.enum_id].name,
-            type_name(module, &step.result)
+            module.enums[step.enum_id()].name,
+            type_name(module, step.result())
         ));
     }
     for (id, slot) in module.meta.coroutine_slots.iter() {
         out.push_str(&format!(
             "  coroutine_slot cl{} {} value={}\n",
             id.into_raw().into_u32(),
-            module.enums[slot.enum_id].name,
-            type_name(module, &slot.value)
+            module.enums[slot.enum_id()].name,
+            type_name(module, slot.value())
+        ));
+    }
+    for (id, value) in module.meta.coroutine_saved_values.iter() {
+        out.push_str(&format!(
+            "  coroutine_saved cv{} class={} field={} slot=cl{} value={}\n",
+            id.into_raw().into_u32(),
+            module.classes[value.field().class()].name,
+            value.field().field_index(),
+            value.slot().into_raw().into_u32(),
+            type_name(module, value.value())
+        ));
+    }
+    for (id, value) in module.meta.coroutine_failure_values.iter() {
+        out.push_str(&format!(
+            "  coroutine_failure cx{} class={} field={} slot=cl{} throwable={}\n",
+            id.into_raw().into_u32(),
+            module.classes[value.field().class()].name,
+            value.field().field_index(),
+            value.slot().into_raw().into_u32(),
+            module.classes[value.throwable()].name
         ));
     }
     for (id, frame) in module.meta.coroutine_frames.iter() {
         out.push_str(&format!(
-            "  coroutine_frame cr{} {} owner=cf{}\n",
+            "  coroutine_frame cr{} {} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
             id.into_raw().into_u32(),
-            module.classes[frame.class].name,
-            frame.owner.into_raw().into_u32()
+            module.classes[frame.class()].name,
+            frame.owner().into_raw().into_u32(),
+            frame.state().field_index(),
+            frame.completion().field_index(),
+            frame
+                .saved_values()
+                .iter()
+                .map(|value| format!("cv{}", value.into_raw().into_u32()))
+                .collect::<Vec<_>>()
+                .join(","),
+            frame.failure().into_raw().into_u32()
         ));
     }
     for (id, point) in module.meta.coroutine_resume_points.iter() {
+        let parents = point
+            .parents()
+            .iter()
+            .map(coroutine_transfer_name)
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        let parents = if parents.is_empty() {
+            String::new()
+        } else {
+            format!("{parents} -> ")
+        };
         out.push_str(&format!(
-            "  coroutine_resume cp{} state={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
+            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
             id.into_raw().into_u32(),
-            point.state,
-            type_name(module, &point.result),
-            point.frame.into_raw().into_u32(),
-            module.classes[point.adapter].name,
-            module.functions[point.resume].symbol,
-            module.functions[point.resume_with_exception].symbol
+            point.site().get(),
+            type_name(module, point.result()),
+            point.frame().into_raw().into_u32(),
+            module.classes[point.adapter()].name,
+            module.functions[point.resume()].symbol,
+            module.functions[point.resume_with_exception()].symbol
+        ));
+        out.push_str(&format!(
+            "    success {} -> {}Fallthrough(bb{})\n",
+            point.success_state(),
+            parents,
+            block_number(point.success().post().block())
+        ));
+        out.push_str(&format!(
+            "      entry=bb{}\n",
+            block_number(point.success().entry().block())
+        ));
+        let failure = point.failure();
+        let unwind = failure
+            .unwind()
+            .map(|target| format!("bb{}", block_number(target.block())))
+            .unwrap_or_else(|| "propagate".to_string());
+        out.push_str(&format!(
+            "    failure {} -> {}ManagedThrow(cx{}, unwind={})\n",
+            point.failure_state(),
+            parents,
+            failure.exception().into_raw().into_u32(),
+            unwind
+        ));
+        out.push_str(&format!(
+            "      entry=bb{}\n",
+            block_number(failure.entry().block())
         ));
     }
     for (id, coroutine) in module.meta.coroutine_functions.iter() {
@@ -322,4 +438,71 @@ pub fn dump(module: &Module) -> String {
     }
     out.push_str(&format!("  entry @{ENTRY_SYMBOL}\n"));
     out
+}
+
+fn coroutine_transfer_name(transfer: &CoroutinePendingTransfer) -> String {
+    match transfer {
+        CoroutinePendingTransfer::Fallthrough(target) => {
+            format!("Fallthrough(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::Return(CoroutineReturnTransfer::Unit) => {
+            "Return(Unit)".to_string()
+        }
+        CoroutinePendingTransfer::Return(CoroutineReturnTransfer::Saved(value)) => {
+            format!("Return(cv{})", value.into_raw().into_u32())
+        }
+        CoroutinePendingTransfer::Break(target) => {
+            format!("Break(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::Continue(target) => {
+            format!("Continue(bb{})", block_number(target.block()))
+        }
+        CoroutinePendingTransfer::ManagedThrow(throw_) => {
+            let unwind = throw_
+                .unwind()
+                .map(|target| format!("bb{}", block_number(target.block())))
+                .unwrap_or_else(|| "propagate".to_string());
+            format!(
+                "ManagedThrow(cv{}, unwind={unwind})",
+                throw_.exception().into_raw().into_u32()
+            )
+        }
+    }
+}
+
+fn static_initial_state_name(module: &Module, state: &MirStaticInitialState) -> String {
+    match state {
+        MirStaticInitialState::ZeroedForRuntimeUnit => "zeroed-for-runtime-unit".to_string(),
+        MirStaticInitialState::EncodedStaticValue { payload } => {
+            format!("encoded({})", constant_image_name(module, payload))
+        }
+    }
+}
+
+fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
+    match image {
+        MirConstantImage::Integer(value) => {
+            format!("{}:0x{:x}", value.kind().canonical_name(), value.raw_bits())
+        }
+        MirConstantImage::Boolean(value) => value.to_string(),
+        MirConstantImage::String(id) => format!("@{}", module.strings[*id].symbol),
+        MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
+        MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),
+        MirConstantImage::EnumUnit { variant } => {
+            format!(
+                "{}::v{}",
+                module.enums[variant.enum_id()].name,
+                variant.variant_index()
+            )
+        }
+        MirConstantImage::Struct { struct_id, fields } => format!(
+            "{}{{{}}}",
+            module.structs[*struct_id].name,
+            fields
+                .iter()
+                .map(|field| constant_image_name(module, field))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
 }

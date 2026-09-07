@@ -543,10 +543,32 @@ impl Lowerer {
                     .iter()
                     .map(|candidate| candidate.candidate)
                     .collect::<Vec<_>>();
-                let Some(winner) = self.most_specific(name, &prepared, &indices, span) else {
+                let mut tied = self.most_specific_candidates(&prepared, &indices);
+                if tied.len() > 1
+                    && let OverloadArguments::Source(source_arguments) = &arguments
+                {
+                    tied = literal_default_pareto(
+                        &tied,
+                        &applicable,
+                        source_arguments,
+                        usize::from(inference_receiver.is_some()),
+                    );
+                }
+                if tied.len() != 1 {
+                    self.ambiguity_diagnostic(
+                        name,
+                        &prepared,
+                        &tied,
+                        diagnostics::AmbiguityContext {
+                            applicable: &applicable,
+                            arguments: &arguments,
+                            receiver_offset,
+                            span,
+                        },
+                    );
                     return OverloadResolutionOutcome::Failed;
-                };
-                winner
+                }
+                tied[0]
             }
         };
 
@@ -627,4 +649,65 @@ impl Lowerer {
             return_ty,
         }))
     }
+}
+
+fn literal_default_pareto(
+    candidates: &[usize],
+    applicable: &[probe::ApplicableCandidate],
+    arguments: &[ast::CallArgument],
+    receiver_offset: usize,
+) -> Vec<usize> {
+    candidates
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            !candidates.iter().copied().any(|other| {
+                other != *candidate
+                    && literal_default_dominates(
+                        applicable
+                            .iter()
+                            .find(|transaction| transaction.candidate == other)
+                            .expect("every tied candidate has an applicability transaction"),
+                        applicable
+                            .iter()
+                            .find(|transaction| transaction.candidate == *candidate)
+                            .expect("every tied candidate has an applicability transaction"),
+                        arguments,
+                        receiver_offset,
+                    )
+            })
+        })
+        .collect()
+}
+
+fn literal_default_dominates(
+    preferred: &probe::ApplicableCandidate,
+    other: &probe::ApplicableCandidate,
+    arguments: &[ast::CallArgument],
+    receiver_offset: usize,
+) -> bool {
+    let mut strictly_better = false;
+    for (source_index, argument) in arguments.iter().enumerate() {
+        let Some(default_kind) = crate::expr::integer_literal_default_kind(&argument.expression)
+        else {
+            continue;
+        };
+        let preferred_ty = preferred.args[receiver_offset + source_index].ty;
+        let other_ty = other.args[receiver_offset + source_index].ty;
+        let (hir::Type::Integer(preferred_kind), hir::Type::Integer(other_kind)) = (
+            &preferred.state.types[preferred_ty],
+            &other.state.types[other_ty],
+        ) else {
+            continue;
+        };
+        if preferred_kind == other_kind {
+            continue;
+        }
+        match (*preferred_kind == default_kind, *other_kind == default_kind) {
+            (true, false) => strictly_better = true,
+            (false, true) => return false,
+            (true, true) | (false, false) => {}
+        }
+    }
+    strictly_better
 }

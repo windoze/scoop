@@ -47,8 +47,10 @@ impl Lowerer {
         }
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
-        let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source));
-        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
+        let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source))
+            .expect("variance adapter sources are source-level MIR types");
+        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
+            .expect("variance adapter targets are source-level MIR types");
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
@@ -159,8 +161,13 @@ impl Lowerer {
         };
         self.functions[function].params = params;
         self.functions[function].body = cfg::lower(
-            smir::Body { locals, statements },
+            smir::Body {
+                locals,
+                statements,
+                coroutine_eh: None,
+            },
             target_signature.return_type.clone(),
+            &self.enums.defs,
         );
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {

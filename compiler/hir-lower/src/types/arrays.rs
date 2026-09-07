@@ -29,10 +29,11 @@ impl Lowerer {
             hir::ClassRepresentation::Declared
             | hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
                 kind:
-                    hir::IntrinsicTypeKind::Int
-                    | hir::IntrinsicTypeKind::UInt
+                    hir::IntrinsicTypeKind::Integer(_)
                     | hir::IntrinsicTypeKind::Boolean
-                    | hir::IntrinsicTypeKind::String,
+                    | hir::IntrinsicTypeKind::String
+                    | hir::IntrinsicTypeKind::Ptr
+                    | hir::IntrinsicTypeKind::FunPtr,
                 ..
             }) => None,
         }
@@ -64,10 +65,11 @@ impl Lowerer {
             }),
             hir::ClassApplicationRepresentation::Declared
             | hir::ClassApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::Int
-                | hir::IntrinsicTypeRepresentation::UInt
+                hir::IntrinsicTypeRepresentation::Integer(_)
                 | hir::IntrinsicTypeRepresentation::Boolean
-                | hir::IntrinsicTypeRepresentation::String,
+                | hir::IntrinsicTypeRepresentation::String
+                | hir::IntrinsicTypeRepresentation::Ptr { .. }
+                | hir::IntrinsicTypeRepresentation::FunPtr { .. },
             ) => None,
         }
     }

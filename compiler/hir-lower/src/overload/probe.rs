@@ -259,11 +259,14 @@ impl Lowerer {
             };
 
             let mut first_failure = None;
-            for source_index in 0..expressions.len() {
+            let mut seed_order = (0..expressions.len())
+                .filter(|source_index| lowered[receiver_offset + source_index].is_none())
+                .collect::<Vec<_>>();
+            seed_order.sort_by_key(|source_index| {
+                std::cmp::Reverse(state.expr_default_seed_rank(&expressions[*source_index]))
+            });
+            for source_index in seed_order {
                 let parameter_index = receiver_offset + source_index;
-                if lowered[parameter_index].is_some() {
-                    continue;
-                }
                 let mut attempt = state.clone();
                 let diagnostics_before = attempt.diagnostics.len();
                 let mut argument_sink = Vec::new();
@@ -287,13 +290,14 @@ impl Lowerer {
                             expressions[source_index].span(),
                         ),
                         diagnostic_reason(&attempt, diagnostics_before),
+                        attempt,
                     )
                 });
             }
             if progress {
                 continue;
             }
-            let Some((source_index, span, reason)) = first_failure else {
+            let Some((source_index, span, reason, failed_state)) = first_failure else {
                 let failure = state
                     .solve_callable_applicability(input)
                     .expect_err("an incomplete fully typed candidate has no complete solution");
@@ -306,7 +310,7 @@ impl Lowerer {
             };
             return Err(Box::new(CandidateProbeFailure {
                 candidate: candidate_index,
-                state: Box::new(state),
+                state: Box::new(failed_state),
                 arguments: lowered,
                 kind: CandidateProbeFailureKind::Expression {
                     source_index,

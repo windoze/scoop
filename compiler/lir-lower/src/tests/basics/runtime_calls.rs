@@ -56,14 +56,56 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
 }
 
 #[test]
+fn string_compare_uses_the_closed_signed_64_runtime_abi() {
+    let mut builder = Builder::new();
+    let left = builder.string("left");
+    let right = builder.string("right");
+    let mut locals = Arena::new();
+    let result = locals.alloc(local("runtime_result", LONG));
+    let main = builder.main(
+        locals,
+        vec![call_value(
+            result,
+            runtime_call(
+                mir::RuntimeFn::StringCompare,
+                vec![string_expr(left), string_expr(right)],
+            ),
+        )],
+    );
+    let module = lower(&builder.finish(main));
+    let function = &module.functions[0];
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::Call { site } = instructions[0] else {
+        panic!("string compare must produce a value")
+    };
+    let out = site.direct_out().expect("string compare result");
+
+    assert_eq!(
+        call_symbol(&module, site.destination(&function.call_targets)),
+        "scoop_rt_string_compare"
+    );
+    assert_eq!(function.temps[out].ty, lir::LirType::I64);
+    let (_, result_local) = function.locals.iter().next().expect("one result local");
+    assert_eq!(result_local.ty, lir::LirType::I64);
+}
+
+#[test]
 fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     assert!(matches!(
-        lower_constant(&mir::ConstantValue::NullPtr, &HashMap::new()),
-        lir::ConstantValue::NullPointer(lir::PointerKind::Raw)
+        lower_constant_image(
+            &mir::MirConstantImage::PointerNull(mir::MirPointerNull::Data),
+            &lir::EnumDefs::default(),
+            &HashMap::new()
+        ),
+        lir::LirConstantImage::NullPointer(lir::PointerKind::Raw)
     ));
     assert!(matches!(
-        lower_constant(&mir::ConstantValue::NullFunPtr, &HashMap::new()),
-        lir::ConstantValue::NullPointer(lir::PointerKind::Code)
+        lower_constant_image(
+            &mir::MirConstantImage::PointerNull(mir::MirPointerNull::Code),
+            &lir::EnumDefs::default(),
+            &HashMap::new()
+        ),
+        lir::LirConstantImage::NullPointer(lir::PointerKind::Code)
     ));
 
     let mut blocks = Arena::new();
@@ -75,8 +117,11 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     let function = lir::Function {
         gc_effect: lir::GcEffect::NoGc,
         symbol: "null_provenance".to_string(),
-        params: Vec::new(),
-        return_ty: lir::LirType::Void,
+        signature: lir::ScoopAbiSignature::new(
+            Vec::new(),
+            lir::AbiReturn::UnitVoid,
+            lir::CallingConvention::Cdecl,
+        ),
         call_targets: lir::CallTargets::default(),
         locals: Arena::new(),
         temps: Arena::new(),
@@ -95,4 +140,115 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
             lir::LirType::Ptr(kind)
         );
     }
+}
+
+#[test]
+fn enum_unit_constant_maps_between_checked_stage_local_refs() {
+    let mut mir_enums = Arena::new();
+    let mir_enum = mir_enums.alloc(mir::EnumDef {
+        name: "Flag".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![mir::VariantDef {
+            name: "Off".to_string(),
+            gc_free: true,
+            fields: Vec::new(),
+        }],
+    });
+    let source = mir::MirVariantRef::new(&mir_enums, mir_enum, 0).expect("unit variant");
+    let mut lir_enums = lir::EnumDefs::default();
+    let lir_enum = lir_enums.alloc(lir::EnumDef {
+        name: "Flag".to_string(),
+        repr: lir::EnumRepr::Tagged {
+            variants: vec![lir::EnumVariantRepr {
+                fields: Vec::new(),
+                slot_offset: 8,
+                slot_size: 0,
+                slot_align: 1,
+                gc_free: true,
+            }],
+            size: 8,
+            align: 8,
+        },
+        scan: lir::RefScan::None,
+    });
+    let lowered = lower_constant_image(
+        &mir::MirConstantImage::EnumUnit { variant: source },
+        &lir_enums,
+        &HashMap::new(),
+    );
+    let lir::LirConstantImage::EnumUnit { variant } = lowered else {
+        panic!("unit enum constant stays a typed unit enum constant")
+    };
+    assert!(lir_enums.contains_variant(variant));
+    assert_eq!(variant.definition(), lir_enum);
+    assert_eq!(variant.index(), source.variant_index());
+}
+
+#[test]
+fn static_initial_state_and_all_integer_constant_variants_lower_exhaustively() {
+    let cases = [
+        (
+            mir::MirIntegerConstant::Signed8(0x80),
+            lir::LirIntegerConstant::Signed8(0x80),
+        ),
+        (
+            mir::MirIntegerConstant::Signed16(0x8000),
+            lir::LirIntegerConstant::Signed16(0x8000),
+        ),
+        (
+            mir::MirIntegerConstant::Signed32(0x8000_0000),
+            lir::LirIntegerConstant::Signed32(0x8000_0000),
+        ),
+        (
+            mir::MirIntegerConstant::Signed64(0x8000_0000_0000_0000),
+            lir::LirIntegerConstant::Signed64(0x8000_0000_0000_0000),
+        ),
+        (
+            mir::MirIntegerConstant::Unsigned8(u8::MAX),
+            lir::LirIntegerConstant::Unsigned8(u8::MAX),
+        ),
+        (
+            mir::MirIntegerConstant::Unsigned16(u16::MAX),
+            lir::LirIntegerConstant::Unsigned16(u16::MAX),
+        ),
+        (
+            mir::MirIntegerConstant::Unsigned32(u32::MAX),
+            lir::LirIntegerConstant::Unsigned32(u32::MAX),
+        ),
+        (
+            mir::MirIntegerConstant::Unsigned64(u64::MAX),
+            lir::LirIntegerConstant::Unsigned64(u64::MAX),
+        ),
+    ];
+    for (source, expected) in cases {
+        assert_eq!(
+            lower_constant_image(
+                &mir::MirConstantImage::Integer(source),
+                &lir::EnumDefs::default(),
+                &HashMap::new(),
+            ),
+            lir::LirConstantImage::Integer(expected)
+        );
+    }
+    assert!(matches!(
+        lower_static_initial_state(
+            &mir::MirStaticInitialState::ZeroedForRuntimeUnit,
+            &lir::EnumDefs::default(),
+            &HashMap::new(),
+        ),
+        lir::LirStaticInitialState::ZeroedForRuntimeUnit
+    ));
+    assert!(matches!(
+        lower_static_initial_state(
+            &mir::MirStaticInitialState::EncodedStaticValue {
+                payload: mir::MirConstantImage::Integer(mir::MirIntegerConstant::Unsigned16(0),),
+            },
+            &lir::EnumDefs::default(),
+            &HashMap::new(),
+        ),
+        lir::LirStaticInitialState::EncodedStaticValue {
+            payload: lir::LirConstantImage::Integer(lir::LirIntegerConstant::Unsigned16(0)),
+        }
+    ));
 }

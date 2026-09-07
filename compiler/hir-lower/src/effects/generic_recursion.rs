@@ -10,8 +10,7 @@ use crate::Lowerer;
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SymbolicType {
     Unit,
-    Int,
-    UInt,
+    Integer(hir::IntegerKind),
     Boolean,
     String,
     Struct(hir::StructId, Vec<SymbolicType>),
@@ -174,8 +173,7 @@ impl Lowerer {
     ) -> SymbolicType {
         match &self.types[ty] {
             hir::Type::Unit => SymbolicType::Unit,
-            hir::Type::Int => SymbolicType::Int,
-            hir::Type::UInt => SymbolicType::UInt,
+            hir::Type::Integer(kind) => SymbolicType::Integer(*kind),
             hir::Type::Boolean => SymbolicType::Boolean,
             hir::Type::String => SymbolicType::String,
             hir::Type::Struct(application) => {

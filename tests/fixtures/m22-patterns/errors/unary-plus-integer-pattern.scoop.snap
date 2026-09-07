@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-patterns/errors/unary-plus-integer-pattern.scoop:6:9: error: expected pattern, found `+`

@@ -6,61 +6,129 @@ mod statements;
 
 use call::LoweredCallDestination;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct MappedLoopHeaderPollTarget {
+    block: lir::BlockId,
+}
+
+impl MappedLoopHeaderPollTarget {
+    pub(super) fn new(block: lir::BlockId) -> Self {
+        Self { block }
+    }
+
+    pub(super) fn block(self) -> lir::BlockId {
+        self.block
+    }
+}
+
+pub(super) struct LoweredFunction {
+    pub(super) function: lir::Function,
+    pub(super) loop_header_polls: Vec<MappedLoopHeaderPollTarget>,
+}
+
 /// Map a primitive MIR binary operator onto its LIR opcode. Operand and result
 /// types come exclusively from the typed MIR expressions.
 fn binary_op(op: mir::BinOp) -> lir::BinOp {
     match op {
-        mir::BinOp::IntAdd => lir::BinOp::Add,
-        mir::BinOp::IntSub => lir::BinOp::Sub,
-        mir::BinOp::IntMul => lir::BinOp::Mul,
-        mir::BinOp::IntDiv => lir::BinOp::SDiv,
-        mir::BinOp::IntRem => lir::BinOp::SRem,
-        mir::BinOp::UIntDiv => lir::BinOp::UDiv,
-        mir::BinOp::UIntRem => lir::BinOp::URem,
-        mir::BinOp::IntCompareTo => lir::BinOp::SCompareTo,
-        mir::BinOp::UIntCompareTo => lir::BinOp::UCompareTo,
-        mir::BinOp::IntLt => lir::BinOp::Lt,
-        mir::BinOp::IntLe => lir::BinOp::Le,
-        mir::BinOp::IntGt => lir::BinOp::Gt,
-        mir::BinOp::IntGe => lir::BinOp::Ge,
-        mir::BinOp::IntEq | mir::BinOp::BoolEq => lir::BinOp::Eq,
-        mir::BinOp::IntNe | mir::BinOp::BoolNe => lir::BinOp::Ne,
+        mir::BinOp::BoolEq | mir::BinOp::RefEq => lir::BinOp::Eq,
+        mir::BinOp::BoolNe | mir::BinOp::RefNe => lir::BinOp::Ne,
+        mir::BinOp::MachineEq(kind) => lir::BinOp::MachineEq(machine_scalar_kind(kind)),
+    }
+}
+
+fn integer_binary_op(op: mir::IntegerBinaryOperator) -> lir::IntegerBinaryOperation {
+    match op {
+        mir::IntegerBinaryOperator::Add => lir::IntegerBinaryOperation::Add,
+        mir::IntegerBinaryOperator::Subtract => lir::IntegerBinaryOperation::Subtract,
+        mir::IntegerBinaryOperator::Multiply => lir::IntegerBinaryOperation::Multiply,
+        mir::IntegerBinaryOperator::BitAnd => lir::IntegerBinaryOperation::BitwiseAnd,
+        mir::IntegerBinaryOperator::BitOr => lir::IntegerBinaryOperation::BitwiseOr,
+        mir::IntegerBinaryOperator::BitXor => lir::IntegerBinaryOperation::BitwiseXor,
+    }
+}
+
+fn integer_div_rem_op(op: mir::SafeIntegerDivRemOperator) -> lir::IntegerDivRemOperation {
+    match op {
+        mir::SafeIntegerDivRemOperator::Divide => lir::IntegerDivRemOperation::Divide,
+        mir::SafeIntegerDivRemOperator::Remainder => lir::IntegerDivRemOperation::Remainder,
+    }
+}
+
+fn integer_comparison(op: mir::IntegerComparisonOperator) -> lir::IntegerComparison {
+    match op {
+        mir::IntegerComparisonOperator::LessThan => lir::IntegerComparison::Less,
+        mir::IntegerComparisonOperator::LessThanOrEqual => lir::IntegerComparison::LessOrEqual,
+        mir::IntegerComparisonOperator::GreaterThan => lir::IntegerComparison::Greater,
+        mir::IntegerComparisonOperator::GreaterThanOrEqual => {
+            lir::IntegerComparison::GreaterOrEqual
+        }
+        mir::IntegerComparisonOperator::Equal => lir::IntegerComparison::Equal,
+        mir::IntegerComparisonOperator::NotEqual => lir::IntegerComparison::NotEqual,
+    }
+}
+
+fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftOperation {
+    match (operation.value_kind().signedness(), operation.operator()) {
+        (_, mir::IntegerShiftOperator::Left) => lir::IntegerShiftOperation::Left,
+        (mir::IntegerSignedness::Signed, mir::IntegerShiftOperator::Right) => {
+            lir::IntegerShiftOperation::ArithmeticRight
+        }
+        (mir::IntegerSignedness::Unsigned, mir::IntegerShiftOperator::Right)
+        | (mir::IntegerSignedness::Signed, mir::IntegerShiftOperator::UnsignedRight) => {
+            lir::IntegerShiftOperation::LogicalRight
+        }
+        (mir::IntegerSignedness::Unsigned, mir::IntegerShiftOperator::UnsignedRight) => {
+            unreachable!("MIR rejects unsigned ushr when constructing its typed operation")
+        }
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
+    context: &'a LoweringContext,
     module: &'a mir::Module,
     function: &'a mir::Function,
+    signature: &'a lir::ScoopAbiSignature,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
     layout_types: &mut Vec<mir::Type>,
-    structs: &Arena<lir::StructDef>,
-    enums: &Arena<lir::EnumDef>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
-) -> lir::Function {
+) -> LoweredFunction {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
     let address_taken = locals::address_taken(function);
     let mut local_map = HashMap::new();
-    let params: Vec<lir::LirType> = function
+    assert_eq!(
+        function.params.len(),
+        signature.logical_argument_count(),
+        "preclassified function signature preserves logical arity"
+    );
+    for (index, (param, abi_argument)) in function
         .params
         .iter()
+        .zip(signature.arguments())
         .enumerate()
-        .map(|(index, param)| {
-            record_layout_types(&param.ty, layout_types);
-            if !address_taken.contains(&param.local) {
-                local_map.insert(param.local, LocalSlot::Param(index as u32));
-            }
-            lir_type(&param.ty)
-        })
-        .collect();
+    {
+        record_layout_types(&param.ty, layout_types);
+        assert_eq!(
+            &lir_type(&param.ty),
+            abi_argument.logical_storage_type(),
+            "preclassified function parameter preserves its LIR storage type"
+        );
+        if !address_taken.contains(&param.local) {
+            local_map.insert(param.local, LocalSlot::Param(index as u32));
+        }
+    }
 
     // One LIR stack slot per non-parameter MIR local, in declaration
     // order.
@@ -79,12 +147,15 @@ pub(super) fn lower_function<'a>(
 
     // Unit-returning functions are void at the LLVM level (DESIGN 2.4).
     record_layout_types(&function.return_ty, layout_types);
-    let returns_void = function.return_ty == mir::Type::Unit;
-    let return_ty = if returns_void {
-        lir::LirType::Void
-    } else {
-        lir_type(&function.return_ty)
-    };
+    let returns_void = matches!(signature.result(), lir::AbiReturn::UnitVoid);
+    assert_eq!(returns_void, function.return_ty == mir::Type::Unit);
+    if let Some(storage_type) = signature.result().logical_storage_type() {
+        assert_eq!(
+            storage_type,
+            &lir_type(&function.return_ty),
+            "preclassified function result preserves its LIR storage type"
+        );
+    }
 
     let mut blocks = Arena::new();
     let mut block_map = HashMap::new();
@@ -97,7 +168,14 @@ pub(super) fn lower_function<'a>(
         block_map.insert(mir_id, lir_id);
     }
     let entry = block_map[&function.body.entry];
+    let loop_header_polls = function
+        .body
+        .loop_header_polls
+        .iter()
+        .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
+        .collect();
     let mut lowerer = FunctionLowerer {
+        context,
         module,
         mir_locals: &function.body.locals,
         global_map,
@@ -110,6 +188,8 @@ pub(super) fn lower_function<'a>(
         array_types,
         type_descriptors,
         local_function_map,
+        function_signatures,
+        extern_functions,
         extern_function_refs,
         safepoint_ids,
         local_map,
@@ -149,19 +229,21 @@ pub(super) fn lower_function<'a>(
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
-    lir::Function {
-        gc_effect: match function.gc_effect {
-            mir::GcEffect::Managed => lir::GcEffect::Managed,
-            mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+    LoweredFunction {
+        function: lir::Function {
+            gc_effect: match function.gc_effect {
+                mir::GcEffect::Managed => lir::GcEffect::Managed,
+                mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+            },
+            symbol: function.symbol.clone(),
+            signature: signature.clone(),
+            call_targets: lowerer.call_targets,
+            locals: lowerer.locals,
+            temps: lowerer.temps,
+            blocks: lowerer.blocks,
+            entry,
         },
-        symbol: function.symbol.clone(),
-        params,
-        return_ty,
-        call_targets: lowerer.call_targets,
-        locals: lowerer.locals,
-        temps: lowerer.temps,
-        blocks: lowerer.blocks,
-        entry,
+        loop_header_polls,
     }
 }
 
@@ -182,6 +264,7 @@ enum LocalSlot {
 /// block was already sealed (by a `return`, or by a trap call), so
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
+    context: &'a LoweringContext,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,
@@ -193,16 +276,18 @@ struct FunctionLowerer<'a> {
     /// Sink for tuple types encountered in value types (meta layouts).
     layout_types: &'a mut Vec<mir::Type>,
     /// Complete value layouts used to classify return conventions and scans.
-    structs: &'a Arena<lir::StructDef>,
+    structs: &'a lir::StructDefs,
     /// Enum definitions with fixed representations (enum value
     /// sizing, e.g. for `scoop_rt_box` payload sizes).
-    enums: &'a Arena<lir::EnumDef>,
+    enums: &'a lir::EnumDefs,
     /// Complete class-application to array-metadata mapping produced before
     /// any function is lowered.
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     /// Complete typed TypeDescriptor graph built before body lowering.
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
     local_map: HashMap<mir::LocalId, LocalSlot>,
@@ -232,6 +317,16 @@ struct FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     fn array_type_id(&self, class: mir::ClassId) -> lir::ArrayTypeId {
         self.array_types[&class]
+    }
+
+    fn value_layout(&self, ty: &mir::Type) -> (u64, u64) {
+        let enum_shape =
+            |id: mir::EnumId| repr_shape(self.context, &self.enums[enum_def_id(id)].repr);
+        size_align(self.context, self.module, &enum_shape, ty)
+    }
+
+    fn value_ref_scan(&self, ty: &mir::Type) -> lir::RefScan {
+        ref_scan(self.context, self.module, self.enums, ty, 0)
     }
 
     fn new_block(&mut self, base: &str) -> lir::BlockId {

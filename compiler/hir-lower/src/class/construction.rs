@@ -610,6 +610,7 @@ impl Lowerer {
             &mut self.current_fn_name,
             format!("<init {owner_name}: {context}>"),
         );
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_owner = self.current_owner.replace(owner);
         let outer_this = self.current_this.take();
         let outer_source_context = self.current_source_context;
@@ -635,6 +636,8 @@ impl Lowerer {
         self.current_fn_name = outer_fn_name;
         self.current_return_ty = outer_return_ty;
         self.locals = outer_locals;
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
         self.constructor_params_in_scope = outer_constructor_parameters;
         self.type_params_in_scope = outer_type_parameters;
 

@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m17-defaults/errors/default-later-reference.scoop:1:26: error: unknown variable `second`
+m17-defaults/errors/default-later-reference.scoop:1:26: error: unknown variable `second`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

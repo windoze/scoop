@@ -31,6 +31,9 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) callback_by_target:
         &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     pub(super) foreign_callback_adapters: &'a mut Arena<mir::ForeignCallbackAdapter>,
+    pub(super) foreign_callback_families: &'a mut Arena<mir::ForeignCallbackFamily>,
+    pub(super) foreign_callback_family_by_callback:
+        &'a mut HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     pub(super) foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
     pub(super) foreign_callback_by_registration:
         &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
@@ -52,6 +55,10 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,
+    /// Active concrete-HIR loop identities explicitly remapped into the
+    /// private structured construction IR for this callable.
+    pub(super) active_loops: Vec<(hir::LoopId, smir::LoopId)>,
+    pub(super) next_loop_id: u32,
     /// Constructor-parameter identities available while lowering one
     /// generated class constructor's delegation expressions.
     pub(super) constructor_param_map: HashMap<hir::ConstructorParamId, smir::Expr>,
@@ -65,8 +72,6 @@ pub(super) struct BodyLowerer<'a> {
     /// Statement kinds that must precede the statement currently being
     /// lowered (the trap test of `!!`); drained by the caller.
     pub(super) prelude: Vec<smir::StatementKind>,
-    /// Declaration indices of `Option::Some` / `Option::None`.
-    pub(super) option_variants: (u32, u32),
     pub(super) coroutines: &'a mut CoroutineRegistry,
     pub(super) lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
     pub(super) anonymous_closures: &'a HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
@@ -87,13 +92,25 @@ pub(super) struct BodyLowerer<'a> {
     /// Hidden by-value parameters of a lifted local function, keyed by the
     /// global lexical binding they carry.
     pub(super) current_local_capture_params: HashMap<hir::BindingId, hir::LocalId>,
+    /// Set by typed named/local/method/super/callable call lowering. This is
+    /// deliberately about calls present in this body, not whether the body is
+    /// declared `suspend`: a suspend declaration with no suspend call needs no
+    /// coroutine-specific EH materialization.
+    pub(super) contains_suspend_call: bool,
 }
 
 /// A step from a pattern subject down to a nested field.
 #[derive(Clone, Copy)]
 enum Access {
     Field(u32),
-    EnumField { variant: u32, index: u32 },
+    VariantField(mir::MirVariantFieldRef),
+}
+
+/// A top-level variant needs a fresh stable root because a suspendable when
+/// subject can be restored with `Assign`. Nested variants already materialize
+/// their nonempty access path immediately before their own test.
+fn pattern_requires_stable_variant_subject(pattern: &hir::Pattern) -> bool {
+    matches!(pattern, hir::Pattern::Variant { .. })
 }
 
 /// Combine two conditions with `&&`; CFG normalization expands the short circuit.

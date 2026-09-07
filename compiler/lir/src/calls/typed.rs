@@ -4,17 +4,22 @@ use super::*;
 pub enum TypedCall<Destination> {
     Void {
         target: VoidCallTargetId<Destination>,
-        args: Vec<Value>,
+        args: Vec<AbiCallArgument>,
+    },
+    ElidedZst {
+        target: ElidedZstCallTargetId<Destination>,
+        out: TempId,
+        args: Vec<AbiCallArgument>,
     },
     Direct {
         target: DirectCallTargetId<Destination>,
         out: TempId,
-        args: Vec<Value>,
+        args: Vec<AbiCallArgument>,
     },
     IndirectResult {
         target: IndirectResultCallTargetId<Destination>,
         storage: LocalId,
-        args: Vec<Value>,
+        args: Vec<AbiCallArgument>,
     },
 }
 
@@ -25,14 +30,16 @@ pub type NativeSafeTypedCall = TypedCall<NativeSafeCallDestination>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypedCallResult {
     Void,
+    ElidedZst(TempId),
     Direct(TempId),
     IndirectResult(LocalId),
 }
 
 impl<Destination> TypedCall<Destination> {
-    pub fn args(&self) -> &[Value] {
+    pub fn args(&self) -> &[AbiCallArgument] {
         match self {
             Self::Void { args, .. }
+            | Self::ElidedZst { args, .. }
             | Self::Direct { args, .. }
             | Self::IndirectResult { args, .. } => args,
         }
@@ -41,6 +48,13 @@ impl<Destination> TypedCall<Destination> {
     pub fn direct_out(&self) -> Option<TempId> {
         match *self {
             Self::Direct { out, .. } => Some(out),
+            Self::Void { .. } | Self::ElidedZst { .. } | Self::IndirectResult { .. } => None,
+        }
+    }
+
+    pub fn result_temp(&self) -> Option<TempId> {
+        match *self {
+            Self::ElidedZst { out, .. } | Self::Direct { out, .. } => Some(out),
             Self::Void { .. } | Self::IndirectResult { .. } => None,
         }
     }
@@ -48,13 +62,14 @@ impl<Destination> TypedCall<Destination> {
     pub fn result_storage(&self) -> Option<LocalId> {
         match *self {
             Self::IndirectResult { storage, .. } => Some(storage),
-            Self::Void { .. } | Self::Direct { .. } => None,
+            Self::Void { .. } | Self::ElidedZst { .. } | Self::Direct { .. } => None,
         }
     }
 
     pub fn result(&self) -> TypedCallResult {
         match *self {
             Self::Void { .. } => TypedCallResult::Void,
+            Self::ElidedZst { out, .. } => TypedCallResult::ElidedZst(out),
             Self::Direct { out, .. } => TypedCallResult::Direct(out),
             Self::IndirectResult { storage, .. } => TypedCallResult::IndirectResult(storage),
         }
@@ -73,6 +88,7 @@ pub enum NativeBorrowedResultRoot {
 #[derive(Debug)]
 enum NativeBorrowedCall {
     Void(TypedCall<NativeBorrowedCallDestination>),
+    ElidedZst(TypedCall<NativeBorrowedCallDestination>),
     DirectGcFree(TypedCall<NativeBorrowedCallDestination>),
     DirectRooted {
         call: TypedCall<NativeBorrowedCallDestination>,
@@ -96,6 +112,7 @@ pub struct NativeBorrowedTypedCall(NativeBorrowedCall);
 #[derive(Debug, Clone, Copy)]
 pub enum NativeBorrowedResultPublication<'a> {
     Void,
+    ElidedZst,
     DirectGcFree,
     DirectRooted {
         storage: LocalId,
@@ -117,6 +134,7 @@ impl NativeBorrowedTypedCall {
     fn call(&self) -> &TypedCall<NativeBorrowedCallDestination> {
         match &self.0 {
             NativeBorrowedCall::Void(call)
+            | NativeBorrowedCall::ElidedZst(call)
             | NativeBorrowedCall::DirectGcFree(call)
             | NativeBorrowedCall::DirectRooted { call, .. }
             | NativeBorrowedCall::IndirectResultGcFree(call)
@@ -124,12 +142,16 @@ impl NativeBorrowedTypedCall {
         }
     }
 
-    pub fn args(&self) -> &[Value] {
+    pub fn args(&self) -> &[AbiCallArgument] {
         self.call().args()
     }
 
     pub fn direct_out(&self) -> Option<TempId> {
         self.call().direct_out()
+    }
+
+    pub fn result_temp(&self) -> Option<TempId> {
+        self.call().result_temp()
     }
 
     pub fn result(&self) -> TypedCallResult {
@@ -139,6 +161,7 @@ impl NativeBorrowedTypedCall {
     pub fn view<'a>(&'a self, targets: &'a CallTargets) -> NativeBorrowedTypedCallView<'a> {
         let result = match &self.0 {
             NativeBorrowedCall::Void(_) => NativeBorrowedResultPublication::Void,
+            NativeBorrowedCall::ElidedZst(_) => NativeBorrowedResultPublication::ElidedZst,
             NativeBorrowedCall::DirectGcFree(_) => NativeBorrowedResultPublication::DirectGcFree,
             NativeBorrowedCall::DirectRooted { storage, scan, .. } => {
                 NativeBorrowedResultPublication::DirectRooted {
@@ -175,7 +198,15 @@ pub enum TypedCallView<'a> {
         signature_id: u32,
         destination: CallDestination,
         signature: &'a VoidCallSignature,
-        args: &'a [Value],
+        args: &'a [AbiCallArgument],
+    },
+    ElidedZst {
+        target: u32,
+        signature_id: u32,
+        destination: CallDestination,
+        signature: &'a ElidedZstCallSignature,
+        out: TempId,
+        args: &'a [AbiCallArgument],
     },
     Direct {
         target: u32,
@@ -183,7 +214,7 @@ pub enum TypedCallView<'a> {
         destination: CallDestination,
         signature: &'a DirectCallSignature,
         out: TempId,
-        args: &'a [Value],
+        args: &'a [AbiCallArgument],
     },
     IndirectResult {
         target: u32,
@@ -191,7 +222,7 @@ pub enum TypedCallView<'a> {
         destination: CallDestination,
         signature: &'a IndirectResultCallSignature,
         storage: LocalId,
-        args: &'a [Value],
+        args: &'a [AbiCallArgument],
     },
 }
 
@@ -199,6 +230,7 @@ impl TypedCallView<'_> {
     pub fn target_raw(&self) -> u32 {
         match self {
             Self::Void { target, .. }
+            | Self::ElidedZst { target, .. }
             | Self::Direct { target, .. }
             | Self::IndirectResult { target, .. } => *target,
         }
@@ -207,6 +239,7 @@ impl TypedCallView<'_> {
     pub const fn return_convention_name(&self) -> &'static str {
         match self {
             Self::Void { .. } => "void",
+            Self::ElidedZst { .. } => "elided-zst",
             Self::Direct { .. } => "direct",
             Self::IndirectResult { .. } => "indirect",
         }
@@ -215,30 +248,49 @@ impl TypedCallView<'_> {
     pub fn destination(&self) -> CallDestination {
         match self {
             Self::Void { destination, .. }
+            | Self::ElidedZst { destination, .. }
             | Self::Direct { destination, .. }
             | Self::IndirectResult { destination, .. } => *destination,
         }
     }
 
-    pub fn args(&self) -> &[Value] {
+    pub fn args(&self) -> &[AbiCallArgument] {
         match self {
             Self::Void { args, .. }
+            | Self::ElidedZst { args, .. }
             | Self::Direct { args, .. }
             | Self::IndirectResult { args, .. } => args,
+        }
+    }
+
+    pub fn arguments(&self) -> &[AbiArgument] {
+        match self {
+            Self::Void { signature, .. } => signature.arguments(),
+            Self::ElidedZst { signature, .. } => signature.arguments(),
+            Self::Direct { signature, .. } => signature.arguments(),
+            Self::IndirectResult { signature, .. } => signature.arguments(),
         }
     }
 
     pub fn result_scan(&self) -> &RefScan {
         match self {
             Self::Void { .. } => &RefScan::None,
-            Self::Direct { signature, .. } => &signature.result_scan,
-            Self::IndirectResult { signature, .. } => &signature.result.scan,
+            Self::ElidedZst { signature, .. } => signature.result().scan(),
+            Self::Direct { signature, .. } => signature.result().scan(),
+            Self::IndirectResult { signature, .. } => signature.result().scan(),
         }
     }
 
     pub fn direct_out(&self) -> Option<TempId> {
         match self {
             Self::Direct { out, .. } => Some(*out),
+            Self::Void { .. } | Self::ElidedZst { .. } | Self::IndirectResult { .. } => None,
+        }
+    }
+
+    pub fn result_temp(&self) -> Option<TempId> {
+        match self {
+            Self::ElidedZst { out, .. } | Self::Direct { out, .. } => Some(*out),
             Self::Void { .. } | Self::IndirectResult { .. } => None,
         }
     }
@@ -246,6 +298,7 @@ impl TypedCallView<'_> {
     pub fn result(&self) -> TypedCallResult {
         match self {
             Self::Void { .. } => TypedCallResult::Void,
+            Self::ElidedZst { out, .. } => TypedCallResult::ElidedZst(*out),
             Self::Direct { out, .. } => TypedCallResult::Direct(*out),
             Self::IndirectResult { storage, .. } => TypedCallResult::IndirectResult(*storage),
         }
@@ -267,6 +320,17 @@ impl CallTargets {
                     signature_id: target_value.signature.into_raw().into_u32(),
                     destination: destination_view(target_value.destination),
                     signature: &self.void_signatures[target_value.signature],
+                    args,
+                }
+            }
+            TypedCall::ElidedZst { target, out, args } => {
+                let target_value = &targets.elided_zst[*target];
+                TypedCallView::ElidedZst {
+                    target: target.into_raw().into_u32(),
+                    signature_id: target_value.signature.into_raw().into_u32(),
+                    destination: destination_view(target_value.destination),
+                    signature: &self.elided_zst_signatures[target_value.signature],
+                    out: *out,
                     args,
                 }
             }
@@ -309,6 +373,7 @@ impl CallTargets {
     ) -> NativeBorrowedTypedCall {
         enum ResultShape {
             Void,
+            ElidedZst,
             Direct(RefScan),
             IndirectResult { storage: LocalId, scan: RefScan },
         }
@@ -319,19 +384,30 @@ impl CallTargets {
             NativeBorrowedCallDestination::view,
         ) {
             TypedCallView::Void { .. } => ResultShape::Void,
+            TypedCallView::ElidedZst { .. } => ResultShape::ElidedZst,
             TypedCallView::Direct { signature, .. } => {
-                ResultShape::Direct(signature.result_scan.clone())
+                ResultShape::Direct(signature.result().scan().clone())
             }
             TypedCallView::IndirectResult {
                 signature, storage, ..
-            } => ResultShape::IndirectResult {
-                storage,
-                scan: signature.result.scan.clone(),
-            },
+            } => {
+                assert_eq!(
+                    signature.convention(),
+                    IndirectResultConvention::ScoopSret,
+                    "native-borrowed calls cannot use a C storage result pointer"
+                );
+                ResultShape::IndirectResult {
+                    storage,
+                    scan: signature.result().scan().clone(),
+                }
+            }
         };
 
         let call = match (shape, result_root) {
             (ResultShape::Void, NativeBorrowedResultRoot::GcFree) => NativeBorrowedCall::Void(call),
+            (ResultShape::ElidedZst, NativeBorrowedResultRoot::GcFree) => {
+                NativeBorrowedCall::ElidedZst(call)
+            }
             (ResultShape::Direct(RefScan::None), NativeBorrowedResultRoot::GcFree) => {
                 NativeBorrowedCall::DirectGcFree(call)
             }

@@ -1,7 +1,7 @@
 public struct SourceLocation(
     val file: String,
-    val line: Int,
-    val column: Int,
+    val line: Long,
+    val column: Long,
     val functionName: String,
     val typeName: String
 )

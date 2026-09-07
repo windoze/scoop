@@ -10,5 +10,5 @@ m16-call-resolution/errors/candidate-traces.scoop:14:12: error: no applicable ca
   - fun select(operation: (Int) -> Int): Int — argument for `operation` (expected (Int) -> Int): lambda result must be of type Int, found Boolean
   - fun select(operation: (String) -> String): String — argument for `operation` (expected (String) -> String): lambda result must be of type String, found Boolean
 m16-call-resolution/errors/candidate-traces.scoop:15:5: error: call to `merge` is ambiguous in current-unit top-level candidate layer:
-  - fun merge(a: Int, b: Any): Int — tied after pairwise declaration forwarding
-  - fun merge(a: Any, b: Int): Int — tied after pairwise declaration forwarding
+  - fun merge(a: Int, b: Any): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `a` = Int, argument for `b` = Int
+  - fun merge(a: Any, b: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `a` = Int, argument for `b` = Int

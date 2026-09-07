@@ -40,10 +40,7 @@ pub(crate) enum SourceParameterOwner {
     Function(hir::FunctionId),
     StructConstructor(hir::StructConstructorId),
     ClassConstructor(hir::ClassConstructorId),
-    VariantConstructor {
-        enumeration: hir::EnumId,
-        variant: u32,
-    },
+    VariantConstructor(hir::EnumVariantRef),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -293,11 +290,10 @@ impl Lowerer {
                         self.enums[enumeration].name, source_variant.name.text
                     ),
                 };
+                let variant = hir::EnumVariantRef::checked(&self.enums, enumeration, variant_index)
+                    .expect("a source enum variant index is checked against its declaration");
                 self.lower_parameter_interface(
-                    hir::ExportParameterOwner::VariantConstructor {
-                        enumeration,
-                        variant: variant_index,
-                    },
+                    hir::ExportParameterOwner::VariantConstructor(variant),
                     &sources,
                     &context,
                 );

@@ -134,6 +134,21 @@ impl BindingId {
     }
 }
 
+/// Local-concrete identity of one materialized structured loop occurrence.
+/// This is deliberately distinct from the Export HIR identity family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LoopId(u32);
+
+impl LoopId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VariantId(u32);
 
@@ -187,8 +202,7 @@ pub struct Type {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeKind {
     Unit,
-    Int,
-    UInt,
+    Integer(IntegerKind),
     Boolean,
     String,
     Struct(StructId),

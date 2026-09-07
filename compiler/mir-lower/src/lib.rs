@@ -25,8 +25,9 @@
 //! (the subject is evaluated once into a hidden local; each arm is a
 //! tag comparison, then the field bindings, then the guard nested so a
 //! failed guard falls through to the next arm). The HIR Option nodes
-//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
-//! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
+//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic enum
+//! construction plus representation-independent checked variant tests and
+//! payload projections; a trapping `Unwrap` (`!!`) becomes an if/else whose
 //! else branch throws `UnwrapException` (M8).
 //!
 //! M8: exceptions (docs/milestone8/DESIGN.md section 3.3). `try` /
@@ -129,7 +130,8 @@ use instances::{InstanceRegistry, function_instance};
 use structured as smir;
 use types::{
     BoxedRegistry, EnumRegistry, InterfaceRegistry, StructRegistry, Types, is_boxable,
-    is_reference_mir, mir_type_gc_free,
+    is_reference_mir, lower_integer_constant, lower_integer_kind, mir_type_gc_free,
+    raise_integer_kind, remap_idx,
 };
 
 /// Lower HIR to MIR.
@@ -150,6 +152,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_family_by_callback: HashMap::new(),
         foreign_callback_bridges: Arena::new(),
         foreign_callback_by_registration: HashMap::new(),
         top_level: Vec::new(),
@@ -168,7 +172,6 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
-        option_variants: (0, 0),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -204,6 +207,8 @@ struct Lowerer {
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_families: Arena<mir::ForeignCallbackFamily>,
+    foreign_callback_family_by_callback: HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
     foreign_callback_by_registration:
         HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
@@ -241,7 +246,6 @@ struct Lowerer {
     /// to its symbol (see `declare_symbol`).
     overloaded: HashSet<String>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
-    option_variants: (u32, u32),
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,
     closure_classes: Arena<mir::ClosureClass>,

@@ -65,6 +65,28 @@ fn when_guard_dump() {
 }
 
 #[test]
+fn literal_pattern_dump_is_source_shaped() {
+    assert_eq!(
+        stmt_dump("when (value) {\n        Value((false,), 1, \"x\", ()) if (flag) -> { }\n    }"),
+        "when\n  Var value\n  arm Value((false,), 1, \"x\", ()) if <guard>\n"
+    );
+}
+
+#[test]
+fn when_expression_dump_marks_guarded_arms() {
+    let file = ok(
+        "fun choose(value: Boolean, flag: Boolean): Int = when (value) {\n\
+             true if (flag) -> 1\n\
+             false -> 0\n\
+         }\n",
+    );
+    assert_eq!(
+        scoop_ast::dump(&file),
+        "SourceFile\n  fun choose(value: Boolean, flag: Boolean): Int\n    =\n      WhenExpression\n        Var value\n        arm true if <guard>\n          IntLiteral 1\n        arm false\n          IntLiteral 0\n"
+    );
+}
+
+#[test]
 fn when_positional_pattern_with_literal_and_wildcard() {
     let when = when_with_arms("        Rect(0, _) -> { }\n");
     let Pattern::Positional { elements, rest, .. } = &when.arms[0].pattern else {
@@ -98,14 +120,64 @@ fn when_named_field_pattern_with_rename_and_rest() {
     };
     assert_eq!(path.len(), 1);
     assert_eq!(fields.len(), 2);
-    assert_eq!(fields[0].name.text, "w");
-    assert!(fields[0].rename.is_none());
-    assert_eq!(fields[1].name.text, "h");
-    assert_eq!(
-        fields[1].rename.as_ref().map(|ident| ident.text.as_str()),
-        Some("height")
-    );
+    assert_eq!(fields[0].field.text, "w");
+    assert!(matches!(
+        &*fields[0].subpattern,
+        Pattern::Binding(name) if name == &fields[0].field
+    ));
+    assert_eq!(fields[1].field.text, "h");
+    assert!(matches!(
+        &*fields[1].subpattern,
+        Pattern::Binding(name) if name.text == "height"
+    ));
     assert!(rest.is_some());
+}
+
+#[test]
+fn when_named_fields_accept_recursive_subpatterns() {
+    let when = when_with_arms(
+        "        Named { literal: 0, wild: _, tuple: (x, _), nested: { value, .. }, variant: Some(y), .. } -> { }\n",
+    );
+    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+        panic!("expected a named pattern");
+    };
+    assert_eq!(fields.len(), 5);
+    assert!(matches!(&*fields[0].subpattern, Pattern::Literal { .. }));
+    assert!(matches!(&*fields[1].subpattern, Pattern::Wildcard { .. }));
+    assert!(matches!(&*fields[2].subpattern, Pattern::Tuple { .. }));
+    assert!(matches!(
+        &*fields[3].subpattern,
+        Pattern::Named { path, .. } if path.is_empty()
+    ));
+    assert!(matches!(
+        &*fields[4].subpattern,
+        Pattern::Positional { path, .. } if path.len() == 1 && path[0].text == "Some"
+    ));
+}
+
+#[test]
+fn unprefixed_named_pattern_and_recursive_dump() {
+    let when = when_with_arms("        { child: { value, .. }, flag: false, .. } -> { }\n");
+    let pattern = &when.arms[0].pattern;
+    assert!(matches!(pattern, Pattern::Named { path, .. } if path.is_empty()));
+    assert_eq!(
+        scoop_ast::dump_pattern(pattern),
+        "{child: {value, ..}, flag: false, ..}"
+    );
+}
+
+#[test]
+fn field_pattern_span_includes_recursive_rhs() {
+    let when = when_with_arms("        S { child: (x, _) } -> { }\n");
+    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+        panic!("expected a named pattern");
+    };
+    let field = &fields[0];
+    assert_eq!(field.span.start, field.field.span.start);
+    assert_eq!(
+        field.span.end,
+        crate::pattern::pattern_span(&field.subpattern).end
+    );
 }
 
 #[test]
@@ -185,7 +257,7 @@ fn when_literal_patterns() {
             panic!("expected a literal pattern");
         };
         match expect {
-            "int" => assert!(matches!(*expr.clone(), Expr::IntLiteral { .. })),
+            "int" => assert!(matches!(*expr.clone(), Expr::IntLiteral(_))),
             "string" => assert!(matches!(*expr.clone(), Expr::StringLiteral { .. })),
             _ => assert!(matches!(*expr.clone(), Expr::BoolLiteral { .. })),
         }

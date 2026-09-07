@@ -8,8 +8,11 @@ pub(super) fn rewrite_site(
     frame_local: mir::LocalId,
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
+    frame_layout: FrameLayout,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    saved_values: &HashMap<mir::LocalId, mir::CoroutineSavedValueId>,
     failure_slot: FrameSlot,
+    failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -18,6 +21,11 @@ pub(super) fn rewrite_site(
     driver: mir::FunctionId,
     site: SuspendSite,
 ) -> GeneratedSite {
+    let parents = freeze_pending_context(site.pending.clone(), saved_values);
+    let outer_suspended = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .suspended();
     let block = &mut body.blocks[site.block];
     let suffix = block.statements.split_off(site.statement + 1);
     let suspend_statement = block
@@ -49,8 +57,11 @@ pub(super) fn rewrite_site(
             frame_local,
             frame_class,
             frame,
+            frame_layout,
             frame_slots,
+            parents,
             failure_slot.clone(),
+            failure_value,
             outer_step,
             outer_continuation,
             outer_resume,
@@ -68,7 +79,7 @@ pub(super) fn rewrite_site(
         lowerer,
         module,
         frame_class,
-        frame,
+        frame_layout,
         destination.map(|local| frame_slots[&local].clone()),
         failure_slot.clone(),
         outer_step,
@@ -78,7 +89,6 @@ pub(super) fn rewrite_site(
         source_symbol,
         driver,
         site.state,
-        failure_state(site.state),
         &site.result,
         None,
     );
@@ -88,6 +98,14 @@ pub(super) fn rewrite_site(
         mutable: false,
     });
     let step_ty = callee_return_type(lowerer, call.target.callee);
+    let completed_variant = lowerer
+        .coroutines
+        .step_metadata_for_type(&step_ty)
+        .completed();
+    let completed_payload = lowerer
+        .coroutines
+        .step_metadata_for_type(&step_ty)
+        .completed_payload();
     let step_local = body.locals.alloc(mir::Local {
         name: format!("$step.{}", site.state),
         ty: step_ty.clone(),
@@ -111,15 +129,15 @@ pub(super) fn rewrite_site(
     }
     block.statements.push(atomic_field_store(
         mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-        0,
-        mir::Expr::int(i64::from(site.state)),
+        frame_layout.state.field_index(),
+        frame_state(suspended_state(site.state)),
     ));
     block.statements.extend(initialized_generated_class(
         adapter_local,
         adapter.class,
         vec![
             mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-            mir::Expr::int(ADAPTER_WAITING),
+            adapter_state(ADAPTER_WAITING),
         ],
     ));
     call.args.push(mir::Expr::local(
@@ -144,8 +162,8 @@ pub(super) fn rewrite_site(
                         site.result.clone(),
                         mir::ExprKind::EnumField {
                             operand: Box::new(mir::Expr::local(step_local, step_ty.clone())),
-                            variant: 0,
-                            index: 0,
+                            variant: completed_payload.variant().variant_index(),
+                            index: completed_payload.field_index(),
                         },
                     ),
                 }));
@@ -158,11 +176,11 @@ pub(super) fn rewrite_site(
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, unwind);
     let adapter_claim = body.locals.alloc(local(
         &format!("$completed_adapter_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
     ));
     let frame_claim = body.locals.alloc(local(
         &format!("$completed_frame_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
     ));
     let claim_frame = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.completed_claim_frame.{}", site.state),
@@ -170,15 +188,18 @@ pub(super) fn rewrite_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: completed,
             else_block: invalid,
@@ -192,14 +213,17 @@ pub(super) fn rewrite_site(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                 1,
-                ADAPTER_WAITING,
-                ADAPTER_CONSUMED,
+                adapter_state_value(ADAPTER_WAITING),
+                adapter_state_value(ADAPTER_CONSUMED),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(adapter_claim, mir::Type::Int),
-                ADAPTER_WAITING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    adapter_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_WAITING),
             ),
             then_block: claim_frame,
             else_block: invalid,
@@ -210,12 +234,12 @@ pub(super) fn rewrite_site(
         name: format!("coroutine.suspended.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step)),
+            value: Some(suspended_value(outer_step, outer_suspended)),
         },
         unwind: None,
     });
     body.blocks[site.block].terminator = mir::Terminator::Branch {
-        cond: is_completed(step_local, step_ty),
+        cond: is_completed(step_local, step_ty, completed_variant),
         then_block: claim_completed,
         else_block: suspended,
     };
@@ -246,20 +270,22 @@ pub(super) fn rewrite_site(
         terminator: mir::Terminator::Goto(post),
         unwind,
     });
-    GeneratedSite {
-        state: i64::from(site.state),
+    let failure_block =
+        failure_resume_block(body, frame_local, frame_slots, failure_slot, &site, unwind);
+    let point = register_resume_point(
+        lowerer,
+        frame,
+        site.state,
+        site.result,
+        &adapter,
+        parents,
+        post,
         resume_block,
-        failure_state: failure_state(site.state),
-        failure_block: failure_resume_block(
-            body,
-            frame_local,
-            frame_slots,
-            failure_slot,
-            &site,
-            unwind,
-        ),
-        point: adapter.point,
-    }
+        failure_block,
+        failure_value,
+        unwind,
+    );
+    GeneratedSite { point }
 }
 
 pub(super) fn failure_resume_block(
@@ -295,8 +321,8 @@ pub(super) fn failure_resume_block(
                         failure_slot.field,
                         failure_slot.slot_ty.clone(),
                     )),
-                    variant: 1,
-                    index: 0,
+                    variant: failure_slot.value_payload.variant().variant_index(),
+                    index: failure_slot.value_payload.field_index(),
                 },
             ),
             unwind,

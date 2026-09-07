@@ -57,14 +57,14 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Ref
-            && matches!(declaration.semantic_fields(), [field] if field.name == "raw" && field.ty == self.uint)
+            && matches!(declaration.semantic_fields(), [field] if field.name == "raw" && field.ty == self.integer_type(hir::IntegerKind::UNSIGNED_64))
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
         if !valid {
             self.error(
                 declaration.span,
-                format!("core `{name}` must be `struct {name}<T : ref>(val raw: UInt)`"),
+                format!("core `{name}` must be `struct {name}<T : ref>(val raw: ULong)`"),
             );
         }
     }
@@ -76,10 +76,10 @@ impl Lowerer {
         let parameter_matches = match kind {
             GcIntrinsic::Pin | GcIntrinsic::GetHandle => {
                 matches!(signature.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
-                    && signature.return_ty == self.uint
+                    && signature.return_ty == self.integer_type(hir::IntegerKind::UNSIGNED_64)
             }
             GcIntrinsic::Unpin | GcIntrinsic::ReleaseHandle => {
-                matches!(signature.params.as_slice(), [param] if param.ty == self.uint)
+                matches!(signature.params.as_slice(), [param] if param.ty == self.integer_type(hir::IntegerKind::UNSIGNED_64))
                     && self.is_type_param(signature.return_ty, 0)
             }
         };
@@ -106,15 +106,20 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Value
-            && matches!(declaration.semantic_fields(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && declaration.semantic_fields().is_empty()
+            && declaration.constructors.is_empty()
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
         if !valid {
             self.error(
                 declaration.span,
-                "core `Ptr` must be `struct Ptr<T : value>(val _rawPointer: UInt)`".to_string(),
+                "core `Ptr` must be a fieldless intrinsic `struct Ptr<T : value>`".to_string(),
             );
+        } else {
+            let type_param = declaration.type_params[0].id;
+            self.structs[id].gc_free_pointee_requirements =
+                vec![hir::RequiresGcFreePointee { type_param }];
         }
     }
 
@@ -123,7 +128,8 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Any
-            && matches!(declaration.semantic_fields(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && declaration.semantic_fields().is_empty()
+            && declaration.constructors.is_empty()
             && declaration.interfaces.is_empty()
             && declaration.methods.is_empty()
             && !declaration.attributes.interior_mutable
@@ -131,7 +137,7 @@ impl Lowerer {
         if !valid {
             self.error(
                 declaration.span,
-                "core `FunPtr` must be `struct FunPtr<F>(val _rawPointer: UInt)`".to_string(),
+                "core `FunPtr` must be a fieldless intrinsic `struct FunPtr<F>`".to_string(),
             );
         }
     }
@@ -156,11 +162,11 @@ impl Lowerer {
             && function.attributes.gc_effect == hir::GcEffect::NoGc;
         let valid = base
             && match kind {
-                hir::PointerIntrinsic::ToUInt => {
-                    function.name.ends_with(".toUInt")
+                hir::PointerIntrinsic::ToULong => {
+                    function.name.ends_with(".toULong")
                         && sig.type_params.len() == 1
                         && sig.params.is_empty()
-                        && sig.return_ty == self.uint
+                        && sig.return_ty == self.integer_type(hir::IntegerKind::UNSIGNED_64)
                 }
                 hir::PointerIntrinsic::Cast => {
                     function.name.ends_with(".cast")
@@ -178,7 +184,7 @@ impl Lowerer {
                 hir::PointerIntrinsic::LoadOffset => {
                     function.name.ends_with(".load")
                         && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
+                        && matches!(sig.params.as_slice(), [param] if param.ty == self.integer_type(hir::IntegerKind::SIGNED_64))
                         && self.is_type_param(sig.return_ty, 0)
                 }
                 hir::PointerIntrinsic::Store => {
@@ -190,7 +196,7 @@ impl Lowerer {
                 hir::PointerIntrinsic::StoreOffset => {
                     function.name.ends_with(".store")
                         && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [offset, value] if offset.ty == self.int && self.is_type_param(value.ty, 0))
+                        && matches!(sig.params.as_slice(), [offset, value] if offset.ty == self.integer_type(hir::IntegerKind::SIGNED_64) && self.is_type_param(value.ty, 0))
                         && sig.return_ty == self.unit
                 }
                 hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => {
@@ -202,7 +208,7 @@ impl Lowerer {
                         })
                         && !sig.modifiers.is_infix
                         && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
+                        && matches!(sig.params.as_slice(), [param] if param.ty == self.integer_type(hir::IntegerKind::SIGNED_64))
                         && self.is_ptr_param(sig.return_ty, 0)
                 }
                 _ => false,
@@ -210,9 +216,9 @@ impl Lowerer {
         if !valid {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
-                FunctionKind::User(_) => "pointer",
-                FunctionKind::DerivedEquality => "derived equality",
-                FunctionKind::Extern(_) => "extern",
+                FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::DerivedEquality => "derived equality".to_string(),
+                FunctionKind::Extern(_) => "extern".to_string(),
             };
             self.error(
                 function.span,
@@ -253,16 +259,16 @@ impl Lowerer {
                         && function.attributes.safety == hir::Safety::Safe
                         && function.attributes.gc_effect == hir::GcEffect::NoGc
                         && sig.params.is_empty()
-                        && sig.return_ty == self.uint
+                        && sig.return_ty == self.integer_type(hir::IntegerKind::UNSIGNED_64)
                 }
                 _ => false,
             };
         if !valid {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
-                FunctionKind::User(_) => "pointer",
-                FunctionKind::DerivedEquality => "derived equality",
-                FunctionKind::Extern(_) => "extern",
+                FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::DerivedEquality => "derived equality".to_string(),
+                FunctionKind::Extern(_) => "extern".to_string(),
             };
             self.error(
                 function.span,

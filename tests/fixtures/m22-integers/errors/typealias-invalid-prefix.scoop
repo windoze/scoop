@@ -1,0 +1,5 @@
+@Marker typealias Annotated = Int
+
+open typealias Modified = Int
+
+fun main() {}

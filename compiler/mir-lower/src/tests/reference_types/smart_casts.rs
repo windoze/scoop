@@ -24,10 +24,7 @@ fn smart_cast_unboxes_bind_typed_hidden_locals() {
                         hir::ExprKind::Unbox(Box::new(local_ref(a, any))),
                         s_ty,
                     )),
-                    field: hir::FieldRef::StructField {
-                        application: s_application,
-                        index: 0,
-                    },
+                    field: h.struct_field_ref(s_application, 0),
                 },
                 int,
             )],

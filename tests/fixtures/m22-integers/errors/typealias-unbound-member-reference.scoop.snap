@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-unbound-member-reference.scoop:8:21: error: unbound member reference `Alias::map` is not supported; bind an expression receiver first

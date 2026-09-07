@@ -18,21 +18,35 @@ fn barrier_module() -> Module {
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // alloc result
     let mut call_targets = CallTargets::default();
-    let alloc_site = direct_site(
+    let mut alloc_site = direct_site(
         &mut call_targets,
         TestCallProtocol::Managed {
             safepoint: 1,
             destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
         },
-        vec![METADATA_PTR, LirType::I64],
+        vec![
+            METADATA_PTR,
+            LirType::MachineScalar(MachineScalarKind::ByteSize),
+        ],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
-        vec![Value::Param(0), Value::IntConst(24)],
+        vec![
+            Value::Param(0),
+            Value::MachineScalar(MachineScalarValue::ByteSize(24)),
+        ],
     );
-    let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature {
-        params: Vec::new(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-    });
+    let live_array = || {
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Param(1),
+            MANAGED_PTR,
+            &[0],
+        )])
+    };
+    set_managed_live(&mut alloc_site, live_array());
+    let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature::new(
+        Vec::new(),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
     let poll_target = call_targets
         .managed_targets
         .void
@@ -70,19 +84,19 @@ fn barrier_module() -> Module {
                 site: scoop_lir::ManagedPollSite {
                     target: poll_target,
                     safepoint: test_safepoint(2),
-                    live: scoop_lir::StatepointLiveSet::default(),
+                    live: live_array(),
                 },
             },
             Instruction::Call { site: alloc_site },
             Instruction::HeapStore {
                 object: Value::Temp(t0),
                 offset: 16,
-                value: Value::IntConst(42),
+                value: signed64(42),
             },
             Instruction::ArraySet {
                 array: Value::Param(1),
-                index: Value::IntConst(0),
-                value: Value::IntConst(7),
+                index: signed64(0),
+                value: signed64(7),
                 array_type: int_array,
             },
         ],
@@ -111,18 +125,18 @@ fn barrier_module() -> Module {
     Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
-        structs: Arena::default(),
-        enums: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
+        enums: scoop_lir::EnumDefs::default(),
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![METADATA_PTR, MANAGED_PTR],
-            return_ty: LirType::Void,
+            signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], LirType::Void),
             call_targets,
             locals: Arena::default(),
             temps,
@@ -193,9 +207,9 @@ fn heap_store_inside_the_object_header_is_rejected() {
     let function = &mut module.functions[0];
     let entry = function.entry;
     function.blocks[entry].instructions[2] = Instruction::HeapStore {
-        object: Value::IntConst(0),
+        object: signed64(0),
         offset: 8,
-        value: Value::IntConst(42),
+        value: signed64(42),
     };
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();

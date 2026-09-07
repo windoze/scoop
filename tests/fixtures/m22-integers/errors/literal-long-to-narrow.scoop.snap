@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/literal-long-to-narrow.scoop:4:30: error: integer literal `1L` is not representable as Int8

@@ -7,7 +7,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));
         }
-        Expr::IntLiteral { value, .. } => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         Expr::UnitLiteral { .. } => out.push_str(&format!("{pad}UnitLiteral\n")),
         Expr::TupleLiteral { elements, .. } => {
@@ -92,6 +92,15 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             };
             out.push_str(&format!("{pad}FieldAccess {marker}{selector}\n"));
             dump_expr(&access.receiver, indent + 1, out);
+        }
+        Expr::CopyUpdate { base, fields, .. } => {
+            out.push_str(&format!("{pad}CopyUpdate\n"));
+            out.push_str(&format!("{pad}  base\n"));
+            dump_expr(base, indent + 2, out);
+            for field in fields.iter() {
+                out.push_str(&format!("{pad}  field {}\n", field.field.text));
+                dump_expr(&field.value, indent + 2, out);
+            }
         }
         Expr::Call(call) => {
             let type_args = dump_call_type_args(&call.type_args);
@@ -260,7 +269,15 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}WhenExpression\n"));
             dump_expr(&when.subject, indent + 1, out);
             for arm in &when.arms {
-                out.push_str(&format!("{pad}  arm {}\n", dump_pattern(&arm.pattern)));
+                out.push_str(&format!(
+                    "{pad}  arm {}{}\n",
+                    dump_pattern(&arm.pattern),
+                    if arm.guard.is_some() {
+                        " if <guard>"
+                    } else {
+                        ""
+                    }
+                ));
                 dump_block(&arm.body, indent + 2, out);
             }
             if let Some(else_body) = &when.else_body {

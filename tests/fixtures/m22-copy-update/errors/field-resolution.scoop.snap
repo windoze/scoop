@@ -1,0 +1,11 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-copy-update/errors/field-resolution.scoop:22:27: error: struct `Pair` has no field `missing`
+m22-copy-update/errors/field-resolution.scoop:27:36: error: copy update field `left` is specified more than once
+m22-copy-update/errors/field-resolution.scoop:32:33: error: copy update field `left` expects Int, found String
+m22-copy-update/errors/field-resolution.scoop:37:19: error: copy update requires an exact declared struct value, found Ambiguous
+m22-copy-update/errors/field-resolution.scoop:42:19: error: copy update requires an exact declared struct value, found CrossVariant
+m22-copy-update/errors/field-resolution.scoop:47:19: error: copy update requires an exact declared struct value, found NoMatch

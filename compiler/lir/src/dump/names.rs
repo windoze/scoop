@@ -9,13 +9,64 @@ pub(super) fn value_name(value: Value) -> String {
         Value::Local(id) => format!("local{}", id.into_raw()),
         Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),
-        Value::IntConst(value) => format!("{value}"),
+        Value::IntegerConst(value) => value.dump(),
+        Value::MachineScalar(value) => {
+            format!("machine<{}>({value:?})", value.kind().name())
+        }
         Value::BoolConst(value) => format!("{value}"),
         Value::NullPointer(kind) => format!("null<{}>", kind.dump()),
         Value::TypeDescriptor(reference) => type_descriptor_ref_name(reference),
         Value::RootScan(id) => format!("root-scan{}", id.into_raw()),
         Value::Global(id) => format!("global{}", id.into_raw()),
         Value::InitializationUnit(id) => format!("init{}", id.into_raw()),
+        Value::CArgumentStorage(storage) => {
+            format!("c-arg-address(local{})", storage.local().into_raw())
+        }
+    }
+}
+
+fn abi_value_name(value: &AbiValue) -> String {
+    format!(
+        "{} size={} align={} scan={}",
+        value.storage_type().dump(),
+        value.layout().size(),
+        value.layout().alignment(),
+        value.scan().dump()
+    )
+}
+
+fn abi_zst_name(value: &AbiZst) -> String {
+    format!(
+        "{} size=0 align={}",
+        value.storage_type().dump(),
+        value.layout().alignment()
+    )
+}
+
+pub(super) fn abi_argument_name(argument: &AbiArgument) -> String {
+    match argument {
+        AbiArgument::ElidedZst(value) => format!("elided-zst<{}>", abi_zst_name(value)),
+        AbiArgument::Direct(value) => value.storage_type().dump(),
+        AbiArgument::Indirect(value) => format!("indirect<{}>", abi_value_name(value)),
+    }
+}
+
+pub(super) fn abi_return_name(result: &AbiReturn) -> String {
+    match result {
+        AbiReturn::UnitVoid => "void".to_string(),
+        AbiReturn::ElidedZst(value) => format!("elided-zst<{}>", abi_zst_name(value)),
+        AbiReturn::Direct(value) => value.storage_type().dump(),
+        AbiReturn::Indirect(value) => format!("sret<{}>", abi_value_name(value)),
+    }
+}
+
+fn abi_call_argument_name(argument: AbiCallArgument) -> String {
+    match argument {
+        AbiCallArgument::ElidedZst(value) => format!("elided-zst {}", value_name(value)),
+        AbiCallArgument::Direct(value) => value_name(value),
+        AbiCallArgument::Indirect(storage) => {
+            format!("indirect local{}", storage.local().into_raw())
+        }
     }
 }
 
@@ -55,7 +106,7 @@ pub(super) fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> 
     let args = call
         .args()
         .iter()
-        .map(|arg| value_name(*arg))
+        .map(|arg| abi_call_argument_name(*arg))
         .collect::<Vec<_>>()
         .join(", ");
     match call {
@@ -66,14 +117,35 @@ pub(super) fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> 
             ..
         } => {
             let params = signature
-                .params
+                .arguments()
                 .iter()
-                .map(LirType::dump)
+                .map(abi_argument_name)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
                 "sig=void{} ({params}) {}({args})",
                 signature_id,
+                call_destination_name(function, *destination),
+            )
+        }
+        TypedCallView::ElidedZst {
+            signature_id,
+            destination,
+            signature,
+            out,
+            ..
+        } => {
+            let params = signature
+                .arguments()
+                .iter()
+                .map(abi_argument_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "t{} = sig=elided-zst{} ({params}) -> elided-zst<{}> {}({args})",
+                out.into_raw(),
+                signature_id,
+                abi_zst_name(signature.result()),
                 call_destination_name(function, *destination),
             )
         }
@@ -85,16 +157,16 @@ pub(super) fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> 
             ..
         } => {
             let params = signature
-                .params
+                .arguments()
                 .iter()
-                .map(LirType::dump)
+                .map(abi_argument_name)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
                 "t{} = sig=direct{} ({params}) -> {} {}({args})",
                 out.into_raw(),
                 signature_id,
-                signature.result.dump(),
+                signature.result().storage_type().dump(),
                 call_destination_name(function, *destination),
             )
         }
@@ -106,16 +178,27 @@ pub(super) fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> 
             ..
         } => {
             let params = signature
-                .params
+                .arguments()
                 .iter()
-                .map(LirType::dump)
+                .map(abi_argument_name)
                 .collect::<Vec<_>>()
                 .join(", ");
+            let convention = match signature.convention() {
+                IndirectResultConvention::ScoopSret => "sret",
+                IndirectResultConvention::CStoragePointer => "c-storage-pointer",
+            };
+            let physical_parameters = if params.is_empty() {
+                format!("{convention} {}", abi_value_name(signature.result()))
+            } else {
+                format!(
+                    "{convention} {}, {params}",
+                    abi_value_name(signature.result())
+                )
+            };
             format!(
-                "local{} = sig=indirect{} (sret {}, {params}) {}({args})",
+                "local{} = sig=indirect{} ({physical_parameters}) {}({args})",
                 storage.into_raw(),
                 signature_id,
-                signature.result.ty.dump(),
                 call_destination_name(function, *destination),
             )
         }
@@ -233,6 +316,7 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
                     format!(" result-root=local{}:{}", storage.into_raw(), scan.dump())
                 }
                 NativeBorrowedResultPublication::Void
+                | NativeBorrowedResultPublication::ElidedZst
                 | NativeBorrowedResultPublication::DirectGcFree
                 | NativeBorrowedResultPublication::IndirectResultGcFree => String::new(),
             };

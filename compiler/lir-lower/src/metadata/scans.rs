@@ -28,8 +28,9 @@ pub(crate) fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::Re
 
 /// Scan program for `fields` laid out at `offsets`, shifted by `base`.
 pub(crate) fn scan_fields(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     fields: &[mir::Type],
     offsets: &[u64],
     base: u64,
@@ -38,14 +39,15 @@ pub(crate) fn scan_fields(
         fields
             .iter()
             .zip(offsets)
-            .map(|(field, offset)| ref_scan(module, enums, field, base + offset)),
+            .map(|(field, offset)| ref_scan(context, module, enums, field, base + offset)),
     )
 }
 
 /// Recursive scan program for one inline value at `base`.
 pub(crate) fn ref_scan(
+    context: &LoweringContext,
     module: &mir::Module,
-    enums: &Arena<lir::EnumDef>,
+    enums: &lir::EnumDefs,
     ty: &mir::Type,
     base: u64,
 ) -> lir::RefScan {
@@ -61,24 +63,26 @@ pub(crate) fn ref_scan(
                 .iter()
                 .map(|field| field.ty.clone())
                 .collect();
-            let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-            let (field_layouts, _, _) = struct_shape(module, &enum_shape, &module.structs[*id]);
+            let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+            let (field_layouts, _, _) =
+                struct_shape(context, module, &enum_shape, &module.structs[*id]);
             let offsets: Vec<_> = field_layouts.iter().map(|field| field.offset).collect();
-            scan_fields(module, enums, &fields, &offsets, base)
+            scan_fields(context, module, enums, &fields, &offsets, base)
         }
         mir::Type::Tuple(fields) => {
-            let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-            let (offsets, _, _) = aggregate_shape(module, &enum_shape, fields);
-            scan_fields(module, enums, fields, &offsets, base)
+            let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+            let (offsets, _, _) = aggregate_shape(context, module, &enum_shape, fields);
+            scan_fields(context, module, enums, fields, &offsets, base)
         }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
-            lir::EnumRepr::Niche { payload_variant } => {
-                let variant = &module.enums[*id].variants[*payload_variant as usize];
-                let [field] = variant.fields.as_slice() else {
-                    unreachable!("a niche payload variant has exactly one pointer-like field")
-                };
-                ref_scan(module, enums, &field.ty, base)
-            }
+            lir::EnumRepr::Niche {
+                kind: lir::NichePointerKind::Managed,
+                ..
+            } => lir::RefScan::References(vec![base]),
+            lir::EnumRepr::Niche {
+                kind: lir::NichePointerKind::Raw | lir::NichePointerKind::Code,
+                ..
+            } => lir::RefScan::None,
             lir::EnumRepr::Tagged { variants, .. } => sequence(
                 module.enums[*id]
                     .variants
@@ -93,13 +97,13 @@ pub(crate) fn ref_scan(
                             .collect();
                         let offsets: Vec<u64> =
                             repr.fields.iter().map(|field| field.offset).collect();
-                        scan_fields(module, enums, &fields, &offsets, base)
+                        scan_fields(context, module, enums, &fields, &offsets, base)
                     }),
             ),
         },
         mir::Type::Unit
-        | mir::Type::Int
-        | mir::Type::UInt
+        | mir::Type::Integer(_)
+        | mir::Type::MachineScalar(_)
         | mir::Type::Boolean
         | mir::Type::Ptr(_)
         | mir::Type::FunPtr(_) => lir::RefScan::None,

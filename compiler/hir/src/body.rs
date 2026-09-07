@@ -49,9 +49,19 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
+    },
+    /// Source iteration remains explicit only in Export HIR. The complete
+    /// typed plan is expanded before LocalConcrete HIR reaches MIR.
+    For(Box<ForIterationPlan>),
+    Break {
+        target: LoopId,
+    },
+    Continue {
+        target: LoopId,
     },
     /// Pattern `when` (spec 5); checked for exhaustiveness at HIR.
     When(When),
@@ -106,7 +116,33 @@ pub enum AssignTarget {
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
-    pub else_body: Option<Vec<Statement>>,
+    pub fallback: WhenFallback,
+}
+
+/// The total fallback edge of a checked `when`.
+///
+/// An absent source `else` is not enough to make the edge unreachable:
+/// HIR carries the exhaustiveness proof that established this fact.
+#[derive(Debug, Clone)]
+pub enum WhenFallback {
+    Else(Vec<Statement>),
+    Impossible(ExhaustivenessProof),
+}
+
+/// A typed witness produced by the HIR exhaustiveness checker.
+#[derive(Debug, Clone)]
+pub enum ExhaustivenessProof {
+    /// An unguarded recursively-irrefutable arm covers the subject type.
+    IrrefutableArm { subject_ty: TypeId },
+    /// A recursive pattern matrix covers a tuple, struct, or exact integer
+    /// domain even though no individual arm is irrefutable.
+    PatternMatrix { subject_ty: TypeId },
+    /// Every constructor of this exact enum application, including each
+    /// constructor's recursive payload matrix, is covered.
+    EnumPatternMatrix {
+        subject_ty: TypeId,
+        application: EnumApplicationId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -133,12 +169,12 @@ pub enum Pattern {
         local: LocalId,
     },
     Wildcard,
-    /// A literal matched by an exact ordinary `operator fun equals` target.
-    /// The subject type is retained explicitly rather than reconstructed from
-    /// the recursive pattern position by a downstream stage.
+    /// A literal matched by an exact, already selected equality plan. The
+    /// subject type is retained explicitly rather than reconstructed from the
+    /// recursive pattern position by a downstream stage.
     Literal {
         value: Expr,
-        equals: Callable,
+        equality: LiteralPatternEquality,
         subject_ty: TypeId,
     },
     Variant {
@@ -155,6 +191,20 @@ pub enum Pattern {
     },
 }
 
+/// Equality selected for a literal pattern while its exact subject type is
+/// available. Integer equality is representation-level and must reach MIR as
+/// a typed comparison; every other literal kind keeps its ordinary callable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralPatternEquality {
+    Integer {
+        kind: IntegerKind,
+        target: NoGcCallableRef,
+    },
+    Ordinary {
+        equals: Callable,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
@@ -166,13 +216,19 @@ pub struct Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     StringLiteral(String),
-    IntLiteral(i64),
+    IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
         constructor: StructConstructorApplicationId,
         args: Vec<Expr>,
+    },
+    /// Compiler-only raw struct reconstruction in declaration field order.
+    /// Unlike `StructInit`, this never invokes a source constructor.
+    StructConstruct {
+        application: StructApplicationId,
+        fields: Vec<Expr>,
     },
     /// Class instantiation `Point(1, 2)`: constructor properties in
     /// declaration order. Base-class delegation is part of the
@@ -190,9 +246,16 @@ pub enum ExprKind {
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        application: EnumApplicationId,
-        variant: u32,
+        variant: AppliedEnumVariantRef,
         args: Vec<Expr>,
+    },
+    VariantTest {
+        operand: Box<Expr>,
+        variant: AppliedEnumVariantRef,
+    },
+    VariantPayloadProject {
+        operand: Box<Expr>,
+        field: AppliedEnumVariantFieldRef,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
@@ -212,9 +275,10 @@ pub enum ExprKind {
         coercion: FunctionCoercionId,
         target_type: FunctionTypeId,
     },
-    /// `Ptr<T>(raw)`; the source constructor is unsafe and normalized here.
-    PtrFromUInt(Box<Expr>),
-    PtrToUInt(Box<Expr>),
+    /// `Ptr<T>(raw: ULong)`; the source constructor is unsafe and its nonzero
+    /// precondition has already been checked when this node is constructed.
+    PtrFromNonZeroULong(Box<Expr>),
+    PtrToULong(Box<Expr>),
     PtrCast(Box<Expr>),
     PtrLoad {
         pointer: Box<Expr>,
@@ -233,7 +297,6 @@ pub enum ExprKind {
     AddressOf(Place),
     SizeOf(TypeId),
     AlignOf(TypeId),
-    FunPtrNull,
     /// Native C callback address selected contextually from `::name`.
     FunctionAddress(FunctionId),
     ForeignCallbackRegister {
@@ -313,7 +376,7 @@ pub enum ExprKind {
         index: Box<Expr>,
         value: Box<Expr>,
     },
-    /// `array.size` (spec 10.5); result is `Int`.
+    /// `array.size` (spec 10.5); result is canonical `Long`.
     ArrayLen(Box<Expr>),
     /// `Array(m)` / `MutableArray(a)` or `m.toArray()` /
     /// `a.toMutableArray()` conversion (spec 10.4): a memcpy snapshot
@@ -348,6 +411,17 @@ pub enum ExprKind {
         kind: PrimitiveUnaryKind,
         operand: Box<Expr>,
     },
+    /// A compiler-recognized integer member after ordinary call resolution.
+    /// The registry entry retains the exact operand kind and an effect-refined
+    /// source target; source intrinsic text is no longer representable.
+    IntegerOperation {
+        operation: HirIntegerOperation,
+        arguments: HirIntegerOperationArguments,
+    },
+    IntegerConversion {
+        conversion: HirIntegerConversion,
+        operand: Box<Expr>,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -359,7 +433,8 @@ pub enum ExprKind {
     },
     // The following are produced by hir-lower's Option desugaring
     // (`?.` / `?:` / `!!`), not directly by surface syntax. MIR turns
-    // them into generic enum operations (spec 7.3).
+    // them into generic enum construction and representation-independent
+    // checked variant operations (spec 7.3).
     /// `Some(value)`.
     SomeWrap(Box<Expr>),
     /// The `None` literal; its type is `Expr::ty` (an `Option<T>`).
@@ -372,6 +447,12 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum HirIntegerOperationArguments {
+    Unary(Box<Expr>),
+    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
 }
 
 #[derive(Debug, Clone)]
@@ -426,10 +507,7 @@ pub enum Place {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
     /// Field `index` of one complete struct application.
-    StructField {
-        application: StructApplicationId,
-        index: u32,
-    },
+    StructField(AppliedStructFieldRef),
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
     /// Source field of one complete declaring-class application. Layout is a

@@ -11,6 +11,14 @@ pub fn dump(file: &SourceFile) -> String {
             Decl::Global(g) => {
                 dump_global_property(g, &mut out);
             }
+            Decl::TypeAlias(alias) => {
+                out.push_str(&format!(
+                    "  {}typealias {} = {}\n",
+                    dump_visibility(alias.visibility),
+                    alias.name.text,
+                    dump_type_ref(&alias.target)
+                ));
+            }
             Decl::Enum(e) => {
                 dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {

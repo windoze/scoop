@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-pointers/errors/ptr-raw-carrier.scoop:7:18: error: `Ptr` raw address must be ULong, found Int
+m22-pointers/errors/ptr-raw-carrier.scoop:8:18: error: `Ptr` raw address must be ULong, found UInt

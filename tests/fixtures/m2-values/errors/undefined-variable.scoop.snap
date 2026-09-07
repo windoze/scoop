@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m2-values/errors/undefined-variable.scoop:2:13: error: unknown variable `x`
+m2-values/errors/undefined-variable.scoop:2:13: error: unknown variable `x`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

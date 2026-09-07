@@ -1,0 +1,5 @@
+typealias Pair = (Int, Int)
+
+fun main() {
+    Pair(1, 2)
+}

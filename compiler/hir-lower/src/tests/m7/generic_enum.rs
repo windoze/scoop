@@ -76,7 +76,11 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
     // The chosen enum methods request instantiations with the
     // receiver's type arguments.
     assert!(has_method_application(&module, pick_t, &[module.string]));
-    assert!(has_method_application(&module, pick_int, &[module.int]));
+    assert!(has_method_application(
+        &module,
+        pick_int,
+        &[int_type(&module)]
+    ));
 }
 
 #[test]

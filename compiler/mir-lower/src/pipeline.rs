@@ -10,6 +10,7 @@ impl Lowerer {
         // any of them regardless of declaration order), then the
         // mangling shell (their names for `encode_type`), then the
         // field types themselves — which can instantiate enums.
+        self.reserve_nominal_ids(module);
         self.lower_structs(module);
         self.declare_classes(module);
         // Concrete interface type arguments may name classes, so every class
@@ -26,7 +27,6 @@ impl Lowerer {
         self.fill_struct_fields(module);
         self.lower_globals(module);
         self.lower_singletons(module);
-        self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);
@@ -140,7 +140,7 @@ impl Lowerer {
             } else {
                 self.lower_user_function(module, hir_id)
             };
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
                     function: mir_id,
@@ -155,7 +155,7 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in ctor_functions {
             let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -163,7 +163,7 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in struct_ctor_functions {
             let (params, return_ty, body) = self.lower_struct_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone());
+            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -209,6 +209,7 @@ impl Lowerer {
             .into_iter()
             .map(|(payload, class)| mir::BoxedType { payload, class })
             .collect();
+        let option_core = self.enums.all_option_core(module);
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
@@ -221,6 +222,7 @@ impl Lowerer {
             singleton_published_roots: self.singleton_published_roots,
             callback_bridges: self.callback_bridges,
             foreign_callback_adapters: self.foreign_callback_adapters,
+            foreign_callback_families: self.foreign_callback_families,
             foreign_callback_bridges: self.foreign_callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
@@ -231,6 +233,7 @@ impl Lowerer {
             enums: self.enums.defs,
             classes: self.classes,
             interfaces: self.interfaces.defs,
+            option_core,
             entry,
             meta: mir::MirMeta {
                 generic_function_sources: self.instances.generic_function_sources,
@@ -240,6 +243,8 @@ impl Lowerer {
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,
                 coroutine_slots: self.coroutines.slots,
+                coroutine_saved_values: self.coroutines.saved_values,
+                coroutine_failure_values: self.coroutines.failure_values,
                 coroutine_frames: self.coroutines.frames,
                 coroutine_resume_points: self.coroutines.resume_points,
                 closure_adapters: self.closure_adapters,

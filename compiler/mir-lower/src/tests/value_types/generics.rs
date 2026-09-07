@@ -8,6 +8,13 @@ fn params_and_return_translate() {
     let x = locals.alloc(local("x", int));
     let y = locals.alloc(local("y", int));
     // fun add(x: Int, y: Int): Int { return x + y }
+    let sum = integer_binary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::NoGcIntegerOperation::Add,
+        local_ref(x, int),
+        local_ref(y, int),
+    );
     let add = h.user_fn_full(
         "add",
         Vec::new(),
@@ -15,14 +22,7 @@ fn params_and_return_translate() {
         int,
         hir::Body {
             locals,
-            statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(primitive_binary(
-                    hir::PrimitiveBinaryKind::IntAdd,
-                    local_ref(x, int),
-                    local_ref(y, int),
-                    int,
-                )),
-            })],
+            statements: vec![stmt(hir::StatementKind::Return { value: Some(sum) })],
         },
     );
     let main = h.user_fn(
@@ -41,9 +41,10 @@ fn params_and_return_translate() {
     let add_fn = &module.functions[module.top_level[0]];
     assert_eq!(add_fn.symbol, "scoop.add");
     assert_eq!(add_fn.params.len(), 2);
-    assert_eq!(add_fn.params[0].ty, mir::Type::Int);
-    assert_eq!(add_fn.params[1].ty, mir::Type::Int);
-    assert_eq!(add_fn.return_ty, mir::Type::Int);
+    let int_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
+    assert_eq!(add_fn.params[0].ty, int_ty);
+    assert_eq!(add_fn.params[1].ty, int_ty);
+    assert_eq!(add_fn.return_ty, int_ty);
     // Parameters are (the first) locals of the body.
     let px = add_fn.params[0].local;
     assert_eq!(add_fn.body.locals[px].name, "x");
@@ -51,7 +52,13 @@ fn params_and_return_translate() {
         &add_fn.body.blocks[add_fn.body.entry].terminator,
         mir::Terminator::Return {
             value: Some(value)
-        } if matches!(value.kind, mir::ExprKind::Binary { op: mir::BinOp::IntAdd, .. })
+        } if matches!(value.kind, mir::ExprKind::IntegerBinary {
+            operation,
+            ..
+        } if operation == mir::IntegerBinaryOperation::new(
+            mir::IntegerKind::SIGNED_32,
+            mir::IntegerBinaryOperator::Add,
+        ))
     ));
 }
 
@@ -83,16 +90,17 @@ fn monomorphizes_generic_functions() {
     assert_eq!(module.top_level.len(), 3);
     let int_instance = &module.functions[module.top_level[1]];
     let string_instance = &module.functions[module.top_level[2]];
-    assert_eq!(int_instance.symbol, "scoop.identity$I");
+    assert_eq!(int_instance.symbol, "scoop.identity$I32");
     assert_eq!(string_instance.symbol, "scoop.identity$S");
 
     // The instance signature, locals and body are fully
     // substituted — no `Param` survives.
     assert_eq!(int_instance.params.len(), 1);
-    assert_eq!(int_instance.params[0].ty, mir::Type::Int);
-    assert_eq!(int_instance.return_ty, mir::Type::Int);
+    let int_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
+    assert_eq!(int_instance.params[0].ty, int_ty);
+    assert_eq!(int_instance.return_ty, int_ty);
     let x = int_instance.params[0].local;
-    assert_eq!(int_instance.body.locals[x].ty, mir::Type::Int);
+    assert_eq!(int_instance.body.locals[x].ty, int_ty);
     assert!(matches!(
         &int_instance.body.blocks[int_instance.body.entry].terminator,
         mir::Terminator::Return {
@@ -106,7 +114,7 @@ fn monomorphizes_generic_functions() {
     // records symbol -> generic source provenance in the meta.
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
-    assert_eq!(int_meta.symbol, "scoop.identity$I");
+    assert_eq!(int_meta.symbol, "scoop.identity$I32");
     let mir::MonomorphizedSource::GenericFunction { source, arguments } = &int_meta.source else {
         panic!("identity must retain generic free-function provenance")
     };
@@ -114,7 +122,7 @@ fn monomorphizes_generic_functions() {
         module.meta.generic_function_sources[*source].display_name,
         "identity"
     );
-    assert_eq!(arguments.to_vec(), vec![mir::Type::Int]);
+    assert_eq!(arguments.to_vec(), vec![int_ty]);
     assert_eq!(module.meta.generic_function_sources.len(), 1);
 
     // The calls in main resolve to the two instances.
@@ -202,17 +210,17 @@ fn nested_generic_calls_extend_the_worklist() {
         },
     );
     // The nested request is parameterized in export HIR's list;
-    // local-concrete HIR resolves it while materializing forward$I.
+    // local-concrete HIR resolves it while materializing forward$I32.
     let module = lower(&h.finish(main));
 
-    // main, forward$I, then inner$I (discovered via the worklist).
+    // main, forward$I32, then inner$I32 (discovered via the worklist).
     assert_eq!(module.top_level.len(), 3);
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
-    assert_eq!(forward_i.symbol, "scoop.forward$I");
-    assert_eq!(inner_i.symbol, "scoop.inner$I");
+    assert_eq!(forward_i.symbol, "scoop.forward$I32");
+    assert_eq!(inner_i.symbol, "scoop.inner$I32");
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
-    let destination = destination.expect("inner$I returns Int");
+    let destination = destination.expect("inner$I32 returns Int");
     assert_eq!(
         call.target.callee,
         mir::Callee::Monomorphized(instance_id(&module, module.top_level[2]))
@@ -223,8 +231,14 @@ fn nested_generic_calls_extend_the_worklist() {
             value: Some(value)
         } if matches!(value.kind, mir::ExprKind::Local(local) if local == destination)
     ));
-    assert_eq!(inner_i.params[0].ty, mir::Type::Int);
-    assert_eq!(inner_i.return_ty, mir::Type::Int);
+    assert_eq!(
+        inner_i.params[0].ty,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
+    assert_eq!(
+        inner_i.return_ty,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+    );
 }
 
 #[test]
@@ -251,17 +265,23 @@ fn instance_symbols_encode_enum_and_tuple_arguments() {
         .collect();
     // An enum argument encodes the category, length-delimited
     // instance name, and complete argument list (`mir::encode_type`).
-    assert_eq!(symbols, ["scoop.f$E8_Option$IAIX", "scoop.f$TI_SX"]);
+    assert_eq!(symbols, ["scoop.f$E10_Option$I32AI32X", "scoop.f$TI32_SX"]);
     // Substitution recurses into enum / tuple types.
     let option_instance = &module.functions[module.top_level[1]];
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
         panic!("the Option<Int> instance parameter must be an enum type")
     };
-    assert_eq!(module.enums[*enum_id].name, "Option$I");
-    assert_eq!(args.as_slice(), &[mir::Type::Int]);
+    assert_eq!(module.enums[*enum_id].name, "Option$I32");
+    assert_eq!(
+        args.as_slice(),
+        &[mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
     let tuple_instance = &module.functions[module.top_level[2]];
     assert_eq!(
         tuple_instance.return_ty,
-        mir::Type::Tuple(vec![mir::Type::Int, mir::Type::String])
+        mir::Type::Tuple(vec![
+            mir::Type::Integer(mir::IntegerKind::SIGNED_32),
+            mir::Type::String,
+        ])
     );
 }

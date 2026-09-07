@@ -24,7 +24,7 @@ fun preserveThroughCalls(
     source: MovingTextSource
 ): String {
     var current = initial
-    var index = 0
+    var index: Long = 0
     while (index < 2) {
         gcCollect()
         println(current)

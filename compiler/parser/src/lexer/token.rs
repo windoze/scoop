@@ -1,13 +1,33 @@
 //! Lexical token model and diagnostic rendering.
 
-use scoop_ast::Span;
+use scoop_ast::{IntegerLiteralSyntax, IntegerRadix, IntegerSuffix, Span};
+
+/// Integer token payload. The token itself remains the sole owner of the
+/// source span; parsing combines both into `IntegerLiteralSyntax`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct IntegerLiteralLexeme {
+    pub magnitude: u64,
+    pub radix: IntegerRadix,
+    pub suffix: IntegerSuffix,
+}
+
+impl IntegerLiteralLexeme {
+    pub(crate) fn with_span(self, span: Span) -> IntegerLiteralSyntax {
+        IntegerLiteralSyntax {
+            magnitude: self.magnitude,
+            radix: self.radix,
+            suffix: self.suffix,
+            span,
+        }
+    }
+}
 
 /// Token kinds for the implemented language surface. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,
 /// `sealed`, `companion`, `init`, `constructor`, `try`, `catch`,
-/// `finally`, `throw`) stay identifiers too — the parser matches them
+/// `finally`, `throw`, `do`) stay identifiers too — the parser matches them
 /// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
@@ -24,6 +44,9 @@ pub(crate) enum TokenKind {
     Else,
     When,
     While,
+    For,
+    Break,
+    Continue,
     Return,
     True,
     False,
@@ -34,7 +57,7 @@ pub(crate) enum TokenKind {
     As,
     Ident(String),
     Str(String),
-    Int(i64),
+    Int(IntegerLiteralLexeme),
     LParen,
     RParen,
     LBrace,
@@ -109,6 +132,9 @@ impl Token {
             TokenKind::Else => "`else`".to_string(),
             TokenKind::When => "`when`".to_string(),
             TokenKind::While => "`while`".to_string(),
+            TokenKind::For => "`for`".to_string(),
+            TokenKind::Break => "`break`".to_string(),
+            TokenKind::Continue => "`continue`".to_string(),
             TokenKind::Return => "`return`".to_string(),
             TokenKind::True => "`true`".to_string(),
             TokenKind::False => "`false`".to_string(),

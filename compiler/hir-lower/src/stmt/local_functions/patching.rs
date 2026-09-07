@@ -20,7 +20,9 @@ pub(super) fn patch_local_function_calls(
                     patch_local_function_call_expr(value, target, captures);
                 }
             }
-            hir::StatementKind::LocalFunction(_) => {}
+            hir::StatementKind::LocalFunction(_)
+            | hir::StatementKind::Break { .. }
+            | hir::StatementKind::Continue { .. } => {}
             hir::StatementKind::ValDecl { pattern, init } => {
                 patch_local_function_call_pattern(pattern, target, captures);
                 patch_local_function_call_expr(init, target, captures);
@@ -56,6 +58,7 @@ pub(super) fn patch_local_function_calls(
                 }
             }
             hir::StatementKind::While {
+                target: _,
                 condition_setup,
                 cond,
                 body,
@@ -63,6 +66,32 @@ pub(super) fn patch_local_function_calls(
                 patch_local_function_calls(condition_setup, target, captures);
                 patch_local_function_call_expr(cond, target, captures);
                 patch_local_function_calls(body, target, captures);
+            }
+            hir::StatementKind::For(plan) => {
+                let mut parts = plan.as_ref().clone().into_parts();
+                patch_local_function_calls(&mut parts.source_setup, target, captures);
+                patch_local_function_call_expr(&mut parts.source_init, target, captures);
+                patch_local_function_calls(&mut parts.iterator_setup, target, captures);
+                patch_local_function_call_expr(&mut parts.iterator_call, target, captures);
+                for action in &mut parts.binding.actions {
+                    if let hir::IrrefutableBindingAction::Component { setup, call, .. } = action {
+                        patch_local_function_calls(setup, target, captures);
+                        patch_local_function_call_expr(call, target, captures);
+                    }
+                }
+                patch_local_function_calls(&mut parts.body, target, captures);
+                **plan = hir::ForIterationPlan::new(
+                    parts.target,
+                    parts.source_setup,
+                    parts.source,
+                    parts.source_init,
+                    parts.iterator_setup,
+                    parts.iterator_call,
+                    parts.conformance,
+                    parts.next,
+                    parts.binding,
+                    parts.body,
+                );
             }
             hir::StatementKind::When(when) => {
                 patch_local_function_call_expr(&mut when.subject, target, captures);
@@ -74,8 +103,8 @@ pub(super) fn patch_local_function_calls(
                     }
                     patch_local_function_calls(&mut arm.body, target, captures);
                 }
-                if let Some(else_body) = &mut when.else_body {
-                    patch_local_function_calls(else_body, target, captures);
+                if let hir::WhenFallback::Else(body) = &mut when.fallback {
+                    patch_local_function_calls(body, target, captures);
                 }
             }
             hir::StatementKind::Try(try_) => {
@@ -156,6 +185,13 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(element, target, target_captures);
             }
         }
+        hir::ExprKind::StructConstruct {
+            fields: elements, ..
+        } => {
+            for element in elements {
+                patch_local_function_call_expr(element, target, target_captures);
+            }
+        }
         hir::ExprKind::ArrayAssembly(assembly) => {
             for part in &mut assembly.parts {
                 match part {
@@ -167,6 +203,12 @@ fn patch_local_function_call_expr(
             }
         }
         hir::ExprKind::FieldAccess { receiver, .. }
+        | hir::ExprKind::VariantTest {
+            operand: receiver, ..
+        }
+        | hir::ExprKind::VariantPayloadProject {
+            operand: receiver, ..
+        }
         | hir::ExprKind::ForeignCallbackRegister {
             closure: receiver, ..
         }
@@ -197,8 +239,8 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Unwrap {
             operand: receiver, ..
         }
-        | hir::ExprKind::PtrFromUInt(receiver)
-        | hir::ExprKind::PtrToUInt(receiver)
+        | hir::ExprKind::PtrFromNonZeroULong(receiver)
+        | hir::ExprKind::PtrToULong(receiver)
         | hir::ExprKind::PtrCast(receiver) => {
             patch_local_function_call_expr(receiver, target, target_captures)
         }
@@ -224,6 +266,18 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Binary { lhs, rhs, .. } => {
             patch_local_function_call_expr(lhs, target, target_captures);
             patch_local_function_call_expr(rhs, target, target_captures);
+        }
+        hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
+            hir::HirIntegerOperationArguments::Unary(operand) => {
+                patch_local_function_call_expr(operand, target, target_captures);
+            }
+            hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                patch_local_function_call_expr(lhs, target, target_captures);
+                patch_local_function_call_expr(rhs, target, target_captures);
+            }
+        },
+        hir::ExprKind::IntegerConversion { operand, .. } => {
+            patch_local_function_call_expr(operand, target, target_captures);
         }
         hir::ExprKind::ArraySet {
             receiver,
@@ -259,7 +313,7 @@ fn patch_local_function_call_expr(
             patch_local_function_call_expr(value, target, target_captures);
         }
         hir::ExprKind::StringLiteral(_)
-        | hir::ExprKind::IntLiteral(_)
+        | hir::ExprKind::IntegerLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
@@ -276,7 +330,6 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::AddressOf(_)
         | hir::ExprKind::SizeOf(_)
         | hir::ExprKind::AlignOf(_)
-        | hir::ExprKind::FunPtrNull
         | hir::ExprKind::FunctionAddress(_) => {}
     }
 }

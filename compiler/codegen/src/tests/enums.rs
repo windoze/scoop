@@ -5,6 +5,18 @@ use super::*;
 /// `Option<String>`-style), both exercised through EnumWrap /
 /// EnumTag / EnumField.
 pub(super) fn enum_module() -> Module {
+    enum_module_with(
+        scoop_lir::NichePointerKind::Managed,
+        RefScan::References(vec![0]),
+        LirType::I64,
+    )
+}
+
+fn enum_module_with(
+    niche_kind: scoop_lir::NichePointerKind,
+    niche_scan: RefScan,
+    tagged_value_field: LirType,
+) -> Module {
     let mut globals = Arena::default();
     let trap_message = globals.alloc(Global {
         symbol: "scoop.trap.0".to_string(),
@@ -12,7 +24,7 @@ pub(super) fn enum_module() -> Module {
         scan: RefScan::None,
         init: GlobalInit::CString("unwrap on None".to_string()),
     });
-    let mut enums = Arena::default();
+    let mut enums = scoop_lir::EnumDefs::default();
     // Dot/Circle share the pure-value slot at 8; Rect owns a
     // ref-bearing slot at 16, with its String at offset 24.
     let shape = enums.alloc(EnumDef {
@@ -28,7 +40,7 @@ pub(super) fn enum_module() -> Module {
                 },
                 EnumVariantRepr {
                     fields: vec![EnumFieldRepr {
-                        ty: LirType::I64,
+                        ty: tagged_value_field,
                         offset: 8,
                     }],
                     slot_offset: 8,
@@ -61,11 +73,20 @@ pub(super) fn enum_module() -> Module {
     // enum Option<String> { None, Some(String) } — niche pointer.
     let option = enums.alloc(EnumDef {
         name: "Option<String>".to_string(),
-        repr: EnumRepr::Niche { payload_variant: 1 },
-        scan: RefScan::References(vec![0]),
+        repr: EnumRepr::Niche {
+            kind: niche_kind,
+            payload_variant: 1,
+        },
+        scan: niche_scan,
     });
+    let shape_v0 = enums.variant_ref(shape, 0).expect("Shape v0");
+    let shape_v1 = enums.variant_ref(shape, 1).expect("Shape v1");
+    let shape_v2 = enums.variant_ref(shape, 2).expect("Shape v2");
+    let option_v0 = enums.variant_ref(option, 0).expect("Option v0");
+    let option_v1 = enums.variant_ref(option, 1).expect("Option v1");
     let shape_ty = LirType::Enum(shape);
     let option_ty = LirType::Enum(option);
+    let enum_tag_ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
 
     // fun @scoop.tagged(s: Shape, p: ptr) -> i64: all three enum
     // instructions on the tagged representation, including a local
@@ -79,7 +100,9 @@ pub(super) fn enum_module() -> Module {
     let t0 = tagged_temps.alloc(Temp {
         ty: shape_ty.clone(),
     }); // enum_wrap v0 ()
-    let t1 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag t0
+    let t1 = tagged_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    }); // enum_tag t0
     let t2 = tagged_temps.alloc(Temp {
         ty: shape_ty.clone(),
     }); // enum_wrap v1 (7)
@@ -87,20 +110,19 @@ pub(super) fn enum_module() -> Module {
     let t4 = tagged_temps.alloc(Temp {
         ty: shape_ty.clone(),
     }); // enum_wrap v2 (t3, p)
-    let t5 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag s (param)
+    let t5 = tagged_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    }); // enum_tag s (param)
     let t6 = tagged_temps.alloc(Temp { ty: MANAGED_PTR }); // enum_field v2 f1 s2 (local)
     let t7 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_field v2 f0 t4
-    let t8 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t1 + t3
-    let t9 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t5 + t7
-    let t10 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t8 + t9
+    let t8 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t3 + t7
     let mut tagged_blocks = Arena::default();
     let tagged_entry = tagged_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
             Instruction::EnumWrap {
                 out: t0,
-                enum_id: shape,
-                variant: 0,
+                variant: shape_v0,
                 fields: vec![],
             },
             Instruction::EnumTag {
@@ -110,9 +132,8 @@ pub(super) fn enum_module() -> Module {
             },
             Instruction::EnumWrap {
                 out: t2,
-                enum_id: shape,
-                variant: 1,
-                fields: vec![Value::IntConst(7)],
+                variant: shape_v1,
+                fields: vec![signed64(7)],
             },
             Instruction::EnumField {
                 out: t3,
@@ -123,8 +144,7 @@ pub(super) fn enum_module() -> Module {
             },
             Instruction::EnumWrap {
                 out: t4,
-                enum_id: shape,
-                variant: 2,
+                variant: shape_v2,
                 fields: vec![Value::Temp(t3), Value::Param(1)],
             },
             Instruction::EnumTag {
@@ -150,34 +170,27 @@ pub(super) fn enum_module() -> Module {
                 index: 0,
                 operand: Value::Temp(t4),
             },
-            Instruction::BinOp {
+            Instruction::IntegerBinary {
                 out: t8,
-                op: BinOp::Add,
-                lhs: Value::Temp(t1),
-                rhs: Value::Temp(t3),
-            },
-            Instruction::BinOp {
-                out: t9,
-                op: BinOp::Add,
-                lhs: Value::Temp(t5),
+                kind: IntegerKind::SIGNED_64,
+                operation: IntegerBinaryOperation::Add,
+                lhs: Value::Temp(t3),
                 rhs: Value::Temp(t7),
-            },
-            Instruction::BinOp {
-                out: t10,
-                op: BinOp::Add,
-                lhs: Value::Temp(t8),
-                rhs: Value::Temp(t9),
             },
         ],
         terminator: Terminator::Return {
-            value: Some(Value::Temp(t10)),
+            value: Some(Value::Temp(t8)),
         },
     });
     let tagged = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.tagged".to_string(),
-        params: vec![shape_ty.clone(), MANAGED_PTR],
-        return_ty: LirType::I64,
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![shape_ty.clone(), MANAGED_PTR],
+            LirType::I64,
+        ),
         call_targets: CallTargets::default(),
         locals: tagged_locals,
         temps: tagged_temps,
@@ -193,18 +206,24 @@ pub(super) fn enum_module() -> Module {
         ty: option_ty.clone(),
     });
     let mut niche_temps = Arena::default();
-    let n0 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag o (param)
-    let n1 = niche_temps.alloc(Temp { ty: MANAGED_PTR }); // enum_field v1 f0 o
+    let n0 = niche_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    }); // enum_tag o (param)
+    let n1 = niche_temps.alloc(Temp {
+        ty: LirType::Ptr(niche_kind.pointer_kind()),
+    }); // enum_field v1 f0 o
     let n2 = niche_temps.alloc(Temp {
         ty: option_ty.clone(),
     }); // enum_wrap v1 (n1)
     let n3 = niche_temps.alloc(Temp {
         ty: option_ty.clone(),
     }); // enum_wrap v0 () → null
-    let n4 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag n3
-    let n5 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag o2 (local)
-    let n6 = niche_temps.alloc(Temp { ty: LirType::I64 }); // n0 + n4
-    let n7 = niche_temps.alloc(Temp { ty: LirType::I64 }); // n6 + n5
+    let n4 = niche_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    }); // enum_tag n3
+    let n5 = niche_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    }); // enum_tag o2 (local)
     let mut niche_blocks = Arena::default();
     let niche_entry = niche_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
@@ -223,8 +242,7 @@ pub(super) fn enum_module() -> Module {
             },
             Instruction::EnumWrap {
                 out: n2,
-                enum_id: option,
-                variant: 1,
+                variant: option_v1,
                 fields: vec![Value::Temp(n1)],
             },
             Instruction::Store {
@@ -233,8 +251,7 @@ pub(super) fn enum_module() -> Module {
             },
             Instruction::EnumWrap {
                 out: n3,
-                enum_id: option,
-                variant: 0,
+                variant: option_v0,
                 fields: vec![],
             },
             Instruction::EnumTag {
@@ -247,28 +264,20 @@ pub(super) fn enum_module() -> Module {
                 enum_id: option,
                 operand: Value::Local(o2),
             },
-            Instruction::BinOp {
-                out: n6,
-                op: BinOp::Add,
-                lhs: Value::Temp(n0),
-                rhs: Value::Temp(n4),
-            },
-            Instruction::BinOp {
-                out: n7,
-                op: BinOp::Add,
-                lhs: Value::Temp(n6),
-                rhs: Value::Temp(n5),
-            },
         ],
         terminator: Terminator::Return {
-            value: Some(Value::Temp(n7)),
+            value: Some(Value::Temp(n5)),
         },
     });
     let niche = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.niche".to_string(),
-        params: vec![option_ty.clone()],
-        return_ty: LirType::I64,
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![option_ty.clone()],
+            enum_tag_ty.clone(),
+        ),
         call_targets: CallTargets::default(),
         locals: niche_locals,
         temps: niche_temps,
@@ -296,8 +305,7 @@ pub(super) fn enum_module() -> Module {
     let trap_on_none = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.trap_on_none".to_string(),
-        params: vec![],
-        return_ty: LirType::Void,
+        signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets: trap_targets,
         locals: Arena::default(),
         temps: Arena::default(),
@@ -317,9 +325,8 @@ pub(super) fn enum_module() -> Module {
         name: "entry".to_string(),
         instructions: vec![Instruction::EnumWrap {
             out: produced,
-            enum_id: shape,
-            variant: 1,
-            fields: vec![Value::IntConst(9)],
+            variant: shape_v1,
+            fields: vec![signed64(9)],
         }],
         terminator: Terminator::Return {
             value: Some(Value::Temp(produced)),
@@ -328,8 +335,12 @@ pub(super) fn enum_module() -> Module {
     let produce = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.produce_shape".to_string(),
-        params: vec![],
-        return_ty: shape_ty.clone(),
+        signature: scoop_signature(
+            &scoop_lir::StructDefs::default(),
+            &enums,
+            vec![],
+            shape_ty.clone(),
+        ),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
         temps: produce_temps,
@@ -342,16 +353,18 @@ pub(super) fn enum_module() -> Module {
         ty: shape_ty.clone(),
     });
     let mut consume_temps = Arena::default();
-    let tag = consume_temps.alloc(Temp { ty: LirType::I64 });
+    let tag = consume_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    });
     let mut consume_targets = CallTargets::default();
-    let produce_site = indirect_result_site(
+    let produce_site = indirect_result_site_with_layout(
         &mut consume_targets,
         TestCallProtocol::Managed {
             safepoint: 1,
             destination: managed_local(3),
         },
         Vec::new(),
-        (shape_ty.clone(), RefScan::References(vec![24])),
+        (shape_ty.clone(), 32, 8, RefScan::References(vec![24])),
         received,
         Vec::new(),
     );
@@ -373,8 +386,7 @@ pub(super) fn enum_module() -> Module {
     let consume = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape".to_string(),
-        params: vec![],
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(vec![], enum_tag_ty.clone()),
         call_targets: consume_targets,
         locals: consume_locals,
         temps: consume_temps,
@@ -387,17 +399,19 @@ pub(super) fn enum_module() -> Module {
         ty: shape_ty.clone(),
     });
     let mut indirect_temps = Arena::default();
-    let indirect_tag = indirect_temps.alloc(Temp { ty: LirType::I64 });
+    let indirect_tag = indirect_temps.alloc(Temp {
+        ty: enum_tag_ty.clone(),
+    });
     let mut indirect_targets = CallTargets::default();
     let dispatch = dispatch_destination(&mut indirect_targets, Value::Param(0), 0);
-    let indirect_site = indirect_result_site(
+    let indirect_site = indirect_result_site_with_layout(
         &mut indirect_targets,
         TestCallProtocol::Managed {
             safepoint: 2,
             destination: dispatch,
         },
         Vec::new(),
-        (shape_ty.clone(), RefScan::References(vec![24])),
+        (shape_ty.clone(), 32, 8, RefScan::References(vec![24])),
         indirect_received,
         Vec::new(),
     );
@@ -421,8 +435,7 @@ pub(super) fn enum_module() -> Module {
     let consume_indirect = Function {
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape_indirect".to_string(),
-        params: vec![METADATA_PTR],
-        return_ty: LirType::I64,
+        signature: plain_scoop_signature(vec![METADATA_PTR], enum_tag_ty),
         call_targets: indirect_targets,
         locals: indirect_locals,
         temps: indirect_temps,
@@ -433,12 +446,13 @@ pub(super) fn enum_module() -> Module {
     Module {
         globals,
         initialization_units: Arena::default(),
-        structs: Arena::default(),
+        structs: scoop_lir::StructDefs::default(),
         enums,
         extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
+        foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![
             tagged,
@@ -480,3 +494,329 @@ fn emits_m4_enums() {
     assert!(len > 0, "object file is empty");
     std::fs::remove_file(&output).ok();
 }
+
+fn enum_codegen_error(module: &Module) -> CodegenError {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    emit_llvm_module(&context, module, &machine, host_profile())
+        .expect_err("malformed enum LIR must be rejected")
+}
+
+#[test]
+fn enum_wrap_rejects_machine_scalar_for_i64_field() {
+    let mut module = enum_module();
+    let function = &mut module.functions[0];
+    let Instruction::EnumWrap { fields, .. } = &mut function.blocks[function.entry].instructions[2]
+    else {
+        panic!("enum fixture must wrap its one-field variant")
+    };
+    fields[0] = Value::MachineScalar(MachineScalarValue::EnumTag(7));
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn enum_wrap_validator_rejects_wrong_result_arity_and_invalid_ref() {
+    let mut module = enum_module();
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+    let function = &mut module.functions[0];
+    let out = match &function.blocks[function.entry].instructions[0] {
+        Instruction::EnumWrap { out, .. } => *out,
+        _ => panic!("enum fixture starts with a wrap"),
+    };
+    function.temps[out].ty = LirType::Enum(option);
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap")
+            && error.0.contains("result is enum1")
+            && error.0.contains("expected enum0"),
+        "unexpected error: {error}"
+    );
+
+    let mut module = enum_module();
+    let function = &mut module.functions[0];
+    let Instruction::EnumWrap { fields, .. } = &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("enum fixture starts with a wrap")
+    };
+    fields.push(signed64(1));
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap") && error.0.contains("variant 0 has 1 fields, expected 0"),
+        "unexpected error: {error}"
+    );
+
+    let mut foreign = scoop_lir::EnumDefs::default();
+    let foreign_id = foreign.alloc(EnumDef {
+        name: "Foreign".to_string(),
+        repr: EnumRepr::Tagged {
+            variants: (0..4)
+                .map(|_| EnumVariantRepr {
+                    fields: Vec::new(),
+                    slot_offset: 8,
+                    slot_size: 0,
+                    slot_align: 1,
+                    gc_free: true,
+                })
+                .collect(),
+            size: 8,
+            align: 8,
+        },
+        scan: RefScan::None,
+    });
+    let invalid = foreign
+        .variant_ref(foreign_id, 3)
+        .expect("foreign variant exists");
+    let mut module = enum_module();
+    let function = &mut module.functions[0];
+    let Instruction::EnumWrap { variant, .. } =
+        &mut function.blocks[function.entry].instructions[0]
+    else {
+        panic!("enum fixture starts with a wrap")
+    };
+    *variant = invalid;
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap") && error.0.contains("invalid enum0 variant 3"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn enum_field_rejects_i64_as_machine_scalar_result() {
+    let mut module = enum_module();
+    let shape = module.enums.iter().next().expect("tagged enum").0;
+    let replacement_signature = scoop_signature(
+        &module.structs,
+        &module.enums,
+        vec![LirType::Enum(shape), MANAGED_PTR],
+        LirType::MachineScalar(MachineScalarKind::EnumTag),
+    );
+    let function = &mut module.functions[0];
+    let out = match &function.blocks[function.entry].instructions[3] {
+        Instruction::EnumField { out, .. } => *out,
+        _ => panic!("enum fixture must extract its one-field variant"),
+    };
+    function.temps[out].ty = LirType::MachineScalar(MachineScalarKind::EnumTag);
+    function.blocks[function.entry].instructions.truncate(4);
+    function.blocks[function.entry].terminator = Terminator::Return {
+        value: Some(Value::Temp(out)),
+    };
+    function.signature = replacement_signature;
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_field")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected i64"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn tagged_enum_metadata_rejects_recursive_machine_scalar_payload() {
+    let mut module = enum_module_with(
+        scoop_lir::NichePointerKind::Managed,
+        RefScan::References(vec![0]),
+        LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]),
+    );
+    module.functions.clear();
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum `Shape` payload") && error.0.contains("machine scalar"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn niche_enum_wrap_rejects_machine_scalar_payload() {
+    let mut module = enum_module();
+    let function = &mut module.functions[1];
+    let Instruction::EnumWrap { fields, .. } = &mut function.blocks[function.entry].instructions[2]
+    else {
+        panic!("niche fixture must wrap its payload variant")
+    };
+    fields[0] = Value::MachineScalar(MachineScalarValue::EnumTag(1));
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_wrap")
+            && error.0.contains("field 0")
+            && error.0.contains("machine<enum-tag>")
+            && error.0.contains("expected ptr<managed>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
+    for kind in [
+        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NichePointerKind::Code,
+    ] {
+        let mut module = enum_module_with(kind, RefScan::None, LirType::I64);
+        let option = module.enums.iter().nth(1).expect("niche enum").0;
+        let none = module
+            .enums
+            .variant_ref(option, 0)
+            .expect("Option unit variant");
+
+        let function = &mut module.functions[1];
+        let field = match &function.blocks[function.entry].instructions[1] {
+            Instruction::EnumField { out, .. } => *out,
+            _ => panic!("niche fixture must project its payload"),
+        };
+        assert_eq!(function.temps[field].ty, LirType::Ptr(kind.pointer_kind()));
+        module.globals.alloc(Global {
+            symbol: format!("qualified_{}_niche", kind.pointer_kind().dump()),
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::Storage {
+                ty: LirType::Enum(option),
+                initial_state: LirStaticInitialState::EncodedStaticValue {
+                    payload: LirConstantImage::EnumUnit { variant: none },
+                },
+                thread_local: false,
+            },
+        });
+
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains(&format!("@qualified_{}_niche", kind.pointer_kind().dump())),
+            "{ir}"
+        );
+    }
+}
+
+#[test]
+fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
+    for (expected, actual) in [
+        (scoop_lir::NichePointerKind::Raw, PointerKind::Code),
+        (scoop_lir::NichePointerKind::Code, PointerKind::Raw),
+    ] {
+        let mut module = enum_module_with(expected, RefScan::None, LirType::I64);
+        let option = module.enums.iter().nth(1).expect("niche enum").0;
+        let some = module
+            .enums
+            .variant_ref(option, 1)
+            .expect("Option payload variant");
+
+        let function = &mut module.functions[1];
+        let out = match &function.blocks[function.entry].instructions[2] {
+            Instruction::EnumWrap { out, .. } => *out,
+            _ => panic!("niche fixture must wrap its payload variant"),
+        };
+        function.blocks[function.entry].instructions = vec![Instruction::EnumWrap {
+            out,
+            variant: some,
+            fields: vec![Value::NullPointer(actual)],
+        }];
+        function.blocks[function.entry].terminator = Terminator::Unreachable;
+
+        let error = enum_codegen_error(&module);
+        assert!(
+            error.0.contains("enum_wrap")
+                && error.0.contains(&format!("ptr<{}>", actual.dump()))
+                && error
+                    .0
+                    .contains(&format!("expected ptr<{}>", expected.pointer_kind().dump())),
+            "unexpected error: {error}"
+        );
+    }
+}
+
+#[test]
+fn niche_enum_field_rejects_raw_code_provenance_crossing() {
+    let mut module = enum_module_with(
+        scoop_lir::NichePointerKind::Code,
+        RefScan::None,
+        LirType::I64,
+    );
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+
+    let function = &mut module.functions[1];
+    let out = match &function.blocks[function.entry].instructions[1] {
+        Instruction::EnumField { out, .. } => *out,
+        _ => panic!("niche fixture must project its payload"),
+    };
+    function.temps[out].ty = RAW_PTR;
+    function.blocks[function.entry].instructions = vec![Instruction::EnumField {
+        out,
+        enum_id: option,
+        variant: 1,
+        index: 0,
+        operand: Value::Param(0),
+    }];
+    function.blocks[function.entry].terminator = Terminator::Unreachable;
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("enum_field")
+            && error.0.contains("produces ptr<raw>")
+            && error.0.contains("expected ptr<code>"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
+    let mut module = enum_module_with(
+        scoop_lir::NichePointerKind::Raw,
+        RefScan::None,
+        LirType::I64,
+    );
+    let option = module.enums.iter().nth(1).expect("niche enum").0;
+    module.globals.alloc(Global {
+        symbol: "crossed_niche_null".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            ty: LirType::Enum(option),
+            initial_state: LirStaticInitialState::EncodedStaticValue {
+                payload: LirConstantImage::NullPointer(PointerKind::Code),
+            },
+            thread_local: false,
+        },
+    });
+
+    let error = enum_codegen_error(&module);
+    assert!(
+        error.0.contains("code null constant")
+            && error
+                .0
+                .contains(&format!("storage type enum{}", option.into_raw())),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn niche_enum_scan_must_match_its_pointer_provenance() {
+    for (kind, scan) in [
+        (scoop_lir::NichePointerKind::Managed, RefScan::None),
+        (
+            scoop_lir::NichePointerKind::Raw,
+            RefScan::References(vec![0]),
+        ),
+        (
+            scoop_lir::NichePointerKind::Code,
+            RefScan::References(vec![0]),
+        ),
+    ] {
+        let module = enum_module_with(kind, scan, LirType::I64);
+
+        let error = enum_codegen_error(&module);
+        assert!(
+            error.0.contains("incompatible scan") && error.0.contains(kind.pointer_kind().dump()),
+            "unexpected error: {error}"
+        );
+    }
+}
+
+mod primitives;

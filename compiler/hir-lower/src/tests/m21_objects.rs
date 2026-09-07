@@ -143,7 +143,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     ));
     assert!(matches!(
         function_result(user_function(module, "readVersion")).kind,
-        hir::ExprKind::IntLiteral(21)
+        hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(21))
     ));
 
     let (choose_id, _) = module

@@ -112,11 +112,17 @@ impl Lowerer {
             }]
         };
         let source_name = &self.closure_classes[class].name;
-        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
+        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
+            .expect("function bridge targets are source-level MIR types");
         let name = format!("function_bridge.{source_name}.{target_name}");
         let body = cfg::lower(
-            smir::Body { locals, statements },
+            smir::Body {
+                locals,
+                statements,
+                coroutine_eh: None,
+            },
             target_signature.return_type.clone(),
+            &self.enums.defs,
         );
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,

@@ -55,6 +55,13 @@ impl Lowerer {
         }
         let valid_parameters = match spec.kind.parameters() {
             hir::IntrinsicTypeParameters::None => parameters.is_empty(),
+            hir::IntrinsicTypeParameters::OneInvariantValue => {
+                matches!(parameters, [parameter]
+                if matches!(
+                    parameter.inline_bound,
+                    Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value))
+                )) && where_clause.is_none()
+            }
             hir::IntrinsicTypeParameters::OneInvariantUnconstrained => {
                 matches!(parameters, [parameter] if parameter.inline_bound.is_none())
                     && where_clause.is_none()
@@ -113,30 +120,50 @@ impl Lowerer {
             };
             Some(owner)
         };
-        let int = require(self, hir::IntrinsicTypeKind::Int)?;
-        let uint = require(self, hir::IntrinsicTypeKind::UInt)?;
+        let mut integer_owners = Vec::with_capacity(hir::IntegerKind::COUNT);
+        for kind in hir::IntegerKind::ALL {
+            let Some(owner) = require(self, hir::IntrinsicTypeKind::Integer(kind)) else {
+                continue;
+            };
+            let IntrinsicTypeOwner::Struct(owner) = owner else {
+                unreachable!("the intrinsic registry fixes every declaration target")
+            };
+            integer_owners.push(owner);
+        }
         let boolean = require(self, hir::IntrinsicTypeKind::Boolean)?;
         let string = require(self, hir::IntrinsicTypeKind::String)?;
         let array = require(self, hir::IntrinsicTypeKind::Array)?;
         let mutable_array = require(self, hir::IntrinsicTypeKind::MutableArray)?;
+        let ptr = require(self, hir::IntrinsicTypeKind::Ptr)?;
+        let fun_ptr = require(self, hir::IntrinsicTypeKind::FunPtr)?;
+        if integer_owners.len() != hir::IntegerKind::COUNT {
+            return None;
+        }
         let (
-            IntrinsicTypeOwner::Struct(int),
-            IntrinsicTypeOwner::Struct(uint),
             IntrinsicTypeOwner::Struct(boolean),
             IntrinsicTypeOwner::Class(string),
             IntrinsicTypeOwner::Class(array),
             IntrinsicTypeOwner::Class(mutable_array),
-        ) = (int, uint, boolean, string, array, mutable_array)
+            IntrinsicTypeOwner::Struct(ptr),
+            IntrinsicTypeOwner::Struct(fun_ptr),
+        ) = (boolean, string, array, mutable_array, ptr, fun_ptr)
         else {
             unreachable!("the intrinsic registry fixes every declaration target")
         };
+        let integers = hir::IntegerTypeCore::new(
+            integer_owners
+                .try_into()
+                .expect("all eight integer owners were collected"),
+        )
+        .expect("one declaration cannot provide two intrinsic integer identities");
         Some(hir::IntrinsicTypeCore {
-            int,
-            uint,
+            integers,
             boolean,
             string,
             array,
             mutable_array,
+            ptr,
+            fun_ptr,
         })
     }
 }

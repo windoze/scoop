@@ -67,8 +67,7 @@ fn type_name(
 ) -> String {
     match &types[ty] {
         Type::Unit => "Unit".to_string(),
-        Type::Int => "Int".to_string(),
-        Type::UInt => "UInt".to_string(),
+        Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(application) => {

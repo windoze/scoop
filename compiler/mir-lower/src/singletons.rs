@@ -42,7 +42,7 @@ impl Lowerer {
                 ty,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
-                    initializer: mir::ConstantValue::Zero,
+                    initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
                 },
             });
             let id = self

@@ -35,15 +35,15 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
     let mut ptr = generic_struct_decl_full(
         "Ptr",
         vec!["T"],
-        vec![("_rawPointer", ty_named("UInt"))],
+        Vec::new(),
         Vec::new(),
         vec![
             pointer_method(
-                "toUInt",
-                "ptr_to_uint",
+                "toULong",
+                "ptr_to_ulong",
                 vec![],
                 vec![],
-                Some(ty_named("UInt")),
+                Some(ty_named("ULong")),
             ),
             pointer_method(
                 "cast",
@@ -57,7 +57,7 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
                 "load",
                 "ptr_load_offset",
                 vec![],
-                vec![("offset", ty_named("Int"))],
+                vec![("offset", ty_named("Long"))],
                 Some(ty_named("T")),
             ),
             pointer_method(
@@ -71,21 +71,21 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
                 "store",
                 "ptr_store_offset",
                 vec![],
-                vec![("offset", ty_named("Int")), ("value", ty_named("T"))],
+                vec![("offset", ty_named("Long")), ("value", ty_named("T"))],
                 None,
             ),
             pointer_method(
                 "plus",
                 "ptr_plus",
                 vec![],
-                vec![("offset", ty_named("Int"))],
+                vec![("offset", ty_named("Long"))],
                 Some(ty_generic("Ptr", vec![ty_named("T")])),
             ),
             pointer_method(
                 "minus",
                 "ptr_minus",
                 vec![],
-                vec![("offset", ty_named("Int"))],
+                vec![("offset", ty_named("Long"))],
                 Some(ty_generic("Ptr", vec![ty_named("T")])),
             ),
         ],
@@ -93,10 +93,17 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
     let Decl::Struct(ptr_decl) = &mut ptr else {
         unreachable!()
     };
+    ptr_decl.annotations = vec![intrinsic("core_ptr")];
+    ptr_decl.fields = ast::StructRepresentationDecl::Omitted;
     ptr_decl.type_params[0].inline_bound =
         Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
 
-    let fun_ptr = generic_struct_decl("FunPtr", vec!["F"], vec![("_rawPointer", ty_named("UInt"))]);
+    let mut fun_ptr = generic_struct_decl("FunPtr", vec!["F"], Vec::new());
+    let Decl::Struct(fun_ptr_decl) = &mut fun_ptr else {
+        unreachable!()
+    };
+    fun_ptr_decl.annotations = vec![intrinsic("core_fun_ptr")];
+    fun_ptr_decl.fields = ast::StructRepresentationDecl::Omitted;
 
     let ref_bound = |mut decl: Decl| {
         let type_params = match &mut decl {
@@ -183,7 +190,7 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
             "foreign_callback_register",
             vec![
                 ("callback", ty_named("Any")),
-                ("contextIndex", ty_named("Int")),
+                ("contextIndex", ty_named("Long")),
                 ("mode", ty_named("ForeignCallbackMode")),
             ],
             ty_generic("ForeignCallback", vec![ty_named("F")]),
@@ -227,35 +234,35 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
         ref_bound(generic_struct_decl(
             "PinnedPtr",
             vec!["T"],
-            vec![("raw", ty_named("UInt"))],
+            vec![("raw", ty_named("ULong"))],
         )),
         ref_bound(generic_struct_decl(
             "GcHandle",
             vec!["T"],
-            vec![("raw", ty_named("UInt"))],
+            vec![("raw", ty_named("ULong"))],
         )),
         gc_intrinsic(
             "_pin",
             "gc_pin_raw",
             vec![("v", ty_named("T"))],
-            ty_named("UInt"),
+            ty_named("ULong"),
         ),
         gc_intrinsic(
             "_unpin",
             "gc_unpin_raw",
-            vec![("raw", ty_named("UInt"))],
+            vec![("raw", ty_named("ULong"))],
             ty_named("T"),
         ),
         gc_intrinsic(
             "_getGcHandle",
             "gc_get_handle_raw",
             vec![("v", ty_named("T"))],
-            ty_named("UInt"),
+            ty_named("ULong"),
         ),
         gc_intrinsic(
             "_releaseGcHandle",
             "gc_release_handle_raw",
-            vec![("raw", ty_named("UInt"))],
+            vec![("raw", ty_named("ULong"))],
             ty_named("T"),
         ),
         top_level(
@@ -266,7 +273,14 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
             false,
             true,
         ),
-        top_level("sizeOf", "size_of", vec![], ty_named("UInt"), true, false),
-        top_level("alignOf", "align_of", vec![], ty_named("UInt"), true, false),
+        top_level("sizeOf", "size_of", vec![], ty_named("ULong"), true, false),
+        top_level(
+            "alignOf",
+            "align_of",
+            vec![],
+            ty_named("ULong"),
+            true,
+            false,
+        ),
     ]
 }

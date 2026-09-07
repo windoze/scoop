@@ -147,7 +147,7 @@ impl Lowerer {
                     return None;
                 }
                 if failures.len() == 1 {
-                    *self = *failures.pop().expect("one failure").1;
+                    self.commit_layer_diagnostics(*failures.pop().expect("one failure").1);
                 } else {
                     let traces = failures
                         .iter()

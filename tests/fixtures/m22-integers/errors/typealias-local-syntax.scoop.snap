@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-local-syntax.scoop:2:5: error: local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported

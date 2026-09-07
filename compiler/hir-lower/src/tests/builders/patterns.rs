@@ -42,13 +42,28 @@ pub(crate) fn pat_named(
     fields: Vec<(&str, Option<&str>)>,
     rest: Option<Span>,
 ) -> ast::Pattern {
+    pat_named_subpatterns(
+        path,
+        fields
+            .into_iter()
+            .map(|(field, rename)| (field, pat_bind(rename.unwrap_or(field))))
+            .collect(),
+        rest,
+    )
+}
+
+pub(crate) fn pat_named_subpatterns(
+    path: &[&str],
+    fields: Vec<(&str, ast::Pattern)>,
+    rest: Option<Span>,
+) -> ast::Pattern {
     ast::Pattern::Named {
         path: path.iter().map(|p| ident(p)).collect(),
         fields: fields
             .into_iter()
-            .map(|(name, rename)| ast::FieldPattern {
-                name: ident(name),
-                rename: rename.map(ident),
+            .map(|(field, subpattern)| ast::FieldPattern {
+                field: ident(field),
+                subpattern: Box::new(subpattern),
                 span: sp(),
             })
             .collect(),

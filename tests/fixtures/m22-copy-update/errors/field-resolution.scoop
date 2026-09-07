@@ -1,0 +1,50 @@
+// EXPECT-DIAGNOSTICS
+
+struct Pair(val left: Int, val right: String)
+
+enum Ambiguous {
+    First { shared: Int },
+    Second { shared: String }
+}
+
+enum CrossVariant {
+    Left { left: Int },
+    Right { right: Int }
+}
+
+enum NoMatch {
+    Present { known: Int },
+    Empty
+}
+
+fun unknownStructField() {
+    val value = Pair(1, "right")
+    val invalid = value.{ missing: 2 }
+}
+
+fun duplicateStructField() {
+    val value = Pair(1, "right")
+    val invalid = value.{ left: 2, left: 3 }
+}
+
+fun wrongStructFieldType() {
+    val value = Pair(1, "right")
+    val invalid = value.{ left: "wrong" }
+}
+
+fun ambiguousEnumField() {
+    val value: Ambiguous = Ambiguous.First(shared = 1)
+    val invalid = value.{ shared: 2 }
+}
+
+fun crossVariantFields() {
+    val value: CrossVariant = CrossVariant.Left(left = 1)
+    val invalid = value.{ left: 2, right: 3 }
+}
+
+fun missingEnumField() {
+    val value: NoMatch = NoMatch.Present(known = 1)
+    val invalid = value.{ absent: 2 }
+}
+
+fun main() {}

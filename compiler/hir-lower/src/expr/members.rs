@@ -14,8 +14,14 @@ impl Lowerer {
                 if self.scopes.lookup(&name.text).is_none()
                     && !self.host_has_property(&name.text) =>
             {
-                self.top_level_nominal_target(&name.text)
-                    .or_else(|| self.lexical_nested_nominal_target(&name.text))
+                self.lexical_nested_nominal_target(&name.text)
+                    .or_else(|| {
+                        (self.source_type_alias_named(&name.text).is_some()
+                            && self.type_alias_is_accessible(&name.text))
+                        .then(|| self.type_alias_nominal_target(&name.text))
+                        .flatten()
+                    })
+                    .or_else(|| self.top_level_nominal_target(&name.text))
             }
             ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Direct => {
                 let ast::FieldSelector::Name(name) = &access.selector else {
@@ -26,6 +32,48 @@ impl Lowerer {
             }
             _ => None,
         }
+    }
+
+    /// Resolve a direct alias qualifier after value bindings have had their
+    /// normal shadowing opportunity. This uses the resolver-owned API so the
+    /// access diagnostic is identical in type and expression positions.
+    pub(in crate::expr) fn resolve_direct_alias_qualifier(
+        &mut self,
+        expression: &ast::Expr,
+    ) -> Result<Option<(AliasExpansion, NominalTarget)>, ()> {
+        let Some((target, nominal)) = self.resolve_direct_type_alias_qualifier(expression)? else {
+            return Ok(None);
+        };
+        let ast::Expr::Var(name) = expression else {
+            unreachable!("a direct alias qualifier is a source name")
+        };
+        Ok(Some((
+            AliasExpansion {
+                name: name.clone(),
+                target,
+            },
+            nominal,
+        )))
+    }
+
+    pub(crate) fn resolve_direct_type_alias_qualifier(
+        &mut self,
+        expression: &ast::Expr,
+    ) -> Result<Option<(TypeId, NominalTarget)>, ()> {
+        let ast::Expr::Var(name) = expression else {
+            return Ok(None);
+        };
+        if self.scopes.lookup(&name.text).is_some()
+            || self.host_has_property(&name.text)
+            || self.lexical_nested_nominal_target(&name.text).is_some()
+            || self.source_type_alias_named(&name.text).is_none()
+        {
+            return Ok(None);
+        }
+        let Some((target, nominal)) = self.resolve_type_alias_nominal_qualifier(name)? else {
+            unreachable!("the direct alias guard established an alias declaration")
+        };
+        Ok(Some((target, nominal)))
     }
 
     fn lower_static_nested_constructor(
@@ -223,13 +271,26 @@ impl Lowerer {
                 }
             };
         }
-        if let Some(qualifier) = self.nominal_qualifier_target(receiver) {
+        let direct_alias = match self.resolve_direct_alias_qualifier(receiver) {
+            Ok(alias) => alias,
+            Err(()) => return None,
+        };
+        let qualifier = direct_alias
+            .as_ref()
+            .map(|(_, target)| *target)
+            .or_else(|| self.nominal_qualifier_target(receiver));
+        if let Some(qualifier) = qualifier {
             if let Some(target) = self.nested_nominal_target(qualifier.owner(), &name.text) {
                 return self.lower_static_nested_constructor(target, name, call, sink, expected);
             }
             if let NominalTarget::Enum(enum_id) = qualifier {
-                if let Some(variant) = self.find_variant(enum_id, &name.text) {
-                    return self.lower_variant_construct(enum_id, variant, call, sink, expected);
+                if let Some(target) = self.find_variant_ref(enum_id, &name.text) {
+                    let expected = self.alias_fixed_expected(
+                        direct_alias.as_ref().map(|(alias, _)| alias),
+                        call.type_args,
+                        expected,
+                    )?;
+                    return self.lower_variant_construct(target, call, sink, expected);
                 }
             }
             let forwarded = self.companion_forwarding_object(qualifier, &name.text);
@@ -277,6 +338,22 @@ impl Lowerer {
                 ),
             );
             return None;
+        }
+        if let Some(layer) = self.probe_integer_literal_receiver(
+            receiver,
+            expected,
+            |state, receiver, layer_sink| {
+                state.lower_explicit_named_call(
+                    receiver,
+                    name,
+                    call,
+                    layer_sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                )
+            },
+        ) {
+            return Some(self.commit_expr_layer(layer, sink));
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
         self.lower_explicit_named_call(
@@ -770,13 +847,32 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let receiver = self.lower_expr(lhs, sink, None)?;
         let args = [ast::CallArgument::positional(rhs.clone())];
         let call = CallSite {
             type_args: &[],
             args: &args,
             span,
         };
+        if let ast::InfixTarget::Named(name) = target
+            && let Some(layer) =
+                self.probe_integer_literal_receiver(lhs, expected, |state, receiver, layer_sink| {
+                    state.lower_explicit_named_call(
+                        receiver,
+                        name,
+                        call,
+                        layer_sink,
+                        expected,
+                        RequiredCallableModifiers {
+                            operator: None,
+                            infix: true,
+                            ..Default::default()
+                        },
+                    )
+                })
+        {
+            return Some(self.commit_expr_layer(layer, sink));
+        }
+        let receiver = self.lower_expr(lhs, sink, None)?;
         match target {
             ast::InfixTarget::Named(name) => self.lower_explicit_named_call(
                 receiver,

@@ -26,9 +26,12 @@
 //! single pointer-like field (`None` = null — this is
 //! `Option<String>`); otherwise a tagged form whose pure-value variants
 //! share one payload and whose ref-bearing variants have disjoint slots.
-//! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
-//! `EnumField`, which codegen translates mechanically per the
-//! representation. Enum layouts keep fixed ref offsets for all disjoint
+//! Typed MIR variant construction maps onto typed `EnumWrap`, while the
+//! legacy `EnumTag` / `EnumField` readers remain for coroutine lowering.
+//! Representation-independent typed operations map onto `VariantTest` /
+//! `VariantPayloadProject`. Codegen translates both paths mechanically per
+//! the representation while the remaining readers migrate.
+//! Enum layouts keep fixed ref offsets for all disjoint
 //! ref-bearing slots; inactive slots are zero, so scanning never reads
 //! the tag and composes mechanically in aggregates (runtime spec 2.2).
 //!
@@ -130,7 +133,14 @@ use scoop_lir as lir;
 use scoop_mir as mir;
 
 /// Lower MIR to LIR.
-pub fn lower(module: &mir::Module) -> lir::Module {
+pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir::Module {
+    module
+        .validate()
+        .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
+    match module.meta.mangling_schema {
+        mir::ManglingSchemaIdentity::CompactV2 => {}
+    }
+    let context = LoweringContext::new(target_profile);
     // Every MIR string constant becomes a global with the same symbol.
     let mut globals = Arena::new();
     let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
@@ -146,15 +156,40 @@ pub fn lower(module: &mir::Module) -> lir::Module {
 
     // Enum definitions with fixed representations, in the MIR arena's
     // order: `mir::EnumId` and `lir::EnumDefId` align.
-    let enums = lower_enums(module);
+    let enums = lower_enums(&context, module);
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
-    let structs = lower_structs(module, &enums);
-    let (extern_functions, extern_function_refs) = lower_extern_functions(module);
-    let (storage_globals, native_globals, native_global_bridges) =
-        lower_globals(module, &mut globals, &structs, &enums, &string_global_map);
-    let callback_bridges = lower_callback_bridges(module);
-    let foreign_callback_bridges = lower_foreign_callback_bridges(module);
+    let structs = lower_structs(&context, module, &enums);
+    // Classify every final MIR function before any body is lowered. Callee
+    // definitions and all statically selected call sites reuse these exact
+    // signatures rather than independently rebuilding a physical ABI.
+    let function_signatures = module
+        .functions
+        .iter()
+        .map(|(id, function)| {
+            let signature = abi::classify_mir_signature(
+                &context,
+                function.params.iter().map(|parameter| &parameter.ty),
+                &function.return_ty,
+                &structs,
+                &enums,
+            );
+            (id, signature)
+        })
+        .collect::<HashMap<_, _>>();
+    let (extern_functions, extern_function_refs) =
+        lower_extern_functions(&context, module, &structs, &enums);
+    let (storage_globals, native_globals, native_global_bridges) = lower_globals(
+        &context,
+        module,
+        &mut globals,
+        &structs,
+        &enums,
+        &string_global_map,
+    );
+    let callback_bridges = lower_callback_bridges(module, &structs, &enums);
+    let foreign_callback_families = lower_foreign_callback_families(module, &enums);
+    let foreign_callback_bridges = lower_foreign_callback_bridges(module, &structs, &enums);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
         .top_level
@@ -174,8 +209,8 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
     let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =
-        type_descriptors(module, &enums, &local_function_map);
-    let (arrays, array_type_map) = array_types(module, &enums, &type_descriptor_refs);
+        type_descriptors(&context, module, &enums, &local_function_map);
+    let (arrays, array_type_map) = array_types(&context, module, &enums, &type_descriptor_refs);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -183,13 +218,15 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
     let mut safepoint_ids = safepoints::SafepointIds::default();
-    let mut functions: Vec<lir::Function> = module
+    let mut lowered_functions = module
         .top_level
         .iter()
         .map(|&id| {
             lower_function(
+                &context,
                 module,
                 &module.functions[id],
+                &function_signatures[&id],
                 &string_global_map,
                 &storage_globals,
                 &mut globals,
@@ -200,16 +237,22 @@ pub fn lower(module: &mir::Module) -> lir::Module {
                 &array_type_map,
                 &type_descriptor_refs,
                 &local_function_map,
+                &function_signatures,
+                &extern_functions,
                 &extern_function_refs,
                 &mut safepoint_ids,
             )
         })
-        .collect();
-    for function in &mut functions {
-        safepoints::complete_function(function, &structs, &enums, &mut safepoint_ids);
+        .collect::<Vec<_>>();
+    for function in &mut lowered_functions {
+        safepoints::complete_function(&context, function, &structs, &enums, &mut safepoint_ids);
     }
+    let functions = lowered_functions
+        .into_iter()
+        .map(|function| function.function)
+        .collect();
 
-    let (layouts, well_known_layouts) = layouts(module, &enums, &layout_types);
+    let (layouts, well_known_layouts) = layouts(&context, module, &enums, &layout_types);
     lir::Module {
         globals,
         initialization_units,
@@ -220,9 +263,11 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         native_globals,
         native_global_bridges,
         callback_bridges,
+        foreign_callback_families,
         foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
+            target_profile: context.target_profile(),
             well_known_layouts,
             well_known_type_descriptors,
             arrays,
@@ -234,6 +279,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     }
 }
 
+mod abi;
 mod callbacks;
 mod externs;
 mod globals;
@@ -242,6 +288,7 @@ mod locals;
 mod metadata;
 mod runtime;
 mod safepoints;
+mod target;
 
 use callbacks::*;
 use externs::*;
@@ -249,6 +296,7 @@ use globals::*;
 use initialization::*;
 use metadata::*;
 use runtime::*;
+use target::*;
 
 mod function;
 use function::lower_function;

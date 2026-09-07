@@ -85,7 +85,10 @@ fn bare_var_property_assignment_in_a_method_stores_through_this() {
                 }
                 other => panic!("expected a field store, found {other:?}"),
             }
-            assert!(matches!(value.kind, hir::ExprKind::IntLiteral(1)));
+            assert!(matches!(
+                value.kind,
+                hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(1))
+            ));
         }
         other => panic!("expected an assignment, found {other:?}"),
     }
@@ -180,7 +183,10 @@ fn field_assignment_on_a_var_property() {
                 }
                 other => panic!("expected a field store, found {other:?}"),
             }
-            assert!(matches!(value.kind, hir::ExprKind::IntLiteral(3)));
+            assert!(matches!(
+                value.kind,
+                hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(3))
+            ));
         }
         other => panic!("expected an assignment, found {other:?}"),
     }

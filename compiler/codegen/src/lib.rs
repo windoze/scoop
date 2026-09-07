@@ -39,10 +39,13 @@ use inkwell::values::{
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
-    ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction, LirType,
-    Module, NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor,
-    TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
+    ArrayType, ArrayTypeId, BinOp, CallableRef, DispatchEntry, EnumDefs, EnumRepr,
+    ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction,
+    IntegerBinaryOperation, IntegerComparison, IntegerDivRemOperation, IntegerKind,
+    IntegerShiftOperation, IntegerSignedness, IntegerUnaryOperation, IntegerWidth,
+    LirConstantImage, LirStaticInitialState, LirType, MachineScalarKind, Module, NativeGlobal,
+    PointerKind, RefScan, StructDef, StructDefs, StructRepresentation, TempId, Terminator,
+    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -70,6 +73,7 @@ impl std::fmt::Display for CodegenError {
 
 impl std::error::Error for CodegenError {}
 
+mod abi;
 mod artifact;
 mod c_bridge;
 mod declarations;
@@ -82,14 +86,15 @@ mod module_context;
 mod statepoint;
 mod target;
 mod type_descriptors;
+mod validation;
 
 pub use c_bridge::{c_bridge_source, c_layout_assertions};
 pub(crate) use declarations::*;
 #[cfg(test)]
 pub(crate) use emission::emit_llvm_module;
-pub use emission::emit_object;
 #[cfg(test)]
 pub(crate) use emission::host_target_machine;
+pub use emission::{emit_object, render_llvm_ir};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;

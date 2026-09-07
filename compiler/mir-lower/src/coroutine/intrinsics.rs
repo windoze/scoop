@@ -8,8 +8,11 @@ pub(super) fn rewrite_intrinsic_site(
     frame_local: mir::LocalId,
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
+    frame_layout: FrameLayout,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    parents: Vec<mir::CoroutinePendingTransfer>,
     failure_slot: FrameSlot,
+    failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -25,33 +28,39 @@ pub(super) fn rewrite_intrinsic_site(
         unreachable!("intrinsic site carries its concrete register method")
     };
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
-    let (_, result_latch_ty) = lowerer.coroutines.slot_for(
+    let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
         &site.result,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let (_, failure_latch_ty) = lowerer.coroutines.slot_for(
+    let (failure_latch_id, failure_latch_ty) = lowerer.coroutines.slot_for(
         &throwable,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
-    let result_latch = FrameSlot {
-        field: 2,
-        slot_ty: result_latch_ty,
-        value_ty: site.result.clone(),
-    };
-    let failure_latch = FrameSlot {
-        field: 3,
-        slot_ty: failure_latch_ty,
-        value_ty: throwable.clone(),
-    };
+    let result_latch = FrameSlot::new(
+        2,
+        result_latch_id,
+        result_latch_ty,
+        &lowerer.coroutines.slots[result_latch_id],
+    );
+    let failure_latch = FrameSlot::new(
+        3,
+        failure_latch_id,
+        failure_latch_ty,
+        &lowerer.coroutines.slots[failure_latch_id],
+    );
+    let outer_suspended = lowerer
+        .coroutines
+        .step_metadata_for_type(outer_step)
+        .suspended();
     let adapter = generate_adapter(
         lowerer,
         module,
         frame_class,
-        frame,
+        frame_layout,
         site.destination.map(|local| frame_slots[&local].clone()),
         failure_slot.clone(),
         outer_step,
@@ -61,7 +70,6 @@ pub(super) fn rewrite_intrinsic_site(
         source_symbol,
         driver,
         site.state,
-        failure_state(site.state),
         &site.result,
         Some((result_latch.clone(), failure_latch.clone())),
     );
@@ -75,11 +83,11 @@ pub(super) fn rewrite_intrinsic_site(
     ));
     let registration_claim = body.locals.alloc(local(
         &format!("$registration_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
     ));
     let frame_claim = body.locals.alloc(local(
         &format!("$registration_frame_claim.{}", site.state),
-        mir::Type::Int,
+        mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
     ));
 
     let current = &mut body.blocks[site.block];
@@ -99,15 +107,15 @@ pub(super) fn rewrite_intrinsic_site(
     }
     current.statements.push(atomic_field_store(
         mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-        0,
-        mir::Expr::int(i64::from(site.state)),
+        frame_layout.state.field_index(),
+        frame_state(suspended_state(site.state)),
     ));
     current.statements.extend(initialized_generated_class(
         adapter_local,
         adapter.class,
         vec![
             mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-            mir::Expr::int(ADAPTER_REGISTERING),
+            adapter_state(ADAPTER_REGISTERING),
             slot_empty(&result_latch),
             slot_empty(&failure_latch),
         ],
@@ -133,7 +141,7 @@ pub(super) fn rewrite_intrinsic_site(
             let mut statements = vec![atomic_field_store(
                 mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                 1,
-                mir::Expr::int(ADAPTER_CONSUMED),
+                adapter_state(ADAPTER_CONSUMED),
             )];
             if let Some(destination) = site.destination {
                 statements.push(statement(mir::StatementKind::ValDecl {
@@ -146,8 +154,8 @@ pub(super) fn rewrite_intrinsic_site(
                                 result_latch.field,
                                 result_latch.slot_ty.clone(),
                             )),
-                            variant: 1,
-                            index: 0,
+                            variant: result_latch.value_payload.variant().variant_index(),
+                            index: result_latch.value_payload.field_index(),
                         },
                     ),
                 }));
@@ -163,7 +171,7 @@ pub(super) fn rewrite_intrinsic_site(
             atomic_field_store(
                 mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                 1,
-                mir::Expr::int(ADAPTER_CONSUMED),
+                adapter_state(ADAPTER_CONSUMED),
             ),
             statement(mir::StatementKind::ValDecl {
                 local: exception,
@@ -175,8 +183,8 @@ pub(super) fn rewrite_intrinsic_site(
                             failure_latch.field,
                             failure_latch.slot_ty.clone(),
                         )),
-                        variant: 1,
-                        index: 0,
+                        variant: failure_latch.value_payload.variant().variant_index(),
+                        index: failure_latch.value_payload.field_index(),
                     },
                 ),
             }),
@@ -191,7 +199,7 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.registered_suspend.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step)),
+            value: Some(suspended_value(outer_step, outer_suspended)),
         },
         unwind: None,
     });
@@ -202,15 +210,18 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: success,
             else_block: invalid,
@@ -223,15 +234,18 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: failure,
             else_block: invalid,
@@ -242,12 +256,13 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.check_latched_failure.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_LATCHED_FAILURE,
+                adapter_state_value(ADAPTER_LATCHED_FAILURE),
             ),
             then_block: claim_failure_frame,
             else_block: invalid,
@@ -258,12 +273,13 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.check_latched_success.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_LATCHED_SUCCESS,
+                adapter_state_value(ADAPTER_LATCHED_SUCCESS),
             ),
             then_block: claim_success_frame,
             else_block: check_latched_failure,
@@ -280,12 +296,13 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.check_completing_failure.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_COMPLETING_FAILURE,
+                adapter_state_value(ADAPTER_COMPLETING_FAILURE),
             ),
             then_block: completion_spin,
             else_block: check_latched_success,
@@ -296,18 +313,21 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.completion_wait.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_COMPLETING_SUCCESS,
+                adapter_state_value(ADAPTER_COMPLETING_SUCCESS),
             ),
             then_block: completion_spin,
             else_block: check_completing_failure,
         },
         unwind,
     });
+    body.loop_header_polls
+        .push(mir::LoopHeaderPollTarget::new(completion_wait));
     body.blocks[completion_spin].terminator = mir::Terminator::Goto(completion_wait);
     let register_return = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.register_return.{}", site.state),
@@ -316,14 +336,17 @@ pub(super) fn rewrite_intrinsic_site(
             init: atomic_field_compare_exchange(
                 mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                 1,
-                ADAPTER_REGISTERING,
-                ADAPTER_WAITING,
+                adapter_state_value(ADAPTER_REGISTERING),
+                adapter_state_value(ADAPTER_WAITING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(registration_claim, mir::Type::Int),
-                ADAPTER_REGISTERING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    registration_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_REGISTERING),
             ),
             then_block: suspended,
             else_block: completion_wait,
@@ -345,15 +368,18 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: registration_propagate,
             else_block: invalid,
@@ -365,7 +391,7 @@ pub(super) fn rewrite_intrinsic_site(
         statements: vec![atomic_field_store(
             mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
             1,
-            mir::Expr::int(ADAPTER_CONSUMED),
+            adapter_state(ADAPTER_CONSUMED),
         )],
         terminator: mir::Terminator::Goto(invalid),
         unwind,
@@ -376,15 +402,18 @@ pub(super) fn rewrite_intrinsic_site(
             local: frame_claim,
             init: atomic_field_compare_exchange(
                 mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                0,
-                i64::from(site.state),
-                STATE_RUNNING,
+                frame_layout.state.field_index(),
+                frame_state_value(suspended_state(site.state)),
+                frame_state_value(STATE_RUNNING),
             ),
         })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(frame_claim, mir::Type::Int),
-                i64::from(site.state),
+            cond: machine_eq(
+                mir::Expr::local(
+                    frame_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
+                ),
+                frame_state_value(suspended_state(site.state)),
             ),
             then_block: registration_protocol,
             else_block: invalid,
@@ -404,12 +433,13 @@ pub(super) fn rewrite_intrinsic_site(
         ),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_COMPLETING_FAILURE,
+                adapter_state_value(ADAPTER_COMPLETING_FAILURE),
             ),
             then_block: registration_spin,
             else_block: registration_protocol_claim_frame,
@@ -420,18 +450,21 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.registration_wait.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
+            cond: machine_eq(
                 atomic_field_load(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
+                    mir::MachineScalarKind::CoroutineAdapterState,
                 ),
-                ADAPTER_COMPLETING_SUCCESS,
+                adapter_state_value(ADAPTER_COMPLETING_SUCCESS),
             ),
             then_block: registration_spin,
             else_block: registration_check_completing_failure,
         },
         unwind,
     });
+    body.loop_header_polls
+        .push(mir::LoopHeaderPollTarget::new(registration_wait));
     body.blocks[registration_spin].terminator = mir::Terminator::Goto(registration_wait);
     let registration_failure = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registration_failure.{}", site.state),
@@ -448,6 +481,7 @@ pub(super) fn rewrite_intrinsic_site(
                         callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                     },
                     args: vec![mir::Expr::caught_exception()],
+                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -456,15 +490,18 @@ pub(super) fn rewrite_intrinsic_site(
                 init: atomic_field_compare_exchange(
                     mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
                     1,
-                    ADAPTER_REGISTERING,
-                    ADAPTER_CONSUMED,
+                    adapter_state_value(ADAPTER_REGISTERING),
+                    adapter_state_value(ADAPTER_CONSUMED),
                 ),
             }),
         ],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                mir::Expr::local(registration_claim, mir::Type::Int),
-                ADAPTER_REGISTERING,
+            cond: machine_eq(
+                mir::Expr::local(
+                    registration_claim,
+                    mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState),
+                ),
+                adapter_state_value(ADAPTER_REGISTERING),
             ),
             then_block: registration_claim_frame,
             else_block: registration_wait,
@@ -500,18 +537,20 @@ pub(super) fn rewrite_intrinsic_site(
         terminator: mir::Terminator::Goto(post),
         unwind,
     });
-    GeneratedSite {
-        state: i64::from(site.state),
+    let failure_block =
+        failure_resume_block(body, frame_local, frame_slots, failure_slot, &site, unwind);
+    let point = register_resume_point(
+        lowerer,
+        frame,
+        site.state,
+        site.result,
+        &adapter,
+        parents,
+        post,
         resume_block,
-        failure_state: failure_state(site.state),
-        failure_block: failure_resume_block(
-            body,
-            frame_local,
-            frame_slots,
-            failure_slot,
-            &site,
-            unwind,
-        ),
-        point: adapter.point,
-    }
+        failure_block,
+        failure_value,
+        unwind,
+    );
+    GeneratedSite { point }
 }

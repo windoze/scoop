@@ -29,7 +29,7 @@ fn subscript_index_must_be_int() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `get` in member candidate layer:\n  - fun Array<T>.get(index: Int): T — argument for `index` has type String, which is not a subtype of Int"
+        "no applicable candidate for `get` in member candidate layer:\n  - fun Array<T>.get(index: Long): T — argument for `index` has type String, which is not a subtype of Long"
     );
 }
 
@@ -113,7 +113,7 @@ fn subscript_write_index_must_be_int() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Int, value: T): Unit — argument for `index` has type String, which is not a subtype of Int"
+        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Long, value: T): Unit — argument for `index` has type String, which is not a subtype of Long"
     );
 }
 
@@ -134,6 +134,6 @@ fn subscript_write_value_must_match_the_element_type() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Int, value: T): Unit — argument for `value` has type String, which is not a subtype of Int"
+        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Long, value: T): Unit — argument for `value` has type String, which is not a subtype of Int"
     );
 }

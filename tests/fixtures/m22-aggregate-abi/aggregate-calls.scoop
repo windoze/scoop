@@ -1,0 +1,134 @@
+// EXPECT-COMPILE
+
+enum Signal {
+    Ready,
+    Payload(Int)
+}
+
+struct OriginalBundle(
+    val optional: Int?,
+    val signal: Signal,
+    val nested: (Signal, Int?)
+)
+
+struct Nested24Box(val marker: Int, val nested: (Signal, Long))
+
+struct ManagedAggregate(
+    val first: String,
+    val nested: (String, Long)
+)
+
+@NoGC
+fun signalValue(value: Signal): Int = when (value) {
+    Ready -> 0
+    Payload(number) -> number
+}
+
+@NoGC
+fun optionValue(value: Int?): Int = when (value) {
+    None -> 0
+    Some(number) -> number
+}
+
+@NoGC
+fun noGcNested24(value: (Signal, Long)): (Int, Long) =
+    (signalValue(value._1), value._2)
+
+@NoGC
+fun noGcFlat32(value: (Long, Long, Long, Long)): Long =
+    value._1 + value._2 + value._3 + value._4
+
+fun <T> genericRoundTrip(value: T): T = value
+
+fun makeText(left: String, right: String): String = left + right
+
+fun managedRoundTrip(value: ManagedAggregate): ManagedAggregate {
+    gcCollect()
+    return value
+}
+
+fun managedMaybeThrow(
+    value: ManagedAggregate,
+    shouldThrow: Boolean
+): ManagedAggregate {
+    gcCollect()
+    if (shouldThrow) {
+        throw UnwrapException()
+    }
+    return value
+}
+
+fun main() {
+    println("original-nested-32")
+    val original = OriginalBundle(
+        Some(3),
+        Signal.Ready,
+        (Signal.Payload(4), None)
+    )
+    println(optionValue(original.optional))
+    println(signalValue(original.signal))
+    println(signalValue(original.nested._1))
+    println(optionValue(original.nested._2))
+
+    println("nested-24-constructor")
+    val nested24Box = Nested24Box(3, (Signal.Payload(4), 55L))
+    println(nested24Box.marker)
+    println(signalValue(nested24Box.nested._1))
+    println(nested24Box.nested._2)
+
+    println("nested-24-nogc")
+    val nested24 = (Signal.Payload(40), 55L)
+    val inspected24 = noGcNested24(nested24)
+    println(inspected24._1)
+    println(inspected24._2)
+
+    println("generic-specialization-24")
+    val generic24 = genericRoundTrip(
+        (Signal.Payload(60), 70L)
+    )
+    println(signalValue(generic24._1))
+    println(generic24._2)
+
+    println("flat-32-control")
+    println(noGcFlat32((10L, 20L, 30L, 40L)))
+
+    val managed = ManagedAggregate(
+        makeText("alpha", "-live"),
+        (makeText("beta", "-live"), 700L)
+    )
+
+    println("managed-call")
+    val roundTrip = managedRoundTrip(managed)
+    println(roundTrip.first)
+    println(roundTrip.nested._1)
+    println(roundTrip.nested._2)
+
+    println("managed-invoke-normal")
+    try {
+        val normal = managedMaybeThrow(managed, false)
+        println(normal.first)
+        println(normal.nested._1)
+        println(normal.nested._2)
+    } catch (exception: UnwrapException) {
+        println("unexpected-normal-catch")
+    }
+
+    println("managed-invoke-throw")
+    try {
+        val ignored = managedMaybeThrow(managed, true)
+        println(ignored.first)
+        println("unexpected-throw-return")
+    } catch (exception: UnwrapException) {
+        println("caught-managed-invoke")
+    }
+
+    println("closure-hidden-receiver-24")
+    val bias = 1000L
+    val closure: ((Signal, Long)) -> (Int, Long) = { (signal, number) ->
+        gcCollect()
+        (signalValue(signal), bias + number)
+    }
+    val closureResult = closure.invoke((Signal.Payload(9), 90L))
+    println(closureResult._1)
+    println(closureResult._2)
+}

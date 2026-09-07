@@ -5,7 +5,7 @@
 //! compilation unit is every `src/*.scoop` of the sysroot's `scoop.core`
 //! Cone followed by the user file, all compiled together.
 
-use scoop_ast::Diagnostic;
+use scoop_ast::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
 
 mod inputs;
@@ -28,6 +28,8 @@ pub struct CompileSuccess {
     pub dumps: StageDumps,
     /// Path to the linked executable.
     pub binary: PathBuf,
+    /// Non-fatal source diagnostics. Their presence does not change success.
+    pub warnings: Vec<Diagnostic>,
 }
 
 #[derive(Debug, Default)]
@@ -119,88 +121,109 @@ pub fn compile_file_with_options(
         options.intrinsic_declaration_policy.clone(),
     )?;
     let hir_dump = scoop_hir::dump(&hir.export);
+    let warnings = hir.warnings;
 
     let mir = scoop_mir_lower::lower(&hir.local);
+    mir.validate().map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("MIR validation failed: {error}"),
+        )]
+    })?;
     let mir_dump = scoop_mir::dump(&mir);
 
-    let lir = scoop_lir_lower::lower(&mir);
+    let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target_profile());
     let lir_dump = scoop_lir::dump(&lir);
 
-    std::fs::create_dir_all(out_dir).map_err(|e| {
-        vec![no_span(
-            user_index,
-            format!("cannot create output directory {}: {e}", out_dir.display()),
-        )]
-    })?;
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("scoop-out");
-    let object = out_dir.join(format!("{stem}.o"));
-    let binary = out_dir.join(stem);
+    let build = (|| -> Result<(StageDumps, PathBuf), Vec<Diagnostic>> {
+        std::fs::create_dir_all(out_dir).map_err(|e| {
+            vec![no_span(
+                user_index,
+                format!("cannot create output directory {}: {e}", out_dir.display()),
+            )]
+        })?;
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("scoop-out");
+        let object = out_dir.join(format!("{stem}.o"));
+        let binary = out_dir.join(stem);
 
-    scoop_codegen::emit_object(&lir, &object, target_profile)
-        .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
+        scoop_codegen::emit_object(&lir, &object, target_profile)
+            .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
-    let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
-        vec![no_span(
-            user_index,
-            format!("C bridge generation failed: {e}"),
-        )]
-    })? {
-        Some(source) => {
-            let source_path = out_dir.join(format!("{stem}.ffi.c"));
-            let object_path = out_dir.join(format!("{stem}.ffi.o"));
-            std::fs::write(&source_path, source).map_err(|error| {
-                vec![no_span(
-                    user_index,
-                    format!("cannot write C bridge {}: {error}", source_path.display()),
-                )]
-            })?;
-            compile_c_bridge(&source_path, &object_path, target_profile, user_index)?;
-            Some(object_path)
+        let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
+            vec![no_span(
+                user_index,
+                format!("C bridge generation failed: {e}"),
+            )]
+        })? {
+            Some(source) => {
+                let source_path = out_dir.join(format!("{stem}.ffi.c"));
+                let object_path = out_dir.join(format!("{stem}.ffi.o"));
+                std::fs::write(&source_path, source).map_err(|error| {
+                    vec![no_span(
+                        user_index,
+                        format!("cannot write C bridge {}: {error}", source_path.display()),
+                    )]
+                })?;
+                compile_c_bridge(&source_path, &object_path, target_profile, user_index)?;
+                Some(object_path)
+            }
+            None => None,
+        };
+
+        let runtime_lib = build_runtime(user_index, target_profile)?;
+        let mut libraries = Vec::new();
+        for (_, extern_) in lir.extern_functions.iter() {
+            if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
+                libraries.push(extern_.library.clone());
+            }
         }
-        None => None,
-    };
+        for (_, global) in lir.native_globals.iter() {
+            if !global.library.is_empty() && !libraries.contains(&global.library) {
+                libraries.push(global.library.clone());
+            }
+        }
+        link(LinkRequest {
+            object: &object,
+            bridge_object: bridge_object.as_deref(),
+            runtime_lib: &runtime_lib,
+            libraries: &libraries,
+            library_paths: &options.library_paths,
+            binary: &binary,
+            target_profile,
+            file: user_index,
+        })?;
 
-    let runtime_lib = build_runtime(user_index, target_profile)?;
-    let mut libraries = Vec::new();
-    for (_, extern_) in lir.extern_functions.iter() {
-        if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
-            libraries.push(extern_.library.clone());
+        Ok((
+            StageDumps {
+                ast: ast_dump,
+                hir: hir_dump,
+                mir: mir_dump,
+                lir: lir_dump,
+            },
+            binary,
+        ))
+    })();
+    match build {
+        Ok((dumps, binary)) => Ok(CompileSuccess {
+            dumps,
+            binary,
+            warnings,
+        }),
+        Err(mut diagnostics) => {
+            diagnostics.extend(warnings);
+            Err(diagnostics)
         }
     }
-    for (_, global) in lir.native_globals.iter() {
-        if !global.library.is_empty() && !libraries.contains(&global.library) {
-            libraries.push(global.library.clone());
-        }
-    }
-    link(LinkRequest {
-        object: &object,
-        bridge_object: bridge_object.as_deref(),
-        runtime_lib: &runtime_lib,
-        libraries: &libraries,
-        library_paths: &options.library_paths,
-        binary: &binary,
-        target_profile,
-        file: user_index,
-    })?;
-
-    Ok(CompileSuccess {
-        dumps: StageDumps {
-            ast: ast_dump,
-            hir: hir_dump,
-            mir: mir_dump,
-            lir: lir_dump,
-        },
-        binary,
-    })
 }
 
 /// A driver-level diagnostic without a source span, attributed to the
 /// input file at index `file`.
 fn no_span(file: usize, message: String) -> Diagnostic {
     Diagnostic {
+        severity: DiagnosticSeverity::Error,
         file,
         span: None,
         message,

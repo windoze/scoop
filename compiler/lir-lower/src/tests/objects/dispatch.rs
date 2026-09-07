@@ -13,14 +13,14 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
         "C.m",
         "scoop.C.m",
         vec![param("this", mir::Type::Class(c), this)],
-        mir::Type::Int,
-        returning_body(method_locals, mir::Expr::int(1)),
+        INT,
+        returning_body(method_locals, int_expr(1)),
     );
     b.classes[c].vtable.push(mir::TableSlot::Function(m));
     // main: `val p: C; val r = p.m()` (the first ordinary virtual slot).
     let mut locals = Arena::new();
     let p = locals.alloc(local("p", mir::Type::Class(c)));
-    let r = locals.alloc(local("r", mir::Type::Int));
+    let r = locals.alloc(local("r", INT));
     let main = b.main(
         locals,
         vec![call_value(
@@ -31,6 +31,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
                     callee: mir::Callee::User(m),
                 },
                 args: vec![local_expr(p, mir::Type::Class(c))],
+                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );
@@ -41,23 +42,30 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
     // vtable[0].
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.C.m(ptr<managed>) -> i64
+  fun @scoop.C.m(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp2 live=[]
-    ret 1
+    ret integer<Int>(0x00000001)
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
-    local %1 r: i64
+    local %1 r: i32
   block entry
     poll managed-void-target0 sp3 live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
     t1 = heap_load t0 +40 : ptr<metadata>
-    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i64 dispatch[Virtual:0] t1(local0)
+    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
   td td0 C @scoop_td_C type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout C size=16 align=8 refs=[]
   entry @scoop_main
@@ -75,12 +83,12 @@ fn interface_calls_look_up_the_itable() {
         "Describable.label",
         "scoop.Describable.label",
         vec![param("this", mir::Type::Interface(iface), this)],
-        mir::Type::Int,
+        INT,
     );
     // main: `val i: Describable; val r = i.label()` (itable slot 1).
     let mut locals = Arena::new();
     let i = locals.alloc(local("i", mir::Type::Interface(iface)));
-    let r = locals.alloc(local("r", mir::Type::Int));
+    let r = locals.alloc(local("r", INT));
     let main = b.main(
         locals,
         vec![call_value(
@@ -94,6 +102,7 @@ fn interface_calls_look_up_the_itable() {
                     callee: mir::Callee::User(label),
                 },
                 args: vec![local_expr(i, mir::Type::Interface(iface))],
+                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );
@@ -106,17 +115,24 @@ fn interface_calls_look_up_the_itable() {
 Module
   fun @scoop_main() -> void
     local %0 i: ptr<managed>
-    local %1 r: i64
+    local %1 r: i32
   block entry
     poll managed-void-target0 sp2 live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
     call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
-    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i64 dispatch[Interface:1] t1(local0)
+    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
   td td0 Describable @scoop_td_Describable type-id=2 size=0 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
+  layout Int8 size=1 align=1 refs=[]
+  layout Int16 size=2 align=2 refs=[]
+  layout Int size=4 align=4 refs=[]
+  layout Long size=8 align=8 refs=[]
+  layout UInt8 size=1 align=1 refs=[]
+  layout UInt16 size=2 align=2 refs=[]
+  layout UInt size=4 align=4 refs=[]
+  layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 "###);
@@ -128,31 +144,31 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let iface = b.interface("I", &["m"]);
     // Methods (bodies don't matter for the meta).
     let mut m_locals = Arena::new();
-    let base_m_this = m_locals.alloc(local("this", mir::Type::Int));
+    let base_m_this = m_locals.alloc(local("this", INT));
     let base_m = b.user_fn_full(
         "Base.m",
         "scoop.Base.m",
-        vec![param("this", mir::Type::Int, base_m_this)],
+        vec![param("this", INT, base_m_this)],
         mir::Type::Unit,
         m_locals,
         vec![],
     );
     let mut dm_locals = Arena::new();
-    let derived_m_this = dm_locals.alloc(local("this", mir::Type::Int));
+    let derived_m_this = dm_locals.alloc(local("this", INT));
     let derived_m = b.user_fn_full(
         "Derived.m",
         "scoop.Derived.m",
-        vec![param("this", mir::Type::Int, derived_m_this)],
+        vec![param("this", INT, derived_m_this)],
         mir::Type::Unit,
         dm_locals,
         vec![],
     );
     let mut dm2_locals = Arena::new();
-    let derived_m2_this = dm2_locals.alloc(local("this", mir::Type::Int));
+    let derived_m2_this = dm2_locals.alloc(local("this", INT));
     let derived_m2 = b.user_fn_full(
         "Derived.m2",
         "scoop.Derived.m2",
-        vec![param("this", mir::Type::Int, derived_m2_this)],
+        vec![param("this", INT, derived_m2_this)],
         mir::Type::Unit,
         dm2_locals,
         vec![],
@@ -163,7 +179,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let base = b.class(
         "Base",
         None,
-        &[("a", mir::Type::Int)],
+        &[("a", INT)],
         base_vtable,
         vec![mir::ItableRecord {
             interface: iface,
@@ -177,7 +193,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         "Derived",
         Some(base),
         // mir-lower flattens the base prefix into the field list.
-        &[("a", mir::Type::Int), ("b", mir::Type::String)],
+        &[("a", INT), ("b", mir::Type::String)],
         derived_vtable,
         vec![mir::ItableRecord {
             interface: iface,
@@ -243,7 +259,7 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
         "C",
         None,
         &[
-            ("a", mir::Type::Int),
+            ("a", INT),
             ("s", mir::Type::String),
             ("flag", mir::Type::Boolean),
             ("r", mir::Type::Any),
@@ -254,7 +270,7 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
     let _ = c;
     // A boxed value type: header + the inline payload; references
     // inside the payload shift by the header too.
-    let s = b.strukt("S", &[("x", mir::Type::Int), ("s", mir::Type::String)]);
+    let s = b.strukt("S", &[("x", INT), ("s", mir::Type::String)]);
     let boxed = b.class(
         "box$S",
         None,

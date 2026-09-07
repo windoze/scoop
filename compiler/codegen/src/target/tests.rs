@@ -31,6 +31,13 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
         let profile = TargetProfile::resolve(triple).expect(triple);
         assert_eq!(profile, TargetProfile::DARWIN_AARCH64);
         assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
+        assert_eq!(
+            profile.lir_target_profile(),
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64
+        );
+        profile
+            .validate_lir_target_profile(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+            .expect("the selected codegen and LIR profiles agree");
         assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
         assert_eq!(profile.managed_address_space(), 1);
         assert_eq!(profile.stack_map_version(), 3);
@@ -128,5 +135,54 @@ fn llvm_host_identity_resolves_through_the_target_registry() {
     assert_eq!(
         TargetProfile::resolve_host().expect("supported host profile"),
         TargetProfile::DARWIN_AARCH64
+    );
+}
+
+#[test]
+fn darwin_aarch64_c_pointer_representations_are_qualified() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+
+    let profile_source = workspace.join("runtime/src/platform/profiles/darwin_aarch64.c");
+    let profile = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg(&profile_source)
+        .output()
+        .expect("compile Darwin/AArch64 runtime profile qualification");
+    assert!(
+        profile.status.success(),
+        "Darwin/AArch64 runtime target assertions must compile cleanly:\n{}",
+        String::from_utf8_lossy(&profile.stderr)
+    );
+
+    let binary =
+        std::env::temp_dir().join(format!("scoop_target_qualification_{}", std::process::id()));
+    let compile = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+        .arg(workspace.join("runtime/tests/target_qualification_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .output()
+        .expect("compile target pointer qualification test");
+    assert!(
+        compile.status.success(),
+        "target pointer qualification test must compile cleanly:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run target pointer qualification test");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "target pointer qualification test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    assert_eq!(
+        output.stdout,
+        b"target pointer qualification tests passed\n"
     );
 }

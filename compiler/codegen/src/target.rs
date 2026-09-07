@@ -12,9 +12,13 @@ use inkwell::targets::{
     CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
 use inkwell::{AddressSpace, OptimizationLevel};
+use scoop_lir::LirTargetProfile;
+pub use scoop_lir::TargetProfileId;
 
 use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
+
+mod qualification;
 
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
@@ -31,12 +35,6 @@ impl fmt::Display for LlvmVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
-}
-
-/// Globally typed identity of a complete target profile.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TargetProfileId {
-    DarwinAarch64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,7 +192,7 @@ impl ManagedAddressSpace {
 /// profile.  New targets must be added through [`TargetProfile::resolve`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TargetProfile {
-    id: TargetProfileId,
+    lir_target_profile: LirTargetProfile,
     canonical_triple: &'static str,
     cpu: &'static str,
     features: &'static str,
@@ -217,7 +215,7 @@ pub struct TargetProfile {
 
 impl TargetProfile {
     const DARWIN_AARCH64: Self = Self {
-        id: TargetProfileId::DarwinAarch64,
+        lir_target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_triple: "aarch64-apple-darwin",
         cpu: "generic",
         features: "",
@@ -305,7 +303,14 @@ impl TargetProfile {
     }
 
     pub fn id(self) -> TargetProfileId {
-        self.id
+        self.lir_target_profile.id()
+    }
+
+    /// Complete LIR-facing target capabilities selected by this backend
+    /// profile. The driver passes this exact value into LIR lowering; codegen
+    /// later requires the finished module to carry the same value.
+    pub const fn lir_target_profile(self) -> LirTargetProfile {
+        self.lir_target_profile
     }
 
     pub fn canonical_triple(self) -> &'static str {
@@ -366,6 +371,20 @@ impl TargetProfile {
         self.create_target_machine_with_optimization(self.optimization)
     }
 
+    pub(crate) fn validate_lir_target_profile(
+        self,
+        actual: LirTargetProfile,
+    ) -> Result<(), CodegenError> {
+        if actual == self.lir_target_profile {
+            return Ok(());
+        }
+        Err(CodegenError(format!(
+            "LIR target profile `{}` does not match codegen target profile `{}`",
+            actual.id().canonical_name(),
+            self.id().canonical_name(),
+        )))
+    }
+
     /// Validate the emitted object through the artifact contract selected by
     /// this complete profile. Generic codegen never chooses an object format
     /// or stack-map decoder on its own.
@@ -405,14 +424,17 @@ impl TargetProfile {
         let target = Target::from_triple(&triple).map_err(|error| {
             CodegenError(format!("no target for {}: {error}", self.canonical_triple))
         })?;
-        self.machine_pipeline
+        let machine = self
+            .machine_pipeline
             .create_target_machine(&target, &triple, self, optimization)
             .ok_or_else(|| {
                 CodegenError(format!(
                     "failed to create target machine for {}",
                     self.canonical_triple
                 ))
-            })
+            })?;
+        qualification::validate_target_machine(self, &machine)?;
+        Ok(machine)
     }
 }
 

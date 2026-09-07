@@ -4,4 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m11-functions/errors/local-name-is-not-value.scoop:3:21: error: function `answer` is not a value; use `::answer` to create a callable reference
-m11-functions/errors/local-name-is-not-value.scoop:4:13: error: unknown function `operation`
+m11-functions/errors/local-name-is-not-value.scoop:4:13: error: unknown function `operation`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

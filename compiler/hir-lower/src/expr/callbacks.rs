@@ -44,11 +44,7 @@ impl Lowerer {
             unreachable!("registration context index is a required explicit argument")
         };
         let context_index = &args[context_source.index()];
-        let ast::Expr::IntLiteral {
-            value: context_index,
-            span: context_span,
-        } = &context_index.expression
-        else {
+        let ast::Expr::IntLiteral(context_literal) = &context_index.expression else {
             self.error(
                 context_index.span,
                 "foreign callback `contextIndex` must be a compile-time integer literal"
@@ -57,17 +53,19 @@ impl Lowerer {
             return Err(());
         };
         let native_signature = self.function_types[native_function_type].clone();
-        if *context_index < 0 || *context_index as usize >= native_signature.parameter_types.len() {
+        let context_index = usize::try_from(context_literal.magnitude).ok();
+        if context_index.is_none_or(|index| index >= native_signature.parameter_types.len()) {
             self.error(
-                *context_span,
+                context_literal.span,
                 "foreign callback `contextIndex` is outside the native signature".to_string(),
             );
             return Err(());
         }
-        let context_type = native_signature.parameter_types[*context_index as usize];
+        let context_index = context_index.expect("checked context index");
+        let context_type = native_signature.parameter_types[context_index];
         if !matches!(self.types[context_type], hir::Type::Ptr(pointee) if pointee == self.unit) {
             self.error(
-                *context_span,
+                context_literal.span,
                 "foreign callback context parameter must be exactly `Ptr<Unit>`".to_string(),
             );
             return Err(());
@@ -77,7 +75,7 @@ impl Lowerer {
             .parameter_types
             .iter()
             .enumerate()
-            .filter_map(|(index, ty)| (index != *context_index as usize).then_some(*ty))
+            .filter_map(|(index, ty)| (index != context_index).then_some(*ty))
             .collect();
         let crate::call_resolution::arguments::ResolvedParameterInput::Explicit(callback_source) =
             argument_map.parameters[0].input
@@ -109,16 +107,20 @@ impl Lowerer {
             .args
             .try_into()
             .expect("validated registration intrinsic has three arguments");
-        let ExprKind::IntLiteral(context_index) = materialized_source(&context_index, sink).kind
+        let ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(context_index)) =
+            materialized_source(&context_index, sink).kind
         else {
             unreachable!("registration candidate validation requires a literal context index")
         };
+        let context_index = i64::from_ne_bytes(context_index.to_ne_bytes());
+        debug_assert!(context_index >= 0);
+        let context_index = context_index as usize;
 
         let managed_parameters = native_signature
             .parameter_types
             .iter()
             .enumerate()
-            .filter_map(|(index, ty)| (index != context_index as usize).then_some(*ty))
+            .filter_map(|(index, ty)| (index != context_index).then_some(*ty))
             .collect();
         let managed_ty =
             self.intern_function_type(false, managed_parameters, native_signature.return_type);
@@ -137,11 +139,7 @@ impl Lowerer {
             return None;
         }
 
-        let ExprKind::VariantConstruct {
-            application,
-            variant,
-            args,
-        } = &materialized_source(&mode, sink).kind
+        let ExprKind::VariantConstruct { variant, args } = &materialized_source(&mode, sink).kind
         else {
             self.error(
                 mode.span,
@@ -149,21 +147,14 @@ impl Lowerer {
             );
             return None;
         };
-        if self.enum_applications[*application].template != core.mode
-            || !args.is_empty()
-            || *variant > 1
-        {
+        if !core.modes.contains(*variant) || !args.is_empty() {
             self.error(
                 mode.span,
                 "foreign callback mode must be the constant `Reusable` or `OneShot`".to_string(),
             );
             return None;
         }
-        let mode = if *variant == 0 {
-            hir::ForeignCallbackMode::Reusable
-        } else {
-            hir::ForeignCallbackMode::OneShot
-        };
+        let mode = *variant;
         self.check_call_effects(hir::Callable::Function(function), call.span);
         let registration =
             self.foreign_callback_registrations

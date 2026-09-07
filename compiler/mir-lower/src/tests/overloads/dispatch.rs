@@ -8,7 +8,7 @@ fn int_method(
     qualified: &str,
     receiver: hir::TypeId,
     param_ty: Option<hir::TypeId>,
-    value: i64,
+    value: i32,
 ) -> hir::FunctionId {
     let int = h.int;
     let mut locals = Arena::new();
@@ -57,7 +57,7 @@ fn overridden_overload_replaces_the_base_slot_in_place() {
     // A: one slot per overload.
     let a_def = &module.classes[class_index(0)];
     assert_eq!(a_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &a_def.vtable[0]), "scoop.A.s.I");
+    assert_eq!(slot_fn(&module, &a_def.vtable[0]), "scoop.A.s.I32");
     assert_eq!(slot_fn(&module, &a_def.vtable[1]), "scoop.A.s.S");
     // B: the `s(Int)` override replaces slot 0 in place; the
     // inherited `s(String)` keeps slot 1. (`B.s` is a unique name
@@ -161,7 +161,7 @@ fn overloaded_interface_methods_get_one_itable_slot_each() {
     assert_eq!(c_def.itables.len(), 1);
     let record = &c_def.itables[0];
     assert_eq!(record.slots.len(), 2);
-    assert_eq!(slot_fn(&module, &record.slots[0]), "scoop.C.m.I");
+    assert_eq!(slot_fn(&module, &record.slots[0]), "scoop.C.m.I32");
     assert_eq!(slot_fn(&module, &record.slots[1]), "scoop.C.m.S");
 }
 
@@ -268,7 +268,7 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
     assert_eq!(record.slots.len(), 2);
     assert_eq!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.Multi.m.I"
+        "scoop.thunk.D1_SX.Multi.m.I32"
     );
     assert_eq!(
         slot_fn(&module, &record.slots[1]),
@@ -289,6 +289,6 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
         };
         module.functions[target].symbol.clone()
     };
-    assert_eq!(thunk_target(&record.slots[0]), "scoop.S.m.I");
+    assert_eq!(thunk_target(&record.slots[0]), "scoop.S.m.I32");
     assert_eq!(thunk_target(&record.slots[1]), "scoop.S.m.S");
 }

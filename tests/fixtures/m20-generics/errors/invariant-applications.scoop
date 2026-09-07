@@ -1,5 +1,5 @@
 interface Producer<T> {}
-interface Iterator<T> {}
+interface Cursor<T> {}
 interface Marker {}
 
 open class Animal() {}
@@ -12,7 +12,7 @@ open class Base<T>() {}
 class Derived : Base<Cat>() {}
 
 class CatProducer : Producer<Cat> {}
-class CatIterator : Iterator<Cat> {}
+class CatIterator : Cursor<Cat> {}
 
 struct Marked(val name: String) : Marker {}
 
@@ -33,8 +33,8 @@ fun main() {
     val producer: Producer<Cat> = CatProducer()
     val widerProducer: Producer<Animal> = producer
 
-    val iterator: Iterator<Cat> = CatIterator()
-    val widerIterator: Iterator<Animal> = iterator
+    val iterator: Cursor<Cat> = CatIterator()
+    val widerIterator: Cursor<Animal> = iterator
 
     val cats: Array<Cat> = catArray()
     val animals: Array<Animal> = cats

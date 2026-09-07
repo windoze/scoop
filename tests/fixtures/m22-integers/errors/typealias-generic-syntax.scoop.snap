@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m22-integers/errors/typealias-generic-syntax.scoop:1:16: error: generic typealias declarations are not supported in M22; typealias declarations must be non-generic

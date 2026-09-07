@@ -1,6 +1,28 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    pub(super) fn record_suspend_function_call(&mut self, function: hir::FunctionId) {
+        self.contains_suspend_call |= self.module.functions[function].is_suspend;
+    }
+
+    /// Option tests and guarded payload projections are tied to one immutable
+    /// local identity by the MIR contract. HIR safe-call/Elvis desugaring
+    /// supplies that shared hidden local; a standalone compiler-generated test
+    /// is stabilized here without evaluating its operand twice.
+    pub(super) fn lower_stable_option_operand(&mut self, operand: &hir::Expr) -> smir::Expr {
+        let value = self.lower_expr(operand);
+        if let smir::ExprKind::Local(local) = value.kind
+            && !self.locals[local].mutable
+        {
+            return value;
+        }
+        let ty = value.ty.clone();
+        let local = self.new_hidden("opt", ty.clone(), false);
+        self.prelude
+            .push(smir::StatementKind::ValDecl { local, init: value });
+        smir::Expr::local(local, ty)
+    }
+
     pub(super) fn lower_direct_super_method_call(
         &mut self,
         receiver: &hir::Expr,
@@ -9,6 +31,7 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
+        self.record_suspend_function_call(function);
         let callee = self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),
             mir::Callee::Monomorphized,
@@ -31,7 +54,8 @@ impl BodyLowerer<'_> {
     }
 
     /// `x!!`: the operand is evaluated once into a hidden local, then
-    /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
+    /// `if (VariantTest(Some)) { val $uw = VariantPayloadProject(Some._1) }
+    /// else { throw UnwrapException() }`.
     /// The if/else is queued in `prelude` — it must precede the
     /// statement this expression belongs to — and the expression
     /// itself becomes the result local. The exception is an ordinary
@@ -41,7 +65,7 @@ impl BodyLowerer<'_> {
         operand: &hir::Expr,
         result_ty: hir::TypeId,
         span: Span,
-        some: u32,
+        some: OptionSomeRefs,
     ) -> smir::Expr {
         let option_ty = self.lower_type(operand.ty);
         let payload_ty = self.lower_type(result_ty);
@@ -53,32 +77,25 @@ impl BodyLowerer<'_> {
             local: slot,
             init: value,
         });
+        let payload = smir::Expr::variant_payload_project(
+            &self.enums.defs,
+            smir::Expr::local(slot, option_ty.clone()),
+            some.payload,
+        );
+        assert_eq!(
+            payload.ty, payload_ty,
+            "the checked Option payload is the HIR unwrap result type"
+        );
         self.prelude.push(smir::StatementKind::If {
-            cond: smir::Expr::new(
-                mir::Type::Boolean,
-                smir::ExprKind::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(smir::Expr::new(
-                        mir::Type::Int,
-                        smir::ExprKind::EnumTag(Box::new(smir::Expr::local(
-                            slot,
-                            option_ty.clone(),
-                        ))),
-                    )),
-                    rhs: Box::new(smir::Expr::int(i64::from(some))),
-                },
+            cond: smir::Expr::variant_test(
+                &self.enums.defs,
+                smir::Expr::local(slot, option_ty.clone()),
+                some.variant,
             ),
             then_body: vec![smir::Statement {
                 kind: smir::StatementKind::ValDecl {
                     local: result,
-                    init: smir::Expr::new(
-                        payload_ty.clone(),
-                        smir::ExprKind::EnumField {
-                            operand: Box::new(smir::Expr::local(slot, option_ty)),
-                            variant: some,
-                            index: 0,
-                        },
-                    ),
+                    init: payload,
                 },
                 span,
             }],
@@ -94,6 +111,7 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
+        self.record_suspend_function_call(function);
         if let Some(protocol) = self
             .module
             .coroutine_protocol_for_function(function)
@@ -236,7 +254,8 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::CoroutineSuspend => {
                 unreachable!("coroutine intrinsics are lowered through the typed protocol")
             }
-            hir::IntrinsicFunctionKind::Array(_)
+            hir::IntrinsicFunctionKind::Integer(_)
+            | hir::IntrinsicFunctionKind::Array(_)
             | hir::IntrinsicFunctionKind::ArrayAccess(_)
             | hir::IntrinsicFunctionKind::PrimitiveUnary(_)
             | hir::IntrinsicFunctionKind::PrimitiveBinary(_)
@@ -294,6 +313,7 @@ impl BodyLowerer<'_> {
     ) -> smir::Expr {
         let module = self.module;
         let function = module.callable_function(callable);
+        self.record_suspend_function_call(function);
         let f = &module.functions[function];
         let callee = self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),

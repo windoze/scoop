@@ -38,68 +38,39 @@ fn typed_string_concat_lowers_to_its_runtime_target() {
 #[test]
 fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     let mut h = Harness::new();
-    let uint = h.uint();
     let mut statements = Vec::new();
     // Division is not here: its divisor check (M8) makes it a
     // statement sequence — see
     // `division_by_zero_throws_arithmetic_exception`.
     let cases = [
+        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Add),
+        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Sub),
+        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Mul),
         (
-            hir::PrimitiveBinaryKind::IntAdd,
-            mir::BinOp::IntAdd,
-            h.int,
-            h.int,
+            hir::IntegerKind::SIGNED_32,
+            hir::NoGcIntegerOperation::CompareTo,
         ),
         (
-            hir::PrimitiveBinaryKind::IntSub,
-            mir::BinOp::IntSub,
-            h.int,
-            h.int,
+            hir::IntegerKind::UNSIGNED_32,
+            hir::NoGcIntegerOperation::Add,
         ),
         (
-            hir::PrimitiveBinaryKind::IntMul,
-            mir::BinOp::IntMul,
-            h.int,
-            h.int,
+            hir::IntegerKind::UNSIGNED_32,
+            hir::NoGcIntegerOperation::Sub,
         ),
         (
-            hir::PrimitiveBinaryKind::IntCompareTo,
-            mir::BinOp::IntCompareTo,
-            h.int,
-            h.int,
+            hir::IntegerKind::UNSIGNED_32,
+            hir::NoGcIntegerOperation::Mul,
         ),
         (
-            hir::PrimitiveBinaryKind::UIntAdd,
-            mir::BinOp::IntAdd,
-            uint,
-            uint,
-        ),
-        (
-            hir::PrimitiveBinaryKind::UIntSub,
-            mir::BinOp::IntSub,
-            uint,
-            uint,
-        ),
-        (
-            hir::PrimitiveBinaryKind::UIntMul,
-            mir::BinOp::IntMul,
-            uint,
-            uint,
-        ),
-        (
-            hir::PrimitiveBinaryKind::UIntCompareTo,
-            mir::BinOp::UIntCompareTo,
-            uint,
-            h.int,
+            hir::IntegerKind::UNSIGNED_32,
+            hir::NoGcIntegerOperation::CompareTo,
         ),
     ];
-    for (kind, _, operand_ty, result_ty) in &cases {
-        statements.push(expr_stmt(primitive_binary(
-            *kind,
-            expr(hir::ExprKind::IntLiteral(1), *operand_ty),
-            expr(hir::ExprKind::IntLiteral(2), *operand_ty),
-            *result_ty,
-        )));
+    for (kind, operation) in cases {
+        let lhs = integer_lit(&h, kind, 1);
+        let rhs = integer_lit(&h, kind, 2);
+        statements.push(expr_stmt(integer_binary(&mut h, kind, operation, lhs, rhs)));
     }
     let main = h.user_fn(
         "main",
@@ -110,42 +81,63 @@ fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     );
     let module = lower(&h.finish(main));
 
-    let expected: Vec<mir::BinOp> = cases.iter().map(|(_, mir_op, _, _)| *mir_op).collect();
     let body = &module.functions[module.entry].body;
-    let ops: Vec<mir::BinOp> = entry_statements(body)
+    let lowered: Vec<_> = entry_statements(body)
         .iter()
         .map(|statement| {
             let mir::StatementKind::Expr(expr) = &statement.kind else {
                 panic!("expected an expression statement")
             };
-            let mir::ExprKind::Binary { op, .. } = &expr.kind else {
-                panic!("expected a binary expression")
-            };
-            *op
+            match &expr.kind {
+                mir::ExprKind::IntegerBinary { operation, .. } => {
+                    (operation.kind(), operation.operator().name())
+                }
+                mir::ExprKind::IntegerCompareTo { operation, .. } => {
+                    (operation.operand_kind(), "compare-to")
+                }
+                other => panic!("expected a typed integer expression, got {other:?}"),
+            }
         })
         .collect();
-    assert_eq!(ops, expected);
+    assert_eq!(
+        lowered,
+        [
+            (mir::IntegerKind::SIGNED_32, "add"),
+            (mir::IntegerKind::SIGNED_32, "subtract"),
+            (mir::IntegerKind::SIGNED_32, "multiply"),
+            (mir::IntegerKind::SIGNED_32, "compare-to"),
+            (mir::IntegerKind::UNSIGNED_32, "add"),
+            (mir::IntegerKind::UNSIGNED_32, "subtract"),
+            (mir::IntegerKind::UNSIGNED_32, "multiply"),
+            (mir::IntegerKind::UNSIGNED_32, "compare-to"),
+        ]
+    );
 }
 
 #[test]
 fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
     let mut h = Harness::new();
-    let uint = h.uint();
+    let int_one = int_lit(&h, 1);
+    let int_inc = integer_unary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::NoGcIntegerOperation::Inc,
+        int_one,
+    );
+    let uint_two = integer_lit(&h, hir::IntegerKind::UNSIGNED_32, 2);
+    let uint_dec = integer_unary(
+        &mut h,
+        hir::IntegerKind::UNSIGNED_32,
+        hir::NoGcIntegerOperation::Dec,
+        uint_two,
+    );
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
             statements: vec![
-                expr_stmt(primitive_unary(
-                    hir::PrimitiveUnaryKind::IntInc,
-                    int_lit(&h, 1),
-                    h.int,
-                )),
-                expr_stmt(primitive_unary(
-                    hir::PrimitiveUnaryKind::UIntDec,
-                    expr(hir::ExprKind::IntLiteral(2), uint),
-                    uint,
-                )),
+                expr_stmt(int_inc),
+                expr_stmt(uint_dec),
                 expr_stmt(primitive_unary(
                     hir::PrimitiveUnaryKind::BooleanNot,
                     bool_lit(&h, true),
@@ -155,39 +147,251 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
                     hir::PrimitiveBinaryKind::StringCompareTo,
                     str_lit(&h, "a"),
                     str_lit(&h, "b"),
-                    h.int,
+                    h.long,
                 )),
             ],
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
-    for (statement, expected) in
-        statements[..3]
-            .iter()
-            .zip([mir::BinOp::IntAdd, mir::BinOp::IntSub, mir::BinOp::BoolNe])
-    {
-        let mir::StatementKind::Expr(expression) = &statement.kind else {
-            panic!("typed unary intrinsic must stay an expression")
+    let body = &module.functions[module.entry].body;
+    let statements = entry_statements(body);
+    let unary_ops = statements[..2].iter().map(|statement| {
+        let mir::StatementKind::Expr(mir::Expr {
+            kind: mir::ExprKind::IntegerUnary { operation, .. },
+            ..
+        }) = &statement.kind
+        else {
+            panic!("typed integer unary intrinsic must stay an expression")
         };
-        match (&expression.kind, expected) {
-            (mir::ExprKind::Binary { op, .. }, expected) => assert_eq!(*op, expected),
-            (
-                mir::ExprKind::Unary {
-                    op: mir::UnOp::BoolNot,
-                    ..
-                },
-                mir::BinOp::BoolNe,
-            ) => {}
-            (actual, _) => panic!("unexpected unary lowering {actual:?}"),
-        }
-    }
+        operation.operator()
+    });
+    assert_eq!(
+        unary_ops.collect::<Vec<_>>(),
+        [
+            mir::IntegerUnaryOperator::Increment,
+            mir::IntegerUnaryOperator::Decrement,
+        ]
+    );
+    assert!(matches!(
+        statements[2].kind,
+        mir::StatementKind::Expr(mir::Expr {
+            kind: mir::ExprKind::Unary {
+                op: mir::UnOp::BoolNot,
+                ..
+            },
+            ..
+        })
+    ));
     let (compare, destination) = statement_call(&statements[3]);
     assert_eq!(
         compare.target.callee,
         mir::Callee::Runtime(mir::RuntimeFn::StringCompare)
     );
-    assert!(destination.is_some());
+    let destination = destination.expect("the runtime String compare returns Long");
+    assert_eq!(
+        body.locals[destination].ty,
+        mir::Type::Integer(mir::IntegerKind::SIGNED_64)
+    );
+    assert_eq!(statements.len(), 4);
+}
+
+#[test]
+fn all_integer_constants_and_conversions_preserve_exact_kinds() {
+    let mut h = Harness::new();
+    let kinds = hir::IntegerKind::ALL;
+    let mut statements = Vec::new();
+    for (index, source) in kinds.into_iter().enumerate() {
+        let target = kinds[(index + 1) % kinds.len()];
+        let operand = integer_lit(&h, source, source.width().raw_mask());
+        statements.push(expr_stmt(integer_conversion(
+            &mut h, source, target, operand,
+        )));
+    }
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements,
+        },
+    );
+    let module = lower(&h.finish(main));
+    let statements = entry_statements(&module.functions[module.entry].body);
+
+    for (index, statement) in statements.iter().enumerate() {
+        let source = kinds[index];
+        let target = kinds[(index + 1) % kinds.len()];
+        let source = crate::types::lower_integer_kind(source);
+        let target = crate::types::lower_integer_kind(target);
+        let mir::StatementKind::Expr(mir::Expr {
+            ty,
+            kind:
+                mir::ExprKind::IntegerConversion {
+                    conversion,
+                    operand,
+                },
+        }) = &statement.kind
+        else {
+            panic!("integer conversion must lower to its dedicated MIR node")
+        };
+        assert_eq!(*ty, mir::Type::Integer(target));
+        assert_eq!(conversion.source_kind(), source);
+        assert_eq!(conversion.target_kind(), target);
+        let mir::ExprKind::IntegerLiteral(value) = operand.kind else {
+            panic!("conversion operand must retain the exact integer constant")
+        };
+        assert_eq!(value.kind(), source);
+        assert_eq!(value.raw_bits(), source.width().raw_mask());
+    }
+}
+
+#[test]
+fn shifts_mask_long_counts_then_convert_to_the_operand_kind() {
+    let mut h = Harness::new();
+    let kinds = hir::IntegerKind::ALL;
+    let mut statements = Vec::new();
+    for kind in kinds {
+        let value = integer_lit(&h, kind, 1);
+        let count = integer_lit(&h, hir::IntegerKind::SIGNED_64, u64::MAX);
+        statements.push(expr_stmt(integer_binary(
+            &mut h,
+            kind,
+            hir::NoGcIntegerOperation::Shl,
+            value,
+            count,
+        )));
+    }
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements,
+        },
+    );
+    let module = lower(&h.finish(main));
+    let statements = entry_statements(&module.functions[module.entry].body);
+
+    for (statement, source_kind) in statements.iter().zip(kinds) {
+        let kind = crate::types::lower_integer_kind(source_kind);
+        let mir::StatementKind::Expr(mir::Expr {
+            kind: mir::ExprKind::IntegerShift {
+                operation, count, ..
+            },
+            ..
+        }) = &statement.kind
+        else {
+            panic!("integer shift must lower to its dedicated MIR node")
+        };
+        assert_eq!(operation.value_kind(), kind);
+        assert_eq!(operation.count_kind(), kind);
+        let mir::ExprKind::IntegerConversion {
+            conversion,
+            operand,
+        } = &count.kind
+        else {
+            panic!("masked Long shift count must be converted to the operand width")
+        };
+        assert_eq!(conversion.source_kind(), mir::IntegerKind::SIGNED_64);
+        assert_eq!(conversion.target_kind(), kind);
+        let mir::ExprKind::IntegerBinary {
+            operation,
+            lhs,
+            rhs,
+        } = &operand.kind
+        else {
+            panic!("shift count conversion must consume the masked Long count")
+        };
+        assert_eq!(operation.kind(), mir::IntegerKind::SIGNED_64);
+        assert_eq!(operation.operator(), mir::IntegerBinaryOperator::BitAnd);
+        assert_eq!(lhs.ty, mir::Type::Integer(mir::IntegerKind::SIGNED_64));
+        let mir::ExprKind::IntegerLiteral(mask) = rhs.kind else {
+            panic!("shift mask must be an exact Long constant")
+        };
+        assert_eq!(mask.kind(), mir::IntegerKind::SIGNED_64);
+        assert_eq!(mask.raw_bits(), u64::from(kind.width().bits() - 1));
+    }
+}
+
+#[test]
+fn signed_div_rem_poison_boundaries_are_separated_before_safe_nodes() {
+    let mut h = Harness::new();
+    h.exception("ArithmeticException");
+    let signed_kinds = [
+        hir::IntegerKind::SIGNED_8,
+        hir::IntegerKind::SIGNED_16,
+        hir::IntegerKind::SIGNED_32,
+        hir::IntegerKind::SIGNED_64,
+    ];
+    let mut statements = Vec::new();
+    for kind in signed_kinds {
+        for operator in [hir::IntegerDivRem::Div, hir::IntegerDivRem::Rem] {
+            let sign_bit = 1_u64 << (kind.width().bits() - 1);
+            let dividend = integer_lit(&h, kind, sign_bit);
+            let divisor = integer_lit(&h, kind, kind.width().raw_mask());
+            statements.push(expr_stmt(integer_div_rem(
+                &mut h, kind, operator, dividend, divisor,
+            )));
+        }
+    }
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements,
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+    let mut safe = HashMap::new();
+    let mut special = HashMap::new();
+    let mut zero_guards = 0;
+
+    for (_, block) in body.blocks.iter() {
+        if matches!(
+            &block.terminator,
+            mir::Terminator::Branch {
+                cond: mir::Expr {
+                    kind: mir::ExprKind::IntegerCompare { operation, rhs, .. },
+                    ..
+                },
+                ..
+            } if operation.operator() == mir::IntegerComparisonOperator::Equal
+                && matches!(rhs.kind, mir::ExprKind::IntegerLiteral(value) if value.raw_bits() == 0)
+        ) {
+            zero_guards += 1;
+        }
+        for statement in &block.statements {
+            let mir::StatementKind::Assign { local, value } = &statement.kind else {
+                continue;
+            };
+            if !body.locals[*local].name.starts_with("$div.result") {
+                continue;
+            }
+            match value.kind {
+                mir::ExprKind::SafeIntegerDivRem { operation, .. } => {
+                    assert!(safe.insert(*local, operation).is_none());
+                }
+                mir::ExprKind::IntegerLiteral(value) => {
+                    assert!(special.insert(*local, value).is_none());
+                }
+                ref other => panic!("div/rem result assignment has unexpected value {other:?}"),
+            }
+        }
+    }
+
+    assert_eq!(zero_guards, signed_kinds.len() * 2);
+    assert_eq!(safe.len(), signed_kinds.len() * 2);
+    assert_eq!(special.len(), signed_kinds.len() * 2);
+    for (local, operation) in safe {
+        let value = special[&local];
+        assert_eq!(value.kind(), operation.kind());
+        let expected = match operation.operator() {
+            mir::SafeIntegerDivRemOperator::Divide => {
+                1_u64 << (operation.kind().width().bits() - 1)
+            }
+            mir::SafeIntegerDivRemOperator::Remainder => 0,
+        };
+        assert_eq!(value.raw_bits(), expected);
+    }
 }
 
 #[test]
@@ -373,41 +577,42 @@ fn division_by_zero_throws_arithmetic_exception() {
     let int = h.int;
     let mut locals = Arena::new();
     let q = locals.alloc(local("q", int));
+    let dividend = int_lit(&h, 10);
+    let divisor = int_lit(&h, 2);
+    let quotient = integer_div_rem(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::IntegerDivRem::Div,
+        dividend,
+        divisor,
+    );
     let main = h.user_fn(
         "main",
         hir::Body {
             locals,
-            statements: vec![val_decl(
-                q,
-                primitive_binary(
-                    hir::PrimitiveBinaryKind::IntDiv,
-                    int_lit(&h, 10),
-                    int_lit(&h, 2),
-                    int,
-                ),
-            )],
+            statements: vec![val_decl(q, quotient)],
         },
     );
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module
+Module mangling=compact-v2
   class ArithmeticException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val $div.1: Int
         Type Int
-        IntLiteral 10
+        IntegerLiteral Int value=10 bits=0x0000000a
       val $div.2: Int
         Type Int
-        IntLiteral 2
+        IntegerLiteral Int value=2 bits=0x00000002
       branch bb1 bb2
         Type Boolean
-        Binary IntEq
+        IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $div.2
           Type Int
-          IntLiteral 0
+          IntegerLiteral Int value=0 bits=0x00000000
     bb1 if.then.1
       assign $new.1
         Type ArithmeticException
@@ -419,13 +624,49 @@ Module
         Type ArithmeticException
         Local $new.1
     bb2 if.merge.2
-      val q: Int
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.1
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
         Type Int
-        Binary IntDiv
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int
+        SafeIntegerDivRem divide kind=Int
           Type Int
           Local $div.1
           Type Int
           Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val q: Int
+        Type Int
+        Local $div.result.3
       return
   fun init.ArithmeticException.$c0 @scoop.init.ArithmeticException.$c0(this: ArithmeticException) -> Unit
     bb0 entry
@@ -439,17 +680,20 @@ Module
 fn remainder_uses_the_same_zero_guard_as_division() {
     let mut h = Harness::new();
     h.exception("ArithmeticException");
-    let int = h.int;
+    let dividend = int_lit(&h, 10);
+    let divisor = int_lit(&h, 3);
+    let remainder = integer_div_rem(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::IntegerDivRem::Rem,
+        dividend,
+        divisor,
+    );
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
-            statements: vec![expr_stmt(primitive_binary(
-                hir::PrimitiveBinaryKind::IntRem,
-                int_lit(&h, 10),
-                int_lit(&h, 3),
-                int,
-            ))],
+            statements: vec![expr_stmt(remainder)],
         },
     );
     let module = lower(&h.finish(main));
@@ -458,13 +702,13 @@ fn remainder_uses_the_same_zero_guard_as_division() {
         block.statements.iter().any(|statement| {
             matches!(
                 statement.kind,
-                mir::StatementKind::Expr(mir::Expr {
-                    kind: mir::ExprKind::Binary {
-                        op: mir::BinOp::IntRem,
-                        ..
+                mir::StatementKind::Assign {
+                    value: mir::Expr {
+                    kind: mir::ExprKind::SafeIntegerDivRem { operation, .. },
+                    ..
                     },
                     ..
-                })
+                } if operation.operator() == mir::SafeIntegerDivRemOperator::Remainder
             )
         })
     }));
@@ -473,14 +717,11 @@ fn remainder_uses_the_same_zero_guard_as_division() {
             block.terminator,
             mir::Terminator::Branch {
                 cond: mir::Expr {
-                    kind: mir::ExprKind::Binary {
-                        op: mir::BinOp::IntEq,
-                        ..
-                    },
+                    kind: mir::ExprKind::IntegerCompare { operation, .. },
                     ..
                 },
                 ..
-            }
+            } if operation.operator() == mir::IntegerComparisonOperator::Equal
         )
     }));
 }
@@ -489,17 +730,20 @@ fn remainder_uses_the_same_zero_guard_as_division() {
 fn uint_division_keeps_unsigned_operation_after_the_zero_guard() {
     let mut h = Harness::new();
     h.exception("ArithmeticException");
-    let uint = h.uint();
+    let dividend = integer_lit(&h, hir::IntegerKind::UNSIGNED_32, 10);
+    let divisor = integer_lit(&h, hir::IntegerKind::UNSIGNED_32, 2);
+    let quotient = integer_div_rem(
+        &mut h,
+        hir::IntegerKind::UNSIGNED_32,
+        hir::IntegerDivRem::Div,
+        dividend,
+        divisor,
+    );
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
-            statements: vec![expr_stmt(primitive_binary(
-                hir::PrimitiveBinaryKind::UIntDiv,
-                expr(hir::ExprKind::IntLiteral(10), uint),
-                expr(hir::ExprKind::IntLiteral(2), uint),
-                uint,
-            ))],
+            statements: vec![expr_stmt(quotient)],
         },
     );
     let module = lower(&h.finish(main));
@@ -509,12 +753,9 @@ fn uint_division_keeps_unsigned_operation_after_the_zero_guard() {
             matches!(
                 statement.kind,
                 mir::StatementKind::Expr(mir::Expr {
-                    kind: mir::ExprKind::Binary {
-                        op: mir::BinOp::UIntDiv,
-                        ..
-                    },
+                    kind: mir::ExprKind::SafeIntegerDivRem { operation, .. },
                     ..
-                })
+                }) if operation.operator() == mir::SafeIntegerDivRemOperator::Divide
             )
         })
     }));
@@ -523,14 +764,11 @@ fn uint_division_keeps_unsigned_operation_after_the_zero_guard() {
             block.terminator,
             mir::Terminator::Branch {
                 cond: mir::Expr {
-                    kind: mir::ExprKind::Binary {
-                        op: mir::BinOp::IntEq,
-                        ..
-                    },
+                    kind: mir::ExprKind::IntegerCompare { operation, .. },
                     ..
                 },
                 ..
-            }
+            } if operation.operator() == mir::IntegerComparisonOperator::Equal
         )
     }));
 }

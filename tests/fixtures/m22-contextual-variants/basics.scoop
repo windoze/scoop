@@ -1,0 +1,27 @@
+// EXPECT-COMPILE
+
+enum Signal {
+    Ready,
+    Value(Int),
+    Named(val code: Int, val label: String = "default")
+}
+
+fun returned(): Signal = Ready
+
+fun pass(value: Signal): Signal = value
+
+fun score(value: Signal): Int = when (value) {
+    Ready -> 0
+    Value(number) -> number
+    Named(code, _) -> code
+}
+
+fun main() {
+    val ready: Signal = Ready
+    val named: Signal = Named(label = "named", code = 2)
+
+    println(score(ready))
+    println(score(returned()))
+    println(score(pass(Value(41))))
+    println(score(named))
+}
