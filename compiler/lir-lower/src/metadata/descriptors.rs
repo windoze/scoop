@@ -14,10 +14,27 @@ pub(crate) fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
     order
 }
 
-/// The global symbol of a type's TypeDescriptor (`scoop_td_<name>`,
-/// runtime spec 2.2).
+/// The global symbol of a type's TypeDescriptor. Types with a persistent
+/// exact identity use the mangler; generated nominals (closures, boxed
+/// helper classes) keep the legacy `scoop_td_<name>` spelling until their
+/// generated-role identities land. The String descriptor keeps the fixed
+/// runtime-extern symbol until the program descriptor carries core
+/// bindings.
 pub(crate) fn td_symbol(name: &str) -> String {
     format!("scoop_td_{name}")
+}
+
+pub(crate) fn persistent_td_symbol(
+    module: &mir::Module,
+    ty: &mir::Type,
+    fallback_name: &str,
+) -> String {
+    match module.meta.exact_of.get(ty) {
+        Some(exact) => {
+            scoop_identity::mangle(scoop_identity::SymbolKind::TypeDescriptor, exact.as_bytes())
+        }
+        None => td_symbol(fallback_name),
+    }
 }
 
 #[derive(Default)]
@@ -96,7 +113,7 @@ pub(crate) fn type_descriptors(
     for (interface, def) in module.interfaces.iter() {
         let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(&def.name),
+            symbol: persistent_td_symbol(module, &mir::Type::Interface(interface), &def.name),
             runtime_type_id: next_type_id,
             size: 0,
             align: 0,
@@ -116,7 +133,7 @@ pub(crate) fn type_descriptors(
                 .expect("MIR function types have a compact-v2 source encoding")
         );
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            symbol: td_symbol(&name),
+            symbol: persistent_td_symbol(module, &mir::Type::Function(id), &name),
             name,
             runtime_type_id: next_type_id,
             size: 0,
@@ -226,7 +243,7 @@ pub(crate) fn class_type_descriptor(
         ) {
             lir::STRING_TD_SYMBOL.to_string()
         } else {
-            td_symbol(&def.name)
+            persistent_td_symbol(module, &mir::Type::Class(id), &def.name)
         },
         runtime_type_id,
         size,

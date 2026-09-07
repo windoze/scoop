@@ -466,6 +466,7 @@ dependencies = [
  "insta",
  "la-arena",
  "scoop-ast",
+ "scoop-identity",
  "scoop-lir",
  "scoop-mir",
 ]
@@ -484,6 +485,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-ast",
+ "scoop-identity",
 ]
 
 [[package]]
@@ -494,6 +496,7 @@ dependencies = [
  "scoop-ast",
  "scoop-hir",
  "scoop-hir-lower",
+ "scoop-identity",
  "scoop-mir",
 ]
 

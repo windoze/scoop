@@ -5,6 +5,61 @@ mod declarations;
 mod functions;
 
 impl Lowerer {
+    /// Translate the concrete module's exact-type identities onto MIR
+    /// structural types. Nominal kinds use the lowering's own id maps
+    /// (function-type ids are index-aligned by construction); structural
+    /// kinds recurse; a missing nominal mapping means the concrete type
+    /// never reached MIR and is simply skipped. Enum keys keep their
+    /// translated argument lists so structural lookups match the types
+    /// the rest of the module actually uses.
+    fn translate_exact_types(
+        &self,
+        module: &hir::Module,
+    ) -> HashMap<mir::Type, scoop_identity::persistent::PersistentExactTypeId> {
+        let mut exact_of = HashMap::new();
+        for (concrete_id, exact) in &module.exact_of {
+            if let Some(mir_ty) = self.translate_exact_type(module, *concrete_id) {
+                exact_of.insert(mir_ty, *exact);
+            }
+        }
+        exact_of
+    }
+
+    fn translate_exact_type(&self, module: &hir::Module, ty: hir::TypeId) -> Option<mir::Type> {
+        Some(match module.types[ty].kind {
+            hir::TypeKind::Unit => mir::Type::Unit,
+            hir::TypeKind::Integer(kind) => {
+                mir::Type::Integer(crate::types::lower_integer_kind(kind))
+            }
+            hir::TypeKind::Boolean => mir::Type::Boolean,
+            hir::TypeKind::String => mir::Type::String,
+            hir::TypeKind::Any => mir::Type::Any,
+            hir::TypeKind::Struct(id) => mir::Type::Struct(self.struct_map[&id]),
+            hir::TypeKind::Class(id) => mir::Type::Class(self.class_map[&id]),
+            hir::TypeKind::Interface(id) => mir::Type::Interface(self.interfaces.mir_id(id)),
+            hir::TypeKind::Enum(id) => {
+                let mir_id = self.enums.mir_id(id)?;
+                let mut arguments = Vec::with_capacity(module.enums[id].type_arguments.len());
+                for argument in &module.enums[id].type_arguments {
+                    arguments.push(self.translate_exact_type(module, *argument)?);
+                }
+                mir::Type::Enum(mir_id, arguments)
+            }
+            hir::TypeKind::Tuple(ref elements) => {
+                let mut translated = Vec::with_capacity(elements.len());
+                for element in elements {
+                    translated.push(self.translate_exact_type(module, *element)?);
+                }
+                mir::Type::Tuple(translated)
+            }
+            hir::TypeKind::Function(id) => mir::Type::Function(crate::types::remap_idx(id)),
+            hir::TypeKind::FunPtr(id) => mir::Type::FunPtr(crate::types::remap_idx(id)),
+            hir::TypeKind::Ptr(pointee) => {
+                mir::Type::Ptr(Box::new(self.translate_exact_type(module, pointee)?))
+            }
+        })
+    }
+
     pub(super) fn run(mut self, module: &hir::Module) -> mir::Module {
         // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the
@@ -208,6 +263,7 @@ impl Lowerer {
         // The entry point is a non-generic user function, hence always
         // in the map.
         let entry = self.function_map[&module.entry];
+        let exact_types = self.translate_exact_types(module);
         let boxed_types = self
             .boxed
             .by_type
@@ -215,6 +271,7 @@ impl Lowerer {
             .map(|(payload, class)| mir::BoxedType { payload, class })
             .collect();
         let option_core = self.enums.all_option_core(module);
+
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
@@ -241,6 +298,7 @@ impl Lowerer {
             option_core,
             entry,
             meta: mir::MirMeta {
+                exact_of: exact_types,
                 generic_function_sources: self.instances.generic_function_sources,
                 parameterized_method_sources: self.instances.parameterized_method_sources,
                 generic_method_sources: self.instances.generic_method_sources,

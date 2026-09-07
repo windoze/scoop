@@ -165,7 +165,7 @@ impl MachineScalarValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     Unit,
     /// One exact Scoop source integer. Its nominal owner is already canonical
@@ -194,7 +194,7 @@ pub enum Type {
     Enum(EnumId, Vec<Type>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionType {
     pub is_suspend: bool,
     pub parameter_types: Vec<Type>,

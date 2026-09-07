@@ -8,6 +8,7 @@ la-arena.workspace = true
 scoop-ast.workspace = true
 scoop-hir.workspace = true
 scoop-mir.workspace = true
+scoop-identity.workspace = true
 
 [dev-dependencies]
 scoop-hir-lower.workspace = true

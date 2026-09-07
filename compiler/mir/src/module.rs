@@ -455,6 +455,15 @@ pub enum MirAnnotationValue {
 pub struct MirMeta {
     /// Exact schema used by every symbol in this module and exported MIR meta.
     pub mangling_schema: ManglingSchemaIdentity,
+    /// Exact-type identity of every MIR type lowered from concrete HIR,
+    /// keyed structurally. Generated nominals (closures, adapters, boxed
+    /// classes) join with their generated-role keys as their sites are
+    /// migrated; consumers must treat a missing entry as "no persistent
+    /// identity yet", never guess one.
+    pub exact_of: std::collections::HashMap<
+        crate::types::Type,
+        scoop_identity::persistent::PersistentExactTypeId,
+    >,
     pub dispatch_tables: Vec<DispatchTable>,
     /// Typed source identities are separate from their display names and from
     /// concrete instances. The three id families cannot be interchanged.

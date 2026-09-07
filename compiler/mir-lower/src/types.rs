@@ -171,6 +171,10 @@ pub(super) struct EnumRegistry {
 }
 
 impl EnumRegistry {
+    pub(super) fn mir_id(&self, id: hir::EnumId) -> Option<mir::EnumId> {
+        self.by_hir.get(&id).copied()
+    }
+
     /// Build one semantic variant identity only after checking it against the
     /// fully transposed MIR enum definition.  Body lowering uses this store
     /// boundary instead of pairing enum ids and raw indices at expression
