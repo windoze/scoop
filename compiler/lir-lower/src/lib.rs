@@ -138,7 +138,12 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         .validate()
         .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     match module.meta.mangling_schema {
-        mir::ManglingSchemaIdentity::CompactV2 => {}
+        mir::ManglingSchemaIdentity::PersistentV1 => {}
+        // compact-v2 artifacts predate persistent identity and cannot be
+        // consumed; only an exact match on the emitted schema is valid.
+        mir::ManglingSchemaIdentity::CompactV2 => {
+            panic!("MIR carries the retired compact-v2 mangling schema")
+        }
     }
     let context = LoweringContext::new(target_profile);
     // Every MIR string constant becomes a global with the same symbol.

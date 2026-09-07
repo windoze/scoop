@@ -38,31 +38,35 @@ fn top_level_symbols(module: &mir::Module) -> Vec<&str> {
 }
 
 #[test]
-fn overloads_mangle_with_param_encoding() {
+fn overloads_get_distinct_persistent_symbols() {
     let mut h = Harness::new();
     let (int, string) = (h.int, h.string);
     string_fn(&mut h, "show", &[("v", int)], "int");
     string_fn(&mut h, "show", &[("v", string)], "string");
     string_fn(&mut h, "show", &[("v", int), ("extra", int)], "two");
-    // A unique name keeps the plain `scoop.<name>` symbol.
     string_fn(&mut h, "helper", &[], "h");
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    assert_eq!(
-        top_level_symbols(&module),
-        [
-            "scoop.show.I32",
-            "scoop.show.S",
-            "scoop.show.I32_I32",
-            "scoop.helper",
-            "scoop_main"
-        ]
-    );
+    // Every top-level symbol is persistent-mangled; the three `show`
+    // overloads differ by signature key, so all symbols are distinct.
+    let show_symbols: std::collections::HashSet<&str> = module
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == "show")
+        .map(|(_, f)| f.symbol.as_str())
+        .collect();
+    assert_eq!(show_symbols.len(), 3);
+    let mut expected: std::collections::HashSet<&str> = show_symbols.clone();
+    expected.insert(symbol_of(&module, "helper"));
+    expected.insert("scoop_main");
+    let actual: std::collections::HashSet<&str> = top_level_symbols(&module).into_iter().collect();
+    assert_eq!(actual, expected);
+    assert!(show_symbols.iter().all(|s| s.starts_with("scoop$1$fn$")));
 }
 
 #[test]
-fn zero_parameter_overload_mangles_with_an_empty_encoding() {
+fn zero_parameter_overload_gets_its_own_symbol() {
     let mut h = Harness::new();
     let int = h.int;
     string_fn(&mut h, "f", &[], "none");
@@ -72,15 +76,23 @@ fn zero_parameter_overload_mangles_with_an_empty_encoding() {
 
     assert_eq!(
         top_level_symbols(&module),
-        ["scoop.f.", "scoop.f.I32", "scoop_main"]
+        [
+            symbol_of_arity(&module, "f", 0),
+            symbol_of_arity(&module, "f", 1),
+            "scoop_main"
+        ]
+    );
+    assert_ne!(
+        symbol_of_arity(&module, "f", 0),
+        symbol_of_arity(&module, "f", 1)
     );
 }
 
 #[test]
 fn overload_symbols_do_not_collide_with_instance_symbols() {
     // `show(Int)` / `show(String)` overloads plus a generic
-    // `show<T>` instantiated with `Int`: `.` vs `$` keep the
-    // symbols distinct.
+    // `show<T>` instantiated with `Int`: signature keys and ODR
+    // specialization keys keep the symbols distinct.
     let mut h = Harness::new();
     let (int, string) = (h.int, h.string);
     string_fn(&mut h, "show", &[("v", int)], "int");
@@ -101,12 +113,21 @@ fn overload_symbols_do_not_collide_with_instance_symbols() {
     let module = lower(&h.finish(main));
 
     let symbols = top_level_symbols(&module);
-    for expected in ["scoop.show.I32", "scoop.show.S", "scoop.show$I32"] {
-        assert!(
-            symbols.contains(&expected),
-            "missing {expected} in {symbols:?}"
-        );
-    }
+    // The two overloads and the generic instance are three distinct
+    // persistent symbols all named `show`.
+    let show_symbols: Vec<&str> = symbols
+        .iter()
+        .copied()
+        .filter(|symbol| {
+            module
+                .functions
+                .iter()
+                .any(|(_, f)| f.symbol == *symbol && f.name == "show")
+        })
+        .collect();
+    assert_eq!(show_symbols.len(), 3, "in {symbols:?}");
+    let unique: std::collections::HashSet<&str> = show_symbols.into_iter().collect();
+    assert_eq!(unique.len(), 3);
 }
 
 #[test]
@@ -135,20 +156,28 @@ fn method_overloads_mangle_with_param_encoding() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let symbols: std::collections::HashSet<&str> = module
+    let describe_symbols: std::collections::HashSet<&str> = module
         .functions
         .iter()
+        .filter(|(_, f)| f.name == "Doc.describe")
         .map(|(_, f)| f.symbol.as_str())
         .collect();
-    assert!(symbols.contains("scoop.Doc.describe.I32"));
-    assert!(symbols.contains("scoop.Doc.describe.S"));
+    assert_eq!(describe_symbols.len(), 2);
     // Each overload gets its own vtable slot (keyed by signature),
-    // referencing the final (overload-encoded) symbol by id.
+    // referencing the final persistent symbol by id.
     let doc_def = &module.classes[class_index(0)];
     assert_eq!(doc_def.vtable.len(), 2);
-    assert_eq!(
-        slot_fn(&module, &doc_def.vtable[0]),
-        "scoop.Doc.describe.I32"
-    );
-    assert_eq!(slot_fn(&module, &doc_def.vtable[1]), "scoop.Doc.describe.S");
+    for slot in &doc_def.vtable {
+        let target = slot_fn(&module, slot);
+        assert!(
+            describe_symbols.contains(target),
+            "vtable target {target} not among {describe_symbols:?}"
+        );
+    }
+    let slot_symbols: std::collections::HashSet<&str> = doc_def
+        .vtable
+        .iter()
+        .map(|slot| slot_fn(&module, slot))
+        .collect();
+    assert_eq!(slot_symbols.len(), 2);
 }

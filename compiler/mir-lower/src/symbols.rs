@@ -24,30 +24,6 @@ pub(super) fn fn_name(function: &hir::Function) -> String {
     }
 }
 
-/// The names shared by more than one plainly-mangled function (M7
-/// overloads), over the whole module including scoop.core. Only
-/// functions that get a plain `scoop.<name>` symbol count: `User` functions
-/// with no source type arguments (free functions, class members, interface
-/// method shells). Intrinsics have no MIR symbol; instantiated functions use
-/// `$`-mangled symbols, which cannot collide with the
-/// overload encoding (`.`).
-pub(super) fn overloaded_names(module: &hir::Module) -> HashSet<String> {
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for (_, function) in module.functions.iter() {
-        if !matches!(function.kind, hir::FunctionKind::User(_))
-            || function_instance(module, function).is_some()
-        {
-            continue;
-        }
-        *counts.entry(fn_name(function)).or_default() += 1;
-    }
-    counts
-        .into_iter()
-        .filter(|(_, count)| *count > 1)
-        .map(|(name, _)| name)
-        .collect()
-}
-
 /// `mir::mangle_instance` / `mir::encode_type` take `&mir::Module`
 /// but only ever read struct / enum / class / interface names; this
 /// shell provides exactly those. Its arenas share the real arenas'

@@ -145,12 +145,15 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
 
     let base_vtable = &module.classes[class_index(0)].vtable;
     assert_eq!(base_vtable.len(), 1);
-    assert_eq!(slot_fn(&module, &base_vtable[0]), "scoop.Base.openMethod");
+    assert_eq!(
+        slot_fn(&module, &base_vtable[0]),
+        symbol_of(&module, "Base.openMethod")
+    );
     let derived_vtable = &module.classes[class_index(1)].vtable;
     assert_eq!(derived_vtable.len(), 1);
     assert_eq!(
         slot_fn(&module, &derived_vtable[0]),
-        "scoop.Derived.openMethod"
+        symbol_of(&module, "Derived.openMethod")
     );
 
     let body = &module.functions[module.entry].body;

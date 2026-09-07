@@ -305,22 +305,23 @@ fn print_overloads_are_ordinary_calls() {
         })
         .collect();
     // The overloads are the first six MIR functions (declaration
-    // order: the three `print`s, then the three `println`s), and
-    // each overload's symbol carries the parameter encoding.
+    // order: the three `print`s, then the three `println`s); each
+    // call resolves to its own overload and all six carry distinct
+    // persistent symbols.
     assert_eq!(callees, module.top_level[..6]);
     let symbols: Vec<&str> = callees
         .iter()
         .map(|&id| module.functions[id].symbol.as_str())
         .collect();
-    assert_eq!(
-        symbols,
-        [
-            "scoop.print.S",
-            "scoop.print.I32",
-            "scoop.print.B",
-            "scoop.println.S",
-            "scoop.println.I32",
-            "scoop.println.B",
-        ]
+    assert!(
+        symbols
+            .iter()
+            .all(|symbol| symbol.starts_with("scoop$1$fn$"))
     );
+    let unique: std::collections::HashSet<&str> = symbols.iter().copied().collect();
+    assert_eq!(unique.len(), 6);
+    for (index, &callee) in callees.iter().enumerate() {
+        let expected = if index < 3 { "print" } else { "println" };
+        assert_eq!(module.functions[callee].name, expected);
+    }
 }

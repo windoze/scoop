@@ -34,7 +34,9 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         .next()
         .expect("one transformed suspend function");
     let function = &module.functions[coroutine.function];
-    assert_eq!(function.symbol, "scoop.leaf$suspend");
+    // The suspend ABI derives from the persistent base symbol.
+    assert!(function.symbol.starts_with("scoop$1$fn$"));
+    assert!(function.symbol.ends_with("$suspend"));
     assert_eq!(function.params.len(), 1);
     let mir::Type::Interface(continuation) = function.params[0].ty else {
         panic!("hidden completion must be a concrete Continuation<Int>")

@@ -258,71 +258,15 @@ impl Lowerer {
         module: &hir::Module,
         hir_id: hir::FunctionId,
     ) -> String {
-        let function = &module.functions[hir_id];
-        let name = fn_name(function);
-        if let Some(instance) = function_instance(module, function) {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            let arguments = instance
-                .all_arguments()
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect::<Vec<_>>();
-            return match instance.symbol() {
-                hir::InstanceSymbol::Unique => mir::mangle_instance(&self.shell, &name, &arguments),
-                hir::InstanceSymbol::Overloaded { discriminator } => {
-                    mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
-                }
-            }
-            .expect("local-concrete source instances have source-mangleable types");
+        // Entry linkage keeps its fixed runtime symbol until the program
+        // descriptor owns a typed entry pointer (M23 runtime registry).
+        if hir_id == module.entry {
+            return mir::ENTRY_SYMBOL.to_string();
         }
-        if hir_id == module.entry || !self.overloaded.contains(&name) {
-            return mir::mangle_function(&name, hir_id == module.entry);
-        }
-        // A method's receiver (parameter 0, hir-lower's contract) is
-        // not part of the overload signature: `Doc.describe(Int)`
-        // encodes as `scoop.Doc.describe.I`.
-        let skip = usize::from(function.method.is_some());
-        let params = self.lower_params(module, &function.params[skip..]);
-        mir::mangle_overload(&self.shell, &name, &params)
-            .expect("local-concrete source overloads have source-mangleable parameters")
-    }
-
-    /// Lower a parameter list to MIR types (concrete enum definitions are
-    /// transposed lazily on first reference).
-    pub(super) fn lower_params(
-        &mut self,
-        module: &hir::Module,
-        params: &[hir::Param],
-    ) -> Vec<mir::Type> {
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        params
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                )
-            })
-            .collect()
+        // Persistent symbols are complete upstream: overloads differ by
+        // signature key and specializations by ODR body member, so no
+        // name-based overload or instance encoding remains here.
+        module.functions[hir_id].symbol.clone()
     }
 
     /// Declare one local-concrete user function (body filled later):

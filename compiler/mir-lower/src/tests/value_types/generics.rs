@@ -39,7 +39,7 @@ fn params_and_return_translate() {
     let module = lower(&h.finish(main));
 
     let add_fn = &module.functions[module.top_level[0]];
-    assert_eq!(add_fn.symbol, "scoop.add");
+    assert!(add_fn.symbol.starts_with("scoop$1$fn$"));
     assert_eq!(add_fn.params.len(), 2);
     let int_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
     assert_eq!(add_fn.params[0].ty, int_ty);
@@ -90,8 +90,10 @@ fn monomorphizes_generic_functions() {
     assert_eq!(module.top_level.len(), 3);
     let int_instance = &module.functions[module.top_level[1]];
     let string_instance = &module.functions[module.top_level[2]];
-    assert_eq!(int_instance.symbol, "scoop.identity$I32");
-    assert_eq!(string_instance.symbol, "scoop.identity$S");
+    // Each specialization carries its own persistent ODR symbol.
+    assert!(int_instance.symbol.starts_with("scoop$1$fn$"));
+    assert!(string_instance.symbol.starts_with("scoop$1$fn$"));
+    assert_ne!(int_instance.symbol, string_instance.symbol);
 
     // The instance signature, locals and body are fully
     // substituted — no `Param` survives.
@@ -114,7 +116,7 @@ fn monomorphizes_generic_functions() {
     // records symbol -> generic source provenance in the meta.
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
-    assert_eq!(int_meta.symbol, "scoop.identity$I32");
+    assert_eq!(int_meta.symbol, int_instance.symbol);
     let mir::MonomorphizedSource::GenericFunction { source, arguments } = &int_meta.source else {
         panic!("identity must retain generic free-function provenance")
     };
@@ -217,8 +219,11 @@ fn nested_generic_calls_extend_the_worklist() {
     assert_eq!(module.top_level.len(), 3);
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
-    assert_eq!(forward_i.symbol, "scoop.forward$I32");
-    assert_eq!(inner_i.symbol, "scoop.inner$I32");
+    // Both specializations of distinct templates carry distinct
+    // persistent symbols.
+    assert!(forward_i.symbol.starts_with("scoop$1$fn$"));
+    assert!(inner_i.symbol.starts_with("scoop$1$fn$"));
+    assert_ne!(forward_i.symbol, inner_i.symbol);
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
     let destination = destination.expect("inner$I32 returns Int");
     assert_eq!(
@@ -263,9 +268,16 @@ fn instance_symbols_encode_enum_and_tuple_arguments() {
         .iter()
         .map(|&id| module.functions[id].symbol.as_str())
         .collect();
-    // An enum argument encodes the category, length-delimited
-    // instance name, and complete argument list (`mir::encode_type`).
-    assert_eq!(symbols, ["scoop.f$E10_Option$I32AI32X", "scoop.f$TI32_SX"]);
+    // Distinct argument tuples are distinct ODR specializations even
+    // though the symbol text no longer spells the encoding.
+    assert_eq!(symbols.len(), 2);
+    assert!(
+        symbols
+            .iter()
+            .all(|symbol| symbol.starts_with("scoop$1$fn$"))
+    );
+    let unique: std::collections::HashSet<&str> = symbols.iter().copied().collect();
+    assert_eq!(unique.len(), 2);
     // Substitution recurses into enum / tuple types.
     let option_instance = &module.functions[module.top_level[1]];
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {

@@ -68,7 +68,7 @@ fn try_and_throw_become_explicit_cfg() {
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   class MyError vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry

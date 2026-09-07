@@ -71,7 +71,7 @@ fn array_nodes_translate_one_to_one() {
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   class IndexOutOfBoundsException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -272,7 +272,16 @@ fn instance_symbols_encode_array_arguments() {
         .map(|&id| module.functions[id].symbol.as_str())
         .collect();
     // `mir::encode_type`: `A<element>X` / `M<element>X`.
-    assert_eq!(symbols, ["scoop.f$AI32X", "scoop.f$MI32X"]);
+    // The mutable/immutable array specializations stay distinct ODR
+    // specializations under persistent symbols.
+    assert_eq!(symbols.len(), 2);
+    assert!(
+        symbols
+            .iter()
+            .all(|symbol| symbol.starts_with("scoop$1$fn$"))
+    );
+    let unique: std::collections::HashSet<&str> = symbols.iter().copied().collect();
+    assert_eq!(unique.len(), 2);
     // Substitution recurses into the array element types.
     let array_instance = &module.functions[module.top_level[1]];
     assert_eq!(

@@ -39,19 +39,23 @@ pub type CoroutineFailureValueId = Idx<CoroutineFailureValue>;
 
 /// Symbol-schema identity carried by MIR artifacts.
 ///
-/// M22 emits only `compact-v2`. Keeping the identity as a closed semantic
-/// value (rather than an integer version) makes a later persistent schema a
-/// new, explicitly incompatible variant.
+/// M23 emits `persistent-v1`: every Scoop-owned symbol is the persistent
+/// mangler's `scoop$1$...` form derived from typed identity. The closed
+/// identity value (rather than an integer version) keeps schemas
+/// explicitly incompatible; `compact-v2` remains nameable so historical
+/// artifacts are rejected by comparison, never misread.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ManglingSchemaIdentity {
-    #[default]
     CompactV2,
+    #[default]
+    PersistentV1,
 }
 
 impl ManglingSchemaIdentity {
     pub const fn canonical_name(self) -> &'static str {
         match self {
             Self::CompactV2 => "compact-v2",
+            Self::PersistentV1 => "persistent-v1",
         }
     }
 }
@@ -313,7 +317,7 @@ mod tests {
             .as_deref(),
             Ok("scoop.mix.I8_V64")
         );
-        assert!(crate::dump(&module).starts_with("Module mangling=compact-v2\n"));
+        assert!(crate::dump(&module).starts_with("Module mangling=persistent-v1\n"));
     }
 
     #[test]
@@ -345,7 +349,10 @@ mod tests {
         });
 
         let dump = crate::dump(&module);
-        assert!(dump.starts_with("Module mangling=compact-v2\n"), "{dump}");
+        assert!(
+            dump.starts_with("Module mangling=persistent-v1\n"),
+            "{dump}"
+        );
         assert!(
             dump.contains(
                 "@scoop.global.maximum maximum: ULong global initial=encoded(ULong:0xffffffffffffffff)"

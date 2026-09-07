@@ -199,7 +199,7 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   enum Option$I32
     Some(_1: Int)
     None()
@@ -274,7 +274,7 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // guards the representation-independent extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   enum Option$I32
     Some(_1: Int)
     None()

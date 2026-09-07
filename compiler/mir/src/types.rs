@@ -815,7 +815,11 @@ mod tests {
         );
         assert_eq!(
             MirMeta::default().mangling_schema,
-            ManglingSchemaIdentity::CompactV2
+            ManglingSchemaIdentity::PersistentV1
+        );
+        assert_eq!(
+            ManglingSchemaIdentity::PersistentV1.canonical_name(),
+            "persistent-v1"
         );
         assert_eq!(
             ManglingSchemaIdentity::CompactV2.canonical_name(),

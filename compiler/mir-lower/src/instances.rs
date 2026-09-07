@@ -21,20 +21,17 @@ pub(super) enum FunctionInstance {
     GenericFunction {
         origin: hir::GenericFunctionOriginId,
         arguments: hir::NonEmptyVec<hir::TypeId>,
-        symbol: hir::InstanceSymbol,
     },
     ParameterizedMethod {
         origin: hir::OwnerParameterizedMethodOriginId,
         owner: hir::MethodOwner,
         owner_arguments: hir::NonEmptyVec<hir::TypeId>,
-        symbol: hir::InstanceSymbol,
     },
     GenericMethod {
         origin: hir::GenericMethodOriginId,
         owner: hir::MethodOwner,
         owner_arguments: Vec<hir::TypeId>,
         method_arguments: hir::NonEmptyVec<hir::TypeId>,
-        symbol: hir::InstanceSymbol,
     },
 }
 
@@ -64,33 +61,7 @@ fn non_empty_mir_arguments(arguments: Vec<mir::Type>) -> mir::NonEmptyTypeArgume
     mir::NonEmptyTypeArguments::new(first, arguments.collect())
 }
 
-impl FunctionInstance {
-    pub(super) fn symbol(&self) -> hir::InstanceSymbol {
-        match self {
-            Self::GenericFunction { symbol, .. }
-            | Self::ParameterizedMethod { symbol, .. }
-            | Self::GenericMethod { symbol, .. } => *symbol,
-        }
-    }
-
-    pub(super) fn all_arguments(&self) -> Vec<hir::TypeId> {
-        match self {
-            Self::GenericFunction { arguments, .. } => arguments.to_vec(),
-            Self::ParameterizedMethod {
-                owner_arguments, ..
-            } => owner_arguments.to_vec(),
-            Self::GenericMethod {
-                owner_arguments,
-                method_arguments,
-                ..
-            } => owner_arguments
-                .iter()
-                .copied()
-                .chain(method_arguments.iter().copied())
-                .collect(),
-        }
-    }
-}
+impl FunctionInstance {}
 
 pub(super) fn function_instance(
     module: &hir::Module,
@@ -99,17 +70,14 @@ pub(super) fn function_instance(
     match &function.origin {
         hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Plain) => None,
         hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Generic {
-            origin,
-            arguments,
-            symbol,
+            origin, arguments, ..
         }) => Some(FunctionInstance::GenericFunction {
             origin: *origin,
             arguments: arguments.clone(),
-            symbol: *symbol,
         }),
         hir::FunctionOrigin::Method(method) => match &method.specialization {
             hir::MethodSpecialization::Plain => None,
-            hir::MethodSpecialization::OwnerParameterized { origin, symbol } => {
+            hir::MethodSpecialization::OwnerParameterized { origin, .. } => {
                 Some(FunctionInstance::ParameterizedMethod {
                     origin: *origin,
                     owner: method.owner,
@@ -117,19 +85,17 @@ pub(super) fn function_instance(
                         method_owner_type_arguments(module, method.owner).to_vec(),
                     )
                     .expect("an owner-parameterized method has owner arguments"),
-                    symbol: *symbol,
                 })
             }
             hir::MethodSpecialization::Generic {
                 origin,
                 method_arguments,
-                symbol,
+                ..
             } => Some(FunctionInstance::GenericMethod {
                 origin: *origin,
                 owner: method.owner,
                 owner_arguments: method_owner_type_arguments(module, method.owner).to_vec(),
                 method_arguments: method_arguments.clone(),
-                symbol: *symbol,
             }),
         },
     }

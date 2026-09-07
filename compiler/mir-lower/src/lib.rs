@@ -126,7 +126,7 @@ use lowering_support::*;
 use symbols::*;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
-use instances::{InstanceRegistry, function_instance};
+use instances::InstanceRegistry;
 use structured as smir;
 use types::{
     BoxedRegistry, EnumRegistry, InterfaceRegistry, StructRegistry, Types, is_boxable,
@@ -171,7 +171,6 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         ctors: HashMap::new(),
         struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
-        overloaded: overloaded_names(module),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -241,10 +240,6 @@ struct Lowerer {
     /// `mir::encode_type` reads, kept in sync with the real arenas
     /// (same ids).
     shell: mir::Module,
-    /// Names shared by more than one plainly-mangled function (M7
-    /// overloads): each of them gets the parameter encoding appended
-    /// to its symbol (see `declare_symbol`).
-    overloaded: HashSet<String>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,

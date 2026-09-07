@@ -58,7 +58,7 @@ fn class_initializers_chain_on_one_exact_allocation() {
     // that object, calls the direct base initializer, then writes its own
     // complete-layout field.
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   class Root vtable=0 itables=0
   class Base vtable=0 itables=0
   class Point vtable=0 itables=0
@@ -132,7 +132,7 @@ fn abstract_classes_keep_an_initializer_for_derived_delegation() {
         module
             .functions
             .iter()
-            .any(|(_, f)| f.symbol == "scoop.init.Base.$c0")
+            .any(|(_, f)| f.name == "init.Base.$c0")
     );
 }
 

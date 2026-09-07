@@ -91,14 +91,15 @@ fn when_lowers_to_a_decision_sequence() {
     // edge unreachable. (`print` /
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
-    let expected = "\
-Module mangling=compact-v2
+    let expected = format!(
+        "\
+Module mangling=persistent-v1
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
   enum Option$I32
     Some(_1: Int)
     None()
-  fun print @scoop.print(message: Int) -> Unit
+  fun print @{print}(message: Int) -> Unit
     bb0 entry
       call $call.1: String = extern1 @scoop_rt_long_to_string direct
         Type Long
@@ -109,7 +110,7 @@ Module mangling=compact-v2
         Type String
         Local $call.1
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @{println}(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
@@ -142,7 +143,7 @@ Module mangling=compact-v2
         VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $pattern.subject.2
-      call @scoop.print direct
+      call @{print} direct
         Type Int
         Local x
       goto bb3
@@ -158,7 +159,7 @@ Module mangling=compact-v2
     bb3 pattern.merge.3
       return
     bb4 pattern.pass.4
-      call @scoop.println direct
+      call @{println} direct
         Type String
         StringConst @scoop.str.1
       goto bb6
@@ -169,7 +170,10 @@ Module mangling=compact-v2
   str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"none\"
   entry @scoop_main
-";
+",
+        print = symbol_of(&module, "print"),
+        println = symbol_of(&module, "println"),
+    );
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
 }
@@ -733,14 +737,15 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // The guard nests inside the typed variant test's then branch; failing
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
-    let expected = "\
-Module mangling=compact-v2
+    let expected = format!(
+        "\
+Module mangling=persistent-v1
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
   enum Option$I32
     Some(_1: Int)
     None()
-  fun print @scoop.print(message: Int) -> Unit
+  fun print @{print}(message: Int) -> Unit
     bb0 entry
       call $call.1: String = extern1 @scoop_rt_long_to_string direct
         Type Long
@@ -751,7 +756,7 @@ Module mangling=compact-v2
         Type String
         Local $call.1
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @{println}(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
@@ -794,19 +799,19 @@ Module mangling=compact-v2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 pattern.else.2
-      call @scoop.println direct
+      call @{println} direct
         Type String
         StringConst @scoop.str.2
       goto bb3
     bb3 pattern.merge.3
       return
     bb4 if.then.4
-      call @scoop.print direct
+      call @{print} direct
         Type Int
         Local x
       goto bb6
     bb5 if.else.5
-      call @scoop.println direct
+      call @{println} direct
         Type String
         StringConst @scoop.str.1
       goto bb6
@@ -816,7 +821,10 @@ Module mangling=compact-v2
   str @scoop.str.1 \"neg\"
   str @scoop.str.2 \"neg\"
   entry @scoop_main
-";
+",
+        print = symbol_of(&module, "print"),
+        println = symbol_of(&module, "println"),
+    );
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
 }
@@ -1197,7 +1205,7 @@ fn destructuring_val_declarations_extract_bindings() {
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
     let expected = "\
-Module mangling=compact-v2
+Module mangling=persistent-v1
   struct Point (x: Int, y: Int)
   fun main @scoop_main() -> Unit
     bb0 entry

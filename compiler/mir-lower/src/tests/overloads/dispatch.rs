@@ -54,18 +54,39 @@ fn overridden_overload_replaces_the_base_slot_in_place() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    // A: one slot per overload.
+    // A: one slot per overload; the slots reference the overloads'
+    // distinct persistent symbols, keyed by their parameter types.
+    let a_s_symbol_of = |is_int: bool| -> &str {
+        module
+            .functions
+            .iter()
+            .find(|(_, f)| {
+                f.name == "A.s"
+                    && f.params.len() == 2
+                    && f.params[0].name == "this"
+                    && matches!(
+                        (&f.params[1].ty, is_int),
+                        (mir::Type::Integer(_), true) | (mir::Type::String, false)
+                    )
+            })
+            .map(|(_, f)| f.symbol.as_str())
+            .unwrap_or_else(|| panic!("A.s overload (int={is_int}) missing"))
+    };
+    let (a_s_int, a_s_string) = (a_s_symbol_of(true), a_s_symbol_of(false));
+    assert_ne!(a_s_int, a_s_string);
     let a_def = &module.classes[class_index(0)];
     assert_eq!(a_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &a_def.vtable[0]), "scoop.A.s.I32");
-    assert_eq!(slot_fn(&module, &a_def.vtable[1]), "scoop.A.s.S");
+    assert_eq!(slot_fn(&module, &a_def.vtable[0]), a_s_int);
+    assert_eq!(slot_fn(&module, &a_def.vtable[1]), a_s_string);
     // B: the `s(Int)` override replaces slot 0 in place; the
-    // inherited `s(String)` keeps slot 1. (`B.s` is a unique name
-    // in the module, so it keeps the plain symbol.)
+    // inherited `s(String)` keeps slot 1 (still A's overload).
     let b_def = &module.classes[class_index(1)];
     assert_eq!(b_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &b_def.vtable[0]), "scoop.B.s");
-    assert_eq!(slot_fn(&module, &b_def.vtable[1]), "scoop.A.s.S");
+    assert_eq!(
+        slot_fn(&module, &b_def.vtable[0]),
+        symbol_of(&module, "B.s")
+    );
+    assert_eq!(slot_fn(&module, &b_def.vtable[1]), a_s_string);
 }
 
 #[test]
@@ -161,8 +182,24 @@ fn overloaded_interface_methods_get_one_itable_slot_each() {
     assert_eq!(c_def.itables.len(), 1);
     let record = &c_def.itables[0];
     assert_eq!(record.slots.len(), 2);
-    assert_eq!(slot_fn(&module, &record.slots[0]), "scoop.C.m.I32");
-    assert_eq!(slot_fn(&module, &record.slots[1]), "scoop.C.m.S");
+    // Both overload implementations are reachable through their own
+    // slot; the slot symbols are the overloads' distinct persistent ids.
+    let m_symbols: std::collections::HashSet<&str> = module
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == "C.m")
+        .map(|(_, f)| f.symbol.as_str())
+        .collect();
+    assert_eq!(m_symbols.len(), 2);
+    for slot in &record.slots {
+        assert!(m_symbols.contains(slot_fn(&module, slot)));
+    }
+    let slot_symbols: std::collections::HashSet<&str> = record
+        .slots
+        .iter()
+        .map(|slot| slot_fn(&module, slot))
+        .collect();
+    assert_eq!(slot_symbols.len(), 2);
 }
 
 #[test]
@@ -266,14 +303,20 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
     assert_eq!(boxed.itables.len(), 1);
     let record = &boxed.itables[0];
     assert_eq!(record.slots.len(), 2);
-    assert_eq!(
+    // Both slots point at thunk functions; the two thunks are distinct.
+    assert_ne!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.Multi.m.I32"
+        slot_fn(&module, &record.slots[1])
     );
-    assert_eq!(
-        slot_fn(&module, &record.slots[1]),
-        "scoop.thunk.D1_SX.Multi.m.S"
-    );
+    for slot in &record.slots {
+        let symbol = slot_fn(&module, slot);
+        assert!(
+            module
+                .functions
+                .iter()
+                .any(|(_, f)| f.symbol == symbol && f.name.contains("thunk"))
+        );
+    }
     // Each thunk tail-calls its own overload.
     let thunk_target = |slot: &mir::TableSlot| {
         let symbol = slot_fn(&module, slot);
@@ -289,6 +332,19 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
         };
         module.functions[target].symbol.clone()
     };
-    assert_eq!(thunk_target(&record.slots[0]), "scoop.S.m.I32");
-    assert_eq!(thunk_target(&record.slots[1]), "scoop.S.m.S");
+    // Each thunk tail-calls its own overload: the two targets are the
+    // struct's two distinct `m` implementations.
+    let s_m_symbols: std::collections::HashSet<String> = module
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == "S.m")
+        .map(|(_, f)| f.symbol.clone())
+        .collect();
+    assert_eq!(s_m_symbols.len(), 2);
+    assert!(s_m_symbols.contains(&thunk_target(&record.slots[0])));
+    assert!(s_m_symbols.contains(&thunk_target(&record.slots[1])));
+    assert_ne!(
+        thunk_target(&record.slots[0]),
+        thunk_target(&record.slots[1])
+    );
 }

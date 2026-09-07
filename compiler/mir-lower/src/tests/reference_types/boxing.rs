@@ -80,7 +80,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
     let thunk_symbol = slot_fn(&module, &record.slots[0]);
-    assert_eq!(thunk_symbol, "scoop.thunk.D1_SX.Describable.describe");
+    assert!(thunk_symbol.starts_with("scoop.thunk."));
 
     // The thunk takes the boxed object as `this`, unboxes it and
     // tail-calls the value method.
@@ -98,7 +98,10 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     let mir::Callee::User(impl_id) = call.target.callee else {
         panic!("the thunk calls a user function")
     };
-    assert_eq!(module.functions[impl_id].symbol, "scoop.S.describe");
+    assert_eq!(
+        module.functions[impl_id].symbol,
+        symbol_of(&module, "S.describe")
+    );
     assert_eq!(call.args.len(), 1);
     assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
             if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));

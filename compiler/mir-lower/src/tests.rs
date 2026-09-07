@@ -18,6 +18,30 @@ mod reference_types;
 mod singletons;
 mod value_types;
 
+/// The mangled symbol of the (unique) MIR function with this source name.
+fn symbol_of<'a>(module: &'a mir::Module, name: &str) -> &'a str {
+    module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == name)
+        .map(|(_, function)| function.symbol.as_str())
+        .unwrap_or_else(|| panic!("no MIR function named {name:?}"))
+}
+
+/// Like [`symbol_of`], disambiguating same-named overloads by parameter
+/// count (excluding the receiver of methods).
+fn symbol_of_arity<'a>(module: &'a mir::Module, name: &str, params: usize) -> &'a str {
+    module
+        .functions
+        .iter()
+        .find(|(_, function)| {
+            function.name == name
+                && function.params.iter().filter(|p| p.name != "this").count() == params
+        })
+        .map(|(_, function)| function.symbol.as_str())
+        .unwrap_or_else(|| panic!("no MIR function named {name:?} with {params} params"))
+}
+
 fn lower(module: &hir::Module) -> mir::Module {
     let concrete = scoop_hir_lower::concretize_export(module);
     let mut module = super::lower(&concrete);

@@ -13,9 +13,10 @@ fn lowers_hello_world() {
     assert_eq!(helper.name, "helper");
     assert_eq!(main.name, "main");
 
-    // Mangling: entry is the fixed `scoop_main`, others `scoop.<name>`.
+    // Mangling: entry keeps the fixed `scoop_main`; every other
+    // function carries its persistent `scoop$1$` symbol.
     assert_eq!(main.symbol, mir::ENTRY_SYMBOL);
-    assert_eq!(helper.symbol, "scoop.helper");
+    assert!(helper.symbol.starts_with("scoop$1$fn$"));
     assert_eq!(module.entry, module.top_level[3]);
 
     // String literals became numbered global constants (in lowering
@@ -38,17 +39,19 @@ fn lowers_hello_world() {
     // M2 meta exists but is empty.
     assert!(module.meta.dispatch_tables.is_empty());
 
-    // Golden dump locks the output structure.
-    let expected = "\
-Module mangling=compact-v2
+    // Golden dump locks the output structure; function symbols are the
+    // module's own persistent symbols.
+    let expected = format!(
+        "\
+Module mangling=persistent-v1
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  fun print @scoop.print(message: String) -> Unit
+  fun print @{print}(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @{println}(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
@@ -57,24 +60,28 @@ Module mangling=compact-v2
         Type String
         StringConst @scoop.str.0
       return
-  fun helper @scoop.helper() -> Unit
+  fun helper @{helper}() -> Unit
     bb0 entry
-      call @scoop.print direct
+      call @{print} direct
         Type String
         StringConst @scoop.str.1
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call @scoop.println direct
+      call @{println} direct
         Type String
         StringConst @scoop.str.2
-      call @scoop.helper direct
+      call @{helper} direct
       return
   str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"!\"
   str @scoop.str.2 \"hello, world\"
   entry @scoop_main
-";
+",
+        print = symbol_of(&module, "print"),
+        println = symbol_of(&module, "println"),
+        helper = symbol_of(&module, "helper"),
+    );
     assert_eq!(dump(&module), expected);
 }
 
