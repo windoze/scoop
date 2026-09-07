@@ -169,7 +169,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 默认visibility改为`internal`，对外API逐项显式写`public`；四种visibility以typed access domain贯穿候选、override、signature exposure、M17 default witness及未来`.slib`。M12的raw `@Global`/`@ThreadLocal`与普通managed top-level property正式分离；
 - 支持static nested nominal/object声明；`inner`/anonymous/local object、generic delegated extension及class/interface delegation仍不在本里程碑。
 
-### M22 循环、值模式与定宽整数（设计见 `docs/milestone22/DESIGN.md`）
+### M22 循环、值模式与定宽整数 ✅（2026-09-07 完成，设计见 `docs/milestone22/DESIGN.md`）
 
 - `for`、不带标签的`break`/`continue`与typed loop target；统一while/for header，控制转移按目标cleanup深度穿越catch/finally/suspend状态，所有回边继续满足M15 poll契约；
 - public exact `Iterator<T>`/`Iterable<T>`协议、Array/MutableArray迭代器，以及四个不同nominal identity的普通core `IntRange`/`UIntRange`/`LongRange`/`ULongRange`、`until`/`downTo`/`step`；

@@ -4,7 +4,7 @@ use crate::expr::{CallSite, RequiredCallableModifiers};
 impl Lowerer {
     /// Assignment. A `Local` target names a declared, mutable local; an
     /// `Index` target (`array[index] = value`, spec 10.5) requires a
-    /// `MutableArray<T>` receiver, an `Int` index and a value of
+    /// `MutableArray<T>` receiver, a `Long` index and a value of
     /// exactly the element type `T`; a `Field` target
     /// (`obj.field = value`, M6) requires a class receiver and a `var`
     /// constructor property. In all cases the target type is the

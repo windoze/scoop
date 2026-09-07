@@ -262,7 +262,7 @@ fn when_over_option_with_guard() {
             Local $argument.0 : Int
         guard condition
           Binary Gt : Boolean
-            IntegerOperation int.compare_to target=function67 <no-gc> : Long
+            IntegerOperation int.compare_to target=function69 <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
             IntegerLiteral 0 : Long
@@ -459,7 +459,7 @@ fn when_over_tuple_and_struct() {
       Local p : Point
       arm struct(0: local11, 1: local12) if <guard>
         guard condition
-          IntegerOperation int.equals target=function68 <no-gc> : Boolean
+          IntegerOperation int.equals target=function70 <no-gc> : Boolean
             Local x : Int
             Local yy : Int
         val local13

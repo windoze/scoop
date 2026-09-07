@@ -1,10 +1,10 @@
 # M22 执行计划
 
-版本：0.62
+版本：0.67
 
 最后更新：2026-09-07
 
-状态：进行中
+状态：已完成
 
 本文是 `docs/milestone22/DESIGN.md` 的执行账本，不替代语言、runtime 或实现规范。语义冲突时以 `docs/specs/` 下的规范为准；发现设计缺口时先修订规范，再继续实现。
 
@@ -45,7 +45,7 @@
 | typed loop target、cleanup 与 suspend 控制转移 | 已完成 | 4.4a `64f90ca7`、4.4b `b42ce94f`、4.4c1 `dd753c09`、4.4c2 `6402e115` 已完成；4.4c2 规范为 `dcd77d6c`；parser 继续拒绝新语法 |
 | Iterator / Iterable、`for` 与四种 range | 已完成 | 4.5 提交 `8ba3320b`；4.6 spec-first 提交 `fc381075`，range 实现、测试与 golden 提交 `ff97a505` |
 | Scoop aggregate 参数 ABI classification | 已完成 | 权威规范 `f40f728`；实现、validator、artifact、native shim、moving-GC fixture 与 golden `9fbbd68` |
-| M22 全量组合验收 | 静态收口中 | 所有主线切片已完成；跨特性 ordinary/moving-GC 组合已由 4.6 fixture 门覆盖，正核对最终搜索清单并规划不重复 fixture 的 workspace 门 |
+| M22 全量组合验收 | 已完成 | 静态残留清单、验收矩阵、workspace all-target clippy、非 fixture workspace tests、driver 非 fixture tests 与既有 full fixture/ordinary/moving-GC 证据全部闭合 |
 
 ## 4. 剩余执行顺序
 
@@ -211,12 +211,12 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 
 ### 4.7 M22 收口
 
-当前执行状态：进行中。所有功能切片已经提交；最终跨特性组合 fixture、ordinary / moving-GC 输出与 full fixture snapshot refresh 已在 4.6 完成门覆盖。当前先按 DESIGN 第 8、9 章与三份 spec 做静态缺口清单，清单归零后才执行一次全 workspace clippy，并把 workspace tests 拆成“不含 `scoopc` fixture”的等价目标集合；不重跑已经完整遍历且审计通过的 full fixture。
+当前执行状态：已完成。所有功能切片、最终跨特性组合 fixture、ordinary / moving-GC 输出、full fixture snapshot refresh、DESIGN 第 8、9 章与三份 spec 的静态清单，以及不重复 slow fixture 的 workspace 收口门均已闭合；M22 已在 ROADMAP 标记完成。
 
 - 运行 DESIGN 第 8、9 章要求的全部 negative、warning、stage golden、C/Scoop ABI artifact 与 moving-GC stress 组合。
 - 增加至少一个串联 fixed-width range → for destructuring → recursive when → struct copy update → try/finally continue/break → suspend/moving-GC 的组合 fixture。
 - 搜索并清除：旧 64 位 `Int` / `UInt`解释、Option 专用裸 variant、return-only cleanup、按 enum 名/ordinal 猜 identity、source plan 泄漏到 MIR、enum/class copy update、绕过 header poll 的回边。
-- 依次执行格式化、全 workspace clippy、全 workspace test、strict fixture replay，并检查没有 `.snap.new`、占位 `TODO` / `unimplemented!` 或未提交文件。
+- 依次执行格式检查、一次全 workspace clippy、排除 `scoopc` 的 workspace tests，以及只选择 `scoopc` lib/bin、`source_integer_codegen`、`warnings_cli` 和 doc tests 的非 fixture 门；4.6 已完成并审计的 strict fixture 不重复 replay。最后检查没有 `.snap.new`、占位 `TODO` / `unimplemented!` 或未提交文件。
 - 所有完成门满足后更新 `docs/ROADMAP.md` 的 M22 状态，并提交最终收口变更。
 
 ## 5. 验证矩阵
@@ -224,7 +224,7 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 | 变更类型 | 最低验证 |
 | --- | --- |
 | parser / AST | parser 单元测试、span / recovery negative、AST fixture golden |
-| HIR 语义 / resolver | HIR 单元测试、失败 transaction、Export / LocalConcrete golden |
+| HIR 语义 / resolver | HIR 单元测试、失败 transaction、Export HIR golden，以及 LocalConcrete 结构断言与 reader/boundary validation |
 | MIR / CFG / cleanup | MIR 单元测试、dominance / cleanup / target validation、MIR golden |
 | LIR / ABI / codegen | LIR validation、LLVM artifact 检查、端到端运行 |
 | coroutine / GC | ordinary + suspend 路径、异常恢复、moving-GC stress |
@@ -308,3 +308,8 @@ MIR 侧把 return-only stack 重构为普通控制转移 router：私有 `Pendin
 - 2026-09-07：4.6 snapshot 与最终树审计完成，无 correctness blocker。新 semantics golden 从 AST 到 LIR 锁定四个 nominal range、八 owner × 四 API、窄类型 widening、exact signedness/width、开闭/升降/step/contains、fresh identity/iterator、sticky exhaustion、全域 MIN/MAX 安全终止与 8 种非法 step；LIR 无 `nsw`/`nuw`/poison 或 range intrinsic/runtime ABI。组合 golden 锁定 fixed-width range → 自定义 Iterable 解构 → recursive when → **struct-only** copy update → try/finally continue/break → suspend/moving-GC，ordinary/stress 输出与 snapshot 逐字一致。186 份既有运行/陷阱 snapshot 全部刷新：185 份输出逐字不变，唯一预期变化为组合 fixture；移除新增 core 声明并归一化实体 ID 后，未改源码 fixture 的 AST/HIR 与基线一致，注入的 32 API、12 range 方法、4 `next`、4 Option 特化及 8 个类型/布局/descriptor 完整一致。negative golden 为精确 18 条诊断。最终 `cargo fmt --all -- --check`、`git diff --check`、无 `.snap.new`、无新增占位实现、临时 runner 零 diff；格式检查只修正一处 Rust 测试排版，不重跑已通过测试。下一步提交 4.6，再按 4.7 静态清单执行唯一一次 workspace 收口门，不重跑 full fixture。
 - 2026-09-07：完成并提交 4.6 四种 typed integer range：`ff97a505`。四个 nominal range/iterator、八 owner × 四 API、`IllegalArgumentException`、parser/HIR/codegen 定向回归、range semantics/negative、M22 suspend-moving-GC 组合及 188 份 golden 同一功能提交落地。下一步进入 4.7：先完成最终静态清单，再只运行未被 4.6 fixture 门覆盖的 workspace 收口验证，不重跑 full fixture。
 - 2026-09-07：开始 4.7 最终收口。先并行核对 DESIGN 8/9、ROADMAP M22、三份 spec 与历史完成证据，并静态搜索旧 64 位 `Int`/`UInt`、Option 裸 variant 特判、return-only cleanup、按名/ordinal identity、source iteration plan 泄漏、enum/class copy update 与漏 poll 回边。4.6 已完成的 full fixture 逻辑遍历与 ordinary/moving-GC 组合视为最终 fixture 证据；除非静态审计发现真实行为 blocker，否则不再次 replay。最终测试将排除 `scoopc` 的 slow fixture target，只补齐其余 workspace target 与 driver 非 fixture tests。
+- 2026-09-07：4.7 三路静态清单在任何最终 suite 前完成。生产实现未发现旧整数解释、Option 特判、return-only cleanup、identity 回退、source plan 泄漏、enum/class copy update runtime 路径、漏 poll 回边或 range runtime/intrinsic 残留；copy update 仍在字段规划/RHS lowering 前仅接受 exact declared struct。清单只找到旧 Array 下标注释仍写 `Int`、最终门仍要求重复 fixture、以及 fixture 基础设施实际只 dump Export HIR 三项文字偏差，现已合批修正。测试矩阵另发现两个真正非等价覆盖缺口：match named-field shorthand 的 RHS 与 Unit/unit variant/payload variant 同名时的分流，以及单 variant `V(Boolean)` 的最终 refutable arm 在 MIR 中仍保留 Boolean test；两项正由独立文件批并行补齐，完成静态复核前不运行 fmt、clippy 或测试。
+- 2026-09-07：两个最终覆盖缺口已在不同 crate 的测试文件中合批落地并静态复核：HIR 表驱动用例同时锁定字段 shorthand 的 Unit literal、unit variant 与 payload variant 显式 shape 诊断；synthetic HIR → MIR 用例锁定单 variant `V(Boolean)` 仍先验证 variant、再执行 Boolean equality，并让两条 false edge 汇入 fallback。没有 production 行为改动；现在统一执行一次格式化、一次 workspace all-target clippy、一次排除 `scoopc` 的 workspace tests 与一次 `scoopc` 非 fixture target 批，任何失败只重跑对应门。
+- 2026-09-07：最终 workspace clippy 首轮只发现新 MIR 测试局部闭包缺少 `BlockId` 类型，补注解后仅重跑 clippy 并全绿。随后 `cargo test --workspace --exclude scoopc --no-fail-fast` 一次收齐全部目标：除 `scoop-hir-lower` 外所有 crate 与 doc tests 均通过，HIR crate 集中暴露 6 项；其中新 shorthand 用例需要断言 Unit literal 的既有 wildcard 正规化，4 个旧 dump 用例共 6 处 function id 因 4.6 新增 `IllegalArgumentException` 顺延 2，另一个旧 `should_panic` 仍期待 reader validator 收紧前的措辞。现已一次合批修正；下一步只重跑 `scoop-hir-lower --lib`，不重跑已通过的其余 workspace 目标或 full fixture。
+- 2026-09-07：M22 最终验证完成。HIR 失败门批量修正后的 crate 运行 735/736，唯一剩余项确认是测试 helper 未模拟 parser 对 shorthand `Unit` 保留 literal AST；改为真实 AST 后仅定向重跑该项并通过，所以最终 736 项获得一次逻辑覆盖而未再次重放整 crate。最终树的 affected HIR clippy 通过；首轮 workspace 中其余 crate/unit/doc 全部通过（包含新增 MIR 单变体 Boolean 分支测试）；`scoopc` 非 fixture 门为 lib 12/12、bin 0、source integer artifact 1/1、warnings 2/2、doc 0。4.6 已审计的 full fixture 4/4、ordinary/moving-GC 组合与 188 份 golden 直接复用，不重复执行。最终只剩格式/diff、`.snap.new`、占位符与工作树范围卫生检查，完成后提交 4.7 收口。
+- 2026-09-07：4.7 最终卫生门通过：`cargo fmt --all -- --check` 与 `git diff --check` 均为零差异；无 `.snap.new`；新增 compiler/sysroot/runtime diff 中没有 `TODO`、`todo!` 或 `unimplemented!`；工作树精确只含两项新覆盖测试、4.6 引起的四份旧 HIR dump ID 顺延、一份 reader 诊断期望、Array `Long` 下标注释，以及 ROADMAP/DESIGN/PLAN 收口文档。M22 已满足全部完成条件，下一步提交最终收口变更。

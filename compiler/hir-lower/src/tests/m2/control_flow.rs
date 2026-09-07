@@ -103,7 +103,7 @@ fn var_rebinding_and_control_flow() {
         val local3
           Local $argument.0 : Int
       Binary Lt : Boolean
-        IntegerOperation int.compare_to target=function67 <no-gc> : Long
+        IntegerOperation int.compare_to target=function69 <no-gc> : Long
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Long
@@ -114,12 +114,12 @@ fn var_rebinding_and_control_flow() {
       val local6
         Local $argument.0 : Int
       assign n
-        IntegerOperation int.add target=function62 <no-gc> : Int
+        IntegerOperation int.add target=function64 <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
     if
       Binary And : Boolean
-        IntegerOperation int.equals target=function68 <no-gc> : Boolean
+        IntegerOperation int.equals target=function70 <no-gc> : Boolean
           Local n : Int
           IntegerLiteral 3 : Int
         BoolLiteral true : Boolean

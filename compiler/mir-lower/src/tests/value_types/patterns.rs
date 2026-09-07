@@ -466,6 +466,177 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
 }
 
 #[test]
+fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let single = h.declare_enum(
+        "Single",
+        Vec::new(),
+        Vec::new(),
+        vec![hir::Variant {
+            name: "V".to_string(),
+            fields: vec![hir::Field {
+                name: "value".to_string(),
+                ty: boolean,
+            }],
+        }],
+    );
+    let single_ty = h.enum_ty(single);
+    let application = h.enum_application_of(single_ty);
+
+    let mut equality_locals = Arena::new();
+    let left = equality_locals.alloc(local("left", boolean));
+    let right = equality_locals.alloc(local("right", boolean));
+    let equality = h.user_fn_full(
+        "Boolean.equals",
+        Vec::new(),
+        vec![param("left", boolean, left), param("right", boolean, right)],
+        boolean,
+        hir::Body {
+            locals: equality_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: Some(bool_lit(&h, true)),
+            })],
+        },
+    );
+    let matched = h.user_fn(
+        "matched",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+    let fallback = h.user_fn(
+        "fallback",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+
+    let mut locals = Arena::new();
+    let subject = locals.alloc(local("subject", single_ty));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                local_ref(subject, single_ty),
+                vec![arm(
+                    hir::Pattern::Variant {
+                        application,
+                        variant: 0,
+                        fields: vec![(
+                            0,
+                            hir::Pattern::Literal {
+                                value: bool_lit(&h, true),
+                                equality: hir::LiteralPatternEquality::Ordinary {
+                                    equals: hir::Callable::Function(equality),
+                                },
+                                subject_ty: boolean,
+                            },
+                        )],
+                    },
+                    None,
+                    vec![expr_stmt(call(&h, matched, Vec::new()))],
+                )],
+                hir::WhenFallback::Else(vec![expr_stmt(call(&h, fallback, Vec::new()))]),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module.entry].body;
+
+    let function_named = |name: &str| {
+        module
+            .functions
+            .iter()
+            .find_map(|(id, function)| (function.name == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing MIR function `{name}`"))
+    };
+    let equality = function_named("Boolean.equals");
+    let matched = function_named("matched");
+    let fallback = function_named("fallback");
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: variant_pass,
+        else_block: variant_false,
+    } = &body.blocks[body.entry].terminator
+    else {
+        panic!("the single-variant pattern must retain its VariantTest")
+    };
+    let mir::ExprKind::VariantTest { operand, variant } = &cond.kind else {
+        panic!("the first decision tests the enum variant")
+    };
+    assert_eq!(variant.variant_index(), 0);
+    let mir::ExprKind::Local(tested_subject) = operand.kind else {
+        panic!("the variant test consumes the stable when subject")
+    };
+
+    let variant_pass = &body.blocks[*variant_pass];
+    let (equality_call, equality_result) = variant_pass
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
+                &statement.kind
+            else {
+                return None;
+            };
+            matches!(call.target.callee, mir::Callee::User(function) if function == equality)
+                .then_some((call, *destination))
+        })
+        .expect("the nested Boolean literal retains its selected equality call");
+    let [payload, literal] = equality_call.args.as_slice() else {
+        panic!("Boolean.equals receives the payload and literal")
+    };
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &payload.kind else {
+        panic!("Boolean.equals receives the checked variant payload")
+    };
+    assert_eq!(field.variant(), *variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == tested_subject));
+    assert!(matches!(literal.kind, mir::ExprKind::BoolLiteral(true)));
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: literal_pass,
+        else_block: literal_false,
+    } = &variant_pass.terminator
+    else {
+        panic!("the Boolean equality result must remain a refutable branch")
+    };
+    assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == equality_result));
+    assert_eq!(
+        literal_false, variant_false,
+        "either failed test must route to the fallback",
+    );
+
+    let user_calls = |block: mir::BlockId| {
+        body.blocks[block]
+            .statements
+            .iter()
+            .filter_map(|statement| {
+                let mir::StatementKind::Call(effect) = &statement.kind else {
+                    return None;
+                };
+                let call = match effect {
+                    mir::CallEffect::Unit(call) => call,
+                    mir::CallEffect::Value { call, .. } => call,
+                };
+                let mir::Callee::User(function) = call.target.callee else {
+                    return None;
+                };
+                Some(function)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(user_calls(*literal_pass), [matched]);
+    assert_eq!(user_calls(*variant_false), [fallback]);
+}
+
+#[test]
 fn zero_arm_impossible_when_terminates_with_unreachable() {
     let mut h = Harness::new();
     let never = h.declare_enum("Never", Vec::new(), Vec::new(), Vec::new());

@@ -343,6 +343,99 @@ fn bare_payload_variant_in_match_requires_an_explicit_shape() {
 }
 
 #[test]
+fn match_field_shorthand_classifies_its_same_named_subpattern_from_the_field_type() {
+    #[derive(Clone, Copy)]
+    enum Expected {
+        UnitWildcard,
+        UnitVariant,
+        PayloadVariantError,
+    }
+
+    for (field_name, field_ty, shorthand, expected) in [
+        (
+            "Unit",
+            ty_named("Unit"),
+            pat_lit(unit_lit()),
+            Expected::UnitWildcard,
+        ),
+        (
+            "Ready",
+            ty_named("Signal"),
+            pat_bind("Ready"),
+            Expected::UnitVariant,
+        ),
+        (
+            "Payload",
+            ty_named("Signal"),
+            pat_bind("Payload"),
+            Expected::PayloadVariantError,
+        ),
+    ] {
+        let source = file(vec![
+            signal_decl(),
+            struct_decl("Envelope", vec![(field_name, field_ty)]),
+            fun_sig(
+                "check",
+                vec![],
+                vec![("envelope", ty_named("Envelope"))],
+                None,
+                vec![when_stmt(
+                    var("envelope"),
+                    vec![arm(
+                        // The parser expands shorthand into the same-named
+                        // subpattern while preserving `Unit` as a literal.
+                        pat_named_subpatterns(&[], vec![(field_name, shorthand)], None),
+                        None,
+                        vec![],
+                    )],
+                    Some(vec![]),
+                )],
+            ),
+            fun("main", vec![]),
+        ]);
+
+        if matches!(expected, Expected::PayloadVariantError) {
+            let diagnostics = lower_user(source)
+                .expect_err("a payload variant used through shorthand still needs a shape");
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            assert_eq!(
+                diagnostics[0].message,
+                "variant `Payload` of `Signal` has 1 field(s); use `Payload(...)` to match it"
+            );
+            continue;
+        }
+
+        let module = lower_user(source).expect("match shorthand must use match-context lookup");
+        let when = function_body(&module, "check")
+            .statements
+            .iter()
+            .find_map(|statement| match &statement.kind {
+                hir::StatementKind::When(when) => Some(when),
+                _ => None,
+            })
+            .expect("check contains a when");
+        let hir::Pattern::Struct { fields, .. } = &when.arms[0].pattern else {
+            panic!("field shorthand must retain its enclosing struct pattern")
+        };
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].0, 0);
+
+        match expected {
+            Expected::UnitWildcard => assert!(matches!(&fields[0].1, hir::Pattern::Wildcard)),
+            Expected::UnitVariant => assert!(matches!(
+                &fields[0].1,
+                hir::Pattern::Variant {
+                    variant: 0,
+                    fields,
+                    ..
+                } if fields.is_empty()
+            )),
+            Expected::PayloadVariantError => unreachable!(),
+        }
+    }
+}
+
+#[test]
 fn explicit_enum_shapes_remain_refutable_in_binding_positions() {
     for target in [
         pat_pos(&["Signal", "Ready"], vec![], None),

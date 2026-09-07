@@ -231,7 +231,7 @@ fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
 }
 
 #[test]
-#[should_panic(expected = "an unlabelled break targets the innermost loop")]
+#[should_panic(expected = "break or continue does not target the innermost active loop")]
 fn concretization_rejects_a_non_innermost_loop_target() {
     let mut export = lower_user_output(file(vec![fun(
         "main",
