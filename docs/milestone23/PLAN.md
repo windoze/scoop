@@ -95,7 +95,11 @@
 - **T34 缓存失效矩阵与可复现门**：HIR-only/layout/object-only 变化分别触发正确 fingerprint；两路径 bitwise `.slib` equality；`scoop` fake runner 顺序锁定；真实多 Cone 端到端（imports → generics → dispatch → init → moving GC/exception）。
 - **T35 M23 收口**：完成门清单（DESIGN §10 末段）逐项核验、ROADMAP 标记完成、清理旧入口（single-file 生产路径、`scoop_main` 固定符号、compact mangling 生产使用等）。
 
-## 3. 关键不可变决定（本计划锁定）
+## 3. 环境注意事项
+
+- 本机 brew 默认 `llvm` 已升级至 23.1，与工具链要求的 LLVM 22.1 不符；`llvm@22` 仍安装于 `/opt/homebrew/opt/llvm@22`。构建/测试 codegen 前须 `export LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22`，否则 llvm-sys 重链 23.1 后 codegen 全部单测报 "unsupported LLVM backend"。
+
+## 4. 关键不可变决定（本计划锁定）
 
 - v1 只支持静态无环 exact Cone 图；无 registry/lockfile/dynamic loading。
 - `scoop`（umbrella）、`scoopc`（single-Cone）、program-link（artifact-only）三层工具经 Cargo dependency 方向固定；`scoopc` 不递归构建、不最终链接。
@@ -104,7 +108,7 @@
 - 保守缓存基线：HIR compile key 纳入全部 direct dependency HIR Merkle fingerprint；宁可多编译，不可错误复用。
 - 串行调度；诊断排序不依赖 HashMap/枚举顺序。
 
-## 4. 验证矩阵
+## 5. 验证矩阵
 
 | 变更类型 | 最低验证 |
 | --- | --- |
@@ -118,7 +122,7 @@
 | program-link/runtime | 端到端运行、moving-GC stress、descriptor 损坏 fatal |
 | 文档 | `git diff --check`、跨 spec 引用复核 |
 
-## 5. 更新记录
+## 6. 更新记录
 
 - 2026-09-07：建立本计划。T1 经核验已完成（spec 同步在 `4ea2442e` 及此前文档提交中闭合）。开始 T2 `compiler/identity`。
 - 2026-09-07：完成 T2 `compiler/identity`（canonical CBOR、domain hash、coordinate/identity、capability registry）。注：`SlibMemberId` 与 `ArtifactFingerprint` 的定义随 T5 slib envelope 落在 slib 侧，identity crate 只承载跨 crate 共享的底层类型。开始 T3 `compiler/manifest`。
@@ -130,3 +134,4 @@
 - 2026-09-07：完成 T8 `compiler/scoop` graph 解析（13 内存测试：chain/diamond/tie-break/全部错误类 + DependencyRecord coordinate 扩展）。开始 T9 调度与缓存（fake runner）。
 - 2026-09-07：完成 T9 调度与缓存（fake runner，8 新测试）。T10 评估后推迟到管线可产出 artifact 时与端到端一起落地（契约已在库层锁定）；开始 T11 persistent id 框架。
 - 2026-09-07：完成 T11 persistent id 框架（typed newtype ×15、DefinitionKey、ExactTypeKey/Table + canonical name printer、CallableBodyKey、SpecializationKey/ODR、mangler，26 测试）。开始 T12 HIR 定义键接入与 mangler 切换。
+- 2026-09-07：阶段门禁：`LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22` 下 workspace（除 scoopc slow fixtures）全绿 1704/0；记录 brew llvm 漂移的环境注意事项。

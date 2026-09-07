@@ -29,6 +29,7 @@ fn template() -> ManifestCoreTemplate {
         coordinate: ConeCoordinate::new("dev.example", "app", "0.1.0").unwrap(),
         kind: ConeKind::Library,
         dependencies: vec![DependencyRecord {
+            coordinate: ConeCoordinate::new("org.foo", "bar", "1.2.3").unwrap(),
             cone_identity: ConeIdentity::of(
                 &ConeCoordinate::new("org.foo", "bar", "1.2.3").unwrap(),
             ),
