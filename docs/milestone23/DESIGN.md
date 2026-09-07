@@ -1228,6 +1228,14 @@ target profile与sysroot仍是每个命令的显式、规范化配置，示意�
 5. 所有link object联合起来恰好定义本Cone的一个image descriptor；全部undefined relocation按`{SlibMemberId, use}`验证、收集contract/requirement。之后原子写`--out-slib`临时文件，使用Compile与Link purpose各做一次完整round-trip验证，再rename；
 6. 无论manifest kind是library还是executable，唯一产物都是当前Cone `.slib`。executable分支结构上额外携带非可选typed main/root gateway metadata，但`scoopc`不生成program descriptor、不读取或构建runtime输入，也不调用最终native linker。
 
+### 5.5.1 单文件输入、`run`与各阶段dump
+
+单文件编译是`build`的一等输入形态，不是独立子命令，也不是仅供测试的便捷层。`scoop build <path>`与`scoopc build <path>`的`<path>`既可以是Cone root（manifest目录或`Cone.toml`），也可以是单个`.scoop`源文件（按精确扩展名区分）：文件输入被当作一个executable synthetic Cone——其coordinate优先取文件祖先链上发现的`Cone.toml`，否则使用稳定测试coordinate——并沿各自正常的构建路径处理。`scoop build <file.scoop>`经synthetic manifest进入与Cone root完全相同的图、cache、`.slib`与program-link流程产出最终二进制；`scoopc build <file.scoop>`把该文件作为当前Cone编译，产出与其他任何Cone相同的`.slib`（trusted core slot提供其唯一依赖）。单文件输入不授予core/intrinsic authority之外的任何身份，也不构成多Cone构建绕过`.slib`边界的旁路：core分离落地前文件输入沿用既有core+user同单元管线过渡实现，core分离之后同一CLI形态切换为消费trusted core artifact的独立单Cone编译，dump格式保持不变。
+
+`run`是配套的日常执行入口：`scoop run <file.scoop> [--] [args...]`把`build`的单文件形态编译到build root（复用cache）并执行产物二进制，转发参数与退出状态；不引入第二套编译路径。
+
+各阶段dump用独立命令行开关分别启用或关闭：`--dump-ast`、`--dump-hir`、`--dump-mir`、`--dump-lir`可任意组合，被启用的阶段在输出目录写入`<stem>.<stage>`文本dump；单一阶段输出到stdout的`--emit <stage>`保留用于脚本管道。fixture runner继续直接使用driver内部API取得同一组dump，不依赖CLI开关。
+
 `scoop build`拥有完整构建生命周期：先按1.4解析并验证整个DAG，确保cycle、multiversion或ambiguous artifact在启动第一个compiler子进程前失败；随后按canonical dependency-first顺序处理节点。prebuilt与cache候选不调用`scoopc`，但只有完整envelope/hash验证及Compile、Link两种独立strong view都成功后才算命中并可复用；unknown LinkObject capability、损坏object或只通过Graph view的候选都不是成功节点。每个source cache miss恰好启动一次独立`scoopc`进程，并只把已经通过同一双view门禁、成功发布的direct/support `.slib`传入。`scoop`必须调用同一toolchain安装中、ABI/schema身份匹配的配套`scoopc`，不能从任意`PATH`挑选另一个版本；子进程请求/诊断使用版本化结构化协议，输出artifact由父进程重新构造Compile与Link view并核对计划。`scoop`不得把两个source Cone的AST/IR放进同一进程，或以调用`scoopc`内部pipeline library的方式绕过artifact边界。M23先串行执行；未来并行ready set也不能让完成时序改变诊断、目录、program graph或runtime初始化顺序。
 
 每次`scoopc`成功后，`scoop`重新读取完整输出，分别构造Compile与Link view，并核对计划中的coordinate、dependency fingerprint、target与cache key，再原子发布cache entry。子进程失败时不再启动其dependent，也不运行link；已经完成的独立artifact可留在content-addressed cache。`scoopc`以结构化诊断通道报告typed error/warning，`scoop`只排序、标注Cone并汇总，不解析或改写面向人的stderr文本。library root只有在同一双view门禁通过后才以其`.slib`结束；executable root也先完整生成并验证同类`.slib`，再把保留的Link closure交给同一个program-link stage。
@@ -2036,7 +2044,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 11. 由`scoop`从profile固定的受信任source set构建`ValidatedRuntimeArtifact`，新增artifact-only program-link组件与`scoop link`，在typed link-object集合中验证唯一image、生成并反验program descriptor，并以final-input origin/link trace闭合runtime/native/target输入；runtime改为registry、全image root/TD/init登记与canonical初始化；
 12. 完成multi-member/opaque-blob、multi-object stackmap、final artifact/moving-GC组合、缓存失效矩阵和全量回归。
 
-每一批先`cargo fmt --all`与`cargo clippy --workspace`，再执行对应unit/golden/fixture。最终不得保留旧single-file/core拼接生产入口、让`scoopc`递归构建或最终链接的旁路、固定`code.o`/`bridge.o`成员判断、两套symbol mangler、raw arena id wire格式、固定`scoop_image_*`weak fallback或“ODR不一致让linker选择”的路径。
+每一批先`cargo fmt --all`与`cargo clippy --workspace`，再执行对应unit/golden/fixture。最终不得保留旧single-file/core拼接生产入口（5.5.1的`build`单文件输入形态保留，但其过渡实现随core分离改为消费trusted core artifact的独立单Cone编译）、让`scoopc`递归构建或最终链接的旁路、固定`code.o`/`bridge.o`成员判断、两套symbol mangler、raw arena id wire格式、固定`scoop_image_*`weak fallback或“ODR不一致让linker选择”的路径。
 
 M23只有在以下条件同时满足时完成：`scoop`可只经配套`scoopc`的单Cone artifact边界按DAG构建，而直接`scoopc`在缺上游artifact时只失败、不递归；任意library Cone无需`main`即可独立生成可重复`.slib`，executable也先生成同类`.slib`再由artifact-only program-link产生binary；typed member directory可同时承载多个link object和非link blob，unknown required/optional capability、fingerprint分层与link view均按4.1/4.6工作，任何代码都不按名称、扩展名或数量猜成员；direct/re-export/import层在下游使用同一M16/M17 resolver/default协议；non-generic alias/protected inheritance/generic hidden closure跨artifact边界不泄漏权限且信息完备；reader对完整损坏矩阵无panic；上游generic与下游local type可实例化，重复specialization的全部runtime identity真正coalesce；ZST从HIR status到LIR layout、Scoop/C ABI、box、static token及`Array`/`MutableArray`均通过9.5矩阵；generic delegated extension全程序exactly once；core作为trusted独立`.slib`消费；最终程序先登记全部image/storage/root/TD/stackmap/callable/init metadata，再按canonical DAG顺序初始化并从no-throw typed root gateway运行；多Cone moving-GC/exception/closure/coroutine/FFI组合通过。
 
