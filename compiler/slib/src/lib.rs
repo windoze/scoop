@@ -8,10 +8,16 @@
 
 pub mod archive;
 pub mod artifact;
+pub mod closure;
 pub mod limits;
 pub mod manifest;
 pub mod member;
+pub mod purpose {
+    pub use crate::artifact::purpose::*;
+}
 
+#[cfg(test)]
+mod closure_tests;
 #[cfg(test)]
 mod tests;
 

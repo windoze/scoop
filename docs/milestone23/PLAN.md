@@ -31,7 +31,7 @@
 ### 阶段 B：`.slib` 容器与 envelope（DESIGN §4.1、§4.2）
 
 - **T5 slib envelope（Graph view）**（已完成）：canonical SysV/GNU short-name ar writer/reader（60-byte header 逐字段 canonical 校验、`` `'\n' `` fmag、`m%08d` 目录名、thin/special/reserved member 拒绝、odd payload `0x0A` pad）；`MemberStableKey`（tag 1–6）+`SlibMemberRole`+`MemberPurposeSet`+`SlibMemberRecord`（field key 1–5）CBOR 编解码与 key/role/capability 配对、`required_for` v1 组合规则；`SlibMemberId = SHA-256("scoop-slib-member-v1"‖ConeIdentity‖canonical key)`；`manifest.cbor`（magic SCOOPSLIB、container/wire schema 版本、语言/runtime/identity ABI、coordinate+identity 重算、kind、dependency 表、target/backend fingerprint、member 目录 field 19、artifact fingerprint field 20，指纹排除自引用重算）；`SlibBuilder`（BTreeMap 按 id 排序 → bitwise 确定性）；`DecodedSlibEnvelope`（长度/hash/序数名/资源预算校验）→ `ValidatedGraphArtifact`；集中式 `SlibDecodeLimits`（§4.5 常量）。测试 12/12：ar golden bytes、reserved/non-canonical/truncation 拒绝、member id 派生、pairing 矩阵、round-trip + identity 重算、bitwise 确定性 + 插入顺序无关、物理名序数、损坏矩阵无 panic、预算、optional blob 只改 ArtifactFingerprint。后续 Compile/Link view 与 wire schema 随 T19/T27 扩展。提交 `3fd836d7`。
-- **T6 dependency table 与 artifact 一致性**：manifest direct dependency records（`ConeIdentity` + 三层 semantic fingerprint 占位结构）、reader 对 closed input set 的图一致性验证（缺失/重复/错分/额外不可达/cycle/自环/多 version/executable dependency/伪造 core）→ 供 `scoopc` 输入检查复用。
+- **T6 dependency table 与 artifact 一致性**（已完成，含于 T5 之上独立提交）：slib `closure.rs` 的 `validate_explicit_closure<P>`：reserved core 身份/core 零依赖、跨集合重复 identity、direct/support 错分、`group:name` 多 version、executable dependency、悬空边（= 缺失 artifact）、不可达 support、cycle/自环（迭代 DFS 带 coordinate path）、target profile 与 schema/ABI 逐字段一致性；输入顺序无关（按 identity 排序后处理）。`ValidatedArtifactClosure<P>` purpose marker。dependency fingerprint 记录已在 manifest 结构中（record 型），stale-fingerprint 比对在 T21 语义指纹落地后接入。验证：closure 测试 15 项 + envelope 12 项全绿；clippy `-D warnings`。提交 `<hash>`。
 
 ### 阶段 C：工具边界（DESIGN §1.3、§1.4、§5.5）
 
@@ -125,3 +125,4 @@
 - 2026-09-07：完成 T3 `compiler/manifest`（Cone.toml v1 严格解析 + semantic/locator projection 分离，15 测试）。开始 T4 `compiler/protocol`。
 - 2026-09-07：完成 T4 `compiler/protocol`（CBOR frame + CompilerIdentity exact match + typed 诊断，9 测试）。开始 T5 slib envelope。
 - 2026-09-07：完成 T5 `.slib` envelope 基础（canonical ar、typed member directory、manifest.cbor、Graph view、SlibBuilder、集中 decode 预算，12 测试）。开始 T6 显式闭包一致性验证。
+- 2026-09-07：完成 T6 显式闭包一致性验证（closure.rs，15 测试：chain/diamond/core-only 正向 + 10 类错误）。开始 T7 source discovery 与 ConeOutputKind。
