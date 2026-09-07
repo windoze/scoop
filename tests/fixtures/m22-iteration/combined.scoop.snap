@@ -1773,11 +1773,11 @@ Module mangling=compact-v2
   enum Option$I64
     Some(_1: Long)
     None()
-  enum Option$V64
-    Some(_1: ULong)
-    None()
   enum Option$V32
     Some(_1: UInt)
+    None()
+  enum Option$V64
+    Some(_1: ULong)
     None()
   enum RangeSignal
     Data(payload: RangePatternPayload, enabled: Boolean)
@@ -16327,8 +16327,8 @@ Module
   enum Option$U tagged size=8 align=8 variants=({})@8+0 ()@8+0
   enum Option$FRC4_NodeXX niche(kind=managed,payload_variant=0)
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum RangeSignal tagged size=48 align=8 variants=(struct10, i1)@8+40:refs ()@8+0
   enum CoroutineStep$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep$U tagged size=8 align=8 variants=({})@8+0 ()@8+0
@@ -18955,7 +18955,7 @@ Module
     t35 = safe_integer_Remainder<UInt> local34, local35 : i32
     t36 = integer_compare_Equal<UInt> t35, integer<UInt>(0x00000000) : i1
     ret t36
-  fun @scoop.UIntRangeIterator.next(ptr<managed>) -> sret<enum8 size=16 align=8 scan=none>
+  fun @scoop.UIntRangeIterator.next(ptr<managed>) -> sret<enum7 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -19002,7 +19002,7 @@ Module
     t0 = heap_load param0 +30 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e8 v1 () : enum8
+    t1 = enum_wrap e7 v1 () : enum7
     ret t1
   block if.merge.2
     t2 = heap_load param0 +28 : i1
@@ -19040,13 +19040,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +30 true
-    t15 = enum_wrap e8 v1 () : enum8
+    t15 = enum_wrap e7 v1 () : enum7
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +30 true
-    t16 = enum_wrap e8 v1 () : enum8
+    t16 = enum_wrap e7 v1 () : enum7
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -19072,13 +19072,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +30 true
-    t25 = enum_wrap e8 v1 () : enum8
+    t25 = enum_wrap e7 v1 () : enum7
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +30 true
-    t26 = enum_wrap e8 v1 () : enum8
+    t26 = enum_wrap e7 v1 () : enum7
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -19123,7 +19123,7 @@ Module
   block if.merge.25
     store local12 -> local39
     store local39 -> local40
-    t40 = enum_wrap e8 v0 (local40) : enum8
+    t40 = enum_wrap e7 v0 (local40) : enum7
     ret t40
   block if.then.26
     t41 = heap_load param0 +28 : i1
@@ -19439,7 +19439,7 @@ Module
     t35 = safe_integer_Remainder<ULong> local34, local35 : i64
     t36 = integer_compare_Equal<ULong> t35, integer<ULong>(0x0000000000000000) : i1
     ret t36
-  fun @scoop.ULongRangeIterator.next(ptr<managed>) -> sret<enum7 size=16 align=8 scan=none>
+  fun @scoop.ULongRangeIterator.next(ptr<managed>) -> sret<enum8 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -19486,7 +19486,7 @@ Module
     t0 = heap_load param0 +42 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e7 v1 () : enum7
+    t1 = enum_wrap e8 v1 () : enum8
     ret t1
   block if.merge.2
     t2 = heap_load param0 +40 : i1
@@ -19524,13 +19524,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +42 true
-    t15 = enum_wrap e7 v1 () : enum7
+    t15 = enum_wrap e8 v1 () : enum8
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +42 true
-    t16 = enum_wrap e7 v1 () : enum7
+    t16 = enum_wrap e8 v1 () : enum8
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -19556,13 +19556,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +42 true
-    t25 = enum_wrap e7 v1 () : enum7
+    t25 = enum_wrap e8 v1 () : enum8
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +42 true
-    t26 = enum_wrap e7 v1 () : enum7
+    t26 = enum_wrap e8 v1 () : enum8
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -19607,7 +19607,7 @@ Module
   block if.merge.25
     store local12 -> local39
     store local39 -> local40
-    t40 = enum_wrap e7 v0 (local40) : enum7
+    t40 = enum_wrap e8 v0 (local40) : enum8
     ret t40
   block if.then.26
     t41 = heap_load param0 +40 : i1
@@ -24582,8 +24582,8 @@ Module
   layout Option$U size=8 align=8 enum-scan=none
   layout Option$FRC4_NodeXX size=8 align=8 enum-scan=refs[0]
   layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
   layout Option$V32 size=16 align=8 enum-scan=none
+  layout Option$V64 size=16 align=8 enum-scan=none
   layout RangeSignal size=48 align=8 enum-scan=refs[16, 24]
   layout CoroutineStep$I64 size=16 align=8 enum-scan=none
   layout CoroutineStep$U size=8 align=8 enum-scan=none

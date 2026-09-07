@@ -97,7 +97,12 @@ impl Lowerer {
                 "concrete HIR emits one declaration per interface slot"
             );
         }
-        for (hir_id, slots) in interface_methods {
+        // Iterate interfaces in concrete arena order: the slot fill below
+        // lowers signatures, and lazy MIR entity creation must not follow
+        // HashMap iteration order (which randomizes per process).
+        let mut interface_slots: Vec<_> = interface_methods.into_iter().collect();
+        interface_slots.sort_by_key(|(id, _)| id.into_raw());
+        for (hir_id, slots) in interface_slots {
             let mir_id = self.interfaces.mir_id(hir_id);
             let mut methods = Vec::with_capacity(slots.len());
             for (slot, function) in slots.into_iter().enumerate() {
