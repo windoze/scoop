@@ -21,6 +21,10 @@ impl Harness {
         let mut enum_applications = Arena::new();
         let option_self_application = hir::EnumApplicationId::from_raw(0.into());
         let option_enum = enums.alloc(hir::EnumDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
@@ -139,6 +143,10 @@ impl Harness {
             return_type: self.unit,
         });
         let id = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "write".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -176,6 +184,10 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "coreLongToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -212,6 +224,10 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "coreBooleanToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

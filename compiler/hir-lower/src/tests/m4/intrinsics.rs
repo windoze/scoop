@@ -105,6 +105,7 @@ fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
     let unit = CompilationUnit {
+        cone: test_cone_identity(),
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,
@@ -165,6 +166,7 @@ fn a_typed_intrinsic_kind_has_one_defining_provider() {
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
     let unit = CompilationUnit {
+        cone: test_cone_identity(),
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,

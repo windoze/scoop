@@ -10,6 +10,8 @@ pub struct Global {
     /// even when their logical property exposes a setter.
     pub mutable: bool,
     pub storage: GlobalStorage,
+    /// Declaring Cone/file provenance feeding persistent identities.
+    pub origin: crate::DeclarationOrigin,
     pub span: Span,
 }
 

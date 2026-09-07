@@ -338,6 +338,7 @@ impl Lowerer {
             };
             let expected_property = self.next_property_id();
             let id = self.globals.alloc(hir::Global {
+                origin: self.declaration_origin(),
                 name: decl.name.text.clone(),
                 property: expected_property,
                 ty,
@@ -560,6 +561,7 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
+            origin: self.declaration_origin(),
             name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
@@ -642,6 +644,7 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
+            origin: self.declaration_origin(),
             name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
@@ -693,6 +696,7 @@ impl Lowerer {
     ) -> (hir::FunctionId, hir::FunctionId) {
         let allocate = |this: &mut Self, role: &str| {
             let function = this.functions.alloc(Function {
+                origin: this.declaration_origin(),
                 name: format!("$init${role}${}", unit.into_raw()),
                 access: this.local_declaration_access(),
                 override_access: Vec::new(),

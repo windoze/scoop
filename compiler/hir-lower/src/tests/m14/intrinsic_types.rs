@@ -221,6 +221,7 @@ fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
     let unit = CompilationUnit {
+        cone: test_cone_identity(),
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,

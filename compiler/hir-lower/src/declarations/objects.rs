@@ -277,6 +277,7 @@ impl Lowerer {
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let backing_class = self.classes.alloc(ClassDecl {
+            origin: self.declaration_origin(),
             modifier: hir::ClassModifier::Final,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),

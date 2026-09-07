@@ -69,6 +69,7 @@ impl Lowerer {
             slot_access,
         );
         let id = self.functions.alloc(Function {
+            origin: self.declaration_origin(),
             name,
             access,
             override_access: Vec::new(),
@@ -163,6 +164,7 @@ impl Lowerer {
         };
         let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
         let id = self.functions.alloc(Function {
+            origin: self.declaration_origin(),
             name: decl.name.text.clone(),
             access,
             override_access: Vec::new(),

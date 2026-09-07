@@ -68,6 +68,7 @@ impl Lowerer {
         let local_number = self.local_functions.len();
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
+            origin: self.declaration_origin(),
             name: format!("$local.{local_number}.{}", decl.name.text),
             access,
             override_access: Vec::new(),

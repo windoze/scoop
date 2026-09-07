@@ -593,6 +593,10 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         ("noneString", option_string, string_none),
     ] {
         export.globals.alloc(hir::Global {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: name.to_string(),
             property: hir::PropertyId::from_raw(0.into()),
             ty,

@@ -144,6 +144,10 @@ impl Harness {
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
         let enumeration = self.enums.alloc(hir::EnumDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),

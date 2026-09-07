@@ -99,7 +99,11 @@ pub fn compile_file_with_options(
     // diagnostics already carry the file index into `files`.
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
     let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
+    // The user Cone's identity: the manifest discovered at the input's
+    // Cone root when present, otherwise the stable synthetic test cone.
+    let user_cone = inputs_user_cone_identity(path);
     let hir_unit = scoop_hir_lower::CompilationUnit {
+        cone: user_cone,
         core: files[..user_index]
             .iter()
             .zip(&inputs[..user_index])
@@ -218,6 +222,25 @@ pub fn compile_file_with_options(
             Err(diagnostics)
         }
     }
+}
+
+/// Resolves the current Cone's identity for persistent symbols. The
+/// manifest at the Cone root names the coordinate; manifest-less
+/// single-file inputs use the stable synthetic test Cone.
+fn inputs_user_cone_identity(path: &Path) -> scoop_identity::ConeIdentity {
+    let mut dir = path.parent().map(Path::to_path_buf);
+    while let Some(current) = dir {
+        let manifest = current.join("Cone.toml");
+        if manifest.is_file() {
+            if let Ok(text) = std::fs::read_to_string(&manifest) {
+                if let Ok(manifest) = scoop_manifest::parse_manifest(&text) {
+                    return scoop_identity::ConeIdentity::of(manifest.coordinate());
+                }
+            }
+        }
+        dir = current.parent().map(Path::to_path_buf);
+    }
+    scoop_hir_lower::test_cone_identity()
 }
 
 /// A driver-level diagnostic without a source span, attributed to the

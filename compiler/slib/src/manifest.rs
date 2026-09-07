@@ -120,7 +120,9 @@ impl ManifestCore {
                 .bytes(dependency.lir_semantic_fingerprint.as_bytes());
             writer.field(5).text(dependency.coordinate.group());
             writer.field(6).text(dependency.coordinate.name());
-            writer.field(7).text(dependency.coordinate.version().as_str());
+            writer
+                .field(7)
+                .text(dependency.coordinate.version().as_str());
         }
         write_capability_field(&mut writer, 16, self.target_profile.as_capability());
         writer

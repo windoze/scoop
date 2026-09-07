@@ -1,8 +1,13 @@
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
+    /// Exact-type identity of every interned type; consumed by MIR/LIR
+    /// for specializations and runtime type identity.
+    pub exact_of: HashMap<TypeId, scoop_identity::persistent::PersistentExactTypeId>,
+    pub exact_types: scoop_identity::persistent::ExactTypeTable,
     pub function_types: Arena<FunctionType>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,

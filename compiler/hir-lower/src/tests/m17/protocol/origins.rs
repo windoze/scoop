@@ -214,6 +214,7 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
     let user_provider = hir::IntrinsicProviderId::from_raw(1);
     let output = lower_compilation_unit(
         &CompilationUnit {
+            cone: test_cone_identity(),
             core: vec![ProviderSource {
                 source: &core,
                 provider: core_provider,

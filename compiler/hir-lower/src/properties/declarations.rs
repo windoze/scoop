@@ -1076,6 +1076,7 @@ impl Lowerer {
             |owner| format!("{}.{}", owner.describe_name(self), declaration.name.text),
         );
         let function = self.functions.alloc(Function {
+            origin: self.declaration_origin(),
             name,
             access,
             override_access: Vec::new(),

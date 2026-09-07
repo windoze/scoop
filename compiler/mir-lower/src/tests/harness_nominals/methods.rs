@@ -102,6 +102,10 @@ impl Harness {
             _ => hir::MethodDispatch::Direct,
         };
         let function = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

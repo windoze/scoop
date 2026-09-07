@@ -108,6 +108,7 @@ impl Lowerer {
             .expect("delegated properties always allocate generated accessors");
         self.mark_delegate_accessors_runtime_initialized(capability, unit);
         let global = self.globals.alloc(hir::Global {
+            origin: self.declaration_origin(),
             name: format!("$delegate${stable_key}"),
             property: expected_property,
             // The effective type is committed before a successful Export HIR

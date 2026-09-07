@@ -91,6 +91,7 @@ impl Lowerer {
         let other = hir::LocalId::from_raw(1.into());
         let access = self.fixed_representation_access(owner);
         let function = self.functions.alloc(Function {
+            origin: self.declaration_origin(),
             name: format!("{}.equals", owner.describe_name(self)),
             access,
             override_access: Vec::new(),
@@ -240,6 +241,7 @@ impl Lowerer {
         let other = hir::LocalId::from_raw(1.into());
         let access = self.local_declaration_access();
         let function = self.functions.alloc(Function {
+            origin: self.declaration_origin(),
             name: format!("{}.equals", self.type_name(owner_ty)),
             access,
             override_access: Vec::new(),

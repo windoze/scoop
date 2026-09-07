@@ -152,7 +152,7 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
         return Lowerer::new()
             .run(files)
             .map(|(export, warnings)| hir::Output {
-                local: concretize::lower(&export),
+                local: concretize::lower(&export, &test_cone_identity()),
                 export,
                 warnings,
             });
@@ -175,6 +175,7 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
             name: "<user>",
             source_text: "",
         },
+        cone: test_cone_identity(),
     };
     lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
 }
@@ -190,10 +191,21 @@ pub struct ProviderSource<'a> {
 }
 
 /// Structurally complete single-Cone compilation input. Core and user sources
-/// cannot be confused by file position inside HIR lowering.
+/// cannot be confused by file position inside HIR lowering. The cone
+/// identity feeds persistent entity ids (the core provider always maps to
+/// the reserved core Cone).
 pub struct CompilationUnit<'a> {
     pub core: Vec<ProviderSource<'a>>,
     pub user: ProviderSource<'a>,
+    pub cone: scoop_identity::ConeIdentity,
+}
+
+/// Stable synthetic Cone for the legacy `lower` entry point and tests.
+pub fn test_cone_identity() -> scoop_identity::ConeIdentity {
+    scoop_identity::ConeIdentity::of(
+        &scoop_identity::ConeCoordinate::new("scoop.test", "user", "0.0.0")
+            .expect("synthetic test coordinate is canonical"),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -233,7 +245,7 @@ pub fn lower_compilation_unit(
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
-    let local = concretize::lower(&export);
+    let local = concretize::lower(&export, &unit.cone);
     Ok(hir::Output {
         export,
         local,
@@ -253,7 +265,7 @@ struct SourceProvider {
 /// Kept public so stage-boundary tests can feed handcrafted checked HIR through
 /// the same fixed-point pass as the production pipeline.
 pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
-    concretize::lower(export)
+    concretize::lower(export, &test_cone_identity())
 }
 
 #[derive(Clone)]

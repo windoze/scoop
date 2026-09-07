@@ -191,6 +191,7 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
+                origin: self.declaration_origin(),
                 name: self.current_fn_name.clone(),
                 access,
                 override_access: Vec::new(),

@@ -49,6 +49,7 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
     let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
     let unit = scoop_hir_lower::CompilationUnit {
+        cone: scoop_hir_lower::test_cone_identity(),
         core: files[..user_index]
             .iter()
             .zip(&inputs[..user_index])

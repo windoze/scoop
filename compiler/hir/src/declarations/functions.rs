@@ -25,6 +25,8 @@ pub struct Function {
     /// Member metadata; the receiver of a method is the first entry of
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
+    /// Declaring Cone/file provenance feeding persistent identities.
+    pub origin: crate::DeclarationOrigin,
     pub span: Span,
 }
 
@@ -314,6 +316,10 @@ mod tests {
     fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
         Function {
             name: "Int.plus".to_string(),
+            origin: crate::DeclarationOrigin {
+                provider: crate::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             access: DeclarationAccess::public(),
             override_access: Vec::new(),
             genericity: FunctionGenericity::Plain,

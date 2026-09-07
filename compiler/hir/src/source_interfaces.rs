@@ -15,6 +15,15 @@ pub struct SourceContext {
     pub type_name: String,
 }
 
+/// Cone/file provenance of a declaration. The provider id maps to a
+/// `ConeIdentity` through the compilation's provider table; identities
+/// derived from declarations always include this origin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeclarationOrigin {
+    pub provider: IntrinsicProviderId,
+    pub file: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefinitionOrigin {
     pub provider: IntrinsicProviderId,

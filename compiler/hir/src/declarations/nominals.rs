@@ -15,6 +15,8 @@ pub enum NominalOwner {
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    /// Declaring Cone/file provenance feeding persistent identities.
+    pub origin: crate::DeclarationOrigin,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     /// Application to this declaration's own type parameters (or the empty
@@ -140,6 +142,8 @@ pub struct HirCLayoutContract {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    /// Declaring Cone/file provenance feeding persistent identities.
+    pub origin: crate::DeclarationOrigin,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub self_application: EnumApplicationId,
@@ -539,6 +543,8 @@ pub enum OperatorKind {
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
+    /// Declaring Cone/file provenance feeding persistent identities.
+    pub origin: crate::DeclarationOrigin,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub self_application: ClassApplicationId,
@@ -844,6 +850,10 @@ mod tests {
     ) -> EnumDecl {
         EnumDecl {
             name: name.to_string(),
+            origin: crate::DeclarationOrigin {
+                provider: crate::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             access: NominalAccess::public(),
             self_application,
@@ -867,6 +877,10 @@ mod tests {
     ) -> StructDecl {
         StructDecl {
             name: name.to_string(),
+            origin: crate::DeclarationOrigin {
+                provider: crate::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             access: NominalAccess::public(),
             self_application,

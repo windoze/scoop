@@ -56,6 +56,10 @@ impl Harness {
             origin: definition_origin(),
         });
         let strukt = self.structs.alloc(hir::StructDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
@@ -98,6 +102,10 @@ impl Harness {
             provider: hir::IntrinsicProviderId::from_raw(0),
         };
         let strukt = self.structs.alloc(hir::StructDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
@@ -142,6 +150,10 @@ impl Harness {
             provider: hir::IntrinsicProviderId::from_raw(0),
         };
         let class = self.classes.alloc(hir::ClassDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             modifier: hir::ClassModifier::Final,
             name: name.to_string(),

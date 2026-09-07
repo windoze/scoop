@@ -13,6 +13,10 @@ impl Harness {
             (self.interface_applications.len() as u32).into(),
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
@@ -49,6 +53,10 @@ impl Harness {
             params.push(param(&source.name, source.ty, local));
         }
         let function = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: format!("{}.{}", declaration.name, method.name),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

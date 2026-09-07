@@ -427,6 +427,10 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let registration = locals.alloc(local("registration", registration_ty));
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
+        origin: hir::DeclarationOrigin {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            file: 0,
+        },
         name: "suspendIntrinsicCaller".to_string(),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -548,6 +552,10 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             type_args: vec![result],
         });
     let launcher = hir_module.functions.alloc(hir::Function {
+        origin: hir::DeclarationOrigin {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            file: 0,
+        },
         name: "launcher".to_string(),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),

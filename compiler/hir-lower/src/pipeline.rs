@@ -268,6 +268,15 @@ impl Lowerer {
         self.intrinsic_sources[self.current_file].provider
     }
 
+    /// Declaring provenance for the file being lowered.
+    pub(crate) fn declaration_origin(&self) -> hir::DeclarationOrigin {
+        let source = &self.intrinsic_sources[self.current_file];
+        hir::DeclarationOrigin {
+            provider: source.provider,
+            file: self.current_file as u32,
+        }
+    }
+
     pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
         let source = &self.intrinsic_sources[self.current_file];
         source.core

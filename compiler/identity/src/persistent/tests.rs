@@ -97,7 +97,10 @@ fn runtime_id_truncation_is_nonzero_and_deterministic() {
     assert_ne!(truncated_runtime_id(&[0u8; 32]), 0);
 }
 
-type AtomMaps = (BTreeMap<[u8; 32], NominalAtom>, BTreeMap<[u8; 32], NominalAtom>);
+type AtomMaps = (
+    BTreeMap<[u8; 32], NominalAtom>,
+    BTreeMap<[u8; 32], NominalAtom>,
+);
 
 fn nominal_table() -> (ExactTypeTable, AtomMaps) {
     let mut exact = ExactTypeTable::new();

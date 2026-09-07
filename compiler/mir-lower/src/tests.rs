@@ -318,6 +318,10 @@ fn integer_operation(
         _ => owner,
     };
     let function = h.functions.alloc(hir::Function {
+        origin: hir::DeclarationOrigin {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            file: 0,
+        },
         name: format!("$testIntegerNoGc{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -400,6 +404,10 @@ fn integer_div_rem(
 ) -> hir::Expr {
     let owner = h.integer(kind);
     let function = h.functions.alloc(hir::Function {
+        origin: hir::DeclarationOrigin {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            file: 0,
+        },
         name: format!("$testIntegerManaged{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -449,6 +457,10 @@ fn integer_conversion(
     let owner = h.integer(source);
     let result_ty = h.integer(target_kind);
     let function = h.functions.alloc(hir::Function {
+        origin: hir::DeclarationOrigin {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            file: 0,
+        },
         name: format!("$testIntegerConversion{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),

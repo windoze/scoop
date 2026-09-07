@@ -148,6 +148,7 @@ impl Lowerer {
             None => self.nominal_access(decl.visibility, decl.name.span, "struct", file_index),
         };
         let id = self.structs.alloc(StructDecl {
+            origin: self.declaration_origin(),
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
@@ -251,6 +252,7 @@ impl Lowerer {
             None => self.nominal_access(decl.visibility, decl.name.span, "enum", file_index),
         };
         let id = self.enums.alloc(EnumDecl {
+            origin: self.declaration_origin(),
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
@@ -395,6 +397,7 @@ impl Lowerer {
             None => self.nominal_access(decl.visibility, decl.name.span, "class", file_index),
         };
         let id = self.classes.alloc(ClassDecl {
+            origin: self.declaration_origin(),
             modifier,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
@@ -515,6 +518,7 @@ impl Lowerer {
             None => self.nominal_access(decl.visibility, decl.name.span, "interface", file_index),
         };
         let id = self.interfaces.alloc(InterfaceDecl {
+            origin: self.declaration_origin(),
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,

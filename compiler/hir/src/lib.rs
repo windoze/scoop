@@ -60,6 +60,8 @@ pub use iteration::*;
 mod intrinsics;
 pub use intrinsics::*;
 
+mod persistent;
+pub use persistent::*;
 mod visibility;
 pub use visibility::*;
 

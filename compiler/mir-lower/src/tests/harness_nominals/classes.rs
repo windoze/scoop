@@ -144,6 +144,10 @@ impl Harness {
             origin: definition_origin(),
         });
         let class = self.classes.alloc(hir::ClassDecl {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             owner: None,
             modifier,
             name: name.to_string(),

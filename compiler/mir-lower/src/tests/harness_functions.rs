@@ -42,6 +42,10 @@ impl Harness {
         let generic = !type_params.is_empty();
         let type_params = type_params.into_iter().map(type_param).collect();
         let id = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -100,6 +104,10 @@ impl Harness {
         let mut resume_locals = Arena::new();
         let resume_value = resume_locals.alloc(local("value", t));
         let continuation_resume = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "Continuation.resume".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -123,6 +131,10 @@ impl Harness {
         let mut failure_locals = Arena::new();
         let failure = failure_locals.alloc(local("exception", throwable_ty));
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "Continuation.resumeWithException".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -194,6 +206,10 @@ impl Harness {
             [self.interfaces[suspend_task].self_application]
             .canonical_type;
         let suspend_task_run = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "SuspendTask.run".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -233,6 +249,10 @@ impl Harness {
             [self.interfaces[suspend_registration].self_application]
             .canonical_type;
         let suspend_registration_register = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "SuspendRegistration.register".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -270,6 +290,10 @@ impl Harness {
                 };
         }
         let start_coroutine = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "startCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -287,6 +311,10 @@ impl Harness {
             span: SPAN,
         });
         let suspend_coroutine = self.functions.alloc(hir::Function {
+            origin: hir::DeclarationOrigin {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                file: 0,
+            },
             name: "suspendCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

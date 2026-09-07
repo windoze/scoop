@@ -18,10 +18,13 @@ mod functions;
 mod nominals;
 mod types;
 
-pub(crate) fn lower(module: &export::Module) -> concrete::Module {
+pub(crate) fn lower(
+    module: &export::Module,
+    cone: &scoop_identity::ConeIdentity,
+) -> concrete::Module {
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
-    Concretizer::new(module).run()
+    Concretizer::new(module, *cone).run()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -62,6 +65,11 @@ impl FunctionKey {
 
 struct Concretizer<'a> {
     source: &'a export::Module,
+    /// Cone identity of the compilation; feeds persistent symbols.
+    cone: scoop_identity::ConeIdentity,
+    /// Memoized concrete type -> exact type identity and key.
+    exact_ids: HashMap<concrete::TypeId, scoop_identity::persistent::PersistentExactTypeId>,
+    exact_keys: HashMap<concrete::TypeId, export::ExactTypeKey>,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
@@ -189,7 +197,7 @@ impl<'a> Concretizer<'a> {
         format!("{prefix}.{name}")
     }
 
-    fn new(source: &'a export::Module) -> Self {
+    fn new(source: &'a export::Module, cone: scoop_identity::ConeIdentity) -> Self {
         let object_by_backing_class = source
             .objects
             .iter()
@@ -197,6 +205,9 @@ impl<'a> Concretizer<'a> {
             .collect();
         Self {
             source,
+            cone,
+            exact_ids: HashMap::new(),
+            exact_keys: HashMap::new(),
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),
@@ -255,6 +266,148 @@ impl<'a> Concretizer<'a> {
             foreign_callback_by_key: HashMap::new(),
             next_loop_identity: 0,
         }
+    }
+
+    fn persistent_world(&self) -> export::PersistentWorld {
+        export::PersistentWorld::single_unit(
+            scoop_identity::ConeIdentity::of(&scoop_identity::ConeCoordinate::reserved_core()),
+            self.cone,
+        )
+    }
+
+    /// Exact-type identity of one concrete type. Generic applications
+    /// resolve to nominal applications over their template's persistent
+    /// generic id and the instance arguments' exact ids.
+    fn exact_id(
+        &mut self,
+        ty: concrete::TypeId,
+    ) -> Option<scoop_identity::persistent::PersistentExactTypeId> {
+        if let Some(cached) = self.exact_ids.get(&ty) {
+            return Some(*cached);
+        }
+        let world = self.persistent_world();
+        let mut ids = export::PersistentIds::new(self.source, &world);
+        let key = match self.types[ty].kind.clone() {
+            concrete::TypeKind::Unit => {
+                let decl = ids.builtin_type_id("Unit", "unit")?;
+                exact_nominal(decl)
+            }
+            concrete::TypeKind::Integer(kind) => {
+                let owner = self.source.intrinsic_type_core.integers.owner(kind);
+                let decl = ids.struct_id(owner)?;
+                exact_nominal(decl)
+            }
+            concrete::TypeKind::Boolean => {
+                let owner = self.source.intrinsic_type_core.boolean;
+                let decl = ids.struct_id(owner)?;
+                exact_nominal(decl)
+            }
+            concrete::TypeKind::String => {
+                let owner = self.source.intrinsic_type_core.string;
+                let decl = ids.class_id(owner)?;
+                exact_nominal(decl)
+            }
+            concrete::TypeKind::Any => {
+                let decl = ids.builtin_type_id("Any", "any")?;
+                exact_nominal(decl)
+            }
+            concrete::TypeKind::Struct(id) => {
+                let template = self.struct_source[&id];
+                let arguments = self.structs[id].type_arguments.clone();
+                let generic = arguments.is_empty();
+                let generic_origin = ids.generic_struct_id(template);
+                let plain_decl = ids.struct_id(template);
+                self.nominal_exact(generic, arguments, generic_origin, plain_decl)?
+            }
+            concrete::TypeKind::Enum(id) => {
+                let template = self.enum_source[&id];
+                let arguments = self.enums[id].type_arguments.clone();
+                let generic = arguments.is_empty();
+                let generic_origin = ids.generic_enum_id(template);
+                let plain_decl = ids.enum_id(template);
+                self.nominal_exact(generic, arguments, generic_origin, plain_decl)?
+            }
+            concrete::TypeKind::Class(id) => {
+                let template = self.class_source[&id];
+                let arguments = self.classes[id].type_arguments.clone();
+                let generic = arguments.is_empty();
+                let generic_origin = ids.generic_class_id(template);
+                let plain_decl = ids.class_id(template);
+                self.nominal_exact(generic, arguments, generic_origin, plain_decl)?
+            }
+            concrete::TypeKind::Interface(id) => {
+                let template = export::InterfaceId::from_raw(la_arena::RawIdx::from_u32(
+                    self.interfaces[id].origin.into_raw(),
+                ));
+                let arguments = self.interfaces[id].type_arguments.clone();
+                let generic = arguments.is_empty();
+                let generic_origin = ids.generic_interface_id(template);
+                let plain_decl = ids.interface_id(template);
+                self.nominal_exact(generic, arguments, generic_origin, plain_decl)?
+            }
+            concrete::TypeKind::Tuple(elements) => {
+                let mut exact = Vec::with_capacity(elements.len());
+                for element in elements {
+                    exact.push(self.exact_id(element)?);
+                }
+                export::ExactTypeKey::tuple(exact).ok()?
+            }
+            concrete::TypeKind::Function(function_type) => {
+                let signature = self.function_types[function_type].clone();
+                let mut parameters = Vec::with_capacity(signature.parameter_types.len());
+                for parameter in &signature.parameter_types {
+                    parameters.push(self.exact_id(*parameter)?);
+                }
+                let result = self.exact_id(signature.return_type)?;
+                export::ExactTypeKey::Function {
+                    effect: if signature.is_suspend {
+                        export::ManagedFunctionEffect::Suspend
+                    } else {
+                        export::ManagedFunctionEffect::Ordinary
+                    },
+                    parameters,
+                    result,
+                }
+            }
+            concrete::TypeKind::Ptr(pointee) => export::ExactTypeKey::RawPointer {
+                pointee: self.exact_id(pointee)?,
+            },
+            concrete::TypeKind::FunPtr(function_type) => {
+                let signature = self.function_types[function_type].clone();
+                let mut parameters = Vec::with_capacity(signature.parameter_types.len());
+                for parameter in &signature.parameter_types {
+                    parameters.push(self.exact_id(*parameter)?);
+                }
+                let result = self.exact_id(signature.return_type)?;
+                export::ExactTypeKey::NativeFunctionPointer {
+                    calling_convention: export::NativeCallingConvention::C,
+                    parameters,
+                    result,
+                }
+            }
+        };
+        self.exact_keys.insert(ty, key.clone());
+        let id = scoop_identity::persistent::PersistentExactTypeId::of(&key);
+        self.exact_ids.insert(ty, id);
+        Some(id)
+    }
+
+    fn nominal_exact(
+        &mut self,
+        plain: bool,
+        arguments: Vec<concrete::TypeId>,
+        generic_origin: Option<scoop_identity::persistent::PersistentGenericTypeId>,
+        plain_decl: Option<scoop_identity::persistent::PersistentTypeId>,
+    ) -> Option<export::ExactTypeKey> {
+        if plain {
+            return Some(exact_nominal(plain_decl?));
+        }
+        let origin = generic_origin?;
+        let mut exact = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            exact.push(self.exact_id(argument)?);
+        }
+        export::ExactTypeKey::application(origin, exact).ok()
     }
 
     fn run(mut self) -> concrete::Module {
@@ -515,6 +668,56 @@ impl<'a> Concretizer<'a> {
             string: self.class_by_key[&(self.source.intrinsic_type_core.string, Vec::new())],
         };
 
+        // Materialize the exact-type identity of every interned concrete
+        // type; downstream stages consume this table instead of deriving
+        // identity from shapes again. Memoized entries are interned in
+        // dependency order (children first).
+        let type_ids: Vec<concrete::TypeId> = self.types.iter().map(|(id, _)| id).collect();
+        let mut entries: Vec<(
+            concrete::TypeId,
+            scoop_identity::persistent::PersistentExactTypeId,
+            export::ExactTypeKey,
+        )> = Vec::with_capacity(type_ids.len());
+        for ty in type_ids {
+            let exact = self
+                .exact_id(ty)
+                .expect("every concrete type has an exact identity");
+            let key = self
+                .exact_keys
+                .get(&ty)
+                .cloned()
+                .expect("exact_id memoizes the key");
+            entries.push((ty, exact, key));
+        }
+        let mut exact_types = scoop_identity::persistent::ExactTypeTable::new();
+        let mut exact_of = HashMap::new();
+        let mut pending = entries;
+        while !pending.is_empty() {
+            let mut remaining = Vec::new();
+            let mut progressed = false;
+            for (ty, exact, key) in pending {
+                let children_present = key
+                    .children()
+                    .iter()
+                    .all(|child| exact_types.get(child).is_some());
+                if children_present {
+                    let interned = exact_types
+                        .intern(key)
+                        .expect("memoized identities intern consistently");
+                    debug_assert_eq!(interned, exact);
+                    exact_of.insert(ty, exact);
+                    progressed = true;
+                } else {
+                    remaining.push((ty, exact, key));
+                }
+            }
+            pending = remaining;
+            assert!(
+                progressed,
+                "concrete types form a DAG; interning cannot stall"
+            );
+        }
+
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
         let class_constructors =
             arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
@@ -570,6 +773,8 @@ impl<'a> Concretizer<'a> {
             .collect();
 
         concrete::Module {
+            exact_of,
+            exact_types,
             types: self.types,
             function_types: self.function_types,
             lambdas: self.lambdas,
@@ -775,4 +980,8 @@ fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {
             .any(|argument| export_type_has_param(module, *argument)),
         _ => false,
     }
+}
+
+fn exact_nominal(decl: scoop_identity::persistent::PersistentTypeId) -> export::ExactTypeKey {
+    export::ExactTypeKey::Nominal { declaration: decl }
 }

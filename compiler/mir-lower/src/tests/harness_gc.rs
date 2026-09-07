@@ -56,6 +56,10 @@ impl Harness {
             let generic = !type_params.is_empty();
             let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
+                origin: hir::DeclarationOrigin {
+                    provider: hir::IntrinsicProviderId::from_raw(0),
+                    file: 0,
+                },
                 name: name.to_string(),
                 access: hir::DeclarationAccess::public(),
                 override_access: Vec::new(),
