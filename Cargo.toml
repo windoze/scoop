@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "compiler/ast",
+    "compiler/identity",
     "compiler/parser",
     "compiler/hir",
     "compiler/hir-lower",
@@ -31,6 +32,7 @@ cc = { version = "1" }
 toml = { version = "0.8" }
 
 scoop-ast = { path = "compiler/ast" }
+scoop-identity = { path = "compiler/identity" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }
 scoop-hir-lower = { path = "compiler/hir-lower" }
