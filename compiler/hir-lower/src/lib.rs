@@ -123,6 +123,8 @@ mod tests;
 mod tests_m23_imports;
 #[cfg(test)]
 mod tests_m23_layers;
+#[cfg(test)]
+mod tests_m23_reexports;
 mod types;
 mod visibility;
 
@@ -573,6 +575,9 @@ pub(crate) struct Lowerer {
     /// File index -> collected import surface (bindings filled after
     /// declaration collection).
     pub(crate) file_imports: Vec<hir::FileImports>,
+    /// Re-export bindings published by validated `public import`s
+    /// (DESIGN 2.4), taken into the semantic surface.
+    pub(crate) reexports: Vec<hir::ReExport>,
     intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).

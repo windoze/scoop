@@ -100,6 +100,23 @@ impl ImportedBinding {
     }
 }
 
+/// One re-export binding created by `public import` (DESIGN 2.4): the
+/// destination is the importing file's package and the alias-or-short
+/// name. Targets keep their origin identities — a re-export creates no
+/// wrapper, second declaration, or second typealias target. Within a
+/// single-Cone compile every published target is authorized by the
+/// implicit core edge; dependency witnesses arrive with upstream
+/// artifact loading.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReExport {
+    /// Destination package (the importing file's package).
+    pub package: PackageId,
+    /// Destination short name (alias or target short name).
+    pub name: String,
+    pub span: Span,
+    pub binding: ImportedBinding,
+}
+
 /// One file's import surface, recorded before any name resolution runs.
 #[derive(Debug, Clone, Default)]
 pub struct FileImports {
@@ -154,6 +171,10 @@ pub struct SemanticSurface {
     pub packages: Arena<PackageDecl>,
     /// Per source file: its package id and import surface.
     pub files: Vec<FileSurface>,
+    /// Re-export bindings published by `public import`, in deterministic
+    /// file and declaration order (DESIGN 2.4). Same-origin entries in
+    /// one destination merge at artifact-serialization time.
+    pub reexports: Vec<ReExport>,
 }
 
 impl SemanticSurface {

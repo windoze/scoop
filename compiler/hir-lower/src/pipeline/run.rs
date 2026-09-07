@@ -582,6 +582,7 @@ impl Lowerer {
                         imports,
                     })
                     .collect(),
+                reexports: std::mem::take(&mut self.reexports),
             },
             source_contexts: self.source_contexts,
             types: self.types,

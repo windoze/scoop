@@ -59,6 +59,66 @@ impl NamespaceHits {
             || any_visible(&self.type_aliases, file)
             || any_visible(&self.properties, file)
     }
+
+    /// The kind word of the first same-name type-namespace entry that is
+    /// not the re-export target's own origin. The type namespace is
+    /// shared by every nominal kind and typealiases, so a same-name
+    /// entry of any kind conflicts (DESIGN 2.4); the target's own
+    /// origin declaration merges instead.
+    fn type_conflict_kind(&self, target: &hir::ImportedTarget) -> Option<&'static str> {
+        fn any_other<T: Copy + PartialEq>(hits: &[Hit<T>], origin: Option<T>) -> bool {
+            hits.iter().any(|hit| Some(hit.entity) != origin)
+        }
+        let (
+            struct_origin,
+            enum_origin,
+            class_origin,
+            interface_origin,
+            object_origin,
+            alias_origin,
+        ) = match target {
+            hir::ImportedTarget::Struct { declaration } => {
+                (Some(*declaration), None, None, None, None, None)
+            }
+            hir::ImportedTarget::Enum { declaration } => {
+                (None, Some(*declaration), None, None, None, None)
+            }
+            hir::ImportedTarget::Class { declaration } => {
+                (None, None, Some(*declaration), None, None, None)
+            }
+            hir::ImportedTarget::Interface { declaration } => {
+                (None, None, None, Some(*declaration), None, None)
+            }
+            hir::ImportedTarget::Object { declaration } => {
+                (None, None, None, None, Some(*declaration), None)
+            }
+            hir::ImportedTarget::TypeAlias { alias } => {
+                (None, None, None, None, None, Some(*alias))
+            }
+            hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. } => {
+                (None, None, None, None, None, None)
+            }
+        };
+        if any_other(&self.structs, struct_origin) {
+            return Some("a struct");
+        }
+        if any_other(&self.enums, enum_origin) {
+            return Some("an enum");
+        }
+        if any_other(&self.classes, class_origin) {
+            return Some("a class");
+        }
+        if any_other(&self.interfaces, interface_origin) {
+            return Some("an interface");
+        }
+        if any_other(&self.objects, object_origin) {
+            return Some("an object");
+        }
+        if any_other(&self.type_aliases, alias_origin) {
+            return Some("a typealias");
+        }
+        None
+    }
 }
 
 /// (package id, top-level name) -> namespace hits.
@@ -69,14 +129,18 @@ struct PackageIndex {
 impl Lowerer {
     /// Resolves every file's exact imports in deterministic file and
     /// declaration order; unresolved or invisible selectors are
-    /// diagnosed once per import.
+    /// diagnosed once per import. `public import` bindings additionally
+    /// pass re-export validation (DESIGN 2.4) and publish their
+    /// authorized targets into the semantic surface.
     pub(super) fn resolve_import_bindings(&mut self) {
         let index = self.build_package_index();
+        let mut reexports = Vec::new();
         for file in 0..self.file_imports.len() {
             for import_index in 0..self.file_imports[file].exact.len() {
-                let (path, local_name, span) = {
+                let (public, path, local_name, span) = {
                     let import = &self.file_imports[file].exact[import_index];
                     (
+                        import.public,
                         import.path.clone(),
                         import.local_name().to_owned(),
                         import.span,
@@ -84,12 +148,27 @@ impl Lowerer {
                 };
                 match self.resolve_exact(&index, file, &path, &local_name, span) {
                     Ok(binding) => {
+                        if public {
+                            self.publish_reexport(&index, &mut reexports, file, &binding, span);
+                        }
+                        // The local binding keeps every resolved target;
+                        // re-export authorization only gates publication.
                         self.file_imports[file].exact[import_index].binding = Some(binding);
                     }
-                    Err(message) => self.diagnostics.push(Diagnostic::at(span, message)),
+                    Err(message) => self.import_error(file, span, message),
                 }
             }
         }
+        self.reexports = reexports;
+    }
+
+    /// Reports one import-resolution diagnostic attributed to the
+    /// importing file; body lowering is not active at this point, so
+    /// `current_file` cannot be relied on.
+    fn import_error(&mut self, file: usize, span: scoop_ast::Span, message: String) {
+        let mut diagnostic = Diagnostic::at(span, message);
+        diagnostic.file = file;
+        self.diagnostics.push(diagnostic);
     }
 
     /// Indexes every declaration by (package, name). The declaring file
@@ -467,6 +546,255 @@ enum Walked {
     /// Some declaration existed along the path but none was visible.
     Existed,
     NoMatch,
+}
+
+impl Lowerer {
+    /// Validates one `public import` binding (DESIGN 2.4) and records the
+    /// authorized re-export. In the transitional single-Cone model the
+    /// implicitly imported core unit is the only direct edge: a target
+    /// declared by a core-unit file is publishable, while a target from
+    /// the current Cone's own user code must reach the public surface
+    /// through its package's ordinary export rules and cannot be copied
+    /// into a re-export. Destination names colliding with a
+    /// non-overloadable same-package declaration or a different-origin
+    /// re-export are diagnosed before the surface is published.
+    fn publish_reexport(
+        &mut self,
+        index: &PackageIndex,
+        reexports: &mut Vec<hir::ReExport>,
+        file: usize,
+        binding: &hir::ImportedBinding,
+        span: scoop_ast::Span,
+    ) {
+        let package = self.file_packages[file];
+        let mut published = Vec::new();
+        for target_binding in &binding.targets {
+            let name = self.imported_target_name(&target_binding.target);
+            let declaring_file = self.imported_target_file(&target_binding.target);
+            if !self.intrinsic_sources[declaring_file].core {
+                self.import_error(
+                    file,
+                    span,
+                    format!("public import target `{name}` is not provided by a direct dependency"),
+                );
+                continue;
+            }
+            if !self.imported_target_is_public(&target_binding.target) {
+                self.import_error(
+                    file,
+                    span,
+                    format!(
+                        "public import target `{name}` is not public and cannot be re-exported"
+                    ),
+                );
+                continue;
+            }
+            if let Some(message) = self.reexport_destination_conflict(
+                index,
+                reexports,
+                package,
+                &binding.local_name,
+                target_binding,
+            ) {
+                self.import_error(file, span, message);
+                continue;
+            }
+            published.push(target_binding.clone());
+        }
+        if !published.is_empty() {
+            reexports.push(hir::ReExport {
+                package,
+                name: binding.local_name.clone(),
+                span,
+                binding: hir::ImportedBinding::of(binding.local_name.clone(), published),
+            });
+        }
+    }
+
+    /// The source-level short name of one import target.
+    fn imported_target_name(&self, target: &hir::ImportedTarget) -> String {
+        match target {
+            hir::ImportedTarget::Function { function } => self.functions[*function].name.clone(),
+            hir::ImportedTarget::Struct { declaration } => self.structs[*declaration].name.clone(),
+            hir::ImportedTarget::Enum { declaration } => self.enums[*declaration].name.clone(),
+            hir::ImportedTarget::Class { declaration } => self.classes[*declaration].name.clone(),
+            hir::ImportedTarget::Interface { declaration } => {
+                self.interfaces[*declaration].name.clone()
+            }
+            hir::ImportedTarget::Object { declaration } => self.objects[*declaration].name.clone(),
+            hir::ImportedTarget::TypeAlias { alias } => self.type_aliases[*alias].name.clone(),
+            hir::ImportedTarget::Property { property } => self.properties[*property].name.clone(),
+        }
+    }
+
+    /// The declaring file of one import target, from the same origins the
+    /// package index was built from.
+    fn imported_target_file(&self, target: &hir::ImportedTarget) -> usize {
+        match target {
+            hir::ImportedTarget::Function { function } => {
+                self.functions[*function].origin.file as usize
+            }
+            hir::ImportedTarget::Struct { declaration } => {
+                self.structs[*declaration].origin.file as usize
+            }
+            hir::ImportedTarget::Enum { declaration } => {
+                self.enums[*declaration].origin.file as usize
+            }
+            hir::ImportedTarget::Class { declaration } => {
+                self.classes[*declaration].origin.file as usize
+            }
+            hir::ImportedTarget::Interface { declaration } => {
+                self.interfaces[*declaration].origin.file as usize
+            }
+            hir::ImportedTarget::Object { declaration } => {
+                // Objects ride on their backing class's origin.
+                self.classes[self.objects[*declaration].backing_class]
+                    .origin
+                    .file as usize
+            }
+            hir::ImportedTarget::TypeAlias { alias } => {
+                self.type_aliases[*alias].origin.file as usize
+            }
+            hir::ImportedTarget::Property { property } => self.property_files[property],
+        }
+    }
+
+    /// Whether one import target is declared `public`; a re-export cannot
+    /// raise a target's own visibility (DESIGN 2.5).
+    fn imported_target_is_public(&self, target: &hir::ImportedTarget) -> bool {
+        let is_public =
+            |declared: DeclaredVisibility| matches!(declared, DeclaredVisibility::Public);
+        match target {
+            hir::ImportedTarget::Function { function } => {
+                is_public(self.functions[*function].access.declared)
+            }
+            hir::ImportedTarget::Struct { declaration } => {
+                is_public(self.structs[*declaration].access.declared)
+            }
+            hir::ImportedTarget::Enum { declaration } => {
+                is_public(self.enums[*declaration].access.declared)
+            }
+            hir::ImportedTarget::Class { declaration } => {
+                is_public(self.classes[*declaration].access.declared)
+            }
+            hir::ImportedTarget::Interface { declaration } => {
+                is_public(self.interfaces[*declaration].access.declared)
+            }
+            hir::ImportedTarget::Object { declaration } => {
+                is_public(self.objects[*declaration].access.declared)
+            }
+            hir::ImportedTarget::TypeAlias { alias } => {
+                is_public(self.type_aliases[*alias].access.declared)
+            }
+            hir::ImportedTarget::Property { property } => {
+                is_public(self.properties[*property].access.declared)
+            }
+        }
+    }
+
+    /// The destination conflict for one target (DESIGN 2.4): a same-name
+    /// entry of the same namespace that cannot legally overload. The
+    /// target's own origin merges instead of conflicting, whether it is
+    /// a local declaration in the destination package or an earlier
+    /// re-export of the same entity.
+    fn reexport_destination_conflict(
+        &self,
+        index: &PackageIndex,
+        reexports: &[hir::ReExport],
+        package: hir::PackageId,
+        destination: &str,
+        target: &hir::ImportedTargetBinding,
+    ) -> Option<String> {
+        let package_display = self.package_decls[u32::from(package.into_raw()) as usize].display();
+        let conflict = |kind: &str| {
+            format!(
+                "public import re-export `{destination}` conflicts with {kind} in package `{package_display}`"
+            )
+        };
+        // Earlier re-exports into the same destination.
+        for reexport in reexports {
+            if reexport.package != package || reexport.name != destination {
+                continue;
+            }
+            for prior in &reexport.binding.targets {
+                if prior.target == target.target {
+                    // Same origin: the binding merges.
+                    continue;
+                }
+                match (&prior.target, &target.target) {
+                    (
+                        hir::ImportedTarget::Struct { .. }
+                        | hir::ImportedTarget::Enum { .. }
+                        | hir::ImportedTarget::Class { .. }
+                        | hir::ImportedTarget::Interface { .. }
+                        | hir::ImportedTarget::Object { .. }
+                        | hir::ImportedTarget::TypeAlias { .. },
+                        hir::ImportedTarget::Struct { .. }
+                        | hir::ImportedTarget::Enum { .. }
+                        | hir::ImportedTarget::Class { .. }
+                        | hir::ImportedTarget::Interface { .. }
+                        | hir::ImportedTarget::Object { .. }
+                        | hir::ImportedTarget::TypeAlias { .. },
+                    ) => {
+                        return Some(conflict(imported_target_kind(&prior.target)));
+                    }
+                    (
+                        hir::ImportedTarget::Function { function: previous },
+                        hir::ImportedTarget::Function { function },
+                    ) => {
+                        if self.same_parameter_signature(*previous, *function) {
+                            return Some(conflict("a function with the same signature"));
+                        }
+                    }
+                    (
+                        hir::ImportedTarget::Property { .. },
+                        hir::ImportedTarget::Property { .. },
+                    ) => {
+                        return Some(conflict("a property"));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Local declarations in the destination package; the index keys
+        // hits by the declaring file's package, so this lookup is already
+        // package-scoped.
+        let hits = index.hits.get(&(package, destination.to_owned()))?;
+        match &target.target {
+            hir::ImportedTarget::Function { function } => {
+                for hit in &hits.functions {
+                    if hit.entity == *function {
+                        // Same origin: the binding merges.
+                        continue;
+                    }
+                    if self.same_parameter_signature(*function, hit.entity) {
+                        return Some(conflict("a function with the same signature"));
+                    }
+                }
+                None
+            }
+            hir::ImportedTarget::Property { property } => hits
+                .properties
+                .iter()
+                .any(|hit| hit.entity != *property)
+                .then(|| conflict("a property")),
+            _ => hits.type_conflict_kind(&target.target).map(conflict),
+        }
+    }
+}
+
+/// The diagnostic kind word for one import target's namespace role.
+fn imported_target_kind(target: &hir::ImportedTarget) -> &'static str {
+    match target {
+        hir::ImportedTarget::Struct { .. } => "a struct",
+        hir::ImportedTarget::Enum { .. } => "an enum",
+        hir::ImportedTarget::Class { .. } => "a class",
+        hir::ImportedTarget::Interface { .. } => "an interface",
+        hir::ImportedTarget::Object { .. } => "an object",
+        hir::ImportedTarget::TypeAlias { .. } => "a typealias",
+        hir::ImportedTarget::Function { .. } => "a function",
+        hir::ImportedTarget::Property { .. } => "a property",
+    }
 }
 
 /// The DESIGN 2.3 layer order for unqualified top-level lookops between
