@@ -16,9 +16,6 @@ use crate::lexer::{Token, TokenKind, lex};
 
 pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
     let (tokens, lexical_diagnostics) = lex(source);
-    if !lexical_diagnostics.is_empty() {
-        return Err(lexical_diagnostics);
-    }
     let mut parser = Parser {
         tokens,
         pos: 0,
@@ -27,27 +24,166 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         next_anonymous_function_id: 0,
         next_callable_reference_id: 0,
     };
+    let mut package = PackageSyntax::RootPackage;
+    let mut imports = Vec::new();
     let mut declarations = Vec::new();
+    let mut header_state = HeaderState::Start;
+    let mut seen_valid_package = false;
     while !parser.at_eof() {
         let start = parser.pos;
-        match parser.parse_decl() {
-            Ok(decl) => declarations.push(decl),
-            Err(diagnostic) => {
-                parser.diagnostics.push(diagnostic);
-                parser.synchronize_top_level(start);
+        match parser.top_level_item_kind() {
+            TopLevelItemKind::Package => {
+                let keyword_span = parser.peek().span;
+                if seen_valid_package {
+                    parser.diagnostics.push(Diagnostic::at(
+                        keyword_span,
+                        "a source file may contain only one `package` header",
+                    ));
+                } else if header_state >= HeaderState::AfterImport {
+                    parser.diagnostics.push(Diagnostic::at(
+                        keyword_span,
+                        "a `package` header must appear before imports and declarations",
+                    ));
+                }
+                let accept = !seen_valid_package && header_state < HeaderState::AfterImport;
+                header_state.advance_to(HeaderState::AfterPackage);
+                match parser.parse_package_header() {
+                    Ok(parsed) if accept => {
+                        package = parsed;
+                        seen_valid_package = true;
+                    }
+                    Ok(_) => {}
+                    Err(diagnostic) => {
+                        parser.diagnostics.push(diagnostic);
+                        parser.synchronize_header_item(start);
+                    }
+                }
+            }
+            TopLevelItemKind::Import => {
+                let header_span = parser.import_prefix_span();
+                let accept = header_state < HeaderState::InDeclarations;
+                if !accept {
+                    parser.diagnostics.push(Diagnostic::at(
+                        header_span,
+                        "`import` headers must appear before declarations",
+                    ));
+                }
+                header_state.advance_to(HeaderState::AfterImport);
+                match parser.parse_import_header() {
+                    Ok(import) if accept => imports.push(import),
+                    Ok(_) => {}
+                    Err(diagnostic) => {
+                        parser.diagnostics.push(diagnostic);
+                        parser.synchronize_header_item(start);
+                    }
+                }
+            }
+            TopLevelItemKind::UnsupportedImportModifier(modifier) => {
+                let modifier_token = parser.bump();
+                if header_state >= HeaderState::InDeclarations {
+                    parser.diagnostics.push(Diagnostic::at(
+                        modifier_token.span,
+                        "`import` headers must appear before declarations",
+                    ));
+                }
+                parser.diagnostics.push(Diagnostic::at(
+                    modifier_token.span,
+                    format!(
+                        "`{modifier} import` is not supported; imports may be ordinary or `public`"
+                    ),
+                ));
+                header_state.advance_to(HeaderState::AfterImport);
+                match parser.parse_import_header() {
+                    Ok(_) => {}
+                    Err(diagnostic) => {
+                        parser.diagnostics.push(diagnostic);
+                        parser.synchronize_header_item(start);
+                    }
+                }
+            }
+            TopLevelItemKind::Declaration => {
+                header_state.advance_to(HeaderState::InDeclarations);
+                match parser.parse_decl() {
+                    Ok(decl) => declarations.push(decl),
+                    Err(diagnostic) => {
+                        parser.diagnostics.push(diagnostic);
+                        parser.synchronize_top_level(start);
+                    }
+                }
             }
         }
     }
     let file = SourceFile {
-        package: PackageSyntax::RootPackage,
-        imports: Vec::new(),
+        package,
+        imports,
         declarations,
         span: Span::new(0, source.len() as u32),
     };
-    if parser.diagnostics.is_empty() {
+    let mut diagnostics = lexical_diagnostics;
+    let syntax_diagnostics = parser
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            !parser.syntax_diagnostic_is_shadowed_by_lexical_error(diagnostic, &diagnostics)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    diagnostics.extend(syntax_diagnostics);
+    diagnostics.sort_by_key(|diagnostic| {
+        diagnostic
+            .span
+            .map_or((u32::MAX, u32::MAX), |span| (span.start, span.end))
+    });
+    if diagnostics.is_empty() {
         Ok(file)
     } else {
-        Err(parser.diagnostics)
+        Err(diagnostics)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum HeaderState {
+    Start,
+    AfterPackage,
+    AfterImport,
+    InDeclarations,
+}
+
+impl HeaderState {
+    fn advance_to(&mut self, next: Self) {
+        *self = (*self).max(next);
+    }
+}
+
+enum TopLevelItemKind {
+    Package,
+    Import,
+    UnsupportedImportModifier(&'static str),
+    Declaration,
+}
+
+#[derive(Default)]
+struct DelimiterBalance {
+    parentheses: usize,
+    brackets: usize,
+    braces: usize,
+}
+
+impl DelimiterBalance {
+    fn observe(&mut self, kind: &TokenKind) {
+        match kind {
+            TokenKind::LParen => self.parentheses += 1,
+            TokenKind::RParen => self.parentheses = self.parentheses.saturating_sub(1),
+            TokenKind::LBracket => self.brackets += 1,
+            TokenKind::RBracket => self.brackets = self.brackets.saturating_sub(1),
+            TokenKind::LBrace => self.braces += 1,
+            TokenKind::RBrace => self.braces = self.braces.saturating_sub(1),
+            _ => {}
+        }
+    }
+
+    fn is_balanced(&self) -> bool {
+        self.parentheses == 0 && self.brackets == 0 && self.braces == 0
     }
 }
 
@@ -61,6 +197,118 @@ pub(crate) struct Parser {
 }
 
 impl Parser {
+    fn syntax_diagnostic_is_shadowed_by_lexical_error(
+        &self,
+        syntax: &Diagnostic,
+        lexical_diagnostics: &[Diagnostic],
+    ) -> bool {
+        let Some(syntax_span) = syntax.span else {
+            return false;
+        };
+        lexical_diagnostics.iter().any(|lexical| {
+            let Some(lexical_span) = lexical.span else {
+                return false;
+            };
+            lexical_span.start <= syntax_span.start
+                && !self.has_top_level_start_between(lexical_span.end, syntax_span.start)
+        })
+    }
+
+    fn has_top_level_start_between(&self, start: u32, end: u32) -> bool {
+        let mut braces = 0usize;
+        for (index, token) in self.tokens.iter().enumerate() {
+            if token.span.start >= end {
+                break;
+            }
+            if token.span.start >= start
+                && braces == 0
+                && Self::is_top_level_start_at(&self.tokens, index)
+            {
+                return true;
+            }
+            match token.kind {
+                TokenKind::LBrace => braces += 1,
+                TokenKind::RBrace => braces = braces.saturating_sub(1),
+                _ => {}
+            }
+        }
+        false
+    }
+
+    fn is_top_level_start_at(tokens: &[Token], index: usize) -> bool {
+        match &tokens[index].kind {
+            TokenKind::Package
+            | TokenKind::Import
+            | TokenKind::Suspend
+            | TokenKind::Infix
+            | TokenKind::Fun
+            | TokenKind::Struct
+            | TokenKind::Enum
+            | TokenKind::Class
+            | TokenKind::Interface
+            | TokenKind::Val
+            | TokenKind::Var
+            | TokenKind::At => true,
+            TokenKind::Ident(text) => {
+                matches!(
+                    text.as_str(),
+                    "public"
+                        | "internal"
+                        | "private"
+                        | "protected"
+                        | "const"
+                        | "lateinit"
+                        | "inner"
+                        | "open"
+                        | "final"
+                        | "abstract"
+                        | "override"
+                        | "sealed"
+                        | "object"
+                        | "operator"
+                        | "typealias"
+                )
+            }
+            _ => false,
+        }
+    }
+
+    fn top_level_item_kind(&self) -> TopLevelItemKind {
+        match &self.peek().kind {
+            TokenKind::Package => TopLevelItemKind::Package,
+            TokenKind::Import => TopLevelItemKind::Import,
+            TokenKind::Ident(text) if text == "public" && self.next_is_import() => {
+                TopLevelItemKind::Import
+            }
+            TokenKind::Ident(text) if text == "internal" && self.next_is_import() => {
+                TopLevelItemKind::UnsupportedImportModifier("internal")
+            }
+            TokenKind::Ident(text) if text == "private" && self.next_is_import() => {
+                TopLevelItemKind::UnsupportedImportModifier("private")
+            }
+            _ => TopLevelItemKind::Declaration,
+        }
+    }
+
+    pub(crate) fn at_public_import(&self) -> bool {
+        matches!(&self.peek().kind, TokenKind::Ident(text) if text == "public")
+            && self.next_is_import()
+    }
+
+    fn next_is_import(&self) -> bool {
+        self.tokens
+            .get(self.pos + 1)
+            .is_some_and(|token| matches!(token.kind, TokenKind::Import))
+    }
+
+    fn import_prefix_span(&self) -> Span {
+        if self.at_public_import() {
+            Span::new(self.peek().span.start, self.tokens[self.pos + 1].span.end)
+        } else {
+            self.peek().span
+        }
+    }
+
     pub(crate) fn alloc_lambda_id(&mut self) -> scoop_ast::LambdaId {
         let id = scoop_ast::LambdaId(self.next_lambda_id);
         self.next_lambda_id += 1;
@@ -109,36 +357,68 @@ impl Parser {
     }
 
     fn is_top_level_start(&self) -> bool {
+        Self::is_top_level_start_at(&self.tokens, self.pos)
+    }
+
+    fn is_header_recovery_start(&self) -> bool {
         match &self.peek().kind {
-            TokenKind::Suspend
+            TokenKind::Package
+            | TokenKind::Import
+            | TokenKind::Suspend
             | TokenKind::Infix
             | TokenKind::Fun
             | TokenKind::Struct
             | TokenKind::Enum
             | TokenKind::Class
             | TokenKind::Interface
+            | TokenKind::Val
+            | TokenKind::Var
             | TokenKind::At => true,
+            TokenKind::Ident(text)
+                if matches!(text.as_str(), "public" | "internal" | "private")
+                    && self.next_is_import() =>
+            {
+                true
+            }
             TokenKind::Ident(text) => {
-                matches!(
-                    text.as_str(),
-                    "public"
-                        | "internal"
-                        | "private"
-                        | "protected"
-                        | "const"
-                        | "lateinit"
-                        | "inner"
-                        | "open"
-                        | "final"
-                        | "abstract"
-                        | "override"
-                        | "sealed"
-                        | "object"
-                        | "operator"
-                        | "typealias"
-                )
+                self.peek().newline_before
+                    && matches!(
+                        text.as_str(),
+                        "public"
+                            | "internal"
+                            | "private"
+                            | "protected"
+                            | "const"
+                            | "lateinit"
+                            | "inner"
+                            | "open"
+                            | "final"
+                            | "abstract"
+                            | "override"
+                            | "sealed"
+                            | "object"
+                            | "operator"
+                            | "typealias"
+                    )
             }
             _ => false,
+        }
+    }
+
+    /// Skip one malformed package/import without consuming the next complete
+    /// top-level item. Unlike declaration recovery, header grammar does not
+    /// require a newline boundary, so any balanced top-level starter is safe.
+    fn synchronize_header_item(&mut self, item_start: usize) {
+        let mut balance = DelimiterBalance::default();
+        for token in &self.tokens[item_start..self.pos] {
+            balance.observe(&token.kind);
+        }
+        while !self.at_eof() {
+            if self.pos > item_start && balance.is_balanced() && self.is_header_recovery_start() {
+                return;
+            }
+            let token = self.bump();
+            balance.observe(&token.kind);
         }
     }
 

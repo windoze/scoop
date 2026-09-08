@@ -521,6 +521,8 @@ impl<'a> Lexer<'a> {
             ));
         }
         let kind = match text {
+            "package" => TokenKind::Package,
+            "import" => TokenKind::Import,
             "suspend" => TokenKind::Suspend,
             "vararg" => TokenKind::Vararg,
             "fun" => TokenKind::Fun,

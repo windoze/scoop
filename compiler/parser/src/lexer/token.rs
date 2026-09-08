@@ -31,6 +31,8 @@ impl IntegerLiteralLexeme {
 /// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
+    Package,
+    Import,
     Suspend,
     Vararg,
     Fun,
@@ -119,6 +121,8 @@ impl Token {
     /// `end of file`.
     pub fn describe(&self) -> String {
         match &self.kind {
+            TokenKind::Package => "`package`".to_string(),
+            TokenKind::Import => "`import`".to_string(),
             TokenKind::Suspend => "`suspend`".to_string(),
             TokenKind::Vararg => "`vararg`".to_string(),
             TokenKind::Fun => "`fun`".to_string(),
