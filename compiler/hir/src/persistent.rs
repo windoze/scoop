@@ -746,7 +746,7 @@ impl<'a> PersistentIds<'a> {
     }
 }
 
-fn integer_tag(kind: IntegerKind) -> u64 {
+pub(crate) fn integer_tag(kind: IntegerKind) -> u64 {
     // Sign bit in the low position, width (bytes) in the high bits: a
     // compact, order-free encoding of the eight canonical kinds.
     let sign = match kind.signedness() {

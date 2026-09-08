@@ -10,5 +10,6 @@ scoop-hir.workspace = true
 scoop-identity.workspace = true
 
 [dev-dependencies]
-scoop-identity.workspace = true
+scoop-slib.workspace = true
+scoop-manifest.workspace = true
 scoop-parser.workspace = true

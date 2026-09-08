@@ -11,6 +11,7 @@ use scoop_identity::ConeIdentity;
 use scoop_identity::cbor::{CborReader, CborWriter};
 
 use crate::export_surface::{ExportPurposes, ExportSurfaces};
+use crate::persistent::integer_tag;
 use crate::{ExportEntity, Module, PersistentIds};
 
 /// Wire schema domain tag; readers reject any other magic.
@@ -158,6 +159,61 @@ pub struct WireBinding {
     pub roots: Vec<u32>,
 }
 
+/// One canonical type-table entry. Entries reference only earlier
+/// entries, so the table is topologically ordered and acyclic by
+/// construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WireTypeEntry {
+    Unit,
+    Any,
+    Boolean,
+    String,
+    Integer(IntegerTag),
+    /// A non-generic nominal declaration.
+    NominalPlain([u8; 32]),
+    /// A generic nominal application.
+    NominalApplication {
+        template: [u8; 32],
+        arguments: Vec<u32>,
+    },
+    Ptr(u32),
+    Function {
+        suspend: bool,
+        parameters: Vec<u32>,
+        result: u32,
+    },
+    FunPtr {
+        parameters: Vec<u32>,
+        result: u32,
+    },
+    Tuple(Vec<u32>),
+    /// A binder-relative type parameter slot (only meaningful inside a
+    /// template signature).
+    Param(u32),
+}
+
+/// The canonical integer tag: sign bit low, width bytes high (the same
+/// encoding persistent signature keys use).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntegerTag(pub u64);
+
+/// One function signature, referencing the type table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WireSignature {
+    pub definition: u32,
+    pub parameters: Vec<u32>,
+    pub result: u32,
+}
+
+/// Concretization predicates of one generic template: binder slots
+/// that must be GC-free and slots whose pointee must be GC-free.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WirePredicate {
+    pub definition: u32,
+    pub no_gc_slots: Vec<u32>,
+    pub gc_free_pointee_slots: Vec<u32>,
+}
+
 /// The decoded, structurally valid document before typed remap.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedHirSurfaceWire {
@@ -178,6 +234,9 @@ pub struct DecodedHirSurfaceWire {
     pub dependency_interfaces: Vec<u32>,
     /// (owner, member) definition-index pairs.
     pub protected_methods: Vec<(u32, u32)>,
+    pub types: Vec<WireTypeEntry>,
+    pub signatures: Vec<WireSignature>,
+    pub predicates: Vec<WirePredicate>,
 }
 
 /// Typed handle for one imported definition.
@@ -194,6 +253,9 @@ pub struct ImportedHirSet {
     bindings: Vec<WireBinding>,
     public_lookup: Vec<ImportedDefinitionId>,
     template_support: Vec<ImportedDefinitionId>,
+    types: Vec<WireTypeEntry>,
+    signatures: Vec<WireSignature>,
+    predicates: Vec<WirePredicate>,
 }
 
 impl ImportedHirSet {
@@ -215,6 +277,25 @@ impl ImportedHirSet {
 
     pub fn template_support(&self) -> &[ImportedDefinitionId] {
         &self.template_support
+    }
+
+    pub fn types(&self) -> &[WireTypeEntry] {
+        &self.types
+    }
+
+    pub fn signatures(&self) -> &[WireSignature] {
+        &self.signatures
+    }
+
+    pub fn predicates(&self) -> &[WirePredicate] {
+        &self.predicates
+    }
+
+    /// The signature of one imported definition, if it carries one.
+    pub fn signature_of(&self, id: ImportedDefinitionId) -> Option<&WireSignature> {
+        self.signatures
+            .iter()
+            .find(|signature| signature.definition == id.0)
     }
 
     /// The roots of one ordinary binding by package segments, name and
@@ -252,6 +333,9 @@ impl ImportedHirSet {
             cone: decoded.cone,
             definitions: decoded.definitions,
             bindings: decoded.bindings,
+            types: decoded.types,
+            signatures: decoded.signatures,
+            predicates: decoded.predicates,
             public_lookup: remap(&decoded.public_lookup),
             template_support: remap(
                 &decoded
@@ -620,8 +704,119 @@ pub fn encode_surface_wire(
             )
             .collect::<Vec<_>>(),
     );
+    // Signature type graph: intern every public/generic function
+    // signature into the canonical topological table.
+    let mut type_table: Vec<WireTypeEntry> = Vec::new();
+    let mut type_cache = std::collections::HashMap::new();
+    let mut signatures = Vec::new();
+    let mut predicates = Vec::new();
+    let lookup = |table: &[WireDefinition],
+                  kind: WireEntityKind,
+                  id: [u8; 32],
+                  discriminator: u32|
+     -> Option<u32> {
+        table
+            .iter()
+            .position(|definition| {
+                definition.id == id
+                    && definition.kind == kind
+                    && definition.discriminator == discriminator
+            })
+            .map(|index| index as u32)
+    };
+    for function in &surfaces.public_lookup.functions {
+        let record = &module.functions[*function];
+        let mut parameters = Vec::with_capacity(record.params.len());
+        for parameter in &record.params {
+            parameters.push(intern_wire_type(
+                module,
+                ids,
+                &mut type_table,
+                &mut type_cache,
+                parameter.ty,
+            )?);
+        }
+        let result = intern_wire_type(
+            module,
+            ids,
+            &mut type_table,
+            &mut type_cache,
+            record.return_ty,
+        )?;
+        let generic = matches!(record.genericity, crate::FunctionGenericity::Generic { .. });
+        let owner_parameterized = matches!(
+            record.genericity,
+            crate::FunctionGenericity::OwnerParameterizedMethod { .. }
+                | crate::FunctionGenericity::GenericMethod { .. }
+        );
+        let (kind, id, discriminator) = if generic {
+            (
+                WireEntityKind::GenericFunction,
+                *ids.generic_function_id(*function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes(),
+                0u32,
+            )
+        } else if owner_parameterized {
+            (
+                WireEntityKind::GenericMethod,
+                *ids.generic_callable_id(*function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes(),
+                0u32,
+            )
+        } else {
+            (
+                WireEntityKind::Function,
+                *ids.function_id(*function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes(),
+                0u32,
+            )
+        };
+        let Some(definition) = lookup(&table, kind, id, discriminator) else {
+            continue;
+        };
+        signatures.push(WireSignature {
+            definition,
+            parameters,
+            result,
+        });
+        if generic {
+            if let Some((no_gc, pointees)) = generic_function_predicates(module, *function) {
+                predicates.push(WirePredicate {
+                    definition,
+                    no_gc_slots: no_gc,
+                    gc_free_pointee_slots: pointees,
+                });
+            }
+        }
+    }
+    // Nominal template predicates.
+    for template in &surfaces.template_support.generic_structs {
+        let declaration = &module.structs[*template];
+        let Some(definition) = lookup(
+            &table,
+            WireEntityKind::Struct,
+            *ids.struct_id(*template)
+                .ok_or(HirWireError::Malformed("identity"))?
+                .as_bytes(),
+            0,
+        ) else {
+            continue;
+        };
+        predicates.push(WirePredicate {
+            definition,
+            no_gc_slots: Vec::new(),
+            gc_free_pointee_slots: declaration
+                .gc_free_pointee_requirements
+                .iter()
+                .map(|requirement| requirement.type_param.into_raw())
+                .collect(),
+        });
+    }
     let mut writer = CborWriter::new();
-    writer.map(6);
+    writer.map(9);
     writer.field(1).text(HIR_SURFACE_WIRE_MAGIC);
     writer.field(2);
     writer.bytes(&cone_bytes(module));
@@ -667,7 +862,390 @@ pub fn encode_surface_wire(
     for index in &template_ids {
         writer.unsigned(*index as u64);
     }
+    writer.field(7);
+    writer.array(type_table.len() as u64);
+    for entry in &type_table {
+        write_type_entry(&mut writer, entry);
+    }
+    writer.field(8);
+    writer.array(signatures.len() as u64);
+    for signature in &signatures {
+        writer.map(3);
+        writer.field(1).unsigned(signature.definition as u64);
+        writer.field(2);
+        writer.array(signature.parameters.len() as u64);
+        for parameter in &signature.parameters {
+            writer.unsigned(*parameter as u64);
+        }
+        writer.field(3).unsigned(signature.result as u64);
+    }
+    writer.field(9);
+    writer.array(predicates.len() as u64);
+    for predicate in &predicates {
+        writer.map(3);
+        writer.field(1).unsigned(predicate.definition as u64);
+        writer.field(2);
+        writer.array(predicate.no_gc_slots.len() as u64);
+        for slot in &predicate.no_gc_slots {
+            writer.unsigned(*slot as u64);
+        }
+        writer.field(3);
+        writer.array(predicate.gc_free_pointee_slots.len() as u64);
+        for slot in &predicate.gc_free_pointee_slots {
+            writer.unsigned(*slot as u64);
+        }
+    }
     Ok(writer.into_bytes())
+}
+
+/// Writes one type-table entry in the canonical field order the reader
+/// validates.
+fn write_type_entry(writer: &mut scoop_identity::CborWriter, entry: &WireTypeEntry) {
+    match entry {
+        WireTypeEntry::Unit => {
+            writer.map(1);
+            writer.field(1).unsigned(1);
+        }
+        WireTypeEntry::Any => {
+            writer.map(1);
+            writer.field(1).unsigned(2);
+        }
+        WireTypeEntry::Boolean => {
+            writer.map(1);
+            writer.field(1).unsigned(3);
+        }
+        WireTypeEntry::String => {
+            writer.map(1);
+            writer.field(1).unsigned(4);
+        }
+        WireTypeEntry::Integer(tag) => {
+            writer.map(2);
+            writer.field(1).unsigned(5);
+            writer.field(9).unsigned(tag.0);
+        }
+        WireTypeEntry::NominalPlain(id) => {
+            writer.map(2);
+            writer.field(1).unsigned(6);
+            writer.field(2).bytes(id);
+        }
+        WireTypeEntry::NominalApplication {
+            template,
+            arguments,
+        } => {
+            writer.map(3);
+            writer.field(1).unsigned(7);
+            writer.field(2).bytes(template);
+            writer.field(3);
+            writer.array(arguments.len() as u64);
+            for argument in arguments {
+                writer.unsigned(*argument as u64);
+            }
+        }
+        WireTypeEntry::Ptr(index) => {
+            writer.map(2);
+            writer.field(1).unsigned(8);
+            writer.field(4).unsigned(*index as u64);
+        }
+        WireTypeEntry::Function {
+            suspend,
+            parameters,
+            result,
+        } => {
+            writer.map(5);
+            writer.field(1).unsigned(9);
+            writer.field(6).unsigned(u64::from(*suspend));
+            writer.field(7);
+            writer.array(parameters.len() as u64);
+            for parameter in parameters {
+                writer.unsigned(*parameter as u64);
+            }
+            writer.field(8).unsigned(*result as u64);
+        }
+        WireTypeEntry::FunPtr { parameters, result } => {
+            writer.map(4);
+            writer.field(1).unsigned(10);
+            writer.field(7);
+            writer.array(parameters.len() as u64);
+            for parameter in parameters {
+                writer.unsigned(*parameter as u64);
+            }
+            writer.field(8).unsigned(*result as u64);
+        }
+        WireTypeEntry::Tuple(indices) => {
+            writer.map(2);
+            writer.field(1).unsigned(11);
+            writer.field(5);
+            writer.array(indices.len() as u64);
+            for index in indices {
+                writer.unsigned(*index as u64);
+            }
+        }
+        WireTypeEntry::Param(slot) => {
+            writer.map(2);
+            writer.field(1).unsigned(12);
+            writer.field(9).unsigned(*slot as u64);
+        }
+    }
+}
+
+/// Interns one signature type into the canonical topological table.
+fn intern_wire_type(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    table: &mut Vec<WireTypeEntry>,
+    cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    ty: crate::TypeId,
+) -> Result<u32, HirWireError> {
+    if let Some(index) = cache.get(&ty) {
+        return Ok(*index);
+    }
+    let failed = || HirWireError::Malformed("type without persistent identity");
+    let entry = match &module.types[ty] {
+        crate::Type::Unit => WireTypeEntry::Unit,
+        crate::Type::Any => WireTypeEntry::Any,
+        crate::Type::Boolean => WireTypeEntry::Boolean,
+        crate::Type::String => WireTypeEntry::String,
+        crate::Type::Integer(kind) => WireTypeEntry::Integer(IntegerTag(integer_tag(*kind))),
+        crate::Type::Ptr(pointee) => {
+            WireTypeEntry::Ptr(intern_wire_type(module, ids, table, cache, *pointee)?)
+        }
+        crate::Type::Param(param) => WireTypeEntry::Param(param.into_raw()),
+        crate::Type::Struct(application) => {
+            let application = &module.struct_applications[*application];
+            let template = u32::from(application.template.into_raw());
+            let arguments = application.arguments.clone();
+            nominal_entry(
+                module,
+                ids,
+                table,
+                cache,
+                NominalKind::Struct,
+                template,
+                &arguments,
+                failed,
+            )?
+        }
+        crate::Type::Enum(application) => {
+            let application = &module.enum_applications[*application];
+            let template = u32::from(application.template.into_raw());
+            let arguments = application.arguments.clone();
+            nominal_entry(
+                module,
+                ids,
+                table,
+                cache,
+                NominalKind::Enum,
+                template,
+                &arguments,
+                failed,
+            )?
+        }
+        crate::Type::Class(application) => {
+            let application = &module.class_applications[*application];
+            let template = u32::from(application.template.into_raw());
+            let arguments = application.arguments.clone();
+            nominal_entry(
+                module,
+                ids,
+                table,
+                cache,
+                NominalKind::Class,
+                template,
+                &arguments,
+                failed,
+            )?
+        }
+        crate::Type::Interface(application) => {
+            let application = &module.interface_applications[*application];
+            let template = u32::from(application.template.into_raw());
+            let arguments = application.arguments.clone();
+            nominal_entry(
+                module,
+                ids,
+                table,
+                cache,
+                NominalKind::Interface,
+                template,
+                &arguments,
+                failed,
+            )?
+        }
+        crate::Type::Tuple(elements) => {
+            let mut indices = Vec::with_capacity(elements.len());
+            for element in elements {
+                indices.push(intern_wire_type(module, ids, table, cache, *element)?);
+            }
+            WireTypeEntry::Tuple(indices)
+        }
+        crate::Type::Function(function) => {
+            function_entry(module, ids, table, cache, *function, false, failed)?
+        }
+        crate::Type::FunPtr(function) => {
+            function_entry(module, ids, table, cache, *function, true, failed)?
+        }
+    };
+    let index = table.len() as u32;
+    table.push(entry);
+    cache.insert(ty, index);
+    Ok(index)
+}
+
+#[derive(Clone, Copy)]
+enum NominalKind {
+    Struct,
+    Enum,
+    Class,
+    Interface,
+}
+
+/// Builds one nominal entry: plain declarations reference their
+/// persistent type id; applications reference the generic template id
+/// plus interned argument indices. Template ids are addressed by raw
+/// index plus kind, keeping the four nominal arenas distinct.
+#[allow(clippy::too_many_arguments)]
+fn nominal_entry(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    table: &mut Vec<WireTypeEntry>,
+    cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    kind: NominalKind,
+    template: u32,
+    arguments: &[crate::TypeId],
+    failed: fn() -> HirWireError,
+) -> Result<WireTypeEntry, HirWireError> {
+    let mut argument_indices = Vec::with_capacity(arguments.len());
+    for argument in arguments {
+        argument_indices.push(intern_wire_type(module, ids, table, cache, *argument)?);
+    }
+    let template_id = crate_ids::from_raw_struct(template);
+    let generic = match kind {
+        NominalKind::Struct => !module.structs[template_id].type_params.is_empty(),
+        NominalKind::Enum => !module.enums[crate_ids::from_raw_enum(template)]
+            .type_params
+            .is_empty(),
+        NominalKind::Class => !module.classes[crate_ids::from_raw_class(template)]
+            .type_params
+            .is_empty(),
+        NominalKind::Interface => !module.interfaces[crate_ids::from_raw_interface(template)]
+            .type_params
+            .is_empty(),
+    };
+    if !generic {
+        let id = match kind {
+            NominalKind::Struct => *ids.struct_id(template_id).ok_or_else(failed)?.as_bytes(),
+            NominalKind::Enum => *ids
+                .enum_id(crate_ids::from_raw_enum(template))
+                .ok_or_else(failed)?
+                .as_bytes(),
+            NominalKind::Class => *ids
+                .class_id(crate_ids::from_raw_class(template))
+                .ok_or_else(failed)?
+                .as_bytes(),
+            NominalKind::Interface => *ids
+                .interface_id(crate_ids::from_raw_interface(template))
+                .ok_or_else(failed)?
+                .as_bytes(),
+        };
+        return Ok(WireTypeEntry::NominalPlain(id));
+    }
+    let template_bytes: [u8; 32] = match kind {
+        NominalKind::Struct => *ids
+            .generic_struct_id(template_id)
+            .ok_or_else(failed)?
+            .as_bytes(),
+        NominalKind::Enum => *ids
+            .generic_enum_id(crate_ids::from_raw_enum(template))
+            .ok_or_else(failed)?
+            .as_bytes(),
+        NominalKind::Class => *ids
+            .generic_class_id(crate_ids::from_raw_class(template))
+            .ok_or_else(failed)?
+            .as_bytes(),
+        NominalKind::Interface => *ids
+            .generic_interface_id(crate_ids::from_raw_interface(template))
+            .ok_or_else(failed)?
+            .as_bytes(),
+    };
+    Ok(WireTypeEntry::NominalApplication {
+        template: template_bytes,
+        arguments: argument_indices,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn function_entry(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    table: &mut Vec<WireTypeEntry>,
+    cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    function: crate::FunctionTypeId,
+    native: bool,
+    failed: fn() -> HirWireError,
+) -> Result<WireTypeEntry, HirWireError> {
+    let _ = ids;
+    let _ = failed;
+    let signature = &module.function_types[function];
+    let mut parameters = Vec::with_capacity(signature.parameter_types.len());
+    for parameter in &signature.parameter_types {
+        parameters.push(intern_wire_type(module, ids, table, cache, *parameter)?);
+    }
+    let result = intern_wire_type(module, ids, table, cache, signature.return_type)?;
+    Ok(if native {
+        WireTypeEntry::FunPtr { parameters, result }
+    } else {
+        WireTypeEntry::Function {
+            suspend: signature.is_suspend,
+            parameters,
+            result,
+        }
+    })
+}
+
+mod ids_constructors {
+    use crate::{ClassId, EnumId, InterfaceId, StructId};
+    use la_arena::RawIdx;
+    pub(crate) fn from_raw_struct(raw: u32) -> StructId {
+        StructId::from_raw(RawIdx::from_u32(raw))
+    }
+    pub(crate) fn from_raw_enum(raw: u32) -> EnumId {
+        EnumId::from_raw(RawIdx::from_u32(raw))
+    }
+    pub(crate) fn from_raw_class(raw: u32) -> ClassId {
+        ClassId::from_raw(RawIdx::from_u32(raw))
+    }
+    pub(crate) fn from_raw_interface(raw: u32) -> InterfaceId {
+        InterfaceId::from_raw(RawIdx::from_u32(raw))
+    }
+}
+use ids_constructors as crate_ids;
+
+fn find_generic_function(module: &Module, function: crate::FunctionId) -> crate::GenericFunctionId {
+    match module.functions[function].genericity {
+        crate::FunctionGenericity::Generic { definition, .. } => definition,
+        _ => unreachable!("caller filters for generic functions"),
+    }
+}
+
+/// The (no-GC slots, GC-free pointee slots) predicate pair of one
+/// generic function template.
+fn generic_function_predicates(
+    module: &Module,
+    function: crate::FunctionId,
+) -> Option<(Vec<u32>, Vec<u32>)> {
+    let definition = find_generic_function(module, function);
+    let generic = &module.generic_functions[definition];
+    Some((
+        generic
+            .no_gc_type_params
+            .iter()
+            .map(|param| param.into_raw())
+            .collect(),
+        generic
+            .gc_free_pointee_requirements
+            .iter()
+            .map(|requirement| requirement.type_param.into_raw())
+            .collect(),
+    ))
 }
 
 fn cone_bytes(_module: &Module) -> [u8; 32] {
@@ -711,6 +1289,9 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
     let mut bindings = Vec::new();
     let mut public_lookup = Vec::new();
     let mut template_support = Vec::new();
+    let mut types = Vec::new();
+    let mut signatures = Vec::new();
+    let mut predicates = Vec::new();
     let mut saw_magic = false;
     {
         let mut map = reader.map().map_err(map_wire_error)?;
@@ -778,7 +1359,9 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
                                     purposes = WirePurposes(bits);
                                 }
                                 _ => {
-                                    return Err(HirWireError::Malformed("unknown definition field"));
+                                    return Err(HirWireError::Malformed(
+                                        "unknown definition field",
+                                    ));
                                 }
                             }
                             fields += 1;
@@ -849,6 +1432,84 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
                         template_support.push(seq.unsigned().map_err(map_wire_error)? as u32);
                     }
                 }
+                7 => {
+                    let mut seq = map.array().map_err(map_wire_error)?;
+                    if seq.count() > 16_777_216 {
+                        return Err(HirWireError::CountExceeded("type table"));
+                    }
+                    for _ in 0..seq.count() {
+                        types.push(decode_type_entry(&mut seq)?);
+                    }
+                }
+                8 => {
+                    let mut seq = map.array().map_err(map_wire_error)?;
+                    for _ in 0..seq.count() {
+                        let mut record = seq.map().map_err(map_wire_error)?;
+                        let mut definition = 0u32;
+                        let mut parameters = Vec::new();
+                        let mut result = 0u32;
+                        while let Some(field) = record.next_key().map_err(map_wire_error)? {
+                            match field {
+                                1 => definition = record.unsigned().map_err(map_wire_error)? as u32,
+                                2 => {
+                                    let mut entries = record.array().map_err(map_wire_error)?;
+                                    for _ in 0..entries.count() {
+                                        parameters.push(
+                                            entries.unsigned().map_err(map_wire_error)? as u32,
+                                        );
+                                    }
+                                }
+                                3 => result = record.unsigned().map_err(map_wire_error)? as u32,
+                                _ => {
+                                    return Err(HirWireError::Malformed("unknown signature field"));
+                                }
+                            }
+                        }
+                        signatures.push(WireSignature {
+                            definition,
+                            parameters,
+                            result,
+                        });
+                    }
+                }
+                9 => {
+                    let mut seq = map.array().map_err(map_wire_error)?;
+                    for _ in 0..seq.count() {
+                        let mut record = seq.map().map_err(map_wire_error)?;
+                        let mut definition = 0u32;
+                        let mut no_gc_slots = Vec::new();
+                        let mut gc_free_pointee_slots = Vec::new();
+                        while let Some(field) = record.next_key().map_err(map_wire_error)? {
+                            match field {
+                                1 => definition = record.unsigned().map_err(map_wire_error)? as u32,
+                                2 => {
+                                    let mut entries = record.array().map_err(map_wire_error)?;
+                                    for _ in 0..entries.count() {
+                                        no_gc_slots.push(
+                                            entries.unsigned().map_err(map_wire_error)? as u32,
+                                        );
+                                    }
+                                }
+                                3 => {
+                                    let mut entries = record.array().map_err(map_wire_error)?;
+                                    for _ in 0..entries.count() {
+                                        gc_free_pointee_slots.push(
+                                            entries.unsigned().map_err(map_wire_error)? as u32,
+                                        );
+                                    }
+                                }
+                                _ => {
+                                    return Err(HirWireError::Malformed("unknown predicate field"));
+                                }
+                            }
+                        }
+                        predicates.push(WirePredicate {
+                            definition,
+                            no_gc_slots,
+                            gc_free_pointee_slots,
+                        });
+                    }
+                }
                 _ => return Err(HirWireError::Malformed("unknown document field")),
             }
         }
@@ -877,12 +1538,16 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
         dependency_classes: Vec::new(),
         dependency_interfaces: Vec::new(),
         protected_methods: Vec::new(),
+        types,
+        signatures,
+        predicates,
     })
 }
 
 /// Structural validation + typed remap + commit: the last three reader
 /// steps over a decoded document.
 pub fn import_surface_wire(decoded: DecodedHirSurfaceWire) -> Result<ImportedHirSet, HirWireError> {
+    validate_type_graph(&decoded)?;
     for binding in &decoded.bindings {
         if binding.namespace != 1 && binding.namespace != 2 {
             return Err(HirWireError::BindingNamespace(binding.namespace));
@@ -930,6 +1595,166 @@ pub fn validate_purpose_masks(definitions: &[WireDefinition]) -> Result<(), HirW
     for definition in definitions {
         if definition.purposes.0 & !WirePurposes::MASK != 0 {
             return Err(HirWireError::PurposeMask(definition.purposes.0));
+        }
+    }
+    Ok(())
+}
+
+/// Decodes one type-table entry; the guard is the surrounding array.
+fn decode_type_entry(
+    seq: &mut scoop_identity::cbor::SeqGuard<'_, '_>,
+) -> Result<WireTypeEntry, HirWireError> {
+    let mut record = seq.map().map_err(map_wire_error)?;
+    let mut tag = None;
+    let mut id = None;
+    let mut arguments = Vec::new();
+    let mut index = None;
+    let mut indices = Vec::new();
+    let mut suspend = false;
+    let mut parameters = Vec::new();
+    let mut result = None;
+    let mut slot = None;
+    while let Some(field) = record.next_key().map_err(map_wire_error)? {
+        match field {
+            1 => tag = Some(record.unsigned().map_err(map_wire_error)?),
+            2 => {
+                let bytes = record.bytes().map_err(map_wire_error)?;
+                id = Some(
+                    bytes
+                        .try_into()
+                        .map_err(|_| HirWireError::Malformed("template id must be 32 bytes"))?,
+                );
+            }
+            3 => {
+                let mut entries = record.array().map_err(map_wire_error)?;
+                for _ in 0..entries.count() {
+                    arguments.push(entries.unsigned().map_err(map_wire_error)? as u32);
+                }
+            }
+            4 => index = Some(record.unsigned().map_err(map_wire_error)? as u32),
+            5 => {
+                let mut entries = record.array().map_err(map_wire_error)?;
+                for _ in 0..entries.count() {
+                    indices.push(entries.unsigned().map_err(map_wire_error)? as u32);
+                }
+            }
+            6 => suspend = record.unsigned().map_err(map_wire_error)? != 0,
+            7 => {
+                let mut entries = record.array().map_err(map_wire_error)?;
+                for _ in 0..entries.count() {
+                    parameters.push(entries.unsigned().map_err(map_wire_error)? as u32);
+                }
+            }
+            8 => result = Some(record.unsigned().map_err(map_wire_error)? as u32),
+            9 => slot = Some(record.unsigned().map_err(map_wire_error)? as u32),
+            _ => return Err(HirWireError::Malformed("unknown type entry field")),
+        }
+    }
+    let tag = tag.ok_or(HirWireError::Malformed("type entry without tag"))?;
+    let entry = match tag {
+        1 => WireTypeEntry::Unit,
+        2 => WireTypeEntry::Any,
+        3 => WireTypeEntry::Boolean,
+        4 => WireTypeEntry::String,
+        5 => WireTypeEntry::Integer(IntegerTag(
+            slot.ok_or(HirWireError::Malformed("integer entry without tag value"))? as u64,
+        )),
+        6 => WireTypeEntry::NominalPlain(
+            id.ok_or(HirWireError::Malformed("nominal entry without id"))?,
+        ),
+        7 => WireTypeEntry::NominalApplication {
+            template: id.ok_or(HirWireError::Malformed("application without template"))?,
+            arguments,
+        },
+        8 => WireTypeEntry::Ptr(index.ok_or(HirWireError::Malformed("pointer without pointee"))?),
+        9 | 10 => {
+            let result = result.ok_or(HirWireError::Malformed("function entry without result"))?;
+            if tag == 9 {
+                WireTypeEntry::Function {
+                    suspend,
+                    parameters,
+                    result,
+                }
+            } else {
+                WireTypeEntry::FunPtr { parameters, result }
+            }
+        }
+        11 => WireTypeEntry::Tuple(indices),
+        12 => {
+            WireTypeEntry::Param(slot.ok_or(HirWireError::Malformed("param entry without slot"))?)
+        }
+        _ => return Err(HirWireError::UnknownKind(tag)),
+    };
+    Ok(entry)
+}
+
+/// Validates that every type-table reference points at an earlier
+/// entry (the table is topologically ordered by construction) and that
+/// all signature references are in range.
+pub fn validate_type_graph(decoded: &DecodedHirSurfaceWire) -> Result<(), HirWireError> {
+    let count = decoded.types.len() as u32;
+    let earlier = |entries: &[u32]| {
+        entries
+            .iter()
+            .all(|index| *index < count)
+            .then_some(())
+            .ok_or(HirWireError::RootIndex(*entries.iter().max().unwrap_or(&0)))
+    };
+    for (position, entry) in decoded.types.iter().enumerate() {
+        let bound = position as u32;
+        let in_range = |index: u32| {
+            if index < bound {
+                Ok(())
+            } else {
+                Err(HirWireError::Malformed("non-topological type table"))
+            }
+        };
+        match entry {
+            WireTypeEntry::Ptr(index) => {
+                in_range(*index)?;
+            }
+            WireTypeEntry::NominalApplication { arguments, .. } => {
+                for index in arguments {
+                    if *index >= bound {
+                        return Err(HirWireError::Malformed("non-topological type table"));
+                    }
+                }
+            }
+            WireTypeEntry::Function {
+                parameters, result, ..
+            }
+            | WireTypeEntry::FunPtr { parameters, result } => {
+                let _ = earlier(parameters);
+                for index in parameters {
+                    if *index >= bound {
+                        return Err(HirWireError::Malformed("non-topological type table"));
+                    }
+                }
+                if *result >= bound {
+                    return Err(HirWireError::Malformed("non-topological type table"));
+                }
+            }
+            WireTypeEntry::Tuple(indices) => {
+                for index in indices {
+                    if *index >= bound {
+                        return Err(HirWireError::Malformed("non-topological type table"));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for signature in &decoded.signatures {
+        if signature.definition >= decoded.definitions.len() as u32 {
+            return Err(HirWireError::RootIndex(signature.definition));
+        }
+        let mut refs = signature.parameters.clone();
+        refs.push(signature.result);
+        earlier(&refs)?;
+    }
+    for predicate in &decoded.predicates {
+        if predicate.definition >= decoded.definitions.len() as u32 {
+            return Err(HirWireError::RootIndex(predicate.definition));
         }
     }
     Ok(())

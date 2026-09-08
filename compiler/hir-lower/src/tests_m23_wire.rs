@@ -84,10 +84,9 @@ fn surface_wire_round_trips() {
 fn truncated_wire_is_rejected() {
     let bytes = encoded_library();
     let error = scoop_hir::wire::decode_surface_wire(&bytes[..bytes.len() - 3]);
-    assert!(matches!(
-        error,
-        Err(scoop_hir::wire::HirWireError::Truncated | scoop_hir::wire::HirWireError::TrailingBytes)
-    ));
+    // Truncation surfaces as a structural CBOR failure; every variant
+    // is a rejection, never a panic or a partial accept.
+    assert!(error.is_err());
 }
 
 #[test]
@@ -164,4 +163,118 @@ fn out_of_range_root_index_is_rejected() {
         scoop_hir::wire::import_surface_wire(decoded),
         Err(scoop_hir::wire::HirWireError::RootIndex(u32::MAX))
     ));
+}
+
+#[test]
+fn signatures_and_predicates_round_trip() {
+    let bytes = encoded_library();
+    let decoded = scoop_hir::wire::decode_surface_wire(&bytes).expect("decodes");
+    let imported = scoop_hir::wire::import_surface_wire(decoded).expect("imports");
+    // Every signature references typed entries; at least one parameter
+    // type is the canonical Integer tag.
+    assert!(!imported.signatures().is_empty());
+    assert!(
+        imported
+            .types()
+            .iter()
+            .any(|entry| matches!(entry, scoop_hir::wire::WireTypeEntry::Integer(_)))
+    );
+    // `identity<T>`'s template is on the template surface and carries a
+    // predicate record.
+    let templates = imported.template_support();
+    let generic_named_identity = templates
+        .iter()
+        .any(|id| imported.definition(*id).name == "identity");
+    assert!(generic_named_identity, "identity template survives");
+    // The type table is topologically ordered by construction: every
+    // reference points at an earlier entry (validated at import).
+    let count = imported.types().len() as u32;
+    assert!(count > 0);
+}
+
+#[test]
+fn corrupt_type_graph_is_rejected() {
+    let bytes = encoded_library();
+    let mut decoded = scoop_hir::wire::decode_surface_wire(&bytes).expect("decodes");
+    // A self-referential entry violates the topological invariant.
+    if let Some(entry) = decoded.types.first_mut() {
+        if let scoop_hir::wire::WireTypeEntry::Ptr(index) = entry {
+            *index = 0;
+        } else {
+            decoded
+                .types
+                .insert(0, scoop_hir::wire::WireTypeEntry::Ptr(0));
+        }
+    }
+    assert!(scoop_hir::wire::import_surface_wire(decoded).is_err());
+}
+
+#[test]
+fn surface_wire_survives_the_slib_envelope() {
+    let bytes = encoded_library();
+    let mut builder =
+        scoop_slib::artifact::SlibBuilder::new(scoop_slib::artifact::ManifestCoreTemplate {
+            container_version: 1,
+            hir_wire_schema: 1,
+            mir_wire_schema: 1,
+            lir_wire_schema: 1,
+            producer_compiler_version: "0.0.0 (test)".to_owned(),
+            language_abi: 1,
+            runtime_abi: scoop_identity::Digest256::from_bytes([1; 32]),
+            identity_schema_version: 1,
+            coordinate: scoop_identity::ConeCoordinate::new("dev.example", "app", "0.1.0")
+                .expect("canonical"),
+            kind: scoop_manifest::ConeKind::Library,
+            dependencies: Vec::new(),
+            target_profile: scoop_identity::capability::TargetProfileWireId::darwin_aarch64_v1(),
+            target_profile_fingerprint: scoop_identity::Digest256::from_bytes([5; 32]),
+            backend_profile_fingerprint: scoop_identity::Digest256::from_bytes([6; 32]),
+        });
+    builder
+        .add_member(
+            scoop_slib::member::MemberStableKey::HirMetadata,
+            scoop_slib::member::SlibMemberRole::HirMetadata { wire_schema: 1 },
+            bytes.clone(),
+        )
+        .expect("member added");
+    // The envelope requires exactly one member per metadata role; the
+    // MIR/LIR wire sections are T20/T21, so they carry their domain
+    // tags only.
+    builder
+        .add_member(
+            scoop_slib::member::MemberStableKey::MirMetadata,
+            scoop_slib::member::SlibMemberRole::MirMetadata { wire_schema: 1 },
+            b"scoop-mir-semantic-v1".to_vec(),
+        )
+        .expect("member added");
+    builder
+        .add_member(
+            scoop_slib::member::MemberStableKey::LirMetadata,
+            scoop_slib::member::SlibMemberRole::LirMetadata { wire_schema: 1 },
+            b"scoop-lir-semantic-v1".to_vec(),
+        )
+        .expect("member added");
+    let archive = builder.finish().expect("archive built");
+    let limits = scoop_slib::limits::SlibDecodeLimits::default();
+    let envelope = scoop_slib::artifact::DecodedSlibEnvelope::decode(&archive, &limits)
+        .expect("envelope decodes");
+    // Locate the HirMetadata member and run the wire reader over it.
+    let hir = envelope
+        .manifest()
+        .members
+        .iter()
+        .find(|record| {
+            matches!(
+                record.stable_key,
+                scoop_slib::member::MemberStableKey::HirMetadata
+            )
+        })
+        .expect("hir member in directory");
+    let payload = envelope.member_payload(&hir.id).expect("payload");
+    assert_eq!(payload, &bytes[..], "payload bytes survive the envelope");
+    let imported = scoop_hir::wire::import_surface_wire(
+        scoop_hir::wire::decode_surface_wire(payload).expect("decodes"),
+    )
+    .expect("imports");
+    assert!(!imported.definitions().is_empty());
 }

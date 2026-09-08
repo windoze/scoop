@@ -443,7 +443,9 @@ dependencies = [
  "scoop-ast",
  "scoop-hir",
  "scoop-identity",
+ "scoop-manifest",
  "scoop-parser",
+ "scoop-slib",
 ]
 
 [[package]]
