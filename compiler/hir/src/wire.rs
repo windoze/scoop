@@ -18,7 +18,7 @@ use crate::{ExportEntity, Module, PersistentIds};
 pub const HIR_SURFACE_WIRE_MAGIC: &str = "scoop-hir-surface-wire-v1";
 
 /// The closed wire kind set, mirroring [`ExportEntity`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WireEntityKind {
     Function,
     Property,
@@ -214,6 +214,68 @@ pub struct WirePredicate {
     pub gc_free_pointee_slots: Vec<u32>,
 }
 
+/// One wire body statement (kernel subset; the encoder rejects
+/// constructs outside the subset with a typed error).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WireStatement {
+    Expr(WireExpr),
+    Return {
+        value: Option<WireExpr>,
+    },
+    ValDecl {
+        local_slot: u32,
+        mutable: bool,
+        init: WireExpr,
+    },
+    Assign {
+        local_slot: u32,
+        value: WireExpr,
+    },
+    If {
+        cond: WireExpr,
+        then_body: Vec<WireStatement>,
+        else_body: Option<Vec<WireStatement>>,
+    },
+}
+
+/// One wire body expression (kernel subset).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WireExpr {
+    StringLiteral(String),
+    IntegerLiteral {
+        tag: u64,
+        bits: u64,
+    },
+    BoolLiteral(bool),
+    UnitLiteral,
+    /// Read of one body-local by arena slot.
+    Local(u32),
+    TupleLiteral(Vec<WireExpr>),
+    /// Direct call; the callee is a persistent identity plus explicit
+    /// type-argument references into the type table.
+    Call {
+        callee: [u8; 32],
+        generic: bool,
+        type_arguments: Vec<u32>,
+        arguments: Vec<WireExpr>,
+    },
+    /// Member call with an explicit receiver; the callee is a persistent
+    /// identity (generic callables use their template id).
+    MethodCall {
+        receiver: Box<WireExpr>,
+        callee: [u8; 32],
+        callee_kind: u64,
+        arguments: Vec<WireExpr>,
+    },
+}
+
+/// One template body on the wire.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WireBody {
+    pub definition: u32,
+    pub statements: Vec<WireStatement>,
+}
+
 /// The decoded, structurally valid document before typed remap.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedHirSurfaceWire {
@@ -237,6 +299,7 @@ pub struct DecodedHirSurfaceWire {
     pub types: Vec<WireTypeEntry>,
     pub signatures: Vec<WireSignature>,
     pub predicates: Vec<WirePredicate>,
+    pub bodies: Vec<WireBody>,
 }
 
 /// Typed handle for one imported definition.
@@ -256,6 +319,7 @@ pub struct ImportedHirSet {
     types: Vec<WireTypeEntry>,
     signatures: Vec<WireSignature>,
     predicates: Vec<WirePredicate>,
+    bodies: Vec<WireBody>,
 }
 
 impl ImportedHirSet {
@@ -289,6 +353,10 @@ impl ImportedHirSet {
 
     pub fn predicates(&self) -> &[WirePredicate] {
         &self.predicates
+    }
+
+    pub fn bodies(&self) -> &[WireBody] {
+        &self.bodies
     }
 
     /// The signature of one imported definition, if it carries one.
@@ -336,6 +404,7 @@ impl ImportedHirSet {
             types: decoded.types,
             signatures: decoded.signatures,
             predicates: decoded.predicates,
+            bodies: decoded.bodies,
             public_lookup: remap(&decoded.public_lookup),
             template_support: remap(
                 &decoded
@@ -531,17 +600,25 @@ pub fn encode_surface_wire(
     };
     // Populate the table from the purposes map (the union of every
     // surface's referenced entities).
+    // One wire definition per identity; purposes from every surface
+    // entry that references the entity merge into one set.
+    let mut meta_by_key: std::collections::HashMap<(WireEntityKind, [u8; 32], u32), (u8, String)> =
+        std::collections::HashMap::new();
     for (entity, purposes) in &surfaces.purposes {
         let (kind, id, discriminator) = resolve(*entity, ids)?;
-        let name = entity_name(module, *entity).to_owned();
-        let package = entity_package(module, entity);
+        let entry = meta_by_key
+            .entry((kind, id, discriminator))
+            .or_insert_with(|| (0, entity_name(module, *entity).to_owned()));
+        entry.0 |= WirePurposes::from_export(purposes).0;
+    }
+    for ((kind, id, discriminator), (bits, name)) in meta_by_key {
         table.push(WireDefinition {
             id,
             kind,
             discriminator,
             name,
-            package,
-            purposes: WirePurposes::from_export(purposes),
+            package: Vec::new(),
+            purposes: WirePurposes(bits),
         });
     }
     table.sort_by(|a, b| {
@@ -815,8 +892,38 @@ pub fn encode_surface_wire(
                 .collect(),
         });
     }
+    // Template bodies (kernel subset): the source body of every public
+    // generic function template, encoded against the type table.
+    let mut bodies = Vec::new();
+    for function in &surfaces.public_lookup.functions {
+        let record = &module.functions[*function];
+        let generic = matches!(record.genericity, crate::FunctionGenericity::Generic { .. });
+        if !generic {
+            continue;
+        }
+        let Some(definition) = lookup(
+            &table,
+            WireEntityKind::GenericFunction,
+            *ids.generic_function_id(*function)
+                .ok_or(HirWireError::Malformed("identity"))?
+                .as_bytes(),
+            0,
+        ) else {
+            continue;
+        };
+        let body = match &record.kind {
+            crate::FunctionKind::User(body) => body,
+            _ => continue,
+        };
+        let statements =
+            encode_wire_statements(module, ids, &mut type_table, &mut type_cache, body)?;
+        bodies.push(WireBody {
+            definition,
+            statements,
+        });
+    }
     let mut writer = CborWriter::new();
-    writer.map(9);
+    writer.map(10);
     writer.field(1).text(HIR_SURFACE_WIRE_MAGIC);
     writer.field(2);
     writer.bytes(&cone_bytes(module));
@@ -895,7 +1002,352 @@ pub fn encode_surface_wire(
             writer.unsigned(*slot as u64);
         }
     }
+    writer.field(10);
+    writer.array(bodies.len() as u64);
+    for body in &bodies {
+        writer.map(2);
+        writer.field(1).unsigned(body.definition as u64);
+        writer.field(2);
+        write_wire_statements(&mut writer, &body.statements);
+    }
     Ok(writer.into_bytes())
+}
+
+/// Encodes the kernel statement subset; anything else is a typed error,
+/// never a silent skip.
+fn encode_wire_statements(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    type_table: &mut Vec<WireTypeEntry>,
+    type_cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    body: &crate::Body,
+) -> Result<Vec<WireStatement>, HirWireError> {
+    body.statements
+        .iter()
+        .map(|statement| {
+            Ok(match &statement.kind {
+                crate::StatementKind::Expr(expr) => WireStatement::Expr(encode_wire_expr(
+                    module, ids, type_table, type_cache, expr,
+                )?),
+                crate::StatementKind::Return { value } => WireStatement::Return {
+                    value: value
+                        .as_ref()
+                        .map(|expr| encode_wire_expr(module, ids, type_table, type_cache, expr))
+                        .transpose()?,
+                },
+                crate::StatementKind::ValDecl { pattern, init } => {
+                    let crate::Pattern::Binding { local } = pattern else {
+                        return Err(HirWireError::Malformed(
+                            "body statement outside the wire kernel subset",
+                        ));
+                    };
+                    let local_slot = body.locals[*local].binding.into_raw();
+                    WireStatement::ValDecl {
+                        local_slot,
+                        mutable: body.locals[*local].mutable,
+                        init: encode_wire_expr(module, ids, type_table, type_cache, init)?,
+                    }
+                }
+                crate::StatementKind::Assign { target, value } => {
+                    let crate::AssignTarget::Local(local) = target else {
+                        return Err(HirWireError::Malformed(
+                            "body statement outside the wire kernel subset",
+                        ));
+                    };
+                    WireStatement::Assign {
+                        local_slot: body.locals[*local].binding.into_raw(),
+                        value: encode_wire_expr(module, ids, type_table, type_cache, value)?,
+                    }
+                }
+                crate::StatementKind::If {
+                    cond,
+                    then_body,
+                    else_body,
+                } => WireStatement::If {
+                    cond: encode_wire_expr(module, ids, type_table, type_cache, cond)?,
+                    then_body: encode_statement_list(
+                        module,
+                        ids,
+                        type_table,
+                        type_cache,
+                        &body.locals,
+                        then_body,
+                    )?,
+                    else_body: else_body
+                        .as_ref()
+                        .map(|statements| {
+                            encode_statement_list(
+                                module,
+                                ids,
+                                type_table,
+                                type_cache,
+                                &body.locals,
+                                statements,
+                            )
+                        })
+                        .transpose()?,
+                },
+                _ => {
+                    return Err(HirWireError::Malformed(
+                        "body statement outside the wire kernel subset",
+                    ));
+                }
+            })
+        })
+        .collect()
+}
+
+/// Encodes a nested statement list against the enclosing body's locals.
+fn encode_statement_list(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    type_table: &mut Vec<WireTypeEntry>,
+    type_cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    locals: &la_arena::Arena<crate::Local>,
+    statements: &[crate::Statement],
+) -> Result<Vec<WireStatement>, HirWireError> {
+    let mut inner = crate::Body {
+        locals: locals.clone(),
+        statements: statements.to_vec(),
+    };
+    let _ = &mut inner;
+    encode_wire_statements(module, ids, type_table, type_cache, &inner)
+}
+
+fn encode_wire_expr(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    type_table: &mut Vec<WireTypeEntry>,
+    type_cache: &mut std::collections::HashMap<crate::TypeId, u32>,
+    expr: &crate::Expr,
+) -> Result<WireExpr, HirWireError> {
+    let _ = type_table;
+    let _ = type_cache;
+    Ok(match &expr.kind {
+        crate::ExprKind::StringLiteral(value) => WireExpr::StringLiteral(value.clone()),
+        crate::ExprKind::BoolLiteral(value) => WireExpr::BoolLiteral(*value),
+        crate::ExprKind::UnitLiteral => WireExpr::UnitLiteral,
+        crate::ExprKind::IntegerLiteral(constant) => WireExpr::IntegerLiteral {
+            tag: integer_tag(constant.kind()),
+            bits: constant.raw_bits(),
+        },
+        crate::ExprKind::Local(local) => WireExpr::Local(u32::from(local.into_raw())),
+        crate::ExprKind::TupleLiteral(elements) => WireExpr::TupleLiteral(
+            elements
+                .iter()
+                .map(|element| encode_wire_expr(module, ids, type_table, type_cache, element))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        crate::ExprKind::Call { callee, args } => {
+            let function = crate::callable_function(module, *callee);
+            let generic = matches!(
+                module.functions[function].genericity,
+                crate::FunctionGenericity::Generic { .. }
+            );
+            let callee_id = if generic {
+                *ids.generic_function_id(function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes()
+            } else {
+                *ids.function_id(function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes()
+            };
+            WireExpr::Call {
+                callee: callee_id,
+                generic,
+                type_arguments: Vec::new(),
+                arguments: args
+                    .iter()
+                    .map(|argument| encode_wire_expr(module, ids, type_table, type_cache, argument))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }
+        }
+        crate::ExprKind::MethodCall {
+            receiver,
+            callee,
+            args,
+        } => {
+            // The callee kind travels with the persistent id of the
+            // underlying function: direct member, bound callable or
+            // compiler-derived equality.
+            let callee_kind = match callee {
+                crate::MethodCallee::Callable(_) => 1u64,
+                crate::MethodCallee::Bound(_) => 2u64,
+                crate::MethodCallee::DerivedEquality(_) => 3u64,
+            };
+            let function = crate::method_callee_function(module, *callee);
+            let generic = matches!(
+                module.functions[function].genericity,
+                crate::FunctionGenericity::Generic { .. }
+                    | crate::FunctionGenericity::OwnerParameterizedMethod { .. }
+                    | crate::FunctionGenericity::GenericMethod { .. }
+            );
+            let callee_id = if generic {
+                *ids.generic_callable_id(function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes()
+            } else {
+                *ids.function_id(function)
+                    .ok_or(HirWireError::Malformed("identity"))?
+                    .as_bytes()
+            };
+            WireExpr::MethodCall {
+                receiver: Box::new(encode_wire_expr(
+                    module, ids, type_table, type_cache, receiver,
+                )?),
+                callee: callee_id,
+                callee_kind,
+                arguments: args
+                    .iter()
+                    .map(|argument| encode_wire_expr(module, ids, type_table, type_cache, argument))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }
+        }
+        _ => {
+            return Err(HirWireError::Malformed(
+                "body expression outside the wire kernel subset",
+            ));
+        }
+    })
+}
+
+fn write_wire_statements(writer: &mut scoop_identity::CborWriter, statements: &[WireStatement]) {
+    writer.array(statements.len() as u64);
+    for statement in statements {
+        match statement {
+            WireStatement::Expr(expr) => {
+                writer.map(2);
+                writer.field(1).unsigned(1);
+                writer.field(2);
+                write_wire_expr(writer, expr);
+            }
+            WireStatement::Return { value } => {
+                writer.map(2);
+                writer.field(1).unsigned(2);
+                writer.field(2).array(match value {
+                    Some(_) => 1,
+                    None => 0,
+                });
+                if let Some(expr) = value {
+                    write_wire_expr(writer, expr);
+                }
+            }
+            WireStatement::ValDecl {
+                local_slot,
+                mutable,
+                init,
+            } => {
+                writer.map(4);
+                writer.field(1).unsigned(3);
+                writer.field(2).unsigned(*local_slot as u64);
+                writer.field(3).unsigned(u64::from(*mutable));
+                writer.field(4);
+                write_wire_expr(writer, init);
+            }
+            WireStatement::Assign { local_slot, value } => {
+                writer.map(3);
+                writer.field(1).unsigned(4);
+                writer.field(2).unsigned(*local_slot as u64);
+                writer.field(3);
+                write_wire_expr(writer, value);
+            }
+            WireStatement::If {
+                cond,
+                then_body,
+                else_body,
+            } => {
+                writer.map(4);
+                writer.field(1).unsigned(5);
+                writer.field(2);
+                write_wire_expr(writer, cond);
+                writer.field(3);
+                write_wire_statements(writer, then_body);
+                writer.field(4);
+                if let Some(statements) = else_body {
+                    write_wire_statements(writer, statements);
+                } else {
+                    writer.array(0);
+                }
+            }
+        }
+    }
+}
+
+fn write_wire_expr(writer: &mut scoop_identity::CborWriter, expr: &WireExpr) {
+    match expr {
+        WireExpr::StringLiteral(value) => {
+            writer.map(2);
+            writer.field(1).unsigned(1);
+            writer.field(2).text(value);
+        }
+        WireExpr::IntegerLiteral { tag, bits } => {
+            writer.map(3);
+            writer.field(1).unsigned(2);
+            writer.field(2).unsigned(*tag);
+            writer.field(3).unsigned(*bits);
+        }
+        WireExpr::BoolLiteral(value) => {
+            writer.map(2);
+            writer.field(1).unsigned(3);
+            writer.field(2).unsigned(u64::from(*value));
+        }
+        WireExpr::UnitLiteral => {
+            writer.map(1);
+            writer.field(1).unsigned(4);
+        }
+        WireExpr::Local(slot) => {
+            writer.map(2);
+            writer.field(1).unsigned(5);
+            writer.field(2).unsigned(*slot as u64);
+        }
+        WireExpr::TupleLiteral(elements) => {
+            writer.map(2);
+            writer.field(1).unsigned(6);
+            writer.field(2);
+            write_wire_expr_list(writer, elements);
+        }
+        WireExpr::Call {
+            callee,
+            generic,
+            type_arguments,
+            arguments,
+        } => {
+            writer.map(5);
+            writer.field(1).unsigned(7);
+            writer.field(2).bytes(callee);
+            writer.field(3).unsigned(u64::from(*generic));
+            writer.field(4);
+            writer.array(type_arguments.len() as u64);
+            for index in type_arguments {
+                writer.unsigned(*index as u64);
+            }
+            writer.field(5);
+            write_wire_expr_list(writer, arguments);
+        }
+        WireExpr::MethodCall {
+            receiver,
+            callee,
+            callee_kind,
+            arguments,
+        } => {
+            writer.map(5);
+            writer.field(1).unsigned(8);
+            writer.field(2);
+            write_wire_expr(writer, receiver);
+            writer.field(3).bytes(callee);
+            writer.field(4).unsigned(*callee_kind);
+            writer.field(5);
+            write_wire_expr_list(writer, arguments);
+        }
+    }
+}
+
+fn write_wire_expr_list(writer: &mut scoop_identity::CborWriter, exprs: &[WireExpr]) {
+    writer.array(exprs.len() as u64);
+    for expr in exprs {
+        write_wire_expr(writer, expr);
+    }
 }
 
 /// Writes one type-table entry in the canonical field order the reader
@@ -1275,12 +1727,6 @@ fn entity_name(module: &Module, entity: ExportEntity) -> &str {
     }
 }
 
-fn entity_package(_module: &Module, _entity: &ExportEntity) -> Vec<String> {
-    // Batch 1 carries the empty root package; per-entity package
-    // provenance rides the binding entries.
-    Vec::new()
-}
-
 /// Wire decode under budgets (DESIGN 4.5 defaults).
 pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWireError> {
     let mut reader = CborReader::new(data, 128);
@@ -1292,6 +1738,7 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
     let mut types = Vec::new();
     let mut signatures = Vec::new();
     let mut predicates = Vec::new();
+    let mut bodies = Vec::new();
     let mut saw_magic = false;
     {
         let mut map = reader.map().map_err(map_wire_error)?;
@@ -1510,6 +1957,30 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
                         });
                     }
                 }
+                10 => {
+                    let mut seq = map.array().map_err(map_wire_error)?;
+                    for _ in 0..seq.count() {
+                        let mut record = seq.map().map_err(map_wire_error)?;
+                        let mut definition = 0u32;
+                        let mut statements = Vec::new();
+                        while let Some(field) = record.next_key().map_err(map_wire_error)? {
+                            match field {
+                                1 => definition = record.unsigned().map_err(map_wire_error)? as u32,
+                                2 => {
+                                    let mut entries = record.array().map_err(map_wire_error)?;
+                                    for _ in 0..entries.count() {
+                                        statements.push(decode_wire_statement(&mut entries)?);
+                                    }
+                                }
+                                _ => return Err(HirWireError::Malformed("unknown body field")),
+                            }
+                        }
+                        bodies.push(WireBody {
+                            definition,
+                            statements,
+                        });
+                    }
+                }
                 _ => return Err(HirWireError::Malformed("unknown document field")),
             }
         }
@@ -1541,6 +2012,7 @@ pub fn decode_surface_wire(data: &[u8]) -> Result<DecodedHirSurfaceWire, HirWire
         types,
         signatures,
         predicates,
+        bodies,
     })
 }
 
@@ -1757,7 +2229,264 @@ pub fn validate_type_graph(decoded: &DecodedHirSurfaceWire) -> Result<(), HirWir
             return Err(HirWireError::RootIndex(predicate.definition));
         }
     }
+    for body in &decoded.bodies {
+        if body.definition >= decoded.definitions.len() as u32 {
+            return Err(HirWireError::RootIndex(body.definition));
+        }
+    }
     Ok(())
+}
+
+fn decode_wire_statement(
+    seq: &mut scoop_identity::cbor::SeqGuard<'_, '_>,
+) -> Result<WireStatement, HirWireError> {
+    let mut record = seq.map().map_err(map_wire_error)?;
+    if record.next_key().map_err(map_wire_error)? != Some(1) {
+        return Err(HirWireError::Malformed("statement must lead with its tag"));
+    }
+    let tag = record.unsigned().map_err(map_wire_error)?;
+    fn next(record: &mut scoop_identity::cbor::MapGuard<'_, '_>) -> Result<u64, HirWireError> {
+        record
+            .next_key()
+            .map_err(map_wire_error)?
+            .ok_or(HirWireError::Malformed("statement truncated"))
+    }
+    match tag {
+        1 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("expr statement field order"));
+            }
+            Ok(WireStatement::Expr(decode_wire_expr(&mut record)?))
+        }
+        2 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("return field order"));
+            }
+            let value = {
+                let mut entries = record.array().map_err(map_wire_error)?;
+                if entries.count() > 1 {
+                    return Err(HirWireError::Malformed("return carries at most one value"));
+                }
+                if entries.count() == 1 {
+                    Some(decode_wire_expr(&mut entries)?)
+                } else {
+                    None
+                }
+            };
+            Ok(WireStatement::Return { value })
+        }
+        3 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("val field order"));
+            }
+            let local_slot = record.unsigned().map_err(map_wire_error)? as u32;
+            if next(&mut record)? != 3 {
+                return Err(HirWireError::Malformed("val field order"));
+            }
+            let mutable = record.unsigned().map_err(map_wire_error)? != 0;
+            if next(&mut record)? != 4 {
+                return Err(HirWireError::Malformed("val field order"));
+            }
+            let init = decode_wire_expr(&mut record)?;
+            Ok(WireStatement::ValDecl {
+                local_slot,
+                mutable,
+                init,
+            })
+        }
+        4 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("assign field order"));
+            }
+            let local_slot = record.unsigned().map_err(map_wire_error)? as u32;
+            if next(&mut record)? != 3 {
+                return Err(HirWireError::Malformed("assign field order"));
+            }
+            let value = decode_wire_expr(&mut record)?;
+            Ok(WireStatement::Assign { local_slot, value })
+        }
+        5 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("if field order"));
+            }
+            let cond = decode_wire_expr(&mut record)?;
+            if next(&mut record)? != 3 {
+                return Err(HirWireError::Malformed("if field order"));
+            }
+            let then_body = {
+                let mut then_entries = record.array().map_err(map_wire_error)?;
+                let mut body = Vec::new();
+                for _ in 0..then_entries.count() {
+                    body.push(decode_wire_statement(&mut then_entries)?);
+                }
+                body
+            };
+            if next(&mut record)? != 4 {
+                return Err(HirWireError::Malformed("if field order"));
+            }
+            let else_statements = {
+                let mut else_entries = record.array().map_err(map_wire_error)?;
+                let mut body = Vec::new();
+                for _ in 0..else_entries.count() {
+                    body.push(decode_wire_statement(&mut else_entries)?);
+                }
+                body
+            };
+            let else_body = if else_statements.is_empty() {
+                None
+            } else {
+                Some(else_statements)
+            };
+            Ok(WireStatement::If {
+                cond,
+                then_body,
+                else_body,
+            })
+        }
+        _ => Err(HirWireError::UnknownKind(tag)),
+    }
+}
+
+fn decode_wire_expr<'a>(
+    record: &mut impl core::ops::DerefMut<Target = scoop_identity::CborReader<'a>>,
+) -> Result<WireExpr, HirWireError> {
+    let mut inner = record.map().map_err(map_wire_error)?;
+    if inner.next_key().map_err(map_wire_error)? != Some(1) {
+        return Err(HirWireError::Malformed("expression must lead with its tag"));
+    }
+    let tag = inner.unsigned().map_err(map_wire_error)?;
+    fn next(inner: &mut scoop_identity::cbor::MapGuard<'_, '_>) -> Result<u64, HirWireError> {
+        inner
+            .next_key()
+            .map_err(map_wire_error)?
+            .ok_or(HirWireError::Malformed("expression truncated"))
+    }
+    let result = match tag {
+        1 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("string literal field order"));
+            }
+            WireExpr::StringLiteral(inner.text().map_err(map_wire_error)?.to_owned())
+        }
+        2 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("integer literal field order"));
+            }
+            let tag_value = inner.unsigned().map_err(map_wire_error)?;
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("integer literal field order"));
+            }
+            let bits = inner.unsigned().map_err(map_wire_error)?;
+            WireExpr::IntegerLiteral {
+                tag: tag_value,
+                bits,
+            }
+        }
+        3 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("bool literal field order"));
+            }
+            WireExpr::BoolLiteral(inner.unsigned().map_err(map_wire_error)? != 0)
+        }
+        4 => WireExpr::UnitLiteral,
+        5 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("local field order"));
+            }
+            WireExpr::Local(inner.unsigned().map_err(map_wire_error)? as u32)
+        }
+        6 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("tuple field order"));
+            }
+            let elements = {
+                let mut entries = inner.array().map_err(map_wire_error)?;
+                let mut values = Vec::new();
+                for _ in 0..entries.count() {
+                    values.push(decode_wire_expr(&mut entries)?);
+                }
+                values
+            };
+            WireExpr::TupleLiteral(elements)
+        }
+        7 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("call field order"));
+            }
+            let bytes = inner.bytes().map_err(map_wire_error)?;
+            let callee: [u8; 32] = bytes
+                .try_into()
+                .map_err(|_| HirWireError::Malformed("callee id must be 32 bytes"))?;
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("call field order"));
+            }
+            let generic = inner.unsigned().map_err(map_wire_error)? != 0;
+            if next(&mut inner)? != 4 {
+                return Err(HirWireError::Malformed("call field order"));
+            }
+            let type_arguments = {
+                let mut type_entries = inner.array().map_err(map_wire_error)?;
+                let mut arguments = Vec::new();
+                for _ in 0..type_entries.count() {
+                    arguments.push(type_entries.unsigned().map_err(map_wire_error)? as u32);
+                }
+                arguments
+            };
+            if next(&mut inner)? != 5 {
+                return Err(HirWireError::Malformed("call field order"));
+            }
+            let arguments = {
+                let mut entries = inner.array().map_err(map_wire_error)?;
+                let mut values = Vec::new();
+                for _ in 0..entries.count() {
+                    values.push(decode_wire_expr(&mut entries)?);
+                }
+                values
+            };
+            WireExpr::Call {
+                callee,
+                generic,
+                type_arguments,
+                arguments,
+            }
+        }
+        8 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("method call field order"));
+            }
+            let receiver = Box::new(decode_wire_expr(&mut inner)?);
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("method call field order"));
+            }
+            let bytes = inner.bytes().map_err(map_wire_error)?;
+            let callee: [u8; 32] = bytes
+                .try_into()
+                .map_err(|_| HirWireError::Malformed("callee id must be 32 bytes"))?;
+            if next(&mut inner)? != 4 {
+                return Err(HirWireError::Malformed("method call field order"));
+            }
+            let callee_kind = inner.unsigned().map_err(map_wire_error)?;
+            if next(&mut inner)? != 5 {
+                return Err(HirWireError::Malformed("method call field order"));
+            }
+            let arguments = {
+                let mut entries = inner.array().map_err(map_wire_error)?;
+                let mut values = Vec::new();
+                for _ in 0..entries.count() {
+                    values.push(decode_wire_expr(&mut entries)?);
+                }
+                values
+            };
+            WireExpr::MethodCall {
+                receiver,
+                callee,
+                callee_kind,
+                arguments,
+            }
+        }
+        _ => return Err(HirWireError::UnknownKind(tag)),
+    };
+    Ok(result)
 }
 
 fn map_wire_error(error: scoop_identity::CborError) -> HirWireError {

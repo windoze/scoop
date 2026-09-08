@@ -278,3 +278,45 @@ fn surface_wire_survives_the_slib_envelope() {
     .expect("imports");
     assert!(!imported.definitions().is_empty());
 }
+
+#[test]
+fn generic_template_bodies_round_trip() {
+    let bytes = encoded_library();
+    let decoded = scoop_hir::wire::decode_surface_wire(&bytes).expect("decodes");
+    let imported = scoop_hir::wire::import_surface_wire(decoded).expect("imports");
+    assert!(!imported.bodies().is_empty(), "template bodies survive");
+    // Every body is anchored at a definition that exists and carries
+    // the template-support purpose.
+    for body in imported.bodies() {
+        let definition = imported
+            .definitions()
+            .get(body.definition as usize)
+            .expect("body definition in range");
+        assert_ne!(
+            definition.purposes.0 & scoop_hir::wire::WirePurposes::TEMPLATE_SUPPORT,
+            0,
+            "bodies anchor at template-support definitions"
+        );
+    }
+    // Statements decoded structurally (kernel tags all closed).
+    let statements: usize = imported
+        .bodies()
+        .iter()
+        .map(|body| body.statements.len())
+        .sum();
+    assert!(statements > 0);
+}
+
+#[test]
+fn corrupt_body_is_rejected() {
+    let bytes = encoded_library();
+    let mut decoded = scoop_hir::wire::decode_surface_wire(&bytes).expect("decodes");
+    decoded.bodies.push(scoop_hir::wire::WireBody {
+        definition: u32::MAX,
+        statements: Vec::new(),
+    });
+    assert!(matches!(
+        scoop_hir::wire::import_surface_wire(decoded),
+        Err(scoop_hir::wire::HirWireError::RootIndex(u32::MAX))
+    ));
+}
