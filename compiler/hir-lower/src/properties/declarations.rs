@@ -458,6 +458,7 @@ impl Lowerer {
             declaration,
             ty,
             access,
+            crate::imports::PropertyImportSource::OutsideCurrentUnitSurface,
         )
     }
 
@@ -467,6 +468,7 @@ impl Lowerer {
         declaration: &ast::PropertyDecl,
         ty: TypeId,
         access: hir::DeclarationAccess,
+        import_source: crate::imports::PropertyImportSource,
     ) -> Option<hir::ClassFieldId> {
         let backing = self.objects[owner].backing_class;
         self.allocate_reference_property(
@@ -475,6 +477,7 @@ impl Lowerer {
             declaration,
             ty,
             access,
+            import_source,
         )
     }
 
@@ -485,6 +488,7 @@ impl Lowerer {
         declaration: &ast::PropertyDecl,
         ty: TypeId,
         access: hir::DeclarationAccess,
+        import_source: crate::imports::PropertyImportSource,
     ) -> Option<hir::ClassFieldId> {
         self.reject_logical_property_annotations("a class property", &declaration.annotations);
         if declaration.receiver_ty.is_some() || !declaration.type_params.is_empty() {
@@ -630,6 +634,7 @@ impl Lowerer {
         });
         assert_eq!(property, expected_property);
         self.classes[backing_class].properties.push(property);
+        self.imports.bind_property(import_source, property);
         field
     }
 

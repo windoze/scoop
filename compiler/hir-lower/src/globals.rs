@@ -19,6 +19,7 @@ mod static_initializers;
 pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};
 
 struct PendingConst<'a> {
+    import_source: crate::imports::PropertyImportSource,
     declaration: &'a ast::PropertyDecl,
     file: usize,
     access: hir::DeclarationAccess,
@@ -27,6 +28,7 @@ struct PendingConst<'a> {
 }
 
 struct PendingOrdinary<'a> {
+    import_source: crate::imports::PropertyImportSource,
     declaration: &'a ast::PropertyDecl,
     file: usize,
     access: hir::DeclarationAccess,
@@ -84,12 +86,13 @@ impl Lowerer {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
         let mut ordinary = Vec::new();
-        for &(decl, file_index) in pending {
+        for (declaration_index, &(decl, file_index)) in pending.iter().enumerate() {
+            let import_source = self.imports.global_property_source(declaration_index);
             self.current_file = file_index;
             let access =
                 self.top_level_access(decl.visibility, decl.name.span, "property", file_index);
             if decl.receiver_ty.is_some() {
-                self.declare_extension_property(decl, file_index, access);
+                self.declare_extension_property(decl, file_index, access, import_source);
                 continue;
             }
             let duplicate = self
@@ -165,6 +168,7 @@ impl Lowerer {
                     continue;
                 }
                 constants.push(PendingConst {
+                    import_source,
                     declaration: decl,
                     file: file_index,
                     access,
@@ -225,6 +229,7 @@ impl Lowerer {
                     false,
                 );
                 self.property_files.insert(property, file_index);
+                self.imports.bind_property(import_source, property);
                 continue;
             }
             let raw_storage = matches!(decl.body, ast::PropertyBodySyntax::ExternStorage)
@@ -273,6 +278,7 @@ impl Lowerer {
                     &decl.annotations,
                 );
                 ordinary.push(PendingOrdinary {
+                    import_source,
                     declaration: decl,
                     file: file_index,
                     access,
@@ -372,6 +378,7 @@ impl Lowerer {
                 false,
             );
             self.property_files.insert(property, file_index);
+            self.imports.bind_property(import_source, property);
             initializers.push((id, decl));
         }
 
@@ -423,14 +430,20 @@ impl Lowerer {
         for &(object, source, file) in objects {
             self.current_file = file;
             self.current_owner = Some(crate::Owner::Object(object));
-            for property in source.members().iter().filter_map(|member| match member {
-                ast::ClassMember::StoredProperty(property)
-                    if matches!(property.body, ast::PropertyBodySyntax::Const(_)) =>
-                {
-                    Some(property)
-                }
-                _ => None,
-            }) {
+            for (member_index, property) in
+                source
+                    .members()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, member)| match member {
+                        ast::ClassMember::StoredProperty(property)
+                            if matches!(property.body, ast::PropertyBodySyntax::Const(_)) =>
+                        {
+                            Some((index, property))
+                        }
+                        _ => None,
+                    })
+            {
                 let access = self.member_access(
                     property.visibility,
                     property.name.span,
@@ -488,6 +501,11 @@ impl Lowerer {
                     continue;
                 }
                 constants.push(PendingConst {
+                    import_source: self.imports.object_property_source(
+                        object,
+                        member_index,
+                        self.source_is_core(file),
+                    ),
                     declaration: property,
                     file,
                     access,
@@ -599,6 +617,8 @@ impl Lowerer {
             false,
         );
         self.property_files.insert(property, declaration.file);
+        self.imports
+            .bind_property(declaration.import_source, property);
     }
 
     fn allocate_runtime_top_level_property(
@@ -681,6 +701,8 @@ impl Lowerer {
             false,
         );
         self.property_files.insert(property, declaration.file);
+        self.imports
+            .bind_property(declaration.import_source, property);
         self.pending_runtime_initializers
             .push(PendingRuntimeInitializer {
                 unit,
@@ -1004,6 +1026,7 @@ impl Lowerer {
         declaration: &ast::PropertyDecl,
         file_index: usize,
         access: hir::DeclarationAccess,
+        import_source: crate::imports::PropertyImportSource,
     ) {
         if declaration.modifier != ast::MethodModifier::Final || declaration.is_override {
             self.error(
@@ -1123,6 +1146,7 @@ impl Lowerer {
             true,
         );
         self.property_files.insert(property, file_index);
+        self.imports.bind_property(import_source, property);
         let getter = match self.property_getters[capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,
             hir::PropertyAccessorImplementation::Storage

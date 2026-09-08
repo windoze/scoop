@@ -34,6 +34,8 @@ impl Lowerer {
             false,
         );
         self.property_files.insert(property, declaration.file);
+        self.imports
+            .bind_property(declaration.import_source, property);
     }
 
     pub(super) fn allocate_runtime_extension_delegate(

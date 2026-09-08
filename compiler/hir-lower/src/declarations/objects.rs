@@ -415,7 +415,7 @@ impl Lowerer {
         self.type_params_in_scope.clear();
         let mut names = std::collections::HashSet::new();
         let mut fields = Vec::new();
-        for member in source.members() {
+        for (member_index, member) in source.members().iter().enumerate() {
             let ast::ClassMember::StoredProperty(property) = member else {
                 if let ast::ClassMember::SecondaryConstructor(constructor) = member {
                     self.error(
@@ -462,7 +462,14 @@ impl Lowerer {
                 self.current_file,
                 slot_access,
             );
-            if let Some(field) = self.allocate_object_property(object, property, ty, access) {
+            let import_source = self.imports.object_property_source(
+                object,
+                member_index,
+                self.current_source_is_core(),
+            );
+            if let Some(field) =
+                self.allocate_object_property(object, property, ty, access, import_source)
+            {
                 fields.push(field);
             }
         }

@@ -89,6 +89,7 @@ impl Lowerer {
         });
 
         Lowerer {
+            imports: crate::imports::CurrentUnitImports::default(),
             source_contexts,
             types,
             function_types: Arena::new(),

@@ -139,6 +139,19 @@ impl Lowerer {
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
 
+        let errors_before_imports = self.diagnostics.len();
+        self.collect_and_resolve_imports(
+            files,
+            &pending_functions,
+            &pending_methods,
+            &pending_globals,
+            &pending_enums,
+            &pending_objects,
+        );
+        if self.diagnostics.len() != errors_before_imports {
+            return Err(self.diagnostics);
+        }
+
         // Alias targets may mention any declaration in the Cone, including a
         // later alias, `Option<T>` through nullable syntax, and the special
         // pointer families. Establish those source identities before the
@@ -347,6 +360,9 @@ impl Lowerer {
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
         self.resolve_globals(&pending_globals, &pending_objects);
+        if !self.finalize_import_targets() {
+            return Err(self.diagnostics);
+        }
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
         self.validate_extern_functions();

@@ -101,6 +101,8 @@ impl Lowerer {
                 _ => unreachable!("the const worklist contains only top-level and object values"),
             }
             self.property_files.insert(property, declaration.file);
+            self.imports
+                .bind_property(declaration.import_source, property);
         }
         self.current_owner = None;
     }

@@ -107,6 +107,7 @@ mod expr;
 mod ffi;
 mod generic_entities;
 mod globals;
+mod imports;
 mod lowering_context;
 mod model;
 mod namespace;
@@ -408,6 +409,7 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 #[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) source_contexts: Arena<hir::SourceContext>,
+    pub(crate) imports: imports::CurrentUnitImports,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,

@@ -182,7 +182,7 @@ impl Lowerer {
         }
     }
 
-    fn normalized_visibility(syntax: ast::VisibilitySyntax) -> hir::DeclaredVisibility {
+    pub(crate) fn normalized_visibility(syntax: ast::VisibilitySyntax) -> hir::DeclaredVisibility {
         match syntax {
             ast::VisibilitySyntax::Explicit { visibility, .. } => match visibility {
                 ast::DeclaredVisibility::Public => hir::DeclaredVisibility::Public,
@@ -194,7 +194,7 @@ impl Lowerer {
         }
     }
 
-    fn top_level_domain(
+    pub(crate) fn top_level_domain(
         &self,
         visibility: hir::DeclaredVisibility,
         file: usize,
@@ -293,7 +293,7 @@ impl Lowerer {
         }
     }
 
-    fn owner_lookup_domain(&self, owner: Owner) -> &hir::AccessDomain {
+    pub(crate) fn owner_lookup_domain(&self, owner: Owner) -> &hir::AccessDomain {
         match owner {
             Owner::Class(id) => &self.classes[id].access.lookup.0,
             Owner::Interface(id) => &self.interfaces[id].access.lookup.0,
@@ -303,7 +303,7 @@ impl Lowerer {
         }
     }
 
-    fn member_declared_domain(
+    pub(crate) fn member_declared_domain(
         &self,
         visibility: hir::DeclaredVisibility,
         owner: Owner,

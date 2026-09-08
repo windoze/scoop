@@ -14,8 +14,8 @@ pub(crate) type SourceTypeAliasId = Idx<SourceTypeAlias>;
 pub(crate) struct SourceTypeAlias {
     name: String,
     target: ast::TypeRef,
-    access: hir::DeclarationAccess,
-    origin: hir::DefinitionOrigin,
+    pub(crate) access: hir::DeclarationAccess,
+    pub(crate) origin: hir::DefinitionOrigin,
     file: usize,
     resolution: TypeAliasResolution,
 }

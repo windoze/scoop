@@ -128,6 +128,20 @@ impl Default for TopLevelNamespaces {
 }
 
 impl TopLevelNamespaces {
+    pub(crate) fn current_type_bindings(
+        &self,
+    ) -> Vec<(PackageId, String, TopLevelTypeTarget, usize)> {
+        self.current
+            .iter()
+            .flat_map(|(&package, namespace)| {
+                namespace.types.iter().flat_map(move |(name, bindings)| {
+                    bindings
+                        .iter()
+                        .map(move |binding| (package, name.clone(), binding.target, binding.file))
+                })
+            })
+            .collect()
+    }
     pub(crate) const fn root_package() -> PackageId {
         PackageId(0)
     }
