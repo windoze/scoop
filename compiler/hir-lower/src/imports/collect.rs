@@ -286,6 +286,19 @@ impl Lowerer {
                     enumeration,
                     index: u32::try_from(index).expect("variant index exceeds u32"),
                 });
+                assert!(
+                    surface
+                        .enum_variant_sources
+                        .insert(
+                            (
+                                enumeration,
+                                u32::try_from(index).expect("variant index exceeds u32"),
+                            ),
+                            id,
+                        )
+                        .is_none(),
+                    "a source enum position identifies exactly one variant"
+                );
                 surface.insert(
                     ResolvedNamespace::Static(StaticNamespace::Enum(enumeration)),
                     CurrentUnitBinding {
@@ -335,37 +348,124 @@ impl Lowerer {
         self.imports = surface;
     }
 
-    /// Resolve source-only property/variant ids before any successful body
-    /// lookup can consume the frozen import membership.
-    pub(crate) fn finalize_import_targets(&mut self) -> bool {
-        let complete = self.imports.resolved_properties.len() == self.imports.source_property_count
-            && self.imports.source_variants.iter().all(|source| {
-                hir::EnumVariantRef::checked(&self.enums, source.enumeration, source.index)
-                    .is_some()
-            });
-        if !complete {
+    /// Resolve source-only property/variant ids before body lookup consumes
+    /// the frozen import membership. A declaration which already failed is
+    /// removed from every semantic scope, while a separate typed suppression
+    /// origin keeps that failed layer terminal during diagnostic collection.
+    /// Thus an erroneous request can continue lowering independent bodies
+    /// without either exposing a partial target or falling through to a
+    /// lower-priority declaration.
+    pub(crate) fn finalize_import_targets(&mut self) {
+        let unresolved = self
+            .imports
+            .bindings
+            .iter()
+            .enumerate()
+            .filter_map(|(index, binding)| {
+                let unresolved = match binding.target {
+                    CurrentUnitTarget::SourceProperty(id) => {
+                        !self.imports.resolved_properties.contains_key(&id)
+                    }
+                    CurrentUnitTarget::SourceVariant(id) => {
+                        !self.imports.resolved_variants.contains_key(&id)
+                    }
+                    _ => false,
+                };
+                unresolved.then_some(CurrentUnitBindingId(index))
+            })
+            .collect::<std::collections::HashSet<_>>();
+        if !unresolved.is_empty() {
             assert!(
                 !self.diagnostics.is_empty(),
                 "a successful declaration pass materializes the entire import surface"
             );
-            return false;
         }
+
         for binding in &mut self.imports.bindings {
             binding.target = match binding.target {
-                CurrentUnitTarget::SourceProperty(id) => {
-                    CurrentUnitTarget::Property(self.imports.resolved_properties[&id])
-                }
-                CurrentUnitTarget::SourceVariant(id) => {
-                    let source = &self.imports.source_variants[id.0];
-                    CurrentUnitTarget::EnumVariant(
-                        hir::EnumVariantRef::checked(&self.enums, source.enumeration, source.index)
-                            .expect("successful enum lowering retains every source variant"),
-                    )
-                }
+                CurrentUnitTarget::SourceProperty(id) => self
+                    .imports
+                    .resolved_properties
+                    .get(&id)
+                    .copied()
+                    .map(CurrentUnitTarget::Property)
+                    .unwrap_or(CurrentUnitTarget::SourceProperty(id)),
+                CurrentUnitTarget::SourceVariant(id) => self
+                    .imports
+                    .resolved_variants
+                    .get(&id)
+                    .copied()
+                    .map(CurrentUnitTarget::EnumVariant)
+                    .unwrap_or(CurrentUnitTarget::SourceVariant(id)),
                 target => target,
             };
         }
+
+        let mut namespace_suppressions = Vec::new();
+        for (namespace, members) in &mut self.imports.namespaces {
+            members.retain(|name, bindings| {
+                for binding in bindings.iter().copied() {
+                    if unresolved.contains(&binding) {
+                        namespace_suppressions.push((*namespace, name.clone(), binding));
+                    }
+                }
+                bindings.retain(|binding| !unresolved.contains(binding));
+                !bindings.is_empty()
+            });
+        }
+
+        let mut exact_suppressions = Vec::new();
+        let mut star_suppressions = Vec::new();
+        for (file, imports) in self.imports.files.iter_mut().enumerate() {
+            imports.exact.retain(|import| {
+                let mut failed = false;
+                for target in import.targets.iter() {
+                    if unresolved.contains(&target.binding) {
+                        exact_suppressions.push((file, import.local_name.clone(), target.binding));
+                        failed = true;
+                    }
+                }
+                !failed
+            });
+            for import in &mut imports.stars {
+                import.snapshot.retain(|name, targets| {
+                    let mut failed = false;
+                    for target in targets.iter() {
+                        if unresolved.contains(&target.binding) {
+                            star_suppressions.push((file, name.clone(), target.binding));
+                            failed = true;
+                        }
+                    }
+                    !failed
+                });
+            }
+        }
+
+        for (namespace, name, binding) in namespace_suppressions {
+            self.imports.diagnostic_suppressions.insert(
+                SuppressedValueScope::Namespace(namespace),
+                name,
+                binding,
+            );
+        }
+        for (file, name, binding) in exact_suppressions {
+            self.imports.diagnostic_suppressions.insert(
+                SuppressedValueScope::Exact { file },
+                name,
+                binding,
+            );
+        }
+        for (file, name, binding) in star_suppressions {
+            self.imports.diagnostic_suppressions.insert(
+                SuppressedValueScope::Star { file },
+                name,
+                binding,
+            );
+        }
+
+        self.imports
+            .source_extension_properties
+            .retain(|source| self.imports.resolved_properties.contains_key(source));
         self.imports.validate_frozen_scopes(self);
-        true
     }
 }

@@ -244,6 +244,36 @@ impl CurrentUnitImports {
     }
 
     pub(super) fn validate_frozen_scopes(&self, lowerer: &Lowerer) {
+        let check_materialized = |binding: CurrentUnitBindingId| {
+            assert!(
+                !matches!(
+                    self.binding(binding).target,
+                    CurrentUnitTarget::SourceProperty(_) | CurrentUnitTarget::SourceVariant(_)
+                ),
+                "a body lookup scope has a complete declaration target"
+            );
+        };
+        for bindings in self
+            .namespaces
+            .values()
+            .flat_map(|members| members.values())
+        {
+            for binding in bindings {
+                check_materialized(*binding);
+            }
+        }
+        for bindings in self.diagnostic_suppressions.unmaterialized_values.values() {
+            for binding in bindings {
+                assert!(
+                    matches!(
+                        self.binding(*binding).target,
+                        CurrentUnitTarget::SourceProperty(_) | CurrentUnitTarget::SourceVariant(_)
+                    ),
+                    "diagnostic suppression retains only an unmaterialized source origin"
+                );
+            }
+        }
+
         for (file, imports) in self.files.iter().enumerate() {
             let TopLevelLookupLayer::CurrentPackage(package) =
                 lowerer.top_level_namespaces.source_namespace(file)
@@ -254,13 +284,7 @@ impl CurrentUnitImports {
             let site = lowerer.visibility_file(file);
             let check_target = |target: &ImportedBinding| {
                 let binding = self.binding(target.binding);
-                assert!(
-                    !matches!(
-                        binding.target,
-                        CurrentUnitTarget::SourceProperty(_) | CurrentUnitTarget::SourceVariant(_)
-                    ),
-                    "a frozen body import has a complete declaration target"
-                );
+                check_materialized(target.binding);
                 for source in target.sources.iter() {
                     assert_eq!(source.source_binding, target.binding);
                     assert_eq!(source.site, site);

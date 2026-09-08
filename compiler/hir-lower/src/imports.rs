@@ -115,6 +115,51 @@ pub(crate) enum ImportLookupLayer {
 pub(crate) struct ImportCandidateLayer {
     pub(crate) kind: ImportLookupLayer,
     pub(crate) bindings: Vec<CurrentUnitBindingId>,
+    /// Declaration-side values which occupied this layer but could not be
+    /// materialized because that declaration was already diagnosed. Body
+    /// lookup uses these typed origins only to prevent fallthrough; they are
+    /// never exposed as semantic candidates or written to HIR.
+    pub(crate) suppressed_values: Vec<CurrentUnitBindingId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum SuppressedValueScope {
+    Exact { file: usize },
+    Namespace(ResolvedNamespace),
+    Star { file: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SuppressedValueLookup {
+    scope: SuppressedValueScope,
+    name: String,
+}
+
+#[derive(Clone, Default)]
+struct ImportDiagnosticSuppressions {
+    unmaterialized_values: HashMap<SuppressedValueLookup, Vec<CurrentUnitBindingId>>,
+}
+
+impl ImportDiagnosticSuppressions {
+    fn insert(&mut self, scope: SuppressedValueScope, name: String, binding: CurrentUnitBindingId) {
+        let bindings = self
+            .unmaterialized_values
+            .entry(SuppressedValueLookup { scope, name })
+            .or_default();
+        if !bindings.contains(&binding) {
+            bindings.push(binding);
+        }
+    }
+
+    fn get(&self, scope: SuppressedValueScope, name: &str) -> Vec<CurrentUnitBindingId> {
+        self.unmaterialized_values
+            .get(&SuppressedValueLookup {
+                scope,
+                name: name.to_string(),
+            })
+            .cloned()
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -146,7 +191,10 @@ pub(crate) struct CurrentUnitImports {
     object_property_sources: HashMap<(hir::ObjectId, usize), SourcePropertyId>,
     resolved_properties: HashMap<SourcePropertyId, hir::PropertyId>,
     source_variants: Vec<SourceVariant>,
+    enum_variant_sources: HashMap<(hir::EnumId, u32), SourceVariantId>,
+    resolved_variants: HashMap<SourceVariantId, hir::EnumVariantRef>,
     pub(crate) files: Vec<FrozenFileImports>,
+    diagnostic_suppressions: ImportDiagnosticSuppressions,
 }
 
 impl CurrentUnitImports {
@@ -179,6 +227,30 @@ impl CurrentUnitImports {
             );
         }
     }
+
+    pub(crate) fn bind_variant(
+        &mut self,
+        enumeration: hir::EnumId,
+        source_index: u32,
+        target: hir::EnumVariantRef,
+    ) {
+        let Some(&source) = self.enum_variant_sources.get(&(enumeration, source_index)) else {
+            return;
+        };
+        let declaration = &self.source_variants[source.0];
+        assert_eq!(declaration.enumeration, enumeration);
+        assert_eq!(declaration.index, source_index);
+        assert_eq!(
+            target.enumeration(),
+            enumeration,
+            "a resolved variant retains its source enum owner"
+        );
+        assert!(
+            self.resolved_variants.insert(source, target).is_none(),
+            "a source variant is resolved exactly once"
+        );
+    }
+
     pub(crate) fn binding(&self, id: CurrentUnitBindingId) -> &CurrentUnitBinding {
         &self.bindings[id.0]
     }
@@ -231,6 +303,9 @@ impl CurrentUnitImports {
                         .filter(|import| import.local_name == name)
                         .flat_map(|import| import.targets.iter().map(|target| target.binding)),
                 ),
+                suppressed_values: self
+                    .diagnostic_suppressions
+                    .get(SuppressedValueScope::Exact { file }, name),
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CurrentPackage(package),
@@ -241,6 +316,10 @@ impl CurrentUnitImports {
                         .into_iter()
                         .flatten()
                         .copied(),
+                ),
+                suppressed_values: self.diagnostic_suppressions.get(
+                    SuppressedValueScope::Namespace(ResolvedNamespace::Package(package)),
+                    name,
                 ),
             },
             ImportCandidateLayer {
@@ -253,10 +332,14 @@ impl CurrentUnitImports {
                         .flat_map(ast::NonEmptyVec::iter)
                         .map(|target| target.binding)
                 })),
+                suppressed_values: self
+                    .diagnostic_suppressions
+                    .get(SuppressedValueScope::Star { file }, name),
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CorePrelude,
                 bindings: Vec::new(),
+                suppressed_values: Vec::new(),
             },
         ]
     }

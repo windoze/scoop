@@ -1,6 +1,9 @@
 //! Typed, visibility-filtered lookup layers shared by semantic consumers.
 
-use super::{CurrentUnitBindingId, CurrentUnitTarget, ImportLookupLayer, ResolvedNamespace};
+use super::{
+    CurrentUnitBindingId, CurrentUnitTarget, ImportCandidateLayer, ImportLookupLayer,
+    ResolvedNamespace,
+};
 use crate::{
     Lowerer, NominalTarget,
     namespace::{PackageId, TopLevelLookupLayer, TopLevelTypeTarget},
@@ -58,6 +61,26 @@ impl CurrentUnitTarget {
 }
 
 impl Lowerer {
+    /// Body lookup may continue after an unrelated declaration error, but an
+    /// unmaterialized value in a higher-priority layer must not expose a
+    /// lower-priority declaration. The failed origins remain lowerer-local
+    /// diagnostic state and are never returned as semantic candidates.
+    fn expression_import_layers(
+        &self,
+        package: PackageId,
+        name: &str,
+    ) -> Vec<ImportCandidateLayer> {
+        let mut layers = self.imports.layers(self.current_file, package, name);
+        if let Some(index) = layers.iter().position(|layer| {
+            layer.suppressed_values.iter().any(|binding| {
+                self.access_domain_allows(&self.imports.binding(*binding).access.0, None)
+            })
+        }) {
+            layers.truncate(index + 1);
+        }
+        layers
+    }
+
     fn imported_type_candidates(
         &self,
         bindings: impl IntoIterator<Item = CurrentUnitBindingId>,

@@ -383,9 +383,7 @@ impl Lowerer {
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
         self.resolve_globals(&pending_globals, &pending_objects);
-        if !self.finalize_import_targets() {
-            return Err(self.diagnostics);
-        }
+        self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
         self.validate_extern_functions();

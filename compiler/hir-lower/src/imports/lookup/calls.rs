@@ -211,8 +211,7 @@ impl Lowerer {
         {
             TopLevelLookupLayer::CorePrelude => vec![core()],
             TopLevelLookupLayer::CurrentPackage(package) => self
-                .imports
-                .layers(self.current_file, package, &name.text)
+                .expression_import_layers(package, &name.text)
                 .into_iter()
                 .map(|layer| {
                     if layer.kind == ImportLookupLayer::CorePrelude {
@@ -587,8 +586,7 @@ impl Lowerer {
         {
             TopLevelLookupLayer::CorePrelude => vec![core()],
             TopLevelLookupLayer::CurrentPackage(package) => self
-                .imports
-                .layers(self.current_file, package, name)
+                .expression_import_layers(package, name)
                 .into_iter()
                 .map(|layer| {
                     if layer.kind == ImportLookupLayer::CorePrelude {

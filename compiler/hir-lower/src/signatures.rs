@@ -202,6 +202,7 @@ impl Lowerer {
         self.type_params_in_scope = self.enums[id].type_params.clone();
         let mut seen = HashSet::new();
         let mut variants = Vec::new();
+        let mut resolved_source_indices = Vec::new();
         for (index, variant) in decl.variants.iter().enumerate() {
             if !seen.insert(variant.name.text.clone()) {
                 self.error(
@@ -222,15 +223,24 @@ impl Lowerer {
             let Some(resolved) = self.resolve_variant_fields(variant) else {
                 continue; // diagnostic already recorded
             };
-            self.variant_styles.insert((id, index as u32), style);
+            let source_index = u32::try_from(index).expect("source variant index exceeds u32");
+            let resolved_index =
+                u32::try_from(variants.len()).expect("resolved variant index exceeds u32");
+            self.variant_styles.insert((id, resolved_index), style);
             self.variant_parameter_calling
-                .insert((id, index as u32), resolved.calling);
+                .insert((id, resolved_index), resolved.calling);
+            resolved_source_indices.push((source_index, resolved_index));
             variants.push(hir::Variant {
                 name: variant.name.text.clone(),
                 fields: resolved.fields,
             });
         }
         self.enums[id].variants = variants;
+        for (source_index, resolved_index) in resolved_source_indices {
+            let target = hir::EnumVariantRef::checked(&self.enums, id, resolved_index)
+                .expect("a resolved variant index belongs to its enum");
+            self.imports.bind_variant(id, source_index, target);
+        }
         let mut properties = HashSet::new();
         for property in &decl.properties {
             if !properties.insert(property.name.text.clone()) {

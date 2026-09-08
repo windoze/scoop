@@ -203,8 +203,7 @@ impl Lowerer {
         {
             TopLevelLookupLayer::CorePrelude => vec![core()],
             TopLevelLookupLayer::CurrentPackage(package) => self
-                .imports
-                .layers(self.current_file, package, name)
+                .expression_import_layers(package, name)
                 .into_iter()
                 .map(|layer| {
                     if layer.kind == ImportLookupLayer::CorePrelude {
@@ -274,12 +273,7 @@ impl Lowerer {
                     ValueTarget::Property(*self.imports.resolved_properties.get(&id)?)
                 }
                 CurrentUnitTarget::SourceVariant(id) => {
-                    let source = &self.imports.source_variants[id.0];
-                    ValueTarget::Variant(hir::EnumVariantRef::checked(
-                        &self.enums,
-                        source.enumeration,
-                        source.index,
-                    )?)
+                    ValueTarget::Variant(*self.imports.resolved_variants.get(&id)?)
                 }
                 _ => unreachable!("value origin was selected from the value surface"),
             },
