@@ -475,6 +475,40 @@ fn filtered_exact_member_does_not_hide_current_top_level_reference() {
 }
 
 #[test]
+fn rejected_exact_object_members_do_not_hide_a_star_top_level_reference() {
+    let Decl::Object(mut tools) = object_with_method("Tools", "choose", 1) else {
+        panic!("object helper creates an object")
+    };
+    tools.members.push(ast::ClassMember::Function(method_expr(
+        "choose",
+        vec![("other", ty_named("Int"))],
+        Some(ty_named("Int")),
+        int_lit(2),
+    )));
+    let exact_source = package(file(vec![Decl::Object(tools)]), "api");
+    let star_source = package(file(vec![candidate("choose", "String", 7)]), "starlib");
+    let mut user = consumer("choose", None, vec![ty_named("Boolean")]);
+    user.imports = vec![
+        exact_path(&["api", "Tools", "choose"], Some("choose")),
+        star("starlib"),
+    ];
+
+    let errors = lower_sources(vec![exact_source, star_source, user], core_file())
+        .expect_err("the object methods are duplicate");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "function `choose` in object `Tools` is already declared with the same signature"
+    }));
+    assert!(
+        errors.iter().any(|error| {
+            error.message.contains("callable reference `::choose`")
+                && error.message.contains("fun choose(value: String): Int")
+        }),
+        "the filtered member role must leave the star reference visible: {errors:?}"
+    );
+}
+
+#[test]
 fn native_reference_ignores_exact_member_and_selects_current_top_level() {
     let library = package(
         file(vec![object_with_method("Tools", "callback", 1)]),

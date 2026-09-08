@@ -80,6 +80,10 @@ impl Lowerer {
         receiver: NamedCallReceiver,
         call: OverloadCall<'_>,
     ) -> Result<NamedCallableProbe, Box<Lowerer>> {
+        assert!(
+            !self.declaration_surface.rejects_function(target.function),
+            "rejected declarations never enter named callable probing"
+        );
         let arguments = OverloadArguments::Source(call.arg_exprs);
         let extension = matches!(receiver, NamedCallReceiver::Extension(_));
         let prepared = self.prepare_overload_candidate(

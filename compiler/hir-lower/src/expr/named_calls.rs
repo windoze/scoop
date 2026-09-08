@@ -130,6 +130,7 @@ impl Lowerer {
                     crate::overload::OverloadResolutionOutcome::NoApplicable => {
                         first_failure.get_or_insert(Box::new(state));
                     }
+                    crate::overload::OverloadResolutionOutcome::Blocked => return None,
                     crate::overload::OverloadResolutionOutcome::Failed => {
                         self.commit_layer_diagnostics(state);
                         return None;
@@ -349,6 +350,12 @@ impl Lowerer {
             {
                 return Some(expression);
             }
+            if !layer.suppressed_callables.is_empty() {
+                if let Some(failure) = first_failure {
+                    self.commit_layer_diagnostics(*failure);
+                }
+                return None;
+            }
         }
         self.finish_named_call_fallback(
             call,
@@ -431,6 +438,7 @@ impl Lowerer {
             PropertyExtensionInvokeOutcome::Resolved(layer) => {
                 Ok(Some(self.commit_expr_layer(layer, sink)))
             }
+            PropertyExtensionInvokeOutcome::Blocked => Err(()),
             PropertyExtensionInvokeOutcome::Failed(failure) => {
                 self.commit_layer_diagnostics(*failure);
                 Err(())

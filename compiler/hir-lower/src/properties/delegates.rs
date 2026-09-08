@@ -413,6 +413,7 @@ impl Lowerer {
                     self.commit_layer_diagnostics(state);
                     return DelegateRoleCall::Failed;
                 }
+                OverloadResolutionOutcome::Blocked => return DelegateRoleCall::Failed,
                 OverloadResolutionOutcome::NoApplicable => {}
             }
         }
@@ -453,6 +454,7 @@ impl Lowerer {
                     self.commit_layer_diagnostics(state);
                     return DelegateRoleCall::Failed;
                 }
+                OverloadResolutionOutcome::Blocked => return DelegateRoleCall::Failed,
                 OverloadResolutionOutcome::NoApplicable => {}
             }
         }

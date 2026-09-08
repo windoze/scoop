@@ -115,6 +115,9 @@ pub(crate) enum ImportLookupLayer {
 pub(crate) struct ImportCandidateLayer {
     pub(crate) kind: ImportLookupLayer,
     pub(crate) bindings: Vec<CurrentUnitBindingId>,
+    /// Duplicate-signature functions which occupy this lookup layer but are
+    /// forbidden from becoming semantic candidates.
+    pub(crate) suppressed_callables: Vec<hir::FunctionId>,
     /// Declaration-side values which occupied this layer but could not be
     /// materialized because that declaration was already diagnosed. Body
     /// lookup uses these typed origins only to prevent fallthrough; they are
@@ -303,6 +306,7 @@ impl CurrentUnitImports {
                         .filter(|import| import.local_name == name)
                         .flat_map(|import| import.targets.iter().map(|target| target.binding)),
                 ),
+                suppressed_callables: Vec::new(),
                 suppressed_values: self
                     .diagnostic_suppressions
                     .get(SuppressedValueScope::Exact { file }, name),
@@ -317,6 +321,7 @@ impl CurrentUnitImports {
                         .flatten()
                         .copied(),
                 ),
+                suppressed_callables: Vec::new(),
                 suppressed_values: self.diagnostic_suppressions.get(
                     SuppressedValueScope::Namespace(ResolvedNamespace::Package(package)),
                     name,
@@ -332,6 +337,7 @@ impl CurrentUnitImports {
                         .flat_map(ast::NonEmptyVec::iter)
                         .map(|target| target.binding)
                 })),
+                suppressed_callables: Vec::new(),
                 suppressed_values: self
                     .diagnostic_suppressions
                     .get(SuppressedValueScope::Star { file }, name),
@@ -339,6 +345,7 @@ impl CurrentUnitImports {
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CorePrelude,
                 bindings: Vec::new(),
+                suppressed_callables: Vec::new(),
                 suppressed_values: Vec::new(),
             },
         ]

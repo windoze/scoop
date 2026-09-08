@@ -119,6 +119,7 @@ impl Lowerer {
         name: &str,
     ) -> Vec<ExpressionQualifierCandidate> {
         self.core_named_call_targets(name)
+            .0
             .into_iter()
             .map(|target| match target {
                 NamedCallTarget::Type(target) => ExpressionQualifierCandidate::Type(target),
@@ -201,9 +202,13 @@ impl Lowerer {
         &self,
         name: &ast::Ident,
     ) -> ExpressionQualifierLookup {
-        let core = || LookupLayer {
-            kind: ImportLookupLayer::CorePrelude,
-            candidates: self.core_expression_qualifier_candidates(&name.text),
+        let core = || {
+            let (_, suppressed_callables) = self.core_named_callable_partition(&name.text);
+            LookupLayer {
+                kind: ImportLookupLayer::CorePrelude,
+                suppressed_callables,
+                candidates: self.core_expression_qualifier_candidates(&name.text),
+            }
         };
         let layers = match self
             .top_level_namespaces
@@ -219,6 +224,7 @@ impl Lowerer {
                     } else {
                         LookupLayer {
                             kind: layer.kind,
+                            suppressed_callables: layer.suppressed_callables,
                             candidates: layer
                                 .bindings
                                 .into_iter()
@@ -274,6 +280,9 @@ impl Lowerer {
             }
             let extension_blocks =
                 self.expression_qualifier_extension_layer_blocks(name, &extensions);
+            if !layer.suppressed_callables.is_empty() {
+                return ExpressionQualifierLookup::Value;
+            }
             if !values.is_empty() {
                 if extension_blocks {
                     return ExpressionQualifierLookup::Value;
@@ -370,6 +379,7 @@ impl Lowerer {
                 .filter(|layer| layer.kind == TopLevelLookupLayer::CorePrelude)
                 .flat_map(|layer| layer.candidates)
                 .collect(),
+            suppressed_callables: Vec::new(),
         };
         let mut layers = Vec::new();
         if let TopLevelLookupLayer::CurrentPackage(package) = self
@@ -420,7 +430,11 @@ impl Lowerer {
                         .then_some(function)
                     })
                     .collect();
-                layers.push(LookupLayer { kind, candidates });
+                layers.push(LookupLayer {
+                    kind,
+                    candidates,
+                    suppressed_callables: Vec::new(),
+                });
             }
         }
         layers.push(core);
@@ -500,13 +514,23 @@ impl Lowerer {
         }
     }
 
-    fn core_named_call_targets(&self, name: &str) -> Vec<NamedCallTarget> {
-        let mut targets = self
-            .top_level_namespaces
+    pub(super) fn core_named_callable_partition(
+        &self,
+        name: &str,
+    ) -> (Vec<hir::FunctionId>, Vec<hir::FunctionId>) {
+        self.top_level_namespaces
             .named_callable_layers(self.current_file, name)
             .into_iter()
             .filter(|layer| layer.kind == TopLevelLookupLayer::CorePrelude)
             .flat_map(|layer| layer.candidates)
+            .filter(|function| self.function_is_accessible(*function, None))
+            .partition(|function| !self.declaration_surface.rejects_function(*function))
+    }
+
+    fn core_named_call_targets(&self, name: &str) -> (Vec<NamedCallTarget>, Vec<hir::FunctionId>) {
+        let (functions, suppressed_callables) = self.core_named_callable_partition(name);
+        let mut targets = functions
+            .into_iter()
             .map(NamedCallTarget::Function)
             .collect::<Vec<_>>();
         targets.extend(
@@ -544,7 +568,7 @@ impl Lowerer {
                 .copied()
                 .map(|target| NamedCallTarget::Value(ValueTarget::Variant(target))),
         );
-        targets
+        (targets, suppressed_callables)
     }
 
     fn named_call_binding_accessible(&self, binding: NamedCallBinding) -> bool {
@@ -569,16 +593,19 @@ impl Lowerer {
     }
 
     pub(crate) fn named_call_layers(&self, name: &str) -> Vec<LookupLayer<NamedCallBinding>> {
-        let core = || LookupLayer {
-            kind: ImportLookupLayer::CorePrelude,
-            candidates: self
-                .core_named_call_targets(name)
-                .into_iter()
-                .map(|target| NamedCallBinding {
-                    target,
-                    origin: NamedCallOrigin::Core(target),
-                })
-                .collect(),
+        let core = || {
+            let (targets, suppressed_callables) = self.core_named_call_targets(name);
+            LookupLayer {
+                kind: ImportLookupLayer::CorePrelude,
+                suppressed_callables,
+                candidates: targets
+                    .into_iter()
+                    .map(|target| NamedCallBinding {
+                        target,
+                        origin: NamedCallOrigin::Core(target),
+                    })
+                    .collect(),
+            }
         };
         let layers = match self
             .top_level_namespaces
@@ -594,6 +621,7 @@ impl Lowerer {
                     } else {
                         LookupLayer {
                             kind: layer.kind,
+                            suppressed_callables: layer.suppressed_callables,
                             candidates: layer
                                 .bindings
                                 .into_iter()
@@ -623,6 +651,7 @@ impl Lowerer {
                 LookupLayer {
                     kind: layer.kind,
                     candidates,
+                    suppressed_callables: layer.suppressed_callables,
                 }
             })
             .collect()
@@ -632,10 +661,16 @@ impl Lowerer {
         &self,
         name: &str,
     ) -> Vec<LookupLayer<hir::FunctionId>> {
-        self.named_call_layers(name)
+        let mut layers = self
+            .named_call_layers(name)
             .into_iter()
             .map(|layer| LookupLayer {
                 kind: layer.kind,
+                suppressed_callables: layer
+                    .suppressed_callables
+                    .into_iter()
+                    .filter(|function| self.extension_receivers.contains_key(function))
+                    .collect(),
                 candidates: layer
                     .candidates
                     .into_iter()
@@ -649,7 +684,17 @@ impl Lowerer {
                     })
                     .collect(),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        if let Some(index) = layers
+            .iter()
+            .position(|layer| !layer.suppressed_callables.is_empty())
+        {
+            // Rejection is terminal only after the raw callable layer has
+            // been narrowed to the extension role. Keep the rejecting layer
+            // itself so valid peers in that same layer are still resolved.
+            layers.truncate(index + 1);
+        }
+        layers
     }
 
     /// The declaration candidates visible to an unqualified callable
@@ -664,6 +709,11 @@ impl Lowerer {
             .into_iter()
             .map(|layer| LookupLayer {
                 kind: layer.kind,
+                suppressed_callables: layer
+                    .suppressed_callables
+                    .into_iter()
+                    .filter(|function| !self.function_owner.contains_key(function))
+                    .collect(),
                 candidates: layer
                     .candidates
                     .into_iter()
@@ -686,6 +736,7 @@ impl Lowerer {
             .into_iter()
             .map(|layer| LookupLayer {
                 kind: layer.kind,
+                suppressed_callables: Vec::new(),
                 candidates: layer
                     .candidates
                     .into_iter()

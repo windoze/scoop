@@ -68,6 +68,7 @@ impl Lowerer {
                 sink,
             ) {
                 crate::overload::OverloadResolutionOutcome::NoApplicable => Ok(None),
+                crate::overload::OverloadResolutionOutcome::Blocked => Ok(None),
                 crate::overload::OverloadResolutionOutcome::Failed => Err(()),
                 crate::overload::OverloadResolutionOutcome::Resolved(resolved) => self
                     .finish_resolved_top_level_function_call(call, *resolved, sink)

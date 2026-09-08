@@ -132,6 +132,12 @@ impl Lowerer {
         candidate: &CallableCandidate,
         type_arguments: &[TypeId],
     ) -> hir::Callable {
+        assert!(
+            !self
+                .declaration_surface
+                .rejects_function(candidate.function),
+            "rejected declarations never materialize as HIR callables"
+        );
         match &candidate.owner {
             CallableCandidateOwner::Function { .. } => {
                 match self.functions[candidate.function].genericity {

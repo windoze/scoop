@@ -249,8 +249,11 @@ impl Lowerer {
             .methods_by_name(ty, "equals")
             .into_iter()
             .filter(|candidate| {
-                self.signatures[&candidate.function].modifiers.operator
-                    == Some(hir::OperatorKind::Equals)
+                !self
+                    .declaration_surface
+                    .rejects_function(candidate.function)
+                    && self.signatures[&candidate.function].modifiers.operator
+                        == Some(hir::OperatorKind::Equals)
             })
             .collect::<Vec<_>>();
         let mut applicable = Vec::new();

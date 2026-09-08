@@ -85,6 +85,22 @@ impl Lowerer {
         candidates: &[crate::CallableCandidate],
         context: ReferenceResolutionContext<'_>,
     ) -> ReferenceResolutionOutcome {
+        let suppressed = candidates.iter().any(|candidate| {
+            self.declaration_surface
+                .rejects_function(candidate.function)
+        });
+        let candidates = candidates
+            .iter()
+            .filter(|candidate| {
+                !self
+                    .declaration_surface
+                    .rejects_function(candidate.function)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if candidates.is_empty() && suppressed {
+            return ReferenceResolutionOutcome::Blocked;
+        }
         let ReferenceResolutionContext {
             expected,
             name,
@@ -97,7 +113,7 @@ impl Lowerer {
         for candidate in candidates {
             let mut state = self.clone();
             let function = candidate.function;
-            let owner_type_args = state.callable_candidate_owner_arguments(candidate);
+            let owner_type_args = state.callable_candidate_owner_arguments(&candidate);
             let extension_receiver = state.extension_receivers.get(&function).copied();
             let bound_receiver = match extension_mode {
                 ReferenceExtensionMode::Exclude if extension_receiver.is_some() => continue,
@@ -105,7 +121,7 @@ impl Lowerer {
                 ReferenceExtensionMode::Bound(receiver) => Some(receiver),
                 ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
             };
-            let view = state.callable_view(candidate, extension_receiver.is_some());
+            let view = state.callable_view(&candidate, extension_receiver.is_some());
             if view.owner_parameters.len() != owner_type_args.len() {
                 failures.push(ReferenceFailure {
                     state: Box::new(state),
@@ -191,7 +207,11 @@ impl Lowerer {
         let selected = match applicable.len() {
             0 => {
                 self.reference_failures_diagnostic(name, display, &failures, span);
-                return ReferenceResolutionOutcome::NoApplicable;
+                return if suppressed {
+                    ReferenceResolutionOutcome::Failed
+                } else {
+                    ReferenceResolutionOutcome::NoApplicable
+                };
             }
             1 => 0,
             _ if expected.is_none() => {
@@ -364,7 +384,7 @@ impl Lowerer {
                 layer.candidates.sort_by_key(|id| id.into_raw().into_u32());
                 layer
             })
-            .filter(|layer| !layer.candidates.is_empty())
+            .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
             .collect()
     }
 }

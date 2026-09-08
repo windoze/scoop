@@ -28,6 +28,9 @@ pub(crate) enum ValueOrigin {
     },
     Core(ValueTarget),
     CoreNonValue(NonValueTarget),
+    /// A duplicate-signature declaration owns this value spelling but cannot
+    /// be exposed as a semantic value/callable candidate.
+    RejectedFunction(hir::FunctionId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,7 +64,9 @@ impl Lowerer {
             ValueOrigin::NonValue { target, .. } | ValueOrigin::CoreNonValue(target) => {
                 Some(target)
             }
-            _ => None,
+            ValueOrigin::CurrentUnit(_)
+            | ValueOrigin::Core(_)
+            | ValueOrigin::RejectedFunction(_) => None,
         }
     }
     fn value_binding_origin(&self, binding: CurrentUnitBindingId) -> ValueOrigin {
@@ -140,12 +145,10 @@ impl Lowerer {
                     target => ValueOrigin::CoreNonValue(NonValueTarget::Type(target)),
                 }),
         );
+        let (functions, _) = self.core_named_callable_partition(name);
         result.extend(
-            self.top_level_namespaces
-                .named_callable_layers(self.current_file, name)
+            functions
                 .into_iter()
-                .filter(|layer| layer.kind == TopLevelLookupLayer::CorePrelude)
-                .flat_map(|layer| layer.candidates)
                 .map(|id| ValueOrigin::CoreNonValue(NonValueTarget::Function(id))),
         );
         result.extend(
@@ -166,6 +169,9 @@ impl Lowerer {
     }
 
     fn value_origin_accessible(&self, origin: ValueOrigin) -> bool {
+        if matches!(origin, ValueOrigin::RejectedFunction(_)) {
+            return true;
+        }
         if let ValueOrigin::CoreNonValue(target) = origin {
             return match target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
@@ -187,15 +193,22 @@ impl Lowerer {
             ValueOrigin::Core(ValueTarget::Variant(target)) => {
                 &self.enums[target.enumeration()].access.lookup.0
             }
+            ValueOrigin::RejectedFunction(_) => {
+                unreachable!("rejected-function blockers are accessible by construction")
+            }
             ValueOrigin::CoreNonValue(_) => unreachable!("core blocker access was checked above"),
         };
         self.access_domain_allows(domain, None)
     }
 
     pub(crate) fn lookup_value_origin(&self, name: &str) -> LookupResult<ValueOrigin> {
-        let core = || LookupLayer {
-            kind: ImportLookupLayer::CorePrelude,
-            candidates: self.core_value_candidates(name),
+        let core = || {
+            let (_, suppressed_callables) = self.core_named_callable_partition(name);
+            LookupLayer {
+                kind: ImportLookupLayer::CorePrelude,
+                suppressed_callables,
+                candidates: self.core_value_candidates(name),
+            }
         };
         let layers = match self
             .top_level_namespaces
@@ -211,6 +224,7 @@ impl Lowerer {
                     } else {
                         LookupLayer {
                             kind: layer.kind,
+                            suppressed_callables: layer.suppressed_callables,
                             candidates: layer
                                 .bindings
                                 .into_iter()
@@ -234,11 +248,13 @@ impl Lowerer {
                     candidates.push(origin);
                 }
             }
-            if visible
+            let has_value = visible
                 .iter()
-                .any(|origin| Self::non_value_origin(*origin).is_none())
-            {
+                .any(|origin| Self::non_value_origin(*origin).is_none());
+            if has_value {
                 visible.retain(|origin| Self::non_value_origin(*origin).is_none());
+            } else if let Some(&function) = layer.suppressed_callables.first() {
+                return LookupResult::Unique(ValueOrigin::RejectedFunction(function));
             }
             match visible.as_slice() {
                 [] => {}
@@ -264,6 +280,7 @@ impl Lowerer {
     pub(crate) fn materialized_value_target(&self, origin: ValueOrigin) -> Option<ValueTarget> {
         Some(match origin {
             ValueOrigin::NonValue { .. } | ValueOrigin::CoreNonValue(_) => return None,
+            ValueOrigin::RejectedFunction(_) => return None,
             ValueOrigin::Core(target) => target,
             ValueOrigin::CurrentUnit(id) => match self.imports.binding(id).target {
                 CurrentUnitTarget::Property(id) => ValueTarget::Property(id),
@@ -310,6 +327,9 @@ impl Lowerer {
                 self.enum_files[&target.enumeration()],
                 self.enums[target.enumeration()].span,
             ),
+            ValueOrigin::RejectedFunction(id) => {
+                (self.function_files[&id], self.functions[id].span)
+            }
         }
     }
 
@@ -331,6 +351,7 @@ impl Lowerer {
     ) -> Result<Option<ValueOrigin>, ()> {
         let (message, candidates) = match self.lookup_value_origin(&name.text) {
             LookupResult::Missing => return Ok(None),
+            LookupResult::Unique(ValueOrigin::RejectedFunction(_)) => return Err(()),
             LookupResult::Unique(origin @ ValueOrigin::NonValue { target, .. }) => (
                 Self::non_value_message(name, target),
                 ast::NonEmptyVec::new(origin, Vec::new()),

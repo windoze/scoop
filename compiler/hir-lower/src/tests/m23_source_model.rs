@@ -538,6 +538,53 @@ fn sparse_handle_source_permutation_preserves_ambiguity_origins() {
 }
 
 #[test]
+fn sparse_handle_source_permutation_preserves_duplicate_signature_origin() {
+    let core = core_file();
+    let earlier = with_package(
+        file(vec![fun_expr(
+            "clash",
+            Vec::new(),
+            vec![("left", ty_named("Int"))],
+            Some(ty_named("Int")),
+            var("left"),
+        )]),
+        &["shared"],
+    );
+    let later = with_package(
+        file(vec![
+            fun_expr(
+                "clash",
+                Vec::new(),
+                vec![("right", ty_named("Int"))],
+                Some(ty_named("Int")),
+                var("right"),
+            ),
+            fun("main", Vec::new()),
+        ]),
+        &["shared"],
+    );
+    let request = ast::Stage1RequestId::from_raw(703);
+    let mut origins = Vec::new();
+
+    for ordered in [
+        vec![(4, &earlier), (97, &later)],
+        vec![(97, &later), (4, &earlier)],
+    ] {
+        let errors = lower_sparse_sources(&core, request, &ordered)
+            .expect_err("same-package normalized signatures are duplicate");
+        let duplicate = errors
+            .iter()
+            .find(|error| {
+                error.message == "function `clash` is already declared with the same signature"
+            })
+            .expect("duplicate-signature diagnostic");
+        origins.push(ordered[duplicate.file - 1].0);
+    }
+
+    assert_eq!(origins, [97, 97]);
+}
+
+#[test]
 fn validated_input_retains_sparse_handles_independently_of_dense_file_indices() {
     let core = core_file();
     let mut private = fun("privateHelper", Vec::new());

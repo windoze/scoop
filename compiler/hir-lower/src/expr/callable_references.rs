@@ -11,6 +11,14 @@ enum BoundReferenceLayer<'a> {
 enum ReferenceResolutionOutcome {
     Resolved(ResolvedReference),
     NoApplicable,
+    Blocked,
+    Failed,
+}
+
+enum BoundReferenceOutcome {
+    Resolved(hir::Expr),
+    NoApplicable,
+    Blocked,
     Failed,
 }
 
@@ -109,6 +117,12 @@ impl Lowerer {
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
         for layer in candidate_layers {
+            if layer.candidates.is_empty() && !layer.suppressed_callables.is_empty() {
+                if let Some(failure) = first_failure {
+                    self.commit_layer_diagnostics(*failure);
+                }
+                return None;
+            }
             let mut state = self.clone();
             match state.resolve_reference_candidates(
                 &layer.candidates,
@@ -133,8 +147,13 @@ impl Lowerer {
                     ));
                 }
                 ReferenceResolutionOutcome::NoApplicable => {
+                    if !layer.suppressed_callables.is_empty() {
+                        self.commit_layer_diagnostics(state);
+                        return None;
+                    }
                     first_failure.get_or_insert(Box::new(state));
                 }
+                ReferenceResolutionOutcome::Blocked => return None,
                 ReferenceResolutionOutcome::Failed => {
                     self.commit_layer_diagnostics(state);
                     return None;
@@ -247,7 +266,7 @@ impl Lowerer {
                 &display,
                 span,
             ) {
-                Ok(Some(expression)) => {
+                BoundReferenceOutcome::Resolved(expression) => {
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),
@@ -257,8 +276,9 @@ impl Lowerer {
                         sink,
                     ));
                 }
-                Ok(None) => first_failure = Some(Box::new(state)),
-                Err(()) => {
+                BoundReferenceOutcome::NoApplicable => first_failure = Some(Box::new(state)),
+                BoundReferenceOutcome::Blocked => return None,
+                BoundReferenceOutcome::Failed => {
                     self.commit_layer_diagnostics(state);
                     return None;
                 }
@@ -266,6 +286,12 @@ impl Lowerer {
         }
         for layer in self.named_extension_call_layers(&name.text) {
             if layer.candidates.is_empty() {
+                if !layer.suppressed_callables.is_empty() {
+                    if let Some(failure) = first_failure {
+                        self.commit_layer_diagnostics(*failure);
+                    }
+                    return None;
+                }
                 continue;
             }
             let mut state = self.clone();
@@ -277,7 +303,7 @@ impl Lowerer {
                 &display,
                 span,
             ) {
-                Ok(Some(expression)) => {
+                BoundReferenceOutcome::Resolved(expression) => {
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),
@@ -287,10 +313,15 @@ impl Lowerer {
                         sink,
                     ));
                 }
-                Ok(None) => {
+                BoundReferenceOutcome::NoApplicable => {
+                    if !layer.suppressed_callables.is_empty() {
+                        self.commit_layer_diagnostics(state);
+                        return None;
+                    }
                     first_failure.get_or_insert(Box::new(state));
                 }
-                Err(()) => {
+                BoundReferenceOutcome::Blocked => return None,
+                BoundReferenceOutcome::Failed => {
                     self.commit_layer_diagnostics(state);
                     return None;
                 }
@@ -316,7 +347,7 @@ impl Lowerer {
         name: &str,
         display: &str,
         span: Span,
-    ) -> Result<Option<hir::Expr>, ()> {
+    ) -> BoundReferenceOutcome {
         let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
         let outcome = match layer {
             BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
@@ -343,8 +374,11 @@ impl Lowerer {
         };
         let resolved = match outcome {
             ReferenceResolutionOutcome::Resolved(resolved) => resolved,
-            ReferenceResolutionOutcome::NoApplicable => return Ok(None),
-            ReferenceResolutionOutcome::Failed => return Err(()),
+            ReferenceResolutionOutcome::NoApplicable => {
+                return BoundReferenceOutcome::NoApplicable;
+            }
+            ReferenceResolutionOutcome::Blocked => return BoundReferenceOutcome::Blocked,
+            ReferenceResolutionOutcome::Failed => return BoundReferenceOutcome::Failed,
         };
         let callee = resolved.callable;
         let ty = resolved.ty;
@@ -373,12 +407,12 @@ impl Lowerer {
             captures: Vec::new(),
             span,
         });
-        Ok(Some(hir::Expr {
+        BoundReferenceOutcome::Resolved(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
             origin: self.expression_origin(span),
-        }))
+        })
     }
 
     pub(super) fn lower_local_callable_reference(
@@ -410,6 +444,7 @@ impl Lowerer {
         ) {
             ReferenceResolutionOutcome::Resolved(resolved) => resolved,
             ReferenceResolutionOutcome::NoApplicable => return Ok(None),
+            ReferenceResolutionOutcome::Blocked => return Ok(None),
             ReferenceResolutionOutcome::Failed => return Err(()),
         };
         let function = self.callable_function_id(resolved.callable);

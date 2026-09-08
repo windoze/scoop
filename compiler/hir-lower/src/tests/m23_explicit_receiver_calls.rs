@@ -312,6 +312,150 @@ fn ambiguous_exact_extension_layer_is_terminal() {
 }
 
 #[test]
+fn rejected_exact_ordinary_function_does_not_hide_a_star_extension_role() {
+    let duplicate = |parameter| {
+        fun_expr(
+            "route",
+            Vec::new(),
+            vec![(parameter, ty_named("Int"))],
+            Some(ty_named("Int")),
+            int_lit(1),
+        )
+    };
+    let exact_source = package(
+        file(vec![duplicate("left"), duplicate("right")]),
+        "exactlib",
+    );
+    let star_source = package(
+        file(vec![extension("Owner", "route", "Boolean", 7)]),
+        "starlib",
+    );
+    let mut user = consumer(method_call(
+        call("Owner", Vec::new()),
+        "route",
+        vec![call("missingExtensionArgument", Vec::new())],
+    ));
+    user.imports = vec![exact("exactlib", "route", None), star("starlib")];
+
+    let errors = lower_sources(
+        vec![exact_source, star_source, user],
+        core_with(vec![struct_decl("Owner", Vec::new())]),
+    )
+    .expect_err("the exact declarations are duplicate");
+    assert!(errors.iter().any(|error| {
+        error.message == "function `route` is already declared with the same signature"
+    }));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("missingExtensionArgument")),
+        "the lower extension role must still probe its argument: {errors:?}"
+    );
+}
+
+#[test]
+fn rejected_exact_extension_blocks_a_star_extension_of_the_same_role() {
+    let duplicate = |parameter| {
+        extension_expr(
+            ty_named("Owner"),
+            "route",
+            Vec::new(),
+            vec![(parameter, ty_named("Int"))],
+            Some(ty_named("Int")),
+            int_lit(1),
+        )
+    };
+    let exact_source = package(
+        file(vec![duplicate("left"), duplicate("right")]),
+        "exactlib",
+    );
+    let star_source = package(
+        file(vec![extension("Owner", "route", "Boolean", 7)]),
+        "starlib",
+    );
+    let mut user = consumer(method_call(
+        call("Owner", Vec::new()),
+        "route",
+        vec![call("missingStarArgument", Vec::new())],
+    ));
+    user.imports = vec![exact("exactlib", "route", None), star("starlib")];
+
+    let errors = lower_sources(
+        vec![exact_source, star_source, user],
+        core_with(vec![struct_decl("Owner", Vec::new())]),
+    )
+    .expect_err("the exact extension declarations are duplicate");
+    assert_eq!(
+        errors
+            .iter()
+            .filter(|error| {
+                error.message == "function `route` is already declared with the same signature"
+            })
+            .count(),
+        1,
+        "{errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .all(|error| !error.message.contains("missingStarArgument")),
+        "the lower extension layer must remain hidden: {errors:?}"
+    );
+}
+
+#[test]
+fn rejected_exact_function_does_not_hide_a_star_extension_property_role() {
+    let duplicate = |parameter| {
+        fun_expr(
+            "route",
+            Vec::new(),
+            vec![(parameter, ty_named("Int"))],
+            Some(ty_named("Int")),
+            int_lit(1),
+        )
+    };
+    let exact_source = package(
+        file(vec![duplicate("left"), duplicate("right")]),
+        "exactlib",
+    );
+    let star_source = package(
+        file(vec![extension_property("Owner", "route", "Handler")]),
+        "starlib",
+    );
+    let mut invoke = method_expr(
+        "invoke",
+        vec![("value", ty_named("Boolean"))],
+        Some(ty_named("Int")),
+        int_lit(7),
+    );
+    invoke.operator = Some(ast::OperatorModifier { span: sp() });
+    let mut user = consumer(method_call(
+        call("Owner", Vec::new()),
+        "route",
+        vec![call("missingPropertyArgument", Vec::new())],
+    ));
+    user.imports = vec![exact("exactlib", "route", None), star("starlib")];
+
+    let errors = lower_sources(
+        vec![exact_source, star_source, user],
+        core_with(vec![
+            struct_decl("Owner", Vec::new()),
+            struct_decl_methods("Handler", Vec::new(), vec![invoke]),
+        ]),
+    )
+    .expect_err("the exact declarations are duplicate");
+    assert!(errors.iter().any(|error| {
+        error.message == "function `route` is already declared with the same signature"
+    }));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("missingPropertyArgument")),
+        "the lower extension-property role must still be callable: {errors:?}"
+    );
+}
+
+#[test]
 fn exact_alias_does_not_erase_an_extension_operator_role() {
     let library = package(
         file(vec![operator(extension("Owner", "plus", "Owner", 9))]),

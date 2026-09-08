@@ -49,6 +49,11 @@ pub(crate) struct ResolvedCallee {
 
 pub(crate) enum OverloadResolutionOutcome {
     NoApplicable,
+    /// This layer owns the callable spelling, but every matching declaration
+    /// is already rejected by the frozen declaration surface. The definition
+    /// diagnostic is sufficient; callers must stop without committing a new
+    /// layer diagnostic or probing a lower layer.
+    Blocked,
     Failed,
     Resolved(Box<ResolvedCallee>),
 }
@@ -57,7 +62,7 @@ impl OverloadResolutionOutcome {
     fn into_option(self) -> Option<ResolvedCallee> {
         match self {
             Self::Resolved(resolved) => Some(*resolved),
-            Self::NoApplicable | Self::Failed => None,
+            Self::NoApplicable | Self::Blocked | Self::Failed => None,
         }
     }
 }
@@ -382,6 +387,26 @@ impl Lowerer {
         resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> OverloadResolutionOutcome {
+        let suppressed = candidates.iter().any(|candidate| {
+            self.declaration_surface
+                .rejects_function(candidate.function)
+        });
+        let candidates = candidates
+            .iter()
+            .filter(|candidate| {
+                !self
+                    .declaration_surface
+                    .rejects_function(candidate.function)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if candidates.is_empty() && suppressed {
+            // The duplicate-signature diagnostic is already attached to the
+            // declaration. This diagnostic-only blocker must stop a caller
+            // from probing a lower member/import layer, without manufacturing
+            // a semantic candidate from either rejected declaration.
+            return OverloadResolutionOutcome::Blocked;
+        }
         let OverloadResolution {
             receiver,
             explicit_type_args,
@@ -476,7 +501,11 @@ impl Lowerer {
                         span,
                     },
                 );
-                return OverloadResolutionOutcome::NoApplicable;
+                return if suppressed {
+                    OverloadResolutionOutcome::Failed
+                } else {
+                    OverloadResolutionOutcome::NoApplicable
+                };
             }
             1 => applicable[0].candidate,
             _ => {

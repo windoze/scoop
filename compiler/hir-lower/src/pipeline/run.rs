@@ -389,10 +389,14 @@ impl Lowerer {
         self.validate_extern_functions();
         self.validate_extern_global_symbols();
 
-        // Pass 2.6: overload declarations must be distinguishable —
-        // within one name (top-level) or one host (members) no two
-        // functions may share a signature (milestone7 DESIGN.md 1.1).
-        self.check_duplicate_signatures(&pending_functions, &pending_methods);
+        // Publish the complete duplicate-signature rejection set after all
+        // related signatures are final and before body-capable passes may
+        // perform semantic callable lookup.
+        self.validate_and_freeze_duplicate_signatures(&pending_functions, &pending_methods);
+        assert!(
+            self.declaration_surface.is_frozen(),
+            "body-capable passes require a frozen declaration surface"
+        );
 
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface

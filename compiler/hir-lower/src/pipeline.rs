@@ -90,6 +90,7 @@ impl Lowerer {
 
         Lowerer {
             imports: crate::imports::CurrentUnitImports::default(),
+            declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             source_contexts,
             types,
             function_types: Arena::new(),

@@ -292,6 +292,9 @@ impl Lowerer {
                 self.diagnose_value_layer(name, layer.kind, &blockers);
                 return ImplicitValueResolution::Failed;
             }
+            if !layer.suppressed_callables.is_empty() {
+                return ImplicitValueResolution::Failed;
+            }
         }
         first_failure.map_or(
             ImplicitValueResolution::NoCandidate,
@@ -342,6 +345,9 @@ impl Lowerer {
         ) {
             crate::overload::OverloadResolutionOutcome::NoApplicable => {
                 return ExtensionPropertyCandidateOutcome::NoApplicable;
+            }
+            crate::overload::OverloadResolutionOutcome::Blocked => {
+                return ExtensionPropertyCandidateOutcome::Failed;
             }
             crate::overload::OverloadResolutionOutcome::Failed => {
                 return ExtensionPropertyCandidateOutcome::Failed;

@@ -99,6 +99,7 @@ mod class;
 mod concretize;
 mod constructor_resolution;
 mod core_contract;
+mod declaration_surface;
 mod declarations;
 mod defaults;
 mod derived;
@@ -445,6 +446,9 @@ pub fn concretize_legacy_export(
 pub(crate) struct Lowerer {
     pub(crate) source_contexts: Arena<hir::SourceContext>,
     pub(crate) imports: imports::CurrentUnitImports,
+    /// Published once after every source callable signature is resolved.
+    /// Rejected ids remain diagnostic-only and never enter body resolution.
+    pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,

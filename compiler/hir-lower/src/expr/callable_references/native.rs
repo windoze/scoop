@@ -33,6 +33,7 @@ enum NativeReferenceFailureKind {
 enum NativeReferenceLayerOutcome {
     Resolved(hir::Expr),
     NoApplicable,
+    Blocked,
     Failed,
 }
 
@@ -57,13 +58,16 @@ impl Lowerer {
         if candidate_layers.is_empty() {
             return match self.lower_native_function_reference_layer(name, span, expected, &[]) {
                 NativeReferenceLayerOutcome::Resolved(expression) => Some(expression),
-                NativeReferenceLayerOutcome::NoApplicable | NativeReferenceLayerOutcome::Failed => {
-                    None
-                }
+                NativeReferenceLayerOutcome::NoApplicable
+                | NativeReferenceLayerOutcome::Blocked
+                | NativeReferenceLayerOutcome::Failed => None,
             };
         }
         let mut first_failure = None;
         for layer in candidate_layers {
+            if layer.candidates.is_empty() && !layer.suppressed_callables.is_empty() {
+                return None;
+            }
             let mut state = self.clone();
             match state.lower_native_function_reference_layer(
                 name,
@@ -76,8 +80,13 @@ impl Lowerer {
                     return Some(expression);
                 }
                 NativeReferenceLayerOutcome::NoApplicable => {
+                    if !layer.suppressed_callables.is_empty() {
+                        self.commit_layer_diagnostics(state);
+                        return None;
+                    }
                     first_failure.get_or_insert(Box::new(state));
                 }
+                NativeReferenceLayerOutcome::Blocked => return None,
                 NativeReferenceLayerOutcome::Failed => {
                     self.commit_layer_diagnostics(state);
                     return None;
@@ -97,7 +106,12 @@ impl Lowerer {
     ) -> NativeReferenceLayerOutcome {
         let mut matching = Vec::new();
         let mut failures = Vec::new();
+        let mut suppressed = false;
         for &function in candidates {
+            if self.declaration_surface.rejects_function(function) {
+                suppressed = true;
+                continue;
+            }
             let mut state = self.clone();
             let extension = state.extension_receivers.contains_key(&function);
             let candidate = crate::CallableCandidate::function(
@@ -158,8 +172,15 @@ impl Lowerer {
                 .pop()
                 .expect("one native reference candidate exists"),
             0 => {
+                if suppressed && failures.is_empty() {
+                    return NativeReferenceLayerOutcome::Blocked;
+                }
                 self.native_reference_failures_diagnostic(name, &failures, span);
-                return NativeReferenceLayerOutcome::NoApplicable;
+                return if suppressed {
+                    NativeReferenceLayerOutcome::Failed
+                } else {
+                    NativeReferenceLayerOutcome::NoApplicable
+                };
             }
             _ => {
                 self.native_reference_ambiguity_diagnostic(name, &matching, span);

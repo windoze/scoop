@@ -218,25 +218,33 @@ impl Lowerer {
 
     /// Reject declarations that differ only in return type after signatures
     /// have been fully resolved.
-    pub(crate) fn check_duplicate_signatures(
+    pub(crate) fn validate_and_freeze_duplicate_signatures(
         &mut self,
         pending_functions: &[(FunctionId, &ast::FunctionDecl, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
-        for (index, &(id, decl, file_index)) in pending_functions.iter().enumerate() {
-            let duplicate = pending_functions[..index]
+        let mut rejected = std::collections::HashSet::new();
+        let mut ordered_functions = pending_functions.to_vec();
+        ordered_functions.sort_by_key(|(id, _, _)| self.callable_declaration_order(*id));
+        for (index, &(id, decl, file_index)) in ordered_functions.iter().enumerate() {
+            let duplicates = ordered_functions[..index]
                 .iter()
-                .any(|&(other, _, other_file)| {
-                    self.top_level_namespaces
+                .filter_map(|&(other, _, other_file)| {
+                    (self
+                        .top_level_namespaces
                         .sources_share_namespace(file_index, other_file)
                         && self.functions[other].name == decl.name.text
                         && self.same_parameter_signature(id, other)
                         && (self.functions[id].access.declared != hir::DeclaredVisibility::Private
                             || self.functions[other].access.declared
                                 != hir::DeclaredVisibility::Private
-                            || file_index == other_file)
-                });
-            if duplicate {
+                            || file_index == other_file))
+                        .then_some(other)
+                })
+                .collect::<Vec<_>>();
+            if !duplicates.is_empty() {
+                rejected.insert(id);
+                rejected.extend(duplicates);
                 self.current_file = file_index;
                 self.error(
                     decl.name.span,
@@ -247,15 +255,21 @@ impl Lowerer {
                 );
             }
         }
-        for (index, &(id, decl, file_index, owner)) in pending_methods.iter().enumerate() {
-            let duplicate = pending_methods[..index]
+        let mut ordered_methods = pending_methods.to_vec();
+        ordered_methods.sort_by_key(|(id, _, _, _)| self.callable_declaration_order(*id));
+        for (index, &(id, decl, file_index, owner)) in ordered_methods.iter().enumerate() {
+            let duplicates = ordered_methods[..index]
                 .iter()
-                .any(|&(other, _, _, other_owner)| {
-                    other_owner == owner
+                .filter_map(|&(other, _, _, other_owner)| {
+                    (other_owner == owner
                         && self.functions[other].name == self.functions[id].name
-                        && self.same_parameter_signature(id, other)
-                });
-            if duplicate {
+                        && self.same_parameter_signature(id, other))
+                    .then_some(other)
+                })
+                .collect::<Vec<_>>();
+            if !duplicates.is_empty() {
+                rejected.insert(id);
+                rejected.extend(duplicates);
                 let host = owner.describe(self);
                 self.current_file = file_index;
                 self.error(
@@ -267,6 +281,29 @@ impl Lowerer {
                 );
             }
         }
+        self.declaration_surface.freeze(rejected);
+    }
+
+    /// Stable only within this lowering request. Current-unit source handles,
+    /// not their dense container positions or display paths, define cross-file
+    /// declaration order. Core retains its explicit provider-input order.
+    fn callable_declaration_order(&self, function: FunctionId) -> (u8, u64, u32, u32, u32, u32) {
+        let file = self.function_files[&function];
+        let (kind, request, source) = match self.visibility_file(file).source {
+            hir::VisibilitySource::ExistingM22Core { index } => (0, 0, index),
+            hir::VisibilitySource::CurrentUnit(handle) => {
+                (1, handle.request().into_raw(), handle.local_index())
+            }
+        };
+        let span = self.functions[function].span;
+        (
+            kind,
+            request,
+            source,
+            span.start,
+            span.end,
+            function.into_raw().into_u32(),
+        )
     }
 
     /// Compare parameter signatures under the exact alpha-renaming relation

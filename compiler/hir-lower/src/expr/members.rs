@@ -37,6 +37,7 @@ impl PropertyExtensionInvokeInput {
 
 pub(in crate::expr) enum PropertyExtensionInvokeOutcome {
     NoApplicable(Option<Box<Lowerer>>),
+    Blocked,
     Failed(Box<Lowerer>),
     Resolved(SuccessfulExprLayer),
 }
@@ -364,6 +365,7 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Resolved(layer) => {
                     Some(self.commit_expr_layer(layer, sink))
                 }
+                PropertyExtensionInvokeOutcome::Blocked => None,
                 PropertyExtensionInvokeOutcome::Failed(failure)
                 | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
                     self.commit_layer_diagnostics(*failure);
@@ -551,6 +553,7 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Resolved(layer) => {
                     return Some(self.commit_expr_layer(layer, sink));
                 }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
                     self.commit_layer_diagnostics(*failure);
                     return None;
@@ -574,6 +577,7 @@ impl Lowerer {
                     layer.sink = setup;
                     return Some(self.commit_expr_layer(layer, sink));
                 }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
                     self.commit_layer_diagnostics(*failure);
                     return None;
@@ -596,6 +600,24 @@ impl Lowerer {
         Self::retain_highest_rank_origins(&mut invoke_layers);
         Self::retain_highest_rank_origins(&mut extension_property_layers);
         for rank in 0..=3 {
+            let suppressed_extensions =
+                Self::suppressed_extensions_at_rank(&extension_layers, rank, |function| {
+                    Self::matches_required_modifiers(
+                        self.signatures[&function].modifiers,
+                        direct_required,
+                    )
+                });
+            let suppressed_invokes =
+                Self::suppressed_extensions_at_rank(&invoke_layers, rank, |function| {
+                    Self::matches_required_modifiers(
+                        self.signatures[&function].modifiers,
+                        RequiredCallableModifiers {
+                            operator: Some(hir::OperatorKind::Invoke),
+                            infix: direct_required.infix,
+                            ..Default::default()
+                        },
+                    )
+                });
             let extensions =
                 Self::extension_candidates_at_rank(&extension_layers, rank, |function| {
                     Self::matches_required_modifiers(
@@ -615,6 +637,7 @@ impl Lowerer {
                     PropertyExtensionInvokeOutcome::Resolved(layer) => {
                         return Some(self.commit_expr_layer(layer, sink));
                     }
+                    PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
                         self.commit_layer_diagnostics(*failure);
                         return None;
@@ -655,6 +678,7 @@ impl Lowerer {
                     PropertyExtensionInvokeOutcome::Resolved(layer) => {
                         return Some(self.commit_expr_layer(layer, sink));
                     }
+                    PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
                         self.commit_layer_diagnostics(*failure);
                         return None;
@@ -691,6 +715,7 @@ impl Lowerer {
                                 layer.sink = extension_property_sink;
                                 return Some(self.commit_expr_layer(layer, sink));
                             }
+                            PropertyExtensionInvokeOutcome::Blocked => return None,
                             PropertyExtensionInvokeOutcome::Failed(failure) => {
                                 self.commit_layer_diagnostics(*failure);
                                 return None;
@@ -789,6 +814,7 @@ impl Lowerer {
                     PropertyExtensionInvokeOutcome::Resolved(layer) => {
                         return Some(self.commit_expr_layer(layer, sink));
                     }
+                    PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
                         self.commit_layer_diagnostics(*failure);
                         return None;
@@ -799,6 +825,12 @@ impl Lowerer {
                         }
                     }
                 }
+            }
+            if suppressed_extensions || suppressed_invokes {
+                if let Some(failure) = first_failure {
+                    self.commit_layer_diagnostics(*failure);
+                }
+                return None;
             }
         }
 
@@ -845,6 +877,18 @@ impl Lowerer {
             .flat_map(|layer| layer.candidates.iter().copied())
             .filter(|function| predicate(*function))
             .collect()
+    }
+
+    fn suppressed_extensions_at_rank(
+        layers: &[crate::imports::lookup::LookupLayer<hir::FunctionId>],
+        rank: usize,
+        predicate: impl Fn(hir::FunctionId) -> bool,
+    ) -> bool {
+        layers
+            .iter()
+            .filter(|layer| layer.kind.call_rank() == rank)
+            .flat_map(|layer| layer.suppressed_callables.iter().copied())
+            .any(predicate)
     }
 
     fn property_candidates_at_rank(
@@ -924,6 +968,7 @@ impl Lowerer {
             OverloadResolutionOutcome::NoApplicable => {
                 PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
             }
+            OverloadResolutionOutcome::Blocked => PropertyExtensionInvokeOutcome::Blocked,
             OverloadResolutionOutcome::Failed => {
                 PropertyExtensionInvokeOutcome::Failed(Box::new(state))
             }
@@ -980,6 +1025,7 @@ impl Lowerer {
             OverloadResolutionOutcome::NoApplicable => {
                 PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
             }
+            OverloadResolutionOutcome::Blocked => PropertyExtensionInvokeOutcome::Blocked,
             OverloadResolutionOutcome::Failed => {
                 PropertyExtensionInvokeOutcome::Failed(Box::new(state))
             }
@@ -1077,8 +1123,13 @@ impl Lowerer {
         let mut setups = Vec::new();
         let mut first_failure = None;
         let mut seen = Vec::new();
+        let mut suppressed = false;
         for input in inputs {
             for function in input.candidates {
+                if self.declaration_surface.rejects_function(function) {
+                    suppressed = true;
+                    continue;
+                }
                 if seen.contains(&(input.origin, function)) {
                     continue;
                 }
@@ -1116,7 +1167,11 @@ impl Lowerer {
             }
         }
         if probes.is_empty() {
-            return PropertyExtensionInvokeOutcome::NoApplicable(first_failure);
+            return match (suppressed, first_failure) {
+                (true, Some(failure)) => PropertyExtensionInvokeOutcome::Failed(failure),
+                (true, None) => PropertyExtensionInvokeOutcome::Blocked,
+                (false, failure) => PropertyExtensionInvokeOutcome::NoApplicable(failure),
+            };
         }
 
         let mut state = self.clone();
@@ -1222,6 +1277,7 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Resolved(layer) => {
                     return Some(self.commit_expr_layer(layer, sink));
                 }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
                     self.commit_layer_diagnostics(*failure);
                     return None;
@@ -1237,6 +1293,9 @@ impl Lowerer {
             None => self.named_extension_call_layers(&name.text),
         };
         for layer in extension_layers {
+            let suppressed = layer.suppressed_callables.iter().copied().any(|function| {
+                Self::matches_required_modifiers(self.signatures[&function].modifiers, required)
+            });
             let extensions = layer
                 .candidates
                 .into_iter()
@@ -1246,6 +1305,9 @@ impl Lowerer {
                 })
                 .collect::<Vec<_>>();
             if extensions.is_empty() {
+                if suppressed {
+                    return None;
+                }
                 continue;
             }
             match self.probe_extension_call_partition(
@@ -1259,13 +1321,20 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Resolved(layer) => {
                     return Some(self.commit_expr_layer(layer, sink));
                 }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
                     self.commit_layer_diagnostics(*failure);
                     return None;
                 }
                 PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
                     if let Some(failure) = failure {
+                        if suppressed {
+                            self.commit_layer_diagnostics(*failure);
+                            return None;
+                        }
                         first_failure.get_or_insert(failure);
+                    } else if suppressed {
+                        return None;
                     }
                 }
             }

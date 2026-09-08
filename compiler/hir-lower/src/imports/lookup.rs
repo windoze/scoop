@@ -17,6 +17,9 @@ pub(crate) mod values;
 pub(crate) struct LookupLayer<T> {
     pub(crate) kind: ImportLookupLayer,
     pub(crate) candidates: Vec<T>,
+    /// Invalid duplicate declarations that own this layer's spelling without
+    /// participating in semantic candidate selection.
+    pub(crate) suppressed_callables: Vec<scoop_hir::FunctionId>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,11 +74,39 @@ impl Lowerer {
         name: &str,
     ) -> Vec<ImportCandidateLayer> {
         let mut layers = self.imports.layers(self.current_file, package, name);
-        if let Some(index) = layers.iter().position(|layer| {
-            layer.suppressed_values.iter().any(|binding| {
+        let mut terminal = None;
+        for (index, layer) in layers.iter_mut().enumerate() {
+            let mut suppressed_callables = std::mem::take(&mut layer.suppressed_callables);
+            layer.bindings.retain(|binding| {
+                let declaration = self.imports.binding(*binding);
+                let CurrentUnitTarget::Function(function) = declaration.target else {
+                    return true;
+                };
+                if !self.declaration_surface.rejects_function(function) {
+                    return true;
+                }
+                if self.access_domain_allows(&declaration.access.0, None) {
+                    suppressed_callables.push(function);
+                }
+                false
+            });
+            suppressed_callables.sort_by_key(|function| function.into_raw().into_u32());
+            suppressed_callables.dedup();
+            layer.suppressed_callables = suppressed_callables;
+            let unmaterialized_value = layer.suppressed_values.iter().any(|binding| {
                 self.access_domain_allows(&self.imports.binding(*binding).access.0, None)
-            })
-        }) {
+            });
+            // Callable roles are consumer-specific: an ordinary function in
+            // this layer must not hide a lower extension/property/reference
+            // role. Keep every typed suppression attached to its raw layer;
+            // each callable consumer filters by role before deciding whether
+            // that layer is terminal. Unmaterialized values retain their
+            // existing cross-kind terminal semantics.
+            if unmaterialized_value {
+                terminal.get_or_insert(index);
+            }
+        }
+        if let Some(index) = terminal {
             layers.truncate(index + 1);
         }
         layers
@@ -104,6 +135,7 @@ impl Lowerer {
     pub(crate) fn type_lookup_layers(&self, name: &str) -> Vec<LookupLayer<TypeLookupCandidate>> {
         let core = || LookupLayer {
             kind: ImportLookupLayer::CorePrelude,
+            suppressed_callables: Vec::new(),
             candidates: self
                 .top_level_namespaces
                 .type_layers(self.current_file, name)
@@ -131,6 +163,7 @@ impl Lowerer {
                     } else {
                         LookupLayer {
                             kind: layer.kind,
+                            suppressed_callables: Vec::new(),
                             candidates: self.imported_type_candidates(layer.bindings),
                         }
                     }
@@ -202,6 +235,7 @@ impl Lowerer {
             .copied();
         self.select_type_layer(vec![LookupLayer {
             kind: ImportLookupLayer::CurrentPackage(package),
+            suppressed_callables: Vec::new(),
             candidates: self.imported_type_candidates(self.imports.canonicalize(bindings)),
         }])
     }

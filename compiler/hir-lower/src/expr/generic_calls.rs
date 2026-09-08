@@ -103,6 +103,7 @@ impl Lowerer {
             sink,
         ) {
             crate::overload::OverloadResolutionOutcome::NoApplicable => return Ok(None),
+            crate::overload::OverloadResolutionOutcome::Blocked => return Ok(None),
             crate::overload::OverloadResolutionOutcome::Failed => return Err(()),
             crate::overload::OverloadResolutionOutcome::Resolved(resolved) => *resolved,
         };
