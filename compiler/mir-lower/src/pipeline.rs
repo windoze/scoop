@@ -1,5 +1,7 @@
 use super::*;
 
+use std::collections::BTreeMap;
+
 mod coroutines;
 mod declarations;
 mod functions;
@@ -70,7 +72,7 @@ impl Lowerer {
             .interfaces
             .iter()
             .map(|(id, interface)| (id, vec![None; interface.methods.len()]))
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
         for (hir_id, function) in module.functions.iter() {
             let Some(method) = function.method else {
                 continue;

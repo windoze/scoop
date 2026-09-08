@@ -266,6 +266,62 @@ fn generic_interface_applications_get_distinct_mir_identities() {
 }
 
 #[test]
+fn generic_interface_signature_types_follow_typed_interface_order() {
+    let mut h = Harness::new();
+    let parameter = hir::TypeParamId::from_raw(0);
+    let t = h.types.alloc(hir::Type::Param(parameter));
+    let option_t = h.option(t);
+    let source = h.declare_interface(
+        "Source",
+        vec![hir::TypeParamDecl {
+            id: parameter,
+            name: "T".to_string(),
+            bounds: hir::TypeParamBounds::Unconstrained,
+            span: SPAN,
+        }],
+        vec![t],
+        vec![hir::MethodSig {
+            name: "next".to_string(),
+            is_suspend: false,
+            attributes: hir::FunctionAttributes::default(),
+            type_params: Vec::new(),
+            params: Vec::new(),
+            return_ty: option_t,
+            span: SPAN,
+        }],
+    );
+    let (int, uint) = (h.int, h.uint);
+    let int_source = h.interface_app(source, vec![int]);
+    let uint_source = h.interface_app(source, vec![uint]);
+    let mut locals = Arena::new();
+    locals.alloc(local("ints", int_source));
+    locals.alloc(local("uints", uint_source));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: Vec::new(),
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    let source_names = module
+        .interfaces
+        .iter()
+        .map(|(_, interface)| interface.name.as_str())
+        .filter(|name| name.starts_with("Source$"))
+        .collect::<Vec<_>>();
+    assert_eq!(source_names, ["Source$I32", "Source$V32"]);
+    let option_names = module
+        .enums
+        .iter()
+        .map(|(_, enumeration)| enumeration.name.as_str())
+        .filter(|name| matches!(*name, "Option$I32" | "Option$V32"))
+        .collect::<Vec<_>>();
+    assert_eq!(option_names, ["Option$I32", "Option$V32"]);
+}
+
+#[test]
 fn print_overloads_are_ordinary_calls() {
     // M7: calls to core's `print` / `println` overloads resolve to
     // the overload's own MIR function (`Callee::User`); only the
