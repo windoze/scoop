@@ -308,6 +308,32 @@ impl Lowerer {
             .collect()
     }
 
+    /// The declaration candidates visible to an unqualified callable
+    /// reference. Ordinary functions and extension functions intentionally
+    /// remain in the same scope layer: the latter are interpreted as unbound
+    /// references by the callable-reference resolver.
+    pub(crate) fn named_callable_reference_layers(
+        &self,
+        name: &str,
+    ) -> Vec<LookupLayer<hir::FunctionId>> {
+        self.named_call_layers(name)
+            .into_iter()
+            .map(|layer| LookupLayer {
+                kind: layer.kind,
+                candidates: layer
+                    .candidates
+                    .into_iter()
+                    .filter_map(|binding| match binding.target {
+                        NamedCallTarget::Function(id) if !self.function_owner.contains_key(&id) => {
+                            Some(id)
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
     pub(crate) fn named_extension_property_layers(
         &self,
         name: &str,

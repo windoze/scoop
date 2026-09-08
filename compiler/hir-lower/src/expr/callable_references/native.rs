@@ -30,6 +30,12 @@ enum NativeReferenceFailureKind {
     Constraint(ConstraintFailure),
 }
 
+enum NativeReferenceLayerOutcome {
+    Resolved(hir::Expr),
+    NoApplicable,
+    Failed,
+}
+
 impl Lowerer {
     pub(super) fn lower_native_function_reference(
         &mut self,
@@ -49,19 +55,32 @@ impl Lowerer {
         }
         let candidate_layers = self.named_reference_candidate_layers(&name.text);
         if candidate_layers.is_empty() {
-            return self.lower_native_function_reference_layer(name, span, expected, &[]);
+            return match self.lower_native_function_reference_layer(name, span, expected, &[]) {
+                NativeReferenceLayerOutcome::Resolved(expression) => Some(expression),
+                NativeReferenceLayerOutcome::NoApplicable | NativeReferenceLayerOutcome::Failed => {
+                    None
+                }
+            };
         }
         let mut first_failure = None;
-        for candidates in candidate_layers {
-            match self.probe_expr_layer(|state, _| {
-                state.lower_native_function_reference_layer(name, span, expected, &candidates)
-            }) {
-                Ok(layer) => {
-                    let mut sink = Vec::new();
-                    return Some(self.commit_expr_layer(layer, &mut sink));
+        for layer in candidate_layers {
+            let mut state = self.clone();
+            match state.lower_native_function_reference_layer(
+                name,
+                span,
+                expected,
+                &layer.candidates,
+            ) {
+                NativeReferenceLayerOutcome::Resolved(expression) => {
+                    *self = state;
+                    return Some(expression);
                 }
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+                NativeReferenceLayerOutcome::NoApplicable => {
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                NativeReferenceLayerOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
                 }
             }
         }
@@ -75,7 +94,7 @@ impl Lowerer {
         span: Span,
         expected: TypeId,
         candidates: &[hir::FunctionId],
-    ) -> Option<hir::Expr> {
+    ) -> NativeReferenceLayerOutcome {
         let mut matching = Vec::new();
         let mut failures = Vec::new();
         for &function in candidates {
@@ -140,11 +159,11 @@ impl Lowerer {
                 .expect("one native reference candidate exists"),
             0 => {
                 self.native_reference_failures_diagnostic(name, &failures, span);
-                return None;
+                return NativeReferenceLayerOutcome::NoApplicable;
             }
             _ => {
                 self.native_reference_ambiguity_diagnostic(name, &matching, span);
-                return None;
+                return NativeReferenceLayerOutcome::Failed;
             }
         };
         let function = selected.function;
@@ -152,7 +171,7 @@ impl Lowerer {
         if self.functions[function].attributes.safety == hir::Safety::Unsafe {
             self.require_unsafe_operation(span, "taking the address of an unsafe callback");
         }
-        Some(hir::Expr {
+        NativeReferenceLayerOutcome::Resolved(hir::Expr {
             kind: ExprKind::FunctionAddress(function),
             ty: expected,
             span,

@@ -42,6 +42,7 @@ mod m22_loop_targets;
 mod m22_pattern_warnings;
 mod m22_ranges;
 mod m22_recursive_named_fields;
+mod m23_callable_references;
 mod m23_explicit_receiver_calls;
 mod m23_legacy_entry;
 mod m23_named_calls;

@@ -13,6 +13,7 @@ struct ApplicableReference {
     state: Box<Lowerer>,
     candidate: crate::CallableCandidate,
     view: CallableView,
+    forwarding_parameter_types: Vec<TypeId>,
     type_args: Vec<TypeId>,
     ty: TypeId,
     own_type_param_count: usize,
@@ -52,7 +53,7 @@ impl Lowerer {
         candidates: &[hir::FunctionId],
         owner_type_args: &[TypeId],
         context: ReferenceResolutionContext<'_>,
-    ) -> Option<ResolvedReference> {
+    ) -> ReferenceResolutionOutcome {
         let candidates = candidates
             .iter()
             .copied()
@@ -71,7 +72,7 @@ impl Lowerer {
         &mut self,
         candidates: &[crate::CallableCandidate],
         context: ReferenceResolutionContext<'_>,
-    ) -> Option<ResolvedReference> {
+    ) -> ReferenceResolutionOutcome {
         debug_assert!(matches!(
             context.extension_mode,
             ReferenceExtensionMode::Exclude
@@ -83,7 +84,7 @@ impl Lowerer {
         &mut self,
         candidates: &[crate::CallableCandidate],
         context: ReferenceResolutionContext<'_>,
-    ) -> Option<ResolvedReference> {
+    ) -> ReferenceResolutionOutcome {
         let ReferenceResolutionContext {
             expected,
             name,
@@ -136,6 +137,10 @@ impl Lowerer {
                 .iter()
                 .map(|parameter| parameter.ty)
                 .collect();
+            let mut forwarding_parameter_types = reference_params.clone();
+            if let Some(receiver) = extension_receiver {
+                forwarding_parameter_types.insert(0, receiver);
+            }
             if matches!(extension_mode, ReferenceExtensionMode::IncludeUnbound)
                 && let Some(receiver) = extension_receiver
             {
@@ -176,6 +181,7 @@ impl Lowerer {
                 state: Box::new(state),
                 candidate: candidate.clone(),
                 view,
+                forwarding_parameter_types,
                 type_args,
                 ty: expected_type,
                 own_type_param_count,
@@ -185,46 +191,75 @@ impl Lowerer {
         let selected = match applicable.len() {
             0 => {
                 self.reference_failures_diagnostic(name, display, &failures, span);
-                return None;
+                return ReferenceResolutionOutcome::NoApplicable;
             }
             1 => 0,
-            _ if expected.is_some() => {
-                let concrete: Vec<_> = applicable
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, candidate)| {
-                        (candidate.own_type_param_count == 0).then_some(index)
+            _ if expected.is_none() => {
+                self.reference_ambiguity_diagnostic(name, display, &applicable, false, span);
+                return ReferenceResolutionOutcome::Failed;
+            }
+            _ => {
+                let mut pool = (0..applicable.len())
+                    .filter(|&candidate| {
+                        !(0..applicable.len()).any(|other| {
+                            if other == candidate {
+                                return false;
+                            }
+                            let preferred =
+                                crate::call_resolution::specificity::ForwardingDeclaration {
+                                    view: &applicable[other].view,
+                                    parameter_types: &applicable[other].forwarding_parameter_types,
+                                };
+                            let displaced =
+                                crate::call_resolution::specificity::ForwardingDeclaration {
+                                    view: &applicable[candidate].view,
+                                    parameter_types: &applicable[candidate]
+                                        .forwarding_parameter_types,
+                                };
+                            self.callable_forwards(preferred, displaced)
+                                && !self.callable_forwards(displaced, preferred)
+                        })
                     })
-                    .collect();
-                if let [index] = concrete.as_slice() {
-                    *index
+                    .collect::<Vec<_>>();
+                if pool
+                    .iter()
+                    .any(|&candidate| applicable[candidate].own_type_param_count == 0)
+                {
+                    pool.retain(|&candidate| applicable[candidate].own_type_param_count == 0);
+                }
+                if let [winner] = pool.as_slice() {
+                    *winner
                 } else {
+                    let ambiguous = pool
+                        .into_iter()
+                        .map(|index| ApplicableReference {
+                            state: applicable[index].state.clone(),
+                            candidate: applicable[index].candidate.clone(),
+                            view: applicable[index].view.clone(),
+                            forwarding_parameter_types: applicable[index]
+                                .forwarding_parameter_types
+                                .clone(),
+                            type_args: applicable[index].type_args.clone(),
+                            ty: applicable[index].ty,
+                            own_type_param_count: applicable[index].own_type_param_count,
+                        })
+                        .collect::<Vec<_>>();
                     self.reference_ambiguity_diagnostic(
                         name,
                         display,
-                        &applicable,
+                        &ambiguous,
                         expected.is_some(),
                         span,
                     );
-                    return None;
+                    return ReferenceResolutionOutcome::Failed;
                 }
-            }
-            _ => {
-                self.reference_ambiguity_diagnostic(
-                    name,
-                    display,
-                    &applicable,
-                    expected.is_some(),
-                    span,
-                );
-                return None;
             }
         };
         let selected = applicable.swap_remove(selected);
         *self = *selected.state;
         let source = selected.candidate.source;
         let callee = self.materialize_candidate_callable(&selected.candidate, &selected.type_args);
-        Some(ResolvedReference {
+        ReferenceResolutionOutcome::Resolved(ResolvedReference {
             callable: callee,
             source,
             type_args: selected.type_args,
@@ -345,19 +380,17 @@ impl Lowerer {
             .collect()
     }
 
-    pub(super) fn named_reference_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
-        self.accessible_candidate_layers(
-            self.top_level_namespaces
-                .named_callable_layers(self.current_file, name)
-                .into_iter()
-                .map(|layer| layer.candidates)
-                .collect(),
-        )
-        .into_iter()
-        .map(|mut layer| {
-            layer.sort_by_key(|id| id.into_raw().into_u32());
-            layer
-        })
-        .collect()
+    pub(super) fn named_reference_candidate_layers(
+        &self,
+        name: &str,
+    ) -> Vec<crate::imports::lookup::LookupLayer<hir::FunctionId>> {
+        self.named_callable_reference_layers(name)
+            .into_iter()
+            .map(|mut layer| {
+                layer.candidates.sort_by_key(|id| id.into_raw().into_u32());
+                layer
+            })
+            .filter(|layer| !layer.candidates.is_empty())
+            .collect()
     }
 }

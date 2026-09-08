@@ -8,6 +8,12 @@ enum BoundReferenceLayer<'a> {
     Extensions(&'a [hir::FunctionId]),
 }
 
+enum ReferenceResolutionOutcome {
+    Resolved(ResolvedReference),
+    NoApplicable,
+    Failed,
+}
+
 impl Lowerer {
     pub(super) fn lower_callable_reference(
         &mut self,
@@ -48,11 +54,28 @@ impl Lowerer {
         let local_candidates = self.local_function_scopes.lookup(&name.text);
         let mut first_failure = None;
         if !local_candidates.is_empty() {
-            match self.probe_expr_layer(|state, _| {
-                state.lower_local_callable_reference(local_candidates.clone(), name, span, expected)
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            let mut state = self.clone();
+            match state.lower_local_callable_reference(
+                local_candidates.clone(),
+                name,
+                span,
+                expected,
+            ) {
+                Ok(Some(expression)) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                Ok(None) => first_failure = Some(Box::new(state)),
+                Err(()) => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
+                }
             }
         }
         let candidate_layers = self.named_reference_candidate_layers(&name.text);
@@ -85,24 +108,36 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
-        for candidates in candidate_layers {
-            match self.probe_expr_layer(|state, _| {
-                let resolved = state.resolve_reference_candidates(
-                    &candidates,
-                    &[],
-                    ReferenceResolutionContext {
-                        expected: expected_signature.as_ref(),
-                        name: &name.text,
-                        display: &display,
-                        span,
-                        extension_mode: ReferenceExtensionMode::IncludeUnbound,
-                    },
-                )?;
-                state.finish_named_callable_reference(resolved, span)
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+        for layer in candidate_layers {
+            let mut state = self.clone();
+            match state.resolve_reference_candidates(
+                &layer.candidates,
+                &[],
+                ReferenceResolutionContext {
+                    expected: expected_signature.as_ref(),
+                    name: &name.text,
+                    display: &display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::IncludeUnbound,
+                },
+            ) {
+                ReferenceResolutionOutcome::Resolved(resolved) => {
+                    let expression = state.finish_named_callable_reference(resolved, span)?;
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                ReferenceResolutionOutcome::NoApplicable => {
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                ReferenceResolutionOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
                 }
             }
         }
@@ -203,34 +238,61 @@ impl Lowerer {
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
         if !member_candidates.is_empty() {
-            match self.probe_expr_layer(|state, _| {
-                state.finish_bound_callable_reference(
-                    BoundReferenceLayer::Members(&member_candidates),
-                    receiver.clone(),
-                    expected_signature.as_ref(),
-                    &name.text,
-                    &display,
-                    span,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            let mut state = self.clone();
+            match state.finish_bound_callable_reference(
+                BoundReferenceLayer::Members(&member_candidates),
+                receiver.clone(),
+                expected_signature.as_ref(),
+                &name.text,
+                &display,
+                span,
+            ) {
+                Ok(Some(expression)) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                Ok(None) => first_failure = Some(Box::new(state)),
+                Err(()) => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
+                }
             }
         }
-        for extensions in self.extension_candidate_layers(&name.text) {
-            match self.probe_expr_layer(|state, _| {
-                state.finish_bound_callable_reference(
-                    BoundReferenceLayer::Extensions(&extensions),
-                    receiver.clone(),
-                    expected_signature.as_ref(),
-                    &name.text,
-                    &display,
-                    span,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+        for layer in self.named_extension_call_layers(&name.text) {
+            if layer.candidates.is_empty() {
+                continue;
+            }
+            let mut state = self.clone();
+            match state.finish_bound_callable_reference(
+                BoundReferenceLayer::Extensions(&layer.candidates),
+                receiver.clone(),
+                expected_signature.as_ref(),
+                &name.text,
+                &display,
+                span,
+            ) {
+                Ok(Some(expression)) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                Ok(None) => {
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                Err(()) => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
                 }
             }
         }
@@ -254,9 +316,9 @@ impl Lowerer {
         name: &str,
         display: &str,
         span: Span,
-    ) -> Option<hir::Expr> {
+    ) -> Result<Option<hir::Expr>, ()> {
         let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
-        let resolved = match layer {
+        let outcome = match layer {
             BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
                 candidates,
                 ReferenceResolutionContext {
@@ -266,7 +328,7 @@ impl Lowerer {
                     span,
                     extension_mode: ReferenceExtensionMode::Exclude,
                 },
-            )?,
+            ),
             BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
                 candidates,
                 &[],
@@ -277,7 +339,12 @@ impl Lowerer {
                     span,
                     extension_mode: ReferenceExtensionMode::Bound(receiver.ty),
                 },
-            )?,
+            ),
+        };
+        let resolved = match outcome {
+            ReferenceResolutionOutcome::Resolved(resolved) => resolved,
+            ReferenceResolutionOutcome::NoApplicable => return Ok(None),
+            ReferenceResolutionOutcome::Failed => return Err(()),
         };
         let callee = resolved.callable;
         let ty = resolved.ty;
@@ -306,12 +373,12 @@ impl Lowerer {
             captures: Vec::new(),
             span,
         });
-        Some(hir::Expr {
+        Ok(Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
             origin: self.expression_origin(span),
-        })
+        }))
     }
 
     pub(super) fn lower_local_callable_reference(
@@ -320,7 +387,7 @@ impl Lowerer {
         name: &ast::Ident,
         span: Span,
         expected: Option<TypeId>,
-    ) -> Option<hir::Expr> {
+    ) -> Result<Option<hir::Expr>, ()> {
         let expected_signature = self.expected_function_signature(expected);
         let owner_type_param_count =
             self.signatures[&self.local_functions[candidates[0]].function].owner_type_param_count;
@@ -330,7 +397,7 @@ impl Lowerer {
             .map(|candidate| self.local_functions[*candidate].function)
             .collect::<Vec<_>>();
         let display = format!("local callable reference `::{}`", name.text);
-        let resolved = self.resolve_reference_candidates(
+        let resolved = match self.resolve_reference_candidates(
             &functions,
             &owner_type_args,
             ReferenceResolutionContext {
@@ -340,14 +407,20 @@ impl Lowerer {
                 span,
                 extension_mode: ReferenceExtensionMode::Exclude,
             },
-        )?;
+        ) {
+            ReferenceResolutionOutcome::Resolved(resolved) => resolved,
+            ReferenceResolutionOutcome::NoApplicable => return Ok(None),
+            ReferenceResolutionOutcome::Failed => return Err(()),
+        };
         let function = self.callable_function_id(resolved.callable);
         let local_function = self.local_function_by_function[&function];
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
-        let capture_sources = self.local_call_capture_args(local_function, span)?;
+        let Some(capture_sources) = self.local_call_capture_args(local_function, span) else {
+            return Err(());
+        };
         let capture_specs: Vec<_> = self.local_functions[local_function]
             .captures
             .iter()
@@ -383,11 +456,11 @@ impl Lowerer {
             captures,
             span,
         });
-        Some(hir::Expr {
+        Ok(Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
             origin: self.expression_origin(span),
-        })
+        }))
     }
 }
