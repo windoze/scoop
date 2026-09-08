@@ -6,12 +6,11 @@ impl Lowerer {
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
         if files.is_empty() {
-            return Err(vec![Diagnostic {
-                severity: ast::DiagnosticSeverity::Error,
-                file: 0,
-                span: None,
-                message: "no source files to compile".to_string(),
-            }]);
+            return Err(vec![Diagnostic::without_span(
+                ast::DiagnosticSeverity::Error,
+                0,
+                "no source files to compile",
+            )]);
         }
         assert_eq!(
             files.len(),

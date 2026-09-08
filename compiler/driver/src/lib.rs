@@ -83,7 +83,7 @@ pub fn compile_file_with_options(
             Ok(file) => files.push(file),
             Err(mut parse_diagnostics) => {
                 for diagnostic in &mut parse_diagnostics {
-                    diagnostic.file = index;
+                    diagnostic.reattribute_single_source(index);
                 }
                 diagnostics.extend(parse_diagnostics);
             }
@@ -222,12 +222,7 @@ pub fn compile_file_with_options(
 /// A driver-level diagnostic without a source span, attributed to the
 /// input file at index `file`.
 fn no_span(file: usize, message: String) -> Diagnostic {
-    Diagnostic {
-        severity: DiagnosticSeverity::Error,
-        file,
-        span: None,
-        message,
-    }
+    Diagnostic::without_span(DiagnosticSeverity::Error, file, message)
 }
 
 /// Root of the Cargo workspace (the driver crate lives in `compiler/driver`).

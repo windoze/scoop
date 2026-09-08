@@ -19,6 +19,6 @@ pub use expressions::*;
 pub use headers::*;
 pub use integer::*;
 pub use parsed_sources::*;
-pub use source::{Diagnostic, DiagnosticSeverity, Span};
+pub use source::{Diagnostic, DiagnosticNote, DiagnosticSeverity, Span};
 pub use statements::*;
 pub use types::*;

@@ -34,7 +34,7 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
             Ok(file) => files.push(file),
             Err(mut errors) => {
                 for error in &mut errors {
-                    error.file = index;
+                    error.reattribute_single_source(index);
                 }
                 diagnostics.extend(errors);
             }

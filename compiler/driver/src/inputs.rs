@@ -81,12 +81,52 @@ pub fn render_diagnostics(
 ) -> String {
     diagnostics
         .iter()
-        .map(|diagnostic| match inputs.get(diagnostic.file) {
-            Some(input) => diagnostic.render(&input.name, &input.source),
-            None => diagnostic.render(fallback_name, fallback_source),
+        .flat_map(|diagnostic| {
+            let primary = match inputs.get(diagnostic.file) {
+                Some(input) => diagnostic.render(&input.name, &input.source),
+                None => diagnostic.render(fallback_name, fallback_source),
+            };
+            std::iter::once(primary).chain(diagnostic.notes.iter().map(|note| {
+                match inputs.get(note.file) {
+                    Some(input) => note.render(&input.name, &input.source),
+                    None => note.render(fallback_name, fallback_source),
+                }
+            }))
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+    use scoop_ast::{DiagnosticNote, Span};
+
+    #[test]
+    fn renders_a_note_against_its_own_source_file() {
+        let inputs = vec![
+            SourceFileInput {
+                name: "consumer.scoop".to_string(),
+                source: "package app\nfun use()".to_string(),
+            },
+            SourceFileInput {
+                name: "library.scoop".to_string(),
+                source: "package lib\n\nprivate fun hidden()".to_string(),
+            },
+        ];
+        let mut diagnostic = Diagnostic::at(Span::new(16, 19), "`hidden` is private");
+        diagnostic.notes.push(DiagnosticNote::at(
+            1,
+            Span::new(21, 27),
+            "`hidden` is declared here",
+        ));
+
+        assert_eq!(
+            render_diagnostics(&[diagnostic], &inputs, "fallback", ""),
+            "consumer.scoop:2:5: error: `hidden` is private\n\
+             library.scoop:3:9: note: `hidden` is declared here"
+        );
+    }
 }
 
 /// Locate the sysroot: `SCOOP_SYSROOT` if set, otherwise the workspace's

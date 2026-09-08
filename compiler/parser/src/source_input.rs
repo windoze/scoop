@@ -1,6 +1,4 @@
-use scoop_ast::{
-    AllParsedSources, Diagnostic, DiagnosticSeverity, NonEmptyVec, ParsedSource, Stage1SourceHandle,
-};
+use scoop_ast::{AllParsedSources, Diagnostic, NonEmptyVec, ParsedSource, Stage1SourceHandle};
 
 use crate::parser::parse_file;
 
@@ -109,7 +107,7 @@ pub fn parse_all(
             Ok(ast) => parsed.push(ParsedSource::new(handle, ast)),
             Err(source_diagnostics) => {
                 diagnostics.extend(source_diagnostics.into_iter().map(|mut diagnostic| {
-                    diagnostic.file = source_index;
+                    diagnostic.reattribute_single_source(source_index);
                     ParseAllDiagnostic {
                         source_handle: handle,
                         display_locator: input.display_locator().to_string(),
@@ -141,11 +139,10 @@ fn input_error(
     ParseAllDiagnostic {
         source_handle: input.source_handle(),
         display_locator: input.display_locator().to_string(),
-        diagnostic: Diagnostic {
-            severity: DiagnosticSeverity::Error,
-            file: source_index,
-            span: None,
+        diagnostic: Diagnostic::without_span(
+            scoop_ast::DiagnosticSeverity::Error,
+            source_index,
             message,
-        },
+        ),
     }
 }
