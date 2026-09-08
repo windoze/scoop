@@ -50,6 +50,7 @@ mod m23_expression_qualifiers;
 mod m23_extension_properties;
 mod m23_legacy_entry;
 mod m23_named_calls;
+mod m23_pattern_paths;
 mod m23_source_model;
 mod m3;
 mod m4;

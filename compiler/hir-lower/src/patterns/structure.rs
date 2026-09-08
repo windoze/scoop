@@ -86,16 +86,45 @@ impl Lowerer {
                         );
                         return None;
                     }
-                    if self.structs[struct_id].name == name.text {
-                        return Some(PatternTarget::Struct(application));
-                    }
-                    if self.source_type_alias_named(&name.text).is_some() {
-                        let target = self.resolve_type_alias_reference(name, false)?;
-                        if self.types_equal(target, matched_ty) {
-                            let Type::Struct(application) = self.types[target] else {
-                                unreachable!("a type equal to a struct has struct representation")
-                            };
-                            return Some(PatternTarget::Struct(application));
+                    let target = match self.resolve_type_lookup(name) {
+                        Ok(Some(target)) => target,
+                        Ok(None) => {
+                            let found = self.type_name(matched_ty);
+                            self.error(
+                                name.span,
+                                format!(
+                                    "pattern `{}` does not match a subject of type {found}",
+                                    name.text
+                                ),
+                            );
+                            return None;
+                        }
+                        Err(()) => return None,
+                    };
+                    match target {
+                        crate::namespace::TopLevelTypeTarget::Nominal(target) => {
+                            if !self.top_level_type_target_is_accessible(
+                                crate::namespace::TopLevelTypeTarget::Nominal(target),
+                            ) {
+                                self.error(
+                                    name.span,
+                                    format!(
+                                        "type `{}` is not accessible from this source location",
+                                        name.text
+                                    ),
+                                );
+                                return None;
+                            }
+                            if target == crate::NominalTarget::Struct(struct_id) {
+                                return Some(PatternTarget::Struct(application));
+                            }
+                        }
+                        crate::namespace::TopLevelTypeTarget::Alias(alias) => {
+                            let target =
+                                self.resolve_type_alias_id_reference(alias, name, false)?;
+                            if self.types_equal(target, matched_ty) {
+                                return Some(PatternTarget::Struct(application));
+                            }
                         }
                     }
                     let found = self.type_name(matched_ty);
