@@ -668,8 +668,8 @@ parser 诊断按源码 span 排序；HIR 同一使用点列举候选时按稳定
 - 真实 member 高于 extension，extension 遵循 exact → package → star → prelude；
 - qualified type path 的最长 package 前缀与 static nested owner；
 - exact/star/alias分别覆盖imported constructor-through-type、enum variant、operator、callable reference、property read/write、property-like `invoke`与typealias qualifier，证明它们仍进入既有typed resolver；
-- 跨文件同package的重复non-overloadable declaration、重复展开签名callable稳定报定义错误；至少一个negative让一条signature使用import alias、另一条使用其展开目标type，断言在typed signature validation而非语法文本比较时报重复；不同package同短名可同时生成并运行，file-private同名保留各自source owner；
-- qualified package中的唯一合法`main`可由legacy executable adapter运行，不同package各有一个合法`main`报告multiple entry；
+- 跨文件同package的重复non-overloadable declaration、重复展开签名callable稳定报定义错误；至少一个negative让一条signature使用import alias、另一条使用其展开目标type，断言在typed signature validation而非语法文本比较时报重复；不同package同短名可同时存在于完整HIR，file-private同名保留各自source owner；
+- 前端测试直接验证legacy executable adapter可选择qualified package中的唯一合法`main`，且不同package各有一个合法`main`时报告multiple entry；M23-1不为此把多source输入接入旧single-file driver，多source下游编译、链接和运行留给M23-11的manifest-backed集成fixture；
 - 在保持同一组source handle和每个source内源码书写顺序不变时，置换 `user_sources` 容器顺序和namespace map插入/枚举顺序；对raw request-local id做alpha-normalization后，名称winner与歧义集合不变。
 
 ### 10.4 visibility、core 与阶段门禁
