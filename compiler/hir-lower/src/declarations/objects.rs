@@ -333,15 +333,14 @@ impl Lowerer {
             assert!(self.companion_by_host.insert(host, relation).is_none());
         }
 
-        let qualified_name = Owner::Object(object).describe_name(self);
-        let stable_key = if matches!(source, ObjectSource::Companion(_)) {
-            format!("companion:{qualified_name}")
-        } else if access.declared == hir::DeclaredVisibility::Private && owner.is_none() {
-            let source = crate::globals::stable_source_identity(&self.intrinsic_sources[file].name);
-            format!("object-private:{source}:{qualified_name}")
-        } else {
-            format!("object:{qualified_name}")
-        };
+        self.object_files.insert(object, file);
+        let stable_key = self.local_link_component(
+            file,
+            Some(Owner::Object(object)),
+            "",
+            false,
+            crate::globals::LocalLinkRole::SingletonInitialization,
+        );
         let published_root = self
             .singleton_published_roots
             .alloc(hir::SingletonPublishedRoot {
@@ -399,7 +398,6 @@ impl Lowerer {
         }
         self.object_by_backing_class.insert(backing_class, object);
         self.class_files.insert(backing_class, file);
-        self.object_files.insert(object, file);
         for method in source.members().iter().filter_map(|member| match member {
             ast::ClassMember::Function(function) => Some(function),
             _ => None,

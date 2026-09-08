@@ -472,7 +472,9 @@ fn nullable_pointer_storage_accepts_none_as_an_encoded_constant_image() {
         let global = module
             .globals
             .iter()
-            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .find_map(|(_, global)| {
+                (module.properties[global.property].name == name).then_some(global)
+            })
             .unwrap_or_else(|| panic!("missing global {name}"));
         assert!(matches!(
             global.storage,

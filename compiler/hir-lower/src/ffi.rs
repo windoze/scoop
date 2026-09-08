@@ -121,7 +121,7 @@ impl Lowerer {
                         self.globals[*id].span,
                         format!(
                             "extern data symbol `{symbol}` conflicts with global `{}`",
-                            self.globals[*previous].name
+                            self.properties[self.globals[*previous].property].name
                         ),
                     );
                 }

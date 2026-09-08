@@ -2,7 +2,6 @@
 
 use scoop_ast as ast;
 use scoop_hir as hir;
-use std::path::{Component, Path};
 
 use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
@@ -14,7 +13,10 @@ use crate::{
 
 mod consts;
 mod delegates;
+mod link_identity;
 mod static_initializers;
+
+pub(crate) use link_identity::LocalLinkRole;
 
 pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};
 
@@ -33,25 +35,6 @@ struct PendingOrdinary<'a> {
     file: usize,
     access: hir::DeclarationAccess,
     ty: hir::TypeId,
-}
-
-pub(crate) fn stable_source_identity(name: &str) -> String {
-    let path = Path::new(name);
-    let mut components = Vec::new();
-    for component in path.components() {
-        match component {
-            Component::Normal(value) => components.push(value.to_string_lossy().into_owned()),
-            Component::ParentDir => components.push("__parent__".to_string()),
-            Component::CurDir | Component::RootDir | Component::Prefix(_) => {}
-        }
-    }
-    if path.is_absolute() {
-        components.pop().unwrap_or_else(|| "<user>".to_string())
-    } else if components.is_empty() {
-        "<user>".to_string()
-    } else {
-        components.join("/")
-    }
 }
 
 #[derive(Clone)]
@@ -348,7 +331,13 @@ impl Lowerer {
             };
             let expected_property = self.next_property_id();
             let id = self.globals.alloc(hir::Global {
-                name: decl.name.text.clone(),
+                name: self.local_link_component(
+                    file_index,
+                    None,
+                    &decl.name.text,
+                    access.declared == hir::DeclaredVisibility::Private,
+                    LocalLinkRole::GlobalStorage,
+                ),
                 property: expected_property,
                 ty,
                 mutable: decl.mutable,
@@ -393,7 +382,8 @@ impl Lowerer {
                     unreachable!("the M12 initializer worklist contains only raw storage")
                 }
                 hir::GlobalStorage::Extern { .. } => {
-                    if let Err(reason) = self.validate_c_global_type(global.ty, &global.name) {
+                    let property_name = self.properties[global.property].name.clone();
+                    if let Err(reason) = self.validate_c_global_type(global.ty, &property_name) {
                         self.error(
                             decl.ty.span,
                             format!("extern global type is not C-FFI-safe: {reason}"),
@@ -584,7 +574,13 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
-            name: declaration.declaration.name.text.clone(),
+            name: self.local_link_component(
+                declaration.file,
+                None,
+                &declaration.declaration.name.text,
+                declaration.access.declared == hir::DeclaredVisibility::Private,
+                LocalLinkRole::GlobalStorage,
+            ),
             property: expected_property,
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
@@ -670,7 +666,13 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
-            name: declaration.declaration.name.text.clone(),
+            name: self.local_link_component(
+                declaration.file,
+                None,
+                &declaration.declaration.name.text,
+                declaration.access.declared == hir::DeclaredVisibility::Private,
+                LocalLinkRole::GlobalStorage,
+            ),
             property: expected_property,
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
@@ -761,15 +763,13 @@ impl Lowerer {
     }
 
     fn top_level_initialization_key(&self, declaration: &PendingOrdinary<'_>) -> String {
-        if declaration.access.declared == hir::DeclaredVisibility::Private {
-            let source = stable_source_identity(&self.intrinsic_sources[declaration.file].name);
-            format!(
-                "top-level-private:{source}:{}",
-                declaration.declaration.name.text
-            )
-        } else {
-            format!("top-level:{}", declaration.declaration.name.text)
-        }
+        self.local_link_component(
+            declaration.file,
+            None,
+            &declaration.declaration.name.text,
+            declaration.access.declared == hir::DeclaredVisibility::Private,
+            LocalLinkRole::TopLevelInitialization,
+        )
     }
 
     pub(crate) fn lower_runtime_top_level_initializers(&mut self) {

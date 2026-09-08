@@ -185,21 +185,19 @@ impl Lowerer {
         file: usize,
         receiver_ty: hir::TypeId,
     ) -> String {
-        let receiver = self.type_name(receiver_ty);
-        if matches!(
+        let private = matches!(
             declaration.visibility,
             ast::VisibilitySyntax::Explicit {
                 visibility: ast::DeclaredVisibility::Private,
                 ..
             }
-        ) {
-            let source = super::stable_source_identity(&self.intrinsic_sources[file].name);
-            format!(
-                "extension-private:{source}:{receiver}:{}",
-                declaration.name.text
-            )
-        } else {
-            format!("extension:{receiver}:{}", declaration.name.text)
-        }
+        );
+        self.local_link_component(
+            file,
+            None,
+            &declaration.name.text,
+            private,
+            super::LocalLinkRole::ExtensionInitialization(receiver_ty),
+        )
     }
 }

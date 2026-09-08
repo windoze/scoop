@@ -169,12 +169,10 @@ fn const_properties_fold_forward_references_and_disappear_at_read_sites() {
             .iter()
             .any(|property| { module.properties[*property].name == "answer" })
     );
-    assert!(
-        module.globals.iter().all(|(_, global)| !matches!(
-            global.name.as_str(),
-            "answer" | "base" | "label" | "valid"
-        ))
-    );
+    assert!(module.globals.iter().all(|(_, global)| !matches!(
+        module.properties[global.property].name.as_str(),
+        "answer" | "base" | "label" | "valid"
+    )));
 
     assert!(matches!(
         function_result(user_function(&module, "readAnswer")).kind,

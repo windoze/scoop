@@ -140,7 +140,7 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     let (answer, _) = module
         .globals
         .iter()
-        .find(|(_, global)| global.name == "answer")
+        .find(|(_, global)| module.properties[global.property].name == "answer")
         .expect("exported property");
     let answer = module.globals[answer].property;
     assert!(module.public_surface.properties.contains(&answer));
@@ -475,7 +475,7 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
         module
             .globals
             .iter()
-            .filter(|(_, global)| global.name == "privateValue")
+            .filter(|(_, global)| module.properties[global.property].name == "privateValue")
             .count(),
         2
     );
@@ -483,7 +483,7 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
         module
             .globals
             .iter()
-            .filter(|(_, global)| global.name == "privateValue")
+            .filter(|(_, global)| module.properties[global.property].name == "privateValue")
             .all(|(_, global)| !module.public_surface.properties.contains(&global.property))
     );
 }

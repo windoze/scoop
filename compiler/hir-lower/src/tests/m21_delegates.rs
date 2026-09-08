@@ -303,7 +303,13 @@ fn top_level_and_extension_delegates_own_eager_managed_storage() {
         .map(|(_, unit)| unit.stable_key.as_str())
         .collect::<Vec<_>>();
     stable_keys.sort_unstable();
-    assert_eq!(stable_keys, ["extension:Int:shared", "top-level:number"]);
+    assert_eq!(
+        stable_keys,
+        [
+            "$local$u0:p0:r9:extensiont6:v3:Intn6:shared",
+            "$local$u0:p0:r9:top-leveln6:number"
+        ]
+    );
     for (storage_id, storage) in module.delegate_storages.iter() {
         let hir::DelegateStorageLocation::ManagedGlobal(global) = storage.location else {
             panic!("global delegates own managed-global storage")
