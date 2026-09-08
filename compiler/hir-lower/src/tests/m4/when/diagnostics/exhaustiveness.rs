@@ -43,7 +43,7 @@ fn desugaring_in_when_guard_is_retained_as_guard_setup() {
         ],
     )]);
     let module = lower_user(file).expect("elvis setup must stay inside the guard path");
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let when = main
@@ -309,7 +309,7 @@ fn recursively_irrefutable_payloads_produce_an_enum_proof() {
     )]);
     let output = lower_user_output(file).expect("Some(binding) and None are exhaustive");
     let module = &output.export;
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let when = main
@@ -325,7 +325,7 @@ fn recursively_irrefutable_payloads_produce_an_enum_proof() {
         hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix { .. })
     ));
     let concrete = &output.local;
-    let hir::concrete::FunctionKind::User(main) = &concrete.functions[concrete.entry].kind else {
+    let hir::concrete::FunctionKind::User(main) = &concrete.functions[concrete.entry()].kind else {
         panic!("concrete main body")
     };
     let when = main

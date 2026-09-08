@@ -89,9 +89,39 @@ fn stage1_input<'a>(
 fn lower_sources(
     core: &ast::SourceFile,
     user_sources: Vec<(u32, ast::SourceFile)>,
-) -> Result<hir::Output, Vec<ast::Diagnostic>> {
+) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
     let input = stage1_input(core, parsed_sources(user_sources));
-    lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_stage1_legacy_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+}
+
+#[test]
+fn frontend_lowering_does_not_require_main() {
+    let core = core_file();
+    let input = stage1_input(
+        &core,
+        parsed_sources(vec![(0, file(vec![fun("libraryFunction", Vec::new())]))]),
+    );
+    let output = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+        .expect("frontend HIR accepts a current unit without an executable entry");
+    assert!(
+        output
+            .export
+            .functions
+            .iter()
+            .any(|(_, function)| function.name == "libraryFunction")
+    );
+}
+
+#[test]
+fn hir_dump_dispatch_preserves_only_a_legacy_executable_entry() {
+    let output = lower_sources(&core_file(), vec![(0, file(vec![fun("main", Vec::new())]))])
+        .expect("the legacy executable has one valid entry");
+    let legacy_dump = hir::dump(&output.export);
+    assert_eq!(legacy_dump, hir::dump_legacy_executable(&output.export));
+    assert!(legacy_dump.contains("\n  entry main\n"));
+
+    let base_dump = hir::dump(output.export.module());
+    assert!(!base_dump.contains("\n  entry "));
 }
 
 #[test]
@@ -168,7 +198,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
             (10, valid),
         ]),
     );
-    let output = lower_stage1_compilation_input(
+    let output = lower_stage1_legacy_executable(
         &input,
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([hir::IntrinsicProviderId::from_raw(29)]),
@@ -176,7 +206,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
     )
     .expect("only the fully qualified current-unit main is an entry candidate");
 
-    let entry = &output.export.functions[output.export.entry];
+    let entry = &output.export.functions[output.export.entry()];
     assert_eq!(entry.span, valid_span);
     assert!(matches!(&entry.kind, hir::FunctionKind::User(_)));
     assert!(matches!(&entry.genericity, hir::FunctionGenericity::Plain));
@@ -242,7 +272,7 @@ fn entry_error_owner(
     expected_message: &str,
 ) -> (ast::Stage1SourceHandle, Option<Span>) {
     let input = stage1_input(core, parsed_sources(user_sources));
-    let errors = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    let errors = lower_stage1_legacy_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
         .expect_err("the test input has no unique legacy entry");
     let diagnostic = errors
         .iter()

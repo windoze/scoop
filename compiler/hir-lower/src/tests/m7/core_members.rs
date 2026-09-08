@@ -46,7 +46,7 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     assert!(has_instantiation(&module, print, &[int_type(&module)]));
 
     // Arguments keep their exact types; formatting no longer crosses Any.
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let first = expression_statement(body, 0);
     let hir::ExprKind::Call { args, .. } = &first.kind else {
         panic!("expected a call")
@@ -155,7 +155,7 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
         ))],
     )]);
     let module = lower_user(file).expect("Int.toString is declared in core source");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let outer = expression_statement(body, 0);
     let hir::ExprKind::Call { .. } = &outer.kind else {
         panic!("expected print call")

@@ -138,7 +138,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
   entry main
   instance println<String>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// `when` over the core `Option`: positional variant pattern with a
@@ -291,7 +291,7 @@ fn when_over_option_with_guard() {
   instance println<Int>
   instance println<String>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// Tuple and struct subjects: positional and field patterns, literals,
@@ -480,7 +480,7 @@ fn when_over_tuple_and_struct() {
   instance println<String>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// An unguarded binding arm is a catch-all (spec 5 "binding
@@ -537,6 +537,6 @@ fn when_else_covers_missing_variants() {
         ),
     ]);
     let module = lower_user(file).expect("else branch must lower");
-    let dump = hir::dump(&module);
+    let dump = hir::dump_legacy_executable(&module);
     assert!(dump.contains("  else\n"), "{dump}");
 }

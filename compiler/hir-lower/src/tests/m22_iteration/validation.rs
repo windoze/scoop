@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn iteration_plan_validator_rejects_a_cross_field_binding_mismatch() {
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     hir::validate_iteration_plans(&export).expect("the unmodified producer plan is valid");
 
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
@@ -19,7 +19,7 @@ fn iteration_plan_validator_rejects_a_cross_field_binding_mismatch() {
 
 #[test]
 fn iteration_plan_validator_rejects_a_forged_method_owner() {
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     let (application, wrong_owner) = {
         let plan = first_for(export_body(&export, "main"));
         let hir::ExprKind::MethodCall { callee, .. } = &plan.iterator_call().kind else {
@@ -43,7 +43,7 @@ fn iteration_plan_validator_rejects_a_forged_method_owner() {
 
 #[test]
 fn iteration_plan_validator_recomputes_every_bound_callable_signature_field() {
-    let export = checked_bound_iteration_export();
+    let export = checked_bound_iteration_export().into_module();
     let bound = {
         let plan = first_for(export_body(&export, "consume"));
         let hir::ExprKind::MethodCall { callee, .. } = &plan.iterator_call().kind else {
@@ -93,7 +93,7 @@ fn iteration_plan_validator_recomputes_every_bound_callable_signature_field() {
 
 #[test]
 fn iteration_plan_validator_rejects_setup_reuse_of_the_source_temporary() {
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     let mut alias = parts
         .iterator_setup
@@ -121,7 +121,7 @@ fn iteration_plan_validator_rejects_setup_reuse_of_the_source_temporary() {
 
 #[test]
 fn iteration_plan_validator_rejects_source_reads_of_future_plan_locals() {
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     parts.source_init.kind = hir::ExprKind::Local(parts.source.local);
     replace_first_for(&mut export, "main", plan_from_parts(parts));
@@ -133,7 +133,7 @@ fn iteration_plan_validator_rejects_source_reads_of_future_plan_locals() {
         "for source prefix references a future plan local"
     );
 
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     let mut illegal_read = parts.source_init.clone();
     illegal_read.kind = hir::ExprKind::Local(parts.next.element().local);
@@ -163,7 +163,8 @@ fn iteration_plan_validator_rejects_source_reads_of_future_plan_locals() {
             )],
         ),
     ]))
-    .expect("the producer keeps source evaluation before loop-body locals");
+    .expect("the producer keeps source evaluation before loop-body locals")
+    .into_module();
     let later = export_body(&export, "main")
         .locals
         .iter()
@@ -206,7 +207,8 @@ fn iteration_plan_validator_follows_callable_value_capture_sources() {
             ],
         ),
     ]))
-    .expect("the producer emits one ordinary captured lambda before the loop");
+    .expect("the producer emits one ordinary captured lambda before the loop")
+    .into_module();
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     let future = parts.next.element();
     let closure = export_body(&export, "main")
@@ -265,7 +267,8 @@ fn iteration_plan_validator_rejects_aliases_to_outer_region_definitions() {
             ],
         ),
     ]))
-    .expect("the producer emits unique locals across the function region");
+    .expect("the producer emits unique locals across the function region")
+    .into_module();
     hir::validate_iteration_plans(&export).expect("the unmodified producer plan is valid");
     let existing = export_body(&export, "main")
         .locals
@@ -308,7 +311,8 @@ fn iteration_plan_validator_rejects_aliases_to_outer_region_definitions() {
         ),
         fun("main", Vec::new()),
     ]))
-    .expect("the producer emits a fresh source temporary distinct from its parameter");
+    .expect("the producer emits a fresh source temporary distinct from its parameter")
+    .into_module();
     let function = export
         .functions
         .iter()
@@ -346,7 +350,7 @@ fn iteration_plan_validator_rejects_jumps_to_a_different_loop() {
             target: hir::LoopId::from_raw(u32::MAX),
         },
     ] {
-        let mut export = checked_basic_iteration_export();
+        let mut export = checked_basic_iteration_export().into_module();
         let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
         assert_ne!(parts.target, hir::LoopId::from_raw(u32::MAX));
         parts.body.push(hir::Statement {
@@ -366,7 +370,9 @@ fn iteration_plan_validator_rejects_jumps_to_a_different_loop() {
 
 #[test]
 fn iteration_plan_validator_rejects_a_mutable_binding_leaf() {
-    let mut export = checked_basic_iteration_export();
+    let executable = checked_basic_iteration_export();
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     let hir::IrrefutableBindingShape::Binding(shape_leaf) = &mut parts.binding.shape else {
         panic!("the checked source has one plain binding leaf")
@@ -384,7 +390,6 @@ fn iteration_plan_validator_rejects_a_mutable_binding_leaf() {
         .expect("the checked source schedules its binding leaf");
     bind.mutability = hir::BindingMutability::Mutable;
     replace_first_for(&mut export, "main", plan_from_parts(parts));
-    let entry = export.entry;
     let hir::FunctionKind::User(body) = &mut export.functions[entry].kind else {
         panic!("main must have a body")
     };

@@ -134,9 +134,11 @@ use types::{
     raise_integer_kind, remap_idx,
 };
 
-/// Lower HIR to MIR.
-pub fn lower(module: &hir::Module) -> mir::Module {
+/// Lower a complete legacy executable HIR graph to MIR.
+pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
+    let module = executable.module();
     Lowerer {
+        entry: executable.entry(),
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -192,6 +194,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
 }
 
 struct Lowerer {
+    /// Typed local-concrete identity selected by the legacy executable adapter.
+    entry: hir::FunctionId,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,

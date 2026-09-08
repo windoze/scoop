@@ -18,8 +18,8 @@ mod reference_types;
 mod singletons;
 mod value_types;
 
-fn lower(module: &hir::Module) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_export(module);
+fn lower(module: &hir::LegacyExecutableExportHir) -> mir::Module {
+    let concrete = scoop_hir_lower::concretize_legacy_export(module);
     let mut module = super::lower(&concrete);
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
     // LocalConcreteHir's complete core contract. Keep their constructor
@@ -31,6 +31,14 @@ fn lower(module: &hir::Module) -> mir::Module {
             && !name.starts_with("init.$ThrowableProtocol.$c")
     });
     module
+}
+
+fn legacy_executable(
+    module: hir::Module,
+    entry: hir::FunctionId,
+) -> hir::LegacyExecutableExportHir {
+    hir::LegacyExecutableExportHir::try_new(module, entry)
+        .expect("the MIR test keeps its typed legacy entry structurally valid")
 }
 
 fn dump(module: &mir::Module) -> String {
@@ -564,7 +572,7 @@ fn module_interface_application(
 
 /// `main` calls `println("hello, world")` then `helper()`, which
 /// calls `print("!")`.
-fn hello_world() -> hir::Module {
+fn hello_world() -> hir::LegacyExecutableExportHir {
     let mut h = Harness::new();
     let print = h.print_string();
     let println = h.println_string();

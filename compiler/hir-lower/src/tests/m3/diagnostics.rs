@@ -330,7 +330,7 @@ fn desugaring_in_while_condition_has_a_repeated_setup_region() {
         ],
     )]);
     let module = lower_user(file).expect("elvis setup must remain inside the loop condition");
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     let hir::StatementKind::While {

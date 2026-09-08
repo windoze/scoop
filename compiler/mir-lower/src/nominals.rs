@@ -287,8 +287,8 @@ impl Lowerer {
             }
             .expect("local-concrete source instances have source-mangleable types");
         }
-        if hir_id == module.entry || !self.overloaded.contains(&name) {
-            return mir::mangle_function(&name, hir_id == module.entry);
+        if hir_id == self.entry || !self.overloaded.contains(&name) {
+            return mir::mangle_function(&name, hir_id == self.entry);
         }
         // A method's receiver (parameter 0, hir-lower's contract) is
         // not part of the overload signature: `Doc.describe(Int)`

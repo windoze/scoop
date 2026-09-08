@@ -114,7 +114,7 @@ fn local_delegate_is_an_immutable_hidden_local_with_resolved_get_and_set_targets
     ]))
     .expect("a local delegated var lowers");
 
-    let main = module.entry;
+    let main = module.entry();
     let hir::FunctionKind::User(body) = &module.functions[main].kind else {
         panic!("main is a user function")
     };

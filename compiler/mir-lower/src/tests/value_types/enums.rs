@@ -365,7 +365,9 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
         }));
     }
     let main = h.user_fn("main", hir::Body { locals, statements });
-    let mut source = h.finish(main);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
     assert_eq!(
         source.function_types.alloc(hir::FunctionType {
             canonical_type: managed_function,
@@ -375,6 +377,7 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
         }),
         function_type
     );
+    let source = legacy_executable(source, entry);
     let module = lower(&source);
     assert_eq!(module.validate(), Ok(()));
 
@@ -587,7 +590,9 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             statements: Vec::new(),
         },
     );
-    let mut export = h.finish(main);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     for (name, ty, variant) in [
         ("noneInt", option_int, int_none),
         ("noneString", option_string, string_none),
@@ -606,7 +611,8 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         });
     }
 
-    let concrete = scoop_hir_lower::concretize_export(&export);
+    let export = legacy_executable(export, entry);
+    let concrete = scoop_hir_lower::concretize_legacy_export(&export);
     let concrete_refs = ["noneInt", "noneString"].map(|name| {
         let global = concrete
             .globals

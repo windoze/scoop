@@ -139,7 +139,7 @@ fn var_rebinding_and_control_flow() {
   entry main
   instance println<String>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 #[test]
@@ -293,5 +293,5 @@ fn inner_scopes_shadow_and_do_not_leak() {
   instance println<String>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }

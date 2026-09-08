@@ -97,7 +97,9 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         },
     );
     let main = empty_main(&mut h);
-    let mut source = h.finish(main);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
     let int = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     source.foreign_callback_core.callback = callback;
 
@@ -147,6 +149,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         callback_ty,
     )));
 
+    let source = legacy_executable(source, entry);
     let module = lower(&source);
     let (_, bridge) = module
         .foreign_callback_bridges

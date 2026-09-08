@@ -80,14 +80,15 @@ Module mangling=compact-v2
 
 #[test]
 fn repeated_literals_get_separate_constants_deterministically() {
-    let mut hir_module = hello_world();
+    let executable = hello_world();
     // Add another `println("hello, world")` to `main`. The
     // `println(String)` overload is the second function in
     // `top_level` (after `print(String)`).
-    let println = hir_module.top_level[1];
-    let string = hir_module.string;
-    let unit = hir_module.unit;
-    let main_id = hir_module.entry;
+    let println = executable.top_level[1];
+    let string = executable.string;
+    let unit = executable.unit;
+    let main_id = executable.entry();
+    let mut hir_module = executable.into_module();
     let hir::FunctionKind::User(body) = &mut hir_module.functions[main_id].kind else {
         unreachable!()
     };
@@ -109,6 +110,7 @@ fn repeated_literals_get_separate_constants_deterministically() {
         span: SPAN,
     });
 
+    let hir_module = legacy_executable(hir_module, main_id);
     let module = lower(&hir_module);
     let symbols: Vec<&str> = module
         .strings

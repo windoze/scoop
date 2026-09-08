@@ -413,8 +413,8 @@ fn user_body(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
     body
 }
 
-fn main_body(module: &hir::Module) -> &hir::Body {
-    user_body(module, module.entry)
+fn main_body(module: &hir::LegacyExecutableExportHir) -> &hir::Body {
+    user_body(module, module.entry())
 }
 
 fn for_plans(body: &hir::Body) -> Vec<&hir::ForIterationPlan> {

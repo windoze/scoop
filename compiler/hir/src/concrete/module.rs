@@ -43,7 +43,6 @@ pub struct Module {
     /// intrinsic families are represented by each concrete class instance,
     /// so no parameterized template can leak into this local graph.
     pub intrinsic_type_core: IntrinsicTypeCore,
-    pub entry: FunctionId,
 }
 
 impl Module {

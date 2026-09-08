@@ -149,12 +149,12 @@ use scope::{LocalFunctionScopes, Scopes};
 ///
 /// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
-pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
+pub fn lower(files: &[ast::SourceFile]) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
     if files.is_empty() {
         return Lowerer::new()
-            .run(files)
-            .map(|(export, warnings)| hir::Output {
-                local: concretize::lower(&export),
+            .run_legacy_executable(files)
+            .map(|(export, warnings)| hir::LegacyExecutableOutput {
+                local: concretize::lower_legacy_executable(&export),
                 export,
                 warnings,
             });
@@ -331,11 +331,11 @@ pub enum IntrinsicDeclarationPolicy {
 pub fn lower_compilation_unit(
     unit: &CompilationUnit<'_>,
     policy: IntrinsicDeclarationPolicy,
-) -> Result<hir::Output, Vec<Diagnostic>> {
+) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
     let input =
         Stage1CompilationInput::from_legacy_sources(unit.core.clone(), unit.user, Vec::new())
             .expect("one legacy user source always has one provider");
-    lower_stage1_compilation_input(&input, policy)
+    lower_stage1_legacy_executable(&input, policy)
 }
 
 /// Lower an explicitly provided non-empty set of user sources together with
@@ -344,6 +344,40 @@ pub fn lower_stage1_compilation_input(
     input: &Stage1CompilationInput<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
+    let (files, sources) = materialize_stage1_sources(input);
+    let (export, warnings) = Lowerer::new()
+        .with_intrinsic_sources(sources, policy)
+        .run(&files)?;
+    let local = concretize::lower(&export);
+    Ok(hir::Output {
+        export,
+        local,
+        warnings,
+    })
+}
+
+/// Lower a Stage 1 source set for the temporary M22 executable pipeline.
+/// Unlike the base frontend entry point, this adapter requires exactly one
+/// strict legacy `main` and retains its typed identity in both HIR products.
+pub fn lower_stage1_legacy_executable(
+    input: &Stage1CompilationInput<'_>,
+    policy: IntrinsicDeclarationPolicy,
+) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
+    let (files, sources) = materialize_stage1_sources(input);
+    let (export, warnings) = Lowerer::new()
+        .with_intrinsic_sources(sources, policy)
+        .run_legacy_executable(&files)?;
+    let local = concretize::lower_legacy_executable(&export);
+    Ok(hir::LegacyExecutableOutput {
+        export,
+        local,
+        warnings,
+    })
+}
+
+fn materialize_stage1_sources(
+    input: &Stage1CompilationInput<'_>,
+) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
     let source_count = input.core.len() + input.user_sources.sources().len();
     let mut files = Vec::with_capacity(source_count);
     let mut sources = Vec::with_capacity(source_count);
@@ -374,15 +408,7 @@ pub fn lower_stage1_compilation_input(
             source: details.source_text.to_string(),
         });
     }
-    let (export, warnings) = Lowerer::new()
-        .with_intrinsic_sources(sources, policy)
-        .run(&files)?;
-    let local = concretize::lower(&export);
-    Ok(hir::Output {
-        export,
-        local,
-        warnings,
-    })
+    (files, sources)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -405,6 +431,14 @@ struct SourceProvider {
 /// the same fixed-point pass as the production pipeline.
 pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
     concretize::lower(export)
+}
+
+/// Concretize a checked legacy executable while preserving its typed entry
+/// identity across the export/local id-domain boundary.
+pub fn concretize_legacy_export(
+    export: &hir::LegacyExecutableExportHir,
+) -> hir::LegacyExecutableLocalHir {
+    concretize::lower_legacy_executable(export)
 }
 
 #[derive(Clone)]

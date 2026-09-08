@@ -409,7 +409,9 @@ fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
 fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinct() {
     let mut h = Harness::new();
     let main = empty_main(&mut h);
-    let mut source = h.finish_coroutines(main);
+    let executable = h.finish_coroutines(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
     let result = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     let suspend_registration = source.coroutine_core.suspend_registration;
     let registration_ty =
@@ -457,6 +459,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     });
     source.top_level.push(caller);
 
+    let source = legacy_executable(source, entry);
     let module = lower(&source);
     let (_, coroutine) = module
         .meta
@@ -527,7 +530,9 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             statements: Vec::new(),
         },
     );
-    let mut hir_module = h.finish_coroutines(main);
+    let executable = h.finish_coroutines(main);
+    let entry = executable.entry();
+    let mut hir_module = executable.into_module();
     let result = module_integer_type(&hir_module, hir::IntegerKind::SIGNED_32);
     let suspend_task = hir_module.coroutine_core.suspend_task;
     let continuation = hir_module.coroutine_core.continuation;
@@ -578,6 +583,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     });
     hir_module.top_level.push(launcher);
 
+    let hir_module = legacy_executable(hir_module, entry);
     let module = lower(&hir_module);
     let launcher = module
         .functions

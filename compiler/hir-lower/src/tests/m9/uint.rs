@@ -63,7 +63,7 @@ fn uint_arithmetic_comparison_and_equality() {
     assert_eq!(local_ty(&module, "remainder"), "ULong");
     assert_eq!(local_ty(&module, "less"), "Boolean");
     assert_eq!(local_ty(&module, "same"), "Boolean");
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     for (name, operation) in [

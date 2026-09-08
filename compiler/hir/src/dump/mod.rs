@@ -4,4 +4,6 @@ mod body;
 mod module;
 
 pub use body::dump_pattern;
-pub use module::dump;
+#[doc(hidden)]
+pub use module::HirDumpInput;
+pub use module::{dump, dump_legacy_executable};

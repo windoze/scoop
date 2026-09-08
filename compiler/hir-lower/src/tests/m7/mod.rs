@@ -54,11 +54,11 @@ fn body_of(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
 /// `unnest` is set, the interesting inner call is found in its preceding
 /// argument-evaluation temporary.
 fn call_in_main(
-    module: &hir::Module,
+    module: &hir::LegacyExecutableExportHir,
     index: usize,
     unnest: bool,
 ) -> (hir::FunctionId, &[hir::Expr]) {
-    let body = body_of(module, module.entry);
+    let body = body_of(module, module.entry());
     let statement_index = body
         .statements
         .iter()

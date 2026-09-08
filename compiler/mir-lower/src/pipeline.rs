@@ -202,7 +202,7 @@ impl Lowerer {
 
         // The entry point is a non-generic user function, hence always
         // in the map.
-        let entry = self.function_map[&module.entry];
+        let entry = self.function_map[&self.entry];
         let boxed_types = self
             .boxed
             .by_type

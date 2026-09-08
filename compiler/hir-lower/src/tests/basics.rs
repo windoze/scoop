@@ -35,7 +35,7 @@ fn lowers_hello_world() {
     );
 
     // Entry point is `main`.
-    assert_eq!(module.functions[module.entry].name, "main");
+    assert_eq!(module.functions[module.entry()].name, "main");
 
     // Golden dump locks the output structure.
     let expected = r#"Module
@@ -124,7 +124,7 @@ fn lowers_hello_world() {
   instance println<String>
   instance print<String>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 #[test]

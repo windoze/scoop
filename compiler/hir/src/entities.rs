@@ -139,8 +139,6 @@ pub struct Module {
     pub intrinsic_type_core: IntrinsicTypeCore,
     /// Compiler-validated source-location value shape and its HIR intrinsic.
     pub source_location_core: SourceLocationCore,
-    /// Entry point: `fun main()`. Guaranteed present.
-    pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.

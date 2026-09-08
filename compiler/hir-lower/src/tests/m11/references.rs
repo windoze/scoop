@@ -231,7 +231,7 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
     assert_eq!(extension.params[0].name, "this");
     assert_eq!(extension.params[0].ty, int_type(&module));
 
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let init = local_init(main, "result");

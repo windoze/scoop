@@ -644,8 +644,9 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
     let application = h.enum_application_of(never_ty);
     let mut locals = Arena::new();
     let subject = locals.alloc(local("subject", never_ty));
-    let main = h.user_fn_full(
-        "main",
+    let impossible_name = "zeroArmImpossible";
+    h.user_fn_full(
+        impossible_name,
         Vec::new(),
         vec![param("subject", never_ty, subject)],
         h.unit,
@@ -661,8 +662,14 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
             )],
         },
     );
+    let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == impossible_name).then_some(function))
+        .expect("the ordinary zero-arm test function reaches MIR")
+        .body;
 
     assert!(matches!(
         body.blocks[body.entry].terminator,

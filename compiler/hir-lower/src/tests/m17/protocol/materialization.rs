@@ -173,7 +173,7 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         registration.mode,
         module.foreign_callback_core.modes.reusable()
     );
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     let dump = hir::dump(&module);

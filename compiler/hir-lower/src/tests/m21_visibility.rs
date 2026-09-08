@@ -118,7 +118,7 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     ]))
     .expect("explicit public declarations and an internal main must lower");
 
-    let main = module.entry;
+    let main = module.entry();
     assert_eq!(
         module.functions[main].access.declared,
         hir::DeclaredVisibility::Internal

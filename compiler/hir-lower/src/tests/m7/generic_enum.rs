@@ -49,7 +49,7 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
     let pick_int = method_fn(&module, "Box", "pick", &["Int"]);
 
     let method_target = |index: usize| {
-        let body = body_of(&module, module.entry);
+        let body = body_of(&module, module.entry());
         let callee = body
             .statements
             .iter()
@@ -114,7 +114,7 @@ fn receiver_owner_parameters_irrelevant_to_forwarding_may_remain_unconstrained()
         ),
     ]);
     let module = lower_user(file).expect("unused owner variables do not block MSC");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let call = expression_statement(body, 0);
     let hir::ExprKind::MethodCall { callee, .. } = &call.kind else {
         panic!("rank resolves to a method call")
@@ -136,7 +136,7 @@ fn overloaded_main_entry_is_the_zero_parameter_one() {
         fun("main", vec![]),
     ]);
     let module = lower_user(file).expect("overloaded main must lower");
-    let entry = &module.functions[module.entry];
+    let entry = &module.functions[module.entry()];
     assert_eq!(entry.name, "main");
     assert!(entry.params.is_empty());
 }

@@ -173,5 +173,5 @@ fn gc_intrinsics_golden() {
   instance getGcHandle<String>
   instance releaseGcHandle<String>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }

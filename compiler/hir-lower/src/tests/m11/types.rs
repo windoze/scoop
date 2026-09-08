@@ -131,7 +131,7 @@ fn function_variance_builds_an_explicit_typed_coercion() {
     ]))
     .expect("function parameters are contravariant and returns are covariant");
 
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("main body");
     };
     let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {

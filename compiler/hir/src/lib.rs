@@ -6,8 +6,9 @@
 //! Structural completeness rules (see AGENTS.md): every expression
 //! carries its resolved type (`Expr::ty`), every call carries its
 //! resolved target and type arguments, patterns carry resolved
-//! variant/field indices and binding locals, and a module always has
-//! an entry point (`Module::entry`).
+//! variant/field indices and binding locals. Executable entry identity is
+//! carried only by the temporary, explicitly legacy wrappers below; library
+//! and frontend HIR modules do not require one.
 
 use la_arena::{Arena, Idx};
 use scoop_ast::{Diagnostic, Span};
@@ -32,6 +33,9 @@ pub struct Output {
     /// They are not part of either HIR graph or serialized metadata.
     pub warnings: Vec<Diagnostic>,
 }
+
+mod legacy;
+pub use legacy::*;
 
 mod ids;
 pub use ids::*;
@@ -67,4 +71,6 @@ mod source_interfaces;
 pub use source_interfaces::*;
 
 mod dump;
-pub use dump::{dump, dump_pattern};
+#[doc(hidden)]
+pub use dump::HirDumpInput;
+pub use dump::{dump, dump_legacy_executable, dump_pattern};

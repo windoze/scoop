@@ -40,12 +40,12 @@ fn try_expr(body: Expr, catch: Expr) -> Expr {
     }))
 }
 
-fn assert_option_int(module: &hir::Module, local: &str) {
+fn assert_option_int(module: &hir::LegacyExecutableExportHir, local: &str) {
     assert_eq!(
         hir::type_name(
             module,
             local_init(
-                match &module.functions[module.entry].kind {
+                match &module.functions[module.entry()].kind {
                     hir::FunctionKind::User(body) => body,
                     _ => panic!("main must have a user body"),
                 },
@@ -85,7 +85,7 @@ fn nominal_fixed_points_use_defaultable_literals_after_contextual_inputs_stall()
         ),
     ]))
     .expect("a defaultable literal must seed a stalled nominal fixed point");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         _ => panic!("main must have a user body"),
     };
@@ -178,7 +178,7 @@ fn unreachable_when_arms_do_not_widen_integer_inference() {
         ],
     )]))
     .expect("an arm after an irrefutable match must not influence result inference");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         _ => panic!("main must have a user body"),
     };
@@ -205,7 +205,7 @@ fn unreachable_when_arms_and_else_do_not_enter_the_result_lub() {
         )],
     )]))
     .expect("unreachable when branches must not widen the reachable String result");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         _ => panic!("main must have a user body"),
     };

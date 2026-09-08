@@ -203,7 +203,7 @@ fn nominal_constructors_infer_the_unique_common_supertype() {
     ]))
     .expect("all nominal constructors must use subtype constraints");
 
-    let hir::FunctionKind::User(main) = &output.functions[output.entry].kind else {
+    let hir::FunctionKind::User(main) = &output.functions[output.entry()].kind else {
         panic!("main is a user function")
     };
     let local_type = |name: &str| {

@@ -117,7 +117,7 @@ fn tuples_and_indexing() {
   instance println<String>
   instance print<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 #[test]

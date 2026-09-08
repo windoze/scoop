@@ -72,7 +72,7 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         .expect("local function");
     assert_eq!(local.captures.len(), 1);
     assert_eq!(local.captures[0].name, "base");
-    let hir::FunctionKind::User(main_body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main_body) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     assert!(matches!(
@@ -132,7 +132,7 @@ fn overload_probes_lambda_candidates_transactionally() {
         1,
         "discarded candidate probes must not leak lambda entities"
     );
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let init = local_init(main, "result");

@@ -178,13 +178,14 @@ fn loop_targets_remain_globally_unique_across_nested_callable_bodies() {
 
 #[test]
 fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
-    let mut export = lower_user_output(file(vec![fun(
+    let output = lower_user_output(file(vec![fun(
         "main",
         vec![while_stmt(bool_lit(true), Vec::new())],
     )]))
-    .expect("ordinary while lowers")
-    .export;
-    let hir::FunctionKind::User(body) = &mut export.functions[export.entry].kind else {
+    .expect("ordinary while lowers");
+    let entry = output.export.entry();
+    let mut export = output.export.into_module();
+    let hir::FunctionKind::User(body) = &mut export.functions[entry].kind else {
         panic!("main has a body")
     };
     let hir::StatementKind::While {
@@ -233,16 +234,17 @@ fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
 #[test]
 #[should_panic(expected = "break or continue does not target the innermost active loop")]
 fn concretization_rejects_a_non_innermost_loop_target() {
-    let mut export = lower_user_output(file(vec![fun(
+    let output = lower_user_output(file(vec![fun(
         "main",
         vec![while_stmt(
             bool_lit(true),
             vec![while_stmt(bool_lit(true), Vec::new())],
         )],
     )]))
-    .expect("nested while statements lower")
-    .export;
-    let hir::FunctionKind::User(body) = &mut export.functions[export.entry].kind else {
+    .expect("nested while statements lower");
+    let entry = output.export.entry();
+    let mut export = output.export.into_module();
+    let hir::FunctionKind::User(body) = &mut export.functions[entry].kind else {
         panic!("main has a body")
     };
     let hir::StatementKind::While {

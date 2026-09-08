@@ -168,7 +168,7 @@ fn array_basics_golden() {
           IntegerLiteral 3 : Int
   entry main
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// A generic function over array elements: `T` is inferred from the
@@ -283,5 +283,5 @@ fn generic_function_over_array_elements() {
   entry main
   instance first<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }

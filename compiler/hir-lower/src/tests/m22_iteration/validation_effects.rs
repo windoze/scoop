@@ -5,7 +5,9 @@ fn iteration_plan_validator_checks_the_enclosing_suspend_contract() {
     for mut export in [
         checked_suspend_iterator_iteration_export(),
         checked_suspend_component_iteration_export(),
-    ] {
+    ]
+    .map(hir::LegacyExecutableExportHir::into_module)
+    {
         hir::validate_iteration_plans(&export)
             .expect("the producer's suspend function permits its protocol call");
         let consume = export
@@ -27,7 +29,7 @@ fn iteration_plan_validator_checks_the_enclosing_suspend_contract() {
 
 #[test]
 fn iteration_core_rejects_a_suspend_next_slot() {
-    let mut export = checked_basic_iteration_export();
+    let mut export = checked_basic_iteration_export().into_module();
     let next = export.interface_methods[export.iteration_core.next()].function;
     assert!(!export.functions[next].is_suspend);
     export.functions[next].is_suspend = true;
@@ -134,13 +136,15 @@ fn iteration_default_regions_keep_structural_suspend_ownership() {
         expression: default_value,
         equals_span: sp(),
     };
-    let export = lower_user(file(vec![
+    let executable = lower_user(file(vec![
         iterator_class("DefaultIterator", ty_named("Int")),
         suspend_source,
         choose_declaration,
         fun("main", Vec::new()),
     ]))
     .expect("a suspend declaration owns a default region with suspend iteration");
+    let main = executable.entry();
+    let export = executable.into_module();
     hir::validate_iteration_plans(&export).expect("the producer's default relation is valid");
     let (expression, source) = export
         .source_parameter_interfaces
@@ -177,7 +181,6 @@ fn iteration_default_regions_keep_structural_suspend_ownership() {
     assert_eq!(error.message(), "default source has an invalid expression");
 
     let mut forged = export;
-    let main = forged.entry;
     let inherited = forged
         .source_parameter_interfaces
         .iter()
@@ -331,7 +334,7 @@ fn iteration_plan_validator_rejects_a_forged_box_receiver_adaptation() {
         function.operator = Some(ast::OperatorModifier { span: sp() });
         declaration
     };
-    let mut export = lower_user(file(vec![
+    let executable = lower_user(file(vec![
         interface_decl("BoxSource", Vec::new()),
         interface_decl("UnrelatedSource", Vec::new()),
         struct_with_interface("BoxedValue", ty_named("BoxSource"), Vec::new()),
@@ -348,6 +351,8 @@ fn iteration_plan_validator_rejects_a_forged_box_receiver_adaptation() {
         ),
     ]))
     .expect("the value source is legally boxed to its implemented interface");
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     hir::validate_iteration_plans(&export).expect("the producer's box relation is valid");
 
     let unrelated = export
@@ -392,7 +397,6 @@ fn iteration_plan_validator_rejects_a_forged_box_receiver_adaptation() {
     };
     receiver.ty = unrelated_type;
     replace_first_for(&mut export, "main", plan_from_parts(parts));
-    let entry = export.entry;
     let hir::FunctionKind::User(body) = &mut export.functions[entry].kind else {
         panic!("main has a body")
     };
@@ -418,7 +422,7 @@ fn iteration_plan_validator_rejects_an_unboxed_value_interface_receiver() {
         unreachable!()
     };
     source_iterator_function.operator = Some(ast::OperatorModifier { span: sp() });
-    let mut export = lower_user(file(vec![
+    let executable = lower_user(file(vec![
         struct_with_interface(
             "ValueIterator",
             ty_generic("Iterator", vec![ty_named("Int")]),
@@ -437,6 +441,8 @@ fn iteration_plan_validator_rejects_an_unboxed_value_interface_receiver() {
         ),
     ]))
     .expect("a value source is boxed before calling an interface receiver extension");
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     hir::validate_iteration_plans(&export).expect("the producer's boxed receiver is valid");
 
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
@@ -461,7 +467,6 @@ fn iteration_plan_validator_rejects_an_unboxed_value_interface_receiver() {
     };
     receiver.ty = source_type;
     replace_first_for(&mut export, "main", plan_from_parts(parts));
-    let entry = export.entry;
     let hir::FunctionKind::User(body) = &mut export.functions[entry].kind else {
         panic!("main has a body")
     };

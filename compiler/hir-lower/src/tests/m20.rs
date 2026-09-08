@@ -488,7 +488,7 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         .map(|argument| hir::type_name(module, *argument))
         .collect::<Vec<_>>();
     assert_eq!(arguments, ["Int", "String"]);
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     assert_eq!(

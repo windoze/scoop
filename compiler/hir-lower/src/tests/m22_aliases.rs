@@ -92,8 +92,8 @@ fn lowered_alias<'module>(
         .unwrap_or_else(|| panic!("missing lowered typealias `{name}`"))
 }
 
-fn user_body(module: &hir::Module) -> &hir::Body {
-    match &module.functions[module.entry].kind {
+fn user_body(module: &hir::LegacyExecutableExportHir) -> &hir::Body {
+    match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         _ => panic!("main must have a user body"),
     }

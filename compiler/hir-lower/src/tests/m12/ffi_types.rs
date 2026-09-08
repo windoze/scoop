@@ -201,7 +201,7 @@ fn pointer_carrier_equality_uses_the_typed_ulong_intrinsic() {
         )],
     )]))
     .expect("pointer carrier equality must normalize before MIR");
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("entry function must have a user body")
     };
     for name in ["sameAddress", "sameULong"] {
@@ -237,7 +237,7 @@ fn pointer_construction_maps_named_raw_and_preserves_raw_contract() {
         )],
     )]))
     .expect("the named raw argument must bind to the Ptr constructor parameter");
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("entry function must have a user body")
     };
     assert!(matches!(

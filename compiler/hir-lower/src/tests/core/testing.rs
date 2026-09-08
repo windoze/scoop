@@ -3,11 +3,15 @@ use super::{core_file, gc_api_declarations, make_core_public};
 
 /// Lower a user file together with the minimal `scoop.core`, mirroring
 /// the driver's sysroot convention (core files first, user file last).
-pub(crate) fn lower_user(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+pub(crate) fn lower_user(
+    user: SourceFile,
+) -> Result<hir::LegacyExecutableExportHir, Vec<Diagnostic>> {
     lower(&[core_file(), user]).map(|output| output.export)
 }
 
-pub(crate) fn lower_user_output(user: SourceFile) -> Result<hir::Output, Vec<Diagnostic>> {
+pub(crate) fn lower_user_output(
+    user: SourceFile,
+) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
     lower(&[core_file(), user])
 }
 
@@ -66,12 +70,16 @@ pub(crate) fn catch_clause_at(
 
 /// Lower a user file with the full core exception hierarchy available
 /// (M8 tests).
-pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+pub(crate) fn lower_user_with_exceptions(
+    user: SourceFile,
+) -> Result<hir::LegacyExecutableExportHir, Vec<Diagnostic>> {
     lower(&[core_file(), user]).map(|output| output.export)
 }
 
 /// Lower a user file with the core GC facilities available (M9 tests).
-pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+pub(crate) fn lower_user_with_gc(
+    user: SourceFile,
+) -> Result<hir::LegacyExecutableExportHir, Vec<Diagnostic>> {
     let mut gc = file(gc_api_declarations());
     make_core_public(&mut gc);
     lower(&[core_file(), gc, user]).map(|output| output.export)

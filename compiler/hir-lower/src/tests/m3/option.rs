@@ -105,7 +105,7 @@ fn some_none_and_nullable_annotations() {
         Local $parameter._1 : Option<Int>
   entry main
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn safe_field_access_desugars_to_hidden_locals() {
       Local $res.1 : Option<Int>
   entry main
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn elvis_desugars_to_hidden_locals() {
       Local $res.1 : Int
   entry main
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// `w?.p?.x` chains: `w?.p` is an `Option<Point>`, whose `?.x` is an
@@ -361,7 +361,7 @@ fn chained_safe_field_access() {
         ),
     ]);
     let module = lower_user(file).expect("chained safe access must lower");
-    let dump = hir::dump(&module);
+    let dump = hir::dump_legacy_executable(&module);
     // w?.p : Option<Point>, then ?.x : Option<Int>. Call materialization may
     // add locals before these desugaring sinks, so their typed names are the
     // stable part of this contract.
@@ -382,7 +382,7 @@ fn null_assert_unwraps_with_trap() {
         ],
     )]);
     let module = lower_user(file).expect("null assert must lower");
-    let dump = hir::dump(&module);
+    let dump = hir::dump_legacy_executable(&module);
     assert!(
         dump.contains("Unwrap trap=true : Int\n        Local a : Option<Int>"),
         "{dump}"
@@ -409,7 +409,7 @@ fn none_equality_comparison() {
             ],
         )]);
         let module = lower_user(file).expect("`== None` must lower");
-        let dump = hir::dump(&module);
+        let dump = hir::dump_legacy_executable(&module);
         assert!(
             dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
             "{dump}"

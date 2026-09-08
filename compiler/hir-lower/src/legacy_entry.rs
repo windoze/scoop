@@ -12,7 +12,7 @@ impl Lowerer {
         &mut self,
         files: &[ast::SourceFile],
         primary_user_file: usize,
-    ) -> Option<FunctionId> {
+    ) -> Result<FunctionId, ()> {
         self.current_file = primary_user_file;
         let named = self
             .top_level_namespaces
@@ -24,12 +24,12 @@ impl Lowerer {
             .collect::<Vec<_>>();
 
         match candidates.as_slice() {
-            [entry] => Some(*entry),
+            [entry] => Ok(*entry),
             [] if !self.diagnostics.is_empty() => {
                 // Recovery can assign fallback types to a malformed `main`.
                 // Its source error is authoritative; an entry-shape error
                 // derived from that fallback would only be misleading.
-                None
+                Err(())
             }
             [] => {
                 if !self.diagnose_invalid_legacy_mains(&named) {
@@ -39,20 +39,20 @@ impl Lowerer {
                         "missing entry point: declare `fun main()`".to_string(),
                     );
                 }
-                None
+                Err(())
             }
             candidates if self.candidates_are_existing_duplicates(candidates) => {
                 // Duplicate-signature checking has already rejected this HIR.
                 // Preserve its focused diagnostic instead of adding a
                 // secondary executable-cardinality error.
-                candidates.first().copied()
+                Ok(candidates[0])
             }
             _ => {
                 self.error(
                     files[primary_user_file].span,
                     "multiple entry points: declare exactly one `fun main()`".to_string(),
                 );
-                None
+                Err(())
             }
         }
     }

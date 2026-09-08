@@ -50,7 +50,7 @@ fn method_overloads_resolve() {
     let module = lower_user(file).expect("method overloads must resolve");
 
     // `c.m("a")` picks the `String` overload.
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let callee = body
         .statements
         .iter()
@@ -156,7 +156,7 @@ fn inapplicable_local_layer_falls_through_to_top_level() {
         ),
     ]);
     let module = lower_user(file).expect("an inapplicable local layer must be skipped");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let init = local_init(body, "result");
     let hir::ExprKind::Call { callee, .. } = &init.kind else {
         panic!("the top-level layer must win")
@@ -254,7 +254,7 @@ fn inapplicable_member_layer_falls_through_to_extension() {
         ),
     ]);
     let module = lower_user(file).expect("an applicable extension layer must be reached");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let init = local_init(body, "result");
     let hir::ExprKind::Call { callee, args } = &init.kind else {
         panic!("an extension is emitted as a direct call")

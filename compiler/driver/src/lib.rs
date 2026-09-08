@@ -150,11 +150,11 @@ pub fn compile_file_with_options(
             }
         },
     );
-    let hir = scoop_hir_lower::lower_stage1_compilation_input(
+    let hir = scoop_hir_lower::lower_stage1_legacy_executable(
         &hir_input,
         options.intrinsic_declaration_policy.clone(),
     )?;
-    let hir_dump = scoop_hir::dump(&hir.export);
+    let hir_dump = scoop_hir::dump_legacy_executable(&hir.export);
     let warnings = hir.warnings;
 
     let mir = scoop_mir_lower::lower(&hir.local);

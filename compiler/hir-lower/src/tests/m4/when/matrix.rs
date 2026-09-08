@@ -18,7 +18,7 @@ fn explicit_empty_else_is_preserved_in_both_hir_products() {
     ]);
     let output = lower_user_output(file).expect("an explicit empty else branch must lower");
 
-    let hir::FunctionKind::User(export_main) = &output.export.functions[output.export.entry].kind
+    let hir::FunctionKind::User(export_main) = &output.export.functions[output.export.entry()].kind
     else {
         panic!("export main body")
     };
@@ -36,7 +36,7 @@ fn explicit_empty_else_is_preserved_in_both_hir_products() {
     ));
 
     let hir::concrete::FunctionKind::User(local_main) =
-        &output.local.functions[output.local.entry].kind
+        &output.local.functions[output.local.entry()].kind
     else {
         panic!("concrete main body")
     };

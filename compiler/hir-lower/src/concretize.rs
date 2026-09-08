@@ -24,6 +24,17 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     Concretizer::new(module).run()
 }
 
+pub(crate) fn lower_legacy_executable(
+    executable: &export::LegacyExecutableExportHir,
+) -> export::LegacyExecutableLocalHir {
+    let module = executable.module();
+    export::validate_iteration_plans(module)
+        .expect("Export HIR iteration plans must pass the complete reader boundary validator");
+    let (module, entry) = Concretizer::new(module).run_with_entry(executable.entry());
+    export::LegacyExecutableLocalHir::try_new(module, entry)
+        .expect("concretization preserves the structurally valid legacy entry")
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum FunctionKey {
     Free {
@@ -257,7 +268,20 @@ impl<'a> Concretizer<'a> {
         }
     }
 
-    fn run(mut self) -> concrete::Module {
+    fn run(self) -> concrete::Module {
+        self.run_with(|_| ()).0
+    }
+
+    fn run_with_entry(self, entry: export::FunctionId) -> (concrete::Module, concrete::FunctionId) {
+        self.run_with(|concretizer| {
+            concretizer.function_by_key[&FunctionKey::Free {
+                source: entry,
+                arguments: Vec::new(),
+            }]
+        })
+    }
+
+    fn run_with<Extra>(mut self, finish: impl FnOnce(&Self) -> Extra) -> (concrete::Module, Extra) {
         let unit = self.lower_type(self.source.unit, &[]);
         for kind in export::IntegerKind::ALL {
             let owner = self.source.intrinsic_type_core.integers.owner(kind);
@@ -515,15 +539,12 @@ impl<'a> Concretizer<'a> {
             string: self.class_by_key[&(self.source.intrinsic_type_core.string, Vec::new())],
         };
 
+        let extra = finish(&self);
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
         let class_constructors =
             arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
         let struct_constructors =
             arena_from_complete_slots(self.struct_constructor_slots, "concrete struct constructor");
-        let entry = self.function_by_key[&FunctionKey::Free {
-            source: self.source.entry,
-            arguments: Vec::new(),
-        }];
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
             constructor: {
                 let class = self.class_by_key[&(exception.class(), Vec::new())];
@@ -569,7 +590,7 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
 
-        concrete::Module {
+        let module = concrete::Module {
             types: self.types,
             function_types: self.function_types,
             lambdas: self.lambdas,
@@ -623,8 +644,8 @@ impl<'a> Concretizer<'a> {
                 failure_result: callback_failure_result,
             },
             intrinsic_type_core,
-            entry,
-        }
+        };
+        (module, extra)
     }
 
     fn drain_pending_functions(&mut self) {

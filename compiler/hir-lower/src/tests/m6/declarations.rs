@@ -87,7 +87,7 @@ fn class_hierarchy_golden() {
   entry main
   instance println<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 // --- positive: declaration structure ---

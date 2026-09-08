@@ -360,16 +360,22 @@ impl Harness {
         .expect("test Iterator has the core shape")
     }
 
-    pub(super) fn finish(self, entry: hir::FunctionId) -> hir::Module {
+    pub(super) fn finish(self, entry: hir::FunctionId) -> hir::LegacyExecutableExportHir {
         self.finish_with_coroutine_core(entry, false)
     }
 
-    pub(super) fn finish_with_initialization_core(mut self, entry: hir::FunctionId) -> hir::Module {
+    pub(super) fn finish_with_initialization_core(
+        mut self,
+        entry: hir::FunctionId,
+    ) -> hir::LegacyExecutableExportHir {
         self.needs_initialization_core = true;
         self.finish(entry)
     }
 
-    pub(super) fn finish_coroutines(self, entry: hir::FunctionId) -> hir::Module {
+    pub(super) fn finish_coroutines(
+        self,
+        entry: hir::FunctionId,
+    ) -> hir::LegacyExecutableExportHir {
         self.finish_with_coroutine_core(entry, true)
     }
 
@@ -377,7 +383,7 @@ impl Harness {
         mut self,
         entry: hir::FunctionId,
         include_exceptions: bool,
-    ) -> hir::Module {
+    ) -> hir::LegacyExecutableExportHir {
         let exception_core = self.test_exception_core(include_exceptions);
         let coroutine_core = self.test_coroutine_core(exception_core.throwable.class());
         let t = self
@@ -538,7 +544,7 @@ impl Harness {
             .expect("test callback failure has None"),
         )
         .expect("test callback failure has the core shape");
-        hir::Module {
+        let module = hir::Module {
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 visibility_source: hir::VisibilitySource::CurrentUnit(
@@ -630,8 +636,9 @@ impl Harness {
                 location: ptr,
                 current: entry,
             },
-            entry,
             instantiations: self.instantiations,
-        }
+        };
+        hir::LegacyExecutableExportHir::try_new(module, entry)
+            .expect("the MIR test harness builds a valid legacy executable entry")
     }
 }

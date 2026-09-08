@@ -32,7 +32,7 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
         "closure receiver plus source parameter"
     );
     assert_eq!(invoke.params[0].name, "$closure");
-    let main = &module.functions[module.entry];
+    let main = &module.functions[module.entry()];
     let hir::FunctionKind::User(body) = &main.kind else {
         panic!("main body");
     };

@@ -6,7 +6,9 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let backing = harness.class("Registry", hir::ClassModifier::Final, &[], None, &[]);
     let backing_ty = harness.class_ty(backing);
     let main = empty_main(&mut harness);
-    let mut source = harness.finish_with_initialization_core(main);
+    let executable = harness.finish_with_initialization_core(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
 
     let object = hir::ObjectId::from_raw(0_u32.into());
     let object_type = hir::ObjectTypeId::from_raw(0_u32.into());
@@ -75,6 +77,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         initialization
     );
 
+    let source = legacy_executable(source, entry);
     let module = lower(&source);
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];
     let singleton = &module.singleton_values[mir::SingletonValueId::from_raw(0_u32.into())];

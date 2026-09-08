@@ -181,7 +181,7 @@ fn try_catch_finally_golden() {
   instance println<String>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 // --- positive: structure and scoping ---
@@ -202,7 +202,7 @@ fn catch_local_structure() {
         )],
     )]);
     let module = lower_user_with_exceptions(file).expect("the try must lower");
-    let main = &module.functions[module.entry];
+    let main = &module.functions[module.entry()];
     let hir::FunctionKind::User(body) = &main.kind else {
         panic!("main has a user body");
     };

@@ -41,9 +41,11 @@ fn iteration_plan_validator_accepts_branch_merged_source_values() {
 
 #[test]
 fn iteration_definition_flow_excludes_abrupt_loop_paths() {
-    let mut export = checked_basic_iteration_export();
+    let executable = checked_basic_iteration_export();
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     let source = first_for(export_body(&export, "main")).source();
-    let local = allocate_forged_local(&mut export, source.local, "$forged.merge");
+    let local = allocate_forged_local(&mut export, entry, source.local, "$forged.merge");
     let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
     let original = parts.source_init.clone();
     let loop_target = hir::LoopId::from_raw(u32::MAX - 1);
@@ -98,7 +100,8 @@ fn iteration_definition_owners_include_assignment_only_merge_locals() {
             ],
         ),
     ]))
-    .expect("the producer allocates a distinct branch-result local for each plan");
+    .expect("the producer allocates a distinct branch-result local for each plan")
+    .into_module();
     let plans = export_body(&export, "main")
         .statements
         .iter()
@@ -148,9 +151,11 @@ fn iteration_plan_validator_checks_source_prefix_definite_definition() {
         InvalidSourceDefinition::LoopOnly,
         InvalidSourceDefinition::WhenSubject,
     ] {
-        let mut export = checked_basic_iteration_export();
+        let executable = checked_basic_iteration_export();
+        let entry = executable.entry();
+        let mut export = executable.into_module();
         let source = first_for(export_body(&export, "main")).source();
-        let local = allocate_forged_local(&mut export, source.local, "$forged.future");
+        let local = allocate_forged_local(&mut export, entry, source.local, "$forged.future");
         let mut parts = first_for(export_body(&export, "main")).clone().into_parts();
         let original = parts.source_init.clone();
         let read = local_read(&original, local, source.ty);
@@ -222,8 +227,13 @@ fn iteration_plan_validator_checks_source_prefix_definite_definition() {
     }
 }
 
-fn allocate_forged_local(module: &mut hir::Module, like: hir::LocalId, name: &str) -> hir::LocalId {
-    let hir::FunctionKind::User(body) = &mut module.functions[module.entry].kind else {
+fn allocate_forged_local(
+    module: &mut hir::Module,
+    entry: hir::FunctionId,
+    like: hir::LocalId,
+    name: &str,
+) -> hir::LocalId {
+    let hir::FunctionKind::User(body) = &mut module.functions[entry].kind else {
         panic!("main has a body")
     };
     let mut declaration = body.locals[like].clone();

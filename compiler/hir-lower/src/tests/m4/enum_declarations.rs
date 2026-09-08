@@ -132,7 +132,7 @@ fn enum_declaration_all_variant_forms() {
         Local $parameter.h : Int
   entry main
 "#;
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(hir::dump_legacy_executable(&module), expected);
 }
 
 /// A generic enum with several instantiations coexisting; `T?`
@@ -155,7 +155,7 @@ fn generic_enum_instantiations_and_interning() {
         ],
     )]);
     let module = lower_user(file).expect("generic enum program must lower");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         FunctionKind::User(body) => body,
         FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
@@ -165,7 +165,7 @@ fn generic_enum_instantiations_and_interning() {
     let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();
     assert_eq!(locals[0], locals[1], "Option<Int> must be interned");
     assert_ne!(locals[0], locals[2], "Option<String> is a different type");
-    let dump = hir::dump(&module);
+    let dump = hir::dump_legacy_executable(&module);
     assert!(
         dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
         "{dump}"
@@ -287,7 +287,7 @@ fn non_literal_variant_default_is_typed_at_the_definition() {
         ),
     ]);
     let module = lower_user(file).expect("a typed call is a valid variant default");
-    let dump = hir::dump(&module);
+    let dump = hir::dump_legacy_executable(&module);
     assert!(dump.contains("Call f : Int"), "{dump}");
     assert!(
         dump.contains("VariantConstruct Shape.WithDefault : Shape"),

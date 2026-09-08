@@ -1,8 +1,61 @@
 use super::body::{dump_statements, generic_method_owner_arguments};
 use super::*;
 
+mod sealed {
+    pub trait Sealed {}
+
+    impl Sealed for super::Module {}
+    impl Sealed for super::LegacyExecutableExportHir {}
+}
+
+/// Closed input family for [`dump`].
+///
+/// This keeps the historical `dump(&module)` API while ensuring a legacy
+/// executable wrapper cannot be implicitly dereferenced into a base module
+/// and silently lose its typed entry in the dump.
+#[doc(hidden)]
+#[allow(private_bounds)]
+pub trait HirDumpInput: sealed::Sealed {
+    fn module(&self) -> &Module;
+    fn legacy_entry(&self) -> Option<FunctionId>;
+}
+
+impl HirDumpInput for Module {
+    fn module(&self) -> &Module {
+        self
+    }
+
+    fn legacy_entry(&self) -> Option<FunctionId> {
+        None
+    }
+}
+
+impl HirDumpInput for LegacyExecutableExportHir {
+    fn module(&self) -> &Module {
+        self.module()
+    }
+
+    fn legacy_entry(&self) -> Option<FunctionId> {
+        Some(self.entry())
+    }
+}
+
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
-pub fn dump(module: &Module) -> String {
+pub fn dump(input: &(impl HirDumpInput + ?Sized)) -> String {
+    let entry = input.legacy_entry();
+    dump_with(input.module(), move |module, out| {
+        if let Some(entry) = entry {
+            out.push_str(&format!("  entry {}\n", module.functions[entry].name));
+        }
+    })
+}
+
+/// M22-compatible dump which keeps the legacy executable entry line.
+pub fn dump_legacy_executable(executable: &LegacyExecutableExportHir) -> String {
+    dump(executable)
+}
+
+fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) -> String {
     let mut out = String::from("Module\n");
     let object_backings = module
         .objects
@@ -433,10 +486,7 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
-    out.push_str(&format!(
-        "  entry {}\n",
-        module.functions[module.entry].name
-    ));
+    write_entry(module, &mut out);
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
         if [
