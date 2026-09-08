@@ -1,5 +1,6 @@
 use super::*;
 use crate::NominalTarget;
+use crate::imports::lookup::calls::{ExpressionQualifierLookup, ExpressionQualifierTarget};
 
 mod extensions;
 mod interface_super;
@@ -41,20 +42,73 @@ pub(in crate::expr) enum PropertyExtensionInvokeOutcome {
 }
 
 impl Lowerer {
+    /// A direct receiver spelling is still an expression name first. Keep
+    /// this guard shared by every qualifier consumer so none of them can
+    /// bypass a higher lexical/member value while probing a lower type.
+    fn lexical_or_member_value_blocks_type_qualifier(&self, name: &str) -> bool {
+        let initializing_field = self.initialization_context.is_some() && {
+            let mut state = self.clone();
+            state.initializing_receiver_has_field(name)
+        };
+        let object_const = match self.current_owner {
+            Some(crate::Owner::Object(object)) => self.classes[self.objects[object].backing_class]
+                .properties
+                .iter()
+                .any(|property| {
+                    self.properties[*property].name == name
+                        && matches!(
+                            self.properties[*property].representation,
+                            hir::PropertyRepresentation::Const { .. }
+                        )
+                }),
+            _ => false,
+        };
+        (name == "field" && self.backing_field_context.is_some())
+            || self.scopes.lookup(name).is_some()
+            || !self.local_function_scopes.lookup(name).is_empty()
+            || self.available_capture(name).is_some()
+            || self.constructor_params_in_scope.contains_key(name)
+            || initializing_field
+            || object_const
+            || self.host_has_property(name)
+    }
+
     pub(crate) fn nominal_qualifier_target(&self, expression: &ast::Expr) -> Option<NominalTarget> {
         match expression {
             ast::Expr::Var(name)
-                if self.scopes.lookup(&name.text).is_none()
-                    && !self.host_has_property(&name.text) =>
+                if !self.lexical_or_member_value_blocks_type_qualifier(&name.text) =>
             {
-                self.lexical_nested_nominal_target(&name.text)
-                    .or_else(|| {
-                        (self.source_type_alias_named(&name.text).is_some()
-                            && self.type_alias_is_accessible(&name.text))
-                        .then(|| self.type_alias_nominal_target(&name.text))
-                        .flatten()
-                    })
-                    .or_else(|| self.top_level_nominal_target(&name.text))
+                self.lexical_nested_nominal_target(&name.text).or_else(|| {
+                    match self.lookup_expression_qualifier(name) {
+                        ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Object(
+                            object,
+                        ))
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::Object(object),
+                        ) => Some(NominalTarget::Object(object)),
+                        ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Type(
+                            crate::namespace::TopLevelTypeTarget::Nominal(target),
+                        ))
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::Type(
+                                crate::namespace::TopLevelTypeTarget::Nominal(target),
+                            ),
+                        ) => Some(target),
+                        ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Type(
+                            crate::namespace::TopLevelTypeTarget::Alias(alias),
+                        ))
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::Type(
+                                crate::namespace::TopLevelTypeTarget::Alias(alias),
+                            ),
+                        ) => self
+                            .resolved_type_alias_target(alias)
+                            .and_then(|target| self.nominal_target_for_type(target)),
+                        ExpressionQualifierLookup::Missing
+                        | ExpressionQualifierLookup::Value
+                        | ExpressionQualifierLookup::Ambiguous => None,
+                    }
+                })
             }
             ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Direct => {
                 let ast::FieldSelector::Name(name) = &access.selector else {
@@ -96,15 +150,29 @@ impl Lowerer {
         let ast::Expr::Var(name) = expression else {
             return Ok(None);
         };
-        if self.scopes.lookup(&name.text).is_some()
-            || self.host_has_property(&name.text)
+        if self.lexical_or_member_value_blocks_type_qualifier(&name.text)
             || self.lexical_nested_nominal_target(&name.text).is_some()
-            || self.source_type_alias_named(&name.text).is_none()
         {
             return Ok(None);
         }
-        let Some((target, nominal)) = self.resolve_type_alias_nominal_qualifier(name)? else {
-            unreachable!("the direct alias guard established an alias declaration")
+        let alias = match self.lookup_expression_qualifier(name) {
+            ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Type(
+                crate::namespace::TopLevelTypeTarget::Alias(alias),
+            ))
+            | ExpressionQualifierLookup::Inaccessible(ExpressionQualifierTarget::Type(
+                crate::namespace::TopLevelTypeTarget::Alias(alias),
+            )) => alias,
+            _ => return Ok(None),
+        };
+        let Some(target) = self.resolve_type_alias_id_reference(alias, name, false) else {
+            return Err(());
+        };
+        let Some(nominal) = self.nominal_target_for_type(target) else {
+            self.error(
+                name.span,
+                format!("typealias `{}` does not name a type qualifier", name.text),
+            );
+            return Err(());
         };
         Ok(Some((target, nominal)))
     }

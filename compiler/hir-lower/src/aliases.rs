@@ -319,8 +319,7 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn type_alias_target(&self, name: &str) -> Option<hir::TypeId> {
-        let id = self.source_type_alias_named(name)?;
+    pub(crate) fn resolved_type_alias_target(&self, id: SourceTypeAliasId) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
             TypeAliasResolution::Resolved(target) => Some(target),
             TypeAliasResolution::Unresolved
@@ -366,38 +365,5 @@ impl Lowerer {
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
             Type::Unit | Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
         }
-    }
-
-    pub(crate) fn type_alias_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        self.nominal_target_for_type(self.type_alias_target(name)?)
-    }
-
-    /// Resolve an alias used as a nominal qualifier while retaining focused
-    /// access and target-kind diagnostics for non-expression evaluators.
-    pub(crate) fn resolve_type_alias_nominal_qualifier(
-        &mut self,
-        name: &ast::Ident,
-    ) -> Result<Option<(hir::TypeId, NominalTarget)>, ()> {
-        let Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) =
-            self.resolve_type_lookup(name)?
-        else {
-            return Ok(None);
-        };
-        let Some(target) = self.resolve_type_alias_id_reference(alias, name, false) else {
-            return Err(());
-        };
-        let Some(nominal) = self.nominal_target_for_type(target) else {
-            self.error(
-                name.span,
-                format!("typealias `{}` does not name a type qualifier", name.text),
-            );
-            return Err(());
-        };
-        Ok(Some((target, nominal)))
-    }
-
-    pub(crate) fn type_alias_is_accessible(&self, name: &str) -> bool {
-        self.source_type_alias_named(name)
-            .is_some_and(|id| self.source_type_alias_is_accessible(id))
     }
 }
