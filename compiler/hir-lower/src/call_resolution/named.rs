@@ -67,6 +67,17 @@ impl NamedFunctionLikeProbe {
             }
         }
     }
+
+    fn declaration_location(&self, state: &Lowerer) -> (usize, ast::Span) {
+        match self {
+            Self::Callable(probe) => probe.declaration_location(state),
+            Self::Nominal(probe) => probe.declaration_location(state),
+            Self::IntrinsicStruct(probe) => (
+                state.struct_files[&probe.structure],
+                state.structs[probe.structure].span,
+            ),
+        }
+    }
 }
 
 impl Lowerer {
@@ -128,16 +139,23 @@ impl Lowerer {
         }
         let mut signatures = pool
             .iter()
-            .map(|&candidate| probes[candidate].signature(self, name))
+            .map(|&candidate| {
+                let (file, span) = probes[candidate].declaration_location(self);
+                (
+                    (file, span.start, span.end, candidate),
+                    probes[candidate].signature(self, name),
+                )
+            })
             .collect::<Vec<_>>();
-        signatures.sort();
+        // This order is diagnostic-only; MSC above never observes it.
+        signatures.sort_by_key(|(order, _)| *order);
         self.error(
             span,
             format!(
                 "call to `{name}` is ambiguous in {layer} layer:\n{}",
                 signatures
                     .iter()
-                    .map(|signature| format!("  - {signature} — applicable; tied by MSC"))
+                    .map(|(_, signature)| format!("  - {signature} — applicable; tied by MSC"))
                     .collect::<Vec<_>>()
                     .join("\n")
             ),

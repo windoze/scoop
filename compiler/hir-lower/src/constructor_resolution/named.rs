@@ -46,6 +46,20 @@ impl NamedNominalProbe {
         nominal_source_signature(state, &self.candidate.view)
     }
 
+    pub(crate) fn declaration_location(&self, state: &Lowerer) -> (usize, scoop_ast::Span) {
+        let file = match self.candidate.view.target {
+            NominalConstructorSource::Struct(constructor) => {
+                state.struct_files[&state.struct_constructors[constructor].owner]
+            }
+            NominalConstructorSource::Class(constructor) => {
+                state.class_files[&state.class_constructors[constructor].owner]
+            }
+            NominalConstructorSource::IntrinsicClass(class) => state.class_files[&class],
+            NominalConstructorSource::Variant(variant) => state.enum_files[&variant.enumeration()],
+        };
+        (file, self.candidate.view.declaration_span)
+    }
+
     pub(crate) fn fix_forwarding_parameters(&mut self, state: &mut Lowerer, arguments: &[TypeId]) {
         self.comparison_parameters = self
             .comparison_parameters

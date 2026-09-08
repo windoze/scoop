@@ -62,6 +62,14 @@ impl NamedCallableProbe {
             &self.prepared.view,
         )
     }
+
+    pub(crate) fn declaration_location(&self, state: &Lowerer) -> (usize, scoop_ast::Span) {
+        let function = self.prepared.view.function();
+        (
+            state.function_files[&function],
+            self.prepared.view.declaration_span,
+        )
+    }
 }
 
 impl Lowerer {
