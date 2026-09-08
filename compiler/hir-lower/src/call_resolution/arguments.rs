@@ -137,6 +137,34 @@ impl ArgumentShapeFailure {
 }
 
 impl CandidateArgumentMap {
+    /// Declaration-side types for exactly the inputs present at this call.
+    /// Defaults contribute no source input; vararg elements use the element
+    /// type while spread/named-array inputs retain the array parameter type.
+    pub(crate) fn forwarding_parameter_types(
+        &self,
+        parameters: &[ValueParameter],
+    ) -> Vec<scoop_hir::TypeId> {
+        self.source_order
+            .iter()
+            .map(|input| {
+                let (parameter, kind) = self.source_binding(*input);
+                let parameter = &parameters[parameter.index()];
+                match (&parameter.calling, kind) {
+                    (
+                        SourceParameterCalling::Vararg { element_type, .. },
+                        SourceInputKind::VarargElement,
+                    ) => *element_type,
+                    (SourceParameterCalling::Vararg { .. }, SourceInputKind::VarargArray)
+                    | (
+                        SourceParameterCalling::Required | SourceParameterCalling::Default(_),
+                        SourceInputKind::Value,
+                    ) => parameter.ty,
+                    _ => unreachable!("argument mapping fixes each input shape"),
+                }
+            })
+            .collect()
+    }
+
     pub(crate) fn explicit_default_count(&self) -> usize {
         self.parameters
             .iter()

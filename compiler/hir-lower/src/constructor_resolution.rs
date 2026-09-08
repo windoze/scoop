@@ -1,7 +1,7 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use crate::call_resolution::arguments::{CandidateArgumentMap, SourceInputKind};
+use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::diagnostics::nominal_source_signature;
 use crate::call_resolution::specificity::NominalForwardingDeclaration;
@@ -101,32 +101,7 @@ impl Lowerer {
                 failures.push((view, Box::new(state)));
                 continue;
             }
-            let parameter_types = argument_map
-                .source_order
-                .iter()
-                .map(|input| {
-                    let (parameter, kind) = argument_map.source_binding(*input);
-                    let parameter = &view.value_parameters[parameter.index()];
-                    match (&parameter.calling, kind) {
-                        (
-                            crate::defaults::SourceParameterCalling::Vararg {
-                                element_type, ..
-                            },
-                            SourceInputKind::VarargElement,
-                        ) => *element_type,
-                        (
-                            crate::defaults::SourceParameterCalling::Vararg { .. },
-                            SourceInputKind::VarargArray,
-                        )
-                        | (
-                            crate::defaults::SourceParameterCalling::Required
-                            | crate::defaults::SourceParameterCalling::Default(_),
-                            SourceInputKind::Value,
-                        ) => parameter.ty,
-                        _ => unreachable!("argument mapping fixes each input shape"),
-                    }
-                })
-                .collect();
+            let parameter_types = argument_map.forwarding_parameter_types(&view.value_parameters);
             applicable.push(ApplicableConstructor {
                 state: Box::new(state),
                 source,

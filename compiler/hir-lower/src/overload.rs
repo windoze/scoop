@@ -19,9 +19,7 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, TypeId};
 
-use crate::call_resolution::arguments::{
-    ArgumentShapeFailure, CandidateArgumentMap, SourceInputKind,
-};
+use crate::call_resolution::arguments::{ArgumentShapeFailure, CandidateArgumentMap};
 use crate::call_resolution::candidates::CallableView;
 use crate::expr::ResolvedCallTypeArgument;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
@@ -405,33 +403,9 @@ impl Lowerer {
                     }
                 };
                 let mut params: Vec<_> = match &argument_map {
-                    Ok(argument_map) => argument_map
-                        .source_order
-                        .iter()
-                        .map(|input| {
-                            let (parameter, kind) = argument_map.source_binding(*input);
-                            let parameter = &view.value_parameters[parameter.index()];
-                            match (&parameter.calling, kind) {
-                                (
-                                    crate::defaults::SourceParameterCalling::Vararg {
-                                        element_type: element_ty,
-                                        ..
-                                    },
-                                    SourceInputKind::VarargElement,
-                                ) => *element_ty,
-                                (
-                                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                                    SourceInputKind::VarargArray,
-                                )
-                                | (
-                                    crate::defaults::SourceParameterCalling::Required
-                                    | crate::defaults::SourceParameterCalling::Default(_),
-                                    SourceInputKind::Value,
-                                ) => parameter.ty,
-                                _ => unreachable!("argument mapping fixes each input shape"),
-                            }
-                        })
-                        .collect(),
+                    Ok(argument_map) => {
+                        argument_map.forwarding_parameter_types(&view.value_parameters)
+                    }
                     Err(_) => view
                         .value_parameters
                         .iter()
