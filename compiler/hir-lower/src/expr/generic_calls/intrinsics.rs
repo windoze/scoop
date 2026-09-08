@@ -17,19 +17,39 @@ impl Lowerer {
             debug_assert_eq!(resolved.args.len(), 1);
             debug_assert_eq!(resolved.type_args.len(), 1);
             let place = match &call.args[0].expression {
-                ast::Expr::Var(name) => self
-                    .scopes
-                    .lookup(&name.text)
-                    .map(|local| (hir::Place::Local(local), self.locals[local].ty, name.span))
-                    .or_else(|| {
-                        self.visible_global(&name.text).map(|global| {
+                ast::Expr::Var(name) => {
+                    if let Some(local) = self.scopes.lookup(&name.text) {
+                        Some((hir::Place::Local(local), self.locals[local].ty, name.span))
+                    } else {
+                        let target = match self.resolve_value_name(name) {
+                            Ok(target) => target,
+                            Err(()) => return None,
+                        };
+                        let global = target.and_then(|target| {
+                            let crate::imports::lookup::values::ValueTarget::Property(property) =
+                                target
+                            else {
+                                return None;
+                            };
+                            match self.properties[property].representation {
+                                hir::PropertyRepresentation::NativeStorage { storage } => {
+                                    Some(storage)
+                                }
+                                hir::PropertyRepresentation::Stored(_)
+                                | hir::PropertyRepresentation::AccessorOnly
+                                | hir::PropertyRepresentation::Delegated { .. }
+                                | hir::PropertyRepresentation::Const { .. } => None,
+                            }
+                        });
+                        global.map(|global| {
                             (
                                 hir::Place::Global(global),
                                 self.globals[global].ty,
                                 name.span,
                             )
                         })
-                    }),
+                    }
+                }
                 ast::Expr::This { span } => self
                     .current_this
                     .map(|(local, ty)| (hir::Place::Local(local), ty, *span)),

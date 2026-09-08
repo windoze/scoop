@@ -566,32 +566,6 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn visible_global(&self, name: &str) -> Option<hir::GlobalId> {
-        let property = self.visible_property(name, None)?;
-        match self.properties[property].representation {
-            hir::PropertyRepresentation::NativeStorage { storage } => Some(storage),
-            hir::PropertyRepresentation::Stored(_)
-            | hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. }
-            | hir::PropertyRepresentation::Const { .. } => None,
-        }
-    }
-
-    pub(crate) fn visible_property(
-        &self,
-        name: &str,
-        receiver: Option<hir::TypeId>,
-    ) -> Option<hir::PropertyId> {
-        self.top_level_namespaces
-            .property_layers(self.current_file, name)
-            .into_iter()
-            .find_map(|layer| {
-                layer.into_iter().find(|&property| {
-                    self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
-                })
-            })
-    }
-
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
             hir::Type::Integer(kind) => {
