@@ -219,8 +219,11 @@ impl Parser {
             let Some(lexical_span) = lexical.span else {
                 return false;
             };
-            lexical_span.start <= syntax_span.start
-                && !self.has_top_level_start_between(lexical_span.end, syntax_span.start)
+            let overlaps_recovery_token =
+                lexical_span.start < syntax_span.end && syntax_span.start < lexical_span.end;
+            overlaps_recovery_token
+                || (lexical_span.start <= syntax_span.start
+                    && !self.has_top_level_start_between(lexical_span.end, syntax_span.start))
         })
     }
 

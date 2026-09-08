@@ -301,14 +301,29 @@ fn rejects_long_before_unsigned_and_unknown_suffixes_as_one_lexeme() {
         let source = format!("1{suffix}");
         let (tokens, diagnostics) = lex(&source);
         assert_eq!(diagnostics.len(), 1, "source: {source}");
-        assert_eq!(tokens.len(), 1, "bad suffix must not become an identifier");
-        assert!(matches!(tokens[0].kind, TokenKind::Eof));
+        assert_eq!(tokens.len(), 2, "bad suffix retains one recovery token");
+        assert!(matches!(tokens[0].kind, TokenKind::Error));
+        assert!(matches!(tokens[1].kind, TokenKind::Eof));
         let diagnostic = &diagnostics[0];
         let span = diagnostic.span.expect("lexical diagnostics have spans");
         assert_eq!((span.start, span.end as usize), (1, source.len()));
         assert_eq!(
             diagnostic.message,
             format!("invalid integer literal suffix `{suffix}`")
+        );
+    }
+}
+
+#[test]
+fn malformed_integer_recovery_preserves_the_next_declaration_boundary() {
+    for malformed in ["18446744073709551616uL", "0b102", "1__2", "1lu"] {
+        let source = format!("val broken: ULong = {malformed}\nfun main() {{}}\n");
+        let diagnostics =
+            crate::parse(&source).expect_err("the malformed literal must reject the source");
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "source `{malformed}`: {diagnostics:?}"
         );
     }
 }
