@@ -178,7 +178,7 @@ impl Lowerer {
     pub(crate) fn visibility_file(&self, file: usize) -> hir::VisibilityFile {
         hir::VisibilityFile {
             provider: self.intrinsic_sources[file].provider,
-            index: u32::try_from(file).expect("source file index exceeds u32"),
+            source: self.intrinsic_sources[file].visibility_source,
         }
     }
 

@@ -536,6 +536,7 @@ impl Lowerer {
                 .into_iter()
                 .map(|source| hir::SourceFileMetadata {
                     provider: source.provider,
+                    visibility_source: source.visibility_source,
                     name: source.name,
                     source: source.source,
                 })

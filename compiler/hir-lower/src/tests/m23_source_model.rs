@@ -20,15 +20,31 @@ fn lower_user_sources(
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let core_provider = hir::IntrinsicProviderId::from_raw(17);
     let user_provider = hir::IntrinsicProviderId::from_raw(29);
+    let request = ast::Stage1RequestId::from_raw(0);
+    let parsed = validated_sources(
+        request,
+        (0, first),
+        &remaining
+            .iter()
+            .enumerate()
+            .map(|(index, &(source, _))| {
+                (u32::try_from(index + 1).expect("test source index"), source)
+            })
+            .collect::<Vec<_>>(),
+    );
     let input = Stage1CompilationInput::new(
         vec![source(core, core_provider, "core.scoop")],
-        source(first, user_provider, "first.scoop"),
-        remaining
-            .iter()
-            .map(|&(file, name)| source(file, user_provider, name))
-            .collect(),
-    )
-    .expect("the test user sources share one provider");
+        user_provider,
+        parsed,
+        |handle| Stage1SourceDetails {
+            display_locator: if handle.local_index() == 0 {
+                "first.scoop"
+            } else {
+                remaining[handle.local_index() as usize - 1].1
+            },
+            source_text: "",
+        },
+    );
     lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
@@ -128,7 +144,10 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
             hir::AccessConstraint::Cone(user_provider),
             hir::AccessConstraint::File(hir::VisibilityFile {
                 provider: user_provider,
-                index: 1,
+                source: hir::VisibilitySource::CurrentUnit(ast::Stage1SourceHandle::new(
+                    ast::Stage1RequestId::from_raw(0),
+                    0,
+                )),
             }),
         ]
     );
@@ -177,13 +196,13 @@ fn a_later_user_source_does_not_gain_core_intrinsic_authority() {
 }
 
 #[test]
-fn stage1_input_rejects_mixed_user_providers() {
+fn legacy_stage1_adapter_rejects_mixed_user_providers() {
     let first = file(Vec::new());
     let second = file(vec![fun("main", Vec::new())]);
     let expected = hir::IntrinsicProviderId::from_raw(29);
     let actual = hir::IntrinsicProviderId::from_raw(31);
 
-    let error = Stage1CompilationInput::new(
+    let error = Stage1CompilationInput::from_legacy_sources(
         Vec::new(),
         source(&first, expected, "first.scoop"),
         vec![source(&second, actual, "second.scoop")],
@@ -339,4 +358,139 @@ fn source_permutation_does_not_change_the_current_package_winner() {
         .expect("reverse source order lowers");
     assert!(hir::dump(&forward.export).contains("Call choose : String"));
     assert!(hir::dump(&reverse.export).contains("Call choose : String"));
+}
+
+fn validated_sources(
+    request: ast::Stage1RequestId,
+    first: (u32, &ast::SourceFile),
+    remaining: &[(u32, &ast::SourceFile)],
+) -> ast::AllParsedSources {
+    let parsed = |(index, source): (u32, &ast::SourceFile)| {
+        ast::ParsedSource::new(ast::Stage1SourceHandle::new(request, index), source.clone())
+    };
+    ast::AllParsedSources::try_new(
+        request,
+        ast::NonEmptyVec::new(
+            parsed(first),
+            remaining.iter().copied().map(parsed).collect(),
+        ),
+    )
+    .expect("the test supplies distinct handles in one request")
+}
+
+#[test]
+fn validated_input_retains_sparse_handles_independently_of_dense_file_indices() {
+    let core = core_file();
+    let mut private = fun("privateHelper", Vec::new());
+    set_private(&mut private);
+    let first = with_package(
+        file(vec![
+            private,
+            fun("usePrivate", vec![stmt(call("privateHelper", Vec::new()))]),
+        ]),
+        &["shared"],
+    );
+    let second = with_package(file(vec![fun("main", Vec::new())]), &["shared"]);
+    let request = ast::Stage1RequestId::from_raw(413);
+    let user_provider = hir::IntrinsicProviderId::from_raw(29);
+    let expected_source =
+        hir::VisibilitySource::CurrentUnit(ast::Stage1SourceHandle::new(request, 97));
+    let mut private_domains = Vec::new();
+
+    for (parsed, dense_file, locator) in [
+        (
+            validated_sources(request, (97, &first), &[(4, &second)]),
+            1,
+            "/one/unrelated.scoop",
+        ),
+        (
+            validated_sources(request, (4, &second), &[(97, &first)]),
+            2,
+            "/elsewhere/unrelated.scoop",
+        ),
+    ] {
+        let input = Stage1CompilationInput::new(
+            vec![source(
+                &core,
+                hir::IntrinsicProviderId::from_raw(17),
+                "core.scoop",
+            )],
+            user_provider,
+            parsed,
+            |_| Stage1SourceDetails {
+                display_locator: locator,
+                source_text: "",
+            },
+        );
+        assert_eq!(input.user_sources().request(), request);
+        let output = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+            .expect("source order and display locator do not affect private lookup");
+        let module = output.export;
+        assert_eq!(
+            module.source_files[dense_file].visibility_source,
+            expected_source
+        );
+        assert_eq!(module.source_files[dense_file].name, locator);
+        let consumer = module
+            .functions
+            .iter()
+            .find_map(|(_, function)| (function.name == "usePrivate").then_some(function))
+            .expect("the private consumer is present");
+        let hir::FunctionKind::User(body) = &consumer.kind else {
+            panic!("the consumer has a source body")
+        };
+        let hir::StatementKind::Expr(call) = &body.statements[0].kind else {
+            panic!("the consumer starts with the private call")
+        };
+        assert_eq!(call.origin.definition().file as usize, dense_file);
+        let private = module
+            .functions
+            .iter()
+            .find_map(|(_, function)| (function.name == "privateHelper").then_some(function))
+            .expect("the private helper is present");
+        private_domains.push(private.access.lookup.0.clone());
+        assert!(
+            private
+                .access
+                .lookup
+                .0
+                .constraints()
+                .contains(&hir::AccessConstraint::File(hir::VisibilityFile {
+                    provider: user_provider,
+                    source: expected_source
+                },))
+        );
+    }
+    assert_eq!(private_domains[0], private_domains[1]);
+}
+
+#[test]
+fn shared_display_locator_does_not_merge_distinct_private_sources() {
+    let core = core_file();
+    let mut private = fun("privateHelper", Vec::new());
+    set_private(&mut private);
+    let first = file(vec![private]);
+    let second = file(vec![fun(
+        "main",
+        vec![stmt(call("privateHelper", Vec::new()))],
+    )]);
+    let request = ast::Stage1RequestId::from_raw(99);
+    let input = Stage1CompilationInput::new(
+        vec![source(
+            &core,
+            hir::IntrinsicProviderId::from_raw(17),
+            "same.scoop",
+        )],
+        hir::IntrinsicProviderId::from_raw(29),
+        validated_sources(request, (12, &first), &[(33, &second)]),
+        |_| Stage1SourceDetails {
+            display_locator: "same.scoop",
+            source_text: "",
+        },
+    );
+
+    let errors = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+        .expect_err("equal diagnostic labels cannot grant file-private access");
+    assert!(errors.iter().any(|error| error.file == 2
+        && error.message == "function `privateHelper` is not accessible here"));
 }

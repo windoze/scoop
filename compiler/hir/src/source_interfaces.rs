@@ -5,6 +5,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFileMetadata {
     pub provider: IntrinsicProviderId,
+    pub visibility_source: VisibilitySource,
     pub name: String,
     pub source: String,
 }
