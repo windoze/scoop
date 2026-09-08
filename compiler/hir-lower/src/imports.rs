@@ -6,6 +6,7 @@ use scoop_hir as hir;
 use std::collections::{BTreeMap, HashMap};
 
 mod collect;
+pub(crate) mod lookup;
 mod resolve;
 #[cfg(test)]
 mod tests;

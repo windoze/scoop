@@ -1,4 +1,5 @@
 use super::*;
+mod type_lookup;
 use crate::tests::{file, ident, sp};
 use crate::{IntrinsicDeclarationPolicy, Lowerer, SourceKind, SourceProvider};
 
@@ -382,7 +383,13 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
 }
 
 fn lower_sources(sources: Vec<ast::SourceFile>) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    let core = crate::tests::core_file();
+    lower_sources_with_core(sources, crate::tests::core_file())
+}
+
+fn lower_sources_with_core(
+    sources: Vec<ast::SourceFile>,
+    core: ast::SourceFile,
+) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let request = ast::Stage1RequestId::from_raw(100);
     let mut parsed = sources.into_iter().enumerate().map(|(index, source)| {
         ast::ParsedSource::new(

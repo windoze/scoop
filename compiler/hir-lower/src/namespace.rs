@@ -344,16 +344,6 @@ impl TopLevelNamespaces {
             .collect()
     }
 
-    pub(crate) fn package_types(&self, package: PackageId, name: &str) -> Vec<TopLevelTypeTarget> {
-        self.current
-            .get(&package)
-            .and_then(|namespace| namespace.types.get(name))
-            .into_iter()
-            .flatten()
-            .map(|binding| binding.target)
-            .collect()
-    }
-
     pub(crate) fn core_type(&self, name: &str) -> Option<TopLevelTypeTarget> {
         self.core_prelude
             .types

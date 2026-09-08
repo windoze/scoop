@@ -84,7 +84,11 @@ impl Lowerer {
         name: &ast::Ident,
         supplied_type_arguments: bool,
     ) -> Option<hir::TypeId> {
-        let id = self.source_type_alias_named(&name.text)?;
+        let crate::namespace::TopLevelTypeTarget::Alias(id) =
+            self.resolve_type_lookup(name).ok()??
+        else {
+            return None;
+        };
         self.resolve_type_alias_id_reference(id, name, supplied_type_arguments)
     }
 
@@ -374,10 +378,12 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
     ) -> Result<Option<(hir::TypeId, NominalTarget)>, ()> {
-        if self.source_type_alias_named(&name.text).is_none() {
+        let Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) =
+            self.resolve_type_lookup(name)?
+        else {
             return Ok(None);
-        }
-        let Some(target) = self.resolve_type_alias_reference(name, false) else {
+        };
+        let Some(target) = self.resolve_type_alias_id_reference(alias, name, false) else {
             return Err(());
         };
         let Some(nominal) = self.nominal_target_for_type(target) else {

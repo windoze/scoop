@@ -2,7 +2,7 @@ use super::*;
 use crate::{NominalTarget, Owner};
 
 impl Lowerer {
-    fn top_level_type_target_is_accessible(
+    pub(crate) fn top_level_type_target_is_accessible(
         &self,
         target: crate::namespace::TopLevelTypeTarget,
     ) -> bool {
@@ -33,26 +33,29 @@ impl Lowerer {
         &self,
         name: &str,
     ) -> Option<crate::namespace::TopLevelTypeTarget> {
-        self.top_level_namespaces
-            .type_layers(self.current_file, name)
-            .into_iter()
-            .find_map(|layer| {
-                layer
-                    .into_iter()
-                    .find(|target| self.top_level_type_target_is_accessible(*target))
-            })
+        match self.lookup_type(name) {
+            crate::imports::lookup::LookupResult::Unique(candidate) => Some(candidate.target),
+            crate::imports::lookup::LookupResult::Missing
+            | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+        }
     }
 
     pub(crate) fn top_level_type_target_for_reference(
         &self,
         name: &str,
     ) -> Option<crate::namespace::TopLevelTypeTarget> {
-        self.top_level_type_target(name).or_else(|| {
-            self.top_level_namespaces
-                .type_layers(self.current_file, name)
-                .into_iter()
-                .find_map(|layer| layer.into_iter().next())
-        })
+        match self.lookup_type(name) {
+            crate::imports::lookup::LookupResult::Unique(candidate) => Some(candidate.target),
+            crate::imports::lookup::LookupResult::Inaccessible(candidates)
+                if candidates.len() == 1 =>
+            {
+                Some(candidates.first().target)
+            }
+            crate::imports::lookup::LookupResult::Missing
+            | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+        }
     }
 
     pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
@@ -233,13 +236,8 @@ impl Lowerer {
                 );
                 return None;
             };
-            let candidates = self
-                .top_level_namespaces
-                .package_types(package, &binding_name.text);
-            let Some(binding) = candidates
-                .into_iter()
-                .find(|target| self.top_level_type_target_is_accessible(*target))
-            else {
+            let result = self.lookup_package_type(package, &binding_name.text);
+            let Some(binding) = self.commit_type_lookup(binding_name, result).ok()? else {
                 self.error(
                     binding_name.span,
                     format!(
@@ -252,7 +250,15 @@ impl Lowerer {
             let target = match binding {
                 crate::namespace::TopLevelTypeTarget::Nominal(target) => target,
                 crate::namespace::TopLevelTypeTarget::Alias(alias) => {
-                    let ty = self.resolve_type_alias_id_reference(alias, binding_name, false)?;
+                    let final_segment = package_length + 1 == path.len();
+                    let ty = self.resolve_type_alias_id_reference(
+                        alias,
+                        binding_name,
+                        final_segment && !arguments.is_empty(),
+                    )?;
+                    if final_segment {
+                        return Some(ty);
+                    }
                     let Some(target) = self.nominal_target_for_type(ty) else {
                         self.error(
                             binding_name.span,
@@ -270,22 +276,28 @@ impl Lowerer {
         } else {
             let target = if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
                 target
-            } else if self.source_type_alias_named(&first.text).is_some() {
-                let alias = self.resolve_type_alias_reference(first, false)?;
-                let Some(target) = self.nominal_target_for_type(alias) else {
-                    self.error(
-                        first.span,
-                        format!("typealias `{}` does not name a type qualifier", first.text),
-                    );
-                    return None;
-                };
-                target
             } else {
-                let Some(target) = self.top_level_nominal_target(&first.text) else {
-                    self.error(first.span, format!("unknown type `{}`", first.text));
-                    return None;
-                };
-                target
+                match self.resolve_type_lookup(first).ok()? {
+                    Some(crate::namespace::TopLevelTypeTarget::Nominal(target)) => target,
+                    Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) => {
+                        let ty = self.resolve_type_alias_id_reference(alias, first, false)?;
+                        let Some(target) = self.nominal_target_for_type(ty) else {
+                            self.error(
+                                first.span,
+                                format!(
+                                    "typealias `{}` does not name a type qualifier",
+                                    first.text
+                                ),
+                            );
+                            return None;
+                        };
+                        target
+                    }
+                    None => {
+                        self.error(first.span, format!("unknown type `{}`", first.text));
+                        return None;
+                    }
+                }
             };
             (target, 1)
         };
@@ -379,6 +391,7 @@ impl Lowerer {
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
+                self.resolve_type_lookup(name).ok()?;
                 if self.source_type_alias_named(&name.text).is_some() {
                     return self.resolve_type_alias_reference(name, true);
                 }
@@ -593,8 +606,19 @@ impl Lowerer {
                         &name.text,
                     );
                 }
-                if self.source_type_alias_named(&name.text).is_some() {
-                    return self.resolve_type_alias_reference(name, false);
+                match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) => {
+                        return self.resolve_type_alias_id_reference(alias, name, false);
+                    }
+                    Some(crate::namespace::TopLevelTypeTarget::Nominal(target)) => {
+                        return self.resolve_nested_nominal_application(
+                            target,
+                            &[],
+                            name.span,
+                            &name.text,
+                        );
+                    }
+                    None => {}
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
@@ -612,83 +636,8 @@ impl Lowerer {
                     // 5.5); the core library shape arrives with M7/core.
                     "Any" => Some(self.any),
                     _ => {
-                        if let Some((struct_id, ty)) = self.top_level_struct_named(&name.text) {
-                            // A generic struct needs its type
-                            // arguments (`PinnedPtr<T>` goes through
-                            // TypeRefKind::Generic), mirroring the
-                            // generic enum rule below.
-                            let arity = self.structs[struct_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic struct `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some((class_id, ty)) = self.top_level_class_named(&name.text) {
-                            let arity = self.classes[class_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic class `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some((interface_id, ty)) = self.top_level_interface_named(&name.text)
-                        {
-                            let arity = self.interfaces[interface_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic interface `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some(object) = self.top_level_object_named(&name.text) {
-                            return Some(
-                                self.object_types[self.objects[object].object_type].canonical_type,
-                            );
-                        }
-                        match self.top_level_enum_named(&name.text) {
-                            Some(id) => {
-                                // Bare name without type arguments:
-                                // only non-generic enums are usable
-                                // (`Option<Int>` / `Box<Int>` go
-                                // through TypeRefKind::Generic).
-                                let arity = self.enums[id].type_params.len();
-                                if arity == 0 {
-                                    Some(self.enum_application(id, Vec::new()))
-                                } else {
-                                    let enum_name = self.enums[id].name.clone();
-                                    self.error(
-                                        name.span,
-                                        format!(
-                                            "generic enum `{enum_name}` requires {arity} type argument(s)"
-                                        ),
-                                    );
-                                    None
-                                }
-                            }
-                            None => {
-                                self.error(name.span, format!("unknown type `{}`", name.text));
-                                None
-                            }
-                        }
+                        self.error(name.span, format!("unknown type `{}`", name.text));
+                        None
                     }
                 }
             }
