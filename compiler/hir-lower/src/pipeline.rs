@@ -245,6 +245,7 @@ impl Lowerer {
             file_packages: Vec::new(),
             file_imports: Vec::new(),
             file_star_variants: Vec::new(),
+            file_import_bindings: Vec::new(),
             reexports: Vec::new(),
             intrinsic_policy: IntrinsicDeclarationPolicy::CoreOnly,
             locals: Arena::new(),

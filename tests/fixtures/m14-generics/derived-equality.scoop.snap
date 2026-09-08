@@ -6955,7 +6955,7 @@ Module mangling=persistent-v1
         Local $parameter.first
         Type Int
         Local $parameter.second
-      call $argument.0: Boolean = @scoop$1$fn$f724dbe22505dee6525a7a8cfb63e89adc7d75857db8f767564e71156cb11ebb direct
+      call $argument.0: Boolean = @scoop$1$fn$236bf0cbd330c2c61837842e9c9cf6a06886a76f572a8658abefee998784d8ad direct
         Type Pair$I32
         Local $call.1
         Type Pair$I32
@@ -6963,7 +6963,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -7000,7 +7000,7 @@ Module mangling=persistent-v1
         Local $parameter.first
         Type Int
         Local $parameter.second
-      call $call.5: Boolean = @scoop$1$fn$f724dbe22505dee6525a7a8cfb63e89adc7d75857db8f767564e71156cb11ebb direct
+      call $call.5: Boolean = @scoop$1$fn$236bf0cbd330c2c61837842e9c9cf6a06886a76f572a8658abefee998784d8ad direct
         Type Pair$I32
         Local $call.3
         Type Pair$I32
@@ -7013,7 +7013,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: String
@@ -7028,7 +7028,7 @@ Module mangling=persistent-v1
       val $parameter._1: String
         Type String
         Local $argument.0
-      call $argument.0: Boolean = @scoop$1$fn$fccf79fc274cf47a8eb2de37a5c82c39a71e9f49f52b09fa195ce8eb468ba070 direct
+      call $argument.0: Boolean = @scoop$1$fn$64d62c0efae779e1eddd4f0034d16bb16c46e73c10dc31ec55bf359dcce1e556 direct
         Type Maybe$S<String>
         VariantConstruct Maybe$S<String> v0
           Type String
@@ -7040,7 +7040,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: String
@@ -7049,7 +7049,7 @@ Module mangling=persistent-v1
       val $parameter._1: String
         Type String
         Local $argument.0
-      call $argument.0: Boolean = @scoop$1$fn$fccf79fc274cf47a8eb2de37a5c82c39a71e9f49f52b09fa195ce8eb468ba070 direct
+      call $argument.0: Boolean = @scoop$1$fn$64d62c0efae779e1eddd4f0034d16bb16c46e73c10dc31ec55bf359dcce1e556 direct
         Type Maybe$S<String>
         VariantConstruct Maybe$S<String> v0
           Type String
@@ -7059,11 +7059,11 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       return
-  fun println @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3(value: Boolean) -> Unit
+  fun println @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
         Type Boolean
@@ -7087,7 +7087,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun Pair.equals @scoop$1$fn$f724dbe22505dee6525a7a8cfb63e89adc7d75857db8f767564e71156cb11ebb(this: Pair$I32, other: Pair$I32) -> Boolean
+  fun Pair.equals @scoop$1$fn$236bf0cbd330c2c61837842e9c9cf6a06886a76f572a8658abefee998784d8ad(this: Pair$I32, other: Pair$I32) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7122,7 +7122,7 @@ Module mangling=persistent-v1
       return
         Type Boolean
         Local $logic.1
-  fun Maybe.equals @scoop$1$fn$fccf79fc274cf47a8eb2de37a5c82c39a71e9f49f52b09fa195ce8eb468ba070(this: Maybe$S<String>, other: Maybe$S<String>) -> Boolean
+  fun Maybe.equals @scoop$1$fn$64d62c0efae779e1eddd4f0034d16bb16c46e73c10dc31ec55bf359dcce1e556(this: Maybe$S<String>, other: Maybe$S<String>) -> Boolean
     bb0 entry
       val $when.1: Maybe$S<String>
         Type Maybe$S<String>
@@ -7640,9 +7640,9 @@ Module mangling=persistent-v1
           Local first
           Type Int
           Local second
-  instance @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3 <- println
-  instance @scoop$1$fn$f724dbe22505dee6525a7a8cfb63e89adc7d75857db8f767564e71156cb11ebb <- Pair.equals
-  instance @scoop$1$fn$fccf79fc274cf47a8eb2de37a5c82c39a71e9f49f52b09fa195ce8eb468ba070 <- Maybe.equals
+  instance @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 <- println
+  instance @scoop$1$fn$236bf0cbd330c2c61837842e9c9cf6a06886a76f572a8658abefee998784d8ad <- Pair.equals
+  instance @scoop$1$fn$64d62c0efae779e1eddd4f0034d16bb16c46e73c10dc31ec55bf359dcce1e556 <- Maybe.equals
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11126,7 +11126,7 @@ Module
     call managed-void-target3 sp133 live=[] sig=void3 (i1) local-fn71(local29)
     t12 = aggregate () : {}
     ret
-  fun @scoop$1$fn$a41de2462f54c8f742be13052e0c5eee0912e840918773dd98496ea49569c1e3(i1) -> void
+  fun @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11145,7 +11145,7 @@ Module
     call native-borrowed-void-target1 sp136 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$f724dbe22505dee6525a7a8cfb63e89adc7d75857db8f767564e71156cb11ebb(indirect<struct10 size=8 align=4 scan=none>, indirect<struct10 size=8 align=4 scan=none>) -> i1
+  fun @scoop$1$fn$236bf0cbd330c2c61837842e9c9cf6a06886a76f572a8658abefee998784d8ad(indirect<struct10 size=8 align=4 scan=none>, indirect<struct10 size=8 align=4 scan=none>) -> i1
     local %0 $logic.1: i1
   block entry
     poll managed-void-target0 sp218 live=[]
@@ -11164,7 +11164,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local0
-  fun @scoop$1$fn$fccf79fc274cf47a8eb2de37a5c82c39a71e9f49f52b09fa195ce8eb468ba070(enum1, enum1) -> i1
+  fun @scoop$1$fn$64d62c0efae779e1eddd4f0034d16bb16c46e73c10dc31ec55bf359dcce1e556(enum1, enum1) -> i1
     local %0 $left.0.0: ptr<managed>
     local %1 $right.0.0: ptr<managed>
     local %2 $when.1: enum1

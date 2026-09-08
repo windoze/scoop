@@ -6867,11 +6867,11 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
-  fun println @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7324,7 +7324,7 @@ Module mangling=persistent-v1
         StructInit S
           Type Int
           Local v
-  instance @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 <- println
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -10737,7 +10737,7 @@ Module
     call managed-void-target1 sp129 live=[] sig=void1 (i32) local-fn71(local5)
     t7 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

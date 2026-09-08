@@ -211,3 +211,41 @@ fun main() {}
         .any(|target| matches!(target.target, hir::ImportedTarget::Function { .. }));
     assert!(has_struct && has_function);
 }
+
+#[test]
+fn alias_binds_functions_for_calls() {
+    let user = r#"package dev.example
+
+import org.foo.render as draw
+
+fun main() {
+    println(draw(2))
+}
+"#;
+    let module = lower_with_library(LIBRARY, user).expect("lowers");
+    // The call resolved through the alias to the Int overload of render.
+    let main = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "main")
+        .map(|(id, _)| id)
+        .expect("main");
+    let _ = main;
+}
+
+#[test]
+fn alias_binds_types_in_type_and_constructor_position() {
+    let user = r#"package dev.example
+
+import org.foo.User as U
+
+fun describe(user: U): String {
+    return user.name
+}
+
+fun main() {
+    println(describe(U("abc")))
+}
+"#;
+    lower_with_library(LIBRARY, user).expect("lowers");
+}

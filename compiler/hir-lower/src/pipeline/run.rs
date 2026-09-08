@@ -88,6 +88,7 @@ impl Lowerer {
             self.file_packages.push(package_id);
             self.file_imports.push(hir::FileImports { exact, star });
             self.file_star_variants.push(HashMap::new());
+            self.file_import_bindings.push(HashMap::new());
         }
 
         let mut pending_interfaces = Vec::new();
@@ -372,6 +373,16 @@ impl Lowerer {
         // retain the real core declaration domain for primitive targets.
         self.validate_type_alias_targets();
 
+        // Top-level properties are declared before signatures so that
+        // import binding resolution (next) sees a complete declaration
+        // set — signatures, fields, supertypes, constructor graphs and
+        // initializer expressions all consume the import surface through
+        // the same lookup layers as bodies (DESIGN 2.3).
+        let declared_globals = self.declare_globals(&pending_globals);
+        // Import bindings resolve before any signature or body position:
+        // every later pass sees the exact-import layer filled.
+        self.resolve_import_bindings();
+
         // Pass 2.5: resolve function and method signatures, so calls
         // in any body see parameter and return types regardless of
         // declaration order. Interface method signatures become
@@ -403,7 +414,7 @@ impl Lowerer {
         self.ffi_core = ffi_core;
         let foreign_callback_core = self.validate_foreign_callback_core(files);
         self.foreign_callback_core = foreign_callback_core;
-        self.resolve_globals(&pending_globals, &pending_objects);
+        self.evaluate_globals(declared_globals, &pending_objects);
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
         self.validate_extern_functions();
@@ -443,10 +454,10 @@ impl Lowerer {
         let exception_core = self.validate_exception_core(files);
         self.lower_runtime_top_level_initializers();
 
-        // Every declaration (including generated backing classes and
-        // finalized type aliases) exists before import bindings resolve;
-        // bodies then see a complete import surface.
-        self.resolve_import_bindings();
+        // Re-export publication (DESIGN 2.4) runs after signatures exist
+        // so destination-conflict checks compare parameter signatures;
+        // import bindings themselves resolved before pass 2.5.
+        self.publish_reexports();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at

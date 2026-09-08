@@ -6926,19 +6926,19 @@ Module mangling=persistent-v1
       return
         Type String
         StringConst @scoop.str.5
-  fun Node.name @scoop$1$fn$864ec2382a95dcd73e94b8cf6c90a161a8035dc5ac0e3fae8f15ac5d559a849a(this: Node$S) -> String
+  fun Node.name @scoop$1$fn$f914a7a2c84ea54d548ac79e0125a0ef336c523db6c483eee6dbf43b9424c37f(this: Node$S) -> String
     bb0 entry
       return
         Type String
         StringConst @scoop.str.6
-  fun Node.read @scoop$1$fn$fda6b862f16fd229381d14245381499e2248b07274e676fda085fc4d01cc2cdf(this: Node$S) -> String
+  fun Node.read @scoop$1$fn$91ebda1c36916b095b01b9d8f17274a9bbb9f2c3b242cfd10135f16ef5d2a81c(this: Node$S) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Node$S
           Local this
-  fun Node.tag @scoop$1$fn$aaacbda726f28e7209f35033f9231741a9528c2a789e7f88acda4295d259775a(this: Node$S) -> String
+  fun Node.tag @scoop$1$fn$13aaba0d653afe4d4abacb61df081ba4ea75665f000cd7fbe5075edebefa26fe(this: Node$S) -> String
     bb0 entry
       return
         Type String
@@ -6968,13 +6968,13 @@ Module mangling=persistent-v1
       val $parameter.node: StringNode
         Type StringNode
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$c3e4207fed6756b1ece6ac368d28a6699ff96e4dadbe08e5eb2f302a2cfc41bc direct
+      call $argument.0: String = @scoop$1$fn$927ebdd12a24bb91e3f329e34f44963ce6a4eeb0f6d8d792383e8672cd977a68 direct
         Type StringNode
         Local $parameter.node
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: StringNode
@@ -6983,13 +6983,13 @@ Module mangling=persistent-v1
       val $parameter.node: StringNode
         Type StringNode
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$a30b9284fbf3037a842181162870dd8e55e288170b5cbbcf98e35bc137db0f05 direct
+      call $argument.0: String = @scoop$1$fn$a6fd7dfb7d956555e43b86a1b9392ca73df9f6683d4060e7ad925c129cfbdb2e direct
         Type StringNode
         Local $parameter.node
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: StringNode
@@ -6998,13 +6998,13 @@ Module mangling=persistent-v1
       val $parameter.node: StringNode
         Type StringNode
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$2a6afeee6049c196455201411f68b31f6511a2bcaa91b062bbf0d8b523963a30 direct
+      call $argument.0: String = @scoop$1$fn$82c8b7736e43888e3eaf2de81960cf886c6c8c81ed7ee98b0009a335a0c0daf3 direct
         Type StringNode
         Local $parameter.node
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: StringNode
@@ -7013,28 +7013,28 @@ Module mangling=persistent-v1
       val $parameter.node: StringNode
         Type StringNode
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$31247901ba4e9be26c08d4316d39d2f9cae57cfa44587ea148d63de26bfb98f4 direct
+      call $argument.0: String = @scoop$1$fn$cec1f5a925c27d46c1e5a6f1927a4d31c1bd008f290ab8bd1a8f54b41cbd7080 direct
         Type StringNode
         Local $parameter.node
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun direct @scoop$1$fn$c3e4207fed6756b1ece6ac368d28a6699ff96e4dadbe08e5eb2f302a2cfc41bc(node: StringNode) -> String
+  fun direct @scoop$1$fn$927ebdd12a24bb91e3f329e34f44963ce6a4eeb0f6d8d792383e8672cd977a68(node: StringNode) -> String
     bb0 entry
       val $receiver: StringNode
         Type StringNode
         Local node
-      call $call.1: String = @scoop$1$fn$aaacbda726f28e7209f35033f9231741a9528c2a789e7f88acda4295d259775a direct
+      call $call.1: String = @scoop$1$fn$13aaba0d653afe4d4abacb61df081ba4ea75665f000cd7fbe5075edebefa26fe direct
         Type StringNode
         Local $receiver
       return
         Type String
         Local $call.1
-  fun println @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7058,34 +7058,34 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun virtual @scoop$1$fn$a30b9284fbf3037a842181162870dd8e55e288170b5cbbcf98e35bc137db0f05(node: StringNode) -> String
+  fun virtual @scoop$1$fn$a6fd7dfb7d956555e43b86a1b9392ca73df9f6683d4060e7ad925c129cfbdb2e(node: StringNode) -> String
     bb0 entry
       val $receiver: StringNode
         Type StringNode
         Local node
-      call $call.1: String = @scoop$1$fn$fda6b862f16fd229381d14245381499e2248b07274e676fda085fc4d01cc2cdf virtual[1]
+      call $call.1: String = @scoop$1$fn$91ebda1c36916b095b01b9d8f17274a9bbb9f2c3b242cfd10135f16ef5d2a81c virtual[1]
         Type StringNode
         Local $receiver
       return
         Type String
         Local $call.1
-  fun inheritedInterface @scoop$1$fn$2a6afeee6049c196455201411f68b31f6511a2bcaa91b062bbf0d8b523963a30(node: StringNode) -> String
+  fun inheritedInterface @scoop$1$fn$82c8b7736e43888e3eaf2de81960cf886c6c8c81ed7ee98b0009a335a0c0daf3(node: StringNode) -> String
     bb0 entry
       val $receiver: StringNode
         Type StringNode
         Local node
-      call $call.1: String = @scoop$1$fn$864ec2382a95dcd73e94b8cf6c90a161a8035dc5ac0e3fae8f15ac5d559a849a virtual[0]
+      call $call.1: String = @scoop$1$fn$f914a7a2c84ea54d548ac79e0125a0ef336c523db6c483eee6dbf43b9424c37f virtual[0]
         Type StringNode
         Local $receiver
       return
         Type String
         Local $call.1
-  fun combined @scoop$1$fn$31247901ba4e9be26c08d4316d39d2f9cae57cfa44587ea148d63de26bfb98f4(node: StringNode) -> String
+  fun combined @scoop$1$fn$cec1f5a925c27d46c1e5a6f1927a4d31c1bd008f290ab8bd1a8f54b41cbd7080(node: StringNode) -> String
     bb0 entry
       val $receiver: StringNode
         Type StringNode
         Local node
-      call $call.1: String = @scoop$1$fn$aaacbda726f28e7209f35033f9231741a9528c2a789e7f88acda4295d259775a direct
+      call $call.1: String = @scoop$1$fn$13aaba0d653afe4d4abacb61df081ba4ea75665f000cd7fbe5075edebefa26fe direct
         Type StringNode
         Local $receiver
       return
@@ -7537,14 +7537,14 @@ Module mangling=persistent-v1
           Local functionName
           Type String
           Local typeName
-  instance @scoop$1$fn$864ec2382a95dcd73e94b8cf6c90a161a8035dc5ac0e3fae8f15ac5d559a849a <- Node.name
-  instance @scoop$1$fn$fda6b862f16fd229381d14245381499e2248b07274e676fda085fc4d01cc2cdf <- Node.read
-  instance @scoop$1$fn$aaacbda726f28e7209f35033f9231741a9528c2a789e7f88acda4295d259775a <- Node.tag
-  instance @scoop$1$fn$c3e4207fed6756b1ece6ac368d28a6699ff96e4dadbe08e5eb2f302a2cfc41bc <- direct
-  instance @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 <- println
-  instance @scoop$1$fn$a30b9284fbf3037a842181162870dd8e55e288170b5cbbcf98e35bc137db0f05 <- virtual
-  instance @scoop$1$fn$2a6afeee6049c196455201411f68b31f6511a2bcaa91b062bbf0d8b523963a30 <- inheritedInterface
-  instance @scoop$1$fn$31247901ba4e9be26c08d4316d39d2f9cae57cfa44587ea148d63de26bfb98f4 <- combined
+  instance @scoop$1$fn$f914a7a2c84ea54d548ac79e0125a0ef336c523db6c483eee6dbf43b9424c37f <- Node.name
+  instance @scoop$1$fn$91ebda1c36916b095b01b9d8f17274a9bbb9f2c3b242cfd10135f16ef5d2a81c <- Node.read
+  instance @scoop$1$fn$13aaba0d653afe4d4abacb61df081ba4ea75665f000cd7fbe5075edebefa26fe <- Node.tag
+  instance @scoop$1$fn$927ebdd12a24bb91e3f329e34f44963ce6a4eeb0f6d8d792383e8672cd977a68 <- direct
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$a6fd7dfb7d956555e43b86a1b9392ca73df9f6683d4060e7ad925c129cfbdb2e <- virtual
+  instance @scoop$1$fn$82c8b7736e43888e3eaf2de81960cf886c6c8c81ed7ee98b0009a335a0c0daf3 <- inheritedInterface
+  instance @scoop$1$fn$cec1f5a925c27d46c1e5a6f1927a4d31c1bd008f290ab8bd1a8f54b41cbd7080 <- combined
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -10932,16 +10932,16 @@ Module
   block entry
     poll managed-void-target0 sp223 live=[]
     ret global5
-  fun @scoop$1$fn$864ec2382a95dcd73e94b8cf6c90a161a8035dc5ac0e3fae8f15ac5d559a849a(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$f914a7a2c84ea54d548ac79e0125a0ef336c523db6c483eee6dbf43b9424c37f(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp224 live=[]
     ret global6
-  fun @scoop$1$fn$fda6b862f16fd229381d14245381499e2248b07274e676fda085fc4d01cc2cdf(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$91ebda1c36916b095b01b9d8f17274a9bbb9f2c3b242cfd10135f16ef5d2a81c(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp225 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$aaacbda726f28e7209f35033f9231741a9528c2a789e7f88acda4295d259775a(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$13aaba0d653afe4d4abacb61df081ba4ea75665f000cd7fbe5075edebefa26fe(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp226 live=[]
     ret global7
@@ -11004,7 +11004,7 @@ Module
     call managed-void-target4 sp135 live=[local18:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn77(local18)
     t9 = aggregate () : {}
     ret
-  fun @scoop$1$fn$c3e4207fed6756b1ece6ac368d28a6699ff96e4dadbe08e5eb2f302a2cfc41bc(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$927ebdd12a24bb91e3f329e34f44963ce6a4eeb0f6d8d792383e8672cd977a68(ptr<managed>) -> ptr<managed>
     local %0 $receiver: ptr<managed>
     local %1 $call.1: ptr<managed>
   block entry
@@ -11013,7 +11013,7 @@ Module
     call managed-direct-target0 sp136 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn74(local0)
     store t0 -> local1
     ret local1
-  fun @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11032,7 +11032,7 @@ Module
     call native-borrowed-void-target1 sp139 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$a30b9284fbf3037a842181162870dd8e55e288170b5cbbcf98e35bc137db0f05(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$a6fd7dfb7d956555e43b86a1b9392ca73df9f6683d4060e7ad925c129cfbdb2e(ptr<managed>) -> ptr<managed>
     local %0 $receiver: ptr<managed>
     local %1 $call.1: ptr<managed>
   block entry
@@ -11043,7 +11043,7 @@ Module
     call managed-direct-target0 sp140 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Virtual:1] t1(local0)
     store t2 -> local1
     ret local1
-  fun @scoop$1$fn$2a6afeee6049c196455201411f68b31f6511a2bcaa91b062bbf0d8b523963a30(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$82c8b7736e43888e3eaf2de81960cf886c6c8c81ed7ee98b0009a335a0c0daf3(ptr<managed>) -> ptr<managed>
     local %0 $receiver: ptr<managed>
     local %1 $call.1: ptr<managed>
   block entry
@@ -11054,7 +11054,7 @@ Module
     call managed-direct-target0 sp141 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret local1
-  fun @scoop$1$fn$31247901ba4e9be26c08d4316d39d2f9cae57cfa44587ea148d63de26bfb98f4(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$cec1f5a925c27d46c1e5a6f1927a4d31c1bd008f290ab8bd1a8f54b41cbd7080(ptr<managed>) -> ptr<managed>
     local %0 $receiver: ptr<managed>
     local %1 $call.1: ptr<managed>
   block entry

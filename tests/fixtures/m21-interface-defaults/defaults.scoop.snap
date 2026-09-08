@@ -7136,7 +7136,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop$1$fn$842bc78511bfb6745c39212ed860f8cfbfe3c4984d0a3981056ff8244e58014c interface Echo$I32[0]
+      call $call.1: Int = @scoop$1$fn$92d41194c4d7c05cecdc70ba836fe155ca31557ff4140efe762c93bb5ea085e5 interface Echo$I32[0]
         Type Echo$I32
         Local $receiver
         Type Int
@@ -7164,7 +7164,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.2
@@ -7185,7 +7185,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.3
@@ -7203,7 +7203,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.4
@@ -7224,7 +7224,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       val $receiver: MutableUser
@@ -7259,7 +7259,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $call.6: HelperValue = @scoop$1$fn$e447e12ffe0b80e9d7fd415632ea5a86c8ea7d979b4479d45ac82d313f44b859 direct
@@ -7277,7 +7277,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.7
@@ -7298,11 +7298,11 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
-  fun println @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7383,11 +7383,11 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
-  fun Echo.echo @scoop$1$fn$842bc78511bfb6745c39212ed860f8cfbfe3c4984d0a3981056ff8244e58014c(this: Echo$I32, value: Int) -> Int
+  fun Echo.echo @scoop$1$fn$92d41194c4d7c05cecdc70ba836fe155ca31557ff4140efe762c93bb5ea085e5(this: Echo$I32, value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -7860,8 +7860,8 @@ Module mangling=persistent-v1
       return
         Type Int
         Local $call.1
-  instance @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a <- println
-  instance @scoop$1$fn$842bc78511bfb6745c39212ed860f8cfbfe3c4984d0a3981056ff8244e58014c <- Echo.echo
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$92d41194c4d7c05cecdc70ba836fe155ca31557ff4140efe762c93bb5ea085e5 <- Echo.echo
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11438,7 +11438,7 @@ Module
     call managed-void-target13 sp161 live=[] sig=void13 (i32) local-fn79(local29)
     t29 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11502,7 +11502,7 @@ Module
     call managed-void-target0 sp167 live=[] sig=void0 (i32) local-fn79(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$fn$842bc78511bfb6745c39212ed860f8cfbfe3c4984d0a3981056ff8244e58014c(ptr<managed>, i32) -> i32
+  fun @scoop$1$fn$92d41194c4d7c05cecdc70ba836fe155ca31557ff4140efe762c93bb5ea085e5(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp264 live=[]
     ret param1

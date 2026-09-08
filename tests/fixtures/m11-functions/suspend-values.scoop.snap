@@ -1780,12 +1780,12 @@ Module mangling=persistent-v1
   class CoroutineAdapter$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend$1 vtable=0 itables=1
   class CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend vtable=0 itables=0
   class CoroutineAdapter$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend$1 vtable=0 itables=1
-  class CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend vtable=0 itables=0
-  class CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1 vtable=0 itables=1
-  class CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend vtable=0 itables=0
-  class CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1 vtable=0 itables=1
-  class CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend vtable=0 itables=0
-  class CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1 vtable=0 itables=1
   class CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend vtable=0 itables=0
   class CoroutineAdapter$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend$1 vtable=0 itables=1
   class CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend vtable=0 itables=0
@@ -1850,8 +1850,8 @@ Module mangling=persistent-v1
   closure cc22 $Closure$lambda22 type=function_type0 invoke=@scoop$1$fn$46b1eb8c378ff53ad3b4f6bf73bf24c0fb753340f7de1d18a59d5e534e2fc06a captures=1
   closure cc23 $Closure$lambda23 type=function_type1 invoke=@scoop$1$fn$98340a3f73ad4f7bb75efe8e81289a72e0689626aaa01986b48fd36016e4a732$suspend captures=1
     bridge function_type1 -> @scoop$1$fn$98340a3f73ad4f7bb75efe8e81289a72e0689626aaa01986b48fd36016e4a732$suspend
-  closure cc24 $Closure$lambda24 type=function_type1 invoke=@scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend captures=1
-    bridge function_type1 -> @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend
+  closure cc24 $Closure$lambda24 type=function_type1 invoke=@scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend captures=1
+    bridge function_type1 -> @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend
   closure cc25 $Closure$anonymous0 type=function_type1 invoke=@scoop$1$fn$32537bac5365a63f3f1c7d0247a40ecc05dcb926f58735ce627ceed078cf5d83$suspend captures=0
     bridge function_type1 -> @scoop$1$fn$32537bac5365a63f3f1c7d0247a40ecc05dcb926f58735ce627ceed078cf5d83$suspend
   closure cc26 $Closure$anonymous1 type=function_type1 invoke=@scoop$1$fn$cbcb84d00e580535cbbe777fbb4a86189488a605bbe788f79abab2d5cf31f110$suspend captures=0
@@ -7818,7 +7818,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
@@ -7830,7 +7830,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7842,7 +7842,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7854,7 +7854,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7905,7 +7905,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -7958,7 +7958,7 @@ Module mangling=persistent-v1
       val $parameter.exception: Throwable
         Type Throwable
         Local $argument.0
-      call @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a interface Continuation$I32[1]
+      call @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 interface Continuation$I32[1]
         Type Continuation$I32
         Local $receiver
         Type Throwable
@@ -8330,7 +8330,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8341,7 +8341,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
@@ -8385,7 +8385,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8396,7 +8396,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop_rt_gc_collect direct
@@ -8435,7 +8435,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8453,7 +8453,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $cast.1: Any
@@ -8500,7 +8500,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8526,7 +8526,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8552,7 +8552,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$U
         Type Continuation$U
         Local $argument.1
-      call @scoop$1$fn$67c2518c07e4e58d092efcd97718076759def2b8a6333f0612e1a741ffef0149 direct
+      call @scoop$1$fn$184b96f8930d0444faf579407c49557eba8dc49351d3814f26b57a390ac9e696 direct
         Type suspend () -> Unit
         Local $parameter.task
         Type Continuation$U
@@ -8578,7 +8578,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8637,7 +8637,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8713,7 +8713,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8773,7 +8773,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8808,7 +8808,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8829,7 +8829,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8840,7 +8840,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: suspend () -> Int = @scoop$1$fn$3eb572d70ada276269b8be20ca06452e7e20671d4a0bc6b8b155e471ef2e10ef direct
+      call $argument.0: suspend () -> Int = @scoop$1$fn$f7d0949b8cc70f913f94306768222737b1dfae0d8cfe91f76d57e0b9fa51ac0f direct
         Type Int
         Local $parameter.value
       assign $new.20
@@ -8858,7 +8858,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8881,7 +8881,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8904,7 +8904,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8927,7 +8927,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8950,7 +8950,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -8973,7 +8973,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -9019,7 +9019,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -9080,7 +9080,7 @@ Module mangling=persistent-v1
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d direct
+      call @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 direct
         Type suspend () -> Int
         Local $parameter.task
         Type Continuation$I32
@@ -9376,7 +9376,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -9399,7 +9399,7 @@ Module mangling=persistent-v1
       val $parameter.exception: Throwable
         Type Throwable
         Local $argument.0
-      call @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a interface Continuation$I32[1]
+      call @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 interface Continuation$I32[1]
         Type Continuation$I32
         Local $receiver
         Type Throwable
@@ -9427,7 +9427,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -9452,7 +9452,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -9466,7 +9466,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -9592,7 +9592,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -9851,47 +9851,47 @@ Module mangling=persistent-v1
           Type Continuation$I32
           Local $parameter._1
       return
-  fun suspendCoroutine @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend(registration: (Continuation$I32) -> Unit, $completion: Continuation$I32) -> CoroutineStep$I32
+  fun suspendCoroutine @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend(registration: (Continuation$I32) -> Unit, $completion: Continuation$I32) -> CoroutineStep$I32
     bb0 entry
-      val $frame: CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
-        ClassAlloc CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+      val $frame: CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
+        ClassAlloc CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
       field_set 0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       field_set 1
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type Continuation$I32
         Local $completion
       field_set 2
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type CoroutineSlot$FJ16_Continuation$I32XRUX
         VariantConstruct CoroutineSlot$FJ16_Continuation$I32XRUX v1
           Type (Continuation$I32) -> Unit
           Local registration
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v0
       field_set 4
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v0
-      call $step: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
         Type CoroutineStep$I32
         Local $step
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -9915,7 +9915,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun startCoroutine @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d(task: suspend () -> Int, completion: Continuation$I32) -> Unit
+  fun startCoroutine @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822(task: suspend () -> Int, completion: Continuation$I32) -> Unit
     bb0 entry
       val $argument.0: suspend () -> Int
         Type suspend () -> Int
@@ -9946,7 +9946,7 @@ Module mangling=persistent-v1
         Type Continuation$I32
         Local $parameter.completion
       return
-  fun println @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(value: Boolean) -> Unit
+  fun println @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
         Type Boolean
@@ -9970,7 +9970,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun startCoroutine @scoop$1$fn$67c2518c07e4e58d092efcd97718076759def2b8a6333f0612e1a741ffef0149(task: suspend () -> Unit, completion: Continuation$U) -> Unit
+  fun startCoroutine @scoop$1$fn$184b96f8930d0444faf579407c49557eba8dc49351d3814f26b57a390ac9e696(task: suspend () -> Unit, completion: Continuation$U) -> Unit
     bb0 entry
       val $argument.0: suspend () -> Unit
         Type suspend () -> Unit
@@ -10001,14 +10001,14 @@ Module mangling=persistent-v1
         Type Continuation$U
         Local $parameter.completion
       return
-  fun constantTask @scoop$1$fn$3eb572d70ada276269b8be20ca06452e7e20671d4a0bc6b8b155e471ef2e10ef(value: Int) -> suspend () -> Int
+  fun constantTask @scoop$1$fn$f7d0949b8cc70f913f94306768222737b1dfae0d8cfe91f76d57e0b9fa51ac0f(value: Int) -> suspend () -> Int
     bb0 entry
       return
         Type suspend () -> Int
         ClosureAlloc cc24 $Closure$lambda24
           Type Int
           Local value
-  fun println @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -10032,7 +10032,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun FunctionSuspendRegistration.register @scoop$1$fn$ab86eaeadfa73c70c0a7beaf3f0cbe7c96006d50e01e91ab69dfb3da9373f7dc(this: FunctionSuspendRegistration$I32, continuation: Continuation$I32) -> Unit
+  fun FunctionSuspendRegistration.register @scoop$1$fn$a57843b279d827fff8a52ba8463c6e0731e4769c2068f97f6016a2ef2a794c45(this: FunctionSuspendRegistration$I32, continuation: Continuation$I32) -> Unit
     bb0 entry
       call <closure:function_type0> closure[function_type0]
         Type (Continuation$I32) -> Unit
@@ -10042,82 +10042,82 @@ Module mangling=persistent-v1
         Type Continuation$I32
         Local continuation
       return
-  fun FunctionSuspendTask.run @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend(this: FunctionSuspendTask$I32, $completion: Continuation$I32) -> CoroutineStep$I32
+  fun FunctionSuspendTask.run @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend(this: FunctionSuspendTask$I32, $completion: Continuation$I32) -> CoroutineStep$I32
     bb0 entry
-      val $frame: CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
-        ClassAlloc CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+      val $frame: CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
+        ClassAlloc CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
       field_set 0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       field_set 1
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type Continuation$I32
         Local $completion
       field_set 2
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type CoroutineSlot$D23_FunctionSuspendTask$I32X
         VariantConstruct CoroutineSlot$D23_FunctionSuspendTask$I32X v1
           Type FunctionSuspendTask$I32
           Local this
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v0
       field_set 4
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v0
-      call $step: CoroutineStep$I32 = @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
         Type CoroutineStep$I32
         Local $step
-  fun FunctionSuspendTask.run @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend(this: FunctionSuspendTask$U, $completion: Continuation$U) -> CoroutineStep$U
+  fun FunctionSuspendTask.run @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend(this: FunctionSuspendTask$U, $completion: Continuation$U) -> CoroutineStep$U
     bb0 entry
-      val $frame: CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
-        ClassAlloc CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+      val $frame: CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
+        ClassAlloc CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
       field_set 0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       field_set 1
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type Continuation$U
         Local $completion
       field_set 2
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type CoroutineSlot$D21_FunctionSuspendTask$UX
         VariantConstruct CoroutineSlot$D21_FunctionSuspendTask$UX v1
           Type FunctionSuspendTask$U
           Local this
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v0
-      call $step: CoroutineStep$U = @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+      call $step: CoroutineStep$U = @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
         Type CoroutineStep$U
         Local $step
-  fun $lambda.5 @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend($closure: suspend () -> Int, $completion: Continuation$I32) -> CoroutineStep$I32
+  fun $lambda.5 @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend($closure: suspend () -> Int, $completion: Continuation$I32) -> CoroutineStep$I32
     bb0 entry
       return
         Type CoroutineStep$I32
@@ -10991,7 +10991,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local completion
         Type Int
@@ -11000,7 +11000,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a interface Continuation$I32[1]
+      call @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 interface Continuation$I32[1]
         Type Continuation$I32
         Local completion
         Type Throwable
@@ -11015,7 +11015,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$I32 = @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend interface SuspendTask$I32[0]
+      call $step: CoroutineStep$I32 = @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend interface SuspendTask$I32[0]
         Type SuspendTask$I32
         Local task
         Type Continuation$I32
@@ -11033,7 +11033,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d interface Continuation$U[0]
+      call @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 interface Continuation$U[0]
         Type Continuation$U
         Local completion
         Type Unit
@@ -11042,7 +11042,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$ad67ae4d7c97fc85752215009e2cef689c6913c6a549add2d75e9a3769ed931e interface Continuation$U[1]
+      call @scoop$1$fn$441fe3774b7092b2d9d75b8993a392b2770d5ca241b27eae6936e5c12ea9450f interface Continuation$U[1]
         Type Continuation$U
         Local completion
         Type Throwable
@@ -11057,7 +11057,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$U = @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend interface SuspendTask$U[0]
+      call $step: CoroutineStep$U = @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend interface SuspendTask$U[0]
         Type SuspendTask$U
         Local task
         Type Continuation$U
@@ -11073,7 +11073,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
   fun thunk.D31_FunctionSuspendRegistration$I32X.SuspendRegistration$I32.register @scoop$1$fn$c4382f9baa7032528d9953cc3539acb559ed49e27477291a9ddb3145757bbd8c(this: Any, continuation: Continuation$I32) -> Unit
     bb0 entry
-      call @scoop$1$fn$ab86eaeadfa73c70c0a7beaf3f0cbe7c96006d50e01e91ab69dfb3da9373f7dc direct
+      call @scoop$1$fn$a57843b279d827fff8a52ba8463c6e0731e4769c2068f97f6016a2ef2a794c45 direct
         Type FunctionSuspendRegistration$I32
         Unbox
           Type Any
@@ -13852,7 +13852,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_ad32df0910168bf0e55741123f7c7e1f4ce9fd57ffcf9581fedc18ff04f177cc_suspend$1
@@ -14286,7 +14286,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_213fd0fd3099e27b00e8b85b0e1a563c91c1fdd05606202d67d2082af9830d3f_suspend$1
@@ -15596,7 +15596,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_53e6327bf1d6a5a2d57fd803534fd748bdc324034b9366e1d4b957ec53e523ab_suspend$1
@@ -16021,7 +16021,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_dd94d271c328e426e0b19e6904937dca5b881c5b1e5e41a3137d873021b0dcfd_suspend$1
@@ -16446,7 +16446,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_2a1e2c020014ca33de5161792a5c38720c4bda0b8955f5371b85f94f2dcba4f1_suspend$1
@@ -16871,7 +16871,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_c315163ae571eeffe627a43916ad58a9b09099a1bb624a37a7a6bed0831f56dd_suspend$1
@@ -17296,7 +17296,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_b6a80709a9fa6d1a2eb86f0d36cabaa9969ec2ba69cf89f1ea985cf3857074c6_suspend$1
@@ -18155,7 +18155,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       throw
@@ -18203,7 +18203,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_64776ef75351063e1237f03c39e5178592b2aa97c30ef5cd2aca6335a7822cf8_suspend$1
@@ -18224,7 +18224,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb3
@@ -18236,7 +18236,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Int
@@ -18684,7 +18684,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_a7a8b00c240bd5a0b65004ba445dbd4837fd14271cf5ddb21e2d18e09453d07a_suspend$1
@@ -20028,7 +20028,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       throw
@@ -20069,7 +20069,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_efdc4af832bc5fbe5b405735ad3d3ded614fad47b27876e5ea9e5221e29da743_suspend$1
@@ -20090,7 +20090,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb5
@@ -20108,7 +20108,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       throw
@@ -20126,7 +20126,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb5
@@ -20551,7 +20551,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend direct
         Type (Continuation$I32) -> Unit
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_98340a3f73ad4f7bb75efe8e81289a72e0689626aaa01986b48fd36016e4a732_suspend$1
@@ -23523,7 +23523,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun suspendCoroutine$drive @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive($frame: CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$I32
+  fun suspendCoroutine$drive @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive($frame: CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$I32
     bb0 entry
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
@@ -23543,30 +23543,30 @@ Module mangling=persistent-v1
         Type SuspendRegistration$I32
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $safe_adapter.1: CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
-        ClassAlloc CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+      val $safe_adapter.1: CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
+        ClassAlloc CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
       field_set 0
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
       field_set 1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Registering)
       field_set 2
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v0
       field_set 3
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v0
@@ -23578,15 +23578,15 @@ Module mangling=persistent-v1
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @scoop$1$fn$7518c660d4bcdb7e68fa6717c6d7ec84e43ab29f1fa03247c3227fb639591598 interface SuspendRegistration$I32[0]
+      call @scoop$1$fn$e93492927eea66b5bc596f742f3d7215aa80a182666b63ac07a0c00a8fed55e3 interface SuspendRegistration$I32[0]
         Type SuspendRegistration$I32
         Local $parameter.registration
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -23595,12 +23595,12 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$I32
           FieldAccess 2
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
       goto bb1
     bb4 coroutine.registered_failure.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -23609,7 +23609,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C9_ThrowableX
           FieldAccess 3
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
       throw
         Type Throwable
@@ -23632,7 +23632,7 @@ Module mangling=persistent-v1
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23649,7 +23649,7 @@ Module mangling=persistent-v1
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23668,7 +23668,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
@@ -23678,7 +23678,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
@@ -23690,7 +23690,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
@@ -23700,7 +23700,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
@@ -23708,7 +23708,7 @@ Module mangling=persistent-v1
       val $registration_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -23729,7 +23729,7 @@ Module mangling=persistent-v1
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23744,7 +23744,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
     bb17 coroutine.registration_protocol.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -23753,7 +23753,7 @@ Module mangling=persistent-v1
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23774,7 +23774,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
@@ -23784,7 +23784,7 @@ Module mangling=persistent-v1
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
@@ -23798,7 +23798,7 @@ Module mangling=persistent-v1
       val $registration_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -23817,7 +23817,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$I32
           FieldAccess 3
-            Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+            Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
             Local $frame
       goto bb1
     bb24 coroutine.failure.1
@@ -23826,7 +23826,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
-            Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+            Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
             Local $frame
     bb25 coroutine.initial
       assign registration
@@ -23834,10 +23834,10 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$FJ16_Continuation$I32XRUX
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+            Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
@@ -23876,7 +23876,7 @@ Module mangling=persistent-v1
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -23889,18 +23889,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$732df5f9029024d4c62d6e18d258638df913f6c1a2c2c22408682947a6f966cd interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
         Type Int
         EnumField v0 f0
@@ -23911,18 +23911,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$c0a9a803abde8d461e1eeea60bf43e86ae987bdf3f80017f69b90b2623dfdf36 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -23937,23 +23937,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v1
           Type Int
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23968,7 +23968,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -23977,9 +23977,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -23996,7 +23996,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24011,14 +24011,14 @@ Module mangling=persistent-v1
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb9 latched
       field_set 2
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v1
           Type Int
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
@@ -24027,7 +24027,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -24040,7 +24040,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -24053,18 +24053,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$732df5f9029024d4c62d6e18d258638df913f6c1a2c2c22408682947a6f966cd interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
         Type Int
         EnumField v0 f0
@@ -24075,18 +24075,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$c0a9a803abde8d461e1eeea60bf43e86ae987bdf3f80017f69b90b2623dfdf36 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -24101,23 +24101,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 4
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
@@ -24132,7 +24132,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -24141,9 +24141,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend
+          Type CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24160,7 +24160,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24175,14 +24175,14 @@ Module mangling=persistent-v1
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb9 latched
       field_set 3
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
@@ -24191,7 +24191,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -24204,23 +24204,23 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun FunctionSuspendTask.run$drive @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive($frame: CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$I32
+  fun FunctionSuspendTask.run$drive @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive($frame: CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$I32
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $adapter.1: CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
-        ClassAlloc CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+      val $adapter.1: CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
+        ClassAlloc CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
       field_set 0
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local $adapter.1
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
       field_set 1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24229,7 +24229,7 @@ Module mangling=persistent-v1
         FieldAccess 0
           Type FunctionSuspendTask$I32
           Local this
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local $adapter.1
       branch bb5 bb6
         Type Boolean
@@ -24267,7 +24267,7 @@ Module mangling=persistent-v1
       val $completed_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24284,7 +24284,7 @@ Module mangling=persistent-v1
       val $completed_adapter_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local $adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24307,7 +24307,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$I32
           FieldAccess 3
-            Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+            Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
             Local $frame
       goto bb1
     bb8 coroutine.failure.1
@@ -24316,7 +24316,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
-            Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+            Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
             Local $frame
     bb9 coroutine.initial
       assign this
@@ -24324,10 +24324,10 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$D23_FunctionSuspendTask$I32X
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+            Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
@@ -24366,7 +24366,7 @@ Module mangling=persistent-v1
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -24379,18 +24379,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$732df5f9029024d4c62d6e18d258638df913f6c1a2c2c22408682947a6f966cd interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
         Type Int
         EnumField v0 f0
@@ -24401,18 +24401,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$c0a9a803abde8d461e1eeea60bf43e86ae987bdf3f80017f69b90b2623dfdf36 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -24427,23 +24427,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type CoroutineSlot$I32
         VariantConstruct CoroutineSlot$I32 v1
           Type Int
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24458,7 +24458,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -24467,9 +24467,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24486,7 +24486,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24499,7 +24499,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -24512,18 +24512,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$732df5f9029024d4c62d6e18d258638df913f6c1a2c2c22408682947a6f966cd interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
         Type Int
         EnumField v0 f0
@@ -24534,18 +24534,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$c0a9a803abde8d461e1eeea60bf43e86ae987bdf3f80017f69b90b2623dfdf36 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -24560,23 +24560,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 4
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+      call $step: CoroutineStep$I32 = @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
@@ -24591,7 +24591,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -24600,9 +24600,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend
+          Type CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24619,7 +24619,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24632,23 +24632,23 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun FunctionSuspendTask.run$drive @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive($frame: CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$U
+  fun FunctionSuspendTask.run$drive @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive($frame: CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$U
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $adapter.1: CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
-        ClassAlloc CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+      val $adapter.1: CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
+        ClassAlloc CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
       field_set 0
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local $adapter.1
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
       field_set 1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24657,7 +24657,7 @@ Module mangling=persistent-v1
         FieldAccess 0
           Type FunctionSuspendTask$U
           Local this
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local $adapter.1
       branch bb5 bb6
         Type Boolean
@@ -24690,7 +24690,7 @@ Module mangling=persistent-v1
       val $completed_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24707,7 +24707,7 @@ Module mangling=persistent-v1
       val $completed_adapter_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local $adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24732,7 +24732,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C9_ThrowableX
           FieldAccess 3
-            Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+            Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
             Local $frame
     bb9 coroutine.initial
       assign this
@@ -24740,10 +24740,10 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$D21_FunctionSuspendTask$UX
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+            Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
@@ -24782,7 +24782,7 @@ Module mangling=persistent-v1
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1, value: Unit) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1, value: Unit) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -24795,18 +24795,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$41bf5ef28e5b2cc9105ac80219e2ea4998455adcd84bcad925a9c98055630e9a interface Continuation$U[0]
         Type Continuation$U
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
         Type Unit
         EnumField v0 f0
@@ -24817,18 +24817,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$8a841e10bce8f30b0d8d60d7bff3f5cdb093664485c9ef66188e8ef81cfc555c interface Continuation$U[1]
         Type Continuation$U
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -24843,14 +24843,14 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$U = @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+      call $step: CoroutineStep$U = @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24865,7 +24865,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -24874,9 +24874,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -24893,7 +24893,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -24906,7 +24906,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -24919,18 +24919,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$41bf5ef28e5b2cc9105ac80219e2ea4998455adcd84bcad925a9c98055630e9a interface Continuation$U[0]
         Type Continuation$U
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
         Type Unit
         EnumField v0 f0
@@ -24941,18 +24941,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$8a841e10bce8f30b0d8d60d7bff3f5cdb093664485c9ef66188e8ef81cfc555c interface Continuation$U[1]
         Type Continuation$U
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -24967,23 +24967,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$U = @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+      call $step: CoroutineStep$U = @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
@@ -24998,7 +24998,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -25007,9 +25007,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend
+          Type CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -25026,7 +25026,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -25059,7 +25059,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$I32 = @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend direct
+      call $step.1: CoroutineStep$I32 = @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend direct
         Type FunctionSuspendTask$I32
         Unbox
           Type Any
@@ -25487,7 +25487,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$U = @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend direct
+      call $step.1: CoroutineStep$U = @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend direct
         Type FunctionSuspendTask$U
         Unbox
           Type Any
@@ -26824,11 +26824,11 @@ Module mangling=persistent-v1
   coroutine_saved cv53 class=CoroutineFrame$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend field=3 slot=cl1 value=Int
   coroutine_saved cv54 class=CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend field=2 slot=cl0 value=suspend () -> Int
   coroutine_saved cv55 class=CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend field=3 slot=cl1 value=Int
-  coroutine_saved cv56 class=CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend field=2 slot=cl10 value=(Continuation$I32) -> Unit
-  coroutine_saved cv57 class=CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend field=3 slot=cl1 value=Int
-  coroutine_saved cv58 class=CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend field=2 slot=cl11 value=FunctionSuspendTask$I32
-  coroutine_saved cv59 class=CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend field=3 slot=cl1 value=Int
-  coroutine_saved cv60 class=CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend field=2 slot=cl12 value=FunctionSuspendTask$U
+  coroutine_saved cv56 class=CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend field=2 slot=cl10 value=(Continuation$I32) -> Unit
+  coroutine_saved cv57 class=CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv58 class=CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend field=2 slot=cl11 value=FunctionSuspendTask$I32
+  coroutine_saved cv59 class=CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend field=3 slot=cl1 value=Int
+  coroutine_saved cv60 class=CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend field=2 slot=cl12 value=FunctionSuspendTask$U
   coroutine_saved cv61 class=CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend field=2 slot=cl4 value=Any
   coroutine_saved cv62 class=CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend field=3 slot=cl1 value=Int
   coroutine_saved cv63 class=CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend field=2 slot=cl4 value=Any
@@ -26866,9 +26866,9 @@ Module mangling=persistent-v1
   coroutine_failure cx25 class=CoroutineFrame$scoop_1_fn_6f7650e2ed70aae2b441a5cbf715863498a6777b20cd67850d3b1d12fea3192b_suspend field=4 slot=cl2 throwable=Throwable
   coroutine_failure cx26 class=CoroutineFrame$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend field=4 slot=cl2 throwable=Throwable
   coroutine_failure cx27 class=CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend field=4 slot=cl2 throwable=Throwable
-  coroutine_failure cx28 class=CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend field=4 slot=cl2 throwable=Throwable
-  coroutine_failure cx29 class=CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend field=4 slot=cl2 throwable=Throwable
-  coroutine_failure cx30 class=CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend field=3 slot=cl2 throwable=Throwable
+  coroutine_failure cx28 class=CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx29 class=CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend field=4 slot=cl2 throwable=Throwable
+  coroutine_failure cx30 class=CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend field=3 slot=cl2 throwable=Throwable
   coroutine_failure cx31 class=CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend field=4 slot=cl2 throwable=Throwable
   coroutine_failure cx32 class=CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend field=3 slot=cl2 throwable=Throwable
   coroutine_failure cx33 class=CoroutineFrame$scoop_1_fn_0d2f029f0625de9a3f0e616535db6000941b4c3a87d6e8edf8ae902cd710241e_suspend field=5 slot=cl2 throwable=Throwable
@@ -26901,9 +26901,9 @@ Module mangling=persistent-v1
   coroutine_frame cr25 CoroutineFrame$scoop_1_fn_6f7650e2ed70aae2b441a5cbf715863498a6777b20cd67850d3b1d12fea3192b_suspend owner=cf31 state=field0 completion=field1 saved=[cv50,cv51] failure=cx25
   coroutine_frame cr26 CoroutineFrame$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend owner=cf32 state=field0 completion=field1 saved=[cv52,cv53] failure=cx26
   coroutine_frame cr27 CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend owner=cf33 state=field0 completion=field1 saved=[cv54,cv55] failure=cx27
-  coroutine_frame cr28 CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend owner=cf34 state=field0 completion=field1 saved=[cv56,cv57] failure=cx28
-  coroutine_frame cr29 CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend owner=cf35 state=field0 completion=field1 saved=[cv58,cv59] failure=cx29
-  coroutine_frame cr30 CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend owner=cf36 state=field0 completion=field1 saved=[cv60] failure=cx30
+  coroutine_frame cr28 CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend owner=cf34 state=field0 completion=field1 saved=[cv56,cv57] failure=cx28
+  coroutine_frame cr29 CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend owner=cf35 state=field0 completion=field1 saved=[cv58,cv59] failure=cx29
+  coroutine_frame cr30 CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend owner=cf36 state=field0 completion=field1 saved=[cv60] failure=cx30
   coroutine_frame cr31 CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend owner=cf42 state=field0 completion=field1 saved=[cv61,cv62] failure=cx31
   coroutine_frame cr32 CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend owner=cf43 state=field0 completion=field1 saved=[cv63] failure=cx32
   coroutine_frame cr33 CoroutineFrame$scoop_1_fn_0d2f029f0625de9a3f0e616535db6000941b4c3a87d6e8edf8ae902cd710241e_suspend owner=cf44 state=field0 completion=field1 saved=[cv64,cv65,cv66] failure=cx33
@@ -27048,17 +27048,17 @@ Module mangling=persistent-v1
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx27, unwind=propagate)
       entry=bb8
-  coroutine_resume cp28 site=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1 resume=@scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume$1 failure=@scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume_exception$1
+  coroutine_resume cp28 site=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1 resume=@scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume$1 failure=@scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume_exception$1
     success suspended.1 -> Fallthrough(bb1)
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx28, unwind=propagate)
       entry=bb24
-  coroutine_resume cp29 site=1 result=Int frame=cr29 adapter=CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1 resume=@scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume$1 failure=@scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume_exception$1
+  coroutine_resume cp29 site=1 result=Int frame=cr29 adapter=CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1 resume=@scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume$1 failure=@scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume_exception$1
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx29, unwind=propagate)
       entry=bb8
-  coroutine_resume cp30 site=1 result=Unit frame=cr30 adapter=CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1 resume=@scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume$1 failure=@scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume_exception$1
+  coroutine_resume cp30 site=1 result=Unit frame=cr30 adapter=CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1 resume=@scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume$1 failure=@scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume_exception$1
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx30, unwind=propagate)
@@ -27117,41 +27117,41 @@ Module mangling=persistent-v1
   coroutine_fn cf31 @scoop$1$fn$6f7650e2ed70aae2b441a5cbf715863498a6777b20cd67850d3b1d12fea3192b$suspend source_return=Int step=cs0 frame=cr25 driver=@scoop$1$fn$6f7650e2ed70aae2b441a5cbf715863498a6777b20cd67850d3b1d12fea3192b$suspend$drive resumes=[cp25]
   coroutine_fn cf32 @scoop$1$fn$94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c$suspend source_return=Int step=cs0 frame=cr26 driver=@scoop$1$fn$94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c$suspend$drive resumes=[cp26]
   coroutine_fn cf33 @scoop$1$fn$9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476$suspend source_return=Int step=cs0 frame=cr27 driver=@scoop$1$fn$9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476$suspend$drive resumes=[cp27]
-  coroutine_fn cf34 @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive resumes=[cp28]
-  coroutine_fn cf35 @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend source_return=Int step=cs0 frame=cr29 driver=@scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive resumes=[cp29]
-  coroutine_fn cf36 @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend source_return=Unit step=cs1 frame=cr30 driver=@scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive resumes=[cp30]
-  coroutine_fn cf37 @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf34 @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive resumes=[cp28]
+  coroutine_fn cf35 @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend source_return=Int step=cs0 frame=cr29 driver=@scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive resumes=[cp29]
+  coroutine_fn cf36 @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend source_return=Unit step=cs1 frame=cr30 driver=@scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive resumes=[cp30]
+  coroutine_fn cf37 @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf38 @scoop$1$fn$5edce53904d0ac1fb25c86bce5748dd6d0bbc4e6083a03f33407f53cdd2aab35$suspend source_return=Int step=cs0 immediate
-  coroutine_fn cf39 @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend source_return=Unit step=cs1 immediate
-  coroutine_fn cf40 @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend source_return=Int step=cs0 immediate
-  coroutine_fn cf41 @scoop$1$fn$38ef8b85db2deef98d4ab5ac08b3cbf8a68ff54f90f0da07870130fb7e75284d$suspend source_return=Any step=cs2 immediate
+  coroutine_fn cf39 @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend source_return=Unit step=cs1 immediate
+  coroutine_fn cf40 @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf41 @scoop$1$fn$f18631857374f5317a4845c9c4e164e7caa6e834c5eb036055c88b26baeb2598$suspend source_return=Any step=cs2 immediate
   coroutine_fn cf42 @scoop$1$fn$3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88$suspend source_return=Int step=cs0 frame=cr31 driver=@scoop$1$fn$3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88$suspend$drive resumes=[cp31]
   coroutine_fn cf43 @scoop$1$fn$7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4$suspend source_return=Unit step=cs1 frame=cr32 driver=@scoop$1$fn$7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4$suspend$drive resumes=[cp32]
   coroutine_fn cf44 @scoop$1$fn$0d2f029f0625de9a3f0e616535db6000941b4c3a87d6e8edf8ae902cd710241e$suspend source_return=Any step=cs2 frame=cr33 driver=@scoop$1$fn$0d2f029f0625de9a3f0e616535db6000941b4c3a87d6e8edf8ae902cd710241e$suspend$drive resumes=[cp33]
   coroutine_fn cf45 @scoop$1$fn$8134c0219e2a50fbc1e07b3877b307d3a18cc7f0c86c8ce2ed7a5411f8c99513$suspend source_return=Any step=cs2 frame=cr34 driver=@scoop$1$fn$8134c0219e2a50fbc1e07b3877b307d3a18cc7f0c86c8ce2ed7a5411f8c99513$suspend$drive resumes=[cp34]
-  instance @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend <- suspendCoroutine
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d <- startCoroutine
-  instance @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 <- println
-  instance @scoop$1$fn$67c2518c07e4e58d092efcd97718076759def2b8a6333f0612e1a741ffef0149 <- startCoroutine
-  instance @scoop$1$fn$3eb572d70ada276269b8be20ca06452e7e20671d4a0bc6b8b155e471ef2e10ef <- constantTask
-  instance @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 <- println
-  instance @scoop$1$fn$ab86eaeadfa73c70c0a7beaf3f0cbe7c96006d50e01e91ab69dfb3da9373f7dc <- FunctionSuspendRegistration.register
-  instance @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend <- FunctionSuspendTask.run
-  instance @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend <- FunctionSuspendTask.run
-  instance @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend <- $lambda.5
-  instance @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 <- Continuation.resume
-  instance @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a <- Continuation.resumeWithException
-  instance @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d <- Continuation.resume
-  instance @scoop$1$fn$ad67ae4d7c97fc85752215009e2cef689c6913c6a549add2d75e9a3769ed931e <- Continuation.resumeWithException
-  instance @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend <- SuspendTask.run
-  instance @scoop$1$fn$582a0d1a1db3ac6ffb1a910323e6a9e6f989a534406e2717a61ae471b96dbd01 <- SuspendRegistration.register
-  instance @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend <- SuspendTask.run
-  instance @scoop$1$fn$7518c660d4bcdb7e68fa6717c6d7ec84e43ab29f1fa03247c3227fb639591598 <- SuspendRegistration.register
-  instance @scoop$1$fn$8068da00d054eb38f24e381d6491f7aaf76b18781233370e09236265532595b3 <- Continuation.resume
-  instance @scoop$1$fn$2f63476e8525f2c85b9cedfe8698e6f63c7d6f0847fbcfd0c4fa9408c9258a92 <- Continuation.resumeWithException
-  instance @scoop$1$fn$38ef8b85db2deef98d4ab5ac08b3cbf8a68ff54f90f0da07870130fb7e75284d$suspend <- SuspendTask.run
-  instance @scoop$1$fn$af2ad48ca0e4234119a695ba362515f9a13409a1cc2722a5177807538d3603d6 <- SuspendRegistration.register
+  instance @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend <- suspendCoroutine
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822 <- startCoroutine
+  instance @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 <- println
+  instance @scoop$1$fn$184b96f8930d0444faf579407c49557eba8dc49351d3814f26b57a390ac9e696 <- startCoroutine
+  instance @scoop$1$fn$f7d0949b8cc70f913f94306768222737b1dfae0d8cfe91f76d57e0b9fa51ac0f <- constantTask
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$a57843b279d827fff8a52ba8463c6e0731e4769c2068f97f6016a2ef2a794c45 <- FunctionSuspendRegistration.register
+  instance @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend <- FunctionSuspendTask.run
+  instance @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend <- FunctionSuspendTask.run
+  instance @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend <- $lambda.5
+  instance @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 <- Continuation.resume
+  instance @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 <- Continuation.resumeWithException
+  instance @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 <- Continuation.resume
+  instance @scoop$1$fn$441fe3774b7092b2d9d75b8993a392b2770d5ca241b27eae6936e5c12ea9450f <- Continuation.resumeWithException
+  instance @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend <- SuspendTask.run
+  instance @scoop$1$fn$7f41d9e86687e1d2ad857a669ffb7d5cc9ca4aa3b4ce6666a39d9e3429dff6e3 <- SuspendRegistration.register
+  instance @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend <- SuspendTask.run
+  instance @scoop$1$fn$e93492927eea66b5bc596f742f3d7215aa80a182666b63ac07a0c00a8fed55e3 <- SuspendRegistration.register
+  instance @scoop$1$fn$ca9bba2648691ec8bfd9e427ab6869ded2bd3565024fbcf680670f6c9a62c297 <- Continuation.resume
+  instance @scoop$1$fn$9bb98a2ffe4dad67504b1a25bda506956fb23b7f29168a8152ad383ceb1f146d <- Continuation.resumeWithException
+  instance @scoop$1$fn$f18631857374f5317a4845c9c4e164e7caa6e834c5eb036055c88b26baeb2598$suspend <- SuspendTask.run
+  instance @scoop$1$fn$a71520ef58e936594b0e71952aa915f22d27dad14c66f4c8e812dabe65fabf6c <- SuspendRegistration.register
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -31885,7 +31885,7 @@ Module
     t2 = enum_wrap e0 v0 (local1) : enum0
     heap_store t1 +16 t2
     ret
-  fun @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend(ptr<managed>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend(ptr<managed>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum6
     local %2 $sc.1: enum6
@@ -31904,7 +31904,7 @@ Module
     call managed-indirect-target0 sp312 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum6 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn256(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -31923,7 +31923,7 @@ Module
     call native-borrowed-void-target1 sp315 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1f84cbccf32486b6041fa1dab89b104187b2109aa09f9e6ccd351a47e14a924d(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$9fa847a5e9d04f47ac575b61bec980ec9b7641d934c3fe11289fb5bf4aeda822(ptr<managed>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.task: ptr<managed>
     local %2 $argument.0: ptr<managed>
@@ -31949,7 +31949,7 @@ Module
     call managed-void-target0 sp317 live=[local4:ptr<managed>@0, local5:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn165(local4, local5)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(i1) -> void
+  fun @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -31968,7 +31968,7 @@ Module
     call native-borrowed-void-target1 sp320 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$67c2518c07e4e58d092efcd97718076759def2b8a6333f0612e1a741ffef0149(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$184b96f8930d0444faf579407c49557eba8dc49351d3814f26b57a390ac9e696(ptr<managed>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.task: ptr<managed>
     local %2 $argument.0: ptr<managed>
@@ -31994,15 +31994,15 @@ Module
     call managed-void-target0 sp322 live=[local4:ptr<managed>@0, local5:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn166(local4, local5)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$3eb572d70ada276269b8be20ca06452e7e20671d4a0bc6b8b155e471ef2e10ef(i32) -> ptr<managed>
+  fun @scoop$1$fn$f7d0949b8cc70f913f94306768222737b1dfae0d8cfe91f76d57e0b9fa51ac0f(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp1165 live=[]
     call managed-direct-target0 sp323 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td145, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend : ptr
+    t1 = function_address @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -32021,14 +32021,14 @@ Module
     call native-borrowed-void-target1 sp326 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$ab86eaeadfa73c70c0a7beaf3f0cbe7c96006d50e01e91ab69dfb3da9373f7dc(indirect<struct10 size=8 align=8 scan=refs[0]>, ptr<managed>) -> void
+  fun @scoop$1$fn$a57843b279d827fff8a52ba8463c6e0731e4769c2068f97f6016a2ef2a794c45(indirect<struct10 size=8 align=8 scan=refs[0]>, ptr<managed>) -> void
   block entry
     poll managed-void-target1 sp1167 live=[param0:struct10@0, param1:ptr<managed>@0]
     t0 = extract param0, 0 : ptr<managed>
     call managed-void-target0 sp327 live=[param1:ptr<managed>@0, t0:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Closure:2] t0(t0, param1)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend(indirect<struct11 size=8 align=8 scan=refs[0]>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend(indirect<struct11 size=8 align=8 scan=refs[0]>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum6
     local %2 $sc.1: enum6
@@ -32047,7 +32047,7 @@ Module
     call managed-indirect-target0 sp329 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum6 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn259(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
-  fun @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend(indirect<struct12 size=8 align=8 scan=refs[0]>, ptr<managed>) -> sret<enum7 size=8 align=8 scan=none>
+  fun @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend(indirect<struct12 size=8 align=8 scan=refs[0]>, ptr<managed>) -> sret<enum7 size=8 align=8 scan=none>
     local %0 $frame: ptr<managed>
     local %1 $step: enum7
     local %2 $sc.1: enum7
@@ -32064,7 +32064,7 @@ Module
     call managed-indirect-target0 sp331 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum7 size=8 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn262(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store local2 -> local1
     ret local1
-  fun @scoop$1$fn$7525a9a5fbc26adcd7f2383c60e842d34b558427506862afe3adbf841a8e8399$suspend(ptr<managed>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$fn$f7e7506334e01bd767598abf8bb47d5d3e3f3ebb6a2fea44f978c46138ad9a17$suspend(ptr<managed>, ptr<managed>) -> sret<enum6 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp1170 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i32
@@ -39579,7 +39579,7 @@ Module
     t22 = enum_tag e6 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum6 size=16 align=8 scan=none>
     local %0 registration: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.registration: ptr<managed>
@@ -39760,7 +39760,7 @@ Module
   block invoke.normal.1
     t8 = aggregate () : {}
     br @coroutine.register_return.1
-  fun @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume$1(ptr<managed>, i32) -> void
+  fun @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume$1(ptr<managed>, i32) -> void
     local %0 $step: enum6
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -39848,7 +39848,7 @@ Module
     t22 = enum_tag e6 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum6
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -39936,7 +39936,7 @@ Module
     t22 = enum_tag e6 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum6 size=16 align=8 scan=none>
     local %0 this: struct11
     local %1 $call.1: i32
     local %2 $completion: ptr<managed>
@@ -40019,7 +40019,7 @@ Module
     poll managed-void-target2 sp1298 live=[param0:ptr<managed>@0]
     t23 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t23 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
-  fun @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume$1(ptr<managed>, i32) -> void
+  fun @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume$1(ptr<managed>, i32) -> void
     local %0 $step: enum6
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -40097,7 +40097,7 @@ Module
     t22 = enum_tag e6 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum6
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -40175,7 +40175,7 @@ Module
     t22 = enum_tag e6 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum7 size=8 align=8 scan=none>
+  fun @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> sret<enum7 size=8 align=8 scan=none>
     local %0 this: struct12
     local %1 $completion: ptr<managed>
     local %2 $adapter.1: ptr<managed>
@@ -40253,7 +40253,7 @@ Module
     poll managed-void-target2 sp1301 live=[param0:ptr<managed>@0]
     t21 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t21 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
-  fun @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume$1(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  fun @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume$1(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
     local %0 $step: enum7
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -40328,7 +40328,7 @@ Module
     t20 = enum_tag e7 local0 : machine<enum-tag>
     t21 = MachineEq(EnumTag) t20, machine<enum-tag>(EnumTag(0)) : i1
     cbr t21 then @completed else @suspended
-  fun @scoop$1$fn$d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum7
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -41475,12 +41475,12 @@ Module
   td td97 CoroutineAdapter$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend$1 type-id=98 size=32 parent=none vtable=[] itables=[td11:[local-fn251, local-fn252]]
   td td98 CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend @scoop_td_CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend type-id=99 size=64 parent=none vtable=[] itables=[]
   td td99 CoroutineAdapter$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend$1 type-id=100 size=32 parent=none vtable=[] itables=[td11:[local-fn254, local-fn255]]
-  td td100 CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend @scoop_td_CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend type-id=101 size=64 parent=none vtable=[] itables=[]
-  td td101 CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1 type-id=102 size=56 parent=none vtable=[] itables=[td11:[local-fn257, local-fn258]]
-  td td102 CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend @scoop_td_CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend type-id=103 size=72 parent=none vtable=[] itables=[]
-  td td103 CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1 type-id=104 size=32 parent=none vtable=[] itables=[td11:[local-fn260, local-fn261]]
-  td td104 CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend @scoop_td_CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend type-id=105 size=56 parent=none vtable=[] itables=[]
-  td td105 CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1 type-id=106 size=32 parent=none vtable=[] itables=[td12:[local-fn263, local-fn264]]
+  td td100 CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend @scoop_td_CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend type-id=101 size=64 parent=none vtable=[] itables=[]
+  td td101 CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1 type-id=102 size=56 parent=none vtable=[] itables=[td11:[local-fn257, local-fn258]]
+  td td102 CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend @scoop_td_CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend type-id=103 size=72 parent=none vtable=[] itables=[]
+  td td103 CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1 type-id=104 size=32 parent=none vtable=[] itables=[td11:[local-fn260, local-fn261]]
+  td td104 CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend @scoop_td_CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend type-id=105 size=56 parent=none vtable=[] itables=[]
+  td td105 CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1 type-id=106 size=32 parent=none vtable=[] itables=[td12:[local-fn263, local-fn264]]
   td td106 CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend @scoop_td_CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend type-id=107 size=64 parent=none vtable=[] itables=[]
   td td107 CoroutineAdapter$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend$1 type-id=108 size=32 parent=none vtable=[] itables=[td11:[local-fn266, local-fn267]]
   td td108 CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend @scoop_td_CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend type-id=109 size=48 parent=none vtable=[] itables=[]
@@ -41649,12 +41649,12 @@ Module
   layout CoroutineAdapter$scoop_1_fn_94bc6227461b984e156e1aff0ad33494d7500b1529cc5cba73aede0420cde46c_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter$scoop_1_fn_9753b4da3d2d62afcb8bc6ce101e0e7e29cd7eeaa7ea0b2c7ef1c09b7804e476_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend size=64 align=8 refs=[24, 32, 56]
-  layout CoroutineAdapter$scoop_1_fn_83cfefccc4048d92e4edb3d25b80defa44447f26faf1d606549092aa2e1d4fed_suspend$1 size=56 align=8 refs=[16, 48]
-  layout CoroutineFrame$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend size=72 align=8 refs=[24, 40, 64]
-  layout CoroutineAdapter$scoop_1_fn_57a5e6f4868d680463431ff174417f28c334465d59b02325598d620078d85067_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend size=56 align=8 refs=[24, 40, 48]
-  layout CoroutineAdapter$scoop_1_fn_d065b1a306345a46d4a4a92dc1a953b2c976abaff57592c54673f41b978dc598_suspend$1 size=32 align=8 refs=[16]
+  layout CoroutineFrame$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend size=64 align=8 refs=[24, 32, 56]
+  layout CoroutineAdapter$scoop_1_fn_b97d7491d676b3551d507159d33e95d3c4c33f49020425c0efb6f3570d3c77f7_suspend$1 size=56 align=8 refs=[16, 48]
+  layout CoroutineFrame$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend size=72 align=8 refs=[24, 40, 64]
+  layout CoroutineAdapter$scoop_1_fn_2161302874722037bfb6936e2961a1236663852d94ae349aa47f2c4448967648_suspend$1 size=32 align=8 refs=[16]
+  layout CoroutineFrame$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend size=56 align=8 refs=[24, 40, 48]
+  layout CoroutineAdapter$scoop_1_fn_259238e87b66b50a7c96d39da0a2d7575b162a306332bd0092558925faa9f39a_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter$scoop_1_fn_3d16939a8133b1a0616292ee90246c680cd317bc9a2f30c30fd9d94de0033a88_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_1_fn_7e1c7dd428c5c10646b65a6322116fbb72f61be93c7864c9681be2d36f9facf4_suspend size=48 align=8 refs=[24, 32, 40]

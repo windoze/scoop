@@ -84,7 +84,27 @@ impl Lowerer {
                     crate::properties::ExtensionPropertyResolution::NoCandidate => {}
                 }
             }
-            if let Some(property) = self.visible_property(&name.text, None) {
+            // Top-level value ladder (DESIGN 2.3): exact-import and
+            // current-package properties precede star-imported variant
+            // names (spec 4.2), which precede star-import and core
+            // prelude properties and variants.
+            let layers_above_star =
+                &crate::imports::LOOKUP_LAYERS[..crate::imports::LOOKUP_LAYERS.len() - 2];
+            let layers_from_star =
+                &crate::imports::LOOKUP_LAYERS[crate::imports::LOOKUP_LAYERS.len() - 2..];
+            // Alias-bound imported properties bind their local name at
+            // the exact-import layer (spec 12.4.1).
+            if let Some(property) =
+                self.exact_import_properties(&name.text)
+                    .into_iter()
+                    .find(|property| {
+                        self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
+                    })
+            {
+                let ty = self.properties[property].ty;
+                return self.lower_property_read(property, None, None, ty, name.span);
+            }
+            if let Some(property) = self.visible_property_in(&name.text, None, layers_above_star) {
                 let ty = self.properties[property].ty;
                 return self.lower_property_read(property, None, None, ty, name.span);
             }
@@ -166,6 +186,12 @@ impl Lowerer {
                     return None;
                 }
                 0 => {}
+            }
+            // Star-import and core-prelude properties follow the star
+            // variant layer.
+            if let Some(property) = self.visible_property_in(&name.text, None, layers_from_star) {
+                let ty = self.properties[property].ty;
+                return self.lower_property_read(property, None, None, ty, name.span);
             }
             if let Some(target) = self.contextual_variant_ref(&name.text, expected) {
                 let enumeration = target.enumeration();

@@ -78,7 +78,11 @@ impl Lowerer {
         let alias_conflicts = self
             .source_type_aliases_by_name
             .get(name)
-            .is_some_and(|aliases| !aliases.is_empty());
+            .is_some_and(|aliases| {
+                aliases
+                    .iter()
+                    .any(|alias| declared_in_package(Some(self.source_type_aliases[*alias].file())))
+            });
         if alias_conflicts {
             Some("a typealias")
         } else if self.structs_by_name.get(name).is_some_and(|entries| {

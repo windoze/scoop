@@ -6956,7 +6956,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
@@ -6980,7 +6980,7 @@ Module mangling=persistent-v1
           Type Continuation$I32
           Local $parameter._1
       return
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7052,7 +7052,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
@@ -7064,7 +7064,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7170,7 +7170,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Gate
@@ -7188,7 +7188,7 @@ Module mangling=persistent-v1
         Type Int
         Local $parameter.value
       return
-  fun println @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7648,7 +7648,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7682,7 +7682,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 interface Continuation$I32[0]
+      call @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 interface Continuation$I32[0]
         Type Continuation$I32
         Local completion
         Type Int
@@ -7691,7 +7691,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a interface Continuation$I32[1]
+      call @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 interface Continuation$I32[1]
         Type Continuation$I32
         Local completion
         Type Throwable
@@ -7706,7 +7706,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$I32 = @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend interface SuspendTask$I32[0]
+      call $step: CoroutineStep$I32 = @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend interface SuspendTask$I32[0]
         Type SuspendTask$I32
         Local task
         Type Continuation$I32
@@ -7785,7 +7785,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       val $receiver: Int
@@ -8252,7 +8252,7 @@ Module mangling=persistent-v1
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @scoop$1$fn$7518c660d4bcdb7e68fa6717c6d7ec84e43ab29f1fa03247c3227fb639591598 interface SuspendRegistration$I32[0]
+      call @scoop$1$fn$e93492927eea66b5bc596f742f3d7215aa80a182666b63ac07a0c00a8fed55e3 interface SuspendRegistration$I32[0]
         Type SuspendRegistration$I32
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_2e31f4bf0a11c3f52045e4197ab549602fc3562fd7a57cf3444d878cee913aba_suspend$1
@@ -8903,13 +8903,13 @@ Module mangling=persistent-v1
       entry=bb24
   coroutine_fn cf0 @scoop$1$fn$e1217f351729e89dac1e93c7d912849923b8066f41798d924d96aec8263cd801$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop$1$fn$e1217f351729e89dac1e93c7d912849923b8066f41798d924d96aec8263cd801$suspend$drive resumes=[cp0]
   coroutine_fn cf1 @scoop$1$fn$2e31f4bf0a11c3f52045e4197ab549602fc3562fd7a57cf3444d878cee913aba$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop$1$fn$2e31f4bf0a11c3f52045e4197ab549602fc3562fd7a57cf3444d878cee913aba$suspend$drive resumes=[cp1]
-  coroutine_fn cf2 @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend source_return=Int step=cs0 immediate
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 <- println
-  instance @scoop$1$fn$daf5e02ba6e1268b5b5a5f7987a5d461bae6dec94e5d454978ec6a70c4ecbd01 <- Continuation.resume
-  instance @scoop$1$fn$abf0fa57c6f5792a3a64178790fcf44d324419997077e9f78a998ce0b4c1902a <- Continuation.resumeWithException
-  instance @scoop$1$fn$d01eabc19ef4128bff3805d626ebd92a1fe575adc36f195f57a28b26dcd25f09$suspend <- SuspendTask.run
-  instance @scoop$1$fn$7518c660d4bcdb7e68fa6717c6d7ec84e43ab29f1fa03247c3227fb639591598 <- SuspendRegistration.register
+  coroutine_fn cf2 @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend source_return=Int step=cs0 immediate
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$0be25409ce6a3e6d4ae92d3669e27cd040eac55077c636e9d95057ccdc4a4f63 <- Continuation.resume
+  instance @scoop$1$fn$9c3357bb81b496425c7f961d03d0ae9c3aaac1a624f47da9fd200c9679620811 <- Continuation.resumeWithException
+  instance @scoop$1$fn$45203bd04d53683ff03c33c4bf9b2673444737cc259bd743234a55ff8836100c$suspend <- SuspendTask.run
+  instance @scoop$1$fn$e93492927eea66b5bc596f742f3d7215aa80a182666b63ac07a0c00a8fed55e3 <- SuspendRegistration.register
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -12341,7 +12341,7 @@ Module
     t1 = enum_wrap e0 v0 (local1) : enum0
     heap_store t0 +16 t1
     ret
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -12472,7 +12472,7 @@ Module
     call managed-void-target5 sp146 live=[local11:ptr<managed>@0] sig=void5 (ptr<managed>, i32) local-fn70(local11, local13)
     t9 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

@@ -33,6 +33,14 @@ struct PendingOrdinary<'a> {
     ty: hir::TypeId,
 }
 
+/// The declaration output of [`Lowerer::declare_globals`], consumed by
+/// [`Lowerer::evaluate_globals`] after function signatures exist.
+pub(crate) struct DeclaredGlobals<'a> {
+    initializers: Vec<(hir::GlobalId, &'a ast::GlobalDecl)>,
+    constants: Vec<PendingConst<'a>>,
+    ordinary: Vec<PendingOrdinary<'a>>,
+}
+
 pub(crate) fn stable_source_identity(name: &str) -> String {
     let path = Path::new(name);
     let mut components = Vec::new();
@@ -76,11 +84,14 @@ pub(crate) enum PendingRuntimeInitializerKind {
 }
 
 impl Lowerer {
-    pub(crate) fn resolve_globals(
+    /// Declares every top-level property and its storage, returning the
+    /// evaluation worklists. Runs before function signatures: import
+    /// binding resolution needs the complete declaration set, and none
+    /// of the declaration work reads signatures.
+    pub(crate) fn declare_globals<'a>(
         &mut self,
-        pending: &[(&ast::GlobalDecl, usize)],
-        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
-    ) {
+        pending: &'a [(&'a ast::GlobalDecl, usize)],
+    ) -> DeclaredGlobals<'a> {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
         let mut ordinary = Vec::new();
@@ -369,7 +380,26 @@ impl Lowerer {
             self.property_files.insert(property, file_index);
             initializers.push((id, decl));
         }
+        DeclaredGlobals {
+            initializers,
+            constants,
+            ordinary,
+        }
+    }
 
+    /// Validates storage and folds const values for the declared
+    /// globals. Runs after function signatures exist: const evaluation
+    /// consults intrinsic signatures.
+    pub(crate) fn evaluate_globals(
+        &mut self,
+        declared: DeclaredGlobals<'_>,
+        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
+    ) {
+        let DeclaredGlobals {
+            initializers,
+            mut constants,
+            ordinary,
+        } = declared;
         // Every global name and type is available before constants are
         // inspected. References to another global are nevertheless rejected:
         // initialization has no runtime ordering phase in M12.

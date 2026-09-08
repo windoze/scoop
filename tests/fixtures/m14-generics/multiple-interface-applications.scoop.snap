@@ -6876,7 +6876,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$b01a4318579cc4395a0d700ff7e7443e7df1036cc6b25e4601273961aa702a1b interface Describe$I32[0]
+      call $argument.0: String = @scoop$1$fn$b26ee0e55161fb8feed0c341392b643d876c660a9838eb029c6289dfade40567 interface Describe$I32[0]
         Type Describe$I32
         Local $receiver
         Type Int
@@ -6884,7 +6884,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Describe$S
@@ -6896,7 +6896,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$12e1b693cc7dff40f59ea8e4aa50ddd27fe77647e5325c4aaf5886ee7dc26165 interface Describe$S[0]
+      call $argument.0: String = @scoop$1$fn$1022ce230cb70f958dbb16281cdb48c549287af15c00f96a740916dbae2a5362 interface Describe$S[0]
         Type Describe$S
         Local $receiver
         Type String
@@ -6904,11 +6904,11 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun println @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7357,9 +7357,9 @@ Module mangling=persistent-v1
           Local functionName
           Type String
           Local typeName
-  instance @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 <- println
-  instance @scoop$1$fn$b01a4318579cc4395a0d700ff7e7443e7df1036cc6b25e4601273961aa702a1b <- Describe.describe
-  instance @scoop$1$fn$12e1b693cc7dff40f59ea8e4aa50ddd27fe77647e5325c4aaf5886ee7dc26165 <- Describe.describe
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$b26ee0e55161fb8feed0c341392b643d876c660a9838eb029c6289dfade40567 <- Describe.describe
+  instance @scoop$1$fn$1022ce230cb70f958dbb16281cdb48c549287af15c00f96a740916dbae2a5362 <- Describe.describe
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -10791,7 +10791,7 @@ Module
     call managed-void-target3 sp133 live=[local11:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn73(local11)
     t11 = aggregate () : {}
     ret
-  fun @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

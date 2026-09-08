@@ -582,11 +582,24 @@ impl Lowerer {
         name: &str,
         receiver: Option<hir::TypeId>,
     ) -> Option<hir::PropertyId> {
+        self.visible_property_in(name, receiver, &crate::imports::LOOKUP_LAYERS)
+    }
+
+    /// The first accessible property for `name` admitted by one of
+    /// `layers`, in the given order. Callers interleaving other name
+    /// kinds into the value ladder (star-imported variants, spec 4.2)
+    /// pass a layer slice so lower-layer properties cannot shadow them.
+    pub(crate) fn visible_property_in(
+        &self,
+        name: &str,
+        receiver: Option<hir::TypeId>,
+        layers: &[crate::imports::LookupLayer],
+    ) -> Option<hir::PropertyId> {
         let properties = self.properties_by_name.get(name)?;
-        for layer in crate::imports::LOOKUP_LAYERS {
+        for layer in layers {
             if let Some(property) = properties.iter().copied().find(|&property| {
                 self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
-                    && self.property_lookup_layer(property) == Some(layer)
+                    && self.property_lookup_layer(property) == Some(*layer)
             }) {
                 return Some(property);
             }

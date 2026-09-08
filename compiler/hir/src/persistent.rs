@@ -399,10 +399,11 @@ impl<'a> PersistentIds<'a> {
                 out.bytes(&inner.into_bytes());
             }
             Type::Param(param) => {
-                out.array(3)
-                    .unsigned(12)
-                    .unsigned(param.identity_raw() as u64)
-                    .unsigned(param.into_raw() as u64);
+                // Only the per-lexical-signature substitution slot is
+                // encoded: it is source-determined and alpha-invariant.
+                // The Cone-wide identity counter depends on declaration
+                // processing order and must not enter persistent keys.
+                out.array(2).unsigned(12).unsigned(param.into_raw() as u64);
             }
         }
         Some(())

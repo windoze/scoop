@@ -72,6 +72,19 @@ impl Lowerer {
     /// core unit. Same-layer duplicates are per-package distinct and
     /// unreachable here through different packages.
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
+        // An alias-bound import binds the local name regardless of the
+        // alias's source name (spec 12.4.1).
+        for binding in self.exact_import_bindings(name) {
+            if let hir::ImportedTarget::TypeAlias { alias } = binding.target {
+                if let Some((source, _)) = self
+                    .export_alias_ids
+                    .iter()
+                    .find(|(_, export)| **export == alias)
+                {
+                    return Some(*source);
+                }
+            }
+        }
         let aliases = self.source_type_aliases_by_name.get(name)?;
         for layer in crate::imports::LOOKUP_LAYERS {
             if let Some(id) = aliases

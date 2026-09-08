@@ -7167,7 +7167,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb8
@@ -7215,7 +7215,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       goto bb11
@@ -7237,7 +7237,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb14
@@ -7288,7 +7288,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Array<Item>
@@ -7356,11 +7356,11 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7384,7 +7384,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7408,7 +7408,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun Array.iterator @scoop$1$fn$bd731d00d74dc080ffa2272322516e0bfcf3fd321336e4583e4154067e5f2821(this: Array<Item>) -> Iterator$D4_ItemX
+  fun Array.iterator @scoop$1$fn$6e2ae62993f69aa7acd06e41cac0c2c29f59f5dfdf2239cf16d7cedc900fa6cf(this: Array<Item>) -> Iterator$D4_ItemX
     bb0 entry
       val $argument.0: Array<Item>
         Type Array<Item>
@@ -7435,7 +7435,7 @@ Module mangling=persistent-v1
       return
         Type ArrayIterator$D4_ItemX
         Local $new.1
-  fun MutableArray.iterator @scoop$1$fn$0c26c0f82a6be6486b99e8d0583bc9fe0e903028aff20234fc67ec6e02150141(this: MutableArray<Item>) -> Iterator$D4_ItemX
+  fun MutableArray.iterator @scoop$1$fn$7ac539f0e74798b5b88789656444bd0baffb710131b5f0004c165d333b2f382e(this: MutableArray<Item>) -> Iterator$D4_ItemX
     bb0 entry
       val $argument.0: MutableArray<Item>
         Type MutableArray<Item>
@@ -7462,7 +7462,7 @@ Module mangling=persistent-v1
       return
         Type MutableArrayIterator$D4_ItemX
         Local $new.1
-  fun ArrayIterator.next @scoop$1$fn$fead5966f2ff9b42e23464635fea23169f751f6896119e4ec2592c1271f662fa(this: ArrayIterator$D4_ItemX) -> Option$D4_ItemX<Item>
+  fun ArrayIterator.next @scoop$1$fn$00cea136c05327fe078c3bdbe6f0446510069e5a2aba8861828e9017432b9b36(this: ArrayIterator$D4_ItemX) -> Option$D4_ItemX<Item>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -7590,7 +7590,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$D4_ItemX<Item> v0
           Type Item
           Local $parameter._1
-  fun MutableArrayIterator.next @scoop$1$fn$acf632e77842250fd3eec1bc43f705d15245d443bcf15c1ee3084dd7b065d1ca(this: MutableArrayIterator$D4_ItemX) -> Option$D4_ItemX<Item>
+  fun MutableArrayIterator.next @scoop$1$fn$965dc5bbec91fe04c4aebdec292e8a2642942a308d0ae2e9857dd95942eb6ed5(this: MutableArrayIterator$D4_ItemX) -> Option$D4_ItemX<Item>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -8175,12 +8175,12 @@ Module mangling=persistent-v1
           Local payload
           Type String
           Local tail
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 <- println
-  instance @scoop$1$fn$bd731d00d74dc080ffa2272322516e0bfcf3fd321336e4583e4154067e5f2821 <- Array.iterator
-  instance @scoop$1$fn$0c26c0f82a6be6486b99e8d0583bc9fe0e903028aff20234fc67ec6e02150141 <- MutableArray.iterator
-  instance @scoop$1$fn$fead5966f2ff9b42e23464635fea23169f751f6896119e4ec2592c1271f662fa <- ArrayIterator.next
-  instance @scoop$1$fn$acf632e77842250fd3eec1bc43f705d15245d443bcf15c1ee3084dd7b065d1ca <- MutableArrayIterator.next
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$6e2ae62993f69aa7acd06e41cac0c2c29f59f5dfdf2239cf16d7cedc900fa6cf <- Array.iterator
+  instance @scoop$1$fn$7ac539f0e74798b5b88789656444bd0baffb710131b5f0004c165d333b2f382e <- MutableArray.iterator
+  instance @scoop$1$fn$00cea136c05327fe078c3bdbe6f0446510069e5a2aba8861828e9017432b9b36 <- ArrayIterator.next
+  instance @scoop$1$fn$965dc5bbec91fe04c4aebdec292e8a2642942a308d0ae2e9857dd95942eb6ed5 <- MutableArrayIterator.next
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11810,7 +11810,7 @@ Module
     call managed-void-target8 sp142 live=[local21:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn72(local21)
     t32 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11829,7 +11829,7 @@ Module
     call native-borrowed-void-target1 sp145 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11848,7 +11848,7 @@ Module
     call native-borrowed-void-target1 sp148 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$bd731d00d74dc080ffa2272322516e0bfcf3fd321336e4583e4154067e5f2821(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$6e2ae62993f69aa7acd06e41cac0c2c29f59f5dfdf2239cf16d7cedc900fa6cf(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -11865,7 +11865,7 @@ Module
     call managed-void-target0 sp150 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn95(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$0c26c0f82a6be6486b99e8d0583bc9fe0e903028aff20234fc67ec6e02150141(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$7ac539f0e74798b5b88789656444bd0baffb710131b5f0004c165d333b2f382e(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -11882,7 +11882,7 @@ Module
     call managed-void-target0 sp152 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn96(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$fead5966f2ff9b42e23464635fea23169f751f6896119e4ec2592c1271f662fa(ptr<managed>) -> sret<enum6 size=40 align=8 scan=refs[24, 32]>
+  fun @scoop$1$fn$00cea136c05327fe078c3bdbe6f0446510069e5a2aba8861828e9017432b9b36(ptr<managed>) -> sret<enum6 size=40 align=8 scan=refs[24, 32]>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11953,7 +11953,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e6 v0 (local11) : enum6
     ret t16
-  fun @scoop$1$fn$acf632e77842250fd3eec1bc43f705d15245d443bcf15c1ee3084dd7b065d1ca(ptr<managed>) -> sret<enum6 size=40 align=8 scan=refs[24, 32]>
+  fun @scoop$1$fn$965dc5bbec91fe04c4aebdec292e8a2642942a308d0ae2e9857dd95942eb6ed5(ptr<managed>) -> sret<enum6 size=40 align=8 scan=refs[24, 32]>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64

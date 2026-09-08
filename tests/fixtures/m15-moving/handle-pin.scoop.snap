@@ -6942,7 +6942,7 @@ Module mangling=persistent-v1
       val $parameter.v: MovingResource
         Type MovingResource
         Local $argument.0
-      call handle: GcHandle$C14_MovingResourceX = @scoop$1$fn$1b7a03c45586912f34de079cbc2124189e45ab7657747733081f8dff83f61852 direct
+      call handle: GcHandle$C14_MovingResourceX = @scoop$1$fn$710c9c9d9b36174894d892c8ee89bf99d2ab54cf01545daca4175cf607eb09d4 direct
         Type MovingResource
         Local $parameter.v
       call @scoop_rt_gc_collect direct
@@ -6952,7 +6952,7 @@ Module mangling=persistent-v1
       val $parameter.h: GcHandle$C14_MovingResourceX
         Type GcHandle$C14_MovingResourceX
         Local $argument.0
-      call fromHandle: MovingResource = @scoop$1$fn$ae94ace17eafcee13ebad9ad78b531b879c81bcee243871d67f8154795b24748 direct
+      call fromHandle: MovingResource = @scoop$1$fn$d60d7649b9ca6d7f8f439ffe1f902868538f3bea85c6cd1a739bd42212251da8 direct
         Type GcHandle$C14_MovingResourceX
         Local $parameter.h
       val $argument.0: String
@@ -6963,7 +6963,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: String
@@ -7000,7 +7000,7 @@ Module mangling=persistent-v1
       val $parameter.v: MovingResource
         Type MovingResource
         Local $argument.0
-      call pinnedPointer: PinnedPtr$C14_MovingResourceX = @scoop$1$fn$8bd2d10b0f0d06792572c37e7c6613ba46aa351c136f3a59890caff7b819ead5 direct
+      call pinnedPointer: PinnedPtr$C14_MovingResourceX = @scoop$1$fn$de9539e7fcb8992eedb6eaee4b91d0e28ab1d7d32c0893d4667d3f422f9ed9a9 direct
         Type MovingResource
         Local $parameter.v
       call @scoop_rt_gc_collect direct
@@ -7010,7 +7010,7 @@ Module mangling=persistent-v1
       val $parameter.p: PinnedPtr$C14_MovingResourceX
         Type PinnedPtr$C14_MovingResourceX
         Local $argument.0
-      call unpinned: MovingResource = @scoop$1$fn$037c8e18ca540e83a71f6ae248b68b822050931f395e863ac70484b38befad88 direct
+      call unpinned: MovingResource = @scoop$1$fn$a5fd5960683fa9464493014059345b4b050d668abc1d5bc979feff3aa16f465c direct
         Type PinnedPtr$C14_MovingResourceX
         Local $parameter.p
       val $argument.0: Boolean
@@ -7023,7 +7023,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       call @scoop_rt_gc_collect direct
@@ -7035,11 +7035,11 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun getGcHandle @scoop$1$fn$1b7a03c45586912f34de079cbc2124189e45ab7657747733081f8dff83f61852(v: MovingResource) -> GcHandle$C14_MovingResourceX
+  fun getGcHandle @scoop$1$fn$710c9c9d9b36174894d892c8ee89bf99d2ab54cf01545daca4175cf607eb09d4(v: MovingResource) -> GcHandle$C14_MovingResourceX
     bb0 entry
       val $argument.0: MovingResource
         Type MovingResource
@@ -7059,7 +7059,7 @@ Module mangling=persistent-v1
       return
         Type GcHandle$C14_MovingResourceX
         Local $call.1
-  fun releaseGcHandle @scoop$1$fn$ae94ace17eafcee13ebad9ad78b531b879c81bcee243871d67f8154795b24748(h: GcHandle$C14_MovingResourceX) -> MovingResource
+  fun releaseGcHandle @scoop$1$fn$d60d7649b9ca6d7f8f439ffe1f902868538f3bea85c6cd1a739bd42212251da8(h: GcHandle$C14_MovingResourceX) -> MovingResource
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -7075,7 +7075,7 @@ Module mangling=persistent-v1
       return
         Type MovingResource
         Local $call.1
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7099,7 +7099,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun pin @scoop$1$fn$8bd2d10b0f0d06792572c37e7c6613ba46aa351c136f3a59890caff7b819ead5(v: MovingResource) -> PinnedPtr$C14_MovingResourceX
+  fun pin @scoop$1$fn$de9539e7fcb8992eedb6eaee4b91d0e28ab1d7d32c0893d4667d3f422f9ed9a9(v: MovingResource) -> PinnedPtr$C14_MovingResourceX
     bb0 entry
       val $argument.0: MovingResource
         Type MovingResource
@@ -7119,7 +7119,7 @@ Module mangling=persistent-v1
       return
         Type PinnedPtr$C14_MovingResourceX
         Local $call.1
-  fun unpin @scoop$1$fn$037c8e18ca540e83a71f6ae248b68b822050931f395e863ac70484b38befad88(p: PinnedPtr$C14_MovingResourceX) -> MovingResource
+  fun unpin @scoop$1$fn$a5fd5960683fa9464493014059345b4b050d668abc1d5bc979feff3aa16f465c(p: PinnedPtr$C14_MovingResourceX) -> MovingResource
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -7135,7 +7135,7 @@ Module mangling=persistent-v1
       return
         Type MovingResource
         Local $call.1
-  fun println @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(value: Boolean) -> Unit
+  fun println @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
         Type Boolean
@@ -7603,12 +7603,12 @@ Module mangling=persistent-v1
         StructInit PinnedPtr$C14_MovingResourceX
           Type ULong
           Local raw
-  instance @scoop$1$fn$1b7a03c45586912f34de079cbc2124189e45ab7657747733081f8dff83f61852 <- getGcHandle
-  instance @scoop$1$fn$ae94ace17eafcee13ebad9ad78b531b879c81bcee243871d67f8154795b24748 <- releaseGcHandle
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$8bd2d10b0f0d06792572c37e7c6613ba46aa351c136f3a59890caff7b819ead5 <- pin
-  instance @scoop$1$fn$037c8e18ca540e83a71f6ae248b68b822050931f395e863ac70484b38befad88 <- unpin
-  instance @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 <- println
+  instance @scoop$1$fn$710c9c9d9b36174894d892c8ee89bf99d2ab54cf01545daca4175cf607eb09d4 <- getGcHandle
+  instance @scoop$1$fn$d60d7649b9ca6d7f8f439ffe1f902868538f3bea85c6cd1a739bd42212251da8 <- releaseGcHandle
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$de9539e7fcb8992eedb6eaee4b91d0e28ab1d7d32c0893d4667d3f422f9ed9a9 <- pin
+  instance @scoop$1$fn$a5fd5960683fa9464493014059345b4b050d668abc1d5bc979feff3aa16f465c <- unpin
+  instance @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 <- println
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11087,7 +11087,7 @@ Module
     call managed-void-target7 sp141 live=[local28:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn73(local28)
     t16 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1b7a03c45586912f34de079cbc2124189e45ab7657747733081f8dff83f61852(ptr<managed>) -> sret<struct10 size=8 align=8 scan=none>
+  fun @scoop$1$fn$710c9c9d9b36174894d892c8ee89bf99d2ab54cf01545daca4175cf607eb09d4(ptr<managed>) -> sret<struct10 size=8 align=8 scan=none>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.v: ptr<managed>
     local %2 $argument.0: i64
@@ -11104,7 +11104,7 @@ Module
     call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct10 size=8 align=8 scan=none, i64) local-fn96(local3)
     store local5 -> local4
     ret local4
-  fun @scoop$1$fn$ae94ace17eafcee13ebad9ad78b531b879c81bcee243871d67f8154795b24748(indirect<struct10 size=8 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$fn$d60d7649b9ca6d7f8f439ffe1f902868538f3bea85c6cd1a739bd42212251da8(indirect<struct10 size=8 align=8 scan=none>) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.raw: i64
     local %2 $call.1: ptr<managed>
@@ -11116,7 +11116,7 @@ Module
     call no-gc-direct-target0 t1 = sig=direct0 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(local1)
     store t1 -> local2
     ret local2
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11135,7 +11135,7 @@ Module
     call native-borrowed-void-target1 sp144 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$8bd2d10b0f0d06792572c37e7c6613ba46aa351c136f3a59890caff7b819ead5(ptr<managed>) -> sret<struct11 size=8 align=8 scan=none>
+  fun @scoop$1$fn$de9539e7fcb8992eedb6eaee4b91d0e28ab1d7d32c0893d4667d3f422f9ed9a9(ptr<managed>) -> sret<struct11 size=8 align=8 scan=none>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.v: ptr<managed>
     local %2 $argument.0: i64
@@ -11152,7 +11152,7 @@ Module
     call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct11 size=8 align=8 scan=none, i64) local-fn97(local3)
     store local5 -> local4
     ret local4
-  fun @scoop$1$fn$037c8e18ca540e83a71f6ae248b68b822050931f395e863ac70484b38befad88(indirect<struct11 size=8 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$fn$a5fd5960683fa9464493014059345b4b050d668abc1d5bc979feff3aa16f465c(indirect<struct11 size=8 align=8 scan=none>) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.raw: i64
     local %2 $call.1: ptr<managed>
@@ -11164,7 +11164,7 @@ Module
     call no-gc-direct-target0 t1 = sig=direct0 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local1)
     store t1 -> local2
     ret local2
-  fun @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(i1) -> void
+  fun @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

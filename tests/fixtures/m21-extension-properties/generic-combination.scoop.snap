@@ -6952,19 +6952,19 @@ Module mangling=persistent-v1
       val $receiver: Cell$I32
         Type Cell$I32
         Local number
-      call $argument.0: Int = @scoop$1$fn$630914d011f5d2dee1a02ae2219000fa3f4c24c881ef824e13a5db881432612b direct
+      call $argument.0: Int = @scoop$1$fn$58372e2d137b654df8d51533fedc8225c6f097a5f18dd056cbc9c3d7050f645b direct
         Type Cell$I32
         Local $receiver
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       val $receiver: Cell$I32
         Type Cell$I32
         Local number
-      call @scoop$1$fn$c949246596b91ceae66a1a767e24a38f3e4e7bc617124e203e067ed7d616c40c direct
+      call @scoop$1$fn$722a8a6e5372fcd96a7c8bf55af2ee8399b7e8b739861d24907c5cbe8385c2eb direct
         Type Cell$I32
         Local $receiver
         Type Int
@@ -6972,13 +6972,13 @@ Module mangling=persistent-v1
       val $receiver: Cell$I32
         Type Cell$I32
         Local number
-      call $argument.0: Int = @scoop$1$fn$87a12bcb30831bbed063b3a64da472ef3107f6bda8f934240cd528653b7dc8a1 direct
+      call $argument.0: Int = @scoop$1$fn$d17c5c2878c38e1c4e753b91291ab23dd4ccafaa653b63b8f7b165bd5c11b2b6 direct
         Type Cell$I32
         Local $receiver
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       val $receiver: Cell$I32
@@ -6990,7 +6990,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -7013,19 +7013,19 @@ Module mangling=persistent-v1
       val $receiver: Cell$S
         Type Cell$S
         Local text
-      call $argument.0: String = @scoop$1$fn$d393231ea84f0c2d481917f765508d825dd53749c9d9690121f25226c7ae87c1 direct
+      call $argument.0: String = @scoop$1$fn$efebbda859b6480e964945198275586cf1ad6824eac3e69de15a16d32d8043dd direct
         Type Cell$S
         Local $receiver
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Cell$S
         Type Cell$S
         Local text
-      call @scoop$1$fn$11dcf35e22971c2351e1e4cc621c1edd54588f3066a54a4065138f5016e17e4d direct
+      call @scoop$1$fn$b6ab6b6ea7cbf955be9dd5249035cf07534e89ec1bc4b85df6138c63a6112fc1 direct
         Type Cell$S
         Local $receiver
         Type String
@@ -7033,25 +7033,25 @@ Module mangling=persistent-v1
       val $receiver: Cell$S
         Type Cell$S
         Local text
-      call $argument.0: String = @scoop$1$fn$62b2aa6b163c7e5b0e1c3c1a822ab0877c1d49fed11b9f56ce613ffde72bbb0d direct
+      call $argument.0: String = @scoop$1$fn$28df3881d11883fa5e8d002e9524b8135e35c648c78a058025debdb5158a621c direct
         Type Cell$S
         Local $receiver
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Cell$S
         Type Cell$S
         Local text
-      call $argument.0: String = @scoop$1$fn$1c59c9d8eb2282ac5f12697493d796ec2af35d434bbc6d59ac54adc2df443bae direct
+      call $argument.0: String = @scoop$1$fn$a88d4a001c62988258b1e3ba3dade6e9e18a1c0a0e56530d1ac03e2bdfd16aad direct
         Type Cell$S
         Local $receiver
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7060,14 +7060,14 @@ Module mangling=persistent-v1
       return
         Type String
         StringConst @scoop.str.6
-  fun $extension.$get$item @scoop$1$fn$630914d011f5d2dee1a02ae2219000fa3f4c24c881ef824e13a5db881432612b(this: Cell$I32) -> Int
+  fun $extension.$get$item @scoop$1$fn$58372e2d137b654df8d51533fedc8225c6f097a5f18dd056cbc9c3d7050f645b(this: Cell$I32) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Cell$I32
           Local this
-  fun println @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7091,14 +7091,14 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun $extension.$get$content @scoop$1$fn$87a12bcb30831bbed063b3a64da472ef3107f6bda8f934240cd528653b7dc8a1(this: Cell$I32) -> Int
+  fun $extension.$get$content @scoop$1$fn$d17c5c2878c38e1c4e753b91291ab23dd4ccafaa653b63b8f7b165bd5c11b2b6(this: Cell$I32) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Cell$I32
           Local this
-  fun $extension.$set$content @scoop$1$fn$c949246596b91ceae66a1a767e24a38f3e4e7bc617124e203e067ed7d616c40c(this: Cell$I32, next: Int) -> Unit
+  fun $extension.$set$content @scoop$1$fn$722a8a6e5372fcd96a7c8bf55af2ee8399b7e8b739861d24907c5cbe8385c2eb(this: Cell$I32, next: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell$I32
@@ -7106,7 +7106,7 @@ Module mangling=persistent-v1
         Type Int
         Local next
       return
-  fun println @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7130,21 +7130,21 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun $extension.$get$item @scoop$1$fn$d393231ea84f0c2d481917f765508d825dd53749c9d9690121f25226c7ae87c1(this: Cell$S) -> String
+  fun $extension.$get$item @scoop$1$fn$efebbda859b6480e964945198275586cf1ad6824eac3e69de15a16d32d8043dd(this: Cell$S) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Cell$S
           Local this
-  fun $extension.$get$content @scoop$1$fn$62b2aa6b163c7e5b0e1c3c1a822ab0877c1d49fed11b9f56ce613ffde72bbb0d(this: Cell$S) -> String
+  fun $extension.$get$content @scoop$1$fn$28df3881d11883fa5e8d002e9524b8135e35c648c78a058025debdb5158a621c(this: Cell$S) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Cell$S
           Local this
-  fun $extension.$set$content @scoop$1$fn$11dcf35e22971c2351e1e4cc621c1edd54588f3066a54a4065138f5016e17e4d(this: Cell$S, next: String) -> Unit
+  fun $extension.$set$content @scoop$1$fn$b6ab6b6ea7cbf955be9dd5249035cf07534e89ec1bc4b85df6138c63a6112fc1(this: Cell$S, next: String) -> Unit
     bb0 entry
       field_set 0
         Type Cell$S
@@ -7152,7 +7152,7 @@ Module mangling=persistent-v1
         Type String
         Local next
       return
-  fun $extension.$get$kind @scoop$1$fn$1c59c9d8eb2282ac5f12697493d796ec2af35d434bbc6d59ac54adc2df443bae(this: Cell$S) -> String
+  fun $extension.$get$kind @scoop$1$fn$a88d4a001c62988258b1e3ba3dade6e9e18a1c0a0e56530d1ac03e2bdfd16aad(this: Cell$S) -> String
     bb0 entry
       return
         Type String
@@ -7595,15 +7595,15 @@ Module mangling=persistent-v1
           Local functionName
           Type String
           Local typeName
-  instance @scoop$1$fn$630914d011f5d2dee1a02ae2219000fa3f4c24c881ef824e13a5db881432612b <- $extension.$get$item
-  instance @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a <- println
-  instance @scoop$1$fn$87a12bcb30831bbed063b3a64da472ef3107f6bda8f934240cd528653b7dc8a1 <- $extension.$get$content
-  instance @scoop$1$fn$c949246596b91ceae66a1a767e24a38f3e4e7bc617124e203e067ed7d616c40c <- $extension.$set$content
-  instance @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 <- println
-  instance @scoop$1$fn$d393231ea84f0c2d481917f765508d825dd53749c9d9690121f25226c7ae87c1 <- $extension.$get$item
-  instance @scoop$1$fn$62b2aa6b163c7e5b0e1c3c1a822ab0877c1d49fed11b9f56ce613ffde72bbb0d <- $extension.$get$content
-  instance @scoop$1$fn$11dcf35e22971c2351e1e4cc621c1edd54588f3066a54a4065138f5016e17e4d <- $extension.$set$content
-  instance @scoop$1$fn$1c59c9d8eb2282ac5f12697493d796ec2af35d434bbc6d59ac54adc2df443bae <- $extension.$get$kind
+  instance @scoop$1$fn$58372e2d137b654df8d51533fedc8225c6f097a5f18dd056cbc9c3d7050f645b <- $extension.$get$item
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$d17c5c2878c38e1c4e753b91291ab23dd4ccafaa653b63b8f7b165bd5c11b2b6 <- $extension.$get$content
+  instance @scoop$1$fn$722a8a6e5372fcd96a7c8bf55af2ee8399b7e8b739861d24907c5cbe8385c2eb <- $extension.$set$content
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$efebbda859b6480e964945198275586cf1ad6824eac3e69de15a16d32d8043dd <- $extension.$get$item
+  instance @scoop$1$fn$28df3881d11883fa5e8d002e9524b8135e35c648c78a058025debdb5158a621c <- $extension.$get$content
+  instance @scoop$1$fn$b6ab6b6ea7cbf955be9dd5249035cf07534e89ec1bc4b85df6138c63a6112fc1 <- $extension.$set$content
+  instance @scoop$1$fn$a88d4a001c62988258b1e3ba3dade6e9e18a1c0a0e56530d1ac03e2bdfd16aad <- $extension.$get$kind
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11075,12 +11075,12 @@ Module
   block entry
     poll managed-void-target0 sp229 live=[]
     ret global6
-  fun @scoop$1$fn$630914d011f5d2dee1a02ae2219000fa3f4c24c881ef824e13a5db881432612b(ptr<managed>) -> i32
+  fun @scoop$1$fn$58372e2d137b654df8d51533fedc8225c6f097a5f18dd056cbc9c3d7050f645b(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp230 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11099,17 +11099,17 @@ Module
     call native-borrowed-void-target1 sp146 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$87a12bcb30831bbed063b3a64da472ef3107f6bda8f934240cd528653b7dc8a1(ptr<managed>) -> i32
+  fun @scoop$1$fn$d17c5c2878c38e1c4e753b91291ab23dd4ccafaa653b63b8f7b165bd5c11b2b6(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp232 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop$1$fn$c949246596b91ceae66a1a767e24a38f3e4e7bc617124e203e067ed7d616c40c(ptr<managed>, i32) -> void
+  fun @scoop$1$fn$722a8a6e5372fcd96a7c8bf55af2ee8399b7e8b739861d24907c5cbe8385c2eb(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp233 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11128,22 +11128,22 @@ Module
     call native-borrowed-void-target1 sp149 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$d393231ea84f0c2d481917f765508d825dd53749c9d9690121f25226c7ae87c1(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$efebbda859b6480e964945198275586cf1ad6824eac3e69de15a16d32d8043dd(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp235 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$62b2aa6b163c7e5b0e1c3c1a822ab0877c1d49fed11b9f56ce613ffde72bbb0d(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$28df3881d11883fa5e8d002e9524b8135e35c648c78a058025debdb5158a621c(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp236 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$11dcf35e22971c2351e1e4cc621c1edd54588f3066a54a4065138f5016e17e4d(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$b6ab6b6ea7cbf955be9dd5249035cf07534e89ec1bc4b85df6138c63a6112fc1(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp237 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$fn$1c59c9d8eb2282ac5f12697493d796ec2af35d434bbc6d59ac54adc2df443bae(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$a88d4a001c62988258b1e3ba3dade6e9e18a1c0a0e56530d1ac03e2bdfd16aad(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp238 live=[]
     ret global9

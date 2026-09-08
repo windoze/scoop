@@ -228,7 +228,7 @@ impl Lowerer {
                         },
                         expected,
                         false,
-                        crate::imports::LOOKUP_LAYERS[crate::imports::LOOKUP_LAYERS.len() - 1],
+                        layer,
                     )
                 {
                     match layer {
@@ -251,13 +251,71 @@ impl Lowerer {
             .cloned()
             .unwrap_or_default();
         let mut found_top_level_candidate = false;
+        // Star-imported variant constructors (spec 4.2: `import pkg.E.*`)
+        // belong to the star layer itself, probed inside the layer loop
+        // so no lower-layer candidate (core prelude) can shadow them.
+        let star_variants = self.star_variant_refs(&name).to_vec();
+        let mut star_failure = None;
+        let mut unit_only_star = Vec::new();
         for layer in crate::imports::LOOKUP_LAYERS {
-            let candidates = top_level
+            if layer == crate::imports::LookupLayer::StarImport && !star_variants.is_empty() {
+                let mut star_successes = Vec::new();
+                for target in &star_variants {
+                    if self.resolved_variant_style(*target) == VariantStyle::Unit {
+                        unit_only_star.push(*target);
+                        continue;
+                    }
+                    match self.probe_expr_layer(|state, layer_sink| {
+                        state.lower_variant_construct(
+                            *target,
+                            CallSite {
+                                type_args: &call.type_args,
+                                args: &call.args,
+                                span: call.span,
+                            },
+                            layer_sink,
+                            expected,
+                        )
+                    }) {
+                        Ok(layer) => star_successes.push((*target, layer)),
+                        Err(failure) => {
+                            star_failure.get_or_insert(failure);
+                        }
+                    }
+                }
+                match star_successes.len() {
+                    1 => {
+                        let (_, layer) = star_successes.pop().expect("one star-layer winner");
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
+                    2.. => {
+                        let targets = star_successes
+                            .iter()
+                            .map(|(target, _)| *target)
+                            .collect::<Vec<_>>();
+                        self.ambiguous_prelude_variant(&call.callee, &targets);
+                        return None;
+                    }
+                    0 => {}
+                }
+            }
+            let mut candidates = top_level
                 .iter()
                 .copied()
                 .filter(|function| self.function_is_accessible(*function, None))
                 .filter(|function| self.function_lookup_layer(*function) == Some(layer))
                 .collect::<Vec<_>>();
+            if layer == crate::imports::LookupLayer::ExactImport {
+                // Alias-bound imports admit targets through the local
+                // name even when the source name differs (spec 12.4.1).
+                for imported in self.exact_import_functions(&name) {
+                    if self.function_is_accessible(imported, None)
+                        && !candidates.contains(&imported)
+                    {
+                        candidates.push(imported);
+                    }
+                }
+            }
             if !candidates.is_empty() {
                 found_top_level_candidate = true;
                 match self.probe_expr_layer(|state, layer_sink| {
@@ -285,6 +343,19 @@ impl Lowerer {
                 .find(|property| {
                     self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
                         && self.property_lookup_layer(*property) == Some(layer)
+                })
+                .or_else(|| {
+                    if layer != crate::imports::LookupLayer::ExactImport {
+                        return None;
+                    }
+                    self.exact_import_properties(&name)
+                        .into_iter()
+                        .find(|property| {
+                            self.access_domain_allows(
+                                &self.properties[*property].access.lookup.0,
+                                None,
+                            )
+                        })
                 });
             let Some(property) = property else {
                 continue;
@@ -320,54 +391,6 @@ impl Lowerer {
                     ordinary_failure.get_or_insert(failure);
                 }
             }
-        }
-
-        // Star-imported variant constructors (spec 4.2: `import pkg.E.*`)
-        // form the layer right before the implicit core prelude. Probe
-        // every same-name target in isolated states so only one
-        // applicable winner can commit; a layer without an applicable
-        // candidate falls through to the prelude layer.
-        let star_variants = self.star_variant_refs(&name).to_vec();
-        let mut star_failure = None;
-        let mut unit_only_star = Vec::new();
-        let mut star_successes = Vec::new();
-        for target in &star_variants {
-            if self.resolved_variant_style(*target) == VariantStyle::Unit {
-                unit_only_star.push(*target);
-                continue;
-            }
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.lower_variant_construct(
-                    *target,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    layer_sink,
-                    expected,
-                )
-            }) {
-                Ok(layer) => star_successes.push((*target, layer)),
-                Err(failure) => {
-                    star_failure.get_or_insert(failure);
-                }
-            }
-        }
-        match star_successes.len() {
-            1 => {
-                let (_, layer) = star_successes.pop().expect("one star-layer winner");
-                return Some(self.commit_expr_layer(layer, sink));
-            }
-            2.. => {
-                let targets = star_successes
-                    .iter()
-                    .map(|(target, _)| *target)
-                    .collect::<Vec<_>>();
-                self.ambiguous_prelude_variant(&call.callee, &targets);
-                return None;
-            }
-            0 => {}
         }
 
         // Ordinary core-prelude variant constructors form their own layer

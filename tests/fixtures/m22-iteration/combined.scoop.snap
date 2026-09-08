@@ -1867,8 +1867,8 @@ Module mangling=persistent-v1
   class CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$1 vtable=0 itables=1
   class CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend vtable=0 itables=0
   class CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1 vtable=0 itables=1
-  class CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend vtable=0 itables=0
-  class CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Iterator$U
@@ -1897,7 +1897,7 @@ Module mangling=persistent-v1
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop$1$fn$9c2232725c17471bee2ee93f36ee3f2dde16d42722b1d791bbf76ba44881e450 captures=1
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop$1$fn$a33d0bc2c5d40311df13edce10147a9c417aeef107213489ea04da529f58d670 captures=1
   closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop$1$fn$5f19053876313999650489e9a08a3013587ad87b287623ba3a50f7a1b080c926 captures=0
-  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop$1$fn$bede1a382a4aaf5b09bc4059ec47ffd25e85483f6b5fa1daf3c65c60602df0a2 captures=1
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop$1$fn$346e64599f902bf56b4f786991f046c03a5dbd9788990ae53e0edc64f2bcb7ed captures=1
   fun Int8.rangeTo @scoop$1$fn$e269595a59cd3d1d1d6dd77e821b764c6f3a67e3604635770bc483baa4fcd378(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
@@ -4032,7 +4032,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7845,7 +7845,7 @@ Module mangling=persistent-v1
       return
         Type Long
         Local $call.1
-  fun Array.iterator @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262(this: Array<Int>) -> Iterator$I32
+  fun Array.iterator @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3(this: Array<Int>) -> Iterator$I32
     bb0 entry
       val $argument.0: Array<Int>
         Type Array<Int>
@@ -7896,7 +7896,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Long
@@ -8033,7 +8033,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Array<Int>
@@ -8071,7 +8071,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $call.1: EmptyValueIterator = @scoop$1$fn$97efab77a06b1d7996fae59e32a9d9e512d64f3cc1e1009547ca773cd701deed direct
@@ -8085,7 +8085,7 @@ Module mangling=persistent-v1
         FieldAccess 0
           Type RangeEntryIterator
           Local this
-      call next: Option$I32<Int> = @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a interface Iterator$I32[0]
+      call next: Option$I32<Int> = @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a interface Iterator$I32[0]
         Type Iterator$I32
         Local $receiver
       val $when.1: Option$I32<Int>
@@ -8278,7 +8278,7 @@ Module mangling=persistent-v1
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d interface Continuation$U[0]
+      call @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 interface Continuation$U[0]
         Type Continuation$U
         Local $receiver
         Type Unit
@@ -8302,7 +8302,7 @@ Module mangling=persistent-v1
           Type Continuation$U
           Local $parameter._1
       return
-  fun Array.iterator @scoop$1$fn$4672cd330e79c9a8951781475b5c56ad479cf1a111c19d34dd08d7b430ea55b6(this: Array<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
+  fun Array.iterator @scoop$1$fn$76c21a6994d31131e133abf88bb48fcc902e0cc216373ed5d574f2dd4a7351f0(this: Array<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
     bb0 entry
       val $argument.0: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
@@ -8407,7 +8407,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Long
@@ -8416,7 +8416,7 @@ Module mangling=persistent-v1
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588 direct
+      call @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a direct
         Type Long
         Local $parameter.value
       return
@@ -8428,7 +8428,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -8544,7 +8544,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       assign $result.0
@@ -8597,7 +8597,7 @@ Module mangling=persistent-v1
       val $receiver: Iterable$I32
         Type Iterable$I32
         Local $for.source.14
-      call $for.iterator.result.15: Iterator$I32 = @scoop$1$fn$ee17b8b2cfdc975c48cadc23424c4ecda70918b723335d38dabae117ec3b936d interface Iterable$I32[0]
+      call $for.iterator.result.15: Iterator$I32 = @scoop$1$fn$7cee2a974e202356b38589cf3f06811ef5f5af17baeb430c82856e0fbdd51c22 interface Iterable$I32[0]
         Type Iterable$I32
         Local $receiver
       val $for.iterator.16: Iterator$I32
@@ -8605,7 +8605,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.15
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.17: Option$I32<Int> = @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a interface Iterator$I32[0]
+      call $for.next.17: Option$I32<Int> = @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a interface Iterator$I32[0]
         Type Iterator$I32
         Local $for.iterator.16
       branch bb3 bb2
@@ -8644,7 +8644,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb1
@@ -8672,7 +8672,7 @@ Module mangling=persistent-v1
           Local $for.iterator.result.20
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.22: Option$U<Unit> = @scoop$1$fn$c3b57bd0f2cd25736179cfc24292d2fd483d248b8be74d7ee652c11cce6e13f5 interface Iterator$U[0]
+      call $for.next.22: Option$U<Unit> = @scoop$1$fn$eb22ac16c7643f1a0e63d9759af1abeb2ced029efa8b6c7ba906c34af63a3cf8 interface Iterator$U[0]
         Type Iterator$U
         Local $for.iterator.21
       branch bb3 bb2
@@ -8694,7 +8694,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb1
@@ -8726,7 +8726,7 @@ Module mangling=persistent-v1
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.24
-      call $for.iterator.result.25: Iterator$I32 = @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262 direct
+      call $for.iterator.result.25: Iterator$I32 = @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3 direct
         Type Array<Int>
         Local $receiver
       val $for.iterator.26: Iterator$I32
@@ -8734,7 +8734,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.25
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.27: Option$I32<Int> = @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a interface Iterator$I32[0]
+      call $for.next.27: Option$I32<Int> = @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a interface Iterator$I32[0]
         Type Iterator$I32
         Local $for.iterator.26
       branch bb3 bb2
@@ -8759,7 +8759,7 @@ Module mangling=persistent-v1
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.29
-      call $for.iterator.result.30: Iterator$I32 = @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262 direct
+      call $for.iterator.result.30: Iterator$I32 = @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3 direct
         Type Array<Int>
         Local $receiver
       val $for.iterator.31: Iterator$I32
@@ -8767,7 +8767,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.30
       goto bb4
     bb4 while.cond.4 <loop-header-poll>
-      call $for.next.32: Option$I32<Int> = @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a interface Iterator$I32[0]
+      call $for.next.32: Option$I32<Int> = @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a interface Iterator$I32[0]
         Type Iterator$I32
         Local $for.iterator.31
       branch bb6 bb5
@@ -8844,7 +8844,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$a92b5d41185529a9ea075f9a510fe97f632490655211a566798f19e635af85ae direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       goto bb4
@@ -8867,7 +8867,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$a92b5d41185529a9ea075f9a510fe97f632490655211a566798f19e635af85ae direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       goto bb1
@@ -8890,7 +8890,7 @@ Module mangling=persistent-v1
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.34
-      call $for.iterator.result.35: Iterator$I32 = @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262 direct
+      call $for.iterator.result.35: Iterator$I32 = @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3 direct
         Type Array<Int>
         Local $receiver
       val $for.iterator.36: Iterator$I32
@@ -8898,7 +8898,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.35
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.37: Option$I32<Int> = @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a interface Iterator$I32[0]
+      call $for.next.37: Option$I32<Int> = @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a interface Iterator$I32[0]
         Type Iterator$I32
         Local $for.iterator.36
       branch bb3 bb2
@@ -8947,7 +8947,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb12
@@ -8980,7 +8980,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb1
@@ -8991,7 +8991,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb15
@@ -9016,7 +9016,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb16
@@ -9041,7 +9041,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb2
@@ -9066,7 +9066,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb8
@@ -9091,7 +9091,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       rethrow unwind bb6
@@ -9372,7 +9372,7 @@ Module mangling=persistent-v1
       val $parameter.readers: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local $argument.1
-      call @scoop$1$fn$d97236820e3f267e6fe39f8b8c3821747c3d3d9e76884dd9d42db477e81351a4 direct
+      call @scoop$1$fn$be38e878fda9f006a8cf06f37a28dc7e8dfb3931087b4407774235998cb3ed2d direct
         Type Array<Entry$C4_NodeX>
         Local $parameter.entries
         Type MutableArray<() -> Node>
@@ -9390,7 +9390,7 @@ Module mangling=persistent-v1
       val $parameter.render: (Node) -> String
         Type (Node) -> String
         Local $argument.1
-      call @scoop$1$fn$622a7604b76f014978c36c10c2dcf04382626ec3061797e210935e902ee1cea2 direct
+      call @scoop$1$fn$1b9b04dcaf54c99f375643263e725b4d724444fe8d8a934181942f301f3f3b4c direct
         Type MutableArray<() -> Node>
         Local $parameter.readers
         Type (Node) -> String
@@ -9514,7 +9514,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -9530,7 +9530,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -9569,7 +9569,7 @@ Module mangling=persistent-v1
         FieldAccess 0
           Type Node
           Local node
-  fun println @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -9593,7 +9593,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$a92b5d41185529a9ea075f9a510fe97f632490655211a566798f19e635af85ae(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -9617,7 +9617,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun installReaders @scoop$1$fn$d97236820e3f267e6fe39f8b8c3821747c3d3d9e76884dd9d42db477e81351a4(entries: Array<Entry$C4_NodeX>, readers: MutableArray<() -> Node>) -> Unit
+  fun installReaders @scoop$1$fn$be38e878fda9f006a8cf06f37a28dc7e8dfb3931087b4407774235998cb3ed2d(entries: Array<Entry$C4_NodeX>, readers: MutableArray<() -> Node>) -> Unit
     bb0 entry
       val $argument.0: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
@@ -9625,13 +9625,13 @@ Module mangling=persistent-v1
       val $parameter.values: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
         Local $argument.0
-      call $for.source.1: Array<Entry$C4_NodeX> = @scoop$1$fn$d4a6bd2e3a637010a68204fbb0fe08c7d73bcb89bb8975c26ea78539f0ebb742 direct
+      call $for.source.1: Array<Entry$C4_NodeX> = @scoop$1$fn$0136137d93190a45444f2175f9d554fa5df6ead93d09dfc5ebcae91388bb8e4f direct
         Type Array<Entry$C4_NodeX>
         Local $parameter.values
       val $receiver: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
         Local $for.source.1
-      call $for.iterator.result.2: Iterator$D14_Entry$C4_NodeXX = @scoop$1$fn$4672cd330e79c9a8951781475b5c56ad479cf1a111c19d34dd08d7b430ea55b6 direct
+      call $for.iterator.result.2: Iterator$D14_Entry$C4_NodeXX = @scoop$1$fn$76c21a6994d31131e133abf88bb48fcc902e0cc216373ed5d574f2dd4a7351f0 direct
         Type Array<Entry$C4_NodeX>
         Local $receiver
       val $for.iterator.3: Iterator$D14_Entry$C4_NodeXX
@@ -9639,7 +9639,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.2
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.4: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$edd1c6b6c3337af4c9ff7eae300fb5d4f32ea65389d43d44f588b06c70931073 interface Iterator$D14_Entry$C4_NodeXX[0]
+      call $for.next.4: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$d419be0835728bbeb4d089e472be7c7eaa5430c2df38b58c7cddb9b3f4f5d497 interface Iterator$D14_Entry$C4_NodeXX[0]
         Type Iterator$D14_Entry$C4_NodeXX
         Local $for.iterator.3
       branch bb3 bb2
@@ -9748,7 +9748,7 @@ Module mangling=persistent-v1
         Type () -> Node
         Local $value.3
       goto bb1
-  fun replayReaders @scoop$1$fn$622a7604b76f014978c36c10c2dcf04382626ec3061797e210935e902ee1cea2(readers: MutableArray<() -> Node>, render: (Node) -> String) -> Unit
+  fun replayReaders @scoop$1$fn$1b9b04dcaf54c99f375643263e725b4d724444fe8d8a934181942f301f3f3b4c(readers: MutableArray<() -> Node>, render: (Node) -> String) -> Unit
     bb0 entry
       val $for.source.9: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
@@ -9756,7 +9756,7 @@ Module mangling=persistent-v1
       val $receiver: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local $for.source.9
-      call $for.iterator.result.10: Iterator$FRC4_NodeXX = @scoop$1$fn$5c5ecee0f84ec6138eb0c6150af7fa78c8d7e519837dae9d6e092a996bb95c1a direct
+      call $for.iterator.result.10: Iterator$FRC4_NodeXX = @scoop$1$fn$6d9674ba7ff1af9fa05d92d560973fb8bb919f455ffde9e33b75a32c530db70b direct
         Type MutableArray<() -> Node>
         Local $receiver
       val $for.iterator.11: Iterator$FRC4_NodeXX
@@ -9764,7 +9764,7 @@ Module mangling=persistent-v1
         Local $for.iterator.result.10
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.12: Option$FRC4_NodeXX<() -> Node> = @scoop$1$fn$72289591573e2f52e0628b08b1516ab8323efe39496e3d829857e15655258628 interface Iterator$FRC4_NodeXX[0]
+      call $for.next.12: Option$FRC4_NodeXX<() -> Node> = @scoop$1$fn$27f723d0d851b82234ad34d726b872ada413fd006ad51d124edd75692827cf31 interface Iterator$FRC4_NodeXX[0]
         Type Iterator$FRC4_NodeXX
         Local $for.iterator.11
       branch bb3 bb2
@@ -9794,11 +9794,11 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb1
-  fun delayedSource @scoop$1$fn$53def6751767662a331177de7dcdc689ace4a3712e17096d30caf26a6bb00af4(gate: Gate, values: Array<Entry$C4_NodeX>) -> DelayedIterable$D14_Entry$C4_NodeXX
+  fun delayedSource @scoop$1$fn$26223a658cb1dd45e71f5d52cbbff3d292c43cf04b2d0f65475809e89e394509(gate: Gate, values: Array<Entry$C4_NodeX>) -> DelayedIterable$D14_Entry$C4_NodeXX
     bb0 entry
       val $argument.0: String
         Type String
@@ -9806,7 +9806,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -9834,7 +9834,7 @@ Module mangling=persistent-v1
       return
         Type DelayedIterable$D14_Entry$C4_NodeXX
         Local $new.1
-  fun println @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588(value: Long) -> Unit
+  fun println @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(value: Long) -> Unit
     bb0 entry
       val $receiver: Long
         Type Long
@@ -9858,7 +9858,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun MutableArray.iterator @scoop$1$fn$90d0672e259515d88bf8d8a1936fc3d7e787dd9835a3d5eef6f1c62f1c7f7f90(this: MutableArray<Int>) -> Iterator$I32
+  fun MutableArray.iterator @scoop$1$fn$7b5d7e7550d4e0efe6b344c87349664687598383c1998a2569068fee45b1d71a(this: MutableArray<Int>) -> Iterator$I32
     bb0 entry
       val $argument.0: MutableArray<Int>
         Type MutableArray<Int>
@@ -9885,7 +9885,7 @@ Module mangling=persistent-v1
       return
         Type MutableArrayIterator$I32
         Local $new.1
-  fun ArrayIterator.next @scoop$1$fn$f29c1da8f4815e14871365f5956acdbdb9aabf1fb2a242f753785933ee2cda48(this: ArrayIterator$I32) -> Option$I32<Int>
+  fun ArrayIterator.next @scoop$1$fn$e84f32528cecfcddb83b2d2a59bb852f676129ae081472c535ec950b21081bc3(this: ArrayIterator$I32) -> Option$I32<Int>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -10013,7 +10013,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$I32<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArray.iterator @scoop$1$fn$3fa76317b8604dfcad9ba980641cc5f700bb56fb414667dfe6b93b2a14992985(this: MutableArray<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
+  fun MutableArray.iterator @scoop$1$fn$6ad78284bdd09765bf752089a9a924502fb04e1c11dbbae76df42f21d9e59954(this: MutableArray<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
     bb0 entry
       val $argument.0: MutableArray<Entry$C4_NodeX>
         Type MutableArray<Entry$C4_NodeX>
@@ -10040,7 +10040,7 @@ Module mangling=persistent-v1
       return
         Type MutableArrayIterator$D14_Entry$C4_NodeXX
         Local $new.1
-  fun ArrayIterator.next @scoop$1$fn$2126b9836f00569f63f17b21c9c56583c77b32f9706239718264e6c15461e26a(this: ArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun ArrayIterator.next @scoop$1$fn$1a0e083c6a2ae06de264ac1e5415124a911a82426bc761573db3400315fbddbe(this: ArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -10168,42 +10168,42 @@ Module mangling=persistent-v1
         VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
           Type Entry$C4_NodeX
           Local $parameter._1
-  fun DelayedIterable.iterator @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend(this: DelayedIterable$D14_Entry$C4_NodeXX, $completion: Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX) -> CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+  fun DelayedIterable.iterator @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend(this: DelayedIterable$D14_Entry$C4_NodeXX, $completion: Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX) -> CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX
     bb0 entry
-      val $frame: CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
-        ClassAlloc CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+      val $frame: CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
+        ClassAlloc CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
       field_set 0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       field_set 1
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         Local $completion
       field_set 2
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX
         VariantConstruct CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX v1
           Type DelayedIterable$D14_Entry$C4_NodeXX
           Local this
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v0
-      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
         Type CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         Local $step
-  fun DelayedIterator.next @scoop$1$fn$aaa21167c3b9cb024fe8ab403d11f1c8c63ca7e8fd7baba3708c5ee54d07960e(this: DelayedIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun DelayedIterator.next @scoop$1$fn$570422b418533defc3195be16bd13034ef0d9fc81f7400480ddf5f1b457ef2c1(this: DelayedIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
     bb0 entry
       val $receiver: String
         Type String
@@ -10227,7 +10227,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Long
@@ -10356,7 +10356,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
           Type Entry$C4_NodeX
           Local $parameter._1
-  fun MutableArray.iterator @scoop$1$fn$5c5ecee0f84ec6138eb0c6150af7fa78c8d7e519837dae9d6e092a996bb95c1a(this: MutableArray<() -> Node>) -> Iterator$FRC4_NodeXX
+  fun MutableArray.iterator @scoop$1$fn$6d9674ba7ff1af9fa05d92d560973fb8bb919f455ffde9e33b75a32c530db70b(this: MutableArray<() -> Node>) -> Iterator$FRC4_NodeXX
     bb0 entry
       val $argument.0: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
@@ -10383,7 +10383,7 @@ Module mangling=persistent-v1
       return
         Type MutableArrayIterator$FRC4_NodeXX
         Local $new.1
-  fun markArray @scoop$1$fn$d4a6bd2e3a637010a68204fbb0fe08c7d73bcb89bb8975c26ea78539f0ebb742(values: Array<Entry$C4_NodeX>) -> Array<Entry$C4_NodeX>
+  fun markArray @scoop$1$fn$0136137d93190a45444f2175f9d554fa5df6ead93d09dfc5ebcae91388bb8e4f(values: Array<Entry$C4_NodeX>) -> Array<Entry$C4_NodeX>
     bb0 entry
       val $argument.0: String
         Type String
@@ -10391,20 +10391,20 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
         Type Array<Entry$C4_NodeX>
         Local values
-  fun $lambda.0 @scoop$1$fn$bede1a382a4aaf5b09bc4059ec47ffd25e85483f6b5fa1daf3c65c60602df0a2($closure: () -> Node) -> Node
+  fun $lambda.0 @scoop$1$fn$346e64599f902bf56b4f786991f046c03a5dbd9788990ae53e0edc64f2bcb7ed($closure: () -> Node) -> Node
     bb0 entry
       return
         Type Node
         ClosureCapture cc4 0
           Type () -> Node
           Local $closure
-  fun MutableArrayIterator.next @scoop$1$fn$1d856e718d30a394d96f95e9c636370fcd984ad4bfba5d521e2c72ce99e96d09(this: MutableArrayIterator$I32) -> Option$I32<Int>
+  fun MutableArrayIterator.next @scoop$1$fn$ab6e9d57109bc87e1700fbe4a24717af8450cac0bb6d0dc5a079da436f2aad68(this: MutableArrayIterator$I32) -> Option$I32<Int>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -10532,7 +10532,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$I32<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArrayIterator.next @scoop$1$fn$9c6095ac1e77cde2c4c5876f715a5ce5e4a581e2066680e2ecd1efa1cad086ec(this: MutableArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun MutableArrayIterator.next @scoop$1$fn$c143616f4be4aa65e62d41b2cc34d94561eb4e7a7136873dc41e9ef729a1612a(this: MutableArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -10660,7 +10660,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
           Type Entry$C4_NodeX
           Local $parameter._1
-  fun Array.iterator @scoop$1$fn$b25d219e5a91c27e7b8cf41eebdad048c9376c634ab295ef81e8534bdde5d024(this: Array<() -> Node>) -> Iterator$FRC4_NodeXX
+  fun Array.iterator @scoop$1$fn$5fa2bd47f3bda55f47f59baddd10af844ced230a061c064b6c5c304caf4aa69b(this: Array<() -> Node>) -> Iterator$FRC4_NodeXX
     bb0 entry
       val $argument.0: Array<() -> Node>
         Type Array<() -> Node>
@@ -10687,7 +10687,7 @@ Module mangling=persistent-v1
       return
         Type ArrayIterator$FRC4_NodeXX
         Local $new.1
-  fun MutableArrayIterator.next @scoop$1$fn$20e9ae6d8729f546c0ea92766ae9bb3ac86edc439d554d541df0ad471dd47bac(this: MutableArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
+  fun MutableArrayIterator.next @scoop$1$fn$db9df990c339fff6fbf2e0cadb6791dc011ecf2686746a34939892a1e7ca4260(this: MutableArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -10815,7 +10815,7 @@ Module mangling=persistent-v1
         VariantConstruct Option$FRC4_NodeXX<() -> Node> v0
           Type () -> Node
           Local $parameter._1
-  fun ArrayIterator.next @scoop$1$fn$85f339c20a67587b4f2a24e5fa3bf3558b3e3f99b25f8ff019530dd97629329c(this: ArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
+  fun ArrayIterator.next @scoop$1$fn$09ecbd7133fb2e3c614072dd13bbac333546bd7977f3405dde70bf61e4f137fe(this: ArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -11587,7 +11587,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$a3a8b1b25d3041d1200ec84dbfb0ef5c87bced2fb4c5cad4f8f4f2a33ea61e58 interface Continuation$I64[0]
+      call @scoop$1$fn$aadb82212f5efbe60083e6e25711ece2d122595e9617dba4c80af995ca51ca95 interface Continuation$I64[0]
         Type Continuation$I64
         Local completion
         Type Long
@@ -11596,7 +11596,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$89d4035c5bb83be01a992e39e6206ee83b77df3be2a325ac8989e0cebda65721 interface Continuation$I64[1]
+      call @scoop$1$fn$ac3b942584094365e3219f30cad65d2116f86827f7f06b55da85524efb65b2a1 interface Continuation$I64[1]
         Type Continuation$I64
         Local completion
         Type Throwable
@@ -11611,7 +11611,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$I64 = @scoop$1$fn$0ad14b8f50f186a7342228b394893053cd22b0af2d2265cbb07bfd195c33b88a$suspend interface SuspendTask$I64[0]
+      call $step: CoroutineStep$I64 = @scoop$1$fn$70fbfbc0a304151c0fe826ceec1d70f9eb6208f7378291694436a21ab84b9898$suspend interface SuspendTask$I64[0]
         Type SuspendTask$I64
         Local task
         Type Continuation$I64
@@ -11656,7 +11656,7 @@ Module mangling=persistent-v1
       val $parameter.values: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
         Local $argument.1
-      call $for.source.44: DelayedIterable$D14_Entry$C4_NodeXX = @scoop$1$fn$53def6751767662a331177de7dcdc689ace4a3712e17096d30caf26a6bb00af4 direct
+      call $for.source.44: DelayedIterable$D14_Entry$C4_NodeXX = @scoop$1$fn$26223a658cb1dd45e71f5d52cbbff3d292c43cf04b2d0f65475809e89e394509 direct
         Type Gate
         Local $parameter.gate
         Type Array<Entry$C4_NodeX>
@@ -11696,7 +11696,7 @@ Module mangling=persistent-v1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend direct
+      call $step.1: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend direct
         Type DelayedIterable$D14_Entry$C4_NodeXX
         Local $receiver
         Type CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$1
@@ -11711,7 +11711,7 @@ Module mangling=persistent-v1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.47: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$edd1c6b6c3337af4c9ff7eae300fb5d4f32ea65389d43d44f588b06c70931073 interface Iterator$D14_Entry$C4_NodeXX[0]
+      call $for.next.47: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$d419be0835728bbeb4d089e472be7c7eaa5430c2df38b58c7cddb9b3f4f5d497 interface Iterator$D14_Entry$C4_NodeXX[0]
         Type Iterator$D14_Entry$C4_NodeXX
         Local $for.iterator.46
       branch bb3 bb2
@@ -11855,7 +11855,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb4 bb5
@@ -11886,7 +11886,7 @@ Module mangling=persistent-v1
           Local $parameter.other
       goto bb1
     bb6 while.cond.6 <loop-header-poll>
-      call $for.next.56: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$edd1c6b6c3337af4c9ff7eae300fb5d4f32ea65389d43d44f588b06c70931073 interface Iterator$D14_Entry$C4_NodeXX[0]
+      call $for.next.56: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @scoop$1$fn$d419be0835728bbeb4d089e472be7c7eaa5430c2df38b58c7cddb9b3f4f5d497 interface Iterator$D14_Entry$C4_NodeXX[0]
         Type Iterator$D14_Entry$C4_NodeXX
         Local $for.iterator.55
       branch bb8 bb7
@@ -12087,7 +12087,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb32 bb33
@@ -12119,7 +12119,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb13 bb14
@@ -12136,7 +12136,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb15
@@ -12169,7 +12169,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb16 bb17
@@ -12186,7 +12186,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -12292,7 +12292,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb6
@@ -12303,7 +12303,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb19
@@ -12316,7 +12316,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb22
@@ -12343,7 +12343,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: Long
@@ -12391,7 +12391,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb23 bb24
@@ -12408,7 +12408,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -12500,7 +12500,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb7
@@ -12511,7 +12511,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb26
@@ -12538,7 +12538,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       branch bb28 bb29
@@ -12555,7 +12555,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -12661,7 +12661,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb11
@@ -12672,7 +12672,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb31
@@ -12685,7 +12685,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -12777,7 +12777,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       throw
@@ -12790,7 +12790,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb35
@@ -12808,7 +12808,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: IntRange
@@ -12956,7 +12956,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: IntRange
@@ -13132,7 +13132,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: IntRange
@@ -13280,7 +13280,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $receiver: IntRange
@@ -15015,7 +15015,7 @@ Module mangling=persistent-v1
           Type Unit
           UnitLiteral
     bb2 coroutine.register.1 unwind bb22
-      call @scoop$1$fn$582a0d1a1db3ac6ffb1a910323e6a9e6f989a534406e2717a61ae471b96dbd01 interface SuspendRegistration$U[0]
+      call @scoop$1$fn$7f41d9e86687e1d2ad857a669ffb7d5cc9ca4aa3b4ce6666a39d9e3429dff6e3 interface SuspendRegistration$U[0]
         Type SuspendRegistration$U
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1
@@ -15618,7 +15618,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun DelayedIterable.iterator$drive @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive($frame: CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+  fun DelayedIterable.iterator$drive @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive($frame: CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX
     bb0 entry
       val $argument.0: String
         Type String
@@ -15626,7 +15626,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Gate
@@ -15638,34 +15638,34 @@ Module mangling=persistent-v1
         Type Gate
         Local $argument.0
       field_set 2
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX
         VariantConstruct CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX v1
           Type DelayedIterable$D14_Entry$C4_NodeXX
           Local this
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $adapter.1: CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
-        ClassAlloc CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+      val $adapter.1: CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
+        ClassAlloc CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
       field_set 0
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local $adapter.1
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
       field_set 1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
       call $step.1: CoroutineStep$U = @scoop$1$fn$424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d$suspend direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local $adapter.1
       branch bb5 bb6
         Type Boolean
@@ -15683,7 +15683,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Array<Entry$C4_NodeX>
@@ -15731,7 +15731,7 @@ Module mangling=persistent-v1
       val $completed_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -15748,7 +15748,7 @@ Module mangling=persistent-v1
       val $completed_adapter_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local $adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -15771,7 +15771,7 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+            Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
             Local $frame
       goto bb1
     bb8 coroutine.failure.1
@@ -15780,14 +15780,14 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+            Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
             Local $frame
       throw
         Type Throwable
         EnumField v1 f0
           Type CoroutineSlot$C9_ThrowableX
           FieldAccess 3
-            Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+            Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
             Local $frame
     bb9 coroutine.initial
       assign this
@@ -15795,10 +15795,10 @@ Module mangling=persistent-v1
         EnumField v1 f0
           Type CoroutineSlot$C35_DelayedIterable$D14_Entry$C4_NodeXXX
           FieldAccess 2
-            Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+            Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
@@ -15837,7 +15837,7 @@ Module mangling=persistent-v1
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1, value: Unit) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume$1(this: CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1, value: Unit) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -15850,18 +15850,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$8cb645d974fa303096fc8f783dd8e821f8a30061d1efd1acc306555cdf8d7458 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[0]
         Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
         Type DelayedIterator$D14_Entry$C4_NodeXX
         EnumField v0 f0
@@ -15872,18 +15872,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$d5b255a7eb0d2d07da039664a51294685c4c8d7446ec99fc33f68cc90a7d43d5 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[1]
         Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -15898,14 +15898,14 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -15920,7 +15920,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -15929,9 +15929,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -15948,7 +15948,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -15961,7 +15961,7 @@ Module mangling=persistent-v1
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume_exception$1(this: CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -15974,18 +15974,18 @@ Module mangling=persistent-v1
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$8cb645d974fa303096fc8f783dd8e821f8a30061d1efd1acc306555cdf8d7458 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[0]
         Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
         Type DelayedIterator$D14_Entry$C4_NodeXX
         EnumField v0 f0
@@ -15996,18 +15996,18 @@ Module mangling=persistent-v1
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
       call @scoop$1$fn$d5b255a7eb0d2d07da039664a51294685c4c8d7446ec99fc33f68cc90a7d43d5 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[1]
         Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
         FieldAccess 1
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
         Type Throwable
         Local $uncaught
@@ -16022,23 +16022,23 @@ Module mangling=persistent-v1
       goto bb3
     bb5 valid unwind bb4
       field_set 3
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type CoroutineSlot$C9_ThrowableX
         VariantConstruct CoroutineSlot$C9_ThrowableX v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive direct
-        Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+      call $step: CoroutineStep$C35_DelayedIterator$D14_Entry$C4_NodeXXX = @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive direct
+        Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
         FieldAccess 0
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
@@ -16053,7 +16053,7 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+        Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -16062,9 +16062,9 @@ Module mangling=persistent-v1
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend
+          Type CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend
           FieldAccess 0
-            Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+            Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -16081,7 +16081,7 @@ Module mangling=persistent-v1
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1
+          Type CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -16117,13 +16117,13 @@ Module mangling=persistent-v1
   coroutine_saved cv6 class=CoroutineFrame$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend field=8 slot=cl6 value=RangeCheckpoint
   coroutine_saved cv7 class=CoroutineFrame$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend field=9 slot=cl7 value=Throwable
   coroutine_saved cv8 class=CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend field=2 slot=cl8 value=Gate
-  coroutine_saved cv9 class=CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend field=2 slot=cl10 value=DelayedIterable$D14_Entry$C4_NodeXX
+  coroutine_saved cv9 class=CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend field=2 slot=cl10 value=DelayedIterable$D14_Entry$C4_NodeXX
   coroutine_failure cx0 class=CoroutineFrame$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend field=10 slot=cl7 throwable=Throwable
   coroutine_failure cx1 class=CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend field=3 slot=cl7 throwable=Throwable
-  coroutine_failure cx2 class=CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend field=3 slot=cl7 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend field=3 slot=cl7 throwable=Throwable
   coroutine_frame cr0 CoroutineFrame$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2,cv3,cv4,cv5,cv6,cv7] failure=cx0
   coroutine_frame cr1 CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend owner=cf1 state=field0 completion=field1 saved=[cv8] failure=cx1
-  coroutine_frame cr2 CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend owner=cf2 state=field0 completion=field1 saved=[cv9] failure=cx2
+  coroutine_frame cr2 CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend owner=cf2 state=field0 completion=field1 saved=[cv9] failure=cx2
   coroutine_resume cp0 site=5 result=Unit frame=cr0 adapter=CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$5 resume=@scoop$1$fn$c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9$suspend$resume$5 failure=@scoop$1$fn$c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9$suspend$resume_exception$5
     success suspended.5 -> ManagedThrow(cv7, unwind=propagate) -> Fallthrough(bb36)
       entry=bb42
@@ -16154,56 +16154,56 @@ Module mangling=persistent-v1
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
       entry=bb24
-  coroutine_resume cp6 site=1 result=Unit frame=cr2 adapter=CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1 resume=@scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume$1 failure=@scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume_exception$1
+  coroutine_resume cp6 site=1 result=Unit frame=cr2 adapter=CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1 resume=@scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume$1 failure=@scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume_exception$1
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb8
   coroutine_fn cf0 @scoop$1$fn$c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9$suspend source_return=Long step=cs0 frame=cr0 driver=@scoop$1$fn$c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9$suspend$drive resumes=[cp4,cp3,cp2,cp1,cp0]
   coroutine_fn cf1 @scoop$1$fn$424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d$suspend source_return=Unit step=cs1 frame=cr1 driver=@scoop$1$fn$424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d$suspend$drive resumes=[cp5]
-  coroutine_fn cf2 @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 frame=cr2 driver=@scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive resumes=[cp6]
-  coroutine_fn cf3 @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend source_return=Unit step=cs1 immediate
-  coroutine_fn cf4 @scoop$1$fn$0ad14b8f50f186a7342228b394893053cd22b0af2d2265cbb07bfd195c33b88a$suspend source_return=Long step=cs0 immediate
-  coroutine_fn cf5 @scoop$1$fn$9ff875c8ae288875f406c27fd8e6d2462d7a24e14388daa08f4be041b472bb9a$suspend source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 immediate
-  instance @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262 <- Array.iterator
-  instance @scoop$1$fn$4672cd330e79c9a8951781475b5c56ad479cf1a111c19d34dd08d7b430ea55b6 <- Array.iterator
-  instance @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e <- println
-  instance @scoop$1$fn$a92b5d41185529a9ea075f9a510fe97f632490655211a566798f19e635af85ae <- println
-  instance @scoop$1$fn$d97236820e3f267e6fe39f8b8c3821747c3d3d9e76884dd9d42db477e81351a4 <- installReaders
-  instance @scoop$1$fn$622a7604b76f014978c36c10c2dcf04382626ec3061797e210935e902ee1cea2 <- replayReaders
-  instance @scoop$1$fn$53def6751767662a331177de7dcdc689ace4a3712e17096d30caf26a6bb00af4 <- delayedSource
-  instance @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588 <- println
-  instance @scoop$1$fn$90d0672e259515d88bf8d8a1936fc3d7e787dd9835a3d5eef6f1c62f1c7f7f90 <- MutableArray.iterator
-  instance @scoop$1$fn$f29c1da8f4815e14871365f5956acdbdb9aabf1fb2a242f753785933ee2cda48 <- ArrayIterator.next
-  instance @scoop$1$fn$3fa76317b8604dfcad9ba980641cc5f700bb56fb414667dfe6b93b2a14992985 <- MutableArray.iterator
-  instance @scoop$1$fn$2126b9836f00569f63f17b21c9c56583c77b32f9706239718264e6c15461e26a <- ArrayIterator.next
-  instance @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend <- DelayedIterable.iterator
-  instance @scoop$1$fn$aaa21167c3b9cb024fe8ab403d11f1c8c63ca7e8fd7baba3708c5ee54d07960e <- DelayedIterator.next
-  instance @scoop$1$fn$5c5ecee0f84ec6138eb0c6150af7fa78c8d7e519837dae9d6e092a996bb95c1a <- MutableArray.iterator
-  instance @scoop$1$fn$d4a6bd2e3a637010a68204fbb0fe08c7d73bcb89bb8975c26ea78539f0ebb742 <- markArray
-  instance @scoop$1$fn$bede1a382a4aaf5b09bc4059ec47ffd25e85483f6b5fa1daf3c65c60602df0a2 <- $lambda.0
-  instance @scoop$1$fn$1d856e718d30a394d96f95e9c636370fcd984ad4bfba5d521e2c72ce99e96d09 <- MutableArrayIterator.next
-  instance @scoop$1$fn$9c6095ac1e77cde2c4c5876f715a5ce5e4a581e2066680e2ecd1efa1cad086ec <- MutableArrayIterator.next
-  instance @scoop$1$fn$b25d219e5a91c27e7b8cf41eebdad048c9376c634ab295ef81e8534bdde5d024 <- Array.iterator
-  instance @scoop$1$fn$20e9ae6d8729f546c0ea92766ae9bb3ac86edc439d554d541df0ad471dd47bac <- MutableArrayIterator.next
-  instance @scoop$1$fn$85f339c20a67587b4f2a24e5fa3bf3558b3e3f99b25f8ff019530dd97629329c <- ArrayIterator.next
-  instance @scoop$1$fn$3a00caf1624446136ec13834e3e9f1cec995c021ccb01a075d129284625ae82a <- Iterator.next
-  instance @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d <- Continuation.resume
-  instance @scoop$1$fn$edd1c6b6c3337af4c9ff7eae300fb5d4f32ea65389d43d44f588b06c70931073 <- Iterator.next
-  instance @scoop$1$fn$ee17b8b2cfdc975c48cadc23424c4ecda70918b723335d38dabae117ec3b936d <- Iterable.iterator
-  instance @scoop$1$fn$c3b57bd0f2cd25736179cfc24292d2fd483d248b8be74d7ee652c11cce6e13f5 <- Iterator.next
-  instance @scoop$1$fn$72289591573e2f52e0628b08b1516ab8323efe39496e3d829857e15655258628 <- Iterator.next
-  instance @scoop$1$fn$ad67ae4d7c97fc85752215009e2cef689c6913c6a549add2d75e9a3769ed931e <- Continuation.resumeWithException
-  instance @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend <- SuspendTask.run
-  instance @scoop$1$fn$582a0d1a1db3ac6ffb1a910323e6a9e6f989a534406e2717a61ae471b96dbd01 <- SuspendRegistration.register
-  instance @scoop$1$fn$a3a8b1b25d3041d1200ec84dbfb0ef5c87bced2fb4c5cad4f8f4f2a33ea61e58 <- Continuation.resume
-  instance @scoop$1$fn$89d4035c5bb83be01a992e39e6206ee83b77df3be2a325ac8989e0cebda65721 <- Continuation.resumeWithException
-  instance @scoop$1$fn$0ad14b8f50f186a7342228b394893053cd22b0af2d2265cbb07bfd195c33b88a$suspend <- SuspendTask.run
-  instance @scoop$1$fn$1609a843ce0e6975a570da4e6948784a0da4cbef91c756b03cdde871b956fab6 <- SuspendRegistration.register
-  instance @scoop$1$fn$e3c3d008a9dcc5d25cff3d14d09db74e1136db111e72768acb38934ff548d7c6 <- Continuation.resume
-  instance @scoop$1$fn$67118726a3edd407ef6177a440e46699d4c14cdf0b633fe421a7430f87b015e8 <- Continuation.resumeWithException
-  instance @scoop$1$fn$9ff875c8ae288875f406c27fd8e6d2462d7a24e14388daa08f4be041b472bb9a$suspend <- SuspendTask.run
-  instance @scoop$1$fn$b49cad8283e162c768d6c30a331cd77cda0b4605e54a517f781de9f63a3b965f <- SuspendRegistration.register
+  coroutine_fn cf2 @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 frame=cr2 driver=@scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive resumes=[cp6]
+  coroutine_fn cf3 @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend source_return=Unit step=cs1 immediate
+  coroutine_fn cf4 @scoop$1$fn$70fbfbc0a304151c0fe826ceec1d70f9eb6208f7378291694436a21ab84b9898$suspend source_return=Long step=cs0 immediate
+  coroutine_fn cf5 @scoop$1$fn$63a733ea5335ec147330ca431d92dce8a871e1f37fd45a2b8c68f8f91bae98c5$suspend source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 immediate
+  instance @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3 <- Array.iterator
+  instance @scoop$1$fn$76c21a6994d31131e133abf88bb48fcc902e0cc216373ed5d574f2dd4a7351f0 <- Array.iterator
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$be38e878fda9f006a8cf06f37a28dc7e8dfb3931087b4407774235998cb3ed2d <- installReaders
+  instance @scoop$1$fn$1b9b04dcaf54c99f375643263e725b4d724444fe8d8a934181942f301f3f3b4c <- replayReaders
+  instance @scoop$1$fn$26223a658cb1dd45e71f5d52cbbff3d292c43cf04b2d0f65475809e89e394509 <- delayedSource
+  instance @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a <- println
+  instance @scoop$1$fn$7b5d7e7550d4e0efe6b344c87349664687598383c1998a2569068fee45b1d71a <- MutableArray.iterator
+  instance @scoop$1$fn$e84f32528cecfcddb83b2d2a59bb852f676129ae081472c535ec950b21081bc3 <- ArrayIterator.next
+  instance @scoop$1$fn$6ad78284bdd09765bf752089a9a924502fb04e1c11dbbae76df42f21d9e59954 <- MutableArray.iterator
+  instance @scoop$1$fn$1a0e083c6a2ae06de264ac1e5415124a911a82426bc761573db3400315fbddbe <- ArrayIterator.next
+  instance @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend <- DelayedIterable.iterator
+  instance @scoop$1$fn$570422b418533defc3195be16bd13034ef0d9fc81f7400480ddf5f1b457ef2c1 <- DelayedIterator.next
+  instance @scoop$1$fn$6d9674ba7ff1af9fa05d92d560973fb8bb919f455ffde9e33b75a32c530db70b <- MutableArray.iterator
+  instance @scoop$1$fn$0136137d93190a45444f2175f9d554fa5df6ead93d09dfc5ebcae91388bb8e4f <- markArray
+  instance @scoop$1$fn$346e64599f902bf56b4f786991f046c03a5dbd9788990ae53e0edc64f2bcb7ed <- $lambda.0
+  instance @scoop$1$fn$ab6e9d57109bc87e1700fbe4a24717af8450cac0bb6d0dc5a079da436f2aad68 <- MutableArrayIterator.next
+  instance @scoop$1$fn$c143616f4be4aa65e62d41b2cc34d94561eb4e7a7136873dc41e9ef729a1612a <- MutableArrayIterator.next
+  instance @scoop$1$fn$5fa2bd47f3bda55f47f59baddd10af844ced230a061c064b6c5c304caf4aa69b <- Array.iterator
+  instance @scoop$1$fn$db9df990c339fff6fbf2e0cadb6791dc011ecf2686746a34939892a1e7ca4260 <- MutableArrayIterator.next
+  instance @scoop$1$fn$09ecbd7133fb2e3c614072dd13bbac333546bd7977f3405dde70bf61e4f137fe <- ArrayIterator.next
+  instance @scoop$1$fn$6adaf9003e8d01831b397c942268beb99d4bac3f80c4dcfc7d0e29dcfe24b35a <- Iterator.next
+  instance @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 <- Continuation.resume
+  instance @scoop$1$fn$d419be0835728bbeb4d089e472be7c7eaa5430c2df38b58c7cddb9b3f4f5d497 <- Iterator.next
+  instance @scoop$1$fn$7cee2a974e202356b38589cf3f06811ef5f5af17baeb430c82856e0fbdd51c22 <- Iterable.iterator
+  instance @scoop$1$fn$eb22ac16c7643f1a0e63d9759af1abeb2ced029efa8b6c7ba906c34af63a3cf8 <- Iterator.next
+  instance @scoop$1$fn$27f723d0d851b82234ad34d726b872ada413fd006ad51d124edd75692827cf31 <- Iterator.next
+  instance @scoop$1$fn$441fe3774b7092b2d9d75b8993a392b2770d5ca241b27eae6936e5c12ea9450f <- Continuation.resumeWithException
+  instance @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend <- SuspendTask.run
+  instance @scoop$1$fn$7f41d9e86687e1d2ad857a669ffb7d5cc9ca4aa3b4ce6666a39d9e3429dff6e3 <- SuspendRegistration.register
+  instance @scoop$1$fn$aadb82212f5efbe60083e6e25711ece2d122595e9617dba4c80af995ca51ca95 <- Continuation.resume
+  instance @scoop$1$fn$ac3b942584094365e3219f30cad65d2116f86827f7f06b55da85524efb65b2a1 <- Continuation.resumeWithException
+  instance @scoop$1$fn$70fbfbc0a304151c0fe826ceec1d70f9eb6208f7378291694436a21ab84b9898$suspend <- SuspendTask.run
+  instance @scoop$1$fn$bbcbe4c1693149984f07f6fea6c723090444f0b196a09651e7ec4a5178478bd1 <- SuspendRegistration.register
+  instance @scoop$1$fn$3d8d3342427d3c145a8239760db308b112aea283665c250dc374792a04dcd124 <- Continuation.resume
+  instance @scoop$1$fn$f484a403dad2569dad4f80648d1ce55c033eaa91d2cc4f5d63a99606a9989b87 <- Continuation.resumeWithException
+  instance @scoop$1$fn$63a733ea5335ec147330ca431d92dce8a871e1f37fd45a2b8c68f8f91bae98c5$suspend <- SuspendTask.run
+  instance @scoop$1$fn$189842955bbb48589a6d6ebf2df2448e05fc3c1a86272164488490d62ae13ad5 <- SuspendRegistration.register
   str @scoop.str.0 "value-next"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -19695,7 +19695,7 @@ Module
     call native-borrowed-direct-target0 sp126 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$fn$a465fc3f39a9df2fec18ecb8ef8d82c24427411d9ab6fbab3a7f443ca83d0262(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$3674fabbae1148c67b2f90948327cc1f43f468dfd5cc057ae4a93d0d425358e3(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -19995,7 +19995,7 @@ Module
     t1 = enum_wrap e0 v0 (local1) : enum0
     heap_store t0 +16 t1
     ret
-  fun @scoop$1$fn$4672cd330e79c9a8951781475b5c56ad479cf1a111c19d34dd08d7b430ea55b6(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$76c21a6994d31131e133abf88bb48fcc902e0cc216373ed5d574f2dd4a7351f0(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -20866,7 +20866,7 @@ Module
     poll managed-void-target0 sp610 live=[param1:ptr<managed>@0]
     t0 = heap_load param1 +16 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -20885,7 +20885,7 @@ Module
     call native-borrowed-void-target1 sp255 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$a92b5d41185529a9ea075f9a510fe97f632490655211a566798f19e635af85ae(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -20904,7 +20904,7 @@ Module
     call native-borrowed-void-target1 sp258 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$d97236820e3f267e6fe39f8b8c3821747c3d3d9e76884dd9d42db477e81351a4(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$be38e878fda9f006a8cf06f37a28dc7e8dfb3931087b4407774235998cb3ed2d(ptr<managed>, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.values: ptr<managed>
     local %2 $for.source.1: ptr<managed>
@@ -20964,7 +20964,7 @@ Module
     store param1 -> local13
     store local9 -> local14
     call managed-direct-target2 sp262 live=[param1:ptr<managed>@0, local5:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] t9 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td82, machine<byte-size>(ByteSize(32)))
-    t10 = function_address @scoop$1$fn$bede1a382a4aaf5b09bc4059ec47ffd25e85483f6b5fa1daf3c65c60602df0a2 : ptr
+    t10 = function_address @scoop$1$fn$346e64599f902bf56b4f786991f046c03a5dbd9788990ae53e0edc64f2bcb7ed : ptr
     heap_store t9 +16 t10
     heap_store t9 +24 local12
     store t9 -> local15
@@ -20995,7 +20995,7 @@ Module
   block if.merge.8
     array_set array4 local18 local19 local20
     br @while.cond.1
-  fun @scoop$1$fn$622a7604b76f014978c36c10c2dcf04382626ec3061797e210935e902ee1cea2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$1b9b04dcaf54c99f375643263e725b4d724444fe8d8a934181942f301f3f3b4c(ptr<managed>, ptr<managed>) -> void
     local %0 $for.source.9: ptr<managed>
     local %1 $receiver: ptr<managed>
     local %2 $for.iterator.result.10: ptr<managed>
@@ -21036,7 +21036,7 @@ Module
     call managed-void-target0 sp269 live=[param1:ptr<managed>@0, local3:ptr<managed>@0, local8:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn96(local8)
     t8 = aggregate () : {}
     br @while.cond.1
-  fun @scoop$1$fn$53def6751767662a331177de7dcdc689ace4a3712e17096d30caf26a6bb00af4(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$26223a658cb1dd45e71f5d52cbbff3d292c43cf04b2d0f65475809e89e394509(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $argument.0: ptr<managed>
@@ -21059,7 +21059,7 @@ Module
     call managed-void-target1 sp272 live=[local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] sig=void1 (ptr<managed>, ptr<managed>, ptr<managed>) local-fn145(local6, local4, local5)
     t2 = aggregate () : {}
     ret local6
-  fun @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588(i64) -> void
+  fun @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -21078,7 +21078,7 @@ Module
     call native-borrowed-void-target1 sp275 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$90d0672e259515d88bf8d8a1936fc3d7e787dd9835a3d5eef6f1c62f1c7f7f90(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$7b5d7e7550d4e0efe6b344c87349664687598383c1998a2569068fee45b1d71a(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -21095,7 +21095,7 @@ Module
     call managed-void-target0 sp277 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn147(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$f29c1da8f4815e14871365f5956acdbdb9aabf1fb2a242f753785933ee2cda48(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
+  fun @scoop$1$fn$e84f32528cecfcddb83b2d2a59bb852f676129ae081472c535ec950b21081bc3(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -21166,7 +21166,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e2 v0 (local11) : enum2
     ret t16
-  fun @scoop$1$fn$3fa76317b8604dfcad9ba980641cc5f700bb56fb414667dfe6b93b2a14992985(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$6ad78284bdd09765bf752089a9a924502fb04e1c11dbbae76df42f21d9e59954(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -21183,7 +21183,7 @@ Module
     call managed-void-target0 sp281 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn148(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$2126b9836f00569f63f17b21c9c56583c77b32f9706239718264e6c15461e26a(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
+  fun @scoop$1$fn$1a0e083c6a2ae06de264ac1e5415124a911a82426bc761573db3400315fbddbe(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -21254,7 +21254,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e3 v0 (local11) : enum3
     ret t16
-  fun @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend(ptr<managed>, ptr<managed>) -> enum12
+  fun @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend(ptr<managed>, ptr<managed>) -> enum12
     local %0 $frame: ptr<managed>
     local %1 $step: enum12
   block entry
@@ -21270,7 +21270,7 @@ Module
     call managed-direct-target1 sp285 live=[local0:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, machine<coroutine-frame-state>) -> enum12 local-fn172(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
     store t3 -> local1
     ret local1
-  fun @scoop$1$fn$aaa21167c3b9cb024fe8ab403d11f1c8c63ca7e8fd7baba3708c5ee54d07960e(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
+  fun @scoop$1$fn$570422b418533defc3195be16bd13034ef0d9fc81f7400480ddf5f1b457ef2c1(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
     local %0 $receiver: i64
     local %1 $receiver: ptr<managed>
     local %2 $argument.0: ptr<managed>
@@ -21358,7 +21358,7 @@ Module
     store local16 -> local17
     t20 = enum_wrap e3 v0 (local17) : enum3
     ret t20
-  fun @scoop$1$fn$5c5ecee0f84ec6138eb0c6150af7fa78c8d7e519837dae9d6e092a996bb95c1a(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$6d9674ba7ff1af9fa05d92d560973fb8bb919f455ffde9e33b75a32c530db70b(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -21375,7 +21375,7 @@ Module
     call managed-void-target0 sp292 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn149(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$d4a6bd2e3a637010a68204fbb0fe08c7d73bcb89bb8975c26ea78539f0ebb742(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$0136137d93190a45444f2175f9d554fa5df6ead93d09dfc5ebcae91388bb8e4f(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
@@ -21385,12 +21385,12 @@ Module
     call managed-void-target0 sp293 live=[param0:ptr<managed>@0, local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn96(local1)
     t0 = aggregate () : {}
     ret param0
-  fun @scoop$1$fn$bede1a382a4aaf5b09bc4059ec47ffd25e85483f6b5fa1daf3c65c60602df0a2(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$346e64599f902bf56b4f786991f046c03a5dbd9788990ae53e0edc64f2bcb7ed(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp627 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$1d856e718d30a394d96f95e9c636370fcd984ad4bfba5d521e2c72ce99e96d09(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
+  fun @scoop$1$fn$ab6e9d57109bc87e1700fbe4a24717af8450cac0bb6d0dc5a079da436f2aad68(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -21461,7 +21461,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e2 v0 (local11) : enum2
     ret t16
-  fun @scoop$1$fn$9c6095ac1e77cde2c4c5876f715a5ce5e4a581e2066680e2ecd1efa1cad086ec(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
+  fun @scoop$1$fn$c143616f4be4aa65e62d41b2cc34d94561eb4e7a7136873dc41e9ef729a1612a(ptr<managed>) -> sret<enum3 size=32 align=8 scan=refs[16, 24]>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -21532,7 +21532,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e3 v0 (local11) : enum3
     ret t16
-  fun @scoop$1$fn$b25d219e5a91c27e7b8cf41eebdad048c9376c634ab295ef81e8534bdde5d024(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$5fa2bd47f3bda55f47f59baddd10af844ced230a061c064b6c5c304caf4aa69b(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -21549,7 +21549,7 @@ Module
     call managed-void-target0 sp299 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn150(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$fn$20e9ae6d8729f546c0ea92766ae9bb3ac86edc439d554d541df0ad471dd47bac(ptr<managed>) -> enum5
+  fun @scoop$1$fn$db9df990c339fff6fbf2e0cadb6791dc011ecf2686746a34939892a1e7ca4260(ptr<managed>) -> enum5
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -21620,7 +21620,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e5 v0 (local11) : enum5
     ret t16
-  fun @scoop$1$fn$85f339c20a67587b4f2a24e5fa3bf3558b3e3f99b25f8ff019530dd97629329c(ptr<managed>) -> enum5
+  fun @scoop$1$fn$09ecbd7133fb2e3c614072dd13bbac333546bd7977f3405dde70bf61e4f137fe(ptr<managed>) -> enum5
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -24212,7 +24212,7 @@ Module
     t22 = enum_tag e11 local0 : machine<enum-tag>
     t23 = MachineEq(EnumTag) t22, machine<enum-tag>(EnumTag(0)) : i1
     cbr t23 then @completed else @suspended
-  fun @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> enum12
+  fun @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$drive(ptr<managed>, machine<coroutine-frame-state>) -> enum12
     local %0 this: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.value: ptr<managed>
@@ -24327,7 +24327,7 @@ Module
     poll managed-void-target5 sp688 live=[param0:ptr<managed>@0]
     t30 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
     cbr t30 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
-  fun @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume$1(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  fun @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume$1(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
     local %0 $step: enum12
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -24401,7 +24401,7 @@ Module
     t21 = enum_tag e12 local0 : machine<enum-tag>
     t22 = MachineEq(EnumTag) t21, machine<enum-tag>(EnumTag(0)) : i1
     cbr t22 then @completed else @suspended
-  fun @scoop$1$fn$83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$fn$54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum12
     local %1 $adapter_claim: machine<coroutine-adapter-state>
     local %2 $frame_claim: machine<coroutine-frame-state>
@@ -24540,8 +24540,8 @@ Module
   td td66 CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$1 type-id=67 size=32 parent=none vtable=[] itables=[td21:[local-fn167, local-fn168]]
   td td67 CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend @scoop_td_CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend type-id=68 size=48 parent=none vtable=[] itables=[]
   td td68 CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1 type-id=69 size=48 parent=none vtable=[] itables=[td13:[local-fn170, local-fn171]]
-  td td69 CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend @scoop_td_CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend type-id=70 size=48 parent=none vtable=[] itables=[]
-  td td70 CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1 type-id=71 size=32 parent=none vtable=[] itables=[td13:[local-fn173, local-fn174]]
+  td td69 CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend @scoop_td_CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend type-id=70 size=48 parent=none vtable=[] itables=[]
+  td td70 CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1 @scoop_td_CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1 type-id=71 size=32 parent=none vtable=[] itables=[td13:[local-fn173, local-fn174]]
   td td71 Exception @scoop$1$td$877771be3162e493ddc02efd86280f68969dbc95d555a5660e2998b8f9c5effe type-id=72 size=24 parent=td35 vtable=[] itables=[]
   td td72 UnwrapException @scoop$1$td$d95d77d12f03a4ee5399d5b0ab000458207a5327c7c59ef3d643eeac8b9d8636 type-id=73 size=24 parent=td71 vtable=[] itables=[]
   td td73 ClassCastException @scoop$1$td$d287e31a6ef2a1889d2368e08f305c1b45711ea99f0914dfb15eb52b4d2fc708 type-id=74 size=24 parent=td71 vtable=[] itables=[]
@@ -24642,8 +24642,8 @@ Module
   layout CoroutineAdapter$scoop_1_fn_c1fddb7ad6a2088843f50ad412f0dddcb5b9700e135a118606cafb6abb2803f9_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend size=48 align=8 refs=[24, 32, 40]
   layout CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1 size=48 align=8 refs=[16, 40]
-  layout CoroutineFrame$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend size=48 align=8 refs=[24, 32, 40]
-  layout CoroutineAdapter$scoop_1_fn_83412bbc9b5fca53fec1666fbc7250d5f41959cb51d75f20b9730d847b33657c_suspend$1 size=32 align=8 refs=[16]
+  layout CoroutineFrame$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend size=48 align=8 refs=[24, 32, 40]
+  layout CoroutineAdapter$scoop_1_fn_54e5e4eab70e2b82bd67afc45a2ab51ca897bb71a0c15c0f95cc7bff5a465bac_suspend$1 size=32 align=8 refs=[16]
   layout $Closure$lambda0 size=32 align=8 refs=[24]
   layout $Closure$lambda1 size=32 align=8 refs=[24]
   layout $Closure$lambda2 size=32 align=8 refs=[24]

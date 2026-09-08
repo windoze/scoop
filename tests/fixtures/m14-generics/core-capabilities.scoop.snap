@@ -7063,7 +7063,7 @@ Module mangling=persistent-v1
       val $parameter.value: Point
         Type Point
         Local $argument.0
-      call @scoop$1$fn$1dfaed160285ebac5856500705232a1da316a220fc77b4333bdfd5af9051a7ab direct
+      call @scoop$1$fn$e18e5ece44b313c283ac2051380447d2a8994081fab4a0f3319620d0a6c7b51a direct
         Type Point
         Local $parameter.value
       val $receiver: Point
@@ -7075,7 +7075,7 @@ Module mangling=persistent-v1
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588 direct
+      call @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a direct
         Type Long
         Local $parameter.value
       val $argument.0: Int
@@ -7120,7 +7120,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$351433fffb70ccdd6eb846bb72295a9c13f94714234699726a0bf1678f751fdf direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Point
@@ -7143,7 +7143,7 @@ Module mangling=persistent-v1
       val $parameter.value: RenderBox$D5_PointX
         Type RenderBox$D5_PointX
         Local $argument.0
-      call @scoop$1$fn$09b71a1ceeece4cb7ac61036f6e336a6d1ed6edd7bcc3ba4d1815b08822361cd direct
+      call @scoop$1$fn$e3adf770953f9001595e20a523eaa556d1a0d23d42e124a5d80122fa62744ddc direct
         Type RenderBox$D5_PointX
         Local $parameter.value
       val $argument.0: Point
@@ -7166,7 +7166,7 @@ Module mangling=persistent-v1
       val $parameter.value: RenderPair$D5_PointX
         Type RenderPair$D5_PointX
         Local $argument.0
-      call @scoop$1$fn$205b08d0061436d6f32c65277650019581bd25e7aa82f2d1e4abd14a87fe1c02 direct
+      call @scoop$1$fn$53a778ac1c90601ff4ac0e1ade990c1432302ea3fbfdc9731287059f82a1ae01 direct
         Type RenderPair$D5_PointX
         Local $parameter.value
       val $argument.0: Point
@@ -7183,7 +7183,7 @@ Module mangling=persistent-v1
       val $parameter.value: RenderState$D5_PointX<Point>
         Type RenderState$D5_PointX<Point>
         Local $argument.0
-      call @scoop$1$fn$2eecd095c2b7c9401d8ec90508db265318560591ebf1dee7c01b8f802fbf2a13 direct
+      call @scoop$1$fn$583862ed6125201ead45df74cdd562c037c5d8333c092ec513686213ce5ed4d7 direct
         Type RenderState$D5_PointX<Point>
         Local $parameter.value
       val $argument.0: Point
@@ -7192,17 +7192,17 @@ Module mangling=persistent-v1
       val $parameter.value: Point
         Type Point
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$7153b05d0facd47eec65064fb2528690482566e66d51dc80cbe3796aa3cc8735 direct
+      call $argument.0: String = @scoop$1$fn$655aff395cabe526f3c740db19c90e890e817e07ba86c43f74339c3b7ca6ca6e direct
         Type Point
         Local $parameter.value
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun println @scoop$1$fn$1dfaed160285ebac5856500705232a1da316a220fc77b4333bdfd5af9051a7ab(value: Point) -> Unit
+  fun println @scoop$1$fn$e18e5ece44b313c283ac2051380447d2a8994081fab4a0f3319620d0a6c7b51a(value: Point) -> Unit
     bb0 entry
       val $receiver: Point
         Type Point
@@ -7226,7 +7226,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588(value: Long) -> Unit
+  fun println @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(value: Long) -> Unit
     bb0 entry
       val $receiver: Long
         Type Long
@@ -7250,7 +7250,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$351433fffb70ccdd6eb846bb72295a9c13f94714234699726a0bf1678f751fdf(value: Boolean) -> Unit
+  fun println @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
         Type Boolean
@@ -7274,7 +7274,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun RenderBox.toString @scoop$1$fn$2324115cdfe40dac7af4ef76977db3db44deae68e1dea69b3731619011837384(this: RenderBox$D5_PointX) -> String
+  fun RenderBox.toString @scoop$1$fn$d86c6c61448559d546db33cced919d2b9e5e1aa7c05c5ab2c4a330a910bd3629(this: RenderBox$D5_PointX) -> String
     bb0 entry
       val $receiver: Point
         Type Point
@@ -7287,12 +7287,12 @@ Module mangling=persistent-v1
       return
         Type String
         Local $call.1
-  fun println @scoop$1$fn$09b71a1ceeece4cb7ac61036f6e336a6d1ed6edd7bcc3ba4d1815b08822361cd(value: RenderBox$D5_PointX) -> Unit
+  fun println @scoop$1$fn$e3adf770953f9001595e20a523eaa556d1a0d23d42e124a5d80122fa62744ddc(value: RenderBox$D5_PointX) -> Unit
     bb0 entry
       val $receiver: RenderBox$D5_PointX
         Type RenderBox$D5_PointX
         Local value
-      call $argument.0: String = @scoop$1$fn$2324115cdfe40dac7af4ef76977db3db44deae68e1dea69b3731619011837384 direct
+      call $argument.0: String = @scoop$1$fn$d86c6c61448559d546db33cced919d2b9e5e1aa7c05c5ab2c4a330a910bd3629 direct
         Type RenderBox$D5_PointX
         Local $receiver
       val $parameter.message: String
@@ -7311,7 +7311,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun RenderPair.toString @scoop$1$fn$8a28a80aa6cd33827533b0591ab758b93df3fd76e5eb8fbe2193320a4b11f507(this: RenderPair$D5_PointX) -> String
+  fun RenderPair.toString @scoop$1$fn$06ba5dedb3e542294befce6e614cbc990cbe5d6c28c5c6b2a510d1c3eaea3e92(this: RenderPair$D5_PointX) -> String
     bb0 entry
       val $receiver: Point
         Type Point
@@ -7340,12 +7340,12 @@ Module mangling=persistent-v1
       return
         Type String
         Local $call.1
-  fun println @scoop$1$fn$205b08d0061436d6f32c65277650019581bd25e7aa82f2d1e4abd14a87fe1c02(value: RenderPair$D5_PointX) -> Unit
+  fun println @scoop$1$fn$53a778ac1c90601ff4ac0e1ade990c1432302ea3fbfdc9731287059f82a1ae01(value: RenderPair$D5_PointX) -> Unit
     bb0 entry
       val $receiver: RenderPair$D5_PointX
         Type RenderPair$D5_PointX
         Local value
-      call $argument.0: String = @scoop$1$fn$8a28a80aa6cd33827533b0591ab758b93df3fd76e5eb8fbe2193320a4b11f507 direct
+      call $argument.0: String = @scoop$1$fn$06ba5dedb3e542294befce6e614cbc990cbe5d6c28c5c6b2a510d1c3eaea3e92 direct
         Type RenderPair$D5_PointX
         Local $receiver
       val $parameter.message: String
@@ -7364,7 +7364,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun RenderState.toString @scoop$1$fn$edf49488472bf2ba16774f1187693fa202908e4508ee9ccf3baec6db6375a4a2(this: RenderState$D5_PointX<Point>) -> String
+  fun RenderState.toString @scoop$1$fn$b48f30ebb79d98b7d4654816bc52e8025e095796a334fb740e65d55ce53de800(this: RenderState$D5_PointX<Point>) -> String
     bb0 entry
       val $when.1: RenderState$D5_PointX<Point>
         Type RenderState$D5_PointX<Point>
@@ -7415,12 +7415,12 @@ Module mangling=persistent-v1
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun println @scoop$1$fn$2eecd095c2b7c9401d8ec90508db265318560591ebf1dee7c01b8f802fbf2a13(value: RenderState$D5_PointX<Point>) -> Unit
+  fun println @scoop$1$fn$583862ed6125201ead45df74cdd562c037c5d8333c092ec513686213ce5ed4d7(value: RenderState$D5_PointX<Point>) -> Unit
     bb0 entry
       val $receiver: RenderState$D5_PointX<Point>
         Type RenderState$D5_PointX<Point>
         Local value
-      call $argument.0: String = @scoop$1$fn$edf49488472bf2ba16774f1187693fa202908e4508ee9ccf3baec6db6375a4a2 direct
+      call $argument.0: String = @scoop$1$fn$b48f30ebb79d98b7d4654816bc52e8025e095796a334fb740e65d55ce53de800 direct
         Type RenderState$D5_PointX<Point>
         Local $receiver
       val $parameter.message: String
@@ -7439,7 +7439,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun render @scoop$1$fn$7153b05d0facd47eec65064fb2528690482566e66d51dc80cbe3796aa3cc8735(value: Point) -> String
+  fun render @scoop$1$fn$655aff395cabe526f3c740db19c90e890e817e07ba86c43f74339c3b7ca6ca6e(value: Point) -> String
     bb0 entry
       val $receiver: Point
         Type Point
@@ -7450,7 +7450,7 @@ Module mangling=persistent-v1
       return
         Type String
         Local $call.1
-  fun println @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7930,17 +7930,17 @@ Module mangling=persistent-v1
           Local first
           Type Point
           Local second
-  instance @scoop$1$fn$1dfaed160285ebac5856500705232a1da316a220fc77b4333bdfd5af9051a7ab <- println
-  instance @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588 <- println
-  instance @scoop$1$fn$351433fffb70ccdd6eb846bb72295a9c13f94714234699726a0bf1678f751fdf <- println
-  instance @scoop$1$fn$2324115cdfe40dac7af4ef76977db3db44deae68e1dea69b3731619011837384 <- RenderBox.toString
-  instance @scoop$1$fn$09b71a1ceeece4cb7ac61036f6e336a6d1ed6edd7bcc3ba4d1815b08822361cd <- println
-  instance @scoop$1$fn$8a28a80aa6cd33827533b0591ab758b93df3fd76e5eb8fbe2193320a4b11f507 <- RenderPair.toString
-  instance @scoop$1$fn$205b08d0061436d6f32c65277650019581bd25e7aa82f2d1e4abd14a87fe1c02 <- println
-  instance @scoop$1$fn$edf49488472bf2ba16774f1187693fa202908e4508ee9ccf3baec6db6375a4a2 <- RenderState.toString
-  instance @scoop$1$fn$2eecd095c2b7c9401d8ec90508db265318560591ebf1dee7c01b8f802fbf2a13 <- println
-  instance @scoop$1$fn$7153b05d0facd47eec65064fb2528690482566e66d51dc80cbe3796aa3cc8735 <- render
-  instance @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e <- println
+  instance @scoop$1$fn$e18e5ece44b313c283ac2051380447d2a8994081fab4a0f3319620d0a6c7b51a <- println
+  instance @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a <- println
+  instance @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 <- println
+  instance @scoop$1$fn$d86c6c61448559d546db33cced919d2b9e5e1aa7c05c5ab2c4a330a910bd3629 <- RenderBox.toString
+  instance @scoop$1$fn$e3adf770953f9001595e20a523eaa556d1a0d23d42e124a5d80122fa62744ddc <- println
+  instance @scoop$1$fn$06ba5dedb3e542294befce6e614cbc990cbe5d6c28c5c6b2a510d1c3eaea3e92 <- RenderPair.toString
+  instance @scoop$1$fn$53a778ac1c90601ff4ac0e1ade990c1432302ea3fbfdc9731287059f82a1ae01 <- println
+  instance @scoop$1$fn$b48f30ebb79d98b7d4654816bc52e8025e095796a334fb740e65d55ce53de800 <- RenderState.toString
+  instance @scoop$1$fn$583862ed6125201ead45df74cdd562c037c5d8333c092ec513686213ce5ed4d7 <- println
+  instance @scoop$1$fn$655aff395cabe526f3c740db19c90e890e817e07ba86c43f74339c3b7ca6ca6e <- render
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
   str @scoop.str.0 "Point"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11500,7 +11500,7 @@ Module
     call managed-void-target9 sp142 live=[local35:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn87(local35)
     t16 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1dfaed160285ebac5856500705232a1da316a220fc77b4333bdfd5af9051a7ab(indirect<struct10 size=8 align=4 scan=none>) -> void
+  fun @scoop$1$fn$e18e5ece44b313c283ac2051380447d2a8994081fab4a0f3319620d0a6c7b51a(indirect<struct10 size=8 align=4 scan=none>) -> void
     local %0 $receiver: struct10
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11521,7 +11521,7 @@ Module
     call native-borrowed-void-target1 sp145 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$1e46e7f79b6404b07db788a8b4763f6783098c4d1afeef1006aade2d143e9588(i64) -> void
+  fun @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11540,7 +11540,7 @@ Module
     call native-borrowed-void-target1 sp148 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$351433fffb70ccdd6eb846bb72295a9c13f94714234699726a0bf1678f751fdf(i1) -> void
+  fun @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11559,7 +11559,7 @@ Module
     call native-borrowed-void-target1 sp151 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$2324115cdfe40dac7af4ef76977db3db44deae68e1dea69b3731619011837384(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$d86c6c61448559d546db33cced919d2b9e5e1aa7c05c5ab2c4a330a910bd3629(ptr<managed>) -> ptr<managed>
     local %0 $receiver: struct10
     local %1 $call.1: ptr<managed>
     local %2 $sc.1: struct10
@@ -11571,7 +11571,7 @@ Module
     call managed-direct-target0 sp152 live=[] t1 = sig=direct0 (indirect<struct10 size=8 align=4 scan=none>) -> ptr<managed> local-fn51(indirect local2)
     store t1 -> local1
     ret local1
-  fun @scoop$1$fn$09b71a1ceeece4cb7ac61036f6e336a6d1ed6edd7bcc3ba4d1815b08822361cd(ptr<managed>) -> void
+  fun @scoop$1$fn$e3adf770953f9001595e20a523eaa556d1a0d23d42e124a5d80122fa62744ddc(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11590,7 +11590,7 @@ Module
     call native-borrowed-void-target1 sp155 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$8a28a80aa6cd33827533b0591ab758b93df3fd76e5eb8fbe2193320a4b11f507(indirect<struct11 size=16 align=4 scan=none>) -> ptr<managed>
+  fun @scoop$1$fn$06ba5dedb3e542294befce6e614cbc990cbe5d6c28c5c6b2a510d1c3eaea3e92(indirect<struct11 size=16 align=4 scan=none>) -> ptr<managed>
     local %0 $receiver: struct10
     local %1 $receiver: struct10
     local %2 $receiver: ptr<managed>
@@ -11615,7 +11615,7 @@ Module
     call managed-direct-target2 sp158 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local2, local4)
     store t4 -> local5
     ret local5
-  fun @scoop$1$fn$205b08d0061436d6f32c65277650019581bd25e7aa82f2d1e4abd14a87fe1c02(indirect<struct11 size=16 align=4 scan=none>) -> void
+  fun @scoop$1$fn$53a778ac1c90601ff4ac0e1ade990c1432302ea3fbfdc9731287059f82a1ae01(indirect<struct11 size=16 align=4 scan=none>) -> void
     local %0 $receiver: struct11
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11636,7 +11636,7 @@ Module
     call native-borrowed-void-target1 sp161 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$edf49488472bf2ba16774f1187693fa202908e4508ee9ccf3baec6db6375a4a2(indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$fn$b48f30ebb79d98b7d4654816bc52e8025e095796a334fb740e65d55ce53de800(indirect<enum1 size=16 align=8 scan=none>) -> ptr<managed>
     local %0 value: struct10
     local %1 $receiver: struct10
     local %2 $result.4: ptr<managed>
@@ -11673,7 +11673,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$fn$2eecd095c2b7c9401d8ec90508db265318560591ebf1dee7c01b8f802fbf2a13(indirect<enum1 size=16 align=8 scan=none>) -> void
+  fun @scoop$1$fn$583862ed6125201ead45df74cdd562c037c5d8333c092ec513686213ce5ed4d7(indirect<enum1 size=16 align=8 scan=none>) -> void
     local %0 $receiver: enum1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11694,7 +11694,7 @@ Module
     call native-borrowed-void-target1 sp165 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$7153b05d0facd47eec65064fb2528690482566e66d51dc80cbe3796aa3cc8735(indirect<struct10 size=8 align=4 scan=none>) -> ptr<managed>
+  fun @scoop$1$fn$655aff395cabe526f3c740db19c90e890e817e07ba86c43f74339c3b7ca6ca6e(indirect<struct10 size=8 align=4 scan=none>) -> ptr<managed>
     local %0 $receiver: struct10
     local %1 $call.1: ptr<managed>
     local %2 $sc.1: struct10
@@ -11705,7 +11705,7 @@ Module
     call managed-direct-target0 sp166 live=[] t0 = sig=direct0 (indirect<struct10 size=8 align=4 scan=none>) -> ptr<managed> local-fn51(indirect local2)
     store t0 -> local1
     ret local1
-  fun @scoop$1$fn$1505939cf85b13933d2374cd8eceb8fb0cd1174251b69889dece7a0304d0531e(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

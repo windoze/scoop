@@ -7368,7 +7368,7 @@ Module mangling=persistent-v1
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d interface Continuation$U[0]
+      call @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 interface Continuation$U[0]
         Type Continuation$U
         Local $receiver
         Type Unit
@@ -7421,7 +7421,7 @@ Module mangling=persistent-v1
       val $parameter.exception: Throwable
         Type Throwable
         Local $argument.0
-      call @scoop$1$fn$ad67ae4d7c97fc85752215009e2cef689c6913c6a549add2d75e9a3769ed931e interface Continuation$U[1]
+      call @scoop$1$fn$441fe3774b7092b2d9d75b8993a392b2770d5ca241b27eae6936e5c12ea9450f interface Continuation$U[1]
         Type Continuation$U
         Local $receiver
         Type Throwable
@@ -7546,7 +7546,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -7557,7 +7557,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7582,7 +7582,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7906,7 +7906,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -7958,7 +7958,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -8061,7 +8061,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -8113,7 +8113,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call @scoop$1$fn$6811812b5bb81476839b7560418512957062fb9a71309e7838cacc1eae225a65 direct
@@ -8124,7 +8124,7 @@ Module mangling=persistent-v1
         Type Gate
         Local $receiver
       return
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -8694,7 +8694,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$ad8161b7a2e8fe183653e22c519e34c6eece74ee3ac9aa115fea0c341724c5c8 interface Continuation$C4_NodeX[0]
+      call @scoop$1$fn$cd1cfed9c6cf588ba2fae75244dae248d996fa727a9de4028d888efef7508276 interface Continuation$C4_NodeX[0]
         Type Continuation$C4_NodeX
         Local completion
         Type Node
@@ -8703,7 +8703,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$db0cfcfba49832b874c3aeb83fe1d232ba8e25d02fbf5eddada92270b1bad650 interface Continuation$C4_NodeX[1]
+      call @scoop$1$fn$52ded8ea3af316c40fe29a2e576e8d6276293f1da28adef0fa8eac140661083e interface Continuation$C4_NodeX[1]
         Type Continuation$C4_NodeX
         Local completion
         Type Throwable
@@ -8718,7 +8718,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$C4_NodeX = @scoop$1$fn$7c7b6cfae1947ceed0fe2ac701575ce206dab6e61e9b2b76e577ac763f45b841$suspend interface SuspendTask$C4_NodeX[0]
+      call $step: CoroutineStep$C4_NodeX = @scoop$1$fn$e1ad3413f28250248bdd26e5605095d058b0b5830056afd01ba856d11e4c9ed7$suspend interface SuspendTask$C4_NodeX[0]
         Type SuspendTask$C4_NodeX
         Local task
         Type Continuation$C4_NodeX
@@ -9276,7 +9276,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -9289,7 +9289,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -9749,7 +9749,7 @@ Module mangling=persistent-v1
           Type Unit
           UnitLiteral
     bb2 coroutine.register.1 unwind bb22
-      call @scoop$1$fn$582a0d1a1db3ac6ffb1a910323e6a9e6f989a534406e2717a61ae471b96dbd01 interface SuspendRegistration$U[0]
+      call @scoop$1$fn$7f41d9e86687e1d2ad857a669ffb7d5cc9ca4aa3b4ce6666a39d9e3429dff6e3 interface SuspendRegistration$U[0]
         Type SuspendRegistration$U
         Local $parameter.registration
         Type CoroutineAdapter$scoop_1_fn_424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d_suspend$1
@@ -10603,7 +10603,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -10616,7 +10616,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb14
@@ -10721,7 +10721,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -10734,7 +10734,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb23
@@ -12427,7 +12427,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -12440,7 +12440,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       goto bb13
@@ -13279,17 +13279,17 @@ Module mangling=persistent-v1
   coroutine_fn cf2 @scoop$1$fn$424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d$suspend source_return=Unit step=cs1 frame=cr2 driver=@scoop$1$fn$424c8f90ca31fa8f8a79fe2a5487c2adcef9cc1c093389f3d2fcee5fb9956a3d$suspend$drive resumes=[cp2]
   coroutine_fn cf3 @scoop$1$fn$646be4cf25040446f8f1dae54470eec61ee3db00f95fe0cd9d49312efaf19e5c$suspend source_return=Node step=cs0 frame=cr3 driver=@scoop$1$fn$646be4cf25040446f8f1dae54470eec61ee3db00f95fe0cd9d49312efaf19e5c$suspend$drive resumes=[cp6,cp5,cp4,cp3]
   coroutine_fn cf4 @scoop$1$fn$b4bfaa4eb20deec8687765dccfd67f970a313d72f6e60833768205b908bbe1e9$suspend source_return=Node step=cs0 frame=cr4 driver=@scoop$1$fn$b4bfaa4eb20deec8687765dccfd67f970a313d72f6e60833768205b908bbe1e9$suspend$drive resumes=[cp8,cp7]
-  coroutine_fn cf5 @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend source_return=Unit step=cs1 immediate
-  coroutine_fn cf6 @scoop$1$fn$7c7b6cfae1947ceed0fe2ac701575ce206dab6e61e9b2b76e577ac763f45b841$suspend source_return=Node step=cs0 immediate
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$b5d40a2defdf9e85509d79973d5ad1b314cbb6241863e6521fa897fb1f41e83d <- Continuation.resume
-  instance @scoop$1$fn$ad67ae4d7c97fc85752215009e2cef689c6913c6a549add2d75e9a3769ed931e <- Continuation.resumeWithException
-  instance @scoop$1$fn$697002ba96dfcc22142c9e33803a78e937e668a2f88e137a2834360361c5569e$suspend <- SuspendTask.run
-  instance @scoop$1$fn$582a0d1a1db3ac6ffb1a910323e6a9e6f989a534406e2717a61ae471b96dbd01 <- SuspendRegistration.register
-  instance @scoop$1$fn$ad8161b7a2e8fe183653e22c519e34c6eece74ee3ac9aa115fea0c341724c5c8 <- Continuation.resume
-  instance @scoop$1$fn$db0cfcfba49832b874c3aeb83fe1d232ba8e25d02fbf5eddada92270b1bad650 <- Continuation.resumeWithException
-  instance @scoop$1$fn$7c7b6cfae1947ceed0fe2ac701575ce206dab6e61e9b2b76e577ac763f45b841$suspend <- SuspendTask.run
-  instance @scoop$1$fn$59094f007762f91862d74bf4152ee4f24a00de06718183b7769a91dcd4266b51 <- SuspendRegistration.register
+  coroutine_fn cf5 @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend source_return=Unit step=cs1 immediate
+  coroutine_fn cf6 @scoop$1$fn$e1ad3413f28250248bdd26e5605095d058b0b5830056afd01ba856d11e4c9ed7$suspend source_return=Node step=cs0 immediate
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$4bed404fcb3d93b55966beabc62eb097792169da81117658960c2a6ce2d74505 <- Continuation.resume
+  instance @scoop$1$fn$441fe3774b7092b2d9d75b8993a392b2770d5ca241b27eae6936e5c12ea9450f <- Continuation.resumeWithException
+  instance @scoop$1$fn$f2b5c1c5c2ae4c6b0d6c1ba20e6583b3c037c9213d4b8ecf7f7563e650057b66$suspend <- SuspendTask.run
+  instance @scoop$1$fn$7f41d9e86687e1d2ad857a669ffb7d5cc9ca4aa3b4ce6666a39d9e3429dff6e3 <- SuspendRegistration.register
+  instance @scoop$1$fn$cd1cfed9c6cf588ba2fae75244dae248d996fa727a9de4028d888efef7508276 <- Continuation.resume
+  instance @scoop$1$fn$52ded8ea3af316c40fe29a2e576e8d6276293f1da28adef0fa8eac140661083e <- Continuation.resumeWithException
+  instance @scoop$1$fn$e1ad3413f28250248bdd26e5605095d058b0b5830056afd01ba856d11e4c9ed7$suspend <- SuspendTask.run
+  instance @scoop$1$fn$20f238419c8abd569f473da77fd9e3965938d74002ab812d24043952cf0e948a <- SuspendRegistration.register
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -17199,7 +17199,7 @@ Module
     call managed-void-target25 sp190 live=[local55:ptr<managed>@0] sig=void25 (ptr<managed>) local-fn70(local55)
     t41 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>

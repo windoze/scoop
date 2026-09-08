@@ -517,3 +517,20 @@ fun describe(color: Color): Int {
 "#;
     lower(&[core_file(), parse(COLORS), parse(user)]).expect("lowers");
 }
+
+#[test]
+fn alias_binds_typealiases() {
+    let user = r#"package dev.example
+
+import org.foo.Name as Label
+
+fun echo(label: Label): String {
+    return label
+}
+
+fun main() {
+    println(echo("x"))
+}
+"#;
+    lower_with_library(LIBRARY, user).expect("lowers");
+}

@@ -7196,7 +7196,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7208,7 +7208,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Boolean = @scoop$1$fn$a7062ef98103748e95f9eadcc71b743119f344cdfe22487c610ba6e57a84b8a1 direct
@@ -7221,7 +7221,7 @@ Module mangling=persistent-v1
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 direct
+      call @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Long
@@ -7232,7 +7232,7 @@ Module mangling=persistent-v1
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop$1$fn$37dda780baed634d5ebbcfbcc7d4a80cb3d10a82a916be2f9bd8a5ecd549990c direct
+      call @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a direct
         Type Long
         Local $parameter.value
       val $argument.0: Long
@@ -7243,7 +7243,7 @@ Module mangling=persistent-v1
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop$1$fn$37dda780baed634d5ebbcfbcc7d4a80cb3d10a82a916be2f9bd8a5ecd549990c direct
+      call @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a direct
         Type Long
         Local $parameter.value
       val $argument.0: String
@@ -7254,7 +7254,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: String
@@ -7265,7 +7265,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
@@ -7466,7 +7466,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.1: SourceLocation = @scoop$1$fn$5f30fda6a909f71756a3b193c874e6b4449605b97eb2523cf1527be8872ef5bc direct
+      call $argument.1: SourceLocation = @scoop$1$fn$18d070099cd44144d7bcfae6648ee57066259568b802ec951ebada0528c497e5 direct
         Type Int
         Local $parameter.value
       val $argument.2: String
@@ -7614,7 +7614,7 @@ Module mangling=persistent-v1
         Type Continuation$D14_SourceLocationX
         Local $parameter.completion
       return
-  fun println @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7638,7 +7638,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(value: Boolean) -> Unit
+  fun println @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
         Type Boolean
@@ -7662,7 +7662,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$37dda780baed634d5ebbcfbcc7d4a80cb3d10a82a916be2f9bd8a5ecd549990c(value: Long) -> Unit
+  fun println @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(value: Long) -> Unit
     bb0 entry
       val $receiver: Long
         Type Long
@@ -7686,7 +7686,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun genericBody @scoop$1$fn$5f30fda6a909f71756a3b193c874e6b4449605b97eb2523cf1527be8872ef5bc(value: Int) -> SourceLocation
+  fun genericBody @scoop$1$fn$18d070099cd44144d7bcfae6648ee57066259568b802ec951ebada0528c497e5(value: Int) -> SourceLocation
     bb0 entry
       return
         Type SourceLocation
@@ -8141,7 +8141,7 @@ Module mangling=persistent-v1
     bb0 suspended
       return
     bb1 completed
-      call @scoop$1$fn$0c2eb29bde425ce9f26324130b94cce99d21b7bfbb6b854efe3a44ea32038b72 interface Continuation$D14_SourceLocationX[0]
+      call @scoop$1$fn$9410b232aa9da3fe41290f91a99533339cdfa2123baa5b3fdc0c4c2cfb24e411 interface Continuation$D14_SourceLocationX[0]
         Type Continuation$D14_SourceLocationX
         Local completion
         Type SourceLocation
@@ -8150,7 +8150,7 @@ Module mangling=persistent-v1
           Local $step
       return
     bb2 failed
-      call @scoop$1$fn$cd7e92563072a5dbf338342435b5f773aefed7c56f8e24c9cb15b9d357a16f6c interface Continuation$D14_SourceLocationX[1]
+      call @scoop$1$fn$b496a98dbb1c9d1aa7c890873b999f390f103fe317775a4e6d79145d06bb5a8c interface Continuation$D14_SourceLocationX[1]
         Type Continuation$D14_SourceLocationX
         Local completion
         Type Throwable
@@ -8165,7 +8165,7 @@ Module mangling=persistent-v1
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$D14_SourceLocationX = @scoop$1$fn$bf2d275af96522a825f218fc17328b067bef37f62310e0a7efc33b04e942eac5$suspend interface SuspendTask$D14_SourceLocationX[0]
+      call $step: CoroutineStep$D14_SourceLocationX = @scoop$1$fn$80bdf4d6fdbaf0d9f5f230f301a52d6c50a9391e02dd3540cad5f5ea76b27de2$suspend interface SuspendTask$D14_SourceLocationX[0]
         Type SuspendTask$D14_SourceLocationX
         Local task
         Type Continuation$D14_SourceLocationX
@@ -8181,15 +8181,15 @@ Module mangling=persistent-v1
           MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep$D14_SourceLocationX result=SourceLocation
   coroutine_fn cf0 @scoop$1$fn$b127e4cb708139363a0206e513010a2fa5e034c5861def62d86be80b2d0eee11$suspend source_return=SourceLocation step=cs0 immediate
-  coroutine_fn cf1 @scoop$1$fn$bf2d275af96522a825f218fc17328b067bef37f62310e0a7efc33b04e942eac5$suspend source_return=SourceLocation step=cs0 immediate
-  instance @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4 <- println
-  instance @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3 <- println
-  instance @scoop$1$fn$37dda780baed634d5ebbcfbcc7d4a80cb3d10a82a916be2f9bd8a5ecd549990c <- println
-  instance @scoop$1$fn$5f30fda6a909f71756a3b193c874e6b4449605b97eb2523cf1527be8872ef5bc <- genericBody
-  instance @scoop$1$fn$0c2eb29bde425ce9f26324130b94cce99d21b7bfbb6b854efe3a44ea32038b72 <- Continuation.resume
-  instance @scoop$1$fn$cd7e92563072a5dbf338342435b5f773aefed7c56f8e24c9cb15b9d357a16f6c <- Continuation.resumeWithException
-  instance @scoop$1$fn$bf2d275af96522a825f218fc17328b067bef37f62310e0a7efc33b04e942eac5$suspend <- SuspendTask.run
-  instance @scoop$1$fn$e0bfb6bcf5c36108f929dfa1e49c47b707796e30b55c0325ee545451aa676786 <- SuspendRegistration.register
+  coroutine_fn cf1 @scoop$1$fn$80bdf4d6fdbaf0d9f5f230f301a52d6c50a9391e02dd3540cad5f5ea76b27de2$suspend source_return=SourceLocation step=cs0 immediate
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26 <- println
+  instance @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a <- println
+  instance @scoop$1$fn$18d070099cd44144d7bcfae6648ee57066259568b802ec951ebada0528c497e5 <- genericBody
+  instance @scoop$1$fn$9410b232aa9da3fe41290f91a99533339cdfa2123baa5b3fdc0c4c2cfb24e411 <- Continuation.resume
+  instance @scoop$1$fn$b496a98dbb1c9d1aa7c890873b999f390f103fe317775a4e6d79145d06bb5a8c <- Continuation.resumeWithException
+  instance @scoop$1$fn$80bdf4d6fdbaf0d9f5f230f301a52d6c50a9391e02dd3540cad5f5ea76b27de2$suspend <- SuspendTask.run
+  instance @scoop$1$fn$6f8c90bb73ed97726a1e1deb2e559da7541aec0706d6ac17eccc381be131479b <- SuspendRegistration.register
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11947,7 +11947,7 @@ Module
     call managed-void-target10 sp156 live=[local57:ptr<managed>@0, local58:ptr<managed>@0] sig=void10 (ptr<managed>, ptr<managed>) local-fn105(local57, local58)
     t25 = aggregate () : {}
     ret
-  fun @scoop$1$fn$b4d62ad440433959d86a50ce4e39aa6dd294e2a68653ce60544179a799111bf4(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11966,7 +11966,7 @@ Module
     call native-borrowed-void-target1 sp159 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$7c904d1a7f2dd169405f0fd5eaf1d85813fac8d2f4d0eb0fad2efb6fae2cc0a3(i1) -> void
+  fun @scoop$1$fn$d16ca1df9f926087e39cab1c63475d2dca5b8248758eb5796dacbefffb697e26(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11985,7 +11985,7 @@ Module
     call native-borrowed-void-target1 sp162 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$37dda780baed634d5ebbcfbcc7d4a80cb3d10a82a916be2f9bd8a5ecd549990c(i64) -> void
+  fun @scoop$1$fn$8ca7b1f4c4eaf107c9c247fc543ac6c53862ec2c6ce01f8bf4631a317e25459a(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -12004,7 +12004,7 @@ Module
     call native-borrowed-void-target1 sp165 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$5f30fda6a909f71756a3b193c874e6b4449605b97eb2523cf1527be8872ef5bc(i32) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
+  fun @scoop$1$fn$18d070099cd44144d7bcfae6648ee57066259568b802ec951ebada0528c497e5(i32) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]>
   block entry
     poll managed-void-target0 sp261 live=[]
     t0 = aggregate (global34, integer<Long>(0x0000000000000012), integer<Long>(0x0000000000000031), global35, global36) : struct0

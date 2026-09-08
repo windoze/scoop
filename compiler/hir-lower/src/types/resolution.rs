@@ -31,45 +31,22 @@ impl Lowerer {
             return None;
         }
         let target = candidates[0];
+        // The canonical type is the entity's declared self application
+        // (to its own type parameters), independent of the spelling that
+        // named it (the source name or an import alias).
         let ty = match target {
-            NominalTarget::Struct(id) => self
-                .structs_by_name
-                .get(&name.text)
-                .and_then(|entries| {
-                    entries
-                        .iter()
-                        .find(|(candidate, _)| *candidate == id)
-                        .map(|(_, ty)| *ty)
-                })
-                .expect("the layered candidate is registered"),
-            NominalTarget::Enum(id) => {
-                let registered = self
-                    .enums_by_name
-                    .get(&name.text)
-                    .is_some_and(|entries| entries.contains(&id));
-                debug_assert!(registered, "the layered candidate is registered");
-                self.enum_application(id, Vec::new())
+            NominalTarget::Struct(id) => {
+                self.struct_applications[self.structs[id].self_application].canonical_type
             }
-            NominalTarget::Class(id) => self
-                .classes_by_name
-                .get(&name.text)
-                .and_then(|entries| {
-                    entries
-                        .iter()
-                        .find(|(candidate, _)| *candidate == id)
-                        .map(|(_, ty)| *ty)
-                })
-                .expect("the layered candidate is registered"),
-            NominalTarget::Interface(id) => self
-                .interfaces_by_name
-                .get(&name.text)
-                .and_then(|entries| {
-                    entries
-                        .iter()
-                        .find(|(candidate, _)| *candidate == id)
-                        .map(|(_, ty)| *ty)
-                })
-                .expect("the layered candidate is registered"),
+            NominalTarget::Enum(id) => {
+                self.enum_applications[self.enums[id].self_application].canonical_type
+            }
+            NominalTarget::Class(id) => {
+                self.class_applications[self.classes[id].self_application].canonical_type
+            }
+            NominalTarget::Interface(id) => {
+                self.interface_applications[self.interfaces[id].self_application].canonical_type
+            }
             NominalTarget::Object(id) => {
                 self.object_types[self.objects[id].object_type].canonical_type
             }

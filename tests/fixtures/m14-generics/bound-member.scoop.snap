@@ -6883,13 +6883,13 @@ Module mangling=persistent-v1
       val $parameter.value: Shown
         Type Shown
         Local $argument.0
-      call $argument.0: Int = @scoop$1$fn$967f15b33e8d6ef325bd10705c4caf478307ba3084931886fd44aa9d87053b62 direct
+      call $argument.0: Int = @scoop$1$fn$1a8b3e4df3e10f8b8d9c2b57961f4e55fb9c3b1418103defc45010ea137538ac direct
         Type Shown
         Local $parameter.value
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.1
@@ -6907,17 +6907,17 @@ Module mangling=persistent-v1
       val $parameter.value: Base
         Type Base
         Local $argument.0
-      call $argument.0: Int = @scoop$1$fn$6719ac1117b106773c2249d49895784a836be33832152d7aa83f37bc03e99743 direct
+      call $argument.0: Int = @scoop$1$fn$38e9833c067e82497c3fe9f74443e7c3760158a76f16503865ec112ecec7834a direct
         Type Base
         Local $parameter.value
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       return
-  fun read @scoop$1$fn$967f15b33e8d6ef325bd10705c4caf478307ba3084931886fd44aa9d87053b62(value: Shown) -> Int
+  fun read @scoop$1$fn$1a8b3e4df3e10f8b8d9c2b57961f4e55fb9c3b1418103defc45010ea137538ac(value: Shown) -> Int
     bb0 entry
       val $receiver: Shown
         Type Shown
@@ -6928,7 +6928,7 @@ Module mangling=persistent-v1
       return
         Type Int
         Local $call.1
-  fun println @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -6952,7 +6952,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun read @scoop$1$fn$6719ac1117b106773c2249d49895784a836be33832152d7aa83f37bc03e99743(value: Base) -> Int
+  fun read @scoop$1$fn$38e9833c067e82497c3fe9f74443e7c3760158a76f16503865ec112ecec7834a(value: Base) -> Int
     bb0 entry
       val $receiver: Base
         Type Base
@@ -7403,9 +7403,9 @@ Module mangling=persistent-v1
         StructInit Shown
           Type Int
           Local value
-  instance @scoop$1$fn$967f15b33e8d6ef325bd10705c4caf478307ba3084931886fd44aa9d87053b62 <- read
-  instance @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027 <- println
-  instance @scoop$1$fn$6719ac1117b106773c2249d49895784a836be33832152d7aa83f37bc03e99743 <- read
+  instance @scoop$1$fn$1a8b3e4df3e10f8b8d9c2b57961f4e55fb9c3b1418103defc45010ea137538ac <- read
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$38e9833c067e82497c3fe9f74443e7c3760158a76f16503865ec112ecec7834a <- read
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -10829,7 +10829,7 @@ Module
     call managed-void-target2 sp131 live=[] sig=void2 (i32) local-fn75(local10)
     t5 = aggregate () : {}
     ret
-  fun @scoop$1$fn$967f15b33e8d6ef325bd10705c4caf478307ba3084931886fd44aa9d87053b62(indirect<struct10 size=4 align=4 scan=none>) -> i32
+  fun @scoop$1$fn$1a8b3e4df3e10f8b8d9c2b57961f4e55fb9c3b1418103defc45010ea137538ac(indirect<struct10 size=4 align=4 scan=none>) -> i32
     local %0 $receiver: struct10
     local %1 $call.1: i32
     local %2 $sc.1: struct10
@@ -10840,7 +10840,7 @@ Module
     call managed-direct-target0 sp132 live=[] t0 = sig=direct0 (indirect<struct10 size=4 align=4 scan=none>) -> i32 local-fn51(indirect local2)
     store t0 -> local1
     ret local1
-  fun @scoop$1$fn$b8a54f656dbeb2bd81104e2037922461a5dbd389ea2fc1a0901586e826e74027(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -10859,7 +10859,7 @@ Module
     call native-borrowed-void-target1 sp135 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$6719ac1117b106773c2249d49895784a836be33832152d7aa83f37bc03e99743(ptr<managed>) -> i32
+  fun @scoop$1$fn$38e9833c067e82497c3fe9f74443e7c3760158a76f16503865ec112ecec7834a(ptr<managed>) -> i32
     local %0 $receiver: ptr<managed>
     local %1 $call.1: i32
   block entry

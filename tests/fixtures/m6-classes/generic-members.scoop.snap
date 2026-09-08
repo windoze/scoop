@@ -6942,7 +6942,7 @@ Module mangling=persistent-v1
       val $receiver: Exchange$I32
         Type Exchange$I32
         Local value
-      call $call.1: Int = @scoop$1$fn$195c9b616bad61ef51f265e433b0c9f18c950565c49f5c37f583f317b8448d10 interface Exchange$I32[0]
+      call $call.1: Int = @scoop$1$fn$46e606f6c1334845f86b357ea732a1b9067424612e62ee9dca50d3d7e250dfd6 interface Exchange$I32[0]
         Type Exchange$I32
         Local $receiver
       return
@@ -6980,7 +6980,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.2
-      call $argument.0: String = @scoop$1$fn$3673ab03f42dc37b3d76cea5289adf27f5565c2510a4ac3b790d8d6768d36fa8 direct
+      call $argument.0: String = @scoop$1$fn$d65d55777cd0074f79e18e7f64295c6f93a4ef807ea0d22d5a5940a87a29419c direct
         Type Box$I32
         Local $receiver
         Type Int
@@ -6992,7 +6992,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       val $argument.0: Exchange$I32
@@ -7009,7 +7009,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$0337969bccb0340aed7625b1f461ad5e5dd82b232cb01c693e65be20c928e2b3 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       assign $new.1
@@ -7027,7 +7027,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$e71d20c3fb223f29df101b981f57e4a55c24ed1110e5930c82602cae44d6dece direct
+      call $argument.0: String = @scoop$1$fn$be13487d99deb1899d33a815c641ca3a6e3298ea1ef8247adb3c15cda47b7781 direct
         Type Tool
         Local $receiver
         Type String
@@ -7035,7 +7035,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       assign $new.2
@@ -7064,7 +7064,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$0337969bccb0340aed7625b1f461ad5e5dd82b232cb01c693e65be20c928e2b3 direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       val $receiver: Overloads
@@ -7076,7 +7076,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $argument.0: String = @scoop$1$fn$eaede2864d9797c481e51e67ad5aa97707f96e444f56726ddd51057f71959fba direct
+      call $argument.0: String = @scoop$1$fn$cdbbb664696dc0f05ee78a68f9f61a9ee328496cc2dd00f8fc0ad6c41cfa429d direct
         Type Overloads
         Local $receiver
         Type String
@@ -7084,11 +7084,11 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun println @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7112,7 +7112,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$0337969bccb0340aed7625b1f461ad5e5dd82b232cb01c693e65be20c928e2b3(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7136,24 +7136,24 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun Box.current @scoop$1$fn$2c0a2f18ecb020b8762d14bc53b0163980182b13bba5957d2fc5df2d7d9e33fa(this: Box$I32) -> Int
+  fun Box.current @scoop$1$fn$346574dc688a981026c7acad8795351311834c0feb2bcdd649facb2bc17fb3ac(this: Box$I32) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Box$I32
           Local this
-  fun Box.exchange @scoop$1$fn$3673ab03f42dc37b3d76cea5289adf27f5565c2510a4ac3b790d8d6768d36fa8(this: Box$I32, owner: Int, missing: Option$S<String>, value: String) -> String
+  fun Box.exchange @scoop$1$fn$d65d55777cd0074f79e18e7f64295c6f93a4ef807ea0d22d5a5940a87a29419c(this: Box$I32, owner: Int, missing: Option$S<String>, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun Tool.id @scoop$1$fn$e71d20c3fb223f29df101b981f57e4a55c24ed1110e5930c82602cae44d6dece(this: Tool, value: String) -> String
+  fun Tool.id @scoop$1$fn$be13487d99deb1899d33a815c641ca3a6e3298ea1ef8247adb3c15cda47b7781(this: Tool, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun Overloads.id @scoop$1$fn$eaede2864d9797c481e51e67ad5aa97707f96e444f56726ddd51057f71959fba(this: Overloads, value: String) -> String
+  fun Overloads.id @scoop$1$fn$cdbbb664696dc0f05ee78a68f9f61a9ee328496cc2dd00f8fc0ad6c41cfa429d(this: Overloads, value: String) -> String
     bb0 entry
       return
         Type String
@@ -7595,7 +7595,7 @@ Module mangling=persistent-v1
           Local value
   fun thunk.D7_Box$I32X.Exchange$I32.current @scoop$1$fn$02b35ee60e520ab92ff8f5986841a2a6ad92c6192dc538c64d7f3cb7173f60e5(this: Any) -> Int
     bb0 entry
-      call $call.1: Int = @scoop$1$fn$2c0a2f18ecb020b8762d14bc53b0163980182b13bba5957d2fc5df2d7d9e33fa direct
+      call $call.1: Int = @scoop$1$fn$346574dc688a981026c7acad8795351311834c0feb2bcdd649facb2bc17fb3ac direct
         Type Box$I32
         Unbox
           Type Any
@@ -7603,13 +7603,13 @@ Module mangling=persistent-v1
       return
         Type Int
         Local $call.1
-  instance @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7 <- println
-  instance @scoop$1$fn$0337969bccb0340aed7625b1f461ad5e5dd82b232cb01c693e65be20c928e2b3 <- println
-  instance @scoop$1$fn$2c0a2f18ecb020b8762d14bc53b0163980182b13bba5957d2fc5df2d7d9e33fa <- Box.current
-  instance @scoop$1$fn$3673ab03f42dc37b3d76cea5289adf27f5565c2510a4ac3b790d8d6768d36fa8 <- Box.exchange
-  instance @scoop$1$fn$e71d20c3fb223f29df101b981f57e4a55c24ed1110e5930c82602cae44d6dece <- Tool.id
-  instance @scoop$1$fn$eaede2864d9797c481e51e67ad5aa97707f96e444f56726ddd51057f71959fba <- Overloads.id
-  instance @scoop$1$fn$195c9b616bad61ef51f265e433b0c9f18c950565c49f5c37f583f317b8448d10 <- Exchange.current
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$346574dc688a981026c7acad8795351311834c0feb2bcdd649facb2bc17fb3ac <- Box.current
+  instance @scoop$1$fn$d65d55777cd0074f79e18e7f64295c6f93a4ef807ea0d22d5a5940a87a29419c <- Box.exchange
+  instance @scoop$1$fn$be13487d99deb1899d33a815c641ca3a6e3298ea1ef8247adb3c15cda47b7781 <- Tool.id
+  instance @scoop$1$fn$cdbbb664696dc0f05ee78a68f9f61a9ee328496cc2dd00f8fc0ad6c41cfa429d <- Overloads.id
+  instance @scoop$1$fn$46e606f6c1334845f86b357ea732a1b9067424612e62ee9dca50d3d7e250dfd6 <- Exchange.current
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11104,7 +11104,7 @@ Module
     call managed-void-target6 sp141 live=[local31:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn73(local31)
     t16 = aggregate () : {}
     ret
-  fun @scoop$1$fn$92ebab6f1f3b01cd075980d59fc4e573bf4c64906e4ad8c23487c47b7e72fdc7(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11123,7 +11123,7 @@ Module
     call native-borrowed-void-target1 sp144 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$0337969bccb0340aed7625b1f461ad5e5dd82b232cb01c693e65be20c928e2b3(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11142,20 +11142,20 @@ Module
     call native-borrowed-void-target1 sp147 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$2c0a2f18ecb020b8762d14bc53b0163980182b13bba5957d2fc5df2d7d9e33fa(indirect<struct10 size=4 align=4 scan=none>) -> i32
+  fun @scoop$1$fn$346574dc688a981026c7acad8795351311834c0feb2bcdd649facb2bc17fb3ac(indirect<struct10 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp232 live=[]
     t0 = extract param0, 0 : i32
     ret t0
-  fun @scoop$1$fn$3673ab03f42dc37b3d76cea5289adf27f5565c2510a4ac3b790d8d6768d36fa8(indirect<struct10 size=4 align=4 scan=none>, i32, enum0, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$d65d55777cd0074f79e18e7f64295c6f93a4ef807ea0d22d5a5940a87a29419c(indirect<struct10 size=4 align=4 scan=none>, i32, enum0, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp233 live=[param3:ptr<managed>@0]
     ret param3
-  fun @scoop$1$fn$e71d20c3fb223f29df101b981f57e4a55c24ed1110e5930c82602cae44d6dece(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$be13487d99deb1899d33a815c641ca3a6e3298ea1ef8247adb3c15cda47b7781(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp234 live=[param1:ptr<managed>@0]
     ret param1
-  fun @scoop$1$fn$eaede2864d9797c481e51e67ad5aa97707f96e444f56726ddd51057f71959fba(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$cdbbb664696dc0f05ee78a68f9f61a9ee328496cc2dd00f8fc0ad6c41cfa429d(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp235 live=[param1:ptr<managed>@0]
     ret param1

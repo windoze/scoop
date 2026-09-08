@@ -1238,16 +1238,16 @@ Module mangling=persistent-v1
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop$1$fn$5b3c96571901d951ae455e0440bdef4d33e242eca548f56bf7bcbd38e8e32959 captures=1
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop$1$fn$71758f940aec2e3b36a2f3b83d401ec46ab9cfbee4f28f3d94ef97777307530c captures=1
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop$1$fn$2663197049bc68627dd9fe1a3db55b8fc36378919abbddc8fe8820214efcdcb9 captures=1
-  closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop$1$fn$bf811fe13f726439209bcd39e47e26060a231dc5a0f1726ff315580b33bb7108 captures=1
-  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop$1$fn$2a8b800387dce01eddf362f1c1d76e8bb0d709ff36a2578c55e6bb8514c89da4 captures=1
-  closure cc5 $Closure$lambda5 type=function_type1 invoke=@scoop$1$fn$bad195f49d487ec1e7b29d8b49bf342343f5b7ffe91c5851d908d0851667729c captures=1
-  closure cc6 $Closure$anonymous0 type=function_type0 invoke=@scoop$1$fn$cf4680c770ad881be6bc9a2793add7614047076a54e4f464c370e6437aef4f20 captures=1
-  closure cc7 $Closure$anonymous1 type=function_type1 invoke=@scoop$1$fn$cea9ae30833a18ea20a266d526d62e6f222e94766e9f8df873dc1461f0d15e21 captures=1
-  closure cc8 $Closure$anonymous2 type=function_type4 invoke=@scoop$1$fn$cd73e72c9601f2896e621e22aa92d81bf5ee909a76c5eaa56d4fe4ccd7fe5628 captures=1
-  closure cc9 $Closure$anonymous3 type=function_type5 invoke=@scoop$1$fn$1f1e9b7c6b068c73401fdd7cd518e02093089be50b0ea138f1f29ee8a3f62764 captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop$1$fn$ec8cd583c0603c3e5c07eddb445e2a3f8a70d3fa5f1553bf2d8faddf15bbc737 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop$1$fn$7f04238a90395f288f02b54630a35cdb2f4e7753f9192e19b8b7cb4f37c8cf8b captures=1
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop$1$fn$44773b471d4f5acb8d743e5854c81218767b0a65d902971ac10cb9cd36f8513b captures=1
+  closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop$1$fn$024d78ba45e361bcec4ef08540e15422166f6823131ad01fcfca950b90d436dc captures=1
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop$1$fn$2a0d3e70d05bc7d7822edf61a98e4c7dd062c8e1ffb5b0eede83a31fdc9eabed captures=1
+  closure cc5 $Closure$lambda5 type=function_type1 invoke=@scoop$1$fn$da16db1c09b4090c8d6bfa1cb526be006d53afcdb5fd8dc550465320f63c4713 captures=1
+  closure cc6 $Closure$anonymous0 type=function_type0 invoke=@scoop$1$fn$1d769110c2429d20e25c42c5263100be6bfbb014a1e1d616c1e868ca06c8db4d captures=1
+  closure cc7 $Closure$anonymous1 type=function_type1 invoke=@scoop$1$fn$37ae4300ff071b8b55439310ac47207d26e692d53f907f138e0a0dd345b86eeb captures=1
+  closure cc8 $Closure$anonymous2 type=function_type4 invoke=@scoop$1$fn$cb3bfe41dac02aec8adb4555b48ffe0817e4a6c252702d95d8479889fef8e3c2 captures=1
+  closure cc9 $Closure$anonymous3 type=function_type5 invoke=@scoop$1$fn$8afdcfbf8a3821c8d79b9121147cfca87fe92fd120dbeb53ef3811a669e3e538 captures=1
   closure cc10 $Closure$reference0 type=function_type0 invoke=@scoop$1$fn$c64376e32df2808f28738628939d709bc6771bea62a98b8363382bccca2eaf62 captures=1
   closure cc11 $Closure$reference1 type=function_type1 invoke=@scoop$1$fn$fdb6029791c606d142cc7ee254fb915d0d1dbbaae85740499347d43e74d24619 captures=1
   closure cc12 $Closure$reference2 type=function_type2 invoke=@scoop$1$fn$377056fa16dbf7eea93bf81f4bbc717a05585b70d9aedf098ccf12a82b2938bb captures=0
@@ -7195,7 +7195,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intLambda: () -> Int = @scoop$1$fn$2282b105b0b775552ac6967c76ef369bd30fdfe6db53c5edc9a61a83c50091f9 direct
+      call intLambda: () -> Int = @scoop$1$fn$f94ed29cc96afc1570d76b09d800070b992a6f6d451ec5def99c6b9d07143bdb direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7204,7 +7204,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringLambda: () -> String = @scoop$1$fn$104e7b222edc10745f9e97be0f45feee32e4257413eca70becdc276c12fef0b2 direct
+      call stringLambda: () -> String = @scoop$1$fn$a57b672d93db985973ec9be620567f75f723eca86312afea538bed01d7e4e3f4 direct
         Type String
         Local $parameter.value
       val $argument.0: Int
@@ -7213,7 +7213,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intAnonymous: () -> Int = @scoop$1$fn$8285cd0b27fd231671cbcf6055599175abaa9acb7c6d8ede1e2bc71a80458f8e direct
+      call intAnonymous: () -> Int = @scoop$1$fn$2de31fd34e461a8ee3b4ffae34b9eb39107b5ad47a19d61237edc41a69123c9f direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7222,7 +7222,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringAnonymous: () -> String = @scoop$1$fn$cfdf8092eec65bb6aed4a7354bfee77a55d0dc4562e014f816df9feab293323e direct
+      call stringAnonymous: () -> String = @scoop$1$fn$5ba4dc9602ce414305a29244a76ecb764df7c3af2242eda42ca198e56e4bc803 direct
         Type String
         Local $parameter.value
       val $argument.0: Int
@@ -7231,7 +7231,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intLocal: () -> Int = @scoop$1$fn$5d5f641f298bb9328e6b3e5051eaf2dccb512ca89e99bff3b5e9afa3fb392128 direct
+      call intLocal: () -> Int = @scoop$1$fn$a463bec5382b1f8589b7c6670d8f9500cc89541fa55f1fb7be628bd4035a2c89 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7240,7 +7240,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringLocal: () -> String = @scoop$1$fn$d8c68e989682831e0e234ee89c20089eca5aa252337eca527c46b801fda1a08f direct
+      call stringLocal: () -> String = @scoop$1$fn$3e2af2756e1a86b239c62b1f0dde222b96a5f21d197cdf2b310170c64fb83c57 direct
         Type String
         Local $parameter.value
       val $argument.0: Int
@@ -7249,7 +7249,7 @@ Module mangling=persistent-v1
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call intIdentity: (Int) -> Int = @scoop$1$fn$039356db85257a11032d154037a5c1655e8b4dd574c7f038ae7929d8b284b1ef direct
+      call intIdentity: (Int) -> Int = @scoop$1$fn$2df0f545c57dfdf51ba660d39839083aba8131f0fd4d2c92507bc58160ae38f2 direct
         Type Int
         Local $parameter.seed
       val $argument.0: String
@@ -7258,7 +7258,7 @@ Module mangling=persistent-v1
       val $parameter.seed: String
         Type String
         Local $argument.0
-      call stringIdentity: (String) -> String = @scoop$1$fn$42ed3717ae16dc1fa2b5d196374ebda24532f4a84a8432bde2f4c960d2442f9b direct
+      call stringIdentity: (String) -> String = @scoop$1$fn$dd66be77b5f902ec6c1d644d3bc892ef25df231c2026d4ff840b35767a672dc5 direct
         Type String
         Local $parameter.seed
       val $argument.0: Int
@@ -7267,7 +7267,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intExtension: () -> Int = @scoop$1$fn$2c8811ef2cbc09f33cde967dab040f24752e5486608f63965be3e218eb70e445 direct
+      call intExtension: () -> Int = @scoop$1$fn$0bb62684cb04c5cf83c8d8c5d99436ae1907a67d789f95a8d41d27ea96acfda1 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7276,7 +7276,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringExtension: () -> String = @scoop$1$fn$ac1cb1aefa0ec10824d31ae9c68335f4a435831e2fd15e9396f18e8d39dae114 direct
+      call stringExtension: () -> String = @scoop$1$fn$eabf2bea0f26d8cf308635cf5eb0b38daac347a974b274111237ff529123dbe9 direct
         Type String
         Local $parameter.value
       val $argument.0: Int
@@ -7285,7 +7285,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intNested: () -> () -> Int = @scoop$1$fn$15287d2338e9753c902ef15f3ad8a54a1ef0a42b09d17c13588669d53da0b8f9 direct
+      call intNested: () -> () -> Int = @scoop$1$fn$48c7e6b2c54c3a4aa3859ed5f1b38c10e5f8a075145e56ded77e6c8974873bbf direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7294,7 +7294,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringNested: () -> () -> String = @scoop$1$fn$fc0d720195931d1dc93d6bf4cc8451b2175557066948c94e51c53f6b7fb559ba direct
+      call stringNested: () -> () -> String = @scoop$1$fn$a86130c15718eff5df91d917cfb97ce18afa6f8bcae6a926907c9ac596a14fc7 direct
         Type String
         Local $parameter.value
       val $argument.0: Int
@@ -7303,7 +7303,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call intBox: () -> Int = @scoop$1$fn$d8b01989b567e715ea8741cfb89c9105032aa3535f38c0a1613c757fef159beb direct
+      call intBox: () -> Int = @scoop$1$fn$1576dbe19a62da273f960673bbc2a354b6befffc03aa15fd872a46c0e0cd18e1 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7312,7 +7312,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call stringBox: () -> String = @scoop$1$fn$1a696f92c0a0e7063ebc633185bfbd75e885190371c0c91a3f862b5bb4abb982 direct
+      call stringBox: () -> String = @scoop$1$fn$9f256001424cb843c8575b3f78a60ff2f00364ce7ce2f39f2f3c8e7154e362a8 direct
         Type String
         Local $parameter.value
       call @scoop_rt_gc_collect direct
@@ -7322,7 +7322,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type1> closure[function_type1]
@@ -7331,7 +7331,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -7340,7 +7340,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type1> closure[function_type1]
@@ -7349,7 +7349,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -7358,7 +7358,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type1> closure[function_type1]
@@ -7367,7 +7367,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Int = <closure:function_type2> closure[function_type2]
@@ -7378,7 +7378,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type3> closure[function_type3]
@@ -7389,7 +7389,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -7398,7 +7398,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type1> closure[function_type1]
@@ -7407,7 +7407,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $call.1: () -> Int = <closure:function_type4> closure[function_type4]
@@ -7419,7 +7419,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $call.2: () -> String = <closure:function_type5> closure[function_type5]
@@ -7431,7 +7431,7 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -7440,7 +7440,7 @@ Module mangling=persistent-v1
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a direct
+      call @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 direct
         Type Int
         Local $parameter.value
       call $argument.0: String = <closure:function_type1> closure[function_type1]
@@ -7449,53 +7449,53 @@ Module mangling=persistent-v1
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 direct
+      call @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 direct
         Type String
         Local $parameter.value
       return
-  fun makeLambda @scoop$1$fn$2282b105b0b775552ac6967c76ef369bd30fdfe6db53c5edc9a61a83c50091f9(value: Int) -> () -> Int
+  fun makeLambda @scoop$1$fn$f94ed29cc96afc1570d76b09d800070b992a6f6d451ec5def99c6b9d07143bdb(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
           Type Int
           Local value
-  fun makeLambda @scoop$1$fn$104e7b222edc10745f9e97be0f45feee32e4257413eca70becdc276c12fef0b2(value: String) -> () -> String
+  fun makeLambda @scoop$1$fn$a57b672d93db985973ec9be620567f75f723eca86312afea538bed01d7e4e3f4(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc1 $Closure$lambda1
           Type String
           Local value
-  fun makeAnonymous @scoop$1$fn$8285cd0b27fd231671cbcf6055599175abaa9acb7c6d8ede1e2bc71a80458f8e(value: Int) -> () -> Int
+  fun makeAnonymous @scoop$1$fn$2de31fd34e461a8ee3b4ffae34b9eb39107b5ad47a19d61237edc41a69123c9f(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc6 $Closure$anonymous0
           Type Int
           Local value
-  fun makeAnonymous @scoop$1$fn$cfdf8092eec65bb6aed4a7354bfee77a55d0dc4562e014f816df9feab293323e(value: String) -> () -> String
+  fun makeAnonymous @scoop$1$fn$5ba4dc9602ce414305a29244a76ecb764df7c3af2242eda42ca198e56e4bc803(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc7 $Closure$anonymous1
           Type String
           Local value
-  fun makeLocalReference @scoop$1$fn$5d5f641f298bb9328e6b3e5051eaf2dccb512ca89e99bff3b5e9afa3fb392128(value: Int) -> () -> Int
+  fun makeLocalReference @scoop$1$fn$a463bec5382b1f8589b7c6670d8f9500cc89541fa55f1fb7be628bd4035a2c89(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc10 $Closure$reference0
           Type Int
           Local value
-  fun makeLocalReference @scoop$1$fn$d8c68e989682831e0e234ee89c20089eca5aa252337eca527c46b801fda1a08f(value: String) -> () -> String
+  fun makeLocalReference @scoop$1$fn$3e2af2756e1a86b239c62b1f0dde222b96a5f21d197cdf2b310170c64fb83c57(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc11 $Closure$reference1
           Type String
           Local value
-  fun makeNamedReference @scoop$1$fn$039356db85257a11032d154037a5c1655e8b4dd574c7f038ae7929d8b284b1ef(seed: Int) -> (Int) -> Int
+  fun makeNamedReference @scoop$1$fn$2df0f545c57dfdf51ba660d39839083aba8131f0fd4d2c92507bc58160ae38f2(seed: Int) -> (Int) -> Int
     bb0 entry
       val reference: (Int) -> Int
         Type (Int) -> Int
@@ -7503,7 +7503,7 @@ Module mangling=persistent-v1
       return
         Type (Int) -> Int
         Local reference
-  fun makeNamedReference @scoop$1$fn$42ed3717ae16dc1fa2b5d196374ebda24532f4a84a8432bde2f4c960d2442f9b(seed: String) -> (String) -> String
+  fun makeNamedReference @scoop$1$fn$dd66be77b5f902ec6c1d644d3bc892ef25df231c2026d4ff840b35767a672dc5(seed: String) -> (String) -> String
     bb0 entry
       val reference: (String) -> String
         Type (String) -> String
@@ -7511,35 +7511,35 @@ Module mangling=persistent-v1
       return
         Type (String) -> String
         Local reference
-  fun makeExtensionReference @scoop$1$fn$2c8811ef2cbc09f33cde967dab040f24752e5486608f63965be3e218eb70e445(value: Int) -> () -> Int
+  fun makeExtensionReference @scoop$1$fn$0bb62684cb04c5cf83c8d8c5d99436ae1907a67d789f95a8d41d27ea96acfda1(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc14 $Closure$reference4
           Type Int
           Local value
-  fun makeExtensionReference @scoop$1$fn$ac1cb1aefa0ec10824d31ae9c68335f4a435831e2fd15e9396f18e8d39dae114(value: String) -> () -> String
+  fun makeExtensionReference @scoop$1$fn$eabf2bea0f26d8cf308635cf5eb0b38daac347a974b274111237ff529123dbe9(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc15 $Closure$reference5
           Type String
           Local value
-  fun makeNested @scoop$1$fn$15287d2338e9753c902ef15f3ad8a54a1ef0a42b09d17c13588669d53da0b8f9(value: Int) -> () -> () -> Int
+  fun makeNested @scoop$1$fn$48c7e6b2c54c3a4aa3859ed5f1b38c10e5f8a075145e56ded77e6c8974873bbf(value: Int) -> () -> () -> Int
     bb0 entry
       return
         Type () -> () -> Int
         ClosureAlloc cc8 $Closure$anonymous2
           Type Int
           Local value
-  fun makeNested @scoop$1$fn$fc0d720195931d1dc93d6bf4cc8451b2175557066948c94e51c53f6b7fb559ba(value: String) -> () -> () -> String
+  fun makeNested @scoop$1$fn$a86130c15718eff5df91d917cfb97ce18afa6f8bcae6a926907c9ac596a14fc7(value: String) -> () -> () -> String
     bb0 entry
       return
         Type () -> () -> String
         ClosureAlloc cc9 $Closure$anonymous3
           Type String
           Local value
-  fun makeBoxReader @scoop$1$fn$d8b01989b567e715ea8741cfb89c9105032aa3535f38c0a1613c757fef159beb(value: Int) -> () -> Int
+  fun makeBoxReader @scoop$1$fn$1576dbe19a62da273f960673bbc2a354b6befffc03aa15fd872a46c0e0cd18e1(value: Int) -> () -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -7555,7 +7555,7 @@ Module mangling=persistent-v1
         ClosureAlloc cc2 $Closure$lambda2
           Type GenericBox$I32
           Local box
-  fun makeBoxReader @scoop$1$fn$1a696f92c0a0e7063ebc633185bfbd75e885190371c0c91a3f862b5bb4abb982(value: String) -> () -> String
+  fun makeBoxReader @scoop$1$fn$9f256001424cb843c8575b3f78a60ff2f00364ce7ce2f39f2f3c8e7154e362a8(value: String) -> () -> String
     bb0 entry
       val $argument.0: String
         Type String
@@ -7571,7 +7571,7 @@ Module mangling=persistent-v1
         ClosureAlloc cc3 $Closure$lambda3
           Type GenericBox$S
           Local box
-  fun println @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(value: Int) -> Unit
+  fun println @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7595,7 +7595,7 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun println @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(value: String) -> Unit
+  fun println @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
@@ -7619,65 +7619,65 @@ Module mangling=persistent-v1
         Type String
         Local $parameter.message
       return
-  fun $lambda.0 @scoop$1$fn$5b3c96571901d951ae455e0440bdef4d33e242eca548f56bf7bcbd38e8e32959($closure: () -> Int) -> Int
+  fun $lambda.0 @scoop$1$fn$ec8cd583c0603c3e5c07eddb445e2a3f8a70d3fa5f1553bf2d8faddf15bbc737($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc0 0
           Type () -> Int
           Local $closure
-  fun $lambda.0 @scoop$1$fn$71758f940aec2e3b36a2f3b83d401ec46ab9cfbee4f28f3d94ef97777307530c($closure: () -> String) -> String
+  fun $lambda.0 @scoop$1$fn$7f04238a90395f288f02b54630a35cdb2f4e7753f9192e19b8b7cb4f37c8cf8b($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc1 0
           Type () -> String
           Local $closure
-  fun $anonymous.0 @scoop$1$fn$cf4680c770ad881be6bc9a2793add7614047076a54e4f464c370e6437aef4f20($closure: () -> Int) -> Int
+  fun $anonymous.0 @scoop$1$fn$1d769110c2429d20e25c42c5263100be6bfbb014a1e1d616c1e868ca06c8db4d($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc6 0
           Type () -> Int
           Local $closure
-  fun $anonymous.0 @scoop$1$fn$cea9ae30833a18ea20a266d526d62e6f222e94766e9f8df873dc1461f0d15e21($closure: () -> String) -> String
+  fun $anonymous.0 @scoop$1$fn$37ae4300ff071b8b55439310ac47207d26e692d53f907f138e0a0dd345b86eeb($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc7 0
           Type () -> String
           Local $closure
-  fun $local.0.read @scoop$1$fn$6acfa375f8ab1ce8d56a9e458658227ca2835fa3eba6f30de70dd48403554921($capture.value: Int) -> Int
+  fun $local.0.read @scoop$1$fn$d9c017f3462f24681208c5b6dcf7e10a81100dead70bf5f40f255941ceb75882($capture.value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.value
-  fun $local.0.read @scoop$1$fn$6e2a5aea1cde6b70309f1b57977420b03691d9177eb25d3a8a69da1f5d1b871e($capture.value: String) -> String
+  fun $local.0.read @scoop$1$fn$0c91075a303390bdd694aa12ca446a752235fb3c1add812baa4385e4c3753118($capture.value: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.value
-  fun identity @scoop$1$fn$fe9ddf3cffc4d9eea0775b5b0f2af963b289902e55baf2e3466a111cf035e8fd(value: Int) -> Int
+  fun identity @scoop$1$fn$23520997554966217fe204c12002c9339c35075c01544b48d3a4cfbe5c31ac7a(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun identity @scoop$1$fn$26fe25b5ef6bf70228724474326c639dfa3ee03c83034f23a721a8ad7d5eb992(value: String) -> String
+  fun identity @scoop$1$fn$f18ba00da3eefb0400137fa928c6bf796e30692ac4fcd232d9c55ca704e7dccb(value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $extension.copyValue @scoop$1$fn$c8f5784ede610c45c9fee903aa36a9ed02a91abfad2c9bd469831c91c84ca3bc(this: Int) -> Int
+  fun $extension.copyValue @scoop$1$fn$06ae0e7a464f47cdcdb8b3ca8eca23ebbfcb689aaab1c7b04d9cce58645b091c(this: Int) -> Int
     bb0 entry
       return
         Type Int
         Local this
-  fun $extension.copyValue @scoop$1$fn$ad546d35736bad819dd738b4b98ce059ef6f44f18b7ff5063f97070175c775b8(this: String) -> String
+  fun $extension.copyValue @scoop$1$fn$d60f7fad5cade8f4e55b761f951d3ee3b584f93531fd9425992c7a257ad4bc4e(this: String) -> String
     bb0 entry
       return
         Type String
         Local this
-  fun $anonymous.1 @scoop$1$fn$cd73e72c9601f2896e621e22aa92d81bf5ee909a76c5eaa56d4fe4ccd7fe5628($closure: () -> () -> Int) -> () -> Int
+  fun $anonymous.1 @scoop$1$fn$cb3bfe41dac02aec8adb4555b48ffe0817e4a6c252702d95d8479889fef8e3c2($closure: () -> () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
@@ -7686,7 +7686,7 @@ Module mangling=persistent-v1
           ClosureCapture cc8 0
             Type () -> () -> Int
             Local $closure
-  fun $anonymous.1 @scoop$1$fn$1f1e9b7c6b068c73401fdd7cd518e02093089be50b0ea138f1f29ee8a3f62764($closure: () -> () -> String) -> () -> String
+  fun $anonymous.1 @scoop$1$fn$8afdcfbf8a3821c8d79b9121147cfca87fe92fd120dbeb53ef3811a669e3e538($closure: () -> () -> String) -> () -> String
     bb0 entry
       return
         Type () -> String
@@ -7695,7 +7695,7 @@ Module mangling=persistent-v1
           ClosureCapture cc9 0
             Type () -> () -> String
             Local $closure
-  fun $lambda.2 @scoop$1$fn$2663197049bc68627dd9fe1a3db55b8fc36378919abbddc8fe8820214efcdcb9($closure: () -> Int) -> Int
+  fun $lambda.2 @scoop$1$fn$44773b471d4f5acb8d743e5854c81218767b0a65d902971ac10cb9cd36f8513b($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
@@ -7704,7 +7704,7 @@ Module mangling=persistent-v1
           ClosureCapture cc2 0
             Type () -> Int
             Local $closure
-  fun $lambda.2 @scoop$1$fn$bf811fe13f726439209bcd39e47e26060a231dc5a0f1726ff315580b33bb7108($closure: () -> String) -> String
+  fun $lambda.2 @scoop$1$fn$024d78ba45e361bcec4ef08540e15422166f6823131ad01fcfca950b90d436dc($closure: () -> String) -> String
     bb0 entry
       return
         Type String
@@ -7713,14 +7713,14 @@ Module mangling=persistent-v1
           ClosureCapture cc3 0
             Type () -> String
             Local $closure
-  fun $lambda.1 @scoop$1$fn$2a8b800387dce01eddf362f1c1d76e8bb0d709ff36a2578c55e6bb8514c89da4($closure: () -> Int) -> Int
+  fun $lambda.1 @scoop$1$fn$2a0d3e70d05bc7d7822edf61a98e4c7dd062c8e1ffb5b0eede83a31fdc9eabed($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc4 0
           Type () -> Int
           Local $closure
-  fun $lambda.1 @scoop$1$fn$bad195f49d487ec1e7b29d8b49bf342343f5b7ffe91c5851d908d0851667729c($closure: () -> String) -> String
+  fun $lambda.1 @scoop$1$fn$da16db1c09b4090c8d6bfa1cb526be006d53afcdb5fd8dc550465320f63c4713($closure: () -> String) -> String
     bb0 entry
       return
         Type String
@@ -7729,7 +7729,7 @@ Module mangling=persistent-v1
           Local $closure
   fun $reference.FRI32X @scoop$1$fn$c64376e32df2808f28738628939d709bc6771bea62a98b8363382bccca2eaf62($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = @scoop$1$fn$6acfa375f8ab1ce8d56a9e458658227ca2835fa3eba6f30de70dd48403554921 direct
+      call $call.1: Int = @scoop$1$fn$d9c017f3462f24681208c5b6dcf7e10a81100dead70bf5f40f255941ceb75882 direct
         Type Int
         ClosureCapture cc10 0
           Type () -> Int
@@ -7739,7 +7739,7 @@ Module mangling=persistent-v1
         Local $call.1
   fun $reference.FRSX @scoop$1$fn$fdb6029791c606d142cc7ee254fb915d0d1dbbaae85740499347d43e74d24619($closure: () -> String) -> String
     bb0 entry
-      call $call.1: String = @scoop$1$fn$6e2a5aea1cde6b70309f1b57977420b03691d9177eb25d3a8a69da1f5d1b871e direct
+      call $call.1: String = @scoop$1$fn$0c91075a303390bdd694aa12ca446a752235fb3c1add812baa4385e4c3753118 direct
         Type String
         ClosureCapture cc11 0
           Type () -> String
@@ -7749,7 +7749,7 @@ Module mangling=persistent-v1
         Local $call.1
   fun $reference.FI32RI32X @scoop$1$fn$377056fa16dbf7eea93bf81f4bbc717a05585b70d9aedf098ccf12a82b2938bb($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @scoop$1$fn$fe9ddf3cffc4d9eea0775b5b0f2af963b289902e55baf2e3466a111cf035e8fd direct
+      call $call.1: Int = @scoop$1$fn$23520997554966217fe204c12002c9339c35075c01544b48d3a4cfbe5c31ac7a direct
         Type Int
         Local arg0
       return
@@ -7757,7 +7757,7 @@ Module mangling=persistent-v1
         Local $call.1
   fun $reference.FSRSX @scoop$1$fn$f1b7841ba5b335ca769eb6b409e1ece0126fd2cc0a071b9f4ae5457f38cdf697($closure: (String) -> String, arg0: String) -> String
     bb0 entry
-      call $call.1: String = @scoop$1$fn$26fe25b5ef6bf70228724474326c639dfa3ee03c83034f23a721a8ad7d5eb992 direct
+      call $call.1: String = @scoop$1$fn$f18ba00da3eefb0400137fa928c6bf796e30692ac4fcd232d9c55ca704e7dccb direct
         Type String
         Local arg0
       return
@@ -7765,7 +7765,7 @@ Module mangling=persistent-v1
         Local $call.1
   fun $reference.FRI32X @scoop$1$fn$8e48c556801804643a005ce56e2e12be1e0abef414a4e1e7a5be538ea3f52d40($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = @scoop$1$fn$c8f5784ede610c45c9fee903aa36a9ed02a91abfad2c9bd469831c91c84ca3bc direct
+      call $call.1: Int = @scoop$1$fn$06ae0e7a464f47cdcdb8b3ca8eca23ebbfcb689aaab1c7b04d9cce58645b091c direct
         Type Int
         ClosureCapture cc14 0
           Type () -> Int
@@ -7775,7 +7775,7 @@ Module mangling=persistent-v1
         Local $call.1
   fun $reference.FRSX @scoop$1$fn$7b9b68f570514ff30d636e44628f423e21256150b9ec5a6ba4a97b302c72ef96($closure: () -> String) -> String
     bb0 entry
-      call $call.1: String = @scoop$1$fn$ad546d35736bad819dd738b4b98ce059ef6f44f18b7ff5063f97070175c775b8 direct
+      call $call.1: String = @scoop$1$fn$d60f7fad5cade8f4e55b761f951d3ee3b584f93531fd9425992c7a257ad4bc4e direct
         Type String
         ClosureCapture cc15 0
           Type () -> String
@@ -8219,38 +8219,38 @@ Module mangling=persistent-v1
         StructInit GenericBox$S
           Type String
           Local value
-  instance @scoop$1$fn$2282b105b0b775552ac6967c76ef369bd30fdfe6db53c5edc9a61a83c50091f9 <- makeLambda
-  instance @scoop$1$fn$104e7b222edc10745f9e97be0f45feee32e4257413eca70becdc276c12fef0b2 <- makeLambda
-  instance @scoop$1$fn$8285cd0b27fd231671cbcf6055599175abaa9acb7c6d8ede1e2bc71a80458f8e <- makeAnonymous
-  instance @scoop$1$fn$cfdf8092eec65bb6aed4a7354bfee77a55d0dc4562e014f816df9feab293323e <- makeAnonymous
-  instance @scoop$1$fn$5d5f641f298bb9328e6b3e5051eaf2dccb512ca89e99bff3b5e9afa3fb392128 <- makeLocalReference
-  instance @scoop$1$fn$d8c68e989682831e0e234ee89c20089eca5aa252337eca527c46b801fda1a08f <- makeLocalReference
-  instance @scoop$1$fn$039356db85257a11032d154037a5c1655e8b4dd574c7f038ae7929d8b284b1ef <- makeNamedReference
-  instance @scoop$1$fn$42ed3717ae16dc1fa2b5d196374ebda24532f4a84a8432bde2f4c960d2442f9b <- makeNamedReference
-  instance @scoop$1$fn$2c8811ef2cbc09f33cde967dab040f24752e5486608f63965be3e218eb70e445 <- makeExtensionReference
-  instance @scoop$1$fn$ac1cb1aefa0ec10824d31ae9c68335f4a435831e2fd15e9396f18e8d39dae114 <- makeExtensionReference
-  instance @scoop$1$fn$15287d2338e9753c902ef15f3ad8a54a1ef0a42b09d17c13588669d53da0b8f9 <- makeNested
-  instance @scoop$1$fn$fc0d720195931d1dc93d6bf4cc8451b2175557066948c94e51c53f6b7fb559ba <- makeNested
-  instance @scoop$1$fn$d8b01989b567e715ea8741cfb89c9105032aa3535f38c0a1613c757fef159beb <- makeBoxReader
-  instance @scoop$1$fn$1a696f92c0a0e7063ebc633185bfbd75e885190371c0c91a3f862b5bb4abb982 <- makeBoxReader
-  instance @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a <- println
-  instance @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981 <- println
-  instance @scoop$1$fn$5b3c96571901d951ae455e0440bdef4d33e242eca548f56bf7bcbd38e8e32959 <- $lambda.0
-  instance @scoop$1$fn$71758f940aec2e3b36a2f3b83d401ec46ab9cfbee4f28f3d94ef97777307530c <- $lambda.0
-  instance @scoop$1$fn$cf4680c770ad881be6bc9a2793add7614047076a54e4f464c370e6437aef4f20 <- $anonymous.0
-  instance @scoop$1$fn$cea9ae30833a18ea20a266d526d62e6f222e94766e9f8df873dc1461f0d15e21 <- $anonymous.0
-  instance @scoop$1$fn$6acfa375f8ab1ce8d56a9e458658227ca2835fa3eba6f30de70dd48403554921 <- $local.0.read
-  instance @scoop$1$fn$6e2a5aea1cde6b70309f1b57977420b03691d9177eb25d3a8a69da1f5d1b871e <- $local.0.read
-  instance @scoop$1$fn$fe9ddf3cffc4d9eea0775b5b0f2af963b289902e55baf2e3466a111cf035e8fd <- identity
-  instance @scoop$1$fn$26fe25b5ef6bf70228724474326c639dfa3ee03c83034f23a721a8ad7d5eb992 <- identity
-  instance @scoop$1$fn$c8f5784ede610c45c9fee903aa36a9ed02a91abfad2c9bd469831c91c84ca3bc <- $extension.copyValue
-  instance @scoop$1$fn$ad546d35736bad819dd738b4b98ce059ef6f44f18b7ff5063f97070175c775b8 <- $extension.copyValue
-  instance @scoop$1$fn$cd73e72c9601f2896e621e22aa92d81bf5ee909a76c5eaa56d4fe4ccd7fe5628 <- $anonymous.1
-  instance @scoop$1$fn$1f1e9b7c6b068c73401fdd7cd518e02093089be50b0ea138f1f29ee8a3f62764 <- $anonymous.1
-  instance @scoop$1$fn$2663197049bc68627dd9fe1a3db55b8fc36378919abbddc8fe8820214efcdcb9 <- $lambda.2
-  instance @scoop$1$fn$bf811fe13f726439209bcd39e47e26060a231dc5a0f1726ff315580b33bb7108 <- $lambda.2
-  instance @scoop$1$fn$2a8b800387dce01eddf362f1c1d76e8bb0d709ff36a2578c55e6bb8514c89da4 <- $lambda.1
-  instance @scoop$1$fn$bad195f49d487ec1e7b29d8b49bf342343f5b7ffe91c5851d908d0851667729c <- $lambda.1
+  instance @scoop$1$fn$f94ed29cc96afc1570d76b09d800070b992a6f6d451ec5def99c6b9d07143bdb <- makeLambda
+  instance @scoop$1$fn$a57b672d93db985973ec9be620567f75f723eca86312afea538bed01d7e4e3f4 <- makeLambda
+  instance @scoop$1$fn$2de31fd34e461a8ee3b4ffae34b9eb39107b5ad47a19d61237edc41a69123c9f <- makeAnonymous
+  instance @scoop$1$fn$5ba4dc9602ce414305a29244a76ecb764df7c3af2242eda42ca198e56e4bc803 <- makeAnonymous
+  instance @scoop$1$fn$a463bec5382b1f8589b7c6670d8f9500cc89541fa55f1fb7be628bd4035a2c89 <- makeLocalReference
+  instance @scoop$1$fn$3e2af2756e1a86b239c62b1f0dde222b96a5f21d197cdf2b310170c64fb83c57 <- makeLocalReference
+  instance @scoop$1$fn$2df0f545c57dfdf51ba660d39839083aba8131f0fd4d2c92507bc58160ae38f2 <- makeNamedReference
+  instance @scoop$1$fn$dd66be77b5f902ec6c1d644d3bc892ef25df231c2026d4ff840b35767a672dc5 <- makeNamedReference
+  instance @scoop$1$fn$0bb62684cb04c5cf83c8d8c5d99436ae1907a67d789f95a8d41d27ea96acfda1 <- makeExtensionReference
+  instance @scoop$1$fn$eabf2bea0f26d8cf308635cf5eb0b38daac347a974b274111237ff529123dbe9 <- makeExtensionReference
+  instance @scoop$1$fn$48c7e6b2c54c3a4aa3859ed5f1b38c10e5f8a075145e56ded77e6c8974873bbf <- makeNested
+  instance @scoop$1$fn$a86130c15718eff5df91d917cfb97ce18afa6f8bcae6a926907c9ac596a14fc7 <- makeNested
+  instance @scoop$1$fn$1576dbe19a62da273f960673bbc2a354b6befffc03aa15fd872a46c0e0cd18e1 <- makeBoxReader
+  instance @scoop$1$fn$9f256001424cb843c8575b3f78a60ff2f00364ce7ce2f39f2f3c8e7154e362a8 <- makeBoxReader
+  instance @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913 <- println
+  instance @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521 <- println
+  instance @scoop$1$fn$ec8cd583c0603c3e5c07eddb445e2a3f8a70d3fa5f1553bf2d8faddf15bbc737 <- $lambda.0
+  instance @scoop$1$fn$7f04238a90395f288f02b54630a35cdb2f4e7753f9192e19b8b7cb4f37c8cf8b <- $lambda.0
+  instance @scoop$1$fn$1d769110c2429d20e25c42c5263100be6bfbb014a1e1d616c1e868ca06c8db4d <- $anonymous.0
+  instance @scoop$1$fn$37ae4300ff071b8b55439310ac47207d26e692d53f907f138e0a0dd345b86eeb <- $anonymous.0
+  instance @scoop$1$fn$d9c017f3462f24681208c5b6dcf7e10a81100dead70bf5f40f255941ceb75882 <- $local.0.read
+  instance @scoop$1$fn$0c91075a303390bdd694aa12ca446a752235fb3c1add812baa4385e4c3753118 <- $local.0.read
+  instance @scoop$1$fn$23520997554966217fe204c12002c9339c35075c01544b48d3a4cfbe5c31ac7a <- identity
+  instance @scoop$1$fn$f18ba00da3eefb0400137fa928c6bf796e30692ac4fcd232d9c55ca704e7dccb <- identity
+  instance @scoop$1$fn$06ae0e7a464f47cdcdb8b3ca8eca23ebbfcb689aaab1c7b04d9cce58645b091c <- $extension.copyValue
+  instance @scoop$1$fn$d60f7fad5cade8f4e55b761f951d3ee3b584f93531fd9425992c7a257ad4bc4e <- $extension.copyValue
+  instance @scoop$1$fn$cb3bfe41dac02aec8adb4555b48ffe0817e4a6c252702d95d8479889fef8e3c2 <- $anonymous.1
+  instance @scoop$1$fn$8afdcfbf8a3821c8d79b9121147cfca87fe92fd120dbeb53ef3811a669e3e538 <- $anonymous.1
+  instance @scoop$1$fn$44773b471d4f5acb8d743e5854c81218767b0a65d902971ac10cb9cd36f8513b <- $lambda.2
+  instance @scoop$1$fn$024d78ba45e361bcec4ef08540e15422166f6823131ad01fcfca950b90d436dc <- $lambda.2
+  instance @scoop$1$fn$2a0d3e70d05bc7d7822edf61a98e4c7dd062c8e1ffb5b0eede83a31fdc9eabed <- $lambda.1
+  instance @scoop$1$fn$da16db1c09b4090c8d6bfa1cb526be006d53afcdb5fd8dc550465320f63c4713 <- $lambda.1
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11846,39 +11846,39 @@ Module
     call managed-void-target14 sp170 live=[local69:ptr<managed>@0] sig=void14 (ptr<managed>) local-fn86(local69)
     t44 = aggregate () : {}
     ret
-  fun @scoop$1$fn$2282b105b0b775552ac6967c76ef369bd30fdfe6db53c5edc9a61a83c50091f9(i32) -> ptr<managed>
+  fun @scoop$1$fn$f94ed29cc96afc1570d76b09d800070b992a6f6d451ec5def99c6b9d07143bdb(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp278 live=[]
     call managed-direct-target0 sp171 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td33, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$5b3c96571901d951ae455e0440bdef4d33e242eca548f56bf7bcbd38e8e32959 : ptr
+    t1 = function_address @scoop$1$fn$ec8cd583c0603c3e5c07eddb445e2a3f8a70d3fa5f1553bf2d8faddf15bbc737 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$104e7b222edc10745f9e97be0f45feee32e4257413eca70becdc276c12fef0b2(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$a57b672d93db985973ec9be620567f75f723eca86312afea538bed01d7e4e3f4(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp279 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp172 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td34, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$71758f940aec2e3b36a2f3b83d401ec46ab9cfbee4f28f3d94ef97777307530c : ptr
+    t1 = function_address @scoop$1$fn$7f04238a90395f288f02b54630a35cdb2f4e7753f9192e19b8b7cb4f37c8cf8b : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$8285cd0b27fd231671cbcf6055599175abaa9acb7c6d8ede1e2bc71a80458f8e(i32) -> ptr<managed>
+  fun @scoop$1$fn$2de31fd34e461a8ee3b4ffae34b9eb39107b5ad47a19d61237edc41a69123c9f(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp280 live=[]
     call managed-direct-target0 sp173 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td39, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$cf4680c770ad881be6bc9a2793add7614047076a54e4f464c370e6437aef4f20 : ptr
+    t1 = function_address @scoop$1$fn$1d769110c2429d20e25c42c5263100be6bfbb014a1e1d616c1e868ca06c8db4d : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$cfdf8092eec65bb6aed4a7354bfee77a55d0dc4562e014f816df9feab293323e(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$5ba4dc9602ce414305a29244a76ecb764df7c3af2242eda42ca198e56e4bc803(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp281 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp174 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td40, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$cea9ae30833a18ea20a266d526d62e6f222e94766e9f8df873dc1461f0d15e21 : ptr
+    t1 = function_address @scoop$1$fn$37ae4300ff071b8b55439310ac47207d26e692d53f907f138e0a0dd345b86eeb : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$5d5f641f298bb9328e6b3e5051eaf2dccb512ca89e99bff3b5e9afa3fb392128(i32) -> ptr<managed>
+  fun @scoop$1$fn$a463bec5382b1f8589b7c6670d8f9500cc89541fa55f1fb7be628bd4035a2c89(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp282 live=[]
     call managed-direct-target0 sp175 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td43, machine<byte-size>(ByteSize(32)))
@@ -11886,7 +11886,7 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$d8c68e989682831e0e234ee89c20089eca5aa252337eca527c46b801fda1a08f(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$3e2af2756e1a86b239c62b1f0dde222b96a5f21d197cdf2b310170c64fb83c57(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp283 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp176 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td44, machine<byte-size>(ByteSize(32)))
@@ -11894,7 +11894,7 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$039356db85257a11032d154037a5c1655e8b4dd574c7f038ae7929d8b284b1ef(i32) -> ptr<managed>
+  fun @scoop$1$fn$2df0f545c57dfdf51ba660d39839083aba8131f0fd4d2c92507bc58160ae38f2(i32) -> ptr<managed>
     local %0 reference: ptr<managed>
   block entry
     poll managed-void-target0 sp284 live=[]
@@ -11903,7 +11903,7 @@ Module
     heap_store t0 +16 t1
     store t0 -> local0
     ret local0
-  fun @scoop$1$fn$42ed3717ae16dc1fa2b5d196374ebda24532f4a84a8432bde2f4c960d2442f9b(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$dd66be77b5f902ec6c1d644d3bc892ef25df231c2026d4ff840b35767a672dc5(ptr<managed>) -> ptr<managed>
     local %0 reference: ptr<managed>
   block entry
     poll managed-void-target0 sp285 live=[]
@@ -11912,7 +11912,7 @@ Module
     heap_store t0 +16 t1
     store t0 -> local0
     ret local0
-  fun @scoop$1$fn$2c8811ef2cbc09f33cde967dab040f24752e5486608f63965be3e218eb70e445(i32) -> ptr<managed>
+  fun @scoop$1$fn$0bb62684cb04c5cf83c8d8c5d99436ae1907a67d789f95a8d41d27ea96acfda1(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp286 live=[]
     call managed-direct-target0 sp179 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td47, machine<byte-size>(ByteSize(32)))
@@ -11920,7 +11920,7 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$ac1cb1aefa0ec10824d31ae9c68335f4a435831e2fd15e9396f18e8d39dae114(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$eabf2bea0f26d8cf308635cf5eb0b38daac347a974b274111237ff529123dbe9(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp287 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp180 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td48, machine<byte-size>(ByteSize(32)))
@@ -11928,23 +11928,23 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$15287d2338e9753c902ef15f3ad8a54a1ef0a42b09d17c13588669d53da0b8f9(i32) -> ptr<managed>
+  fun @scoop$1$fn$48c7e6b2c54c3a4aa3859ed5f1b38c10e5f8a075145e56ded77e6c8974873bbf(i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp288 live=[]
     call managed-direct-target0 sp181 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td41, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$cd73e72c9601f2896e621e22aa92d81bf5ee909a76c5eaa56d4fe4ccd7fe5628 : ptr
+    t1 = function_address @scoop$1$fn$cb3bfe41dac02aec8adb4555b48ffe0817e4a6c252702d95d8479889fef8e3c2 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$fc0d720195931d1dc93d6bf4cc8451b2175557066948c94e51c53f6b7fb559ba(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$a86130c15718eff5df91d917cfb97ce18afa6f8bcae6a926907c9ac596a14fc7(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp289 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp182 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td42, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$1f1e9b7c6b068c73401fdd7cd518e02093089be50b0ea138f1f29ee8a3f62764 : ptr
+    t1 = function_address @scoop$1$fn$8afdcfbf8a3821c8d79b9121147cfca87fe92fd120dbeb53ef3811a669e3e538 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop$1$fn$d8b01989b567e715ea8741cfb89c9105032aa3535f38c0a1613c757fef159beb(i32) -> ptr<managed>
+  fun @scoop$1$fn$1576dbe19a62da273f960673bbc2a354b6befffc03aa15fd872a46c0e0cd18e1(i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 box: struct10
@@ -11956,11 +11956,11 @@ Module
     call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct10 size=4 align=4 scan=none, i32) local-fn127(local1)
     store local3 -> local2
     call managed-direct-target0 sp183 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td35, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$2663197049bc68627dd9fe1a3db55b8fc36378919abbddc8fe8820214efcdcb9 : ptr
+    t1 = function_address @scoop$1$fn$44773b471d4f5acb8d743e5854c81218767b0a65d902971ac10cb9cd36f8513b : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local2
     ret t0
-  fun @scoop$1$fn$1a696f92c0a0e7063ebc633185bfbd75e885190371c0c91a3f862b5bb4abb982(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$9f256001424cb843c8575b3f78a60ff2f00364ce7ce2f39f2f3c8e7154e362a8(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 box: struct11
@@ -11972,11 +11972,11 @@ Module
     call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct11 size=8 align=8 scan=refs[0], ptr<managed>) local-fn128(local1)
     store local3 -> local2
     call managed-direct-target0 sp184 live=[local2:struct11@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td36, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$bf811fe13f726439209bcd39e47e26060a231dc5a0f1726ff315580b33bb7108 : ptr
+    t1 = function_address @scoop$1$fn$024d78ba45e361bcec4ef08540e15422166f6823131ad01fcfca950b90d436dc : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local2
     ret t0
-  fun @scoop$1$fn$1b350cf2ce0b34d54b5ebf0d5af7895756e8eedc41c31a3a698f0beef72df39a(i32) -> void
+  fun @scoop$1$fn$89bf9b2a67f71248ed832736fbac1b47c048a21ea78b541645e96339a4556913(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11995,7 +11995,7 @@ Module
     call native-borrowed-void-target1 sp187 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$f14e31c379b75850713ef650efb3cf2cbb909193e48a02fd756be05fa9716981(ptr<managed>) -> void
+  fun @scoop$1$fn$59c44bb0247090c2418c1f1e6121e3743c9bd516775ef4ff7b73bca57bc45521(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -12014,86 +12014,86 @@ Module
     call native-borrowed-void-target1 sp190 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$fn$5b3c96571901d951ae455e0440bdef4d33e242eca548f56bf7bcbd38e8e32959(ptr<managed>) -> i32
+  fun @scoop$1$fn$ec8cd583c0603c3e5c07eddb445e2a3f8a70d3fa5f1553bf2d8faddf15bbc737(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp294 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i32
     ret t0
-  fun @scoop$1$fn$71758f940aec2e3b36a2f3b83d401ec46ab9cfbee4f28f3d94ef97777307530c(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$7f04238a90395f288f02b54630a35cdb2f4e7753f9192e19b8b7cb4f37c8cf8b(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp295 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$cf4680c770ad881be6bc9a2793add7614047076a54e4f464c370e6437aef4f20(ptr<managed>) -> i32
+  fun @scoop$1$fn$1d769110c2429d20e25c42c5263100be6bfbb014a1e1d616c1e868ca06c8db4d(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp296 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i32
     ret t0
-  fun @scoop$1$fn$cea9ae30833a18ea20a266d526d62e6f222e94766e9f8df873dc1461f0d15e21(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$37ae4300ff071b8b55439310ac47207d26e692d53f907f138e0a0dd345b86eeb(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp297 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
-  fun @scoop$1$fn$6acfa375f8ab1ce8d56a9e458658227ca2835fa3eba6f30de70dd48403554921(i32) -> i32
+  fun @scoop$1$fn$d9c017f3462f24681208c5b6dcf7e10a81100dead70bf5f40f255941ceb75882(i32) -> i32
   block entry
     poll managed-void-target0 sp298 live=[]
     ret param0
-  fun @scoop$1$fn$6e2a5aea1cde6b70309f1b57977420b03691d9177eb25d3a8a69da1f5d1b871e(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$0c91075a303390bdd694aa12ca446a752235fb3c1add812baa4385e4c3753118(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp299 live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$fn$fe9ddf3cffc4d9eea0775b5b0f2af963b289902e55baf2e3466a111cf035e8fd(i32) -> i32
+  fun @scoop$1$fn$23520997554966217fe204c12002c9339c35075c01544b48d3a4cfbe5c31ac7a(i32) -> i32
   block entry
     poll managed-void-target0 sp300 live=[]
     ret param0
-  fun @scoop$1$fn$26fe25b5ef6bf70228724474326c639dfa3ee03c83034f23a721a8ad7d5eb992(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$f18ba00da3eefb0400137fa928c6bf796e30692ac4fcd232d9c55ca704e7dccb(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp301 live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$fn$c8f5784ede610c45c9fee903aa36a9ed02a91abfad2c9bd469831c91c84ca3bc(i32) -> i32
+  fun @scoop$1$fn$06ae0e7a464f47cdcdb8b3ca8eca23ebbfcb689aaab1c7b04d9cce58645b091c(i32) -> i32
   block entry
     poll managed-void-target0 sp302 live=[]
     ret param0
-  fun @scoop$1$fn$ad546d35736bad819dd738b4b98ce059ef6f44f18b7ff5063f97070175c775b8(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$d60f7fad5cade8f4e55b761f951d3ee3b584f93531fd9425992c7a257ad4bc4e(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp303 live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$fn$cd73e72c9601f2896e621e22aa92d81bf5ee909a76c5eaa56d4fe4ccd7fe5628(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$cb3bfe41dac02aec8adb4555b48ffe0817e4a6c252702d95d8479889fef8e3c2(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp304 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp191 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td37, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$2a8b800387dce01eddf362f1c1d76e8bb0d709ff36a2578c55e6bb8514c89da4 : ptr
+    t1 = function_address @scoop$1$fn$2a0d3e70d05bc7d7822edf61a98e4c7dd062c8e1ffb5b0eede83a31fdc9eabed : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : i32
     heap_store t0 +24 t2
     ret t0
-  fun @scoop$1$fn$1f1e9b7c6b068c73401fdd7cd518e02093089be50b0ea138f1f29ee8a3f62764(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$8afdcfbf8a3821c8d79b9121147cfca87fe92fd120dbeb53ef3811a669e3e538(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp305 live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp192 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td38, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$fn$bad195f49d487ec1e7b29d8b49bf342343f5b7ffe91c5851d908d0851667729c : ptr
+    t1 = function_address @scoop$1$fn$da16db1c09b4090c8d6bfa1cb526be006d53afcdb5fd8dc550465320f63c4713 : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : ptr<managed>
     heap_store t0 +24 t2
     ret t0
-  fun @scoop$1$fn$2663197049bc68627dd9fe1a3db55b8fc36378919abbddc8fe8820214efcdcb9(ptr<managed>) -> i32
+  fun @scoop$1$fn$44773b471d4f5acb8d743e5854c81218767b0a65d902971ac10cb9cd36f8513b(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp306 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : struct10
     t1 = extract t0, 0 : i32
     ret t1
-  fun @scoop$1$fn$bf811fe13f726439209bcd39e47e26060a231dc5a0f1726ff315580b33bb7108(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$024d78ba45e361bcec4ef08540e15422166f6823131ad01fcfca950b90d436dc(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp307 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : struct11
     t1 = extract t0, 0 : ptr<managed>
     ret t1
-  fun @scoop$1$fn$2a8b800387dce01eddf362f1c1d76e8bb0d709ff36a2578c55e6bb8514c89da4(ptr<managed>) -> i32
+  fun @scoop$1$fn$2a0d3e70d05bc7d7822edf61a98e4c7dd062c8e1ffb5b0eede83a31fdc9eabed(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp308 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i32
     ret t0
-  fun @scoop$1$fn$bad195f49d487ec1e7b29d8b49bf342343f5b7ffe91c5851d908d0851667729c(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$fn$da16db1c09b4090c8d6bfa1cb526be006d53afcdb5fd8dc550465320f63c4713(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp309 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>

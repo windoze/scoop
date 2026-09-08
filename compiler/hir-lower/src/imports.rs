@@ -129,20 +129,17 @@ struct PackageIndex {
 impl Lowerer {
     /// Resolves every file's imports in deterministic file and
     /// declaration order (exact imports first, then stars); unresolved
-    /// or invisible selectors are diagnosed once per import. `public
-    /// import` bindings additionally pass re-export validation (DESIGN
-    /// 2.4) and publish their authorized targets into the semantic
-    /// surface; star-imported enum variant surfaces feed the per-file
-    /// variant candidate layers.
+    /// or invisible selectors are diagnosed once per import. Star-
+    /// imported enum variant surfaces feed the per-file variant
+    /// candidate layers. Runs before any signature or body position so
+    /// every consumer sees the exact-import layer filled.
     pub(super) fn resolve_import_bindings(&mut self) {
         let index = self.build_package_index();
-        let mut reexports = Vec::new();
         for file in 0..self.file_imports.len() {
             for import_index in 0..self.file_imports[file].exact.len() {
-                let (public, path, local_name, span) = {
+                let (path, local_name, span) = {
                     let import = &self.file_imports[file].exact[import_index];
                     (
-                        import.public,
                         import.path.clone(),
                         import.local_name().to_owned(),
                         import.span,
@@ -150,8 +147,14 @@ impl Lowerer {
                 };
                 match self.resolve_exact(&index, file, &path, &local_name, span) {
                     Ok(binding) => {
-                        if public {
-                            self.publish_reexport(&index, &mut reexports, file, &binding, span);
+                        // The local name (alias or source short name)
+                        // indexes the targets for the exact-import
+                        // lookup layer (spec 12.4.1).
+                        for target_binding in &binding.targets {
+                            self.file_import_bindings[file]
+                                .entry(local_name.clone())
+                                .or_default()
+                                .push(target_binding.clone());
                         }
                         // The local binding keeps every resolved target;
                         // re-export authorization only gates publication.
@@ -161,22 +164,12 @@ impl Lowerer {
                 }
             }
             for star_index in 0..self.file_imports[file].star.len() {
-                let (public, path, span) = {
+                let (path, span) = {
                     let star = &self.file_imports[file].star[star_index];
-                    (star.public, star.path.clone(), star.span)
+                    (star.path.clone(), star.span)
                 };
                 match self.resolve_star(&index, file, &path) {
                     Ok(surface) => {
-                        if public {
-                            self.expand_public_star(
-                                &index,
-                                &mut reexports,
-                                file,
-                                &surface,
-                                &path,
-                                span,
-                            );
-                        }
                         if let hir::StarSurface::EnumOwner { declaration } = surface {
                             // The enum's variant short names join this
                             // file's star variant layer, deduplicated by
@@ -203,6 +196,40 @@ impl Lowerer {
                 }
             }
         }
+    }
+
+    /// Publishes re-exports from every resolved `public import` (DESIGN
+    /// 2.4) in deterministic file and declaration order. Runs after
+    /// signatures exist so destination-conflict checks can compare
+    /// parameter signatures.
+    pub(super) fn publish_reexports(&mut self) {
+        let index = self.build_package_index();
+        let mut reexports = Vec::new();
+        for file in 0..self.file_imports.len() {
+            for import_index in 0..self.file_imports[file].exact.len() {
+                let (public, binding, span) = {
+                    let import = &self.file_imports[file].exact[import_index];
+                    (import.public, import.binding.clone(), import.span)
+                };
+                if public && let Some(binding) = binding {
+                    self.publish_reexport(&index, &mut reexports, file, &binding, span);
+                }
+            }
+            for star_index in 0..self.file_imports[file].star.len() {
+                let (public, surface, path, span) = {
+                    let star = &self.file_imports[file].star[star_index];
+                    (
+                        star.public,
+                        star.binding.clone(),
+                        star.path.clone(),
+                        star.span,
+                    )
+                };
+                if public && let Some(surface) = surface {
+                    self.expand_public_star(&index, &mut reexports, file, &surface, &path, span);
+                }
+            }
+        }
         self.reexports = reexports;
     }
 
@@ -213,6 +240,63 @@ impl Lowerer {
         let mut diagnostic = Diagnostic::at(span, message);
         diagnostic.file = file;
         self.diagnostics.push(diagnostic);
+    }
+
+    /// The current file's exact-import targets bound under `name`
+    /// (alias or source short name).
+    pub(crate) fn exact_import_bindings(&self, name: &str) -> &[hir::ImportedTargetBinding] {
+        self.file_import_bindings[self.current_file]
+            .get(name)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// The current file's alias- or short-name-bound function targets.
+    pub(crate) fn exact_import_functions(&self, name: &str) -> Vec<hir::FunctionId> {
+        self.exact_import_bindings(name)
+            .iter()
+            .filter_map(|binding| match binding.target {
+                hir::ImportedTarget::Function { function } => Some(function),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The current file's alias- or short-name-bound top-level property
+    /// targets.
+    pub(crate) fn exact_import_properties(&self, name: &str) -> Vec<hir::PropertyId> {
+        self.exact_import_bindings(name)
+            .iter()
+            .filter_map(|binding| match binding.target {
+                hir::ImportedTarget::Property { property } => Some(property),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The current file's alias- or short-name-bound nominal and alias
+    /// targets, in binding order.
+    pub(crate) fn exact_import_nominals(&self, name: &str) -> Vec<NominalTarget> {
+        self.exact_import_bindings(name)
+            .iter()
+            .filter_map(|binding| match binding.target {
+                hir::ImportedTarget::Struct { declaration } => {
+                    Some(NominalTarget::Struct(declaration))
+                }
+                hir::ImportedTarget::Enum { declaration } => Some(NominalTarget::Enum(declaration)),
+                hir::ImportedTarget::Class { declaration } => {
+                    Some(NominalTarget::Class(declaration))
+                }
+                hir::ImportedTarget::Interface { declaration } => {
+                    Some(NominalTarget::Interface(declaration))
+                }
+                hir::ImportedTarget::Object { declaration } => {
+                    Some(NominalTarget::Object(declaration))
+                }
+                // Typealias targets are consumed through
+                // `source_type_alias_named`, not the nominal maps.
+                _ => None,
+            })
+            .collect()
     }
 
     /// Indexes every declaration by (package, name). The declaring file
@@ -1018,19 +1102,33 @@ impl Lowerer {
                         return Some(conflict("a property"));
                     }
                     // Variant names are constructor-like and not
-                    // overloadable: any same-name variant, function or
-                    // property at the destination conflicts.
+                    // overloadable: any same-name variant, function,
+                    // property or type at the destination conflicts.
                     (hir::ImportedTarget::Variant { .. }, hir::ImportedTarget::Variant { .. }) => {
                         return Some(conflict("an enum variant"));
                     }
                     (
                         hir::ImportedTarget::Variant { .. },
-                        hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. },
+                        hir::ImportedTarget::Function { .. }
+                        | hir::ImportedTarget::Property { .. }
+                        | hir::ImportedTarget::Struct { .. }
+                        | hir::ImportedTarget::Enum { .. }
+                        | hir::ImportedTarget::Class { .. }
+                        | hir::ImportedTarget::Interface { .. }
+                        | hir::ImportedTarget::Object { .. }
+                        | hir::ImportedTarget::TypeAlias { .. },
                     ) => {
-                        return Some(conflict(imported_target_kind(&prior.target)));
+                        return Some(conflict("an enum variant"));
                     }
                     (
-                        hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. },
+                        hir::ImportedTarget::Function { .. }
+                        | hir::ImportedTarget::Property { .. }
+                        | hir::ImportedTarget::Struct { .. }
+                        | hir::ImportedTarget::Enum { .. }
+                        | hir::ImportedTarget::Class { .. }
+                        | hir::ImportedTarget::Interface { .. }
+                        | hir::ImportedTarget::Object { .. }
+                        | hir::ImportedTarget::TypeAlias { .. },
                         hir::ImportedTarget::Variant { .. },
                     ) => {
                         return Some(conflict(imported_target_kind(&prior.target)));
@@ -1252,32 +1350,13 @@ impl Lowerer {
                     }
                 })
             });
+        // Every declared nominal registers its declaring file.
         let declaring_file = match target {
-            NominalTarget::Struct(id) => self
-                .struct_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index),
-            NominalTarget::Enum(id) => self
-                .enum_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index),
-            NominalTarget::Class(id) => self
-                .class_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index),
-            NominalTarget::Interface(id) => self
-                .interface_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index),
-            NominalTarget::Object(id) => self
-                .object_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index),
+            NominalTarget::Struct(id) => self.struct_files[&id],
+            NominalTarget::Enum(id) => self.enum_files[&id],
+            NominalTarget::Class(id) => self.class_files[&id],
+            NominalTarget::Interface(id) => self.interface_files[&id],
+            NominalTarget::Object(id) => self.object_files[&id],
         };
         self.lookup_layer(declaring_file, entity_imported)
     }
@@ -1323,6 +1402,15 @@ impl Lowerer {
                 .flatten()
                 .map(|id| NominalTarget::Object(*id)),
         );
+        if layer == LookupLayer::ExactImport {
+            // Alias-bound imports: the exact-import layer admits targets
+            // through the local name even when the source name differs.
+            for target in self.exact_import_nominals(name) {
+                if !candidates.contains(&target) {
+                    candidates.push(target);
+                }
+            }
+        }
         candidates.retain(|target| self.nominal_lookup_layer(*target) == Some(layer));
         candidates
     }
@@ -1348,63 +1436,42 @@ impl Lowerer {
     /// validation: the unique candidate declared inside the implicitly
     /// imported core unit.
     pub(crate) fn core_unit_nominal(&self, name: &str) -> Option<NominalTarget> {
+        // Core-contract validation asks for the declaration inside the
+        // implicitly imported core unit itself; the general layer
+        // classifier cannot express this (root-package core files read
+        // as the current package from root-package user files).
         let is_core_file = |file: usize| self.intrinsic_sources[file].core;
         if let Some(entries) = self.structs_by_name.get(name) {
             for (id, _) in entries {
-                if is_core_file(
-                    self.struct_files
-                        .get(id)
-                        .copied()
-                        .unwrap_or(self.user_file_index),
-                ) {
+                if is_core_file(self.struct_files[id]) {
                     return Some(NominalTarget::Struct(*id));
                 }
             }
         }
         if let Some(entries) = self.enums_by_name.get(name) {
             for id in entries {
-                if is_core_file(
-                    self.enum_files
-                        .get(id)
-                        .copied()
-                        .unwrap_or(self.user_file_index),
-                ) {
+                if is_core_file(self.enum_files[id]) {
                     return Some(NominalTarget::Enum(*id));
                 }
             }
         }
         if let Some(entries) = self.classes_by_name.get(name) {
             for (id, _) in entries {
-                if is_core_file(
-                    self.class_files
-                        .get(id)
-                        .copied()
-                        .unwrap_or(self.user_file_index),
-                ) {
+                if is_core_file(self.class_files[id]) {
                     return Some(NominalTarget::Class(*id));
                 }
             }
         }
         if let Some(entries) = self.interfaces_by_name.get(name) {
             for (id, _) in entries {
-                if is_core_file(
-                    self.interface_files
-                        .get(id)
-                        .copied()
-                        .unwrap_or(self.user_file_index),
-                ) {
+                if is_core_file(self.interface_files[id]) {
                     return Some(NominalTarget::Interface(*id));
                 }
             }
         }
         if let Some(entries) = self.objects_by_name.get(name) {
             for id in entries {
-                if is_core_file(
-                    self.object_files
-                        .get(id)
-                        .copied()
-                        .unwrap_or(self.user_file_index),
-                ) {
+                if is_core_file(self.object_files[id]) {
                     return Some(NominalTarget::Object(*id));
                 }
             }
