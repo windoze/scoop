@@ -111,6 +111,8 @@ generic delegated extension specialization是lazy unit，其storage、cell、fai
 
 ### 2.8 M23 program与Cone image descriptor
 
+M23的实现顺序中，本节runtime消费侧ABI在M23-8冻结，并由M23-9的program-link产生真实program object、M23-10补齐完整native闭包与evidence。M23-11的single-file program不建立runtime特例：它仍是trusted core image加reserved `scoop:single-file:0.0.0` root image的普通typed graph，并经本节全部验证。runtime不接收CLI operand path，也不扫描旁文件或根据image中的object数量分支。
+
 M23的私有metadata ABI版本为1，精确C声明为`extern const ScoopProgramDescriptorV1 scoop_program_descriptor;`，最终可执行文件必须且只能定义这一个default-visible strong symbol。所有top-level record以固定`{ u64 magic; u32 abi_version; u32 struct_size; }`开头；program/image/entry/core/storage/immortal/init/type/safepoint/callable的magic依次为`0x53434f4f50505247`、`0x53434f4f50494d47`、`0x53434f4f50454e54`、`0x53434f4f50434f52`、`0x53434f4f5053544f`、`0x53434f4f50494d4d`、`0x53434f4f50494e49`、`0x53434f4f50545950`、`0x53434f4f50535054`与`0x53434f4f5043414c`。`abi_version == 1`、`struct_size`必须精确等于共享header中的v1 `sizeof`，reserved field全零；runtime只在先验证固定16-byte prefix后读取其余字段。当前Darwin/AArch64 profile固定little-endian 64-bit pointer与natural 8-byte struct alignment；runtime C header与LLVM codegen必须以`sizeof/offsetof`产物测试锁定，不能靠双方“通常相同”。
 
 program字段顺序固定为`prefix, runtime_abi[32], target_profile[32], graph_fingerprint[32], root_image*, entry*, core*, images**, image_count`。image字段顺序固定为`prefix, canonical {group bytes, name bytes, version bytes, ConeIdentity}, runtime_image_fingerprint[32]`，随后依次为direct dependency identity及static storage、immortal object、initialization unit、type registration、safepoint registration、callable registration六组pointer/count pair；callable pair追加在safepoint pair之后。runtime必须重验coordinate grammar、重算ConeIdentity并用coordinate bytes验证canonical topological tie-break；coordinate既是排序/identity验证输入，也可用于诊断。

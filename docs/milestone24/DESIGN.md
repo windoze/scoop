@@ -2,7 +2,7 @@
 
 状态：设计完成，待实现  
 日期：2026-09-07  
-依赖：M15 moving GC、M19 class 构造、M23 typed runtime metadata、M25 自有异常 ABI
+依赖：M15 moving GC、M19 class 构造、M23-10 artifact/runtime/link闭包、M25 自有异常 ABI
 
 ## 0. 结论
 
@@ -263,7 +263,7 @@ canonical source/HIR/MIR/LIR fingerprint覆盖release body、读取的typed fiel
 
 ### 4.3 artifact验证
 
-在任何managed代码运行前，M23 registry流程额外验证：
+在任何managed代码运行前，M23-8 registry流程额外验证：
 
 - 每个非null `release_hook`恰好命中一个同producer或同ODR group、role为ReleaseHook的executable callable entry；
 - callable body id的owner exact type等于TypeDescriptor registration的exact type；
@@ -306,7 +306,7 @@ hook执行期间world保持stopped，collector metadata处于不可重入状态�
 
 ### 5.3 shutdown
 
-M23/M25既有shutdown协议保持不变：停止新attach/registration并等待活动入口后直接销毁runtime状态，不运行“最后一次GC”，不遍历live object，也不补调release hook。需要确定性关闭的core/IO组件必须在正常控制流中显式关闭。
+M23-8/M25既有shutdown协议保持不变：停止新attach/registration并等待活动入口后直接销毁runtime状态，不运行“最后一次GC”，不遍历live object，也不补调release hook。需要确定性关闭的core/IO组件必须在正常控制流中显式关闭。
 
 ## 6. 诊断与测试
 

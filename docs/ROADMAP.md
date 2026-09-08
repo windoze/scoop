@@ -179,17 +179,62 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 当前可执行profile仍要求64位data/code pointer、全零null carrier及合法地址逐bit往返；`Ptr<T>`/`FunPtr<F>`迁为无公开representation field的compiler-represented family，阻断解构/copy update伪造；`Ptr`的raw/to与`sizeOf`/`alignOf`暂用`ULong`，element offset暂用`Long`，且只保留typed unsafe nonzero-ULong入口并要求pointee GC-free；`FunPtr`不提供源码constructor或integer转换，裸pointer固定非零、null只由`Option`的niche表示；platform-native integer及这些临时底层surface的最终迁移留待后续设计；
 - 为固定宽度/Kotlin整数拼写及普通用户别名提供top-level非generic透明`typealias`；alias只有声明/可见性身份，不产生第二个类型/layout/RTTI/ABI。四种range本身不是alias；generic alias及真实跨Cone编码仍留后续。
 
-### M23 多 Cone 与 `.slib`（设计见 `docs/milestone23/DESIGN.md`）
+### M23-1 source表面、parser与当前编译单元lookup
 
-- Cone固定为module/distribution/build unit，source package只作namespace；`Cone.toml` v1声明canonical exact coordinate、library/executable kind与dependency locator。新增umbrella binary `scoop`负责解析locator、验证静态无环且同一`group:name`单版本的完整图、缓存，并按dependency-first顺序为每个source Cone独立调用配套`scoopc`；`scoopc`每次只编译当前一个Cone，要求命令行显式提供并验证完整上游`.slib`闭包，不搜索、递归构建或重建dependency；
-- 一次落地`package`、exact/star import、`as`alias与`public import`re-export；re-export保留最终实体的typed origin，import只增加typed candidate source，M16 applicability/MSC、M17 default template hygiene与typed access witness原样跨Cone工作；
-- 以按kind隔离的persistent typed id承载跨artifact identity，reader验证后重映射为consumer-local typed id；FQN、link symbol、host path、输入顺序与arena index均不得作为identity/lookup fallback，所有Scoop-owned linker-visible symbol统一由persistent identity派生；
-- `.slib` v1是target-specific、schema-versioned且bitwise reproducible的普通self-contained archive，包含manifest、Export HIR/MIR/LIR metadata与通用typed member directory；目录可承载任意多个（包括未来C/C++产物在内的）`LinkObject`、诊断附件和versioned embedded blob，C/C++ producer也走producer-specific verifier的同一`LinkObject` role。member用途只来自目录，不从文件名、扩展名、顺序、数量或blob内容探测推断；v1 optional blob在校验envelope/hash后保持opaque，Link-required blob只能产生canonical native-library requirement，不能暗中产出object/raw linker输入。Graph/Compile/Link分别返回不可混用的typed validated view。Export HIR严格区分public lookup、inheritance/slot与generic hidden support closure，不序列化`LocalConcreteHir`、solver scratch、无关private body或raw arena id，reader须有界验证完整损坏矩阵并返回typed error而不panic；
-- 上游generic template在实际使用它的下游Cone完成concretization；重复specialization的function/layout/TypeDescriptor/dispatch/adapter/static storage按完整ODR group与fingerprint共同coalesce。M21延期的generic delegated extension按exact receiver application生成全程序唯一、lazy exactly-once storage；`scoop.core`迁为trusted独立library `.slib`并提供typed prelude；
-- 跨Cone layout/typed ABI显式区分ZST：未装箱logical size为0且scan为空，Scoop ABI elide payload但保留exact signature，address-taken/static place用1-byte identity token；exact ZST装箱的TypeDescriptor使用`BoxedValue::ZeroSized`并保留非零managed allocation，`Array`/`MutableArray<ZST>`则使用`InlineArray::ZeroSized`、只保存logical length并以index推进，object/inline scan及实际array首元素偏移相互分离；C ABI拒绝零尺寸by-value object；
-- 一个合法Cone artifact的全部`LinkObject`合计恰好定义一个`ScoopImageDescriptorV1`，manifest以typed member/owner relation指出所在成员；`scoop`另从toolchain profile固定的受信任source set构建任意非空verified object collection形式的`ValidatedRuntimeArtifact`，M23不接受prebuilt runtime bundle、raw `.a`或runtime-object cache。独立的artifact-only program-link stage从`ValidatedArtifactClosure<Link>`与该runtime产物生成唯一`ScoopProgramDescriptorV1`和最终binary，`scoopc`不顺带构建runtime或执行最终链接。resolved native input封闭为direct object、static archive与dynamic provider；前两者的object/全部候选member在link前按capability有界验证，拒绝thin/external/nested archive、LTO、未知普通member及未闭合constructor/EH/TLS/producer metadata，post-link trace只能选择preverified candidate。Cone/program/runtime/native-static/native-dynamic/target-synthetic输入在final-link层有各自typed origin；native owner精确落到contribution/definition，shared provider与target默认动态库只满足validated dynamic binding，不冒充definition/undefined origin或interpose受控requirement。runtime在任何managed initializer前验证并登记全部image/stackmap/callable/TypeDescriptor/static storage/root/immortal/init metadata，再按dependency-first、同层coordinate、Cone内persistent unit id的canonical顺序初始化；
-- artifact完成门：无`main`的library与含typed root metadata的executable都先由single-Cone `scoopc`独立产生可重复`.slib`；source输出、prebuilt与cache hit都必须分别通过Compile及Link typed view后才可发布、复用或作为library结果，Graph预检不能提升为这两种proof；typed member目录可混合任意多个link object与非link blob而不把后者误交linker；direct/re-export/import、non-generic alias、protected inheritance、default与generic hidden closure跨artifact信息完备且不越权，钻石依赖同origin只intern一次，跨Cone generic及generic delegate的全部runtime identity真正coalesce；
-- 端到端完成门：`scoop`只经配套`scoopc`的artifact边界按DAG构建，直接`scoopc`缺上游artifact时只失败、不递归；core不再与用户源码同单元编译，独立program-link只凭Link-purpose已验证`.slib`闭包与validated runtime输入生成静态multi-Cone程序并从typed no-throw gateway启动。`ResolvedLinkPlan`覆盖每Cone `CodeFingerprint`/link-object/ODR surface、program/runtime、完整native/target input table、保留重复/group/whole/force-load的ordered actions及toolchain/profile/options；content输入用冻结只读snapshot，platform identity按capability pin/revalidate。link evidence逐action/input闭合并显式记录archive零选择，拒绝额外event/load/input；cache按identity分支重验且任一contract-only变化必须miss。multi-object连续stackmap v3 blob与moving-GC/exception/closure/coroutine/FFI组合通过，Darwin profile拒绝会丢stackmap的dead-strip、autolink与未追踪final input，且不存在固定object成员名/数量、旧固定`scoop_main`/`scoop_image_*`入口、未namespaced symbol或由native linker任选的ODR冲突。
+总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage1/DESIGN.md`。
+
+- 实现`package`、exact/star `import`、`as`和`public import`的AST/parser、文件头恢复与当前编译单元内package lookup；跨Cone target尚未开放时必须显式诊断，不伪造artifact或留下半成品AST节点。
+- 完成门：新语法的parser golden、negative/组合fixture与旧fixture全量回归。
+
+### M23-2 persistent identity与`.slib` wire基础
+
+- 冻结Cone及kind-specific persistent identity、exact/source/unit/runtime/safepoint id、`PersistentV1` mangler、session remap，以及`.slib`的deterministic container、三层metadata envelope、typed member directory、资源上限、基础Graph/Compile reader与schema演进规则。
+- member envelope从本阶段起允许任意数量、任意已登记producer的`LinkObject`以及opaque/required blob；成员用途不依赖文件名、扩展名、顺序或object数量。后续语义payload按独立section/capability version加入，不在尚无verifier时宣称最终Link view完成。
+
+### M23-3 single-Cone artifact与core分离
+
+- 引入`Cone.toml`、source discovery、library/executable entry sum及manifest/protocol边界；`scoopc`每次只消费显式上游`.slib`闭包并产生当前Cone `.slib`，不搜索、递归、构建runtime或最终链接。
+- `scoop.core`成为trusted独立library artifact；先闭环core-only编译，其他Cone dependency稳定拒绝到M23-5。实现compiler侧per-Cone image producer、strong-only六类registration/image digest、member-aware definition/undefined requirement、当前Scoop/generated `LinkObject` verifier与基础Link view，使本阶段成功artifact已通过Compile/Link双view。single-file synthetic request固定为一个source、executable、core-only Cone dependency，其`.slib`只能作为local executable root artifact。
+
+### M23-4 resolved build graph与调度
+
+- `compiler/scoop` orchestration library解析exact locator和静态无环、同`group:name`单版本的DAG，拥有cache与dependency-first子进程调度；prebuilt/cache/source节点都经Compile/Link双view门禁。
+- 以recording artifacts和core-only真实节点完成chain/diamond/cycle、ambiguous locator、stale dependency、cache失效与child失败传播；本阶段不提前开放跨Cone源码名称。
+
+### M23-5 多Cone名称语义
+
+- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；暂需新layout/dispatch bridge、receiver-dependent protected access或generic能力的形态稳定拒绝，不产生残缺IR。
+- 完成direct/transitive可见性、split package、链式re-export、negative lookup observation及semantic cache失效矩阵；每个成功用例仍产生双view有效artifact。
+
+### M23-6 跨Cone layout、typed ABI与ZST
+
+- 实现并冻结`ValueStorageLayout`、Scoop ABI zero-payload elision、C ABI零尺寸拒绝、boxing/address/static token、`Array`/`MutableArray<ZST>`、param-free跨Cone layout/scan/TypeDescriptor以及inheritance/slot/dispatch与protected access bridge。
+- 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
+
+### M23-7 跨Cone generic、ODR与generic delegated extension
+
+- 完成consumer-side concretization、generic hidden support closure、完整ODR group/member与digest DAG、collection-based object materialization，以及exact receiver application唯一的lazy delegated storage。
+- sibling Cone的相同specialization必须产生相同member/fingerprint，冲突由artifact/object合并验证器拒绝；真正地址coalesce与全程序exactly-once留给真实link/runtime阶段。
+
+### M23-8 runtime multi-image registry与启动
+
+- 消费M23-3已冻结的image descriptor ABI，冻结`ScoopProgramDescriptorV1`及runtime登记/启动契约；实现六类registration table、全image登记、canonical eager/lazy初始化、no-throw gateway与连续LLVM v3 stackmap blob消费。
+- 先由typed synthetic program descriptor驱动3+ image、moving GC、exception、failure/cycle、ODR重复与损坏metadata fatal测试，不依赖生产linker或weak-symbol扫描。
+
+### M23-9 基础artifact-only program-link
+
+- `compiler/linker`与`compiler/runtime-build`只消费`ValidatedArtifactClosure<Link>`、`ValidatedRuntimeArtifact`及typed target/profile，生成并验证program object和无用户native requirement的真实多Cone binary；target profile必须显式闭合runtime/startup/support/default system provider及target-synthetic输入，基础plan/evidence不得依赖linker隐式default。源码、locator、cache和额外raw object不进入stage。
+- 完成真实ODR coalesce、multi-object stackmap、初始化、moving GC与exception gateway；带尚未处理native requirement的程序稳定拒绝。
+
+### M23-10 general native requirement闭包与link evidence hardening
+
+- 把M23-9固定target/runtime slice推广到完整用户native extern contract，完成direct object/archive/general dynamic provider验证、snapshot/TOCTOU hardening、完整link plan/evidence、trace核对、可选link-cache重验与最终artifact verifier。
+- native候选只能经`.slib`已有typed requirement和显式`--library-path`解析，不能直接注入无来源raw `.o`、archive、linker option或script；任意多个`LinkObject`按typed directory参与，非link blob永不误入。
+
+### M23-11 umbrella CLI、single-file mode与总验收
+
+- 正式启用`cargo`式`scoop`：`scoop build <root>`按DAG调用配套`scoopc`，`scoop run <root> -- ...`仅在同一build/program-link成功后执行。文件root使用reserved synthetic identity、logical `main.scoop`、唯一source与core-only Cone dependency；不发现相邻manifest、Scoop/C/C++源码或blob。FFI只能通过已有typed requirement加显式library search root解析。
+- M1–M22及M25历史fixture全部迁到正式`scoop build <file>` orchestration并保留stage dump/诊断/运行结果覆盖；完成多Cone、corruption/reproducibility、cache和moving-GC/exception/closure/coroutine/FFI全量回归后，删除core/source拼接、`scoopc`最终链接和固定object名称/数量旁路。final-link cache是可选优化，不是完成门。
 
 ### M24 GC-free release hook（设计见 `docs/milestone24/DESIGN.md`）
 
@@ -241,6 +286,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 2026-09-05 M22设计决定（后续修订）：`Int`/`UInt`永久固定32位并以`Int32`/`UInt32`为alias，`Long`/`ULong`永久固定64位并以`Int64`/`UInt64`为alias；无上下文literal采用32位优先、越界升至64位的默认阶梯。为避免同时改变既有API值域，原来使用64位`Int`/`UInt`的array、String、Hash、compareTo、shift、SourceLocation、`@CLayout`参数、pointer/size等source/core契约整体迁名为`Long`/`ULong`，Array上限仍为`INT64_MAX`，internal machine metadata不伪装成源码integer。四种整数range均为真实nominal type。当前target仍须有64位data/code pointer及对应内部carrier逐bit往返能力，裸`Ptr`/`FunPtr`固定非零并由`Option`唯一承载null；platform-native integer留待后续。M22其余范围仍为无标签break/continue与for、exact Iterator协议、递归pattern matrix和typed cleanup target；label、do-while、CharRange与generic alias继续留后续。
 - 2026-09-05 M23设计决定：Cone与source package分离，以canonical `group:name:version`及按kind隔离的persistent typed id表达跨artifact identity，v1只消费exact、静态、无环resolved graph。`package`、exact/star/alias/public import与re-export只扩展既有typed resolver层；target-specific确定性`.slib`显式打包三层metadata、native object与闭合export surface，下游完成generic concretization并以完整ODR group coalesce。跨artifact ABI同时固定ZST为零payload/typed elision/显式address token，并为Array采用zero-sized element分支而非零stride通用路径。最终静态程序通过唯一program descriptor登记全部Cone image及runtime metadata后按canonical dependency order初始化；package registry/版本求解、动态加载、generic typealias、interface方法级泛型与跨版本ABI不属于M23。
 - 2026-09-07 M23工具/容器边界补充：新增`cargo`式umbrella binary `scoop`负责多Cone图、cache和依赖顺序，`scoopc`收缩为只消费显式上游`.slib`闭包的single-Cone compiler，最终binary由独立artifact-only program-link产生。`.slib`改以typed member directory表达任意多个link object、C/C++ object或其他opaque blob，不再把`code.o`/`bridge.o`、扩展名或object数量写成格式假设；所有可链接object统一走`LinkObject`，全体link object只共同提供一个typed image descriptor，Graph/Compile/Link view与runtime/final-input provenance分别闭合。
+- 2026-09-08 M23拆分与单文件模式：原M23按依赖拆为M23-1…M23-11，依次落实source语法、persistent identity/`.slib` container、single-Cone/core边界、build graph、多Cone名称语义、ZST/ABI、generic/ODR、runtime registry、基础program-link、native闭包/hardening与最终CLI。正式`scoop build/run <file>`把指定文件作为固定reserved identity、唯一source、core-only Cone dependency的synthetic executable Cone；不发现旁边manifest/源码，native FFI只由artifact已有typed requirement经显式library search root解析。历史fixture在M23-11切到该正式路径并删除旧`scoopc`直编直链/core拼接旁路。
 - 2026-09-07 顺序调整：M24改为GC-free release hook，采用“完整构造后ready、逻辑死亡且真正reclaim前同步调用TypeDescriptor hook”的直接模型，不采用payload复制或异步queue；原M24字符串范围整体移至M26，并补入Char、safe字符互转、unsafe byte互转及off-heap growable ByteBuffer。既有已完成M25编号保持不变。
 - 2026-09-07 新增M27“Task-local Context”：保留Kotlin-like的`context(name: T)`/`context(value) { ... }`表面，以canonical exact static type为key，结合结构化动态binding和logical-task传播重写原spec 8.3 context parameters。首版不做子类型兼容解析或静态effect row；ordinary ABI保持不变。实现细节区分架构不变量与参考方案，物理索引布局不作为长期契约。
 
@@ -252,7 +298,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 - ~~always-leak GC → M9 替换~~（已完成）；
 - ~~parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时丢弃残缺 AST）；
-- 单文件单 Cone 编译 → M23 多Cone与`.slib`。
+- 正式单文件Cone编译/运行模式 → M23-11 `scoop build/run <file>`。
 
 ### 来自 M2
 
@@ -277,7 +323,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### 来自 M4
 
-- core与用户代码同单元编译 → M23 多Cone与`.slib`；
+- core与用户代码同单元编译 → M23-3 single-Cone artifact与core分离；
 - ~~注解仅 `@Intrinsic` 且仅 sysroot~~（M12 已扩展为类型化 FFI 注解族，并统一完成参数、目标和共存检查）；
 - 构造函数式变体的默认值只支持常量表达式 → M17改为完整spec 8.5“定义处解析、调用处实例化”；
 - ~~`when` 的表达式形态（产生值）~~（已完成：模式绑定、守卫与穷尽检查沿用语句形态，正常分支尾值统一定型，支持嵌套控制表达式）；
@@ -305,7 +351,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - companion object 与 `object` 声明 → M21；`sealed`、class/interface delegation（`class C : I by impl`）仍待排期，property delegation由M21覆盖；object/companion初始化与property delegate协议不得隐式挂起（spec 8.2、9.1.1、9.2）；
 - 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断 → M21（M12 只设计 GC-free 常量初始化的显式 `@Global` / `@ThreadLocal` 存储与无 initializer 的 extern global；通用属性语义仍需按 spec 9.1.1 在实现前定稿）；
 - `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）→ M21；
-- 可见性修饰符 → M21（`internal` 必须先于 M23 多Cone完成）；
+- 可见性修饰符 → M21（`internal` 必须先于 M23-5 多Cone名称语义完成）；
 - `?.` 后随方法调用（`a?.foo()`）→ M18；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）→ M19；
@@ -316,7 +362,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 ### 来自 M7
 
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
-- 候选集分层：局部函数层已由M11落地；M16统一当前local/member/extension/top-level/core层的applicability，显式import/星号import层随 M23 多Cone机制插入；
+- 候选集分层：局部函数层已由M11落地；M16统一当前local/member/extension/top-level/core层的applicability，显式import/星号import层由M23-1建立本Cone结构、M23-5接入跨Cone surface；
 - 泛型候选MSC改用fresh-variable约束系统、统一postponed argument与候选诊断 → M16；M20的`_`部分实参继续复用同一solver；
 - ~~`write` 的 `@Intrinsic` 退役~~（M12 已直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
 - ~~`print` / `println` 的 `Any.toString()` 过渡分发~~（M14 已改为 `fun <T : ToString> ...` 的普通generic bound调用，并拆除Any固定槽）；

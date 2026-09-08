@@ -8,7 +8,7 @@
 >
 > M22 更新：为保持普通`Option`的niche语义，裸`Ptr`/`FunPtr`改为无公开raw field的intrinsic family并固定非null；全零pointer只由`Option<Ptr/FunPtr>.None`表示。下文pointer表面已按M22最终规则修订。
 >
-> M23 更新：C classifier进一步区分ZST pointee。`Ptr<Unit>`/`Option<Ptr<Unit>>`保留为opaque `void *`例外；其他`Ptr<T>`只有在`T`具有非零、可移植的C object表示时才可过C边界，不能因pointer本身是一个machine word而绕过pointee检查。
+> M23-6 更新：C classifier进一步区分ZST pointee。`Ptr<Unit>`/`Option<Ptr<Unit>>`保留为opaque `void *`例外；其他`Ptr<T>`只有在`T`具有非零、可移植的C object表示时才可过C边界，不能因pointer本身是一个machine word而绕过pointee检查。
 
 ## 0. 范围与关键决策
 

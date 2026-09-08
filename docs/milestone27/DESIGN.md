@@ -4,7 +4,7 @@
 
 日期：2026-09-07
 
-依赖：M10 coroutine、M13 foreign-thread managed callback、M15 moving GC、M22 typed cleanup、M23 多 Cone 与 `.slib`、M25 自有异常 ABI
+依赖：M10 coroutine、M13 foreign-thread managed callback、M15 moving GC、M22 typed cleanup、M23-11 多 Cone 与 `.slib`总验收、M25 自有异常 ABI
 
 ## 0. 结论
 

@@ -1301,6 +1301,7 @@ fun getCurrentSourceLocation(): SourceLocation
 ```
 
 - `getCurrentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
+- `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/src/...`；12.2的single-file Cone中恒为`scoop:single-file:0.0.0/main.scoop`。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
 - 典型用法是与 8.5 的缺省参数规则组合，在调试信息与诊断设施落地前提供廉价的 runtime diagnostic / tracing 机制：
 
 ```
@@ -1316,10 +1317,12 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ## 12. Cone模块、package与库
 
+M23按`docs/milestone23/DESIGN.md`第0.1/10节拆为M23-1…M23-11实现；本章仍规定全部子里程碑完成后的单一最终语义，不把迁移期的功能子集写成第二套语言规范。
+
 ### 12.1 基本概念
 
 - **Cone是module、分发、依赖、编译与静态链接的基本单位；package只是源码namespace。** Cone不等于package，二者不能由名称或目录互相推导。一个Cone可以包含多个package，同一package也可以由多个Cone贡献声明；后一情形称为split package，不会把不同origin的实体合并为同一identity；
-- source Cone是包含`Cone.toml`与固定`src/`目录的独立目录；binary Cone是该语义单元编译得到的`.slib` artifact。面向构建的`scoop`可以将上游依赖定位到source Cone或已经验证的binary Cone，二者必须声明同一Cone identity；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
+- manifest source Cone是包含`Cone.toml`与固定`src/`目录的独立目录；`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。面向构建的`scoop`可以将manifest Cone的上游依赖定位到source Cone或已经验证的binary Cone，二者必须声明同一Cone identity；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
 - 文件路径不决定package。source file至多声明一个`package` header，省略时属于root package；跨package引用必须按12.4导入或使用合法qualified path；
 - package/FQN只参与名称组织与诊断，不是type、callable、property或其他实体的全局identity。相同package/name来自不同Cone时保持不同typed origin，并在同一lookup层相遇时按12.4诊断，而不是按依赖或链接顺序任选一个。
 
@@ -1327,7 +1330,7 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 每个Cone具有canonical coordinate `group:name:version`。`group`与`name`各由一个或多个`.`分隔的lowercase ASCII segment组成，每段精确匹配`[a-z][a-z0-9-]*`；`version`是canonical SemVer 2.0.0文本，禁止多余`v`与非法前导零，合法pre-release/build metadata原样参与identity。不做trim、大小写折叠、Unicode归一化或路径别名解析，不满足grammar直接拒绝。`ConeIdentity = SHA-256("scoop-cone-id-v1" || canonical(ConeCoordinate))`，其中hash输入使用domain tag、固定字段顺序和长度前缀而非分隔符拼接；manifest同时保存canonical record与digest，reader必须重算。version属于identity，因此两个版本即使源码相同也不是同一声明/type origin。artifact内容另有`ArtifactFingerprint`，不能用它、package、FQN、manifest路径或session-local provider编号代替`ConeIdentity`。
 
-生产source Cone的最小manifest schema为：
+manifest-backed生产source Cone的最小manifest schema为：
 
 ```toml
 schema = 1
@@ -1348,17 +1351,19 @@ kind = "library" # 或 "executable"
 - dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，`scoop`在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
 - locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
 - M23没有version range、`latest`、optional/dev/build dependency、feature、platform条件、dependency alias或manifest提供的native link option。M23的`scoop`也只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator；
-- source identity是`(ConeIdentity, normalized Cone-relative src path)`。host绝对路径、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。
+- `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为trusted core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
+- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative src path)`；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file artifact/cache key另外包含source content digest、core semantic/code fingerprints、compiler/schema/target/toolchain，不因共用reserved identity而碰撞；
 
 ### 12.3 静态exact依赖图
 
-- M23固定三层工具边界：umbrella binary `scoop`负责locator、resolved DAG、cache与调度；`scoopc`每次只编译一个当前Cone并产生该Cone的`.slib`；program-link是只消费已验证artifact的独立stage。三者不能用共享的未持久AST/IR或隐式进程状态绕过`.slib`边界；
+- M23固定三层工具边界：umbrella binary `scoop`负责root-input分流、locator、resolved DAG、cache与调度；`scoopc`每次只编译一个当前Cone并产生该Cone的`.slib`；program-link是只消费已验证artifact的独立stage。`scoop build`和`scoop run`共用这条完整pipeline；`run`只在build/program-link成功后执行binary，不是另一种编译或解释模式。三层不能用共享的未持久AST/IR或隐式进程状态绕过`.slib`边界；
 - M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
 - `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
 - `scoop`为除core自身外的每个Cone注入12.6的trusted core direct dependency；`scoopc`从独立trusted sysroot slot取得并验证该artifact，普通dependency参数不能授予core/intrinsic authority。除该边外不存在隐式dependency；
+- single-file resolved graph恰好由trusted core与唯一synthetic executable root组成，不运行manifest locator发现；其源码对非core Cone的import按普通不可达诊断。这不禁止`@Extern`产生的逻辑native library requirement；该requirement只能由`scoop`/program-link经显式library search root解析，不是Cone dependency，也不能用无typed来源的raw object/archive输入替代；
 - dependency path、manifest枚举与输入顺序不影响结果。canonical topological order使用dependency-first的Kahn顺序，并在每个ready set按`(group UTF-8 bytes, name UTF-8 bytes, canonical version)`取最小者；
-- `scoop`必须先只读解析全部source manifest与prebuilt `.slib`的bounded manifest summary并验证完整`ResolvedBuildGraph`，之后才按上述dependency-first顺序处理每个节点；该summary只用于locator/调度，不是validated artifact view。prebuilt或cache候选必须完整验证全部payload envelope/hash，并分别成功构造Compile与Link purpose的typed closure后才可复用、作为已发布上游或作为library root返回；单独通过Graph view不能提升为这两种proof。每个source cache miss只能在其全部上游`.slib`已通过同一双view门禁后调用一次`scoopc`，其输出也由父进程重新构造两种view后才发布。当前source dependency不匹配时由`scoop`调度重编译；无source可重建时报告stale dependency，不能把旧typed identity接到新metadata；
-- 每个`.slib`记录编译时direct dependency的`ConeIdentity`及HIR/MIR/LIR semantic fingerprint。每次`scoopc`调用必须显式获得当前manifest的全部direct `.slib`及它们递归引用的其余transitive support `.slib`；direct/support角色由typed manifest edge验证，不从命令行顺序或路径推断。缺失、额外不可达、重复identity、同identity不同fingerprint、stale edge、cycle、自环、同一`group:name`多version、executable dependency、伪造core authority或target/schema/ABI不兼容都必须在parse当前源码前失败；`scoopc`只验证调用者给出的封闭artifact graph，不搜索、不修复且不重编译任何上游节点；
+- 对manifest root，`scoop`必须先只读解析全部source manifest与prebuilt `.slib`的bounded manifest summary；对single-file root，它改用12.2的固定semantic projection且不读取manifest。两条分支都必须在第一个compiler child启动前验证完整`ResolvedBuildGraph`，之后才按上述dependency-first顺序处理节点；summary/projection只用于locator/调度，不是validated artifact view。prebuilt或cache候选必须完整验证全部payload envelope/hash，并分别成功构造Compile与Link purpose的typed closure后才可复用、作为已发布上游或作为library root返回；单独通过Graph view不能提升为这两种proof。每个source cache miss只能在其全部上游`.slib`已通过同一双view门禁后调用一次`scoopc`，其输出也由父进程重新构造两种view后才发布。当前source dependency不匹配时由`scoop`调度重编译；无source可重建时报告stale dependency，不能把旧typed identity接到新metadata；
+- 每个`.slib`记录编译时direct dependency的`ConeIdentity`及HIR/MIR/LIR semantic fingerprint。编译manifest-backed Cone时，`scoopc`必须显式获得当前manifest声明的全部direct `.slib`及它们递归引用的其余transitive support `.slib`；direct/support角色由typed manifest edge验证，不从命令行顺序或路径推断。single-file请求不接受这两类普通dependency参数，只从trusted sysroot slot取得core artifact。缺失、额外不可达、重复identity、同identity不同fingerprint、stale edge、cycle、自环、同一`group:name`多version、executable dependency、伪造core authority或target/schema/ABI不兼容都必须在parse当前源码前失败；`scoopc`只验证调用者给出的封闭artifact graph，不搜索、不修复且不重编译任何上游节点；
 - runtime在执行任何managed initializer前登记整个图的image、stackmap、TypeDescriptor、static storage/root、immortal object与initialization-unit metadata。eager top-level initialization按上述Cone顺序执行，每个Cone内再按9.1.3的`PersistentInitializationUnitId` bytes排序；object/companion及generic delegated extension等lazy unit只登记、不进入eager loop。直接读取另一个unit仍先ensure目标，可以使该目标早于其普通排序位置执行；
 - `scoopc`为typed metadata support加载完整transitive artifact closure，独立program-link stage为最终链接另行验证并加载同一闭包，但这不使间接依赖自动成为源码候选。源码可到达性只由12.4的current Cone、direct dependency surface、re-export和core prelude决定；
 - library root只有在自身及闭包的Compile/Link双view门禁通过后才以其`.slib`为最终产物。executable root也必须先完整产生并验证自身`.slib`；之后`scoop`从同一toolchain target registry选择受信任runtime source set，并调用runtime-build按固定compiler/toolchain profile构建任意非空数量的verified relocatable object，形成`ValidatedRuntimeArtifact`。M23不接受外部prebuilt runtime bundle、raw `.a`或runtime-object cache。program-link只消费Link-purpose已验证的完整transitive artifact closure、该runtime artifact、target/link profile与输出路径，不读取Cone/runtime source manifest、locator、cache或编译残留IR。最后一次`scoopc`不顺带生成program descriptor、runtime输入或最终binary；
@@ -1381,7 +1386,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 - `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
 - 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
 - `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
-- qualified type path先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；不能把点连接的字符串直接当作FQN扫描全部artifact。M23的top-level value/function表达式仍通过import后的短名或普通receiver语法访问，不新增dependency-coordinate-qualified源码名称。
+- import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。M23的top-level value/function表达式仍通过import后的短名或普通receiver语法访问，不新增dependency-coordinate-qualified源码名称。
 
 #### 12.4.2 import可到达性与re-export
 
@@ -1422,7 +1427,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 
 #### 12.4.4 编译单元与entry
 
-- Cone是独立的编译/静态链接单元，不按单个`.scoop`文件分别生成语言模块。`scoopc`只为当前Cone递归收集`src/`下扩展名精确为`.scoop`的regular file，以normalized Cone-relative `/` path的UTF-8 byte order排序；空source set、逃出Cone root的symlink、非UTF-8或归一化后重复的relative path都是构建错误；
+- Cone是独立的编译/静态链接单元，不默认按每个`.scoop`文件生成一个可依赖的语言模块。manifest Cone中，`scoopc`只为当前Cone递归收集`src/`下扩展名精确为`.scoop`的regular file，以normalized Cone-relative `/` path的UTF-8 byte order排序；空source set、逃出Cone root的symlink、非UTF-8或归一化后重复的relative path都是构建错误。single-file mode是显式root-input例外：整个synthetic Cone恰好包含指定文件，它不会使每个普通source file获得可分发Cone identity；
 - 同一Cone的全部source file一起建立语义环境，文件之间没有编译顺序。声明能否用短名访问仍由package/import与visibility决定，“同一Cone编译”不等于忽略namespace；
 - `internal`精确表示origin Cone内可见；默认visibility及其他access domain见9.1.5；
 - library不需要entry；其中名为`main`的普通声明不会因此获得entry linkage。executable root必须恰有一个top-level ordinary、non-generic、non-suspend、无参数且返回`Unit`的`main`；只在root Cone中发现，dependency中的`main`不参与竞争，entry可以保持internal；

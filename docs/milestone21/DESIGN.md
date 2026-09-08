@@ -513,7 +513,7 @@ parser以当前accessor/property/body item、object/nested closing brace为恢�
 7. 完成object/companion/static nested owner模型与M19初始化复用；
 8. 把M12临时global拆成ordinary property、const、raw/TLS/extern，生成global root与top-level init unit；
 9. 扩展core `IllegalStateException`的default-message constructor，并实现runtime init coordinator、startup table、failure/cycle/concurrency与moving root验证；
-10. 更新Export/LocalConcrete/MIR/LIR/codegen typed结构、M23 metadata边界、negative/golden/组合fixture和全量回归。
+10. 更新Export/LocalConcrete/MIR/LIR/codegen typed结构、M23系列metadata边界、negative/golden/组合fixture和全量回归。
 
 每批代码变更先执行`cargo fmt --all`与`cargo clippy --workspace`，再运行对应crate test、stage golden和fixture。不得保留“field就是property”的旧旁路、按accessor body猜backing field、Kotlin/JVM式lateinit检查、反射delegate参数、按implements顺序选default、visibility只在parser保存字符串、object无同步裸global或MIR按名字重建accessor/slot/init target。
 
