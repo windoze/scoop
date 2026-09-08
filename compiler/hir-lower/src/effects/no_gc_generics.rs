@@ -102,11 +102,7 @@ impl Lowerer {
             })
             .collect();
         for (function, _, span, function_name, parameter_name) in impossible_requirements {
-            self.current_file = self
-                .function_files
-                .get(&function)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            self.current_file = self.functions[function].origin.file as usize;
             self.error(
                 span,
                 format!(
@@ -123,11 +119,7 @@ impl Lowerer {
             let callee = self.functions[call_site.callee].clone();
             let caller_requirements = (self.functions[call_site.caller].type_param_count() != 0)
                 .then(|| self.function_no_gc_requirements(call_site.caller).to_vec());
-            self.current_file = self
-                .function_files
-                .get(&call_site.caller)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            self.current_file = self.functions[call_site.caller].origin.file as usize;
 
             for parameter in requirements {
                 let argument = call_site.argument(parameter);

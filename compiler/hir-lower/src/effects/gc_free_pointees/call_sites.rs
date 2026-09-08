@@ -6,11 +6,7 @@ impl Lowerer {
     pub(super) fn pointee_requirement_call_sites(&mut self) -> Vec<PointeeRequirementCallSite> {
         let mut out = Vec::new();
         for site in self.generic_call_sites() {
-            let file = self
-                .function_files
-                .get(&site.caller)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            let file = self.functions[site.caller].origin.file as usize;
             push_pointee_call_sites(
                 &mut out,
                 RequirementContext::Function(site.caller),

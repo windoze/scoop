@@ -13,8 +13,10 @@ impl Lowerer {
                 message: "no source files to compile".to_string(),
             }]);
         }
+        // The transitional single-Cone unit: the last file is the user
+        // Cone's source; every earlier file belongs to the implicitly
+        // imported core unit.
         let user_file_index = files.len() - 1;
-        self.user_file_index = user_file_index;
 
         // Pass 1: declare aliases, nominals and functions across all files
         // (core first), so bodies and field types resolve regardless of
@@ -271,14 +273,14 @@ impl Lowerer {
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = user_file_index;
                 self.error(
                     files[0].span,
                     "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
                 );
             }
             if self.ffi_fun_ptr != Some(core.fun_ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = user_file_index;
                 self.error(
                     files[0].span,
                     "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"

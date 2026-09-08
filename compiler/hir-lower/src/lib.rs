@@ -432,9 +432,6 @@ pub(crate) struct Lowerer {
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
     pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
     pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
-    /// Index of the user compilation unit (`files.len() - 1`); every
-    /// earlier file is implicitly imported `scoop.core`.
-    pub(crate) user_file_index: usize,
     /// Struct namespace: name → (declaration, value type of the struct).
     pub(crate) structs_by_name: HashMap<String, Vec<(StructId, TypeId)>>,
     /// Enum namespace.

@@ -24,8 +24,12 @@ pub(crate) fn callable_layer_name(lowerer: &Lowerer, views: &[CallableView]) -> 
         CallableSource::Local { .. } => "lexical local candidate",
         CallableSource::Method(_) => "member candidate",
         CallableSource::Free(function) => {
-            let call_site_is_core = lowerer.current_file < lowerer.user_file_index;
-            let candidate_is_core = lowerer.function_files[&function] < lowerer.user_file_index;
+            // "Implicit import" is the transitional core-unit surface:
+            // a candidate whose declaring file is core while the call
+            // site is user code (or vice versa) reads as imported.
+            let call_site_is_core = lowerer.intrinsic_sources[lowerer.current_file].core;
+            let candidate_is_core =
+                lowerer.intrinsic_sources[lowerer.function_files[&function]].core;
             if call_site_is_core == candidate_is_core {
                 "current-unit top-level candidate"
             } else {

@@ -344,11 +344,7 @@ impl Lowerer {
     fn pointee_application_occurrences(&self) -> Vec<PointeeApplicationOccurrence> {
         let mut out = Vec::new();
         for (function, declaration) in self.functions.iter() {
-            let file = self
-                .function_files
-                .get(&function)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            let file = self.functions[function].origin.file as usize;
             for parameter in &declaration.params {
                 out.push(PointeeApplicationOccurrence {
                     ty: parameter.ty,
@@ -531,18 +527,16 @@ impl Lowerer {
                     context: RequirementContext::Closed,
                 }),
         );
-        out.extend(self.globals.iter().map(|(_, global)| {
-            PointeeApplicationOccurrence {
-                ty: global.ty,
-                file: self
-                    .property_files
-                    .get(&global.property)
-                    .copied()
-                    .unwrap_or(self.user_file_index),
-                span: global.span,
-                context: RequirementContext::Closed,
-            }
-        }));
+        out.extend(
+            self.globals
+                .iter()
+                .map(|(_, global)| PointeeApplicationOccurrence {
+                    ty: global.ty,
+                    file: self.property_files[&global.property],
+                    span: global.span,
+                    context: RequirementContext::Closed,
+                }),
+        );
         out
     }
 }

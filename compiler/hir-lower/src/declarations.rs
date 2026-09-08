@@ -12,19 +12,16 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<StructId> {
+        // The candidate must live in a core-unit file; the layer
+        // classifier cannot express this (root-package core files read
+        // as the current package from root-package user files).
         let candidate = self
             .structs_by_name
             .get(name)
             .into_iter()
             .flatten()
             .map(|(id, _)| *id)
-            .find(|id| {
-                self.struct_files
-                    .get(id)
-                    .copied()
-                    .unwrap_or(self.user_file_index)
-                    < self.user_file_index
-            });
+            .find(|id| self.intrinsic_sources[self.struct_files[id]].core);
         if let Some(id) = candidate {
             return Some(id);
         }
@@ -32,7 +29,7 @@ impl Lowerer {
             .structs_by_name
             .get(name)
             .and_then(|entries| entries.first())
-            .and_then(|(id, _)| self.struct_files.get(id).copied())
+            .map(|(id, _)| self.struct_files[id])
             .unwrap_or(0);
         self.error(
             files[0].span,

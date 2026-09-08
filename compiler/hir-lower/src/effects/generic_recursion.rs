@@ -131,11 +131,7 @@ impl Lowerer {
         }
 
         for (caller, span, cycle) in violations {
-            self.current_file = self
-                .function_files
-                .get(&caller)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            self.current_file = self.functions[caller].origin.file as usize;
             self.error(
                 span,
                 format!(

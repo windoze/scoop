@@ -295,7 +295,8 @@ impl Lowerer {
         function: hir::FunctionId,
         receiver_kind: hir::IntegerKind,
     ) -> bool {
-        if self.function_files.get(&function).copied() >= Some(self.user_file_index) {
+        // The range-member well-known set lives in the core unit.
+        if !self.intrinsic_sources[self.function_files[&function]].core {
             return false;
         }
         let Some(&(owner, _)) = self

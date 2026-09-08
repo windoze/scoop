@@ -183,7 +183,6 @@ impl Lowerer {
             pending_runtime_initializers: Vec::new(),
             current_initialization_unit: None,
             local_delegate_plans: HashMap::new(),
-            user_file_index: 0,
             structs_by_name: HashMap::new(),
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),

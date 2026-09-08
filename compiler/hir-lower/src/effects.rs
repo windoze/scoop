@@ -24,11 +24,7 @@ impl Lowerer {
             })
             .collect();
         for id in functions {
-            self.current_file = self
-                .function_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            self.current_file = self.functions[id].origin.file as usize;
             let function = self.functions[id].clone();
             if function.is_suspend {
                 continue; // The annotation combination already owns this error.
@@ -148,11 +144,7 @@ impl Lowerer {
             })
             .collect();
         for id in safe_functions {
-            self.current_file = self
-                .function_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index);
+            self.current_file = self.functions[id].origin.file as usize;
             let function = self.functions[id].clone();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();
