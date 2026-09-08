@@ -336,7 +336,17 @@ impl Lowerer {
     pub(crate) fn primary_user_file(&self) -> usize {
         self.intrinsic_sources
             .iter()
-            .position(|source| source.kind == SourceKind::CurrentUnit)
+            .enumerate()
+            .filter_map(|(file, source)| match source.visibility_source {
+                hir::VisibilitySource::CurrentUnit(handle)
+                    if source.kind == SourceKind::CurrentUnit =>
+                {
+                    Some((handle, file))
+                }
+                _ => None,
+            })
+            .min_by_key(|(handle, _)| *handle)
+            .map(|(_, file)| file)
             .expect("a lowering input always contains a current-unit source")
     }
 

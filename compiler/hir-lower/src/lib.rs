@@ -108,6 +108,7 @@ mod ffi;
 mod generic_entities;
 mod globals;
 mod imports;
+mod legacy_entry;
 mod lowering_context;
 mod model;
 mod namespace;
