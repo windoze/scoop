@@ -43,6 +43,7 @@ mod m22_pattern_warnings;
 mod m22_ranges;
 mod m22_recursive_named_fields;
 mod m23_legacy_entry;
+mod m23_named_calls;
 mod m23_source_model;
 mod m3;
 mod m4;

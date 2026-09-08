@@ -74,9 +74,9 @@ impl Lowerer {
         {
             return true;
         }
-        self.extension_candidate_layers("invoke")
+        self.named_extension_operator_layers(hir::OperatorKind::Invoke)
             .into_iter()
-            .flatten()
+            .flat_map(|layer| layer.candidates)
             .any(|function| matching(self.signatures[&function].modifiers))
     }
 
@@ -145,42 +145,14 @@ impl Lowerer {
                 );
             }
         }
-        let constructor = self.classify_constructor(&call.callee)?;
-        if !matches!(&constructor, Constructor::Unmatched) {
-            if call.callee.text.contains('.') {
-                return self.lower_nominal_constructor_call(constructor, call, sink, expected);
-            }
-            return match self.probe_expr_layer(move |state, layer_sink| {
-                state.lower_nominal_constructor_call(constructor, call, layer_sink, expected)
-            }) {
-                Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => self.lower_function_call(call, sink, expected, Some(failure)),
-            };
+        if call.callee.text.contains('.') {
+            let constructor = self.classify_constructor(&call.callee)?;
+            return self.lower_nominal_constructor_call(constructor, call, sink, expected);
         }
-
-        let object = self
-            .lexical_nested_nominal_target(&call.callee.text)
-            .or_else(|| self.top_level_nominal_target(&call.callee.text))
-            .and_then(|target| match target {
-                crate::NominalTarget::Object(object) => Some(object),
-                _ => None,
-            });
-        let object_failure = object.map(|object| {
-            let kind = match self.objects[object].kind {
-                hir::ObjectKind::Standalone => "object",
-                hir::ObjectKind::Companion(_) => "companion object",
-            };
-            let mut failure = self.clone();
-            failure.error(
-                call.span,
-                format!("{kind} `{}` cannot be constructed", call.callee.text),
-            );
-            Box::new(failure)
-        });
-        self.lower_function_call(call, sink, expected, object_failure)
+        self.lower_layered_named_call(call, sink, expected)
     }
 
-    fn lower_nominal_constructor_call(
+    pub(in crate::expr) fn lower_nominal_constructor_call(
         &mut self,
         constructor: Constructor,
         call: &ast::CallExpr,

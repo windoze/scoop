@@ -33,6 +33,19 @@ pub(crate) struct DeclarationForwardingView<'a> {
     parameter_types: &'a [hir::TypeId],
 }
 
+impl<'a> DeclarationForwardingView<'a> {
+    pub(crate) fn nominal_parameters(
+        owner_parameters: &'a [hir::TypeParamDecl],
+        parameter_types: &'a [hir::TypeId],
+    ) -> Self {
+        Self {
+            owner_parameters,
+            callable_parameters: &[],
+            parameter_types,
+        }
+    }
+}
+
 impl<'a> From<ForwardingDeclaration<'a>> for DeclarationForwardingView<'a> {
     fn from(declaration: ForwardingDeclaration<'a>) -> Self {
         Self {

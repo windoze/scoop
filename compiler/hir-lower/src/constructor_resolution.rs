@@ -9,6 +9,10 @@ use crate::expr::ResolvedCallTypeArgument;
 use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
 
+mod named;
+
+pub(crate) use named::NamedNominalProbe;
+
 pub(crate) struct ResolvedNominalConstructor {
     pub(crate) source: NominalConstructorSource,
     pub(crate) type_args: Vec<TypeId>,
@@ -58,58 +62,18 @@ impl Lowerer {
                 continue;
             }
             let view = self.nominal_constructor_view(source);
-            if !explicit_type_args.is_empty()
-                && explicit_type_args.len() != view.owner_parameters.len()
-            {
-                let mut failure = self.clone();
-                failure.diagnose_nominal_shape_failure(
-                    &view,
+            match self.probe_named_nominal(
+                view.clone(),
+                NominalConstructorCall {
+                    explicit_type_args,
+                    expected_type_args,
+                    arguments,
                     span,
-                    format!(
-                        "expects {} explicit type argument(s), but {} were supplied",
-                        view.owner_parameters.len(),
-                        explicit_type_args.len()
-                    ),
-                );
-                failures.push((view, Box::new(failure)));
-                continue;
+                },
+            ) {
+                Ok(probe) => applicable.push(probe.candidate),
+                Err(failure) => failures.push((view, failure)),
             }
-            let argument_map = match CandidateArgumentMap::source_nominal(&view, arguments) {
-                Ok(argument_map) => argument_map,
-                Err(reason) => {
-                    let mut failure = self.clone();
-                    failure.diagnose_nominal_shape_failure(&view, span, reason.describe());
-                    failures.push((view, Box::new(failure)));
-                    continue;
-                }
-            };
-            let mut state = self.clone();
-            let diagnostics_before = state.diagnostics.len();
-            let inferred = state.lower_nominal_arguments(NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: arguments,
-                explicit_type_args,
-                expected_type_args,
-                span,
-            });
-            let Some(inferred) = inferred else {
-                failures.push((view, Box::new(state)));
-                continue;
-            };
-            if state.diagnostics.len() != diagnostics_before {
-                failures.push((view, Box::new(state)));
-                continue;
-            }
-            let parameter_types = argument_map.forwarding_parameter_types(&view.value_parameters);
-            applicable.push(ApplicableConstructor {
-                state: Box::new(state),
-                source,
-                view,
-                argument_map,
-                inferred,
-                parameter_types,
-            });
         }
 
         let winner = match applicable.len() {
@@ -149,24 +113,7 @@ impl Lowerer {
             _ => self.most_specific_nominal_constructor(name, &applicable, span)?,
         };
         let winner = applicable.swap_remove(winner);
-        *self = *winner.state;
-        let type_args = winner.inferred.type_args;
-        let args = self.materialize_nominal_arguments(
-            crate::argument_materialization::NominalArgumentMaterialization {
-                view: &winner.view,
-                argument_map: &winner.argument_map,
-                type_args: &type_args,
-                source_args: winner.inferred.args,
-                argument_sinks: winner.inferred.argument_sinks,
-                call_span: span,
-            },
-            sink,
-        );
-        Some(ResolvedNominalConstructor {
-            source: winner.source,
-            type_args,
-            args,
-        })
+        Some(self.commit_nominal_candidate(winner, span, sink))
     }
 
     fn most_specific_nominal_constructor(

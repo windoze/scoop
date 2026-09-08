@@ -55,62 +55,30 @@ impl Lowerer {
         })
     }
 
-    /// The unified path of a method call (explicit receiver or bare
-    /// `m(...)`): `resolve_overload` picks the winner among the
-    /// receiver type's methods and the call becomes a resolved
-    /// `MethodCall`.
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::expr) fn finish_overloaded_method_call(
+    pub(in crate::expr) fn finish_resolved_method_call(
         &mut self,
-        candidates: Vec<crate::CallableCandidate>,
-        name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-        operator_set: bool,
+        resolved: crate::overload::ResolvedCallee,
+        span: Span,
     ) -> Option<hir::Expr> {
-        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_member_overload(
-            name,
-            &candidates,
-            receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: if operator_set {
-                    crate::overload::CallArgumentProtocol::OperatorSet
-                } else {
-                    crate::overload::CallArgumentProtocol::Ordinary
-                },
-            },
-            sink,
-        )?;
         let ty = resolved.return_ty;
         let receiver = resolved
             .receiver
             .clone()
             .expect("an instance call returns its materialized receiver");
         let function = resolved.function();
-        self.check_call_effects(hir::Callable::Function(function), call.span);
+        self.check_call_effects(hir::Callable::Function(function), span);
         if let Some(expr) = self.normalize_primitive_method_call(
             function,
             receiver.clone(),
             &resolved.args,
             ty,
-            call.span,
+            span,
         ) {
             return Some(expr);
         }
-        if let Some(expr) = self.normalize_array_method_call(
-            function,
-            receiver.clone(),
-            &resolved.args,
-            ty,
-            call.span,
-        ) {
+        if let Some(expr) =
+            self.normalize_array_method_call(function, receiver.clone(), &resolved.args, ty, span)
+        {
             return Some(expr);
         }
         if let Some(expr) = self.normalize_pointer_method_call(
@@ -118,7 +86,7 @@ impl Lowerer {
             receiver.clone(),
             resolved.args.clone(),
             ty,
-            call.span,
+            span,
         ) {
             return Some(expr);
         }
@@ -132,8 +100,8 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty,
-            span: call.span,
-            origin: self.expression_origin(call.span),
+            span,
+            origin: self.expression_origin(span),
         })
     }
 

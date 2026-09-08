@@ -1,48 +1,6 @@
 use super::*;
 
 impl Lowerer {
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::expr) fn finish_extension_call(
-        &mut self,
-        candidates: &[hir::FunctionId],
-        name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-        operator_set: bool,
-    ) -> Option<hir::Expr> {
-        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_extension_overload(
-            name,
-            candidates,
-            receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: if operator_set {
-                    crate::overload::CallArgumentProtocol::OperatorSet
-                } else {
-                    crate::overload::CallArgumentProtocol::Ordinary
-                },
-            },
-            sink,
-        )?;
-        let callee = self.materialize_resolved_callee(&resolved);
-        self.check_call_effects(callee, call.span);
-        Some(hir::Expr {
-            kind: ExprKind::Call {
-                callee,
-                args: resolved.args,
-            },
-            ty: resolved.return_ty,
-            span: call.span,
-            origin: self.expression_origin(call.span),
-        })
-    }
-
     /// Normalize a winning core `m.toArray()` / `a.toMutableArray()` target
     /// after ordinary member applicability and specificity have completed.
     pub(in crate::expr) fn normalize_array_method_call(

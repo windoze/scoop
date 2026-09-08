@@ -329,28 +329,6 @@ impl Lowerer {
         )
     }
 
-    pub(in crate::expr) fn extension_operator_candidate_layers(
-        &self,
-        operator: hir::OperatorKind,
-    ) -> Vec<Vec<hir::FunctionId>> {
-        self.accessible_candidate_layers(
-            self.top_level_namespaces
-                .all_extension_layers(self.current_file)
-                .into_iter()
-                .map(|layer| {
-                    let mut layer = layer
-                        .into_iter()
-                        .filter(|function| {
-                            self.signatures[function].modifiers.operator == Some(operator)
-                        })
-                        .collect::<Vec<_>>();
-                    layer.sort_by_key(|id| id.into_raw().into_u32());
-                    layer
-                })
-                .collect(),
-        )
-    }
-
     fn accessible_candidate_layers(
         &self,
         layers: Vec<Vec<hir::FunctionId>>,

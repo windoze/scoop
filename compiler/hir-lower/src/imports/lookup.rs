@@ -7,6 +7,7 @@ use crate::{
 };
 use scoop_ast as ast;
 
+pub(crate) mod calls;
 pub(crate) mod values;
 
 #[derive(Debug, Clone)]

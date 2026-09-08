@@ -66,6 +66,13 @@ pub(crate) enum ExtensionPropertyResolution {
     Resolved(Box<ResolvedExtensionProperty>),
 }
 
+pub(crate) enum ExtensionPropertyCandidateOutcome {
+    NoCandidate,
+    NoApplicable,
+    Failed,
+    Resolved(Box<ResolvedExtensionProperty>),
+}
+
 impl Lowerer {
     pub(crate) fn qualified_object_const_property(
         &self,
@@ -164,8 +171,45 @@ impl Lowerer {
                 )
             })
             .collect::<Vec<_>>();
+        self.resolve_extension_property_candidates(receiver, name, &properties, sink, require_read)
+    }
+
+    pub(crate) fn resolve_extension_property_candidates(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        properties: &[hir::PropertyId],
+        sink: &mut Vec<hir::Statement>,
+        require_read: bool,
+    ) -> ExtensionPropertyResolution {
+        match self.resolve_extension_property_candidates_outcome(
+            receiver,
+            name,
+            properties,
+            sink,
+            require_read,
+        ) {
+            ExtensionPropertyCandidateOutcome::NoCandidate => {
+                ExtensionPropertyResolution::NoCandidate
+            }
+            ExtensionPropertyCandidateOutcome::NoApplicable
+            | ExtensionPropertyCandidateOutcome::Failed => ExtensionPropertyResolution::Failed,
+            ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                ExtensionPropertyResolution::Resolved(property)
+            }
+        }
+    }
+
+    pub(crate) fn resolve_extension_property_candidates_outcome(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        properties: &[hir::PropertyId],
+        sink: &mut Vec<hir::Statement>,
+        require_read: bool,
+    ) -> ExtensionPropertyCandidateOutcome {
         if properties.is_empty() {
-            return ExtensionPropertyResolution::NoCandidate;
+            return ExtensionPropertyCandidateOutcome::NoCandidate;
         }
         let getters = properties
             .iter()
@@ -184,7 +228,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let no_type_args = [];
         let no_arguments = [];
-        let Some(resolved) = self.resolve_extension_overload(
+        let resolved = match self.resolve_extension_overload_outcome(
             &name.text,
             &getters,
             receiver,
@@ -196,8 +240,14 @@ impl Lowerer {
                 argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
             },
             sink,
-        ) else {
-            return ExtensionPropertyResolution::Failed;
+        ) {
+            crate::overload::OverloadResolutionOutcome::NoApplicable => {
+                return ExtensionPropertyCandidateOutcome::NoApplicable;
+            }
+            crate::overload::OverloadResolutionOutcome::Failed => {
+                return ExtensionPropertyCandidateOutcome::Failed;
+            }
+            crate::overload::OverloadResolutionOutcome::Resolved(resolved) => *resolved,
         };
         let function = resolved.function();
         let property = self.extension_property_by_getter[&function];
@@ -221,7 +271,7 @@ impl Lowerer {
             span: name.span,
             origin: self.expression_origin(name.span),
         };
-        ExtensionPropertyResolution::Resolved(Box::new(ResolvedExtensionProperty {
+        ExtensionPropertyCandidateOutcome::Resolved(Box::new(ResolvedExtensionProperty {
             property,
             receiver,
             type_args: resolved.type_args,

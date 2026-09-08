@@ -26,8 +26,11 @@ use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
 mod inference;
+mod named;
 mod probe;
 mod specificity;
+
+pub(crate) use named::{NamedCallReceiver, NamedCallableProbe};
 
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
@@ -168,6 +171,18 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        self.resolve_overload_outcome(name, candidates, receiver_type_args, call, sink)
+            .into_option()
+    }
+
+    pub(crate) fn resolve_overload_outcome(
+        &mut self,
+        name: &str,
+        candidates: &[FunctionId],
+        receiver_type_args: &[TypeId],
+        call: OverloadCall<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> OverloadResolutionOutcome {
         let candidates = candidates
             .iter()
             .copied()
@@ -192,7 +207,6 @@ impl Lowerer {
             },
             sink,
         )
-        .into_option()
     }
 
     pub(crate) fn resolve_member_overload(
@@ -203,6 +217,18 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        self.resolve_member_overload_outcome(name, candidates, receiver, call, sink)
+            .into_option()
+    }
+
+    pub(crate) fn resolve_member_overload_outcome(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        receiver: hir::Expr,
+        call: OverloadCall<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> OverloadResolutionOutcome {
         self.resolve_overload_with_receiver(
             name,
             candidates,
@@ -216,7 +242,6 @@ impl Lowerer {
             },
             sink,
         )
-        .into_option()
     }
 
     pub(crate) fn resolve_member_overload_lowered(
@@ -248,17 +273,14 @@ impl Lowerer {
         .into_option()
     }
 
-    /// Resolve an extension candidate layer. The already-lowered receiver is
-    /// the first inference argument and, for the selected extension, the first
-    /// direct-call argument. It is not part of the source argument count.
-    pub(crate) fn resolve_extension_overload(
+    pub(crate) fn resolve_extension_overload_outcome(
         &mut self,
         name: &str,
         candidates: &[FunctionId],
         receiver: hir::Expr,
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
-    ) -> Option<ResolvedCallee> {
+    ) -> OverloadResolutionOutcome {
         let candidates = candidates
             .iter()
             .copied()
@@ -283,7 +305,6 @@ impl Lowerer {
             },
             sink,
         )
-        .into_option()
     }
 
     pub(crate) fn resolve_member_overload_lowered_outcome(
@@ -387,68 +408,14 @@ impl Lowerer {
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
-                let view = self.callable_view(source, receiver_offset != 0);
-                let function = view.function();
-                let argument_map = match &arguments {
-                    OverloadArguments::Source(arguments) => match argument_protocol {
-                        CallArgumentProtocol::Ordinary => {
-                            CandidateArgumentMap::source(&view, arguments)
-                        }
-                        CallArgumentProtocol::OperatorSet => {
-                            CandidateArgumentMap::source_operator_set(&view, arguments)
-                        }
-                    },
-                    OverloadArguments::Lowered(arguments) => {
-                        CandidateArgumentMap::exact_lowered(&view, arguments.len())
-                    }
-                };
-                let mut params: Vec<_> = match &argument_map {
-                    Ok(argument_map) => {
-                        argument_map.forwarding_parameter_types(&view.value_parameters)
-                    }
-                    Err(_) => view
-                        .value_parameters
-                        .iter()
-                        .map(|parameter| parameter.ty)
-                        .collect(),
-                };
-                let signature = &self.signatures[&function];
-                debug_assert_eq!(view.effects.is_suspend, signature.is_suspend);
-                debug_assert_eq!(view.effects.attributes, signature.attributes);
-                debug_assert_eq!(view.declaration_span, self.functions[function].span);
-                debug_assert!(
-                    view.value_parameters
-                        .iter()
-                        .zip(&signature.params)
-                        .all(|(view, declaration)| view.name == declaration.name.text)
-                );
-                if receiver_offset != 0 {
-                    let crate::call_resolution::candidates::ReceiverShape::Extension(receiver) =
-                        view.receiver
-                    else {
-                        unreachable!("extension resolution builds extension callable views")
-                    };
-                    params.insert(0, receiver);
-                }
-                let owner_arguments = self.callable_candidate_owner_arguments(source);
-                debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
-                let own_type_param_count = view.callable_parameters.len();
-                let explicit_arity_match = explicit_type_args.is_empty()
-                    || explicit_type_args.len() == own_type_param_count;
-                Candidate {
-                    argument_map,
-                    function,
-                    owner: source.owner.clone(),
-                    source: view.dispatch,
-                    access: source.access.clone(),
-                    params,
-                    return_ty: view.return_type,
-                    own_type_param_count,
-                    owner_arguments,
-                    explicit_arity_match,
-                    call_span: span,
-                    view,
-                }
+                self.prepare_overload_candidate(
+                    source,
+                    explicit_type_args,
+                    &arguments,
+                    argument_protocol,
+                    span,
+                    extension,
+                )
             })
             .collect();
 
@@ -547,81 +514,19 @@ impl Lowerer {
         };
 
         let candidate = &prepared[winner];
-        let function = candidate.function;
-        let owner = candidate.owner.clone();
-        let source = candidate.source;
-        let access = candidate.access.clone();
         let transaction_index = applicable
             .iter()
             .position(|candidate| candidate.candidate == winner)
             .expect("MSC winner has an applicability transaction");
         let transaction = applicable.swap_remove(transaction_index);
-        let probe::ApplicableCandidate {
-            state,
-            type_args,
-            mut args,
-            argument_sinks,
-            return_ty,
-            ..
-        } = transaction;
-        *self = *state;
-        let argument_map = candidate
-            .argument_map
-            .as_ref()
-            .expect("the winner has a complete argument map");
-        let (instance_receiver, args) = if matches!(arguments, OverloadArguments::Source(_)) {
-            let receiver = if extension {
-                Some(args.remove(0))
-            } else {
-                evaluation_receiver
-            };
-            let (materialized_receiver, mut args) = self.materialize_callable_arguments(
-                crate::argument_materialization::CallableArgumentMaterialization {
-                    function,
-                    argument_map,
-                    type_args: &type_args,
-                    receiver,
-                    source_args: args,
-                    argument_sinks,
-                    call_span: span,
-                },
-                sink,
-            );
-            if extension {
-                args.insert(
-                    0,
-                    materialized_receiver.expect("an extension receiver is materialized"),
-                );
-                (None, args)
-            } else {
-                (materialized_receiver, args)
-            }
-        } else {
-            for mut argument_sink in argument_sinks {
-                sink.append(&mut argument_sink);
-            }
-            if extension {
-                (None, args)
-            } else {
-                (evaluation_receiver, args)
-            }
-        };
-        // The complete owner-prefix plus method-suffix vector identifies
-        // the resolved generic entity stored on the HIR call.
-        let resolved_candidate = CallableCandidate {
-            function,
-            owner,
-            source,
-            access,
-        };
-        OverloadResolutionOutcome::Resolved(Box::new(ResolvedCallee {
-            target: resolved_candidate,
-            source,
-            type_args,
-            args,
-            receiver: instance_receiver,
-            return_ty,
-        }))
+        OverloadResolutionOutcome::Resolved(Box::new(self.commit_overload_candidate(
+            candidate,
+            transaction,
+            evaluation_receiver,
+            extension,
+            matches!(arguments, OverloadArguments::Source(_)),
+            sink,
+        )))
     }
 }
 

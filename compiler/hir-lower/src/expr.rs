@@ -65,6 +65,7 @@ mod callables;
 mod callbacks;
 mod generic_calls;
 mod generic_inference;
+mod named_calls;
 
 mod aggregates;
 mod analysis;
@@ -159,6 +160,7 @@ struct ResolvedReference {
     ty: TypeId,
 }
 
+#[derive(Clone)]
 struct SuccessfulExprLayer {
     state: Box<Lowerer>,
     expression: hir::Expr,

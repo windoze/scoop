@@ -7,6 +7,39 @@ mod pointers;
 mod primitives;
 mod resolution;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::expr) enum PropertyExtensionInvokeOrigin {
+    Member(hir::PropertyId),
+    NamedValue(crate::imports::lookup::values::ValueTarget),
+    Extension(hir::PropertyId),
+}
+
+pub(in crate::expr) struct PropertyExtensionInvokeInput {
+    origin: PropertyExtensionInvokeOrigin,
+    property: SuccessfulExprLayer,
+    candidates: Vec<hir::FunctionId>,
+}
+
+impl PropertyExtensionInvokeInput {
+    pub(in crate::expr) fn new(
+        origin: PropertyExtensionInvokeOrigin,
+        property: SuccessfulExprLayer,
+        candidates: Vec<hir::FunctionId>,
+    ) -> Self {
+        Self {
+            origin,
+            property,
+            candidates,
+        }
+    }
+}
+
+pub(in crate::expr) enum PropertyExtensionInvokeOutcome {
+    NoApplicable(Option<Box<Lowerer>>),
+    Failed(Box<Lowerer>),
+    Resolved(SuccessfulExprLayer),
+}
+
 impl Lowerer {
     pub(crate) fn nominal_qualifier_target(&self, expression: &ast::Expr) -> Option<NominalTarget> {
         match expression {
@@ -254,19 +287,25 @@ impl Lowerer {
                 return None;
             }
             let property = self.initializing_field(name, call.span)?;
-            let Some(layer) =
-                self.probe_property_member_invoke(property.read, call, expected, false)
-            else {
-                self.error(
-                    call.span,
-                    "initializing receiver cannot escape before construction completes".into(),
-                );
-                return None;
-            };
-            return match layer {
-                Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
+            return match self.probe_property_member_invoke_partition(
+                property.read,
+                call,
+                expected,
+                false,
+            ) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    Some(self.commit_expr_layer(layer, sink))
+                }
+                PropertyExtensionInvokeOutcome::Failed(failure)
+                | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
                     self.commit_layer_diagnostics(*failure);
+                    None
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(None) => {
+                    self.error(
+                        call.span,
+                        "initializing receiver cannot escape before construction completes".into(),
+                    );
                     None
                 }
             };
@@ -393,6 +432,9 @@ impl Lowerer {
             return None;
         }
         let mut first_failure = None;
+        let member_property = self
+            .find_accessible_nominal_property(receiver.ty, &name.text)
+            .map(|(property, _, _)| property);
         let property = match self
             .probe_expr_layer(|state, _| state.member_property_read(receiver.clone(), name))
         {
@@ -430,143 +472,263 @@ impl Lowerer {
             }
         }
         if !members.is_empty() {
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.finish_overloaded_method_call(
-                    members,
-                    &name.text,
-                    receiver.clone(),
-                    call,
-                    layer_sink,
-                    expected,
-                    false,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            match self.probe_member_call_partition(
+                members,
+                &name.text,
+                receiver.clone(),
+                call,
+                expected,
+                false,
+            ) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    first_failure = failure;
+                }
             }
         }
 
         if let Some(property) = &property {
-            let mut property_state = (*property.state).clone();
-            if let Some(layer) = property_state.probe_property_member_invoke(
+            match property.state.probe_property_member_invoke_partition(
                 property.expression.clone(),
                 call,
                 expected,
                 direct_required.infix,
             ) {
-                match layer {
-                    Ok(mut layer) => {
-                        let mut setup = property.sink.clone();
-                        setup.append(&mut layer.sink);
-                        layer.sink = setup;
-                        return Some(self.commit_expr_layer(layer, sink));
-                    }
-                    Err(failure) => {
+                PropertyExtensionInvokeOutcome::Resolved(mut layer) => {
+                    let mut setup = property.sink.clone();
+                    setup.append(&mut layer.sink);
+                    layer.sink = setup;
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    if let Some(failure) = failure {
                         first_failure.get_or_insert(failure);
                     }
                 }
             }
         }
 
-        for same_side in [true, false] {
-            let mut extensions = self.extension_candidates_on_side(&name.text, same_side);
-            extensions.retain(|function| {
-                Self::matches_required_modifiers(
-                    self.signatures[function].modifiers,
-                    direct_required,
-                )
-            });
-            if !extensions.is_empty() {
-                match self.probe_expr_layer(|state, layer_sink| {
-                    state.finish_extension_call(
-                        &extensions,
-                        &name.text,
-                        receiver.clone(),
-                        call,
-                        layer_sink,
-                        expected,
-                        false,
+        let mut extension_layers = match direct_required.operator {
+            Some(operator) => self.named_extension_operator_layers(operator),
+            None => self.named_extension_call_layers(&name.text),
+        };
+        let mut invoke_layers = self.named_extension_call_layers("invoke");
+        let mut extension_property_layers = self.named_extension_property_layers(&name.text);
+        Self::retain_highest_rank_origins(&mut extension_layers);
+        Self::retain_highest_rank_origins(&mut invoke_layers);
+        Self::retain_highest_rank_origins(&mut extension_property_layers);
+        for rank in 0..=3 {
+            let extensions =
+                Self::extension_candidates_at_rank(&extension_layers, rank, |function| {
+                    Self::matches_required_modifiers(
+                        self.signatures[&function].modifiers,
+                        direct_required,
                     )
-                }) {
-                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                    Err(failure) => {
-                        first_failure.get_or_insert(failure);
-                    }
-                }
-            }
-            let mut extension_property_state = self.clone();
-            let mut extension_property_sink = Vec::new();
-            match extension_property_state.resolve_extension_property_on_side(
-                receiver.clone(),
-                name,
-                same_side,
-                &mut extension_property_sink,
-                true,
-            ) {
-                crate::properties::ExtensionPropertyResolution::Resolved(property) => {
-                    if let Some(layer) = extension_property_state.probe_property_member_invoke(
-                        property.read.clone(),
-                        call,
-                        expected,
-                        direct_required.infix,
-                    ) {
-                        match layer {
-                            Ok(mut layer) => {
-                                let mut setup = extension_property_sink.clone();
-                                setup.append(&mut layer.sink);
-                                layer.sink = setup;
-                                return Some(self.commit_expr_layer(layer, sink));
-                            }
-                            Err(failure) => {
-                                first_failure.get_or_insert(failure);
-                            }
-                        }
-                    }
-                    if let Some(layer) = extension_property_state.probe_property_extension_invoke(
-                        property.read,
-                        call,
-                        expected,
-                        direct_required.infix,
-                        same_side,
-                    ) {
-                        match layer {
-                            Ok(mut layer) => {
-                                let mut setup = extension_property_sink;
-                                setup.append(&mut layer.sink);
-                                layer.sink = setup;
-                                return Some(self.commit_expr_layer(layer, sink));
-                            }
-                            Err(failure) => {
-                                first_failure.get_or_insert(failure);
-                            }
-                        }
-                    }
-                }
-                crate::properties::ExtensionPropertyResolution::Failed => {
-                    if extension_property_state.diagnostics.len() > self.diagnostics.len() {
-                        first_failure.get_or_insert(Box::new(extension_property_state));
-                    }
-                }
-                crate::properties::ExtensionPropertyResolution::NoCandidate => {}
-            }
-            if let Some(property) = &property
-                && let Some(layer) = property.state.probe_property_extension_invoke(
-                    property.expression.clone(),
+                });
+            if !extensions.is_empty() {
+                match self.probe_extension_call_partition(
+                    &extensions,
+                    &name.text,
+                    receiver.clone(),
                     call,
                     expected,
-                    direct_required.infix,
-                    same_side,
-                )
-            {
-                match layer {
-                    Ok(mut layer) => {
-                        let mut setup = property.sink.clone();
-                        setup.append(&mut layer.sink);
-                        layer.sink = setup;
+                    false,
+                ) {
+                    PropertyExtensionInvokeOutcome::Resolved(layer) => {
                         return Some(self.commit_expr_layer(layer, sink));
                     }
-                    Err(failure) => {
-                        first_failure.get_or_insert(failure);
+                    PropertyExtensionInvokeOutcome::Failed(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        return None;
+                    }
+                    PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                        if let Some(failure) = failure {
+                            first_failure.get_or_insert(failure);
+                        }
+                    }
+                }
+            }
+
+            let invokes = Self::extension_candidates_at_rank(&invoke_layers, rank, |function| {
+                Self::matches_required_modifiers(
+                    self.signatures[&function].modifiers,
+                    RequiredCallableModifiers {
+                        operator: Some(hir::OperatorKind::Invoke),
+                        infix: direct_required.infix,
+                        ..Default::default()
+                    },
+                )
+            });
+            if let Some(property) = &property
+                && !invokes.is_empty()
+            {
+                match self.probe_property_extension_invoke_partition(
+                    vec![PropertyExtensionInvokeInput::new(
+                        PropertyExtensionInvokeOrigin::Member(
+                            member_property.expect("a successful member property read has an id"),
+                        ),
+                        property.clone(),
+                        invokes,
+                    )],
+                    call,
+                    expected,
+                    Self::extension_layer_name(rank),
+                ) {
+                    PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
+                    PropertyExtensionInvokeOutcome::Failed(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        return None;
+                    }
+                    PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                        if let Some(failure) = failure {
+                            first_failure.get_or_insert(failure);
+                        }
+                    }
+                }
+            }
+
+            let property_candidates =
+                Self::property_candidates_at_rank(&extension_property_layers, rank);
+            if !property_candidates.is_empty() {
+                let mut extension_property_state = self.clone();
+                let mut extension_property_sink = Vec::new();
+                match extension_property_state.resolve_extension_property_candidates_outcome(
+                    receiver.clone(),
+                    name,
+                    &property_candidates,
+                    &mut extension_property_sink,
+                    true,
+                ) {
+                    crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        match extension_property_state.probe_property_member_invoke_partition(
+                            property.read,
+                            call,
+                            expected,
+                            direct_required.infix,
+                        ) {
+                            PropertyExtensionInvokeOutcome::Resolved(mut layer) => {
+                                extension_property_sink.append(&mut layer.sink);
+                                layer.sink = extension_property_sink;
+                                return Some(self.commit_expr_layer(layer, sink));
+                            }
+                            PropertyExtensionInvokeOutcome::Failed(failure) => {
+                                self.commit_layer_diagnostics(*failure);
+                                return None;
+                            }
+                            PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                                if let Some(failure) = failure {
+                                    first_failure.get_or_insert(failure);
+                                }
+                            }
+                        }
+                    }
+                    crate::properties::ExtensionPropertyCandidateOutcome::Failed => {
+                        self.commit_layer_diagnostics(extension_property_state);
+                        return None;
+                    }
+                    crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
+                        if extension_property_state.diagnostics.len() > self.diagnostics.len() {
+                            first_failure.get_or_insert(Box::new(extension_property_state));
+                        }
+                    }
+                    crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate => {}
+                }
+            }
+
+            let mut property_extension_inputs = Vec::new();
+            for property_layer in &extension_property_layers {
+                for invoke_layer in &invoke_layers {
+                    if property_layer
+                        .kind
+                        .call_rank()
+                        .max(invoke_layer.kind.call_rank())
+                        != rank
+                    {
+                        continue;
+                    }
+                    let invokes = invoke_layer
+                        .candidates
+                        .iter()
+                        .copied()
+                        .filter(|function| {
+                            Self::matches_required_modifiers(
+                                self.signatures[function].modifiers,
+                                RequiredCallableModifiers {
+                                    operator: Some(hir::OperatorKind::Invoke),
+                                    infix: direct_required.infix,
+                                    ..Default::default()
+                                },
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    if property_layer.candidates.is_empty() || invokes.is_empty() {
+                        continue;
+                    }
+                    let mut property_state = self.clone();
+                    let mut property_sink = Vec::new();
+                    match property_state.resolve_extension_property_candidates_outcome(
+                        receiver.clone(),
+                        name,
+                        &property_layer.candidates,
+                        &mut property_sink,
+                        true,
+                    ) {
+                        crate::properties::ExtensionPropertyCandidateOutcome::Resolved(
+                            property,
+                        ) => {
+                            property_extension_inputs.push(PropertyExtensionInvokeInput::new(
+                                PropertyExtensionInvokeOrigin::Extension(property.property),
+                                SuccessfulExprLayer {
+                                    state: Box::new(property_state),
+                                    expression: property.read,
+                                    sink: property_sink,
+                                },
+                                invokes,
+                            ));
+                        }
+                        crate::properties::ExtensionPropertyCandidateOutcome::Failed => {
+                            self.commit_layer_diagnostics(property_state);
+                            return None;
+                        }
+                        crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
+                            if property_state.diagnostics.len() > self.diagnostics.len() {
+                                first_failure.get_or_insert(Box::new(property_state));
+                            }
+                        }
+                        crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate => {}
+                    }
+                }
+            }
+            if !property_extension_inputs.is_empty() {
+                match self.probe_property_extension_invoke_partition(
+                    property_extension_inputs,
+                    call,
+                    expected,
+                    Self::extension_layer_name(rank),
+                ) {
+                    PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                        return Some(self.commit_expr_layer(layer, sink));
+                    }
+                    PropertyExtensionInvokeOutcome::Failed(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        return None;
+                    }
+                    PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                        if let Some(failure) = failure {
+                            first_failure.get_or_insert(failure);
+                        }
                     }
                 }
             }
@@ -604,19 +766,175 @@ impl Lowerer {
             && (!required.infix || modifiers.is_infix)
     }
 
-    pub(in crate::expr) fn extension_candidates_on_side(
-        &self,
-        name: &str,
-        same_side: bool,
+    fn extension_candidates_at_rank(
+        layers: &[crate::imports::lookup::LookupLayer<hir::FunctionId>],
+        rank: usize,
+        predicate: impl Fn(hir::FunctionId) -> bool,
     ) -> Vec<hir::FunctionId> {
-        self.top_level_namespaces
-            .extension_layers(self.current_file, name)
-            .get(usize::from(!same_side))
-            .into_iter()
-            .flatten()
-            .copied()
-            .filter(|function| self.function_is_accessible(*function, None))
+        layers
+            .iter()
+            .filter(|layer| layer.kind.call_rank() == rank)
+            .flat_map(|layer| layer.candidates.iter().copied())
+            .filter(|function| predicate(*function))
             .collect()
+    }
+
+    fn property_candidates_at_rank(
+        layers: &[crate::imports::lookup::LookupLayer<hir::PropertyId>],
+        rank: usize,
+    ) -> Vec<hir::PropertyId> {
+        layers
+            .iter()
+            .filter(|layer| layer.kind.call_rank() == rank)
+            .flat_map(|layer| layer.candidates.iter().copied())
+            .collect()
+    }
+
+    fn retain_highest_rank_origins<T: Copy + PartialEq>(
+        layers: &mut [crate::imports::lookup::LookupLayer<T>],
+    ) {
+        let mut seen = Vec::new();
+        for layer in layers {
+            layer.candidates.retain(|candidate| {
+                if seen.contains(candidate) {
+                    false
+                } else {
+                    seen.push(*candidate);
+                    true
+                }
+            });
+        }
+    }
+
+    fn extension_layer_name(rank: usize) -> &'static str {
+        match rank {
+            0 => "exact import",
+            1 => "current package",
+            2 => "star import",
+            3 => "core prelude",
+            _ => unreachable!("extension layer ranks are a closed four-layer set"),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn probe_member_call_partition(
+        &self,
+        candidates: Vec<crate::CallableCandidate>,
+        name: &str,
+        receiver: hir::Expr,
+        call: CallSite<'_>,
+        expected: Option<TypeId>,
+        operator_set: bool,
+    ) -> PropertyExtensionInvokeOutcome {
+        use crate::overload::{CallArgumentProtocol, OverloadCall, OverloadResolutionOutcome};
+
+        if candidates.is_empty() {
+            return PropertyExtensionInvokeOutcome::NoApplicable(None);
+        }
+        let mut state = self.clone();
+        let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
+            return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)));
+        };
+        let mut layer_sink = Vec::new();
+        match state.resolve_member_overload_outcome(
+            name,
+            &candidates,
+            receiver,
+            OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+                expected_result: expected,
+                argument_protocol: if operator_set {
+                    CallArgumentProtocol::OperatorSet
+                } else {
+                    CallArgumentProtocol::Ordinary
+                },
+            },
+            &mut layer_sink,
+        ) {
+            OverloadResolutionOutcome::NoApplicable => {
+                PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
+            }
+            OverloadResolutionOutcome::Failed => {
+                PropertyExtensionInvokeOutcome::Failed(Box::new(state))
+            }
+            OverloadResolutionOutcome::Resolved(resolved) => {
+                let expression = state
+                    .finish_resolved_method_call(*resolved, call.span)
+                    .expect("a resolved member call always materializes an expression");
+                PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
+                    state: Box::new(state),
+                    expression,
+                    sink: layer_sink,
+                })
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn probe_extension_call_partition(
+        &self,
+        candidates: &[hir::FunctionId],
+        name: &str,
+        receiver: hir::Expr,
+        call: CallSite<'_>,
+        expected: Option<TypeId>,
+        operator_set: bool,
+    ) -> PropertyExtensionInvokeOutcome {
+        use crate::overload::{CallArgumentProtocol, OverloadCall, OverloadResolutionOutcome};
+
+        if candidates.is_empty() {
+            return PropertyExtensionInvokeOutcome::NoApplicable(None);
+        }
+        let mut state = self.clone();
+        let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
+            return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)));
+        };
+        let mut layer_sink = Vec::new();
+        match state.resolve_extension_overload_outcome(
+            name,
+            candidates,
+            receiver,
+            OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+                expected_result: expected,
+                argument_protocol: if operator_set {
+                    CallArgumentProtocol::OperatorSet
+                } else {
+                    CallArgumentProtocol::Ordinary
+                },
+            },
+            &mut layer_sink,
+        ) {
+            OverloadResolutionOutcome::NoApplicable => {
+                PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
+            }
+            OverloadResolutionOutcome::Failed => {
+                PropertyExtensionInvokeOutcome::Failed(Box::new(state))
+            }
+            OverloadResolutionOutcome::Resolved(resolved) => {
+                let resolved = *resolved;
+                let callee = state.materialize_resolved_callee(&resolved);
+                state.check_call_effects(callee, call.span);
+                let expression = hir::Expr {
+                    kind: hir::ExprKind::Call {
+                        callee,
+                        args: resolved.args,
+                    },
+                    ty: resolved.return_ty,
+                    span: call.span,
+                    origin: state.expression_origin(call.span),
+                };
+                PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
+                    state: Box::new(state),
+                    expression,
+                    sink: layer_sink,
+                })
+            }
+        }
     }
 
     pub(in crate::expr) fn member_property_read(
@@ -633,18 +951,18 @@ impl Lowerer {
         None
     }
 
-    pub(in crate::expr) fn probe_property_member_invoke(
-        &mut self,
+    pub(in crate::expr) fn probe_property_member_invoke_partition(
+        &self,
         property: hir::Expr,
         call: CallSite<'_>,
         expected: Option<TypeId>,
         require_infix: bool,
-    ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
+    ) -> PropertyExtensionInvokeOutcome {
         if matches!(self.types[property.ty], Type::Function(_)) {
             if require_infix {
-                return None;
+                return PropertyExtensionInvokeOutcome::NoApplicable(None);
             }
-            return Some(self.probe_expr_layer(|state, layer_sink| {
+            return match self.probe_expr_layer(|state, layer_sink| {
                 state.lower_named_call_on_receiver(
                     property,
                     &ast::Ident {
@@ -656,12 +974,16 @@ impl Lowerer {
                     expected,
                     RequiredCallableModifiers::default(),
                 )
-            }));
+            }) {
+                Ok(layer) => PropertyExtensionInvokeOutcome::Resolved(layer),
+                Err(failure) => PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)),
+            };
         }
-        let mut candidates = self.methods_by_name(property.ty, "invoke");
+        let mut candidate_state = self.clone();
+        let mut candidates = candidate_state.methods_by_name(property.ty, "invoke");
         candidates.retain(|candidate| {
             Self::matches_required_modifiers(
-                self.signatures[&candidate.function].modifiers,
+                candidate_state.signatures[&candidate.function].modifiers,
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,
@@ -669,49 +991,94 @@ impl Lowerer {
                 },
             )
         });
-        if candidates.is_empty() {
-            return None;
-        }
-        Some(self.probe_expr_layer(|state, layer_sink| {
-            state.finish_overloaded_method_call(
-                candidates, "invoke", property, call, layer_sink, expected, false,
-            )
-        }))
+        candidate_state
+            .probe_member_call_partition(candidates, "invoke", property, call, expected, false)
     }
 
-    pub(in crate::expr) fn probe_property_extension_invoke(
+    pub(in crate::expr) fn probe_property_extension_invoke_partition(
         &self,
-        property: hir::Expr,
+        inputs: Vec<PropertyExtensionInvokeInput>,
         call: CallSite<'_>,
         expected: Option<TypeId>,
-        require_infix: bool,
-        same_side: bool,
-    ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
-        let mut candidates = self.extension_candidates_on_side("invoke", same_side);
-        candidates.retain(|function| {
-            Self::matches_required_modifiers(
-                self.signatures[function].modifiers,
-                RequiredCallableModifiers {
-                    operator: Some(hir::OperatorKind::Invoke),
-                    infix: require_infix,
-                    ..Default::default()
-                },
-            )
-        });
-        if candidates.is_empty() {
-            return None;
+        layer_name: &str,
+    ) -> PropertyExtensionInvokeOutcome {
+        use crate::call_resolution::named::NamedFunctionLikeProbe;
+        use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
+
+        let mut probes = Vec::new();
+        let mut setups = Vec::new();
+        let mut first_failure = None;
+        let mut seen = Vec::new();
+        for input in inputs {
+            for function in input.candidates {
+                if seen.contains(&(input.origin, function)) {
+                    continue;
+                }
+                seen.push((input.origin, function));
+                let mut state = (*input.property.state).clone();
+                let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
+                    first_failure.get_or_insert(Box::new(state));
+                    continue;
+                };
+                let target = crate::CallableCandidate::function(
+                    function,
+                    Vec::new(),
+                    state.function_lookup_witness(function),
+                );
+                match state.probe_named_callable(
+                    "invoke",
+                    target,
+                    NamedCallReceiver::Extension(input.property.expression.clone()),
+                    OverloadCall {
+                        explicit_type_args: &explicit_type_args,
+                        arg_exprs: call.args,
+                        span: call.span,
+                        expected_result: expected,
+                        argument_protocol: CallArgumentProtocol::Ordinary,
+                    },
+                ) {
+                    Ok(probe) => {
+                        probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
+                        setups.push(input.property.sink.clone());
+                    }
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
+            }
         }
-        Some(self.probe_expr_layer(|state, layer_sink| {
-            state.finish_extension_call(
-                &candidates,
-                "invoke",
-                property,
-                call,
-                layer_sink,
-                expected,
-                false,
-            )
-        }))
+        if probes.is_empty() {
+            return PropertyExtensionInvokeOutcome::NoApplicable(first_failure);
+        }
+
+        let mut state = self.clone();
+        let Some(winner) =
+            state.select_named_function_like("invoke", layer_name, &probes, call.args, call.span)
+        else {
+            return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+        };
+        let probe = probes.swap_remove(winner);
+        let mut layer_sink = setups.swap_remove(winner);
+        let NamedFunctionLikeProbe::Callable(probe) = probe else {
+            unreachable!("property extension invoke probes contain only callable candidates")
+        };
+        let resolved = state.commit_named_callable(*probe, &mut layer_sink);
+        let callee = state.materialize_resolved_callee(&resolved);
+        state.check_call_effects(callee, call.span);
+        let expression = hir::Expr {
+            kind: hir::ExprKind::Call {
+                callee,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span: call.span,
+            origin: state.expression_origin(call.span),
+        };
+        PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
+            state: Box::new(state),
+            expression,
+            sink: layer_sink,
+        })
     }
 
     pub(crate) fn lower_named_call_on_receiver(
@@ -776,48 +1143,62 @@ impl Lowerer {
             }
         }
         if !candidates.is_empty() {
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.finish_overloaded_method_call(
-                    candidates,
-                    &name.text,
-                    receiver.clone(),
-                    call,
-                    layer_sink,
-                    expected,
-                    required.operator == Some(hir::OperatorKind::Set),
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            match self.probe_member_call_partition(
+                candidates,
+                &name.text,
+                receiver.clone(),
+                call,
+                expected,
+                required.operator == Some(hir::OperatorKind::Set),
+            ) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    first_failure = failure;
+                }
             }
         }
 
         let extension_layers = match required.operator {
-            Some(operator) => self.extension_operator_candidate_layers(operator),
-            None => self.extension_candidate_layers(&name.text),
+            Some(operator) => self.named_extension_operator_layers(operator),
+            None => self.named_extension_call_layers(&name.text),
         };
-        for mut extensions in extension_layers {
-            extensions.retain(|function| {
-                let modifiers = self.signatures[function].modifiers;
-                Self::matches_required_modifiers(modifiers, required)
-            });
+        for layer in extension_layers {
+            let extensions = layer
+                .candidates
+                .into_iter()
+                .filter(|function| {
+                    let modifiers = self.signatures[function].modifiers;
+                    Self::matches_required_modifiers(modifiers, required)
+                })
+                .collect::<Vec<_>>();
             if extensions.is_empty() {
                 continue;
             }
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.finish_extension_call(
-                    &extensions,
-                    &name.text,
-                    receiver.clone(),
-                    call,
-                    layer_sink,
-                    expected,
-                    required.operator == Some(hir::OperatorKind::Set),
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+            match self.probe_extension_call_partition(
+                &extensions,
+                &name.text,
+                receiver.clone(),
+                call,
+                expected,
+                required.operator == Some(hir::OperatorKind::Set),
+            ) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    if let Some(failure) = failure {
+                        first_failure.get_or_insert(failure);
+                    }
                 }
             }
         }
