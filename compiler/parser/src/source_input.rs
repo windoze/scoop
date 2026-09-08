@@ -90,7 +90,7 @@ pub fn parse_all(
                 ),
             ));
         }
-        if let Some(first_index) = seen_handles.iter().position(|seen| *seen == handle) {
+        if let Some((_, first_index)) = seen_handles.iter().find(|(seen, _)| *seen == handle) {
             diagnostics.push(input_error(
                 input,
                 source_index,
@@ -100,7 +100,7 @@ pub fn parse_all(
                 ),
             ));
         } else {
-            seen_handles.push(handle);
+            seen_handles.push((handle, source_index));
         }
 
         match parse_file(input.text()) {

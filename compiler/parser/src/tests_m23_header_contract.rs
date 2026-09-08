@@ -1,0 +1,238 @@
+use scoop_ast::{ImportSyntax, NonEmptyVec, Span, Stage1RequestId, Stage1SourceHandle};
+
+use crate::{Stage1SourceInput, parse, parse_all};
+
+fn span_of(source: &str, token: &str) -> Span {
+    let start = source.find(token).expect("token exists") as u32;
+    Span::new(start, start + token.len() as u32)
+}
+
+#[test]
+fn headers_preserve_every_existing_public_declaration_form() {
+    let declarations = [
+        "public fun main() {}",
+        "public struct Point(val x: Int)",
+        "public enum State { Ready }",
+        "public class Widget {}",
+        "public interface Renderable {}",
+        "public object Registry {}",
+        "public typealias Count = Int",
+        "public val answer: Int = 42",
+        "public var counter: Int = 0",
+    ];
+    for declaration in declarations {
+        let source = format!(
+            "package app\nimport library.Base\npublic /* exposure */\nimport library.Item\n{declaration}"
+        );
+        let file = parse(&source).expect("headers and public declaration parse");
+        assert_eq!(file.imports.len(), 2);
+        assert_eq!(file.declarations.len(), 1);
+        let standalone = parse(declaration).expect("standalone declaration parses");
+        let declaration_dump = scoop_ast::dump(&standalone);
+        let declaration_dump = declaration_dump
+            .strip_prefix("SourceFile\n  RootPackage\n")
+            .expect("root dump prefix");
+        assert_eq!(
+            scoop_ast::dump(&file),
+            format!(
+                "SourceFile\n  QualifiedPackage app\n  ImportExact Local library.Base\n  ImportExact PublicReexport library.Item\n{declaration_dump}"
+            ),
+            "{declaration}"
+        );
+    }
+}
+
+#[test]
+fn public_star_spans_include_trivia_and_use_utf8_byte_offsets() {
+    let source = "/* 中文 */ public /* p */ import model /* m */ . /* d */ *";
+    let file = parse(source).expect("trivia is accepted between header tokens");
+    let ImportSyntax::Star {
+        exposure,
+        namespace,
+        import_keyword_span,
+        terminal_dot_span,
+        star_span,
+        span,
+    } = &file.imports[0]
+    else {
+        panic!("expected star import")
+    };
+    assert_eq!(
+        *exposure,
+        scoop_ast::ImportExposureSyntax::PublicReexport {
+            public_keyword_span: span_of(source, "public"),
+        }
+    );
+    assert_eq!(*import_keyword_span, span_of(source, "import"));
+    assert_eq!(namespace.span, span_of(source, "model"));
+    assert_eq!(*terminal_dot_span, span_of(source, "."));
+    assert_eq!(
+        *star_span,
+        Span::new(source.len() as u32 - 1, source.len() as u32)
+    );
+    assert_eq!(
+        *span,
+        Span::new(span_of(source, "public").start, source.len() as u32)
+    );
+    assert_eq!(file.span, Span::new(0, source.len() as u32));
+}
+
+#[test]
+fn malformed_headers_and_declarations_keep_independent_diagnostics() {
+    let source = "package .bad\nimport missing..Item\npublic import empty.* as Alias\nfun broken(: Int) {}\nimport later.Item\npackage later";
+    let errors = parse(source).expect_err("recovery cannot publish an AST");
+    let expected = [
+        (
+            span_of(source, ".bad").start,
+            "expected package name, found `.`",
+        ),
+        (
+            span_of(source, "..").start + 1,
+            "expected identifier after `.`, found `.`",
+        ),
+        (
+            span_of(source, "as Alias").start,
+            "star imports cannot have an alias",
+        ),
+        (
+            span_of(source, ": Int").start,
+            "expected parameter name, found `:`",
+        ),
+        (
+            span_of(source, "import later").start,
+            "`import` headers must appear before declarations",
+        ),
+        (
+            span_of(source, "package later").start,
+            "a `package` header must appear before imports and declarations",
+        ),
+    ];
+    assert_eq!(errors.len(), expected.len(), "{errors:?}");
+    for (error, (start, message)) in errors.iter().zip(expected) {
+        assert_eq!(error.message, message);
+        assert_eq!(error.span.expect("spanned error").start, start);
+    }
+}
+
+#[test]
+fn duplicate_package_priority_survives_imports_and_declaration_recovery() {
+    let source = "package first\nimport lib.Item\npackage second\nfun broken(: Int) {}\npackage third\npublic import lib.Other";
+    let errors = parse(source).expect_err("duplicate and misplaced headers fail");
+    let messages: Vec<_> = errors.iter().map(|error| error.message.as_str()).collect();
+    assert_eq!(
+        messages,
+        [
+            "a source file may contain only one `package` header",
+            "expected parameter name, found `:`",
+            "a source file may contain only one `package` header",
+            "`import` headers must appear before declarations",
+        ]
+    );
+}
+
+#[test]
+fn unsupported_import_modifiers_remain_header_errors_after_declarations() {
+    for modifier in ["internal", "private"] {
+        let source = format!(
+            "fun main() {{}}\n{modifier} /* trivia */\nimport lib.Item\npublic import lib.Other"
+        );
+        let errors = parse(&source).expect_err("late imports and unsupported modifier fail");
+        assert_eq!(errors.len(), 3, "{errors:?}");
+        assert_eq!(errors[0].span, Some(span_of(&source, modifier)));
+        assert_eq!(
+            errors[0].message,
+            "`import` headers must appear before declarations"
+        );
+        assert_eq!(errors[1].span, Some(span_of(&source, modifier)));
+        assert_eq!(
+            errors[1].message,
+            format!("`{modifier} import` is not supported; imports may be ordinary or `public`")
+        );
+        assert_eq!(
+            errors[2].message,
+            "`import` headers must appear before declarations"
+        );
+    }
+}
+
+#[test]
+fn parse_all_is_atomic_with_valid_sources_on_both_sides_of_errors() {
+    let request = Stage1RequestId::from_raw(71);
+    let texts = [
+        "package first",
+        "import .bad",
+        "fun main() {}",
+        "import a.* as alias",
+        "package last",
+    ];
+    let inputs: Vec<_> = texts
+        .iter()
+        .enumerate()
+        .map(|(index, text)| {
+            Stage1SourceInput::new(
+                Stage1SourceHandle::new(request, index as u32),
+                text,
+                "same-display.scoop",
+            )
+        })
+        .collect();
+    let errors = parse_all(NonEmptyVec::new(inputs[0], inputs[1..].to_vec()))
+        .expect_err("valid subsets must not escape when another source fails");
+    assert_eq!(errors.len(), 2);
+    assert_eq!(errors[0].source_handle().local_index(), 1);
+    assert_eq!(errors[0].diagnostic().file, 1);
+    assert_eq!(errors[0].diagnostic().span, Some(Span::new(7, 8)));
+    assert_eq!(errors[1].source_handle().local_index(), 3);
+    assert_eq!(errors[1].diagnostic().file, 3);
+    assert_eq!(errors[1].diagnostic().span, Some(Span::new(11, 13)));
+}
+
+#[test]
+fn duplicate_handle_diagnostic_uses_original_input_index_after_earlier_duplicates() {
+    let request = Stage1RequestId::from_raw(72);
+    let first = Stage1SourceInput::new(Stage1SourceHandle::new(request, 10), "", "first.scoop");
+    let second = Stage1SourceInput::new(Stage1SourceHandle::new(request, 20), "", "second.scoop");
+    let errors = parse_all(NonEmptyVec::new(first, vec![first, second, second]))
+        .expect_err("each duplicate is rejected");
+    assert_eq!(errors.len(), 2);
+    assert_eq!(errors[0].diagnostic().file, 1);
+    assert_eq!(
+        errors[0].diagnostic().message,
+        "duplicate stage-1 source handle 10 (first used by source 0)"
+    );
+    assert_eq!(errors[1].diagnostic().file, 3);
+    assert_eq!(
+        errors[1].diagnostic().message,
+        "duplicate stage-1 source handle 20 (first used by source 2)"
+    );
+}
+
+#[test]
+fn parse_all_uses_only_explicit_text_and_ignores_display_locator_for_semantics() {
+    let handle = Stage1SourceHandle::new(Stage1RequestId::from_raw(73), 90);
+    let parse_at = |locator| {
+        parse_all(NonEmptyVec::new(
+            Stage1SourceInput::new(handle, "fun main() {}", locator),
+            Vec::new(),
+        ))
+        .expect("the locator need not exist or agree with the supplied text")
+    };
+    let first = parse_at("/nonexistent/package/name.scoop");
+    let fixture_directory = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m21-const"
+    );
+    assert!(
+        std::path::Path::new(fixture_directory)
+            .join("invalid.scoop")
+            .exists()
+    );
+    // A neighboring source must never be discovered through the display label.
+    let second = parse_at(&format!("{fixture_directory}/values.scoop"));
+    assert_eq!(first, second);
+    assert_eq!(first.sources().len(), 1);
+    assert_eq!(
+        scoop_ast::dump(first.sources().first().ast()),
+        "SourceFile\n  RootPackage\n  fun main()\n"
+    );
+}
