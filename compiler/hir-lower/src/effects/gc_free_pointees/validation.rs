@@ -348,7 +348,7 @@ impl Lowerer {
                 .function_files
                 .get(&function)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_user_file());
             for parameter in &declaration.params {
                 out.push(PointeeApplicationOccurrence {
                     ty: parameter.ty,
@@ -538,7 +538,7 @@ impl Lowerer {
                     .property_files
                     .get(&global.property)
                     .copied()
-                    .unwrap_or(self.user_file_index),
+                    .unwrap_or_else(|| self.primary_user_file()),
                 span: global.span,
                 context: RequirementContext::Closed,
             }

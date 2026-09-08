@@ -196,6 +196,72 @@ pub struct CompilationUnit<'a> {
     pub user: ProviderSource<'a>,
 }
 
+/// Structurally complete M23-1 lowering input. The user side is non-empty and
+/// every user source belongs to one provider; neither invariant is inferred
+/// from source ordering inside HIR lowering.
+pub struct Stage1CompilationInput<'a> {
+    core: Vec<ProviderSource<'a>>,
+    user_provider: hir::IntrinsicProviderId,
+    user_sources: Vec<ProviderSource<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stage1CompilationInputError {
+    pub source_index: usize,
+    pub expected_provider: hir::IntrinsicProviderId,
+    pub actual_provider: hir::IntrinsicProviderId,
+}
+
+impl std::fmt::Display for Stage1CompilationInputError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "user source {} has provider {:?}, expected {:?}",
+            self.source_index, self.actual_provider, self.expected_provider
+        )
+    }
+}
+
+impl std::error::Error for Stage1CompilationInputError {}
+
+impl<'a> Stage1CompilationInput<'a> {
+    /// Construct a non-empty current-unit input. Taking the first source
+    /// separately makes emptiness unrepresentable; the provider check prevents
+    /// an `internal` access domain from accidentally spanning two providers.
+    pub fn new(
+        core: Vec<ProviderSource<'a>>,
+        first_user: ProviderSource<'a>,
+        remaining_users: Vec<ProviderSource<'a>>,
+    ) -> Result<Self, Stage1CompilationInputError> {
+        let user_provider = first_user.provider;
+        for (offset, source) in remaining_users.iter().enumerate() {
+            if source.provider != user_provider {
+                return Err(Stage1CompilationInputError {
+                    source_index: offset + 1,
+                    expected_provider: user_provider,
+                    actual_provider: source.provider,
+                });
+            }
+        }
+        let mut user_sources = Vec::with_capacity(1 + remaining_users.len());
+        user_sources.push(first_user);
+        user_sources.extend(remaining_users);
+        Ok(Self {
+            core,
+            user_provider,
+            user_sources,
+        })
+    }
+
+    pub fn user_provider(&self) -> hir::IntrinsicProviderId {
+        self.user_provider
+    }
+
+    pub fn user_sources(&self) -> &[ProviderSource<'a>] {
+        &self.user_sources
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum IntrinsicDeclarationPolicy {
     #[default]
@@ -212,24 +278,38 @@ pub fn lower_compilation_unit(
     unit: &CompilationUnit<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let mut files = Vec::with_capacity(unit.core.len() + 1);
-    let mut sources = Vec::with_capacity(unit.core.len() + 1);
-    for input in &unit.core {
-        files.push(input.source.clone());
+    let input = Stage1CompilationInput::new(unit.core.clone(), unit.user, Vec::new())
+        .expect("one legacy user source always has one provider");
+    lower_stage1_compilation_input(&input, policy)
+}
+
+/// Lower an explicitly provided non-empty set of user sources together with
+/// the existing M22 core source/backing input.
+pub fn lower_stage1_compilation_input(
+    input: &Stage1CompilationInput<'_>,
+    policy: IntrinsicDeclarationPolicy,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let mut files = Vec::with_capacity(input.core.len() + input.user_sources.len());
+    let mut sources = Vec::with_capacity(input.core.len() + input.user_sources.len());
+    for source in &input.core {
+        files.push(source.source.clone());
         sources.push(SourceProvider {
-            provider: input.provider,
-            core: true,
-            name: input.name.to_string(),
-            source: input.source_text.to_string(),
+            provider: source.provider,
+            kind: SourceKind::ExistingM22Core,
+            name: source.name.to_string(),
+            source: source.source_text.to_string(),
         });
     }
-    files.push(unit.user.source.clone());
-    sources.push(SourceProvider {
-        provider: unit.user.provider,
-        core: false,
-        name: unit.user.name.to_string(),
-        source: unit.user.source_text.to_string(),
-    });
+    for source in &input.user_sources {
+        debug_assert_eq!(source.provider, input.user_provider);
+        files.push(source.source.clone());
+        sources.push(SourceProvider {
+            provider: input.user_provider,
+            kind: SourceKind::CurrentUnit,
+            name: source.name.to_string(),
+            source: source.source_text.to_string(),
+        });
+    }
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
@@ -241,10 +321,16 @@ pub fn lower_compilation_unit(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SourceKind {
+    ExistingM22Core,
+    CurrentUnit,
+}
+
 #[derive(Debug, Clone)]
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
-    core: bool,
+    kind: SourceKind,
     name: String,
     source: String,
 }
@@ -412,9 +498,6 @@ pub(crate) struct Lowerer {
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
     pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
     pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
-    /// Index of the user compilation unit (`files.len() - 1`); every
-    /// earlier file is implicitly imported `scoop.core`.
-    pub(crate) user_file_index: usize,
     /// Struct namespace: name → (declaration, value type of the struct).
     pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
     /// Enum namespace.

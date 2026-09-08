@@ -153,7 +153,6 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         require_read: bool,
     ) -> ExtensionPropertyResolution {
-        let call_site_is_core = self.current_file < self.user_file_index;
         let properties = self
             .extension_properties_by_name
             .get(&name.text)
@@ -167,7 +166,7 @@ impl Lowerer {
                 )
             })
             .filter(|property| {
-                ((self.property_files[property] < self.user_file_index) == call_site_is_core)
+                self.sources_are_on_same_side(self.current_file, self.property_files[property])
                     == same_side
             })
             .collect::<Vec<_>>();

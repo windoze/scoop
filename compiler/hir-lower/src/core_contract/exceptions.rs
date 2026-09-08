@@ -134,13 +134,14 @@ impl Lowerer {
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
         let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
-        let id = candidate.filter(|id| self.class_files[id] < self.user_file_index);
+        let id = candidate.filter(|id| self.source_is_core(self.class_files[id]));
         let Some(id) = id else {
+            let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = candidate
                 .and_then(|id| self.class_files.get(&id).copied())
-                .unwrap_or(0);
+                .unwrap_or(core_diagnostic_file);
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 format!("scoop.core must define class `{name}`"),
             );
             return None;
@@ -234,9 +235,10 @@ impl Lowerer {
 
     pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
         let Some(&candidate) = self.throwable_candidates.first() else {
-            self.current_file = 0;
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = core_diagnostic_file;
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 "scoop.core must define a class `Throwable`".to_string(),
             );
             return;

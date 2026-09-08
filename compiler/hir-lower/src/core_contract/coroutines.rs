@@ -88,11 +88,12 @@ impl Lowerer {
             .interfaces_by_name
             .get(name)
             .map(|(id, _)| *id)
-            .filter(|id| self.interface_files[id] < self.user_file_index);
+            .filter(|id| self.source_is_core(self.interface_files[id]));
         if candidate.is_none() {
-            self.current_file = 0;
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = core_diagnostic_file;
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 format!("scoop.core must define interface `{name}`"),
             );
         }

@@ -182,7 +182,6 @@ impl Lowerer {
             pending_runtime_initializers: Vec::new(),
             current_initialization_unit: None,
             local_delegate_plans: HashMap::new(),
-            user_file_index: 0,
             structs_by_name: HashMap::new(),
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),
@@ -268,9 +267,43 @@ impl Lowerer {
         self.intrinsic_sources[self.current_file].provider
     }
 
+    pub(crate) fn source_kind(&self, file: usize) -> SourceKind {
+        self.intrinsic_sources[file].kind
+    }
+
+    pub(crate) fn source_is_core(&self, file: usize) -> bool {
+        self.source_kind(file) == SourceKind::ExistingM22Core
+    }
+
+    pub(crate) fn current_source_is_core(&self) -> bool {
+        self.source_is_core(self.current_file)
+    }
+
+    pub(crate) fn sources_are_on_same_side(&self, left: usize, right: usize) -> bool {
+        self.source_kind(left) == self.source_kind(right)
+    }
+
+    pub(crate) fn primary_user_file(&self) -> usize {
+        self.intrinsic_sources
+            .iter()
+            .position(|source| source.kind == SourceKind::CurrentUnit)
+            .expect("a lowering input always contains a current-unit source")
+    }
+
+    pub(crate) fn primary_core_file(&self) -> Option<usize> {
+        self.intrinsic_sources
+            .iter()
+            .position(|source| source.kind == SourceKind::ExistingM22Core)
+    }
+
+    pub(crate) fn core_diagnostic_file(&self) -> usize {
+        self.primary_core_file()
+            .unwrap_or_else(|| self.primary_user_file())
+    }
+
     pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
         let source = &self.intrinsic_sources[self.current_file];
-        source.core
+        self.current_source_is_core()
             || matches!(
                 &self.intrinsic_policy,
                 IntrinsicDeclarationPolicy::AllowListedForTesting { providers }

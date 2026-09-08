@@ -42,6 +42,7 @@ mod m22_loop_targets;
 mod m22_pattern_warnings;
 mod m22_ranges;
 mod m22_recursive_named_fields;
+mod m23_source_model;
 mod m3;
 mod m4;
 mod m5;

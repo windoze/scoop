@@ -13,8 +13,13 @@ impl Lowerer {
                 message: "no source files to compile".to_string(),
             }]);
         }
-        let user_file_index = files.len() - 1;
-        self.user_file_index = user_file_index;
+        assert_eq!(
+            files.len(),
+            self.intrinsic_sources.len(),
+            "every parsed source has exactly one lowering source descriptor"
+        );
+        let primary_user_file = self.primary_user_file();
+        let core_diagnostic_file = self.core_diagnostic_file();
 
         // Pass 1: declare aliases, nominals and functions across all files
         // (core first), so bodies and field types resolve regardless of
@@ -32,7 +37,7 @@ impl Lowerer {
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
-            let is_core = self.intrinsic_sources[file_index].core;
+            let is_core = self.source_is_core(file_index);
             for decl in &file.declarations {
                 match decl {
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
@@ -205,16 +210,16 @@ impl Lowerer {
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = primary_user_file;
                 self.error(
-                    files[0].span,
+                    files[core_diagnostic_file].span,
                     "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
                 );
             }
             if self.ffi_fun_ptr != Some(core.fun_ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = primary_user_file;
                 self.error(
-                    files[0].span,
+                    files[core_diagnostic_file].span,
                     "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
                         .to_string(),
                 );
@@ -422,12 +427,15 @@ impl Lowerer {
         // diagnostic here, attributed to the user file. With overloads
         // (M7) several functions may be named `main`; the entry point
         // is the zero-parameter one.
-        self.current_file = user_file_index;
+        self.current_file = primary_user_file;
         let zero_param_main = self.functions_by_name.get("main").and_then(|ids| {
             ids.iter().copied().find(|&id| {
-                self.signatures
-                    .get(&id)
-                    .is_some_and(|sig| sig.params.is_empty())
+                let file = self.function_files[&id];
+                !self.source_is_core(file)
+                    && self
+                        .signatures
+                        .get(&id)
+                        .is_some_and(|sig| sig.params.is_empty())
             })
         });
         let entry = match zero_param_main {
@@ -456,7 +464,7 @@ impl Lowerer {
             }
             None => {
                 self.error(
-                    files[user_file_index].span,
+                    files[primary_user_file].span,
                     "missing entry point: declare `fun main()`".to_string(),
                 );
                 None

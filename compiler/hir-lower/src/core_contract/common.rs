@@ -9,9 +9,10 @@ impl Lowerer {
         if let Some(&(function, _provider)) = self.intrinsic_functions.get(&kind) {
             return Some(function);
         }
-        self.current_file = 0;
+        let core_diagnostic_file = self.core_diagnostic_file();
+        self.current_file = core_diagnostic_file;
         self.error(
-            files[0].span,
+            files[core_diagnostic_file].span,
             format!(
                 "scoop.core must define exactly one `{}` intrinsic",
                 kind.name()

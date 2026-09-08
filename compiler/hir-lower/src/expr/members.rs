@@ -609,7 +609,6 @@ impl Lowerer {
         name: &str,
         same_side: bool,
     ) -> Vec<hir::FunctionId> {
-        let call_site_is_core = self.current_file < self.user_file_index;
         self.extensions_by_name
             .get(name)
             .into_iter()
@@ -617,8 +616,8 @@ impl Lowerer {
             .copied()
             .filter(|function| self.function_is_accessible(*function, None))
             .filter(|function| {
-                let candidate_is_core = self.function_files[function] < self.user_file_index;
-                (candidate_is_core == call_site_is_core) == same_side
+                self.sources_are_on_same_side(self.current_file, self.function_files[function])
+                    == same_side
             })
             .collect()
     }

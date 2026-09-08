@@ -172,7 +172,7 @@ impl Lowerer {
         queues: &mut NestedDeclarationQueues<'_, 'a>,
         file: usize,
     ) {
-        let is_core = self.intrinsic_sources[file].core;
+        let is_core = self.source_is_core(file);
         match declaration {
             ast::NestedNominalDecl::Struct(source) => {
                 if let Some(id) =

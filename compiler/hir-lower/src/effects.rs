@@ -28,7 +28,7 @@ impl Lowerer {
                 .function_files
                 .get(&id)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_user_file());
             let function = self.functions[id].clone();
             if function.is_suspend {
                 continue; // The annotation combination already owns this error.
@@ -152,7 +152,7 @@ impl Lowerer {
                 .function_files
                 .get(&id)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_user_file());
             let function = self.functions[id].clone();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();

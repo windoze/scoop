@@ -12,14 +12,14 @@ impl Lowerer {
                 .enum_files
                 .get(&id)
                 .copied()
-                .unwrap_or(self.user_file_index)
-                < self.user_file_index
+                .is_some_and(|file| self.source_is_core(file))
         {
             return Some(id);
         }
-        self.current_file = 0;
+        let core_diagnostic_file = self.core_diagnostic_file();
+        self.current_file = core_diagnostic_file;
         self.error(
-            files[0].span,
+            files[core_diagnostic_file].span,
             format!("scoop.core must define exactly one `{name}` enum"),
         );
         None

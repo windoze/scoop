@@ -24,9 +24,9 @@ pub(crate) fn callable_layer_name(lowerer: &Lowerer, views: &[CallableView]) -> 
         CallableSource::Local { .. } => "lexical local candidate",
         CallableSource::Method(_) => "member candidate",
         CallableSource::Free(function) => {
-            let call_site_is_core = lowerer.current_file < lowerer.user_file_index;
-            let candidate_is_core = lowerer.function_files[&function] < lowerer.user_file_index;
-            if call_site_is_core == candidate_is_core {
+            if lowerer
+                .sources_are_on_same_side(lowerer.current_file, lowerer.function_files[&function])
+            {
                 "current-unit top-level candidate"
             } else {
                 "implicit-import candidate"

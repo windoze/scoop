@@ -10,7 +10,7 @@ impl Lowerer {
                 .function_files
                 .get(&site.caller)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_user_file());
             push_pointee_call_sites(
                 &mut out,
                 RequirementContext::Function(site.caller),

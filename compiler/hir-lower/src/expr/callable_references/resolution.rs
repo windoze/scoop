@@ -346,18 +346,17 @@ impl Lowerer {
         let Some(ids) = ids else {
             return Vec::new();
         };
-        let call_site_is_core = self.current_file < self.user_file_index;
         let same_side: Vec<_> = ids
             .iter()
             .copied()
             .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .filter(|id| self.sources_are_on_same_side(self.current_file, self.function_files[id]))
             .collect();
         let imported = ids
             .iter()
             .copied()
             .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .filter(|id| !self.sources_are_on_same_side(self.current_file, self.function_files[id]))
             .collect::<Vec<_>>();
         [same_side, imported]
             .into_iter()
@@ -381,17 +380,16 @@ impl Lowerer {
                 .flatten()
                 .copied(),
         );
-        let call_site_is_core = self.current_file < self.user_file_index;
         let same_side: Vec<_> = ids
             .iter()
             .copied()
             .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .filter(|id| self.sources_are_on_same_side(self.current_file, self.function_files[id]))
             .collect();
         let imported = ids
             .into_iter()
             .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .filter(|id| !self.sources_are_on_same_side(self.current_file, self.function_files[id]))
             .collect::<Vec<_>>();
         [same_side, imported]
             .into_iter()

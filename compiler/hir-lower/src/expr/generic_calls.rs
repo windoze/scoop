@@ -250,7 +250,6 @@ impl Lowerer {
             .get(&name)
             .cloned()
             .unwrap_or_default();
-        let call_site_is_core = self.current_file < self.user_file_index;
         let mut found_top_level_candidate = false;
         for same_side in [true, false] {
             let candidates = top_level
@@ -258,7 +257,7 @@ impl Lowerer {
                 .copied()
                 .filter(|function| self.function_is_accessible(*function, None))
                 .filter(|function| {
-                    ((self.function_files[function] < self.user_file_index) == call_site_is_core)
+                    self.sources_are_on_same_side(self.current_file, self.function_files[function])
                         == same_side
                 })
                 .collect::<Vec<_>>();
@@ -288,9 +287,10 @@ impl Lowerer {
                 .copied()
                 .find(|property| {
                     self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
-                        && (((self.property_files[property] < self.user_file_index)
-                            == call_site_is_core)
-                            == same_side)
+                        && (self.sources_are_on_same_side(
+                            self.current_file,
+                            self.property_files[property],
+                        ) == same_side)
                 });
             let Some(property) = property else {
                 continue;
