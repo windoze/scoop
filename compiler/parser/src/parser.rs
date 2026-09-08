@@ -10,7 +10,7 @@
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
-use scoop_ast::{Diagnostic, Ident, PackageSyntax, SourceFile, Span};
+use scoop_ast::{Diagnostic, DiagnosticNote, Ident, PackageSyntax, SourceFile, Span};
 
 use crate::lexer::{Token, TokenKind, lex};
 
@@ -28,29 +28,39 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
     let mut imports = Vec::new();
     let mut declarations = Vec::new();
     let mut header_state = HeaderState::Start;
-    let mut seen_valid_package = false;
     while !parser.at_eof() {
         let start = parser.pos;
         match parser.top_level_item_kind() {
             TopLevelItemKind::Package => {
                 let keyword_span = parser.peek().span;
-                if seen_valid_package {
-                    parser.diagnostics.push(Diagnostic::at(
-                        keyword_span,
-                        "a source file may contain only one `package` header",
-                    ));
+                if let PackageSyntax::QualifiedPackage {
+                    package_keyword_span: first_keyword_span,
+                    ..
+                } = &package
+                {
+                    parser.diagnostics.push(
+                        Diagnostic::at(
+                            keyword_span,
+                            "a source file may contain only one `package` header",
+                        )
+                        .with_note(DiagnosticNote::at(
+                            0,
+                            *first_keyword_span,
+                            "first `package` header is here",
+                        )),
+                    );
                 } else if header_state >= HeaderState::AfterImport {
                     parser.diagnostics.push(Diagnostic::at(
                         keyword_span,
                         "a `package` header must appear before imports and declarations",
                     ));
                 }
-                let accept = !seen_valid_package && header_state < HeaderState::AfterImport;
+                let accept = matches!(package, PackageSyntax::RootPackage)
+                    && header_state < HeaderState::AfterImport;
                 header_state.advance_to(HeaderState::AfterPackage);
                 match parser.parse_package_header() {
                     Ok(parsed) if accept => {
                         package = parsed;
-                        seen_valid_package = true;
                     }
                     Ok(_) => {}
                     Err(diagnostic) => {

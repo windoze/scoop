@@ -128,6 +128,61 @@ fn duplicate_package_priority_survives_imports_and_declaration_recovery() {
             "`import` headers must appear before declarations",
         ]
     );
+    for index in [0, 2] {
+        assert_eq!(
+            errors[index].notes,
+            [scoop_ast::DiagnosticNote::at(
+                0,
+                Span::new(0, 7),
+                "first `package` header is here",
+            )]
+        );
+    }
+    assert!(errors[1].notes.is_empty());
+    assert!(errors[3].notes.is_empty());
+}
+
+#[test]
+fn duplicate_package_note_tracks_the_first_valid_header_and_multi_source_index() {
+    let request = Stage1RequestId::from_raw(74);
+    let text = "/* 中文 */ package .broken\npackage valid\nimport lib.Item\npackage duplicate";
+    let errors = parse_all(NonEmptyVec::new(
+        Stage1SourceInput::new(
+            Stage1SourceHandle::new(request, 10),
+            "package other",
+            "first.scoop",
+        ),
+        vec![Stage1SourceInput::new(
+            Stage1SourceHandle::new(request, 20),
+            text,
+            "second.scoop",
+        )],
+    ))
+    .expect_err("no AST set escapes malformed or duplicate headers");
+    assert_eq!(errors.len(), 2);
+    assert_eq!(
+        errors[0].diagnostic().message,
+        "expected package name, found `.`"
+    );
+    assert!(errors[0].diagnostic().notes.is_empty());
+    let duplicate = errors[1].diagnostic();
+    assert_eq!(duplicate.file, 1);
+    let primary = span_of(text, "package duplicate").start;
+    assert_eq!(duplicate.span, Some(Span::new(primary, primary + 7)));
+    let first_valid = span_of(text, "package valid").start;
+    assert_eq!(
+        duplicate.notes,
+        [scoop_ast::DiagnosticNote::at(
+            1,
+            Span::new(first_valid, first_valid + 7),
+            "first `package` header is here",
+        )]
+    );
+    assert_eq!(
+        errors[1].source_handle(),
+        Stage1SourceHandle::new(request, 20)
+    );
+    assert_eq!(errors[1].display_locator(), "second.scoop");
 }
 
 #[test]

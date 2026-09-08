@@ -266,6 +266,14 @@ fn duplicate_and_misplaced_headers_have_stable_priority() {
         duplicate[0].span,
         Some(occurrence_span("package one\npackage two", "package", 1))
     );
+    assert_eq!(
+        duplicate[0].notes,
+        [scoop_ast::DiagnosticNote::at(
+            0,
+            Span::new(0, 7),
+            "first `package` header is here",
+        )]
+    );
 
     let malformed_then_valid =
         parse("package .bad\npackage good").expect_err("the malformed first header must fail");
@@ -274,6 +282,7 @@ fn duplicate_and_misplaced_headers_have_stable_priority() {
         malformed_then_valid[0].message,
         "expected package name, found `.`"
     );
+    assert!(malformed_then_valid[0].notes.is_empty());
 
     let after_import =
         parse("import one.Value\npackage later").expect_err("late package must fail");
@@ -282,6 +291,7 @@ fn duplicate_and_misplaced_headers_have_stable_priority() {
         after_import[0].message,
         "a `package` header must appear before imports and declarations"
     );
+    assert!(after_import[0].notes.is_empty());
 
     let source = "fun main() {}\nimport one.Value\npublic import two.Value";
     let after_declaration = parse(source).expect_err("late imports must fail");
