@@ -182,6 +182,8 @@ ImportedTarget = Function { origin: PersistentFunctionId, witness: FunctionImpor
 
 split package允许存在，但不合并实体identity。exact selector若命中不同origin的非overloadable实体，报告含Cone coordinate的歧义；函数/extension的不同origin可形成同一候选层中的overload set，相同展开签名仍是歧义而不是偷偷按dependency顺序覆盖。`as`作用于已经唯一解析的exact selector，不能用来让一个本身歧义的selector任取其一。
 
+star selector解析为两类表面：声明的package surface（该package对当前文件可见的全部top-level声明），或某个enum的variant surface（`import pkg.E.*`按语言规范4.2引入变体短名；嵌套enum经owner walk同样可达）。star命名其他nominal owner的nested surface在v1未定义，按unresolved selector诊断。每个star的解析结果非可选地记录为`StarImport`的surface binding；variant surface的候选在调用位与unit-variant值位进入star层（先于implicit core prelude层），同一enum经多个star path到达时按typed origin去重。
+
 ### 2.3 名称与候选层
 
 无显式receiver的名称/调用层从高到低为：
@@ -212,6 +214,8 @@ re-export不生成wrapper、forwarder、第二个TypeDescriptor、第二个typea
 - overload group/extension/operator/property/typealias所需的typed角色索引。
 
 两个local declaration/public import在同一destination namespace形成非法不可重载冲突时，在发布当前Cone `.slib`前报告；不能把有歧义的public surface留给下游。public star展开后逐项应用同一规则。
+
+public star展开规则：package surface按成员短名逐项建立re-export binding（同名overload set合成一个多target binding；internal/private成员不进入snapshot，也不逐项诊断）；enum surface为每个变体建立`Variant` target（enum声明文件的direct-edge授权与变体固定public可见性沿用exact规则）。若整个surface存在public可见成员却无任何可发布target（如public star一个current-Cone user package），对该star报单一诊断；逐项destination冲突仍逐项报告。
 
 ### 2.5 visibility、inheritance、default与alias
 

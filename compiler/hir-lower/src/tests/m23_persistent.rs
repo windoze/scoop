@@ -410,13 +410,13 @@ fn generic_template_ids_stay_distinct_across_nominal_kinds() {
 #[test]
 fn semantic_surface_records_packages_and_imports() {
     // `import Option` resolves through the root package to the core
-    // enum; star imports are recorded (their layer lands with T15).
+    // enum; `import Option.*` binds the same enum's variant surface.
     let user = r#"package dev.example.app
 
 import Option
 import Option as Opt
-import org.foo.model.State.*
-public import org.foo.errors.*
+import Option.*
+public import Option.*
 fun main() {}
 "#;
     let output = lower_user_output(parse_user(user)).expect("lowers");
@@ -453,6 +453,19 @@ fun main() {}
     assert_eq!(imports.star.len(), 2);
     assert!(!imports.star[0].public);
     assert!(imports.star[1].public, "public star import is marked");
+    let star_binding = imports.star[0].binding.as_ref().expect("resolved");
+    assert!(matches!(star_binding, hir::StarSurface::EnumOwner { .. }));
+    // The public star of the core enum published its variants as
+    // re-export bindings in the importing file's package.
+    let user_package = surface.files[user_file].package;
+    let published: Vec<&str> = surface
+        .reexports
+        .iter()
+        .filter(|reexport| reexport.package == user_package)
+        .map(|reexport| reexport.name.as_str())
+        .collect();
+    // Variant re-exports follow the enum's declaration order.
+    assert_eq!(published, vec!["Some", "None"]);
 }
 
 #[test]

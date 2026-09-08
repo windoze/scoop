@@ -95,9 +95,9 @@ impl NamespaceHits {
             hir::ImportedTarget::TypeAlias { alias } => {
                 (None, None, None, None, None, Some(*alias))
             }
-            hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. } => {
-                (None, None, None, None, None, None)
-            }
+            hir::ImportedTarget::Function { .. }
+            | hir::ImportedTarget::Property { .. }
+            | hir::ImportedTarget::Variant { .. } => (None, None, None, None, None, None),
         };
         if any_other(&self.structs, struct_origin) {
             return Some("a struct");
@@ -127,11 +127,13 @@ struct PackageIndex {
 }
 
 impl Lowerer {
-    /// Resolves every file's exact imports in deterministic file and
-    /// declaration order; unresolved or invisible selectors are
-    /// diagnosed once per import. `public import` bindings additionally
-    /// pass re-export validation (DESIGN 2.4) and publish their
-    /// authorized targets into the semantic surface.
+    /// Resolves every file's imports in deterministic file and
+    /// declaration order (exact imports first, then stars); unresolved
+    /// or invisible selectors are diagnosed once per import. `public
+    /// import` bindings additionally pass re-export validation (DESIGN
+    /// 2.4) and publish their authorized targets into the semantic
+    /// surface; star-imported enum variant surfaces feed the per-file
+    /// variant candidate layers.
     pub(super) fn resolve_import_bindings(&mut self) {
         let index = self.build_package_index();
         let mut reexports = Vec::new();
@@ -154,6 +156,48 @@ impl Lowerer {
                         // The local binding keeps every resolved target;
                         // re-export authorization only gates publication.
                         self.file_imports[file].exact[import_index].binding = Some(binding);
+                    }
+                    Err(message) => self.import_error(file, span, message),
+                }
+            }
+            for star_index in 0..self.file_imports[file].star.len() {
+                let (public, path, span) = {
+                    let star = &self.file_imports[file].star[star_index];
+                    (star.public, star.path.clone(), star.span)
+                };
+                match self.resolve_star(&index, file, &path) {
+                    Ok(surface) => {
+                        if public {
+                            self.expand_public_star(
+                                &index,
+                                &mut reexports,
+                                file,
+                                &surface,
+                                &path,
+                                span,
+                            );
+                        }
+                        if let hir::StarSurface::EnumOwner { declaration } = surface {
+                            // The enum's variant short names join this
+                            // file's star variant layer, deduplicated by
+                            // typed origin across repeated star paths.
+                            for variant_index in 0..self.enums[declaration].variants.len() as u32 {
+                                let variant = hir::EnumVariantRef::checked(
+                                    &self.enums,
+                                    declaration,
+                                    variant_index,
+                                )
+                                .expect("iterated variant belongs to its enum");
+                                let name = self.enums[declaration].variants[variant_index as usize]
+                                    .name
+                                    .clone();
+                                let refs = self.file_star_variants[file].entry(name).or_default();
+                                if !refs.contains(&variant) {
+                                    refs.push(variant);
+                                }
+                            }
+                        }
+                        self.file_imports[file].star[star_index].binding = Some(surface);
                     }
                     Err(message) => self.import_error(file, span, message),
                 }
@@ -435,6 +479,46 @@ impl Lowerer {
         local_name: &str,
         witness: scoop_ast::Span,
     ) -> Walked {
+        let resolved = match self.nominal_path_candidates(index, package, file, rest) {
+            NominalWalk::Reached(candidates) => candidates,
+            NominalWalk::Existed => return Walked::Existed,
+            NominalWalk::NoMatch => return Walked::NoMatch,
+        };
+        let source = hir::ImportBindingSource::CurrentCone { witness };
+        let targets: Vec<hir::ImportedTargetBinding> = resolved
+            .into_iter()
+            .map(|target| hir::ImportedTargetBinding {
+                target: match target {
+                    NominalTarget::Struct(declaration) => {
+                        hir::ImportedTarget::Struct { declaration }
+                    }
+                    NominalTarget::Enum(declaration) => hir::ImportedTarget::Enum { declaration },
+                    NominalTarget::Class(declaration) => hir::ImportedTarget::Class { declaration },
+                    NominalTarget::Interface(declaration) => {
+                        hir::ImportedTarget::Interface { declaration }
+                    }
+                    NominalTarget::Object(declaration) => {
+                        hir::ImportedTarget::Object { declaration }
+                    }
+                },
+                sources: vec![source.clone()],
+            })
+            .collect();
+        Walked::Resolved(hir::ImportedBinding::of(local_name.to_owned(), targets))
+    }
+
+    /// Resolves `rest` (at least one segment) against a package: the
+    /// first segment names a top-level nominal, later segments walk
+    /// nested nominal owners. Non-nominal members are not reachable
+    /// through an owner path; ambiguity between two visible owners is
+    /// surfaced by returning both candidates for the caller to report.
+    fn nominal_path_candidates(
+        &self,
+        index: &PackageIndex,
+        package: hir::PackageId,
+        file: usize,
+        rest: &[String],
+    ) -> NominalWalk {
         let first = &rest[0];
         let hits = index.hits.get(&(package, first.clone()));
         let mut candidates: Vec<NominalTarget> = Vec::new();
@@ -476,15 +560,12 @@ impl Lowerer {
         }
         if candidates.is_empty() {
             return if existed {
-                Walked::Existed
+                NominalWalk::Existed
             } else {
-                Walked::NoMatch
+                NominalWalk::NoMatch
             };
         }
-        // Walk every intermediate segment; ambiguity between two visible
-        // owners is an error the same way a missing owner is — the
-        // selector names one entity.
-        let mut resolved: Vec<NominalTarget> = candidates;
+        let mut resolved = candidates;
         for segment in &rest[1..] {
             let mut next = Vec::new();
             for candidate in &resolved {
@@ -496,39 +577,202 @@ impl Lowerer {
                 }
             }
             if next.is_empty() {
-                return if resolved.is_empty() {
-                    Walked::NoMatch
-                } else {
-                    // The owner existed but the nested name does not.
-                    Walked::Existed
-                };
+                // The owner existed but the nested name does not.
+                return NominalWalk::Existed;
             }
             resolved = next;
         }
-        if resolved.is_empty() {
-            return Walked::Existed;
+        NominalWalk::Reached(resolved)
+    }
+
+    /// Resolves one star selector (DESIGN 2.2): the longest
+    /// declared-package prefix wins, remaining segments walk nested
+    /// nominal owners, and the final entity must be the declared package
+    /// itself or one enum (its variant surface). Stars naming other
+    /// nominal owners are undefined in v1; every failure is diagnosed
+    /// once per import.
+    fn resolve_star(
+        &self,
+        index: &PackageIndex,
+        file: usize,
+        path: &[String],
+    ) -> Result<hir::StarSurface, String> {
+        let path_text = format!("{}.*", path.join("."));
+        let mut existed_somewhere = false;
+        let mut reached_error: Option<String> = None;
+        // k = number of package-prefix segments; the full path may
+        // itself be the package, so k ranges over 0..=path.len().
+        for k in (0..=path.len()).rev() {
+            if k == path.len() {
+                if let Some(package) = self.package_by_segments(path) {
+                    return Ok(hir::StarSurface::Package { package });
+                }
+                continue;
+            }
+            let package = match self.package_by_segments(&path[..k]) {
+                Some(package) => package,
+                None => continue,
+            };
+            let rest = &path[k..];
+            match self.nominal_path_candidates(index, package, file, rest) {
+                NominalWalk::Reached(candidates) => {
+                    let enums: Vec<hir::EnumId> = candidates
+                        .iter()
+                        .filter_map(|target| match target {
+                            NominalTarget::Enum(id) => Some(*id),
+                            _ => None,
+                        })
+                        .collect();
+                    match enums.as_slice() {
+                        [enumeration] => {
+                            return Ok(hir::StarSurface::EnumOwner {
+                                declaration: *enumeration,
+                            });
+                        }
+                        [] => reached_error.get_or_insert(format!(
+                            "star import `{path_text}` must name a package or an enum"
+                        )),
+                        more => reached_error.get_or_insert(format!(
+                            "star import `{path_text}` is ambiguous between {} enums",
+                            more.len()
+                        )),
+                    };
+                }
+                NominalWalk::Existed => existed_somewhere = true,
+                NominalWalk::NoMatch => {}
+            }
         }
-        let source = hir::ImportBindingSource::CurrentCone { witness };
-        let targets: Vec<hir::ImportedTargetBinding> = resolved
-            .into_iter()
-            .map(|target| hir::ImportedTargetBinding {
-                target: match target {
-                    NominalTarget::Struct(declaration) => {
-                        hir::ImportedTarget::Struct { declaration }
+        if let Some(message) = reached_error {
+            Err(message)
+        } else if existed_somewhere {
+            Err(format!(
+                "star import `{path_text}` names declarations that are not visible in this file"
+            ))
+        } else {
+            Err(format!("unresolved star import `{path_text}`"))
+        }
+    }
+
+    /// Expands one `public import ... .*` into per-name re-export
+    /// bindings (DESIGN 2.4): a package surface publishes every public
+    /// member short name (overload sets share one binding); an enum
+    /// surface publishes one `Variant` target per variant. Internal or
+    /// private members silently stay out of the snapshot; a surface
+    /// with public members but no publishable target is diagnosed once.
+    fn expand_public_star(
+        &mut self,
+        index: &PackageIndex,
+        reexports: &mut Vec<hir::ReExport>,
+        file: usize,
+        surface: &hir::StarSurface,
+        path: &[String],
+        span: scoop_ast::Span,
+    ) {
+        let destination = self.file_packages[file];
+        let path_text = format!("{}.*", path.join("."));
+        let empty_surface = |this: &mut Self| {
+            this.import_error(
+                file,
+                span,
+                format!(
+                    "public import `{path_text}` publishes no target: none is provided by a direct dependency"
+                ),
+            );
+        };
+        match surface {
+            hir::StarSurface::Package { package } => {
+                let mut groups: Vec<(&String, &NamespaceHits)> = index
+                    .hits
+                    .iter()
+                    .filter(|((hit_package, _), _)| *hit_package == *package)
+                    .map(|((_, name), hits)| (name, hits))
+                    .collect();
+                groups.sort_by(|a, b| a.0.cmp(b.0));
+                let mut published_any = false;
+                let mut surface_has_public = false;
+                for (name, hits) in groups {
+                    let targets = self.single_segment_targets(hits, file, span);
+                    if targets.is_empty() {
+                        continue;
                     }
-                    NominalTarget::Enum(declaration) => hir::ImportedTarget::Enum { declaration },
-                    NominalTarget::Class(declaration) => hir::ImportedTarget::Class { declaration },
-                    NominalTarget::Interface(declaration) => {
-                        hir::ImportedTarget::Interface { declaration }
+                    if targets
+                        .iter()
+                        .any(|target| self.imported_target_is_public(&target.target))
+                    {
+                        surface_has_public = true;
                     }
-                    NominalTarget::Object(declaration) => {
-                        hir::ImportedTarget::Object { declaration }
+                    let mut published = Vec::new();
+                    for target_binding in targets {
+                        if !self.imported_target_is_public(&target_binding.target) {
+                            continue;
+                        }
+                        let declaring_file = self.imported_target_file(&target_binding.target);
+                        if !self.intrinsic_sources[declaring_file].core {
+                            continue;
+                        }
+                        if let Some(message) = self.reexport_destination_conflict(
+                            index,
+                            reexports,
+                            destination,
+                            name,
+                            &target_binding,
+                        ) {
+                            self.import_error(file, span, message);
+                            continue;
+                        }
+                        published.push(target_binding);
                     }
-                },
-                sources: vec![source.clone()],
-            })
-            .collect();
-        Walked::Resolved(hir::ImportedBinding::of(local_name.to_owned(), targets))
+                    if !published.is_empty() {
+                        published_any = true;
+                        reexports.push(hir::ReExport {
+                            package: destination,
+                            name: name.clone(),
+                            span,
+                            binding: hir::ImportedBinding::of(name.clone(), published),
+                        });
+                    }
+                }
+                if !published_any && surface_has_public {
+                    empty_surface(self);
+                }
+            }
+            hir::StarSurface::EnumOwner { declaration } => {
+                let enum_file = self.enums[*declaration].origin.file as usize;
+                if !self.intrinsic_sources[enum_file].core {
+                    empty_surface(self);
+                    return;
+                }
+                let variant_count = self.enums[*declaration].variants.len();
+                for variant_index in 0..variant_count as u32 {
+                    let name = self.enums[*declaration].variants[variant_index as usize]
+                        .name
+                        .clone();
+                    let variant =
+                        hir::EnumVariantRef::checked(&self.enums, *declaration, variant_index)
+                            .expect("iterated variant belongs to its enum");
+                    let target_binding = hir::ImportedTargetBinding {
+                        target: hir::ImportedTarget::Variant { variant },
+                        sources: vec![hir::ImportBindingSource::CurrentCone { witness: span }],
+                    };
+                    if let Some(message) = self.reexport_destination_conflict(
+                        index,
+                        reexports,
+                        destination,
+                        &name,
+                        &target_binding,
+                    ) {
+                        self.import_error(file, span, message);
+                        continue;
+                    }
+                    reexports.push(hir::ReExport {
+                        package: destination,
+                        name: name.clone(),
+                        span,
+                        binding: hir::ImportedBinding::of(name, vec![target_binding]),
+                    });
+                }
+            }
+        }
     }
 
     /// The interned package id whose segments equal `segments`, if any;
@@ -543,6 +787,17 @@ impl Lowerer {
 
 enum Walked {
     Resolved(hir::ImportedBinding),
+    /// Some declaration existed along the path but none was visible.
+    Existed,
+    NoMatch,
+}
+
+/// The owner-walk outcome for a nominal path, shared by exact imports
+/// and star-surface resolution.
+enum NominalWalk {
+    /// The candidate set that survived the walk; same-name hits in
+    /// distinct namespaces all survive for the caller to classify.
+    Reached(Vec<NominalTarget>),
     /// Some declaration existed along the path but none was visible.
     Existed,
     NoMatch,
@@ -624,6 +879,10 @@ impl Lowerer {
             hir::ImportedTarget::Object { declaration } => self.objects[*declaration].name.clone(),
             hir::ImportedTarget::TypeAlias { alias } => self.type_aliases[*alias].name.clone(),
             hir::ImportedTarget::Property { property } => self.properties[*property].name.clone(),
+            hir::ImportedTarget::Variant { variant } => self.enums[variant.enumeration()].variants
+                [variant.local_index() as usize]
+                .name
+                .clone(),
         }
     }
 
@@ -656,6 +915,9 @@ impl Lowerer {
                 self.type_aliases[*alias].origin.file as usize
             }
             hir::ImportedTarget::Property { property } => self.property_files[property],
+            hir::ImportedTarget::Variant { variant } => {
+                self.enums[variant.enumeration()].origin.file as usize
+            }
         }
     }
 
@@ -689,6 +951,9 @@ impl Lowerer {
             hir::ImportedTarget::Property { property } => {
                 is_public(self.properties[*property].access.declared)
             }
+            // Variants are fixed public (spec 4.2: no visibility
+            // modifiers on variants).
+            hir::ImportedTarget::Variant { .. } => true,
         }
     }
 
@@ -752,6 +1017,24 @@ impl Lowerer {
                     ) => {
                         return Some(conflict("a property"));
                     }
+                    // Variant names are constructor-like and not
+                    // overloadable: any same-name variant, function or
+                    // property at the destination conflicts.
+                    (hir::ImportedTarget::Variant { .. }, hir::ImportedTarget::Variant { .. }) => {
+                        return Some(conflict("an enum variant"));
+                    }
+                    (
+                        hir::ImportedTarget::Variant { .. },
+                        hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. },
+                    ) => {
+                        return Some(conflict(imported_target_kind(&prior.target)));
+                    }
+                    (
+                        hir::ImportedTarget::Function { .. } | hir::ImportedTarget::Property { .. },
+                        hir::ImportedTarget::Variant { .. },
+                    ) => {
+                        return Some(conflict(imported_target_kind(&prior.target)));
+                    }
                     _ => {}
                 }
             }
@@ -778,6 +1061,15 @@ impl Lowerer {
                 .iter()
                 .any(|hit| hit.entity != *property)
                 .then(|| conflict("a property")),
+            hir::ImportedTarget::Variant { .. } => {
+                if !hits.functions.is_empty() {
+                    return Some(conflict("a function"));
+                }
+                if !hits.properties.is_empty() {
+                    return Some(conflict("a property"));
+                }
+                hits.type_conflict_kind(&target.target).map(conflict)
+            }
             _ => hits.type_conflict_kind(&target.target).map(conflict),
         }
     }
@@ -794,6 +1086,7 @@ fn imported_target_kind(target: &hir::ImportedTarget) -> &'static str {
         hir::ImportedTarget::TypeAlias { .. } => "a typealias",
         hir::ImportedTarget::Function { .. } => "a function",
         hir::ImportedTarget::Property { .. } => "a property",
+        hir::ImportedTarget::Variant { .. } => "an enum variant",
     }
 }
 
@@ -842,12 +1135,15 @@ impl Lowerer {
         None
     }
 
-    /// Whether one of the file's star imports names exactly this package.
+    /// Whether one of the file's star imports resolved to exactly this
+    /// package surface.
     fn file_star_imports_package(&self, file: usize, package: hir::PackageId) -> bool {
-        self.file_imports[file]
-            .star
-            .iter()
-            .any(|star| self.package_by_segments(&star.path) == Some(package))
+        self.file_imports[file].star.iter().any(|star| {
+            matches!(
+                &star.binding,
+                Some(hir::StarSurface::Package { package: imported }) if *imported == package
+            )
+        })
     }
 
     /// Whether the current file's resolved exact-import bindings contain

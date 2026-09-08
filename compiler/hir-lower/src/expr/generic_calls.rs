@@ -322,6 +322,54 @@ impl Lowerer {
             }
         }
 
+        // Star-imported variant constructors (spec 4.2: `import pkg.E.*`)
+        // form the layer right before the implicit core prelude. Probe
+        // every same-name target in isolated states so only one
+        // applicable winner can commit; a layer without an applicable
+        // candidate falls through to the prelude layer.
+        let star_variants = self.star_variant_refs(&name).to_vec();
+        let mut star_failure = None;
+        let mut unit_only_star = Vec::new();
+        let mut star_successes = Vec::new();
+        for target in &star_variants {
+            if self.resolved_variant_style(*target) == VariantStyle::Unit {
+                unit_only_star.push(*target);
+                continue;
+            }
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.lower_variant_construct(
+                    *target,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => star_successes.push((*target, layer)),
+                Err(failure) => {
+                    star_failure.get_or_insert(failure);
+                }
+            }
+        }
+        match star_successes.len() {
+            1 => {
+                let (_, layer) = star_successes.pop().expect("one star-layer winner");
+                return Some(self.commit_expr_layer(layer, sink));
+            }
+            2.. => {
+                let targets = star_successes
+                    .iter()
+                    .map(|(target, _)| *target)
+                    .collect::<Vec<_>>();
+                self.ambiguous_prelude_variant(&call.callee, &targets);
+                return None;
+            }
+            0 => {}
+        }
+
         // Ordinary core-prelude variant constructors form their own layer
         // after source declarations. Probe every same-name target in an
         // isolated state so only one applicable winner can commit.
@@ -424,8 +472,23 @@ impl Lowerer {
             self.commit_layer_diagnostics(*failure);
             return None;
         }
+        if let Some(failure) = star_failure {
+            self.commit_layer_diagnostics(*failure);
+            return None;
+        }
         if let Some(failure) = prelude_failure {
             self.commit_layer_diagnostics(*failure);
+            return None;
+        }
+        if let Some(target) = unit_only_star.first() {
+            let enumeration = target.enumeration();
+            self.error(
+                call.span,
+                format!(
+                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
+                    call.callee.text, self.enums[enumeration].name, call.callee.text
+                ),
+            );
             return None;
         }
         if let Some(target) = unit_only_prelude.first() {

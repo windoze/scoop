@@ -384,7 +384,14 @@ impl Lowerer {
         {
             return false;
         }
-        let candidates = self.core_prelude_variant_refs(&name.text);
+        // Star-imported variant surfaces shadow the implicit prelude for
+        // single-candidate shape probes.
+        let candidates = self.star_variant_refs(&name.text);
+        let candidates = if candidates.is_empty() {
+            self.core_prelude_variant_refs(&name.text)
+        } else {
+            candidates
+        };
         match candidates {
             [target] if self.resolved_variant_style(*target) == VariantStyle::Unit => {
                 !self.enums[target.enumeration()].type_params.is_empty()
@@ -594,7 +601,15 @@ impl Lowerer {
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
-            let [target] = self.core_prelude_variant_refs(name) else {
+            // Star-imported variant surfaces shadow the implicit prelude
+            // for single-candidate shape probes.
+            let star = self.star_variant_refs(name);
+            let candidates = if star.is_empty() {
+                self.core_prelude_variant_refs(name)
+            } else {
+                star
+            };
+            let [target] = candidates else {
                 return None;
             };
             Some((target.enumeration(), target.local_index()))

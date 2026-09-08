@@ -98,6 +98,42 @@ impl Lowerer {
             {
                 return self.lower_singleton_value(object, name.span);
             }
+            // Star-imported variant names (spec 4.2: `import pkg.E.*`)
+            // probe as unit variants right before the implicit core
+            // prelude layer.
+            let star_variants = self.star_variant_refs(&name.text).to_vec();
+            let mut star_successes = Vec::new();
+            let mut star_failure = None;
+            let mut payload_only_star = Vec::new();
+            for target in &star_variants {
+                if self.resolved_variant_style(*target) != VariantStyle::Unit {
+                    payload_only_star.push(*target);
+                    continue;
+                }
+                match self
+                    .probe_expr_layer(|state, _| state.lower_unit_variant(name, *target, expected))
+                {
+                    Ok(layer) => star_successes.push((*target, layer)),
+                    Err(failure) => {
+                        star_failure.get_or_insert(failure);
+                    }
+                }
+            }
+            match star_successes.len() {
+                1 => {
+                    let (_, layer) = star_successes.pop().expect("one star-layer winner");
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                2.. => {
+                    let targets = star_successes
+                        .iter()
+                        .map(|(target, _)| *target)
+                        .collect::<Vec<_>>();
+                    self.ambiguous_prelude_variant(name, &targets);
+                    return None;
+                }
+                0 => {}
+            }
             let prelude = self.core_prelude_variant_refs(&name.text).to_vec();
             let mut prelude_successes = Vec::new();
             let mut prelude_failure = None;
@@ -155,8 +191,23 @@ impl Lowerer {
                 );
                 return None;
             }
+            if let Some(failure) = star_failure {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
             if let Some(failure) = prelude_failure {
                 self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+            if let Some(target) = payload_only_star.first() {
+                let enumeration = target.enumeration();
+                self.error(
+                    name.span,
+                    format!(
+                        "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
+                        name.text, self.enums[enumeration].name, name.text
+                    ),
+                );
                 return None;
             }
             if let Some(target) = payload_only_prelude.first() {

@@ -1379,6 +1379,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 ```
 
 - `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
+- star selector解析为声明的package surface，或enum的variant surface（4.2：`import some.package.E.*`引入变体短名）；其他nominal owner的star在v1未定义，按unresolved selector诊断。star的解析结果非可选地记录为surface binding；
 - 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
 - `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
 - qualified type path先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；不能把点连接的字符串直接当作FQN扫描全部artifact。M23的top-level value/function表达式仍通过import后的短名或普通receiver语法访问，不新增dependency-coordinate-qualified源码名称。
@@ -1396,7 +1397,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 
 - `public import`的每个最终target都必须至少有一个source且全部source都是`DirectDependency`；`CurrentCone` target不能用于public import/re-export。同一origin可以由多个direct dependency surface共同授权并把全部witness写入snapshot。它也不能导出internal、private或protected target。target本身可以是该dependency的re-export，因此re-export可以成链；
 - re-export只建立destination package/name到origin typed实体的公开binding，不生成wrapper、forwarder、第二个TypeDescriptor、第二个typealias target、generic body或storage，也不扩大target member的visibility；
-- public star在编译当前Cone时展开为逐项、已经解析的API snapshot；下游不重新执行上游的文本glob。target集合变化会改变当前Cone的re-export metadata/fingerprint；
+- public star在编译当前Cone时展开为逐项、已经解析的API snapshot；下游不重新执行上游的文本glob。target集合变化会改变当前Cone的re-export metadata/fingerprint。展开规则：package surface按成员短名逐项绑定（同名overload set合并为一个多target binding，internal/private成员不进入snapshot）；enum surface展开为逐变体`Variant` target；surface存在public可见成员却无任何可发布target时对该star报单一错误，destination冲突逐项报告；
 - 同一typed origin经重复import、多个star或钻石re-export路径到达同一层时合并为一个target并union其排序后的source witness集合；删除一条路径会确定性改变snapshot/fingerprint，但只要另一合法路径保留就仍可访问。不同origin即使package/name/signature文本相同也不合并：非overloadable实体产生歧义；function/extension可进入同一overload层，但展开后签名相同仍是冲突；
 - split package合法，但不授予跨Cone可见性。exact selector命中多个不同origin的非overloadable实体时报告包含Cone coordinate的歧义；`as`只作用于已经唯一解析的exact selector，不能靠alias从一个本身歧义的selector中任选；
 - 两个local public declaration/re-export在同一destination namespace形成不可重载冲突时，当前Cone本身即为定义错误，不能发布带歧义的`.slib`；

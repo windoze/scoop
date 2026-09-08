@@ -63,6 +63,15 @@ impl Lowerer {
         self.core_prelude_variants.get(name)
     }
 
+    /// Variant short names admitted by the current file's star-imported
+    /// enum surfaces (spec 4.2: `import pkg.E.*`), in DESIGN 2.3 star
+    /// layer order before the implicit core prelude.
+    pub(crate) fn star_variant_refs(&self, name: &str) -> &[hir::EnumVariantRef] {
+        self.file_star_variants[self.current_file]
+            .get(name)
+            .map_or(&[], Vec::as_slice)
+    }
+
     pub(crate) fn resolved_variant_style(&self, target: hir::EnumVariantRef) -> VariantStyle {
         *self
             .variant_styles

@@ -80,12 +80,14 @@ impl Lowerer {
                                 .map(|segment| segment.text.clone())
                                 .collect(),
                             span: *span,
+                            binding: None,
                         });
                     }
                 }
             }
             self.file_packages.push(package_id);
             self.file_imports.push(hir::FileImports { exact, star });
+            self.file_star_variants.push(HashMap::new());
         }
 
         let mut pending_interfaces = Vec::new();

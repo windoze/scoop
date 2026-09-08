@@ -57,14 +57,36 @@ pub enum ImportBindingSource {
 /// persistent ids instead and are produced at serialization time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportedTarget {
-    Function { function: FunctionId },
-    Struct { declaration: StructId },
-    Enum { declaration: EnumId },
-    Class { declaration: ClassId },
-    Interface { declaration: InterfaceId },
-    Object { declaration: ObjectId },
-    TypeAlias { alias: ExportTypeAliasId },
-    Property { property: PropertyId },
+    Function {
+        function: FunctionId,
+    },
+    Struct {
+        declaration: StructId,
+    },
+    Enum {
+        declaration: EnumId,
+    },
+    Class {
+        declaration: ClassId,
+    },
+    Interface {
+        declaration: InterfaceId,
+    },
+    Object {
+        declaration: ObjectId,
+    },
+    TypeAlias {
+        alias: ExportTypeAliasId,
+    },
+    Property {
+        property: PropertyId,
+    },
+    /// One enum variant admitted by a star import of the enum's variant
+    /// surface (`import pkg.E.*`, spec 4.2) or published by a public
+    /// star expansion. Exact selectors never bind variants.
+    Variant {
+        variant: crate::declarations::EnumVariantRef,
+    },
 }
 
 /// One target with the non-empty source set authorizing it.
@@ -158,11 +180,26 @@ impl ExactImport {
     }
 }
 
+/// One star selector's resolved surface (DESIGN 2.2): either a declared
+/// package or the variant-name surface of one enum. Stars naming other
+/// nominal owners are diagnosed unresolved in v1.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StarSurface {
+    /// Every top-level declaration of the package that is visible to
+    /// the importing file.
+    Package { package: PackageId },
+    /// The variant short names of one enum (spec 4.2).
+    EnumOwner { declaration: EnumId },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StarImport {
     pub public: bool,
     pub path: Vec<String>,
     pub span: Span,
+    /// The resolved surface; `None` until resolution runs (or when the
+    /// selector was diagnosed unresolved), never an unknown state.
+    pub binding: Option<StarSurface>,
 }
 
 /// The Cone-wide package and import index.

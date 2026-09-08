@@ -575,6 +575,10 @@ pub(crate) struct Lowerer {
     /// File index -> collected import surface (bindings filled after
     /// declaration collection).
     pub(crate) file_imports: Vec<hir::FileImports>,
+    /// File index -> variant short names admitted by that file's
+    /// star-imported enum surfaces (spec 4.2), feeding the star variant
+    /// candidate layer.
+    pub(crate) file_star_variants: Vec<HashMap<String, Vec<hir::EnumVariantRef>>>,
     /// Re-export bindings published by validated `public import`s
     /// (DESIGN 2.4), taken into the semantic surface.
     pub(crate) reexports: Vec<hir::ReExport>,

@@ -280,3 +280,240 @@ fun main() {}
         hir::ImportedTarget::TypeAlias { .. }
     ));
 }
+
+const COLORS: &str = r#"package colors
+
+public enum Color {
+    Red,
+    Green(val code: Int)
+}
+"#;
+
+#[test]
+fn star_import_resolves_package_and_enum_surfaces() {
+    let user = r#"package dev.example
+
+import org.foo.*
+import colors.Color.*
+fun main() {}
+"#;
+    let module = lower(&[core_file(), parse(LIBRARY), parse(COLORS), parse(user)])
+        .map(|output| output.export)
+        .expect("lowers");
+    let imports = &module.semantic_surface.files[3].imports;
+    assert!(matches!(
+        imports.star[0].binding,
+        Some(hir::StarSurface::Package { .. })
+    ));
+    assert!(matches!(
+        imports.star[1].binding,
+        Some(hir::StarSurface::EnumOwner { .. })
+    ));
+}
+
+#[test]
+fn star_imported_variants_bind_without_qualification() {
+    // Spec 4.2: `import pkg.E.*` admits the enum's variant short names.
+    // A payload variant binds in call position, a unit variant in value
+    // position.
+    let user = r#"package dev.example
+
+import colors.Color.*
+
+fun main() {
+    println(describe(Red))
+    println(describe(Green(3)))
+}
+
+fun describe(color: Color): Int {
+    return when (color) {
+        Red -> 0
+        Green(code) -> code
+    }
+}
+"#;
+    lower(&[core_file(), parse(COLORS), parse(user)]).expect("lowers");
+}
+
+#[test]
+fn unresolved_star_import_is_diagnosed() {
+    let user = r#"package dev.example
+
+import org.missing.*
+fun main() {}
+"#;
+    let diagnostics = lower_with_library(LIBRARY, user).expect_err("unresolved star");
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("unresolved star import `org.missing.*`")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn star_import_of_non_enum_nominal_is_diagnosed() {
+    let user = r#"package dev.example
+
+import org.foo.User.*
+fun main() {}
+"#;
+    let diagnostics = lower_with_library(LIBRARY, user).expect_err("star of struct");
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("star import `org.foo.User.*` must name a package or an enum")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn local_declarations_shadow_star_imported_variants() {
+    // The current-package layer wins over the star variant layer.
+    let user = r#"package dev.example
+
+import colors.Color.*
+
+fun main() {
+    val value = Green()
+    println(value)
+}
+
+fun Green(): Int {
+    return 7
+}
+"#;
+    lower(&[core_file(), parse(COLORS), parse(user)]).expect("lowers");
+}
+
+#[test]
+fn public_star_of_package_publishes_per_name() {
+    let user = r#"package dev.example
+
+public import org.foo.*
+fun main() {}
+"#;
+    let module = lower_with_library(LIBRARY, user).expect("lowers");
+    let user_package = module.semantic_surface.files[user_file_index(&module)].package;
+    let names: Vec<&str> = module
+        .semantic_surface
+        .reexports
+        .iter()
+        .filter(|reexport| reexport.package == user_package)
+        .map(|reexport| reexport.name.as_str())
+        .collect();
+    // Public members publish per name in name order; the internal
+    // `assist` stays out of the snapshot.
+    assert_eq!(names, vec!["Name", "User", "hello", "render"]);
+    let render = module
+        .semantic_surface
+        .reexports
+        .iter()
+        .find(|reexport| reexport.name == "render")
+        .expect("render publishes");
+    assert_eq!(render.binding.targets.len(), 2, "overloads share a binding");
+}
+
+#[test]
+fn public_star_of_current_cone_package_is_diagnosed() {
+    // The star resolves (the package is declared by this very file) but
+    // no member is provided by a direct dependency: one diagnostic for
+    // the whole star.
+    let user = r#"package dev.example
+
+public import dev.example.*
+
+public fun helper(): Int {
+    return 1
+}
+fun main() {}
+"#;
+    let diagnostics = lower_with_library(LIBRARY, user).expect_err("empty public star");
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic.message.contains(
+            "public import `dev.example.*` publishes no target: none is provided by a direct dependency"
+        )),
+        "{diagnostics:?}"
+    );
+    assert_eq!(
+        diagnostics.len(),
+        1,
+        "the empty surface is diagnosed once, not per member"
+    );
+}
+
+#[test]
+fn public_star_variant_conflicts_report_per_variant() {
+    // `Red` collides with a local function of the destination package;
+    // the diagnostic names the variant, and without the collision every
+    // variant publishes as a Variant target.
+    let user = r#"package dev.example
+
+public import colors.Color.*
+
+fun Red(): Int {
+    return 7
+}
+fun main() {}
+"#;
+    let diagnostics = lower(&[core_file(), parse(COLORS), parse(user)])
+        .map(|output| output.export)
+        .expect_err("the conflicting variant is diagnosed");
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains(
+                "public import re-export `Red` conflicts with a function in package `dev.example`"
+            )),
+        "{diagnostics:?}"
+    );
+    let clean = r#"package dev.example
+
+public import colors.Color.*
+fun main() {}
+"#;
+    let module = lower(&[core_file(), parse(COLORS), parse(clean)])
+        .map(|output| output.export)
+        .expect("lowers");
+    let user_package = module.semantic_surface.files[user_file_index(&module)].package;
+    let names: Vec<&str> = module
+        .semantic_surface
+        .reexports
+        .iter()
+        .filter(|reexport| reexport.package == user_package)
+        .map(|reexport| reexport.name.as_str())
+        .collect();
+    // Variant re-exports follow the enum's declaration order.
+    assert_eq!(names, vec!["Red", "Green"]);
+    assert!(
+        module
+            .semantic_surface
+            .reexports
+            .iter()
+            .all(|reexport| matches!(
+                reexport.binding.targets[0].target,
+                hir::ImportedTarget::Variant { .. }
+            ))
+    );
+}
+
+#[test]
+fn duplicate_star_paths_deduplicate_variant_candidates() {
+    let user = r#"package dev.example
+
+import colors.Color.*
+import colors.Color.*
+
+fun main() {
+    println(describe(Green(1)))
+}
+
+fun describe(color: Color): Int {
+    return when (color) {
+        Red -> 0
+        Green(code) -> code
+    }
+}
+"#;
+    lower(&[core_file(), parse(COLORS), parse(user)]).expect("lowers");
+}

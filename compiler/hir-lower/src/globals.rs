@@ -971,16 +971,22 @@ impl Lowerer {
             return None;
         };
         let application_value = &self.enum_applications[application];
-        let prelude = self
-            .core_prelude_variant_refs(&name.text)
-            .iter()
-            .copied()
-            .filter(|target| target.enumeration() == application_value.template)
-            .filter(|target| self.resolved_variant_style(*target) == VariantStyle::Unit)
-            .collect::<Vec<_>>();
-        let target = match prelude.as_slice() {
-            [target] => Some(*target),
-            [] => self.contextual_variant_ref(&name.text, Some(expected)),
+        // Star-imported variant surfaces shadow the implicit prelude
+        // layer (spec 4.2) for unit-variant constant images.
+        let filter_layer = |targets: &[hir::EnumVariantRef]| {
+            targets
+                .iter()
+                .copied()
+                .filter(|target| target.enumeration() == application_value.template)
+                .filter(|target| self.resolved_variant_style(*target) == VariantStyle::Unit)
+                .collect::<Vec<_>>()
+        };
+        let star = filter_layer(self.star_variant_refs(&name.text));
+        let prelude = filter_layer(self.core_prelude_variant_refs(&name.text));
+        let target = match (star.as_slice(), prelude.as_slice()) {
+            ([target], _) => Some(*target),
+            ([], [target]) => Some(*target),
+            ([], []) => self.contextual_variant_ref(&name.text, Some(expected)),
             _ => None,
         }?;
         let variant = hir::AppliedEnumVariantRef::checked(
