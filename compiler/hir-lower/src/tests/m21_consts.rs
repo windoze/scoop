@@ -164,7 +164,8 @@ fn const_properties_fold_forward_references_and_disappear_at_read_sites() {
     );
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .properties
             .iter()
             .any(|property| { module.properties[*property].name == "answer" })

@@ -131,7 +131,8 @@ fn companion_relation_alias_and_forwarding_are_typed() {
     );
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .companion_relations
             .contains(&relation)
     );

@@ -173,22 +173,31 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
             .is_universal()
     );
 
-    assert!(module.public_surface.objects.contains(&object_id));
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
+            .objects
+            .contains(&object_id)
+    );
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
             .object_types
             .contains(&object.object_type)
     );
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .singleton_values
             .contains(&object.singleton_value)
     );
     assert!(
         !module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .classes
             .contains(&object.backing_class)
     );
@@ -197,7 +206,8 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
             .constructors
             .iter()
             .all(|constructor| !module
-                .public_surface
+                .export_surfaces
+                .public_lookup
                 .class_constructors
                 .contains(constructor))
     );

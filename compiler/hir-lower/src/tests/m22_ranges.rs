@@ -489,7 +489,13 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
             "{}",
             case.range
         );
-        assert!(module.public_surface.classes.contains(&class_id));
+        assert!(
+            module
+                .export_surfaces
+                .public_lookup
+                .classes
+                .contains(&class_id)
+        );
         assert!(class.base_class.is_none());
         assert_eq!(class.interfaces.len(), 1);
         assert_eq!(
@@ -504,14 +510,19 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         );
         assert!(
             !module
-                .public_surface
+                .export_surfaces
+                .public_lookup
                 .class_constructors
                 .contains(&constructor)
         );
         assert_eq!(class.properties.len(), 2);
         assert!(class.properties.iter().all(|property| {
             module.properties[*property].access.declared == hir::DeclaredVisibility::Internal
-                && !module.public_surface.properties.contains(property)
+                && !module
+                    .export_surfaces
+                    .public_lookup
+                    .properties
+                    .contains(property)
         }));
         assert_eq!(class.methods.len(), 3);
 
@@ -575,7 +586,13 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         illegal_argument_class.access.declared,
         hir::DeclaredVisibility::Public
     );
-    assert!(module.public_surface.classes.contains(&illegal_argument));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .classes
+            .contains(&illegal_argument)
+    );
     assert_eq!(illegal_argument_class.constructors.len(), 1);
     let illegal_argument_constructor = illegal_argument_class.constructors[0];
     assert_eq!(
@@ -586,7 +603,8 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
     );
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .class_constructors
             .contains(&illegal_argument_constructor)
     );

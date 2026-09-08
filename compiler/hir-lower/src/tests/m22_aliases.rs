@@ -524,9 +524,27 @@ fn alias_visibility_and_public_export_identity_are_preserved() {
     assert_eq!(published.target, int_type(&module));
     assert_eq!(defaulted.target, int_type(&module));
     assert_eq!(file_local.target, int_type(&module));
-    assert!(module.public_surface.type_aliases.contains(&published_id));
-    assert!(!module.public_surface.type_aliases.contains(&defaulted_id));
-    assert!(!module.public_surface.type_aliases.contains(&file_local_id));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .type_aliases
+            .contains(&published_id)
+    );
+    assert!(
+        !module
+            .export_surfaces
+            .public_lookup
+            .type_aliases
+            .contains(&defaulted_id)
+    );
+    assert!(
+        !module
+            .export_surfaces
+            .public_lookup
+            .type_aliases
+            .contains(&file_local_id)
+    );
 }
 
 #[test]

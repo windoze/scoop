@@ -127,14 +127,26 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
         module.functions[main].access.lookup.0.constraints(),
         &[hir::AccessConstraint::Cone(module.source_files[1].provider)]
     );
-    assert!(!module.public_surface.functions.contains(&main));
+    assert!(
+        !module
+            .export_surfaces
+            .public_lookup
+            .functions
+            .contains(&main)
+    );
 
     let (exported, _) = module
         .functions
         .iter()
         .find(|(_, function)| function.name == "exported")
         .expect("exported function");
-    assert!(module.public_surface.functions.contains(&exported));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .functions
+            .contains(&exported)
+    );
     assert!(module.functions[exported].access.lookup.0.is_universal());
 
     let (answer, _) = module
@@ -143,14 +155,20 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
         .find(|(_, global)| global.name == "answer")
         .expect("exported property");
     let answer = module.globals[answer].property;
-    assert!(module.public_surface.properties.contains(&answer));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .properties
+            .contains(&answer)
+    );
 
     let (api, api_decl) = module
         .classes
         .iter()
         .find(|(_, class)| class.name == "Api")
         .expect("Api class");
-    assert!(module.public_surface.classes.contains(&api));
+    assert!(module.export_surfaces.public_lookup.classes.contains(&api));
     let api_constructor = api_decl.constructors[0];
     assert_eq!(
         module.class_constructors[api_constructor].access.declared,
@@ -158,13 +176,20 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     );
     assert!(
         !module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .class_constructors
             .contains(&api_constructor)
     );
     let field = api_decl.fields[0];
     let property = module.class_fields[field].property;
-    assert!(module.public_surface.properties.contains(&property));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .properties
+            .contains(&property)
+    );
     let hidden = api_decl
         .methods
         .iter()
@@ -181,8 +206,20 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
         module.functions[hidden].access.declared,
         hir::DeclaredVisibility::Internal
     );
-    assert!(!module.public_surface.functions.contains(&hidden));
-    assert!(module.public_surface.functions.contains(&visible));
+    assert!(
+        !module
+            .export_surfaces
+            .public_lookup
+            .functions
+            .contains(&hidden)
+    );
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .functions
+            .contains(&visible)
+    );
 
     let (_, constructible_decl) = module
         .classes
@@ -191,7 +228,8 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
         .expect("Constructible class");
     assert!(
         module
-            .public_surface
+            .export_surfaces
+            .public_lookup
             .class_constructors
             .contains(&constructible_decl.constructors[0])
     );
@@ -330,7 +368,13 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
             .is_some_and(|slot| slot.0.is_universal())
     );
     assert_eq!(function.override_access.len(), 1);
-    assert!(module.public_surface.functions.contains(&derived_method));
+    assert!(
+        module
+            .export_surfaces
+            .public_lookup
+            .functions
+            .contains(&derived_method)
+    );
 }
 
 #[test]
@@ -484,7 +528,11 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
             .globals
             .iter()
             .filter(|(_, global)| global.name == "privateValue")
-            .all(|(_, global)| !module.public_surface.properties.contains(&global.property))
+            .all(|(_, global)| !module
+                .export_surfaces
+                .public_lookup
+                .properties
+                .contains(&global.property))
     );
 }
 

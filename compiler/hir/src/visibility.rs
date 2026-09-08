@@ -96,32 +96,6 @@ impl AccessDomain {
     }
 }
 
-/// Authoritative cross-Cone declaration surface. The enclosing Export HIR
-/// retains the complete current-Cone graph for concretization, but consumers
-/// may discover source declarations only through these explicitly public
-/// identities. M23 serializes this surface and its typed dependency closure.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct PublicSemanticSurface {
-    pub functions: Vec<FunctionId>,
-    pub properties: Vec<crate::PropertyId>,
-    pub property_getters: Vec<crate::PropertyGetterId>,
-    pub property_setters: Vec<crate::PropertySetterId>,
-    pub generic_functions: Vec<crate::GenericFunctionId>,
-    pub generic_methods: Vec<crate::GenericMethodId>,
-    pub structs: Vec<StructId>,
-    pub struct_constructors: Vec<crate::StructConstructorId>,
-    pub enums: Vec<EnumId>,
-    pub classes: Vec<ClassId>,
-    pub class_constructors: Vec<crate::ClassConstructorId>,
-    pub interfaces: Vec<InterfaceId>,
-    pub interface_methods: Vec<crate::InterfaceMethodId>,
-    pub objects: Vec<crate::ObjectId>,
-    pub object_types: Vec<crate::ObjectTypeId>,
-    pub companion_relations: Vec<crate::CompanionRelationId>,
-    pub singleton_values: Vec<crate::SingletonValueId>,
-    pub type_aliases: Vec<crate::ExportTypeAliasId>,
-}
-
 fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u32) {
     match *constraint {
         AccessConstraint::Cone(provider) => (0, provider.into_raw(), 0),

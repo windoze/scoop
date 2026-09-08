@@ -103,6 +103,7 @@ mod declarations;
 mod defaults;
 mod derived;
 mod effects;
+mod export_surface;
 mod expr;
 mod ffi;
 mod generic_entities;
@@ -119,6 +120,8 @@ mod signatures;
 mod stmt;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_m23_export_surface;
 #[cfg(test)]
 mod tests_m23_imports;
 #[cfg(test)]

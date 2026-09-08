@@ -66,6 +66,8 @@ mod persistent;
 pub use persistent::*;
 mod visibility;
 pub use visibility::*;
+pub mod export_surface;
+pub use export_surface::*;
 
 mod source_interfaces;
 pub use source_interfaces::*;
