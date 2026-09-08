@@ -16,7 +16,10 @@ mod delegates;
 mod link_identity;
 mod static_initializers;
 
-pub(crate) use link_identity::LocalLinkRole;
+pub(crate) use link_identity::{
+    LocalCallableLinkRole, LocalCallableReceiver, LocalCallableScope, LocalLinkRole,
+    TopLevelCallableScope,
+};
 
 pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};
 
@@ -725,41 +728,60 @@ impl Lowerer {
         span: ast::Span,
         file: usize,
     ) -> (hir::FunctionId, hir::FunctionId) {
-        let allocate = |this: &mut Self, role: &str| {
-            let function = this.functions.alloc(Function {
-                name: format!("$init${role}${}", unit.into_raw()),
-                access: this.local_declaration_access(),
-                override_access: Vec::new(),
-                genericity: hir::FunctionGenericity::Plain,
-                is_suspend: false,
-                modifiers: hir::CallableModifiers::default(),
-                params: Vec::new(),
-                return_ty: this.unit,
-                attributes: hir::FunctionAttributes::default(),
-                kind: FunctionKind::User(hir::Body {
-                    locals: la_arena::Arena::new(),
-                    statements: Vec::new(),
-                }),
-                method: None,
-                span,
-            });
-            this.function_files.insert(function, file);
-            this.signatures.insert(
-                function,
-                FnSig {
+        let allocate =
+            |this: &mut Self, display_role: &str, role: crate::globals::LocalCallableLinkRole| {
+                let link_stem = this.local_callable_link_stem(
+                    file,
+                    crate::globals::LocalCallableScope::SourceLocal,
+                    &unit.into_raw().to_string(),
+                    role,
+                );
+                let function = this.functions.alloc(Function {
+                    link_stem,
+                    name: format!("$init${display_role}${}", unit.into_raw()),
+                    access: this.local_declaration_access(),
+                    override_access: Vec::new(),
+                    genericity: hir::FunctionGenericity::Plain,
                     is_suspend: false,
                     modifiers: hir::CallableModifiers::default(),
-                    attributes: hir::FunctionAttributes::default(),
-                    owner_type_param_count: 0,
-                    type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: this.unit,
-                },
-            );
-            this.top_level.push(function);
-            function
-        };
-        (allocate(self, "body"), allocate(self, "ensure"))
+                    attributes: hir::FunctionAttributes::default(),
+                    kind: FunctionKind::User(hir::Body {
+                        locals: la_arena::Arena::new(),
+                        statements: Vec::new(),
+                    }),
+                    method: None,
+                    span,
+                });
+                this.function_files.insert(function, file);
+                this.signatures.insert(
+                    function,
+                    FnSig {
+                        is_suspend: false,
+                        modifiers: hir::CallableModifiers::default(),
+                        attributes: hir::FunctionAttributes::default(),
+                        owner_type_param_count: 0,
+                        type_params: Vec::new(),
+                        params: Vec::new(),
+                        return_ty: this.unit,
+                    },
+                );
+                this.top_level.push(function);
+                function
+            };
+        (
+            allocate(
+                self,
+                "body",
+                crate::globals::LocalCallableLinkRole::InitializationBody,
+            ),
+            allocate(
+                self,
+                "ensure",
+                crate::globals::LocalCallableLinkRole::InitializationEnsure,
+            ),
+        )
     }
 
     fn top_level_initialization_key(&self, declaration: &PendingOrdinary<'_>) -> String {

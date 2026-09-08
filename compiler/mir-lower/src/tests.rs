@@ -77,6 +77,10 @@ fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
 
 const SPAN: Span = Span { start: 0, end: 0 };
 
+fn callable_link_stem(name: impl Into<String>) -> hir::CallableLinkStem {
+    hir::CallableLinkStem::from_session_local_encoding(name.into())
+}
+
 fn expression_origin() -> hir::ExpressionOrigin {
     hir::ExpressionOrigin::Definition(definition_origin())
 }
@@ -326,6 +330,7 @@ fn integer_operation(
         _ => owner,
     };
     let function = h.functions.alloc(hir::Function {
+        link_stem: callable_link_stem(format!("$testIntegerNoGc{}", h.functions.len())),
         name: format!("$testIntegerNoGc{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -408,6 +413,7 @@ fn integer_div_rem(
 ) -> hir::Expr {
     let owner = h.integer(kind);
     let function = h.functions.alloc(hir::Function {
+        link_stem: callable_link_stem(format!("$testIntegerManaged{}", h.functions.len())),
         name: format!("$testIntegerManaged{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -457,6 +463,7 @@ fn integer_conversion(
     let owner = h.integer(source);
     let result_ty = h.integer(target_kind);
     let function = h.functions.alloc(hir::Function {
+        link_stem: callable_link_stem(format!("$testIntegerConversion{}", h.functions.len())),
         name: format!("$testIntegerConversion{}", h.functions.len()),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),

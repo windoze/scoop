@@ -173,7 +173,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         ctors: HashMap::new(),
         struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
-        overloaded: overloaded_names(module),
+        overloaded_link_stems: overloaded_link_stems(module),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -245,10 +245,10 @@ struct Lowerer {
     /// `mir::encode_type` reads, kept in sync with the real arenas
     /// (same ids).
     shell: mir::Module,
-    /// Names shared by more than one plainly-mangled function (M7
+    /// Typed link stems shared by more than one plainly-mangled function (M7
     /// overloads): each of them gets the parameter encoding appended
     /// to its symbol (see `declare_symbol`).
-    overloaded: HashSet<String>,
+    overloaded_link_stems: HashSet<hir::CallableLinkStem>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,

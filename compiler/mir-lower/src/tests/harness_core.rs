@@ -139,6 +139,7 @@ impl Harness {
             return_type: self.unit,
         });
         let id = self.functions.alloc(hir::Function {
+            link_stem: callable_link_stem("write"),
             name: "write".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -176,6 +177,7 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
+            link_stem: callable_link_stem("coreLongToString"),
             name: "coreLongToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -212,6 +214,7 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
+            link_stem: callable_link_stem("coreBooleanToString"),
             name: "coreBooleanToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

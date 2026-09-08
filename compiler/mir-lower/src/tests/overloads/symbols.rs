@@ -38,6 +38,75 @@ fn top_level_symbols(module: &mir::Module) -> Vec<&str> {
 }
 
 #[test]
+fn native_symbols_use_typed_link_stems_instead_of_display_names() {
+    let mut h = Harness::new();
+    let first = string_fn(&mut h, "same", &[], "a");
+    let second = string_fn(&mut h, "same", &[], "b");
+    h.functions[first].link_stem = callable_link_stem("pkg.a.same");
+    h.functions[second].link_stem = callable_link_stem("pkg.b.same");
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+
+    assert_eq!(
+        top_level_symbols(&module),
+        ["scoop.pkg.a.same", "scoop.pkg.b.same", "scoop_main"]
+    );
+    assert_eq!(
+        module
+            .top_level
+            .iter()
+            .filter(|&&id| module.functions[id].name == "same")
+            .count(),
+        2,
+        "the source-facing display name remains unchanged"
+    );
+}
+
+#[test]
+fn generic_instance_mangling_uses_the_propagated_link_stem() {
+    let mut h = Harness::new();
+    let int = h.int;
+    let generic = identity_fn(&mut h, "identity");
+    h.functions[generic].link_stem = callable_link_stem("pkg.a.identity");
+    let instance = h.instantiate(generic, vec![int]);
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![expr_stmt(generic_call(instance, vec![int_lit(&h, 1)], int))],
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    assert!(
+        top_level_symbols(&module).contains(&"scoop.pkg.a.identity$I32"),
+        "the generic instance symbol must start from the typed link stem"
+    );
+}
+
+#[test]
+fn extension_receiver_parameters_disambiguate_a_shared_extension_stem() {
+    let mut h = Harness::new();
+    let (int, string) = (h.int, h.string);
+    let int_extension = string_fn(&mut h, "same", &[("this", int)], "int");
+    let string_extension = string_fn(&mut h, "same", &[("this", string)], "string");
+    let shared = callable_link_stem("pkg.extension.same");
+    h.functions[int_extension].link_stem = shared.clone();
+    h.functions[string_extension].link_stem = shared;
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+
+    assert_eq!(
+        top_level_symbols(&module),
+        [
+            "scoop.pkg.extension.same.I32",
+            "scoop.pkg.extension.same.S",
+            "scoop_main"
+        ]
+    );
+}
+
+#[test]
 fn overloads_mangle_with_param_encoding() {
     let mut h = Harness::new();
     let (int, string) = (h.int, h.string);

@@ -1,10 +1,7 @@
 use super::*;
 
-/// A function's MIR name: hir-lower already qualifies member
-/// functions (`Owner.method`), so the name is used as-is and
-/// same-named methods of different types never share a mangled
-/// symbol. Same-named *overloads* share this name; their symbols are
-/// distinguished by the parameter encoding (`Lowerer::declare_symbol`).
+/// A function's source-facing MIR display name. Symbol construction uses the
+/// independently supplied typed link stem below.
 pub(super) fn fn_name(function: &hir::Function) -> String {
     // Extension receivers are structurally the first immutable HIR parameter
     // named `this`, while real members also carry `Method` metadata. Source
@@ -24,6 +21,12 @@ pub(super) fn fn_name(function: &hir::Function) -> String {
     }
 }
 
+/// Native symbol base selected by HIR from typed declaration identity.  MIR
+/// must not reconstruct it from `fn_name` or any source-facing label.
+pub(super) fn fn_link_stem(function: &hir::Function) -> &hir::CallableLinkStem {
+    &function.link_stem
+}
+
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
 /// functions that get a plain `scoop.<name>` symbol count: `User` functions
@@ -31,20 +34,20 @@ pub(super) fn fn_name(function: &hir::Function) -> String {
 /// method shells). Intrinsics have no MIR symbol; instantiated functions use
 /// `$`-mangled symbols, which cannot collide with the
 /// overload encoding (`.`).
-pub(super) fn overloaded_names(module: &hir::Module) -> HashSet<String> {
-    let mut counts: HashMap<String, usize> = HashMap::new();
+pub(super) fn overloaded_link_stems(module: &hir::Module) -> HashSet<hir::CallableLinkStem> {
+    let mut counts: HashMap<hir::CallableLinkStem, usize> = HashMap::new();
     for (_, function) in module.functions.iter() {
         if !matches!(function.kind, hir::FunctionKind::User(_))
             || function_instance(module, function).is_some()
         {
             continue;
         }
-        *counts.entry(fn_name(function)).or_default() += 1;
+        *counts.entry(fn_link_stem(function).clone()).or_default() += 1;
     }
     counts
         .into_iter()
         .filter(|(_, count)| *count > 1)
-        .map(|(name, _)| name)
+        .map(|(stem, _)| stem)
         .collect()
 }
 

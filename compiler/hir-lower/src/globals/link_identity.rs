@@ -10,6 +10,44 @@ pub(crate) enum LocalLinkRole {
     ExtensionInitialization(hir::TypeId),
     SingletonInitialization,
     NominalType,
+    Callable(LocalCallableLinkRole),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum LocalCallableScope {
+    TopLevel(TopLevelCallableScope),
+    Member(Owner),
+    SourceLocal,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum TopLevelCallableScope {
+    Package,
+    FilePrivate,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum LocalCallableReceiver {
+    Ordinary,
+    /// A source extension function. Its resolved receiver is the first ABI
+    /// parameter and participates in ordinary overload encoding.
+    ExtensionDeclaration,
+    /// An extension property accessor, allocated only after the property
+    /// receiver has a complete typed identity.
+    ExtensionProperty(hir::TypeId),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum LocalCallableLinkRole {
+    Function(LocalCallableReceiver),
+    PropertyGetter(LocalCallableReceiver),
+    PropertySetter(LocalCallableReceiver),
+    InitializationBody,
+    InitializationEnsure,
+    LocalFunction(u32),
+    Lambda(u32),
+    AnonymousFunction(u32),
+    StructuralDerivedEquality(hir::TypeId),
 }
 
 /// Every field has a kind tag and a UTF-8 byte length. Package segments,
@@ -55,9 +93,78 @@ impl Lowerer {
             }
             LocalLinkRole::SingletonInitialization => field(&mut key, 'r', "singleton"),
             LocalLinkRole::NominalType => field(&mut key, 'r', "type"),
+            LocalLinkRole::Callable(role) => self.append_callable_link_role(&mut key, role),
         }
         field(&mut key, 'n', name);
         key
+    }
+
+    pub(crate) fn local_callable_link_stem(
+        &self,
+        file: usize,
+        scope: LocalCallableScope,
+        name: &str,
+        role: LocalCallableLinkRole,
+    ) -> hir::CallableLinkStem {
+        let (owner, private) = match scope {
+            LocalCallableScope::TopLevel(TopLevelCallableScope::Package) => (None, false),
+            LocalCallableScope::TopLevel(TopLevelCallableScope::FilePrivate)
+            | LocalCallableScope::SourceLocal => (None, true),
+            LocalCallableScope::Member(owner) => (Some(owner), false),
+        };
+        hir::CallableLinkStem::from_session_local_encoding(self.local_link_component(
+            file,
+            owner,
+            name,
+            private,
+            LocalLinkRole::Callable(role),
+        ))
+    }
+
+    fn append_callable_link_role(&self, key: &mut String, role: LocalCallableLinkRole) {
+        match role {
+            LocalCallableLinkRole::Function(receiver) => {
+                field(key, 'r', "function");
+                self.append_callable_receiver(key, receiver);
+            }
+            LocalCallableLinkRole::PropertyGetter(receiver) => {
+                field(key, 'r', "getter");
+                self.append_callable_receiver(key, receiver);
+            }
+            LocalCallableLinkRole::PropertySetter(receiver) => {
+                field(key, 'r', "setter");
+                self.append_callable_receiver(key, receiver);
+            }
+            LocalCallableLinkRole::InitializationBody => field(key, 'r', "init-body"),
+            LocalCallableLinkRole::InitializationEnsure => field(key, 'r', "init-ensure"),
+            LocalCallableLinkRole::LocalFunction(index) => {
+                field(key, 'r', "local-function");
+                field(key, 'i', &index.to_string());
+            }
+            LocalCallableLinkRole::Lambda(index) => {
+                field(key, 'r', "lambda");
+                field(key, 'i', &index.to_string());
+            }
+            LocalCallableLinkRole::AnonymousFunction(index) => {
+                field(key, 'r', "anonymous-function");
+                field(key, 'i', &index.to_string());
+            }
+            LocalCallableLinkRole::StructuralDerivedEquality(owner) => {
+                field(key, 'r', "structural-derived-equality");
+                field(key, 't', &self.local_link_type(owner));
+            }
+        }
+    }
+
+    fn append_callable_receiver(&self, key: &mut String, receiver: LocalCallableReceiver) {
+        match receiver {
+            LocalCallableReceiver::Ordinary => field(key, 'q', "ordinary"),
+            LocalCallableReceiver::ExtensionDeclaration => field(key, 'q', "extension"),
+            LocalCallableReceiver::ExtensionProperty(ty) => {
+                field(key, 'q', "extension");
+                field(key, 't', &self.local_link_type(ty));
+            }
+        }
     }
 
     fn append_link_source(&self, key: &mut String, file: usize) {

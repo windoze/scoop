@@ -67,7 +67,16 @@ impl Lowerer {
             .attributes;
         let local_number = self.local_functions.len();
         let access = self.local_declaration_access();
+        let link_stem = self.local_callable_link_stem(
+            self.current_file,
+            crate::globals::LocalCallableScope::SourceLocal,
+            &decl.name.text,
+            crate::globals::LocalCallableLinkRole::LocalFunction(
+                u32::try_from(local_number).expect("local function arena indices fit in u32"),
+            ),
+        );
         let function = self.functions.alloc(hir::Function {
+            link_stem,
             name: format!("$local.{local_number}.{}", decl.name.text),
             access,
             override_access: Vec::new(),

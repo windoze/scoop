@@ -2,6 +2,9 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Function {
+    /// Completed request-local native-emission identity propagated from
+    /// export HIR without reconstructing it from a display name.
+    pub link_stem: CallableLinkStem,
     pub name: String,
     /// Complete source/application category. MIR consumes this sum type
     /// directly and never infers genericity or method ownership from an

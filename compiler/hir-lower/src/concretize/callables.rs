@@ -325,6 +325,7 @@ impl Concretizer<'_> {
                     })
                     .collect();
                 let value = concrete::Function {
+                    link_stem: source_function.link_stem.clone(),
                     name: format!("$derived.equals.{}", source.into_raw().into_u32()),
                     origin: concrete::FunctionOrigin::Method(concrete::MethodOrigin {
                         owner: concrete::MethodOwner::Structural(owner_ty),

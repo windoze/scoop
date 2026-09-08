@@ -8,7 +8,7 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub use super::{
-    ArrayAccessKind, BinOp, CallableModifiers, CallingConvention, ClassModifier,
+    ArrayAccessKind, BinOp, CallableLinkStem, CallableModifiers, CallingConvention, ClassModifier,
     ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin, ExternAbi, FunctionAttributes,
     GcEffect, HirCLayoutContract, HirCLayoutValue, HirIntegerConstant, IntegerConversion,
     IntegerDivRem, IntegerKind, IntegerOperation, IntegerOperationArity, IntegerSignedness,

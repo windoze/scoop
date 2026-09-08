@@ -259,7 +259,7 @@ impl Lowerer {
         hir_id: hir::FunctionId,
     ) -> String {
         let function = &module.functions[hir_id];
-        let name = fn_name(function);
+        let link_stem = fn_link_stem(function);
         if let Some(instance) = function_instance(module, function) {
             let types = Types {
                 module,
@@ -280,22 +280,27 @@ impl Lowerer {
                 })
                 .collect::<Vec<_>>();
             return match instance.symbol() {
-                hir::InstanceSymbol::Unique => mir::mangle_instance(&self.shell, &name, &arguments),
-                hir::InstanceSymbol::Overloaded { discriminator } => {
-                    mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
+                hir::InstanceSymbol::Unique => {
+                    mir::mangle_instance(&self.shell, link_stem.as_str(), &arguments)
                 }
+                hir::InstanceSymbol::Overloaded { discriminator } => mir::mangle_generic_overload(
+                    &self.shell,
+                    link_stem.as_str(),
+                    &arguments,
+                    discriminator,
+                ),
             }
             .expect("local-concrete source instances have source-mangleable types");
         }
-        if hir_id == self.entry || !self.overloaded.contains(&name) {
-            return mir::mangle_function(&name, hir_id == self.entry);
+        if hir_id == self.entry || !self.overloaded_link_stems.contains(link_stem) {
+            return mir::mangle_function(link_stem.as_str(), hir_id == self.entry);
         }
         // A method's receiver (parameter 0, hir-lower's contract) is
         // not part of the overload signature: `Doc.describe(Int)`
         // encodes as `scoop.Doc.describe.I`.
         let skip = usize::from(function.method.is_some());
         let params = self.lower_params(module, &function.params[skip..]);
-        mir::mangle_overload(&self.shell, &name, &params)
+        mir::mangle_overload(&self.shell, link_stem.as_str(), &params)
             .expect("local-concrete source overloads have source-mangleable parameters")
     }
 

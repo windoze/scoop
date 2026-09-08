@@ -112,6 +112,7 @@ impl Concretizer<'_> {
         });
         let origin = self.function_origin(key, &source);
         concrete::Function {
+            link_stem: source.link_stem,
             name: source.name,
             origin,
             is_suspend: source.is_suspend,
@@ -202,7 +203,8 @@ impl Concretizer<'_> {
                         ),
                         arguments: concrete::NonEmptyVec::from_vec(arguments.clone())
                             .expect("a generic function application has non-empty arguments"),
-                        symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                        symbol: self
+                            .instance_symbol(&source.link_stem, source_id.into_raw().into_u32()),
                     })
                 }
                 export::FunctionGenericity::OwnerParameterizedMethod { .. }
@@ -223,8 +225,10 @@ impl Concretizer<'_> {
                                 origin: concrete::OwnerParameterizedMethodOriginId::from_raw(
                                     source_id.into_raw().into_u32(),
                                 ),
-                                symbol: self
-                                    .instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                                symbol: self.instance_symbol(
+                                    &source.link_stem,
+                                    source_id.into_raw().into_u32(),
+                                ),
                             }
                         }
                         export::FunctionGenericity::Generic { .. }
@@ -243,7 +247,8 @@ impl Concretizer<'_> {
                             method_arguments.to_vec(),
                         )
                         .expect("a generic method request has non-empty method arguments"),
-                        symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                        symbol: self
+                            .instance_symbol(&source.link_stem, source_id.into_raw().into_u32()),
                     },
                 };
                 concrete::FunctionOrigin::Method(concrete::MethodOrigin {
@@ -256,10 +261,10 @@ impl Concretizer<'_> {
 
     pub(super) fn instance_symbol(
         &self,
-        name: &str,
+        link_stem: &export::CallableLinkStem,
         discriminator: u32,
     ) -> concrete::InstanceSymbol {
-        if self.overloaded_generic_names.contains(name) {
+        if self.overloaded_generic_link_stems.contains(link_stem) {
             concrete::InstanceSymbol::Overloaded { discriminator }
         } else {
             concrete::InstanceSymbol::Unique

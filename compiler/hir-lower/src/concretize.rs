@@ -123,7 +123,7 @@ struct Concretizer<'a> {
         HashMap<(export::DerivedEqualityApplicationId, concrete::TypeId), concrete::FunctionId>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
     emitted_functions: Vec<concrete::FunctionId>,
-    overloaded_generic_names: HashSet<String>,
+    overloaded_generic_link_stems: HashSet<export::CallableLinkStem>,
     lambdas: Arena<concrete::Lambda>,
     lambda_by_key: HashMap<(export::LambdaId, Vec<concrete::TypeId>), concrete::LambdaId>,
     anonymous_functions: Arena<concrete::AnonymousFunction>,
@@ -251,7 +251,7 @@ impl<'a> Concretizer<'a> {
             structural_derived_functions: HashMap::new(),
             pending_functions: VecDeque::new(),
             emitted_functions: Vec::new(),
-            overloaded_generic_names: overloaded_generic_names(source),
+            overloaded_generic_link_stems: overloaded_generic_link_stems(source),
             lambdas: Arena::new(),
             lambda_by_key: HashMap::new(),
             anonymous_functions: Arena::new(),
@@ -750,11 +750,11 @@ fn arena_from_complete_slots<T>(slots: Vec<Option<T>>, what: &str) -> Arena<T> {
     arena
 }
 
-fn overloaded_generic_names(module: &export::Module) -> HashSet<String> {
-    let mut counts = HashMap::<String, usize>::new();
+fn overloaded_generic_link_stems(module: &export::Module) -> HashSet<export::CallableLinkStem> {
+    let mut counts = HashMap::<export::CallableLinkStem, usize>::new();
     for (_, function) in module.functions.iter() {
         if !matches!(function.genericity, export::FunctionGenericity::Plain) {
-            *counts.entry(function.name.clone()).or_default() += 1;
+            *counts.entry(function.link_stem.clone()).or_default() += 1;
         }
     }
     counts

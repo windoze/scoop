@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::{
-    call, class_decl, core_file, file, fun, fun_expr, ident, int_lit, sp, ty_named,
+    block, call, class_decl, core_file, file, fun, fun_expr, ident, int_lit, sp, ty_named,
 };
 use scoop_ast as ast;
 
@@ -92,6 +92,67 @@ fn declarations(names: &[&str], private: bool) -> ast::SourceFile {
         ]),
         names,
     )
+}
+
+fn callable(name: &str, private: bool, receiver: Option<&str>) -> ast::Decl {
+    let mut declaration = fun(name, Vec::new());
+    let ast::Decl::Function(function) = &mut declaration else {
+        unreachable!("the function test builder constructs a function")
+    };
+    function.visibility = visibility(private);
+    function.receiver_ty = receiver.map(ty_named);
+    declaration
+}
+
+fn computed_property(name: &str, receiver: Option<&str>) -> ast::Decl {
+    ast::Decl::Global(ast::PropertyDecl {
+        annotations: Vec::new(),
+        visibility: ast::VisibilitySyntax::Omitted,
+        modifier: ast::MethodModifier::Final,
+        is_override: false,
+        mutable: true,
+        receiver_ty: receiver.map(ty_named),
+        type_params: Vec::new(),
+        where_clause: None,
+        name: ident(name),
+        ty: ty_named("Int"),
+        body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
+            getter: Some(ast::GetterDecl {
+                annotations: Vec::new(),
+                body: ast::AccessorBodySyntax::Expr(Box::new(int_lit(1))),
+                span: sp(),
+            }),
+            setter: Some(ast::SetterDecl {
+                annotations: Vec::new(),
+                visibility: ast::SetterVisibilitySyntax::Inherited,
+                parameter: ast::SetterParameterSyntax::Default { span: sp() },
+                body: ast::AccessorBodySyntax::Block(block(Vec::new())),
+                span: sp(),
+            }),
+        }),
+        span: sp(),
+    })
+}
+
+fn callable_stems(output: &hir::Output, name: &str) -> Vec<String> {
+    let mut export = output
+        .export
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == name)
+        .map(|(_, function)| function.link_stem.as_str().to_string())
+        .collect::<Vec<_>>();
+    let mut local = output
+        .local
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == name)
+        .map(|(_, function)| function.link_stem.as_str().to_string())
+        .collect::<Vec<_>>();
+    export.sort();
+    local.sort();
+    assert_eq!(export, local, "concretization preserves callable stems");
+    export
 }
 
 fn lower(sources: &[(u32, ast::SourceFile)], locator: &str, request: u64) -> hir::Output {
@@ -284,4 +345,93 @@ fn nested_singletons_in_private_hosts_inherit_the_host_source_key() {
     assert_eq!(roots.len(), 2);
     assert!(roots[0].contains("f2:10"));
     assert!(roots[1].contains("f2:20"));
+}
+
+#[test]
+fn callable_stems_separate_packages_and_file_private_sources() {
+    let sources = vec![
+        (
+            1,
+            package(file(vec![callable("clash", false, None)]), &["a"]),
+        ),
+        (
+            2,
+            package(file(vec![callable("clash", false, None)]), &["b"]),
+        ),
+        (
+            17,
+            package(file(vec![callable("secret", true, None)]), &["same"]),
+        ),
+        (
+            23,
+            package(file(vec![callable("secret", true, None)]), &["same"]),
+        ),
+        (91, file(vec![fun("main", Vec::new())])),
+    ];
+    let output = lower(&sources, "duplicate.scoop", 1);
+    for name in ["clash", "secret"] {
+        let stems = callable_stems(&output, name);
+        assert_eq!(stems.len(), 2);
+        assert_ne!(stems[0], stems[1]);
+    }
+}
+
+#[test]
+fn callable_roles_separate_ordinary_extensions_and_receiver_types() {
+    let sources = vec![(
+        1,
+        file(vec![
+            callable("mix", false, None),
+            callable("mix", false, Some("Int")),
+            callable("mix", false, Some("String")),
+            fun("main", Vec::new()),
+        ]),
+    )];
+    let output = lower(&sources, "roles.scoop", 1);
+    let stems = callable_stems(&output, "mix");
+    assert_eq!(stems.len(), 3);
+    let ordinary = stems
+        .iter()
+        .find(|stem| stem.contains("q8:ordinary"))
+        .expect("ordinary callable stem");
+    let extensions = stems
+        .iter()
+        .filter(|stem| stem.contains("q9:extension"))
+        .collect::<Vec<_>>();
+    assert_eq!(extensions.len(), 2);
+    assert_eq!(extensions[0], extensions[1]);
+    assert_ne!(ordinary.as_str(), extensions[0].as_str());
+}
+
+#[test]
+fn accessor_stems_encode_getter_setter_and_extension_roles() {
+    let sources = vec![(
+        1,
+        file(vec![
+            computed_property("value", None),
+            computed_property("value", Some("Int")),
+            fun("main", Vec::new()),
+        ]),
+    )];
+    let output = lower(&sources, "accessors.scoop", 1);
+    let getters = callable_stems(&output, "$get$value");
+    let setters = callable_stems(&output, "$set$value");
+    assert_eq!(getters.len(), 2);
+    assert_eq!(setters.len(), 2);
+    assert!(getters.windows(2).all(|pair| pair[0] != pair[1]));
+    assert!(setters.windows(2).all(|pair| pair[0] != pair[1]));
+    assert!(
+        getters.iter().all(|stem| stem.contains("r6:getter")),
+        "{getters:?}"
+    );
+    assert!(
+        setters.iter().all(|stem| stem.contains("r6:setter")),
+        "{setters:?}"
+    );
+    assert!(
+        getters
+            .iter()
+            .chain(&setters)
+            .any(|stem| stem.contains("q9:extension"))
+    );
 }

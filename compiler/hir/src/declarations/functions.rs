@@ -2,8 +2,36 @@
 
 use super::*;
 
+/// Opaque, request-local base used to derive the native symbol of one
+/// callable declaration.  The display name remains a source-facing label and
+/// must never be used as a fallback emission identity.
+///
+/// M23-1 deliberately does not freeze the bytes carried here as a persistent
+/// or wire-format identity.  HIR lowering constructs them from typed package,
+/// owner, source and callable-role inputs; downstream stages may only consume
+/// the completed encoding.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CallableLinkStem(String);
+
+impl CallableLinkStem {
+    /// Construct a completed request-local stem from HIR lowering's transient
+    /// encoding.  This is public so compiler-owned test harnesses and future
+    /// HIR readers can construct structurally complete modules without
+    /// exposing the representation for mutation.
+    pub fn from_session_local_encoding(encoding: String) -> Self {
+        assert!(!encoding.is_empty(), "a callable link stem cannot be empty");
+        Self(encoding)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Function {
+    /// Native-emission identity, distinct from the source-facing `name`.
+    pub link_stem: CallableLinkStem,
     pub name: String,
     pub access: DeclarationAccess,
     pub override_access: Vec<OverrideAccessWitness>,
@@ -313,6 +341,7 @@ mod tests {
 
     fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
         Function {
+            link_stem: CallableLinkStem::from_session_local_encoding("Int.plus".to_string()),
             name: "Int.plus".to_string(),
             access: DeclarationAccess::public(),
             override_access: Vec::new(),

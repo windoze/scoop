@@ -187,6 +187,7 @@ mod tests {
 
     fn export_function(unit: crate::TypeId, kind: FunctionKind) -> crate::Function {
         crate::Function {
+            link_stem: crate::CallableLinkStem::from_session_local_encoding("main".to_string()),
             name: "main".to_string(),
             access: crate::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -204,6 +205,7 @@ mod tests {
 
     fn local_function(unit: concrete::TypeId) -> concrete::Function {
         concrete::Function {
+            link_stem: crate::CallableLinkStem::from_session_local_encoding("main".to_string()),
             name: "main".to_string(),
             origin: concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain),
             is_suspend: false,

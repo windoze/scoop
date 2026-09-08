@@ -56,6 +56,7 @@ impl Harness {
             let generic = !type_params.is_empty();
             let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
+                link_stem: callable_link_stem(name),
                 name: name.to_string(),
                 access: hir::DeclarationAccess::public(),
                 override_access: Vec::new(),

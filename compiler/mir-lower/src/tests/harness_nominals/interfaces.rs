@@ -49,6 +49,7 @@ impl Harness {
             params.push(param(&source.name, source.ty, local));
         }
         let function = self.functions.alloc(hir::Function {
+            link_stem: callable_link_stem(format!("{}.{}", declaration.name, method.name)),
             name: format!("{}.{}", declaration.name, method.name),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
