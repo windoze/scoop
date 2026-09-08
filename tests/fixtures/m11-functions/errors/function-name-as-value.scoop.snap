@@ -4,3 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m11-functions/errors/function-name-as-value.scoop:4:35: error: function `increment` is not a value; use `::increment` to create a callable reference
+m11-functions/errors/function-name-as-value.scoop:1:5: note: candidate declared here

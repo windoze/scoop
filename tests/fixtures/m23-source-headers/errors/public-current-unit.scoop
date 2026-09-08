@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+package demo.app
+
+public import demo.app.Visible as Reexported
+
+struct Visible
+
+fun main() {}

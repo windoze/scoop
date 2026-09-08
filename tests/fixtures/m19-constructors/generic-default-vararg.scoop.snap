@@ -941,11 +941,11 @@ Module mangling=compact-v2
   enum Option$S
     Some(_1: String)
     None()
-  enum Option$I64
-    Some(_1: Long)
-    None()
   enum Option$I32
     Some(_1: Int)
+    None()
+  enum Option$I64
+    Some(_1: Long)
     None()
   enum Option$V32
     Some(_1: UInt)
@@ -984,7 +984,7 @@ Module mangling=compact-v2
   interface Iterator$V64
   interface Iterable$S
   interface Iterator$S
-  fun Int8.rangeTo @scoop.Int8.rangeTo(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1029,7 +1029,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1045,7 +1045,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int8.rangeUntil @scoop.Int8.rangeUntil(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.rangeUntil @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn10:rangeUntil(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1090,7 +1090,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1106,7 +1106,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int8.until @scoop.Int8.until(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.until @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn5:until(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1151,7 +1151,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1167,7 +1167,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int8.downTo @scoop.Int8.downTo(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.downTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn6:downTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1212,7 +1212,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1228,7 +1228,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int8.toString @scoop.Int8.toString(this: Int8) -> String
+  fun Int8.toString @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn8:toString(this: Int8) -> String
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1247,7 +1247,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun Int8.hash @scoop.Int8.hash(this: Int8) -> Long
+  fun Int8.hash @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn4:hash(this: Int8) -> Long
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1266,7 +1266,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun Int16.rangeTo @scoop.Int16.rangeTo(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.rangeTo @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn7:rangeTo(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1311,7 +1311,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1327,7 +1327,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int16.rangeUntil @scoop.Int16.rangeUntil(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.rangeUntil @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn10:rangeUntil(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1372,7 +1372,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1388,7 +1388,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int16.until @scoop.Int16.until(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.until @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn5:until(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1433,7 +1433,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1449,7 +1449,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int16.downTo @scoop.Int16.downTo(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.downTo @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn6:downTo(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1494,7 +1494,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1510,7 +1510,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int16.toString @scoop.Int16.toString(this: Int16) -> String
+  fun Int16.toString @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn8:toString(this: Int16) -> String
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1529,7 +1529,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun Int16.hash @scoop.Int16.hash(this: Int16) -> Long
+  fun Int16.hash @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn4:hash(this: Int16) -> Long
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1548,7 +1548,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun Int.rangeTo @scoop.Int.rangeTo(this: Int, endpoint: Int) -> IntRange
+  fun Int.rangeTo @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn7:rangeTo(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1583,7 +1583,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1599,7 +1599,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int.rangeUntil @scoop.Int.rangeUntil(this: Int, endpoint: Int) -> IntRange
+  fun Int.rangeUntil @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn10:rangeUntil(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1634,7 +1634,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1650,7 +1650,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int.until @scoop.Int.until(this: Int, endpoint: Int) -> IntRange
+  fun Int.until @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn5:until(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1685,7 +1685,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1701,7 +1701,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int.downTo @scoop.Int.downTo(this: Int, endpoint: Int) -> IntRange
+  fun Int.downTo @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn6:downTo(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1736,7 +1736,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1752,7 +1752,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.1
-  fun Int.toString @scoop.Int.toString(this: Int) -> String
+  fun Int.toString @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn8:toString(this: Int) -> String
     bb0 entry
       val $receiver: Int
         Type Int
@@ -1771,7 +1771,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun Int.hash @scoop.Int.hash(this: Int) -> Long
+  fun Int.hash @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn4:hash(this: Int) -> Long
     bb0 entry
       val $receiver: Int
         Type Int
@@ -1790,7 +1790,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun Long.rangeTo @scoop.Long.rangeTo(this: Long, endpoint: Long) -> LongRange
+  fun Long.rangeTo @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn7:rangeTo(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1825,7 +1825,7 @@ Module mangling=compact-v2
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.LongRange.$c4 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1841,7 +1841,7 @@ Module mangling=compact-v2
       return
         Type LongRange
         Local $new.1
-  fun Long.rangeUntil @scoop.Long.rangeUntil(this: Long, endpoint: Long) -> LongRange
+  fun Long.rangeUntil @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn10:rangeUntil(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1876,7 +1876,7 @@ Module mangling=compact-v2
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.LongRange.$c4 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1892,7 +1892,7 @@ Module mangling=compact-v2
       return
         Type LongRange
         Local $new.1
-  fun Long.until @scoop.Long.until(this: Long, endpoint: Long) -> LongRange
+  fun Long.until @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn5:until(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1927,7 +1927,7 @@ Module mangling=compact-v2
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.LongRange.$c4 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1943,7 +1943,7 @@ Module mangling=compact-v2
       return
         Type LongRange
         Local $new.1
-  fun Long.downTo @scoop.Long.downTo(this: Long, endpoint: Long) -> LongRange
+  fun Long.downTo @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn6:downTo(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1978,7 +1978,7 @@ Module mangling=compact-v2
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.LongRange.$c4 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1994,7 +1994,7 @@ Module mangling=compact-v2
       return
         Type LongRange
         Local $new.1
-  fun Long.toString @scoop.Long.toString(this: Long) -> String
+  fun Long.toString @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn8:toString(this: Long) -> String
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -2008,7 +2008,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun Long.hash @scoop.Long.hash(this: Long) -> Long
+  fun Long.hash @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn4:hash(this: Long) -> Long
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -2022,7 +2022,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun UInt8.rangeTo @scoop.UInt8.rangeTo(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.rangeTo @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn7:rangeTo(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2067,7 +2067,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2083,7 +2083,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.rangeUntil @scoop.UInt8.rangeUntil(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.rangeUntil @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn10:rangeUntil(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2128,7 +2128,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2144,7 +2144,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.until @scoop.UInt8.until(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.until @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn5:until(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2189,7 +2189,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2205,7 +2205,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.downTo @scoop.UInt8.downTo(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.downTo @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn6:downTo(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2250,7 +2250,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2266,7 +2266,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.toString @scoop.UInt8.toString(this: UInt8) -> String
+  fun UInt8.toString @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn8:toString(this: UInt8) -> String
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2285,7 +2285,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun UInt8.hash @scoop.UInt8.hash(this: UInt8) -> Long
+  fun UInt8.hash @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn4:hash(this: UInt8) -> Long
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2304,7 +2304,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun UInt16.rangeTo @scoop.UInt16.rangeTo(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.rangeTo @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn7:rangeTo(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2349,7 +2349,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2365,7 +2365,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.rangeUntil @scoop.UInt16.rangeUntil(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.rangeUntil @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn10:rangeUntil(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2410,7 +2410,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2426,7 +2426,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.until @scoop.UInt16.until(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.until @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn5:until(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2471,7 +2471,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2487,7 +2487,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.downTo @scoop.UInt16.downTo(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.downTo @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn6:downTo(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2532,7 +2532,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2548,7 +2548,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.toString @scoop.UInt16.toString(this: UInt16) -> String
+  fun UInt16.toString @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn8:toString(this: UInt16) -> String
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2567,7 +2567,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun UInt16.hash @scoop.UInt16.hash(this: UInt16) -> Long
+  fun UInt16.hash @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn4:hash(this: UInt16) -> Long
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2586,7 +2586,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun UInt.rangeTo @scoop.UInt.rangeTo(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.rangeTo @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn7:rangeTo(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2621,7 +2621,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2637,7 +2637,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt.rangeUntil @scoop.UInt.rangeUntil(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.rangeUntil @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn10:rangeUntil(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2672,7 +2672,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2688,7 +2688,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt.until @scoop.UInt.until(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.until @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn5:until(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2723,7 +2723,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2739,7 +2739,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt.downTo @scoop.UInt.downTo(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.downTo @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn6:downTo(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2774,7 +2774,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2790,7 +2790,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.1
-  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+  fun UInt.toString @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn8:toString(this: UInt) -> String
     bb0 entry
       val $receiver: UInt
         Type UInt
@@ -2809,7 +2809,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Long
+  fun UInt.hash @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn4:hash(this: UInt) -> Long
     bb0 entry
       val $receiver: UInt
         Type UInt
@@ -2828,7 +2828,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun ULong.rangeTo @scoop.ULong.rangeTo(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.rangeTo @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn7:rangeTo(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2863,7 +2863,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.ULongRange.$c8 direct
+      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2879,7 +2879,7 @@ Module mangling=compact-v2
       return
         Type ULongRange
         Local $new.1
-  fun ULong.rangeUntil @scoop.ULong.rangeUntil(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.rangeUntil @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn10:rangeUntil(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2914,7 +2914,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.ULongRange.$c8 direct
+      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2930,7 +2930,7 @@ Module mangling=compact-v2
       return
         Type ULongRange
         Local $new.1
-  fun ULong.until @scoop.ULong.until(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.until @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn5:until(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2965,7 +2965,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.ULongRange.$c8 direct
+      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2981,7 +2981,7 @@ Module mangling=compact-v2
       return
         Type ULongRange
         Local $new.1
-  fun ULong.downTo @scoop.ULong.downTo(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.downTo @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn6:downTo(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3016,7 +3016,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.ULongRange.$c8 direct
+      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3032,7 +3032,7 @@ Module mangling=compact-v2
       return
         Type ULongRange
         Local $new.1
-  fun ULong.toString @scoop.ULong.toString(this: ULong) -> String
+  fun ULong.toString @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn8:toString(this: ULong) -> String
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3046,7 +3046,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun ULong.hash @scoop.ULong.hash(this: ULong) -> Long
+  fun ULong.hash @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn4:hash(this: ULong) -> Long
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3060,7 +3060,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+  fun Boolean.equals @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn6:equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3082,7 +3082,7 @@ Module mangling=compact-v2
       return
         Type Boolean
         Local $call.1
-  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+  fun Boolean.toString @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn8:toString(this: Boolean) -> String
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3096,7 +3096,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Long
+  fun Boolean.hash @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn4:hash(this: Boolean) -> Long
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3110,7 +3110,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @scoop.IntRange.iterator(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:iterator(this: IntRange) -> Iterator$I32
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3161,7 +3161,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IntRangeIterator
         ClassAlloc IntRangeIterator
-      call @scoop.init.IntRangeIterator.$c3 direct
+      call @scoop.init.C41_$local$c0:p0:r5:classn16:IntRangeIteratorX.$c3 direct
         Type IntRangeIterator
         Local $new.1
         Type Int
@@ -3179,7 +3179,7 @@ Module mangling=compact-v2
       return
         Type IntRangeIterator
         Local $new.1
-  fun IntRange.step @scoop.IntRange.step(this: IntRange, value: Int) -> IntRange
+  fun IntRange.step @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn4:step(this: IntRange, value: Int) -> IntRange
     bb0 entry
       val $receiver: Int
         Type Int
@@ -3216,7 +3216,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.IllegalArgumentException.$c16 direct
+      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -3266,7 +3266,7 @@ Module mangling=compact-v2
       assign $new.2
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.IntRange.$c2 direct
+      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
         Type IntRange
         Local $new.2
         Type Int
@@ -3282,7 +3282,7 @@ Module mangling=compact-v2
       return
         Type IntRange
         Local $new.2
-  fun IntRange.contains @scoop.IntRange.contains(this: IntRange, value: Int) -> Boolean
+  fun IntRange.contains @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:contains(this: IntRange, value: Int) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -3465,7 +3465,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -3613,7 +3613,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -3631,7 +3631,7 @@ Module mangling=compact-v2
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @scoop.IntRangeIterator.next(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @scoop.$local$c0:p0:C20:n16:IntRangeIteratorr8:functionq8:ordinaryn4:next(this: IntRangeIterator) -> Option$I32<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4086,7 +4086,7 @@ Module mangling=compact-v2
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @scoop.LongRange.iterator(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:iterator(this: LongRange) -> Iterator$I64
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4137,7 +4137,7 @@ Module mangling=compact-v2
       assign $new.1
         Type LongRangeIterator
         ClassAlloc LongRangeIterator
-      call @scoop.init.LongRangeIterator.$c5 direct
+      call @scoop.init.C42_$local$c0:p0:r5:classn17:LongRangeIteratorX.$c5 direct
         Type LongRangeIterator
         Local $new.1
         Type Long
@@ -4155,7 +4155,7 @@ Module mangling=compact-v2
       return
         Type LongRangeIterator
         Local $new.1
-  fun LongRange.step @scoop.LongRange.step(this: LongRange, value: Long) -> LongRange
+  fun LongRange.step @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn4:step(this: LongRange, value: Long) -> LongRange
     bb0 entry
       val $receiver: Long
         Type Long
@@ -4192,7 +4192,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.IllegalArgumentException.$c16 direct
+      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -4242,7 +4242,7 @@ Module mangling=compact-v2
       assign $new.2
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.LongRange.$c4 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
         Type LongRange
         Local $new.2
         Type Long
@@ -4258,7 +4258,7 @@ Module mangling=compact-v2
       return
         Type LongRange
         Local $new.2
-  fun LongRange.contains @scoop.LongRange.contains(this: LongRange, value: Long) -> Boolean
+  fun LongRange.contains @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:contains(this: LongRange, value: Long) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4441,7 +4441,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -4589,7 +4589,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -4607,7 +4607,7 @@ Module mangling=compact-v2
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @scoop.LongRangeIterator.next(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @scoop.$local$c0:p0:C21:n17:LongRangeIteratorr8:functionq8:ordinaryn4:next(this: LongRangeIterator) -> Option$I64<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5062,7 +5062,7 @@ Module mangling=compact-v2
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @scoop.UIntRange.iterator(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:iterator(this: UIntRange) -> Iterator$V32
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5113,7 +5113,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UIntRangeIterator
         ClassAlloc UIntRangeIterator
-      call @scoop.init.UIntRangeIterator.$c7 direct
+      call @scoop.init.C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX.$c7 direct
         Type UIntRangeIterator
         Local $new.1
         Type UInt
@@ -5131,7 +5131,7 @@ Module mangling=compact-v2
       return
         Type UIntRangeIterator
         Local $new.1
-  fun UIntRange.step @scoop.UIntRange.step(this: UIntRange, value: UInt) -> UIntRange
+  fun UIntRange.step @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn4:step(this: UIntRange, value: UInt) -> UIntRange
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5155,7 +5155,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.IllegalArgumentException.$c16 direct
+      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -5205,7 +5205,7 @@ Module mangling=compact-v2
       assign $new.2
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.UIntRange.$c6 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
         Type UIntRange
         Local $new.2
         Type UInt
@@ -5221,7 +5221,7 @@ Module mangling=compact-v2
       return
         Type UIntRange
         Local $new.2
-  fun UIntRange.contains @scoop.UIntRange.contains(this: UIntRange, value: UInt) -> Boolean
+  fun UIntRange.contains @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:contains(this: UIntRange, value: UInt) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5389,7 +5389,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -5522,7 +5522,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -5540,7 +5540,7 @@ Module mangling=compact-v2
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @scoop.UIntRangeIterator.next(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @scoop.$local$c0:p0:C21:n17:UIntRangeIteratorr8:functionq8:ordinaryn4:next(this: UIntRangeIterator) -> Option$V32<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5969,7 +5969,7 @@ Module mangling=compact-v2
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @scoop.ULongRange.iterator(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:iterator(this: ULongRange) -> Iterator$V64
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6020,7 +6020,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ULongRangeIterator
         ClassAlloc ULongRangeIterator
-      call @scoop.init.ULongRangeIterator.$c9 direct
+      call @scoop.init.C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX.$c9 direct
         Type ULongRangeIterator
         Local $new.1
         Type ULong
@@ -6038,7 +6038,7 @@ Module mangling=compact-v2
       return
         Type ULongRangeIterator
         Local $new.1
-  fun ULongRange.step @scoop.ULongRange.step(this: ULongRange, value: ULong) -> ULongRange
+  fun ULongRange.step @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn4:step(this: ULongRange, value: ULong) -> ULongRange
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6062,7 +6062,7 @@ Module mangling=compact-v2
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.IllegalArgumentException.$c16 direct
+      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -6112,7 +6112,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.ULongRange.$c8 direct
+      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
         Type ULongRange
         Local $new.2
         Type ULong
@@ -6128,7 +6128,7 @@ Module mangling=compact-v2
       return
         Type ULongRange
         Local $new.2
-  fun ULongRange.contains @scoop.ULongRange.contains(this: ULongRange, value: ULong) -> Boolean
+  fun ULongRange.contains @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:contains(this: ULongRange, value: ULong) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6296,7 +6296,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -6429,7 +6429,7 @@ Module mangling=compact-v2
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c14 direct
+      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -6447,7 +6447,7 @@ Module mangling=compact-v2
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @scoop.ULongRangeIterator.next(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @scoop.$local$c0:p0:C22:n18:ULongRangeIteratorr8:functionq8:ordinaryn4:next(this: ULongRangeIterator) -> Option$V64<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6876,7 +6876,7 @@ Module mangling=compact-v2
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+  fun String.equals @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn6:equals(this: String, other: String) -> Boolean
     bb0 entry
       val $argument.0: String
         Type String
@@ -6898,12 +6898,12 @@ Module mangling=compact-v2
       return
         Type Boolean
         Local $call.1
-  fun String.toString @scoop.String.toString(this: String) -> String
+  fun String.toString @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn8:toString(this: String) -> String
     bb0 entry
       return
         Type String
         Local this
-  fun String.hash @scoop.String.hash(this: String) -> Long
+  fun String.hash @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn4:hash(this: String) -> Long
     bb0 entry
       val $argument.0: String
         Type String
@@ -6917,7 +6917,7 @@ Module mangling=compact-v2
       return
         Type Long
         Local $call.1
-  fun constructorDefault @scoop.constructorDefault() -> Int
+  fun constructorDefault @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:constructorDefault() -> Int
     bb0 entry
       val $argument.0: String
         Type String
@@ -6925,7 +6925,7 @@ Module mangling=compact-v2
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.println$S direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
         Type String
         Local $parameter.value
       return
@@ -6939,14 +6939,14 @@ Module mangling=compact-v2
       val $parameter.seed: String
         Type String
         Local $argument.0
-      call $parameter.marker: Int = @scoop.constructorDefault direct
+      call $parameter.marker: Int = @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:constructorDefault direct
       val $parameter.rest: Array<String>
         Type Array<String>
         ArrayAssembly Array$S
       assign $new.1
         Type GenericBox$S
         ClassAlloc GenericBox$S
-      call @scoop.init.GenericBox$S.$c19 direct
+      call @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c19 direct
         Type GenericBox$S
         Local $new.1
         Type String
@@ -6966,7 +6966,7 @@ Module mangling=compact-v2
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.println$S direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
         Type String
         Local $parameter.value
       val $argument.0: Long
@@ -6979,7 +6979,7 @@ Module mangling=compact-v2
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop.println$I64 direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I64 direct
         Type Long
         Local $parameter.value
       val $argument.0: String
@@ -7012,7 +7012,7 @@ Module mangling=compact-v2
       assign $new.2
         Type GenericBox$S
         ClassAlloc GenericBox$S
-      call @scoop.init.GenericBox$S.$c19 direct
+      call @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c19 direct
         Type GenericBox$S
         Local $new.2
         Type String
@@ -7032,7 +7032,7 @@ Module mangling=compact-v2
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.println$S direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
         Type String
         Local $parameter.value
       val $argument.0: Long
@@ -7045,16 +7045,16 @@ Module mangling=compact-v2
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @scoop.println$I64 direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I64 direct
         Type Long
         Local $parameter.value
       return
-  fun println @scoop.println$I32(value: Int) -> Unit
+  fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
         Local value
-      call $argument.0: String = @scoop.Int.toString direct
+      call $argument.0: String = @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn8:toString direct
         Type Int
         Local $receiver
       val $parameter.message: String
@@ -7073,12 +7073,12 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun println @scoop.println$S(value: String) -> Unit
+  fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
         Local value
-      call $argument.0: String = @scoop.String.toString direct
+      call $argument.0: String = @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn8:toString direct
         Type String
         Local $receiver
       val $parameter.message: String
@@ -7097,12 +7097,12 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun println @scoop.println$I64(value: Long) -> Unit
+  fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I64(value: Long) -> Unit
     bb0 entry
       val $receiver: Long
         Type Long
         Local value
-      call $argument.0: String = @scoop.Long.toString direct
+      call $argument.0: String = @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn8:toString direct
         Type Long
         Local $receiver
       val $parameter.message: String
@@ -7121,7 +7121,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun Array.iterator @scoop.Array.iterator$S(this: Array<String>) -> Iterator$S
+  fun Array.iterator @scoop.$local$c0:p0:C8:n5:Arrayr8:functionq8:ordinaryn8:iterator$S(this: Array<String>) -> Iterator$S
     bb0 entry
       val $argument.0: Array<String>
         Type Array<String>
@@ -7138,7 +7138,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArrayIterator$S
         ClassAlloc ArrayIterator$S
-      call @scoop.init.ArrayIterator$S.$c0 direct
+      call @scoop.init.C38_$local$c0:p0:r5:classn13:ArrayIteratorASX.$c0 direct
         Type ArrayIterator$S
         Local $new.1
         Type Array<String>
@@ -7148,7 +7148,7 @@ Module mangling=compact-v2
       return
         Type ArrayIterator$S
         Local $new.1
-  fun MutableArray.iterator @scoop.MutableArray.iterator$S(this: MutableArray<String>) -> Iterator$S
+  fun MutableArray.iterator @scoop.$local$c0:p0:C16:n12:MutableArrayr8:functionq8:ordinaryn8:iterator$S(this: MutableArray<String>) -> Iterator$S
     bb0 entry
       val $argument.0: MutableArray<String>
         Type MutableArray<String>
@@ -7165,7 +7165,7 @@ Module mangling=compact-v2
       assign $new.1
         Type MutableArrayIterator$S
         ClassAlloc MutableArrayIterator$S
-      call @scoop.init.MutableArrayIterator$S.$c1 direct
+      call @scoop.init.C45_$local$c0:p0:r5:classn20:MutableArrayIteratorASX.$c1 direct
         Type MutableArrayIterator$S
         Local $new.1
         Type MutableArray<String>
@@ -7175,7 +7175,7 @@ Module mangling=compact-v2
       return
         Type MutableArrayIterator$S
         Local $new.1
-  fun ArrayIterator.next @scoop.ArrayIterator.next$S(this: ArrayIterator$S) -> Option$S<String>
+  fun ArrayIterator.next @scoop.$local$c0:p0:C17:n13:ArrayIteratorr8:functionq8:ordinaryn4:next$S(this: ArrayIterator$S) -> Option$S<String>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -7258,7 +7258,7 @@ Module mangling=compact-v2
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.IndexOutOfBoundsException.$c15 direct
+      call @scoop.init.C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX.$c15 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -7303,7 +7303,7 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-  fun MutableArrayIterator.next @scoop.MutableArrayIterator.next$S(this: MutableArrayIterator$S) -> Option$S<String>
+  fun MutableArrayIterator.next @scoop.$local$c0:p0:C24:n20:MutableArrayIteratorr8:functionq8:ordinaryn4:next$S(this: MutableArrayIterator$S) -> Option$S<String>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -7386,7 +7386,7 @@ Module mangling=compact-v2
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.IndexOutOfBoundsException.$c15 direct
+      call @scoop.init.C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX.$c15 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -7431,7 +7431,7 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-  fun init.IntRange.$c2 @scoop.init.IntRange.$c2(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.IntRange.$c2 @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRange
@@ -7459,7 +7459,7 @@ Module mangling=compact-v2
         Type Boolean
         Local inclusive
       return
-  fun init.IntRangeIterator.$c3 @scoop.init.IntRangeIterator.$c3(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.IntRangeIterator.$c3 @scoop.init.C41_$local$c0:p0:r5:classn16:IntRangeIteratorX.$c3(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRangeIterator
@@ -7492,7 +7492,7 @@ Module mangling=compact-v2
         Type Boolean
         Local exhausted
       return
-  fun init.LongRange.$c4 @scoop.init.LongRange.$c4(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.LongRange.$c4 @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRange
@@ -7520,7 +7520,7 @@ Module mangling=compact-v2
         Type Boolean
         Local inclusive
       return
-  fun init.LongRangeIterator.$c5 @scoop.init.LongRangeIterator.$c5(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.LongRangeIterator.$c5 @scoop.init.C42_$local$c0:p0:r5:classn17:LongRangeIteratorX.$c5(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRangeIterator
@@ -7553,7 +7553,7 @@ Module mangling=compact-v2
         Type Boolean
         Local exhausted
       return
-  fun init.UIntRange.$c6 @scoop.init.UIntRange.$c6(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.UIntRange.$c6 @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRange
@@ -7581,7 +7581,7 @@ Module mangling=compact-v2
         Type Boolean
         Local inclusive
       return
-  fun init.UIntRangeIterator.$c7 @scoop.init.UIntRangeIterator.$c7(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.UIntRangeIterator.$c7 @scoop.init.C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX.$c7(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRangeIterator
@@ -7614,7 +7614,7 @@ Module mangling=compact-v2
         Type Boolean
         Local exhausted
       return
-  fun init.ULongRange.$c8 @scoop.init.ULongRange.$c8(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.ULongRange.$c8 @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRange
@@ -7642,7 +7642,7 @@ Module mangling=compact-v2
         Type Boolean
         Local inclusive
       return
-  fun init.ULongRangeIterator.$c9 @scoop.init.ULongRangeIterator.$c9(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.ULongRangeIterator.$c9 @scoop.init.C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX.$c9(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRangeIterator
@@ -7675,12 +7675,12 @@ Module mangling=compact-v2
         Type Boolean
         Local exhausted
       return
-  fun init.Throwable.$c10 @scoop.init.Throwable.$c10(this: Throwable) -> Unit
+  fun init.Throwable.$c10 @scoop.init.C33_$local$c0:p0:r5:classn9:ThrowableX.$c10(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @scoop.init.Exception.$c11(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.Throwable.$c10 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ThrowableX.$c10 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -7691,7 +7691,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c12 @scoop.init.UnwrapException.$c12(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c12 @scoop.init.C40_$local$c0:p0:r5:classn15:UnwrapExceptionX.$c12(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7707,7 +7707,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -7715,7 +7715,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c13 @scoop.init.ClassCastException.$c13(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c13 @scoop.init.C43_$local$c0:p0:r5:classn18:ClassCastExceptionX.$c13(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7731,7 +7731,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -7739,7 +7739,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c14 @scoop.init.ArithmeticException.$c14(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c14 @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7755,7 +7755,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -7763,7 +7763,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c15 @scoop.init.IndexOutOfBoundsException.$c15(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c15 @scoop.init.C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX.$c15(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7779,7 +7779,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -7787,7 +7787,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @scoop.init.IllegalArgumentException.$c16(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16(this: IllegalArgumentException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -7795,7 +7795,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
@@ -7803,7 +7803,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @scoop.init.IllegalStateException.$c17(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c17(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -7811,7 +7811,7 @@ Module mangling=compact-v2
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.Exception.$c11 direct
+      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -7819,7 +7819,7 @@ Module mangling=compact-v2
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c20 @scoop.init.IllegalStateException.$c20(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c20 @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c20(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7832,13 +7832,13 @@ Module mangling=compact-v2
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.IllegalStateException.$c17 direct
+      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c17 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.GenericBox$S.$c18 @scoop.init.GenericBox$S.$c18(this: GenericBox$S, seed: String, values: Array<String>) -> Unit
+  fun init.GenericBox$S.$c18 @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c18(this: GenericBox$S, seed: String, values: Array<String>) -> Unit
     bb0 entry
       field_set 0
         Type GenericBox$S
@@ -7851,7 +7851,7 @@ Module mangling=compact-v2
         Type String
         Local seed
       return
-  fun init.GenericBox$S.$c19 @scoop.init.GenericBox$S.$c19(this: GenericBox$S, seed: String, marker: Int, rest: Array<String>) -> Unit
+  fun init.GenericBox$S.$c19 @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c19(this: GenericBox$S, seed: String, marker: Int, rest: Array<String>) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7865,7 +7865,7 @@ Module mangling=compact-v2
       val $parameter.values: Array<String>
         Type Array<String>
         Local $argument.1
-      call @scoop.init.GenericBox$S.$c18 direct
+      call @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c18 direct
         Type GenericBox$S
         Local this
         Type String
@@ -7878,7 +7878,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.println$I32 direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -7887,11 +7887,11 @@ Module mangling=compact-v2
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.println$S direct
+      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
         Type String
         Local $parameter.value
       return
-  fun init.ArrayIterator$S.$c0 @scoop.init.ArrayIterator$S.$c0(this: ArrayIterator$S, source: Array<String>, index: Long) -> Unit
+  fun init.ArrayIterator$S.$c0 @scoop.init.C38_$local$c0:p0:r5:classn13:ArrayIteratorASX.$c0(this: ArrayIterator$S, source: Array<String>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator$S
@@ -7904,7 +7904,7 @@ Module mangling=compact-v2
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$S.$c1 @scoop.init.MutableArrayIterator$S.$c1(this: MutableArrayIterator$S, source: MutableArray<String>, index: Long) -> Unit
+  fun init.MutableArrayIterator$S.$c1 @scoop.init.C45_$local$c0:p0:r5:classn20:MutableArrayIteratorASX.$c1(this: MutableArrayIterator$S, source: MutableArray<String>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator$S
@@ -7917,7 +7917,7 @@ Module mangling=compact-v2
         Type Long
         Local index
       return
-  fun ctor.SourceLocation.$c5 @scoop.ctor.SourceLocation.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
+  fun ctor.SourceLocation.$c5 @scoop.ctor.D40_$local$c0:p0:r6:structn14:SourceLocationX.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
       return
         Type SourceLocation
@@ -7932,13 +7932,13 @@ Module mangling=compact-v2
           Local functionName
           Type String
           Local typeName
-  instance @scoop.println$I32 <- println
-  instance @scoop.println$S <- println
-  instance @scoop.println$I64 <- println
-  instance @scoop.Array.iterator$S <- Array.iterator
-  instance @scoop.MutableArray.iterator$S <- MutableArray.iterator
-  instance @scoop.ArrayIterator.next$S <- ArrayIterator.next
-  instance @scoop.MutableArrayIterator.next$S <- MutableArrayIterator.next
+  instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println
+  instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
+  instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I64 <- println
+  instance @scoop.$local$c0:p0:C8:n5:Arrayr8:functionq8:ordinaryn8:iterator$S <- Array.iterator
+  instance @scoop.$local$c0:p0:C16:n12:MutableArrayr8:functionq8:ordinaryn8:iterator$S <- MutableArray.iterator
+  instance @scoop.$local$c0:p0:C17:n13:ArrayIteratorr8:functionq8:ordinaryn4:next$S <- ArrayIterator.next
+  instance @scoop.$local$c0:p0:C24:n20:MutableArrayIteratorr8:functionq8:ordinaryn4:next$S <- MutableArrayIterator.next
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -7980,8 +7980,8 @@ Module
   global @scoop.str.16 = "illegal state"
   global @scoop.str.17 = "generic-secondary"
   enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
@@ -7994,7 +7994,7 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  fun @scoop.Int8.rangeTo(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8029,7 +8029,7 @@ Module
     call managed-void-target0 sp2 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int8.rangeUntil(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn10:rangeUntil(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8064,7 +8064,7 @@ Module
     call managed-void-target0 sp4 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int8.until(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn5:until(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8099,7 +8099,7 @@ Module
     call managed-void-target0 sp6 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int8.downTo(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn6:downTo(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8134,7 +8134,7 @@ Module
     call managed-void-target0 sp8 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int8.toString(i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn8:toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8149,7 +8149,7 @@ Module
     call native-borrowed-direct-target0 sp9 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Int8.hash(i8) -> i64
+  fun @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn4:hash(i8) -> i64
     local %0 $receiver: i8
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8163,7 +8163,7 @@ Module
     call native-borrowed-direct-target0 sp10 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Int16.rangeTo(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn7:rangeTo(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8198,7 +8198,7 @@ Module
     call managed-void-target0 sp12 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int16.rangeUntil(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn10:rangeUntil(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8233,7 +8233,7 @@ Module
     call managed-void-target0 sp14 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int16.until(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn5:until(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8268,7 +8268,7 @@ Module
     call managed-void-target0 sp16 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int16.downTo(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn6:downTo(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8303,7 +8303,7 @@ Module
     call managed-void-target0 sp18 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.Int16.toString(i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn8:toString(i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8318,7 +8318,7 @@ Module
     call native-borrowed-direct-target0 sp19 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Int16.hash(i16) -> i64
+  fun @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn4:hash(i16) -> i64
     local %0 $receiver: i16
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8332,7 +8332,7 @@ Module
     call native-borrowed-direct-target0 sp20 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Int.rangeTo(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn7:rangeTo(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -8361,7 +8361,7 @@ Module
     call managed-void-target0 sp22 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Int.rangeUntil(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn10:rangeUntil(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -8390,7 +8390,7 @@ Module
     call managed-void-target0 sp24 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Int.until(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn5:until(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -8419,7 +8419,7 @@ Module
     call managed-void-target0 sp26 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Int.downTo(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn6:downTo(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -8448,7 +8448,7 @@ Module
     call managed-void-target0 sp28 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Int.toString(i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn8:toString(i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8463,7 +8463,7 @@ Module
     call native-borrowed-direct-target0 sp29 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern3(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Int.hash(i32) -> i64
+  fun @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn4:hash(i32) -> i64
     local %0 $receiver: i32
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8477,7 +8477,7 @@ Module
     call native-borrowed-direct-target0 sp30 roots=[] t1 = sig=direct0 (i64) -> i64 extern6(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.Long.rangeTo(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn7:rangeTo(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -8506,7 +8506,7 @@ Module
     call managed-void-target0 sp32 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn81(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Long.rangeUntil(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn10:rangeUntil(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -8535,7 +8535,7 @@ Module
     call managed-void-target0 sp34 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn81(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Long.until(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn5:until(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -8564,7 +8564,7 @@ Module
     call managed-void-target0 sp36 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn81(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Long.downTo(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn6:downTo(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -8593,7 +8593,7 @@ Module
     call managed-void-target0 sp38 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn81(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.Long.toString(i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn8:toString(i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: ptr<managed>
@@ -8605,7 +8605,7 @@ Module
     call native-borrowed-direct-target0 sp39 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern3(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Long.hash(i64) -> i64
+  fun @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn4:hash(i64) -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: i64
@@ -8616,7 +8616,7 @@ Module
     call native-borrowed-direct-target0 sp40 roots=[] t0 = sig=direct0 (i64) -> i64 extern6(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.UInt8.rangeTo(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn7:rangeTo(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8651,7 +8651,7 @@ Module
     call managed-void-target0 sp42 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt8.rangeUntil(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn10:rangeUntil(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8686,7 +8686,7 @@ Module
     call managed-void-target0 sp44 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt8.until(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn5:until(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8721,7 +8721,7 @@ Module
     call managed-void-target0 sp46 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt8.downTo(i8, i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn6:downTo(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
     local %2 $argument.0: i32
@@ -8756,7 +8756,7 @@ Module
     call managed-void-target0 sp48 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt8.toString(i8) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn8:toString(i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8771,7 +8771,7 @@ Module
     call native-borrowed-direct-target0 sp49 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.UInt8.hash(i8) -> i64
+  fun @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn4:hash(i8) -> i64
     local %0 $receiver: i8
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8785,7 +8785,7 @@ Module
     call native-borrowed-direct-target0 sp50 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.UInt16.rangeTo(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn7:rangeTo(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8820,7 +8820,7 @@ Module
     call managed-void-target0 sp52 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt16.rangeUntil(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn10:rangeUntil(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8855,7 +8855,7 @@ Module
     call managed-void-target0 sp54 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt16.until(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn5:until(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8890,7 +8890,7 @@ Module
     call managed-void-target0 sp56 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt16.downTo(i16, i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn6:downTo(i16, i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $receiver: i16
     local %2 $argument.0: i32
@@ -8925,7 +8925,7 @@ Module
     call managed-void-target0 sp58 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local12, local7, local8, local9, local10, local11)
     t3 = aggregate () : {}
     ret local12
-  fun @scoop.UInt16.toString(i16) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn8:toString(i16) -> ptr<managed>
     local %0 $receiver: i16
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8940,7 +8940,7 @@ Module
     call native-borrowed-direct-target0 sp59 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.UInt16.hash(i16) -> i64
+  fun @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn4:hash(i16) -> i64
     local %0 $receiver: i16
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -8954,7 +8954,7 @@ Module
     call native-borrowed-direct-target0 sp60 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.UInt.rangeTo(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn7:rangeTo(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -8983,7 +8983,7 @@ Module
     call managed-void-target0 sp62 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.UInt.rangeUntil(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn10:rangeUntil(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -9012,7 +9012,7 @@ Module
     call managed-void-target0 sp64 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.UInt.until(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn5:until(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -9041,7 +9041,7 @@ Module
     call managed-void-target0 sp66 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.UInt.downTo(i32, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn6:downTo(i32, i32) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -9070,7 +9070,7 @@ Module
     call managed-void-target0 sp68 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.UInt.toString(i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn8:toString(i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -9085,7 +9085,7 @@ Module
     call native-borrowed-direct-target0 sp69 roots=[] result-root=local4:refs[0] t1 = sig=direct0 (i64) -> ptr<managed> extern4(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.UInt.hash(i32) -> i64
+  fun @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn4:hash(i32) -> i64
     local %0 $receiver: i32
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
@@ -9099,7 +9099,7 @@ Module
     call native-borrowed-direct-target0 sp70 roots=[] t1 = sig=direct0 (i64) -> i64 extern7(local2)
     store t1 -> local3
     ret local3
-  fun @scoop.ULong.rangeTo(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn7:rangeTo(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -9128,7 +9128,7 @@ Module
     call managed-void-target0 sp72 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn85(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.ULong.rangeUntil(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn10:rangeUntil(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -9157,7 +9157,7 @@ Module
     call managed-void-target0 sp74 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn85(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.ULong.until(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn5:until(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -9186,7 +9186,7 @@ Module
     call managed-void-target0 sp76 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn85(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.ULong.downTo(i64, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn6:downTo(i64, i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -9215,7 +9215,7 @@ Module
     call managed-void-target0 sp78 live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1) local-fn85(local10, local5, local6, local7, local8, local9)
     t1 = aggregate () : {}
     ret local10
-  fun @scoop.ULong.toString(i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn8:toString(i64) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: ptr<managed>
@@ -9227,7 +9227,7 @@ Module
     call native-borrowed-direct-target0 sp79 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i64) -> ptr<managed> extern4(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.ULong.hash(i64) -> i64
+  fun @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn4:hash(i64) -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $call.1: i64
@@ -9238,7 +9238,7 @@ Module
     call native-borrowed-direct-target0 sp80 roots=[] t0 = sig=direct0 (i64) -> i64 extern7(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Boolean.equals(i1, i1) -> i1
+  fun @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn6:equals(i1, i1) -> i1
     local %0 $argument.0: i1
     local %1 $argument.1: i1
     local %2 $parameter.left: i1
@@ -9253,7 +9253,7 @@ Module
     call native-borrowed-direct-target0 sp81 roots=[] t0 = sig=direct0 (i1, i1) -> i1 extern1(local2, local3)
     store t0 -> local4
     ret local4
-  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+  fun @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn8:toString(i1) -> ptr<managed>
     local %0 $argument.0: i1
     local %1 $parameter.value: i1
     local %2 $call.1: ptr<managed>
@@ -9265,7 +9265,7 @@ Module
     call native-borrowed-direct-target0 sp82 roots=[] result-root=local3:refs[0] t0 = sig=direct0 (i1) -> ptr<managed> extern5(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.Boolean.hash(i1) -> i64
+  fun @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn4:hash(i1) -> i64
     local %0 $argument.0: i1
     local %1 $parameter.value: i1
     local %2 $call.1: i64
@@ -9276,7 +9276,7 @@ Module
     call native-borrowed-direct-target0 sp83 roots=[] t0 = sig=direct0 (i1) -> i64 extern8(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.IntRange.iterator(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:iterator(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -9314,7 +9314,7 @@ Module
     call managed-void-target0 sp85 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1, i1) local-fn80(local12, local6, local7, local8, local9, local10, local11)
     t6 = aggregate () : {}
     ret local12
-  fun @scoop.IntRange.step(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn4:step(ptr<managed>, i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -9372,7 +9372,7 @@ Module
     call managed-void-target1 sp89 live=[local17:ptr<managed>@0] sig=void1 (ptr<managed>, i32, i32, i32, i1, i1) local-fn79(local17, local11, local12, local13, local14, local15)
     t10 = aggregate () : {}
     ret local17
-  fun @scoop.IntRange.contains(ptr<managed>, i32) -> i1
+  fun @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:contains(ptr<managed>, i32) -> i1
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -9559,7 +9559,7 @@ Module
     t41 = safe_integer_Remainder<UInt> local40, local41 : i32
     t42 = integer_compare_Equal<UInt> t41, integer<UInt>(0x00000000) : i1
     ret t42
-  fun @scoop.IntRangeIterator.next(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C20:n16:IntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -9612,7 +9612,7 @@ Module
     t0 = heap_load param0 +30 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e2 v1 () : enum2
+    t1 = enum_wrap e1 v1 () : enum1
     ret t1
   block if.merge.2
     t2 = heap_load param0 +28 : i1
@@ -9650,13 +9650,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +30 true
-    t15 = enum_wrap e2 v1 () : enum2
+    t15 = enum_wrap e1 v1 () : enum1
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +30 true
-    t16 = enum_wrap e2 v1 () : enum2
+    t16 = enum_wrap e1 v1 () : enum1
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -9682,13 +9682,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +30 true
-    t25 = enum_wrap e2 v1 () : enum2
+    t25 = enum_wrap e1 v1 () : enum1
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +30 true
-    t26 = enum_wrap e2 v1 () : enum2
+    t26 = enum_wrap e1 v1 () : enum1
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -9743,7 +9743,7 @@ Module
   block if.merge.25
     store local12 -> local45
     store local45 -> local46
-    t44 = enum_wrap e2 v0 (local46) : enum2
+    t44 = enum_wrap e1 v0 (local46) : enum1
     ret t44
   block if.then.26
     t45 = heap_load param0 +28 : i1
@@ -9801,7 +9801,7 @@ Module
     br @if.merge.37
   block if.merge.37
     br @if.merge.34
-  fun @scoop.LongRange.iterator(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:iterator(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -9839,7 +9839,7 @@ Module
     call managed-void-target0 sp95 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1, i1) local-fn82(local12, local6, local7, local8, local9, local10, local11)
     t6 = aggregate () : {}
     ret local12
-  fun @scoop.LongRange.step(ptr<managed>, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn4:step(ptr<managed>, i64) -> ptr<managed>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -9897,7 +9897,7 @@ Module
     call managed-void-target1 sp99 live=[local17:ptr<managed>@0] sig=void1 (ptr<managed>, i64, i64, i64, i1, i1) local-fn81(local17, local11, local12, local13, local14, local15)
     t10 = aggregate () : {}
     ret local17
-  fun @scoop.LongRange.contains(ptr<managed>, i64) -> i1
+  fun @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:contains(ptr<managed>, i64) -> i1
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -10084,7 +10084,7 @@ Module
     t41 = safe_integer_Remainder<ULong> local40, local41 : i64
     t42 = integer_compare_Equal<ULong> t41, integer<ULong>(0x0000000000000000) : i1
     ret t42
-  fun @scoop.LongRangeIterator.next(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C21:n17:LongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -10137,7 +10137,7 @@ Module
     t0 = heap_load param0 +42 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e1 v1 () : enum1
+    t1 = enum_wrap e2 v1 () : enum2
     ret t1
   block if.merge.2
     t2 = heap_load param0 +40 : i1
@@ -10175,13 +10175,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +42 true
-    t15 = enum_wrap e1 v1 () : enum1
+    t15 = enum_wrap e2 v1 () : enum2
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +42 true
-    t16 = enum_wrap e1 v1 () : enum1
+    t16 = enum_wrap e2 v1 () : enum2
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -10207,13 +10207,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +42 true
-    t25 = enum_wrap e1 v1 () : enum1
+    t25 = enum_wrap e2 v1 () : enum2
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +42 true
-    t26 = enum_wrap e1 v1 () : enum1
+    t26 = enum_wrap e2 v1 () : enum2
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -10268,7 +10268,7 @@ Module
   block if.merge.25
     store local12 -> local45
     store local45 -> local46
-    t44 = enum_wrap e1 v0 (local46) : enum1
+    t44 = enum_wrap e2 v0 (local46) : enum2
     ret t44
   block if.then.26
     t45 = heap_load param0 +40 : i1
@@ -10326,7 +10326,7 @@ Module
     br @if.merge.37
   block if.merge.37
     br @if.merge.34
-  fun @scoop.UIntRange.iterator(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:iterator(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $argument.2: i32
@@ -10364,7 +10364,7 @@ Module
     call managed-void-target0 sp105 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32, i32, i1, i1, i1) local-fn84(local12, local6, local7, local8, local9, local10, local11)
     t6 = aggregate () : {}
     ret local12
-  fun @scoop.UIntRange.step(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn4:step(ptr<managed>, i32) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -10415,7 +10415,7 @@ Module
     call managed-void-target1 sp109 live=[local14:ptr<managed>@0] sig=void1 (ptr<managed>, i32, i32, i32, i1, i1) local-fn83(local14, local8, local9, local10, local11, local12)
     t9 = aggregate () : {}
     ret local14
-  fun @scoop.UIntRange.contains(ptr<managed>, i32) -> i1
+  fun @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:contains(ptr<managed>, i32) -> i1
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -10584,7 +10584,7 @@ Module
     t35 = safe_integer_Remainder<UInt> local34, local35 : i32
     t36 = integer_compare_Equal<UInt> t35, integer<UInt>(0x00000000) : i1
     ret t36
-  fun @scoop.UIntRangeIterator.next(ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C21:n17:UIntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -10810,7 +10810,7 @@ Module
     br @if.merge.37
   block if.merge.37
     br @if.merge.34
-  fun @scoop.ULongRange.iterator(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:iterator(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $argument.1: i64
     local %2 $argument.2: i64
@@ -10848,7 +10848,7 @@ Module
     call managed-void-target0 sp115 live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i64, i64, i1, i1, i1) local-fn86(local12, local6, local7, local8, local9, local10, local11)
     t6 = aggregate () : {}
     ret local12
-  fun @scoop.ULongRange.step(ptr<managed>, i64) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn4:step(ptr<managed>, i64) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -10899,7 +10899,7 @@ Module
     call managed-void-target1 sp119 live=[local14:ptr<managed>@0] sig=void1 (ptr<managed>, i64, i64, i64, i1, i1) local-fn85(local14, local8, local9, local10, local11, local12)
     t9 = aggregate () : {}
     ret local14
-  fun @scoop.ULongRange.contains(ptr<managed>, i64) -> i1
+  fun @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:contains(ptr<managed>, i64) -> i1
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11068,7 +11068,7 @@ Module
     t35 = safe_integer_Remainder<ULong> local34, local35 : i64
     t36 = integer_compare_Equal<ULong> t35, integer<ULong>(0x0000000000000000) : i1
     ret t36
-  fun @scoop.ULongRangeIterator.next(ptr<managed>) -> sret<enum4 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C22:n18:ULongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum4 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11294,7 +11294,7 @@ Module
     br @if.merge.37
   block if.merge.37
     br @if.merge.34
-  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+  fun @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn6:equals(ptr<managed>, ptr<managed>) -> i1
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: ptr<managed>
     local %2 $parameter.left: ptr<managed>
@@ -11309,11 +11309,11 @@ Module
     call native-borrowed-direct-target0 sp124 roots=[local2, local3] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern2(local2, local3)
     store t0 -> local4
     ret local4
-  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn8:toString(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp234 live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop.String.hash(ptr<managed>) -> i64
+  fun @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn4:hash(ptr<managed>) -> i64
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $call.1: i64
@@ -11324,7 +11324,7 @@ Module
     call native-borrowed-direct-target0 sp125 roots=[local1] t0 = sig=direct0 (ptr<managed>) -> i64 extern9(local1)
     store t0 -> local2
     ret local2
-  fun @scoop.constructorDefault() -> i32
+  fun @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:constructorDefault() -> i32
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
@@ -11407,7 +11407,7 @@ Module
     call managed-void-target5 sp137 live=[] sig=void5 (i64) local-fn74(local20)
     t16 = aggregate () : {}
     ret
-  fun @scoop.println$I32(i32) -> void
+  fun @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32(i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11426,7 +11426,7 @@ Module
     call native-borrowed-void-target1 sp140 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.println$S(ptr<managed>) -> void
+  fun @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11445,7 +11445,7 @@ Module
     call native-borrowed-void-target1 sp143 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.println$I64(i64) -> void
+  fun @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I64(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.message: ptr<managed>
@@ -11464,7 +11464,7 @@ Module
     call native-borrowed-void-target1 sp146 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Array.iterator$S(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C8:n5:Arrayr8:functionq8:ordinaryn8:iterator$S(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -11481,7 +11481,7 @@ Module
     call managed-void-target0 sp148 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn98(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop.MutableArray.iterator$S(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$c0:p0:C16:n12:MutableArrayr8:functionq8:ordinaryn8:iterator$S(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i64
     local %2 $parameter.source: ptr<managed>
@@ -11498,7 +11498,7 @@ Module
     call managed-void-target0 sp150 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn99(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop.ArrayIterator.next$S(ptr<managed>) -> enum0
+  fun @scoop.$local$c0:p0:C17:n13:ArrayIteratorr8:functionq8:ordinaryn4:next$S(ptr<managed>) -> enum0
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11569,7 +11569,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e0 v0 (local11) : enum0
     ret t16
-  fun @scoop.MutableArrayIterator.next$S(ptr<managed>) -> enum0
+  fun @scoop.$local$c0:p0:C24:n20:MutableArrayIteratorr8:functionq8:ordinaryn4:next$S(ptr<managed>) -> enum0
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11640,7 +11640,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e0 v0 (local11) : enum0
     ret t16
-  fun @scoop.init.IntRange.$c2(ptr<managed>, i32, i32, i32, i1, i1) -> void
+  fun @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2(ptr<managed>, i32, i32, i32, i1, i1) -> void
   block entry
     poll managed-void-target0 sp245 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11649,7 +11649,7 @@ Module
     heap_store param0 +28 param4
     heap_store param0 +29 param5
     ret
-  fun @scoop.init.IntRangeIterator.$c3(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
+  fun @scoop.init.C41_$local$c0:p0:r5:classn16:IntRangeIteratorX.$c3(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp246 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11659,7 +11659,7 @@ Module
     heap_store param0 +29 param5
     heap_store param0 +30 param6
     ret
-  fun @scoop.init.LongRange.$c4(ptr<managed>, i64, i64, i64, i1, i1) -> void
+  fun @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4(ptr<managed>, i64, i64, i64, i1, i1) -> void
   block entry
     poll managed-void-target0 sp247 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11668,7 +11668,7 @@ Module
     heap_store param0 +40 param4
     heap_store param0 +41 param5
     ret
-  fun @scoop.init.LongRangeIterator.$c5(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
+  fun @scoop.init.C42_$local$c0:p0:r5:classn17:LongRangeIteratorX.$c5(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp248 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11678,7 +11678,7 @@ Module
     heap_store param0 +41 param5
     heap_store param0 +42 param6
     ret
-  fun @scoop.init.UIntRange.$c6(ptr<managed>, i32, i32, i32, i1, i1) -> void
+  fun @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6(ptr<managed>, i32, i32, i32, i1, i1) -> void
   block entry
     poll managed-void-target0 sp249 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11687,7 +11687,7 @@ Module
     heap_store param0 +28 param4
     heap_store param0 +29 param5
     ret
-  fun @scoop.init.UIntRangeIterator.$c7(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
+  fun @scoop.init.C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX.$c7(ptr<managed>, i32, i32, i32, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp250 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11697,7 +11697,7 @@ Module
     heap_store param0 +29 param5
     heap_store param0 +30 param6
     ret
-  fun @scoop.init.ULongRange.$c8(ptr<managed>, i64, i64, i64, i1, i1) -> void
+  fun @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8(ptr<managed>, i64, i64, i64, i1, i1) -> void
   block entry
     poll managed-void-target0 sp251 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11706,7 +11706,7 @@ Module
     heap_store param0 +40 param4
     heap_store param0 +41 param5
     ret
-  fun @scoop.init.ULongRangeIterator.$c9(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
+  fun @scoop.init.C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX.$c9(ptr<managed>, i64, i64, i64, i1, i1, i1) -> void
   block entry
     poll managed-void-target0 sp252 live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
@@ -11716,18 +11716,18 @@ Module
     heap_store param0 +41 param5
     heap_store param0 +42 param6
     ret
-  fun @scoop.init.Throwable.$c10(ptr<managed>) -> void
+  fun @scoop.init.C33_$local$c0:p0:r5:classn9:ThrowableX.$c10(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp253 live=[]
     ret
-  fun @scoop.init.Exception.$c11(ptr<managed>, enum0) -> void
+  fun @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11(ptr<managed>, enum0) -> void
   block entry
     poll managed-void-target1 sp254 live=[param0:ptr<managed>@0, param1:enum0@0]
     call managed-void-target0 sp155 live=[param0:ptr<managed>@0, param1:enum0@0] sig=void0 (ptr<managed>) local-fn87(param0)
     t0 = aggregate () : {}
     heap_store param0 +16 param1
     ret
-  fun @scoop.init.UnwrapException.$c12(ptr<managed>) -> void
+  fun @scoop.init.C40_$local$c0:p0:r5:classn15:UnwrapExceptionX.$c12(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -11742,7 +11742,7 @@ Module
     call managed-void-target0 sp156 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ClassCastException.$c13(ptr<managed>) -> void
+  fun @scoop.init.C43_$local$c0:p0:r5:classn18:ClassCastExceptionX.$c13(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -11757,7 +11757,7 @@ Module
     call managed-void-target0 sp157 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.ArithmeticException.$c14(ptr<managed>) -> void
+  fun @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -11772,7 +11772,7 @@ Module
     call managed-void-target0 sp158 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IndexOutOfBoundsException.$c15(ptr<managed>) -> void
+  fun @scoop.init.C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX.$c15(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $argument.0: enum0
@@ -11787,7 +11787,7 @@ Module
     call managed-void-target0 sp159 live=[param0:ptr<managed>@0, local3:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalArgumentException.$c16(ptr<managed>, enum0) -> void
+  fun @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -11797,7 +11797,7 @@ Module
     call managed-void-target0 sp160 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c17(ptr<managed>, enum0) -> void
+  fun @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c17(ptr<managed>, enum0) -> void
     local %0 $argument.0: enum0
     local %1 $parameter.message: enum0
   block entry
@@ -11807,7 +11807,7 @@ Module
     call managed-void-target0 sp161 live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn88(param0, local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.init.IllegalStateException.$c20(ptr<managed>) -> void
+  fun @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c20(ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter._1: ptr<managed>
     local %2 $parameter.message: enum0
@@ -11820,13 +11820,13 @@ Module
     call managed-void-target0 sp162 live=[param0:ptr<managed>@0, local2:enum0@0] sig=void0 (ptr<managed>, enum0) local-fn94(param0, local2)
     t1 = aggregate () : {}
     ret
-  fun @scoop.init.GenericBox$S.$c18(ptr<managed>, ptr<managed>, ptr<managed>) -> void
+  fun @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c18(ptr<managed>, ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp262 live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param2
     heap_store param0 +24 param1
     ret
-  fun @scoop.init.GenericBox$S.$c19(ptr<managed>, ptr<managed>, i32, ptr<managed>) -> void
+  fun @scoop.init.C35_$local$u0:p0:r5:classn10:GenericBoxASX.$c19(ptr<managed>, ptr<managed>, i32, ptr<managed>) -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: ptr<managed>
     local %2 $parameter.seed: ptr<managed>
@@ -11852,53 +11852,53 @@ Module
     call managed-void-target2 sp165 live=[local7:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn73(local7)
     t2 = aggregate () : {}
     ret
-  fun @scoop.init.ArrayIterator$S.$c0(ptr<managed>, ptr<managed>, i64) -> void
+  fun @scoop.init.C38_$local$c0:p0:r5:classn13:ArrayIteratorASX.$c0(ptr<managed>, ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp264 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop.init.MutableArrayIterator$S.$c1(ptr<managed>, ptr<managed>, i64) -> void
+  fun @scoop.init.C45_$local$c0:p0:r5:classn20:MutableArrayIteratorASX.$c1(ptr<managed>, ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp265 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop.ctor.SourceLocation.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
+  fun @scoop.ctor.D40_$local$c0:p0:r6:structn14:SourceLocationX.$c5(ptr<managed>, i64, i64, ptr<managed>, ptr<managed>) -> sret<struct0 size=40 align=8 scan=refs[0, 24, 32]> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4) : struct0
     ret t0
-  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
-  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop_td_Iterable$I32 type-id=4 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop_td_Iterator$I32 type-id=5 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop_td_Iterable$I64 type-id=6 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop_td_Iterator$I64 type-id=7 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop_td_Iterable$V32 type-id=8 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop_td_Iterator$V32 type-id=9 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop_td_Iterable$V64 type-id=10 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop_td_Iterator$V64 type-id=11 size=0 parent=none vtable=[] itables=[]
-  td td10 Iterable$S @scoop_td_Iterable$S type-id=12 size=0 parent=none vtable=[] itables=[]
-  td td11 Iterator$S @scoop_td_Iterator$S type-id=13 size=0 parent=none vtable=[] itables=[]
-  td td12 IntRange @scoop_td_IntRange type-id=14 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
-  td td13 IntRangeIterator @scoop_td_IntRangeIterator type-id=15 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
-  td td14 LongRange @scoop_td_LongRange type-id=16 size=48 parent=none vtable=[] itables=[td4:[local-fn55]]
-  td td15 LongRangeIterator @scoop_td_LongRangeIterator type-id=17 size=48 parent=none vtable=[] itables=[td5:[local-fn58]]
-  td td16 UIntRange @scoop_td_UIntRange type-id=18 size=32 parent=none vtable=[] itables=[td6:[local-fn59]]
-  td td17 UIntRangeIterator @scoop_td_UIntRangeIterator type-id=19 size=32 parent=none vtable=[] itables=[td7:[local-fn62]]
-  td td18 ULongRange @scoop_td_ULongRange type-id=20 size=48 parent=none vtable=[] itables=[td8:[local-fn63]]
-  td td19 ULongRangeIterator @scoop_td_ULongRangeIterator type-id=21 size=48 parent=none vtable=[] itables=[td9:[local-fn66]]
-  td td20 Throwable @scoop_td_Throwable type-id=22 size=16 parent=none vtable=[] itables=[]
-  td td23 GenericBox$S @scoop_td_GenericBox$S type-id=24 size=32 parent=none vtable=[] itables=[]
-  td td25 ArrayIterator$S @scoop_td_ArrayIterator$S type-id=26 size=32 parent=none vtable=[] itables=[td11:[local-fn77]]
-  td td26 MutableArrayIterator$S @scoop_td_MutableArrayIterator$S type-id=27 size=32 parent=none vtable=[] itables=[td11:[local-fn78]]
-  td td27 Exception @scoop_td_Exception type-id=28 size=24 parent=td20 vtable=[] itables=[]
-  td td28 UnwrapException @scoop_td_UnwrapException type-id=29 size=24 parent=td27 vtable=[] itables=[]
-  td td29 ClassCastException @scoop_td_ClassCastException type-id=30 size=24 parent=td27 vtable=[] itables=[]
-  td td30 ArithmeticException @scoop_td_ArithmeticException type-id=31 size=24 parent=td27 vtable=[] itables=[]
-  td td31 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=32 size=24 parent=td27 vtable=[] itables=[]
-  td td32 IllegalArgumentException @scoop_td_IllegalArgumentException type-id=33 size=24 parent=td27 vtable=[] itables=[]
-  td td33 IllegalStateException @scoop_td_IllegalStateException type-id=34 size=24 parent=td27 vtable=[] itables=[]
+  td td0 ToString @scoop_td_J36_$local$c0:p0:r9:interfacen8:ToStringX type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_J32_$local$c0:p0:r9:interfacen4:HashX type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable$I32 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IterableAI32X type-id=4 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator$I32 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IteratorAI32X type-id=5 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable$I64 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IterableAI64X type-id=6 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator$I64 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IteratorAI64X type-id=7 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable$V32 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IterableAV32X type-id=8 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator$V32 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IteratorAV32X type-id=9 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable$V64 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IterableAV64X type-id=10 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator$V64 @scoop_td_J36_$local$c0:p0:r9:interfacen8:IteratorAV64X type-id=11 size=0 parent=none vtable=[] itables=[]
+  td td10 Iterable$S @scoop_td_J36_$local$c0:p0:r9:interfacen8:IterableASX type-id=12 size=0 parent=none vtable=[] itables=[]
+  td td11 Iterator$S @scoop_td_J36_$local$c0:p0:r9:interfacen8:IteratorASX type-id=13 size=0 parent=none vtable=[] itables=[]
+  td td12 IntRange @scoop_td_C32_$local$c0:p0:r5:classn8:IntRangeX type-id=14 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
+  td td13 IntRangeIterator @scoop_td_C41_$local$c0:p0:r5:classn16:IntRangeIteratorX type-id=15 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
+  td td14 LongRange @scoop_td_C33_$local$c0:p0:r5:classn9:LongRangeX type-id=16 size=48 parent=none vtable=[] itables=[td4:[local-fn55]]
+  td td15 LongRangeIterator @scoop_td_C42_$local$c0:p0:r5:classn17:LongRangeIteratorX type-id=17 size=48 parent=none vtable=[] itables=[td5:[local-fn58]]
+  td td16 UIntRange @scoop_td_C33_$local$c0:p0:r5:classn9:UIntRangeX type-id=18 size=32 parent=none vtable=[] itables=[td6:[local-fn59]]
+  td td17 UIntRangeIterator @scoop_td_C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX type-id=19 size=32 parent=none vtable=[] itables=[td7:[local-fn62]]
+  td td18 ULongRange @scoop_td_C35_$local$c0:p0:r5:classn10:ULongRangeX type-id=20 size=48 parent=none vtable=[] itables=[td8:[local-fn63]]
+  td td19 ULongRangeIterator @scoop_td_C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX type-id=21 size=48 parent=none vtable=[] itables=[td9:[local-fn66]]
+  td td20 Throwable @scoop_td_C33_$local$c0:p0:r5:classn9:ThrowableX type-id=22 size=16 parent=none vtable=[] itables=[]
+  td td23 GenericBox$S @scoop_td_C35_$local$u0:p0:r5:classn10:GenericBoxASX type-id=24 size=32 parent=none vtable=[] itables=[]
+  td td25 ArrayIterator$S @scoop_td_C38_$local$c0:p0:r5:classn13:ArrayIteratorASX type-id=26 size=32 parent=none vtable=[] itables=[td11:[local-fn77]]
+  td td26 MutableArrayIterator$S @scoop_td_C45_$local$c0:p0:r5:classn20:MutableArrayIteratorASX type-id=27 size=32 parent=none vtable=[] itables=[td11:[local-fn78]]
+  td td27 Exception @scoop_td_C33_$local$c0:p0:r5:classn9:ExceptionX type-id=28 size=24 parent=td20 vtable=[] itables=[]
+  td td28 UnwrapException @scoop_td_C40_$local$c0:p0:r5:classn15:UnwrapExceptionX type-id=29 size=24 parent=td27 vtable=[] itables=[]
+  td td29 ClassCastException @scoop_td_C43_$local$c0:p0:r5:classn18:ClassCastExceptionX type-id=30 size=24 parent=td27 vtable=[] itables=[]
+  td td30 ArithmeticException @scoop_td_C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX type-id=31 size=24 parent=td27 vtable=[] itables=[]
+  td td31 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=32 size=24 parent=td27 vtable=[] itables=[]
+  td td32 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=33 size=24 parent=td27 vtable=[] itables=[]
+  td td33 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=34 size=24 parent=td27 vtable=[] itables=[]
   array-type array0 Array$S kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td22
   array-type array1 MutableArray$S kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td24
   layout String size=24 align=8 refs=[]
@@ -11913,8 +11913,8 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I64 size=16 align=8 enum-scan=none
   layout Option$I32 size=16 align=8 enum-scan=none
+  layout Option$I64 size=16 align=8 enum-scan=none
   layout Option$V32 size=16 align=8 enum-scan=none
   layout Option$V64 size=16 align=8 enum-scan=none
   layout IntRange size=32 align=8 refs=[]

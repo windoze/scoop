@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m23-source-headers/errors/public-current-unit.scoop:5:1: error: public import requires a direct dependency target

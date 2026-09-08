@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m23-source-headers/errors/star-alias.scoop:5:19: error: star imports cannot have an alias

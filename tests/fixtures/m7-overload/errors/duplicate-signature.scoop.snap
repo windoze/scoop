@@ -4,6 +4,5 @@ expression: snapshot
 ---
 == diagnostics ==
 m7-overload/errors/duplicate-signature.scoop:2:5: error: function `f` is already declared with the same signature
-m7-overload/errors/duplicate-signature.scoop:5:13: error: call to `f` is ambiguous in current-unit top-level candidate layer:
-  - fun f(v: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `v` = Int
-  - fun f(v: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `v` = Int
+m7-overload/errors/duplicate-signature.scoop:5:13: error: no applicable candidate for `println` in implicit-import candidate layer:
+  - fun println<T : ToString>(value: T): Unit — argument for `value`: expression could not be typed
