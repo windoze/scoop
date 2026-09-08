@@ -15,6 +15,7 @@ pub enum NominalOwner {
 #[derive(Debug, Clone)]
 pub struct ObjectDecl {
     pub origin: ObjectOriginId,
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub object_type: ObjectTypeId,
@@ -68,6 +69,7 @@ pub struct SingletonPublishedRoot {
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub origin: StructOriginId,
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -105,6 +107,7 @@ impl StructDef {
 #[derive(Debug, Clone)]
 pub struct EnumDef {
     pub origin: EnumOriginId,
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -285,6 +288,7 @@ impl StructFieldRef {
 pub struct ClassDef {
     pub origin: ClassOriginId,
     pub modifier: ClassModifier,
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -405,6 +409,7 @@ pub enum IntrinsicTypeRepresentation {
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
     pub origin: InterfaceOriginId,
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
@@ -529,6 +534,7 @@ mod tests {
         let mut enums = Arena::new();
         let enumeration = enums.alloc(EnumDef {
             origin: EnumOriginId::from_raw(0),
+            link_stem: NominalLinkStem::from_session_local_encoding("Option".to_string()),
             name: "Option".to_string(),
             owner: None,
             type_arguments: vec![ty],
@@ -587,6 +593,7 @@ mod tests {
         enums[enumeration].variants.pop();
         let other = enums.alloc(EnumDef {
             origin: EnumOriginId::from_raw(1),
+            link_stem: NominalLinkStem::from_session_local_encoding("Other".to_string()),
             name: "Other".to_string(),
             owner: None,
             type_arguments: Vec::new(),
@@ -607,6 +614,7 @@ mod tests {
         let mut structs = Arena::new();
         let declared = structs.alloc(StructDef {
             origin: StructOriginId::from_raw(0),
+            link_stem: NominalLinkStem::from_session_local_encoding("Record".to_string()),
             name: "Record".to_string(),
             owner: None,
             type_arguments: Vec::new(),

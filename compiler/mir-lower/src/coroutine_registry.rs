@@ -65,13 +65,17 @@ impl CoroutineRegistry {
             gc_free: true,
             fields: Vec::new(),
         });
+        let link_stem =
+            generated_nominal_link_stem(shell, GeneratedNominalLinkRole::CoroutineStep(result));
         let enum_id = enums.defs.alloc(mir::EnumDef {
+            link_stem: link_stem.clone(),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
+            link_stem,
             name,
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
@@ -141,13 +145,17 @@ impl CoroutineRegistry {
             gc_free: value_gc_free,
             fields: value_fields,
         });
+        let link_stem =
+            generated_nominal_link_stem(shell, GeneratedNominalLinkRole::CoroutineSlot(value));
         let enum_id = enums.defs.alloc(mir::EnumDef {
+            link_stem: link_stem.clone(),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
+            link_stem,
             name,
             type_arguments: Vec::new(),
             gc_free: value_gc_free,

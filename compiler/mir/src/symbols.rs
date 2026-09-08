@@ -159,6 +159,26 @@ pub fn encode_params(module: &Module, params: &[Type]) -> Result<String, SourceM
         .map(|parameters| parameters.join("_"))
 }
 
+fn encode_nominal_application(
+    module: &Module,
+    kind: char,
+    stem: &NominalLinkStem,
+    arguments: &[Type],
+) -> Result<String, SourceManglingTypeError> {
+    let stem = stem.as_str();
+    let mut encoded = format!("{kind}{}_{}", stem.len(), stem);
+    if !arguments.is_empty() {
+        let arguments = arguments
+            .iter()
+            .map(|argument| encode_type(module, argument))
+            .collect::<Result<Vec<_>, _>>()?;
+        encoded.push('A');
+        encoded.push_str(&arguments.join("_"));
+    }
+    encoded.push('X');
+    Ok(encoded)
+}
+
 /// Compact-v2 type encoding for source signatures.
 ///
 /// Compiler-owned machine scalars are rejected because they have generated
@@ -175,8 +195,13 @@ pub fn encode_type(module: &Module, ty: &Type) -> Result<String, SourceManglingT
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => {
-            let name = &module.structs[*id].name;
-            format!("D{}_{}X", name.len(), name)
+            let definition = &module.structs[*id];
+            encode_nominal_application(
+                module,
+                'D',
+                &definition.link_stem,
+                &definition.type_arguments,
+            )?
         }
         Type::Class(id) => match &module.classes[*id].representation {
             ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
@@ -187,16 +212,26 @@ pub fn encode_type(module: &Module, ty: &Type) -> Result<String, SourceManglingT
             }) => format!("M{}X", encode_type(module, element)?),
             ClassRepresentation::Declared { .. }
             | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
-                let name = &module.classes[*id].name;
-                format!("C{}_{}X", name.len(), name)
+                let definition = &module.classes[*id];
+                encode_nominal_application(
+                    module,
+                    'C',
+                    &definition.link_stem,
+                    &definition.type_arguments,
+                )?
             }
             ClassRepresentation::Intrinsic(_) => {
                 unreachable!("the intrinsic registry fixes declaration targets")
             }
         },
         Type::Interface(id) => {
-            let name = &module.interfaces[*id].name;
-            format!("J{}_{}X", name.len(), name)
+            let definition = &module.interfaces[*id];
+            encode_nominal_application(
+                module,
+                'J',
+                &definition.link_stem,
+                &definition.type_arguments,
+            )?
         }
         Type::Any => "Any".to_string(),
         Type::Tuple(elements) => {
@@ -235,16 +270,9 @@ pub fn encode_type(module: &Module, ty: &Type) -> Result<String, SourceManglingT
             )
         }
         Type::Enum(id, args) => {
-            let name = &module.enums[*id].name;
-            if args.is_empty() {
-                format!("E{}_{}X", name.len(), name)
-            } else {
-                let inner = args
-                    .iter()
-                    .map(|ty| encode_type(module, ty))
-                    .collect::<Result<Vec<_>, _>>()?;
-                format!("E{}_{}A{}X", name.len(), name, inner.join("_"))
-            }
+            let definition = &module.enums[*id];
+            debug_assert_eq!(&definition.type_arguments, args);
+            encode_nominal_application(module, 'E', &definition.link_stem, args)?
         }
     })
 }
@@ -252,6 +280,59 @@ pub fn encode_type(module: &Module, ty: &Type) -> Result<String, SourceManglingT
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn nominal_link_stem(value: &str) -> NominalLinkStem {
+        NominalLinkStem::from_session_local_encoding(value.to_string())
+    }
+
+    fn class(module: &mut Module, display: &str, stem: &str, arguments: Vec<Type>) -> ClassId {
+        module.classes.alloc(ClassDef {
+            modifier: ClassModifier::Final,
+            link_stem: nominal_link_stem(stem),
+            name: display.to_string(),
+            type_arguments: arguments,
+            representation: ClassRepresentation::Declared {
+                fields: Vec::new(),
+                base_class: None,
+            },
+            interfaces: Vec::new(),
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        })
+    }
+
+    fn structure(module: &mut Module, display: &str, stem: &str) -> StructId {
+        module.structs.alloc(StructDef {
+            link_stem: nominal_link_stem(stem),
+            name: display.to_string(),
+            type_arguments: Vec::new(),
+            gc_free: true,
+            representation: StructRepresentation::Declared {
+                c_layout: None,
+                interior_mutable: false,
+                fields: Vec::new(),
+            },
+        })
+    }
+
+    fn enumeration(module: &mut Module, display: &str, stem: &str) -> EnumId {
+        module.enums.alloc(EnumDef {
+            link_stem: nominal_link_stem(stem),
+            name: display.to_string(),
+            type_arguments: Vec::new(),
+            gc_free: true,
+            variants: Vec::new(),
+        })
+    }
+
+    fn interface(module: &mut Module, display: &str, stem: &str) -> InterfaceId {
+        module.interfaces.alloc(InterfaceDef {
+            link_stem: nominal_link_stem(stem),
+            name: display.to_string(),
+            type_arguments: Vec::new(),
+            methods: Vec::new(),
+        })
+    }
 
     fn module() -> Module {
         let mut functions = Arena::new();
@@ -314,6 +395,66 @@ mod tests {
             Ok("scoop.mix.I8_V64")
         );
         assert!(crate::dump(&module).starts_with("Module mangling=compact-v2\n"));
+    }
+
+    #[test]
+    fn nominal_encodings_use_typed_stems_and_recursive_application_arguments() {
+        let mut module = module();
+        let package_a = class(&mut module, "Same", "$pkg$a$class$Same", Vec::new());
+        let package_b = class(&mut module, "Same", "$pkg$b$class$Same", Vec::new());
+        let a = Type::Class(package_a);
+        let b = Type::Class(package_b);
+        assert_ne!(
+            encode_type(&module, &a).unwrap(),
+            encode_type(&module, &b).unwrap()
+        );
+        assert_ne!(
+            mangle_overload(&module, "pick", std::slice::from_ref(&a)).unwrap(),
+            mangle_overload(&module, "pick", std::slice::from_ref(&b)).unwrap()
+        );
+
+        let generic_a = class(
+            &mut module,
+            "Box$Same",
+            "$pkg$containers$class$Box",
+            vec![a],
+        );
+        let generic_b = class(
+            &mut module,
+            "Box$Same",
+            "$pkg$containers$class$Box",
+            vec![b],
+        );
+        let generic_a = Type::Class(generic_a);
+        let generic_b = Type::Class(generic_b);
+        assert_ne!(
+            encode_type(&module, &generic_a).unwrap(),
+            encode_type(&module, &generic_b).unwrap()
+        );
+        assert_ne!(
+            mangle_instance(&module, "identity", &[generic_a]).unwrap(),
+            mangle_instance(&module, "identity", &[generic_b]).unwrap()
+        );
+
+        let struct_a = structure(&mut module, "Value", "$pkg$a$struct$Value");
+        let struct_b = structure(&mut module, "Value", "$pkg$b$struct$Value");
+        let enum_a = enumeration(&mut module, "Choice", "$pkg$a$enum$Choice");
+        let enum_b = enumeration(&mut module, "Choice", "$pkg$b$enum$Choice");
+        let interface_a = interface(&mut module, "View", "$pkg$a$interface$View");
+        let interface_b = interface(&mut module, "View", "$pkg$b$interface$View");
+        for (left, right) in [
+            (Type::Struct(struct_a), Type::Struct(struct_b)),
+            (
+                Type::Enum(enum_a, Vec::new()),
+                Type::Enum(enum_b, Vec::new()),
+            ),
+            (Type::Interface(interface_a), Type::Interface(interface_b)),
+        ] {
+            assert_ne!(
+                encode_type(&module, &left).unwrap(),
+                encode_type(&module, &right).unwrap()
+            );
+        }
     }
 
     #[test]

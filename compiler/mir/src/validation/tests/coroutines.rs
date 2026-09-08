@@ -11,6 +11,8 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let (mut module, _) = module_with_variants(Vec::new());
     let result = Type::Integer(IntegerKind::SIGNED_32);
     let throwable = module.classes.alloc(ClassDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
         representation: ClassRepresentation::Declared {
@@ -22,6 +24,8 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         itables: Vec::new(),
     });
     let adapter = module.classes.alloc(ClassDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "ContinuationAdapter".to_string(),
         representation: ClassRepresentation::Declared {
@@ -34,6 +38,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let step_enum = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "CoroutineStep<Int>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -81,6 +86,8 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let frame_class = module.classes.alloc(ClassDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "CoroutineFrame$pending".to_string(),
         representation: ClassRepresentation::Declared {
@@ -301,6 +308,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
 
 fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type) {
     let enumeration = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: name.to_string(),
         type_arguments: Vec::new(),
         gc_free: false,

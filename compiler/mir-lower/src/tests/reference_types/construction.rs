@@ -67,7 +67,7 @@ Module mangling=compact-v2
       assign $new.1
         Type Point
         ClassAlloc Point
-      call @scoop.init.Point.$c2 direct
+      call @scoop.init.C5_PointX.$c2 direct
         Type Point
         Local $new.1
         Type Int
@@ -76,7 +76,7 @@ Module mangling=compact-v2
         Type Point
         Local $new.1
       return
-  fun init.Root.$c0 @scoop.init.Root.$c0(this: Root, label: String) -> Unit
+  fun init.Root.$c0 @scoop.init.C4_RootX.$c0(this: Root, label: String) -> Unit
     bb0 entry
       field_set 0
         Type Root
@@ -84,9 +84,9 @@ Module mangling=compact-v2
         Type String
         Local label
       return
-  fun init.Base.$c1 @scoop.init.Base.$c1(this: Base, name: String) -> Unit
+  fun init.Base.$c1 @scoop.init.C4_BaseX.$c1(this: Base, name: String) -> Unit
     bb0 entry
-      call @scoop.init.Root.$c0 direct
+      call @scoop.init.C4_RootX.$c0 direct
         Type Root
         Retype Root
           Type Base
@@ -99,9 +99,9 @@ Module mangling=compact-v2
         Type String
         Local name
       return
-  fun init.Point.$c2 @scoop.init.Point.$c2(this: Point, x: Int) -> Unit
+  fun init.Point.$c2 @scoop.init.C5_PointX.$c2(this: Point, x: Int) -> Unit
     bb0 entry
-      call @scoop.init.Base.$c1 direct
+      call @scoop.init.C4_BaseX.$c1 direct
         Type Base
         Retype Base
           Type Point
@@ -132,7 +132,7 @@ fn abstract_classes_keep_an_initializer_for_derived_delegation() {
         module
             .functions
             .iter()
-            .any(|(_, f)| f.symbol == "scoop.init.Base.$c0")
+            .any(|(_, f)| f.symbol == "scoop.init.C4_BaseX.$c0")
     );
 }
 

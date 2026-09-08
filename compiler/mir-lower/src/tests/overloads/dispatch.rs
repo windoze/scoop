@@ -268,11 +268,11 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
     assert_eq!(record.slots.len(), 2);
     assert_eq!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.Multi.m.I32"
+        "scoop.thunk.D1_SX.J5_MultiX.m.I32"
     );
     assert_eq!(
         slot_fn(&module, &record.slots[1]),
-        "scoop.thunk.D1_SX.Multi.m.S"
+        "scoop.thunk.D1_SX.J5_MultiX.m.S"
     );
     // Each thunk tail-calls its own overload.
     let thunk_target = |slot: &mir::TableSlot| {

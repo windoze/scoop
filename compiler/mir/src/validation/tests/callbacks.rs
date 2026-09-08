@@ -16,6 +16,8 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         return_type: Type::Unit,
     });
     let callback = module.structs.alloc(StructDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         name: "ForeignCallback<() -> Unit>".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
@@ -34,6 +36,8 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         },
     });
     let throwable = module.classes.alloc(ClassDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
         representation: ClassRepresentation::Declared {
@@ -45,12 +49,14 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         itables: Vec::new(),
     });
     let mode = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: [unit_variant("Reusable"), unit_variant("OneShot")].into(),
     });
     let state = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "ForeignCallbackState".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -63,6 +69,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         .into(),
     });
     let failure = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Option<Throwable>".to_string(),
         type_arguments: vec![Type::Class(throwable)],
         gc_free: false,
@@ -217,6 +224,8 @@ fn callback_bridge_rejects_a_stale_managed_signature_before_lowering() {
 fn callback_failure_constructor_rejects_another_managed_payload_type() {
     let (mut module, family, _) = callback_module();
     let other = module.classes.alloc(ClassDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "Other".to_string(),
         representation: ClassRepresentation::Declared {

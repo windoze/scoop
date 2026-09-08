@@ -141,7 +141,15 @@ impl Lowerer {
             ),
             None => self.nominal_access(decl.visibility, decl.name.span, "struct", file_index),
         };
+        let link_stem = self.local_nominal_link_stem(
+            file_index,
+            owner,
+            &decl.name.text,
+            access.declared == hir::DeclaredVisibility::Private,
+            crate::globals::LocalNominalLinkRole::Struct,
+        );
         let id = self.structs.alloc(StructDecl {
+            link_stem,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
@@ -253,7 +261,15 @@ impl Lowerer {
             ),
             None => self.nominal_access(decl.visibility, decl.name.span, "enum", file_index),
         };
+        let link_stem = self.local_nominal_link_stem(
+            file_index,
+            owner,
+            &decl.name.text,
+            access.declared == hir::DeclaredVisibility::Private,
+            crate::globals::LocalNominalLinkRole::Enum,
+        );
         let id = self.enums.alloc(EnumDecl {
+            link_stem,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
@@ -407,8 +423,16 @@ impl Lowerer {
             ),
             None => self.nominal_access(decl.visibility, decl.name.span, "class", file_index),
         };
+        let link_stem = self.local_nominal_link_stem(
+            file_index,
+            owner,
+            &decl.name.text,
+            access.declared == hir::DeclaredVisibility::Private,
+            crate::globals::LocalNominalLinkRole::Class,
+        );
         let id = self.classes.alloc(ClassDecl {
             modifier,
+            link_stem,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
@@ -536,7 +560,15 @@ impl Lowerer {
             ),
             None => self.nominal_access(decl.visibility, decl.name.span, "interface", file_index),
         };
+        let link_stem = self.local_nominal_link_stem(
+            file_index,
+            owner,
+            &decl.name.text,
+            access.declared == hir::DeclaredVisibility::Private,
+            crate::globals::LocalNominalLinkRole::Interface,
+        );
         let id = self.interfaces.alloc(InterfaceDecl {
+            link_stem,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,

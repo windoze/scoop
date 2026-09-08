@@ -50,8 +50,10 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     let mut h = Harness::new();
     let int = h.int;
     let iface = h.interface("Describable", &["describe"]);
+    h.interfaces[iface].link_stem = nominal_link_stem("$pkg$api$interface$Describable");
     let iface_ty = h.interface_ty(iface);
     let s = h.strukt_with("S", &[("x", int)], &[iface]);
+    h.structs[s].link_stem = nominal_link_stem("$pkg$model$struct$S");
     let s_ty = h.struct_ty(s);
     let _describe = empty_method(&mut h, "S", "describe", s_ty);
     // `val d: Describable = S(1)` — a Box whose target is the
@@ -73,14 +75,27 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     );
     let module = lower(&h.finish(main));
 
-    let boxed = boxed_class(&module, "box$D1_SX");
+    let boxed_meta = module
+        .meta
+        .boxed_types
+        .iter()
+        .find(|boxed| matches!(boxed.payload, mir::Type::Struct(_)))
+        .expect("the source struct is boxed");
+    let boxed = &module.classes[boxed_meta.class];
     assert_eq!(boxed.interfaces.len(), 1);
     assert_eq!(boxed.itables.len(), 1);
     let record = &boxed.itables[0];
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
     let thunk_symbol = slot_fn(&module, &record.slots[0]);
-    assert_eq!(thunk_symbol, "scoop.thunk.D1_SX.Describable.describe");
+    let payload = mir::encode_type(&module, &boxed_meta.payload).unwrap();
+    let interface = mir::encode_type(&module, &mir::Type::Interface(record.interface)).unwrap();
+    assert_eq!(
+        thunk_symbol,
+        format!("scoop.thunk.{payload}.{interface}.describe")
+    );
+    assert!(boxed.link_stem.as_str().contains(&payload));
+    assert!(!thunk_symbol.contains(".Describable."));
 
     // The thunk takes the boxed object as `this`, unboxes it and
     // tail-calls the value method.

@@ -73,6 +73,8 @@ fn struct_global_validation_rejects_an_unknown_struct_reference() {
 fn struct_global_validation_rejects_an_inexact_field_arity() {
     let (mut module, _) = module_with_variants(Vec::new());
     let structure = module.structs.alloc(StructDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         name: "Pair".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
@@ -152,6 +154,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
     ));
 
     let other = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -174,6 +177,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Foreign".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -206,6 +210,8 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def("Empty", Vec::new())]);
     let empty = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let inner = module.structs.alloc(StructDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         name: "Inner".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
@@ -218,6 +224,8 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         },
     });
     let outer = module.structs.alloc(StructDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         name: "Outer".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {

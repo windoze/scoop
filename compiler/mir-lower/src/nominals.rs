@@ -66,12 +66,69 @@ impl Lowerer {
                 }
             };
             let mir_id = self.structs.defs.alloc(mir::StructDef {
+                link_stem: lower_nominal_link_stem(&decl.link_stem),
                 name: decl.name.clone(),
+                type_arguments: Vec::new(),
                 gc_free: decl.gc_free,
                 representation,
             });
             assert_eq!(mir_id, self.struct_map[&hir_id]);
             self.structs.hir_ids.insert(mir_id, hir_id);
+        }
+    }
+
+    /// Fill the exact arguments of eagerly reserved struct/class
+    /// applications after the initial mangling shell contains every nominal
+    /// base stem. Type encodings can then recurse through applications without
+    /// consulting display names.
+    pub(super) fn fill_nominal_type_arguments(&mut self, module: &hir::Module) {
+        for (hir_id, declaration) in module.structs.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = declaration
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mir_id = self.struct_map[&hir_id];
+            self.structs.defs[mir_id]
+                .type_arguments
+                .clone_from(&arguments);
+            self.shell.structs[mir_id].type_arguments = arguments;
+        }
+        for (hir_id, declaration) in module.classes.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = declaration
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mir_id = self.class_map[&hir_id];
+            self.classes[mir_id].type_arguments.clone_from(&arguments);
+            self.shell.classes[mir_id].type_arguments = arguments;
         }
     }
 
@@ -194,7 +251,9 @@ impl Lowerer {
             };
             let mir_id = self.classes.alloc(mir::ClassDef {
                 modifier,
+                link_stem: lower_nominal_link_stem(&decl.link_stem),
                 name: decl.name.clone(),
+                type_arguments: Vec::new(),
                 representation,
                 interfaces: Vec::new(),
                 vtable: Vec::new(),

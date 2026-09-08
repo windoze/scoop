@@ -266,6 +266,21 @@ impl Lowerer {
             ),
             None => self.nominal_access(source.visibility(), name_span, source.description(), file),
         };
+        let private = access.declared == hir::DeclaredVisibility::Private;
+        let object_link_stem = self.local_nominal_link_stem(
+            file,
+            owner,
+            name,
+            private,
+            crate::globals::LocalNominalLinkRole::Object,
+        );
+        let backing_link_stem = self.local_nominal_link_stem(
+            file,
+            owner,
+            name,
+            private,
+            crate::globals::LocalNominalLinkRole::ObjectBackingClass,
+        );
         let object_id = ObjectId::from_raw((self.objects.len() as u32).into());
         let object_type_id = hir::ObjectTypeId::from_raw((self.object_types.len() as u32).into());
         let companion_relation_id = source.companion_name().map(|_| {
@@ -283,6 +298,7 @@ impl Lowerer {
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let backing_class = self.classes.alloc(ClassDecl {
             modifier: hir::ClassModifier::Final,
+            link_stem: backing_link_stem,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
@@ -303,6 +319,7 @@ impl Lowerer {
         assert_eq!(self.types[canonical_type], Type::Class(self_application));
 
         let object = self.objects.alloc(hir::ObjectDecl {
+            link_stem: object_link_stem,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),

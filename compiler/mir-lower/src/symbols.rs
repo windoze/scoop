@@ -52,8 +52,8 @@ pub(super) fn overloaded_link_stems(module: &hir::Module) -> HashSet<hir::Callab
 }
 
 /// `mir::mangle_instance` / `mir::encode_type` take `&mir::Module`
-/// but only ever read struct / enum / class / interface names; this
-/// shell provides exactly those. Its arenas share the real arenas'
+/// but only read nominal link stems, exact arguments and intrinsic
+/// representations; this shell provides exactly those. Its arenas share the real arenas'
 /// allocation order, so ids align.
 pub(super) fn mangling_shell(
     structs: &Arena<mir::StructDef>,
@@ -78,7 +78,9 @@ pub(super) fn mangling_shell(
             }
         };
         shell_structs.alloc(mir::StructDef {
+            link_stem: def.link_stem.clone(),
             name: def.name.clone(),
+            type_arguments: def.type_arguments.clone(),
             gc_free: def.gc_free,
             representation,
         });
@@ -86,6 +88,7 @@ pub(super) fn mangling_shell(
     let mut shell_enums = Arena::new();
     for (_, def) in enums.iter() {
         shell_enums.alloc(mir::EnumDef {
+            link_stem: def.link_stem.clone(),
             name: def.name.clone(),
             type_arguments: def.type_arguments.clone(),
             gc_free: def.gc_free,
@@ -105,7 +108,9 @@ pub(super) fn mangling_shell(
         };
         shell_classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
+            link_stem: def.link_stem.clone(),
             name: def.name.clone(),
+            type_arguments: def.type_arguments.clone(),
             representation,
             interfaces: Vec::new(),
             vtable: Vec::new(),
@@ -115,7 +120,9 @@ pub(super) fn mangling_shell(
     let mut shell_interfaces = Arena::new();
     for (_, def) in interfaces.iter() {
         shell_interfaces.alloc(mir::InterfaceDef {
+            link_stem: def.link_stem.clone(),
             name: def.name.clone(),
+            type_arguments: def.type_arguments.clone(),
             methods: Vec::new(),
         });
     }

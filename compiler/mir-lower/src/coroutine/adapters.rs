@@ -58,7 +58,17 @@ pub(super) fn generate_adapter(
             ty: failure.slot_ty.clone(),
         });
     }
-    let class = generated_class(lowerer, name, fields, vec![continuation], Vec::new());
+    let class = generated_class(
+        lowerer,
+        GeneratedNominalLinkRole::CoroutineAdapter {
+            source_symbol,
+            state,
+        },
+        name,
+        fields,
+        vec![continuation],
+        Vec::new(),
+    );
     let resume = generate_resume_method(
         lowerer,
         module,

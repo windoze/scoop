@@ -103,7 +103,7 @@ Module mangling=compact-v2
       assign $new.1
         Type MyError
         ClassAlloc MyError
-      call @scoop.init.MyError.$c0 direct
+      call @scoop.init.C7_MyErrorX.$c0 direct
         Type MyError
         Local $new.1
       throw unwind bb1
@@ -129,7 +129,7 @@ Module mangling=compact-v2
       Type Int
       IntegerLiteral Int value=2 bits=0x00000002
       goto bb7
-  fun init.MyError.$c0 @scoop.init.MyError.$c0(this: MyError) -> Unit
+  fun init.MyError.$c0 @scoop.init.C7_MyErrorX.$c0(this: MyError) -> Unit
     bb0 entry
       return
   entry @scoop_main

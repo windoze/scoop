@@ -29,6 +29,7 @@ fn add_interface(
     );
     let application = lowerer.interface_application_id(interface, Vec::new());
     let allocated = lowerer.interfaces.alloc(hir::InterfaceDecl {
+        link_stem: hir::NominalLinkStem::from_session_local_encoding("I".to_string()),
         owner: None,
         name: name.to_string(),
         access: hir::NominalAccess::public(),
@@ -69,6 +70,7 @@ fn add_generic_struct(
     );
     let parameter_ty = lowerer.intern_type(Type::Param(parameter.id));
     let allocated = lowerer.structs.alloc(hir::StructDecl {
+        link_stem: hir::NominalLinkStem::from_session_local_encoding("S".to_string()),
         owner: None,
         name: name.to_string(),
         access: hir::NominalAccess::public(),

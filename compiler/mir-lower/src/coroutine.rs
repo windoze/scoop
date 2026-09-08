@@ -7,7 +7,7 @@ use scoop_ast::Span;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
-use super::Lowerer;
+use super::{GeneratedNominalLinkRole, Lowerer, generated_nominal_link_stem};
 
 mod adapters;
 mod construction;
@@ -179,7 +179,16 @@ fn transform_function(
         ty: failure_slot_ty,
     });
     let frame_name = format!("CoroutineFrame${}", encode_symbol_component(&source_symbol));
-    let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
+    let frame_class = generated_class(
+        lowerer,
+        GeneratedNominalLinkRole::CoroutineFrame {
+            source_symbol: &source_symbol,
+        },
+        frame_name,
+        frame_fields,
+        Vec::new(),
+        Vec::new(),
+    );
     let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
         .expect("the generated coroutine frame has a state field");
     let completion_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 1)

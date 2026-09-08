@@ -206,6 +206,8 @@ impl Lowerer {
         let encoding = mir::encode_params(&self.shell, &target_params)
             .expect("interface method parameters are source-level MIR types");
         let iface_name = self.interfaces.defs[iface].name.clone();
+        let iface_identity = mir::encode_type(&self.shell, &mir::Type::Interface(iface))
+            .expect("boxed interface targets have source type encodings");
         // An interface overloading the method name needs the parameter
         // encoding to keep the thunk symbols distinct.
         let overloaded = module.interfaces[hir_iface]
@@ -218,6 +220,14 @@ impl Lowerer {
             format!("thunk.{encoded}.{iface_name}.{}.{encoding}", signature.name)
         } else {
             format!("thunk.{encoded}.{iface_name}.{}", signature.name)
+        };
+        let symbol = if overloaded {
+            format!(
+                "scoop.thunk.{encoded}.{iface_identity}.{}.{encoding}",
+                signature.name
+            )
+        } else {
+            format!("scoop.thunk.{encoded}.{iface_identity}.{}", signature.name)
         };
         let body = cfg::lower(
             smir::Body {
@@ -233,7 +243,7 @@ impl Lowerer {
         );
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
+            symbol,
             name,
             params,
             return_ty: return_ty.clone(),

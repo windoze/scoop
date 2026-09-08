@@ -81,6 +81,10 @@ fn callable_link_stem(name: impl Into<String>) -> hir::CallableLinkStem {
     hir::CallableLinkStem::from_session_local_encoding(name.into())
 }
 
+fn nominal_link_stem(name: impl Into<String>) -> hir::NominalLinkStem {
+    hir::NominalLinkStem::from_session_local_encoding(name.into())
+}
+
 fn expression_origin() -> hir::ExpressionOrigin {
     hir::ExpressionOrigin::Definition(definition_origin())
 }

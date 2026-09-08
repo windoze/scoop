@@ -146,6 +146,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
 fn enum_unit_constant_maps_between_checked_stage_local_refs() {
     let mut mir_enums = Arena::new();
     let mir_enum = mir_enums.alloc(mir::EnumDef {
+        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         name: "Flag".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

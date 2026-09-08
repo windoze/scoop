@@ -64,6 +64,10 @@ impl Lowerer {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
+            link_stem: generated_nominal_link_stem(
+                &self.shell,
+                GeneratedNominalLinkRole::FunctionAdapterClosure { source, target },
+            ),
             name: format!("$Closure$adapter${source_name}${target_name}"),
             function_type: target,
             invoke,

@@ -305,7 +305,7 @@ Module mangling=compact-v2
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c0 direct
+      call @scoop.init.C15_UnwrapExceptionX.$c0 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -316,7 +316,7 @@ Module mangling=compact-v2
         Type Int
         Local $uw.2
       return
-  fun init.UnwrapException.$c0 @scoop.init.UnwrapException.$c0(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c0 @scoop.init.C15_UnwrapExceptionX.$c0(this: UnwrapException) -> Unit
     bb0 entry
       return
   entry @scoop_main

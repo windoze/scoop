@@ -4,6 +4,10 @@ mod support;
 
 use support::*;
 
+fn nominal_link_stem(name: impl Into<String>) -> mir::NominalLinkStem {
+    mir::NominalLinkStem::from_session_local_encoding(name.into())
+}
+
 fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
 }
@@ -17,6 +21,86 @@ fn selected_target_profile_is_embedded_in_lir_meta() {
     assert_eq!(
         module.meta.target_profile,
         lir::LirTargetProfile::DARWIN_AARCH64
+    );
+}
+
+#[test]
+fn nominal_descriptor_symbols_use_typed_application_identity() {
+    let mut builder = Builder::new();
+    let class_a = builder.class("Same", None, &[], Vec::new(), Vec::new());
+    let class_b = builder.class("Same", None, &[], Vec::new(), Vec::new());
+    builder.classes[class_a].link_stem = nominal_link_stem("$pkg$a$class$Same");
+    builder.classes[class_b].link_stem = nominal_link_stem("$pkg$b$class$Same");
+    let interface_a = builder.interface("View", &[]);
+    let interface_b = builder.interface("View", &[]);
+    builder.interfaces[interface_a].link_stem = nominal_link_stem("$pkg$a$interface$View");
+    builder.interfaces[interface_b].link_stem = nominal_link_stem("$pkg$b$interface$View");
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    let function_type = source.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: mir::Type::Unit,
+    });
+    let invoke_function = source.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
+        name: "$closure.invoke".to_string(),
+        symbol: "scoop.$closure.invoke".to_string(),
+        params: Vec::new(),
+        return_ty: mir::Type::Unit,
+        body: mir::Body::unreachable(Arena::new()),
+    });
+    let invoke = source
+        .closure_invoke_functions
+        .alloc(mir::ClosureInvokeFunction {
+            function: invoke_function,
+        });
+    let closure_a = nominal_link_stem("$generated$lambda$pkg-a");
+    let closure_b = nominal_link_stem("$generated$lambda$pkg-b");
+    for link_stem in [closure_a.clone(), closure_b.clone()] {
+        source.closure_classes.alloc(mir::ClosureClass {
+            link_stem,
+            name: "SameClosure".to_string(),
+            function_type,
+            invoke,
+            captures: Vec::new(),
+            bridges: Vec::new(),
+        });
+    }
+    let expected = [
+        mir::encode_type(&source, &mir::Type::Class(class_a)).unwrap(),
+        mir::encode_type(&source, &mir::Type::Class(class_b)).unwrap(),
+        mir::encode_type(&source, &mir::Type::Interface(interface_a)).unwrap(),
+        mir::encode_type(&source, &mir::Type::Interface(interface_b)).unwrap(),
+        closure_a.as_str().to_string(),
+        closure_b.as_str().to_string(),
+    ]
+    .map(|identity| format!("scoop_td_{identity}"));
+    let module = lower(&source);
+
+    let symbols = module
+        .meta
+        .type_descriptors
+        .iter()
+        .filter(|(_, descriptor)| {
+            matches!(descriptor.name.as_str(), "Same" | "View" | "SameClosure")
+        })
+        .map(|(_, descriptor)| descriptor.symbol.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(symbols.len(), 6);
+    for expected in expected {
+        assert!(symbols.contains(&expected.as_str()), "missing {expected}");
+    }
+    assert_eq!(
+        module
+            .meta
+            .type_descriptors
+            .iter()
+            .find(|(_, descriptor)| descriptor.name == "String")
+            .expect("intrinsic String descriptor")
+            .1
+            .symbol,
+        lir::STRING_TD_SYMBOL
     );
 }
 
@@ -265,6 +349,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     let mut builder = Builder::new();
     let payload = mir::Type::Ptr(Box::new(INT));
     let lookalike = builder.enums.alloc(mir::EnumDef {
+        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         name: "LooksLikeOption".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -303,6 +388,8 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
 fn foreign_callback_bridge_preserves_its_nominal_family() {
     let mut builder = Builder::new();
     let callback = builder.structs.alloc(mir::StructDef {
+        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
+        type_arguments: Vec::new(),
         name: "ForeignCallback<(Int) -> Unit>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Declared {
@@ -326,12 +413,14 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         fields: Vec::new(),
     };
     let mode = builder.enums.alloc(mir::EnumDef {
+        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: ["Reusable", "OneShot"].map(unit_variant).into(),
     });
     let state = builder.enums.alloc(mir::EnumDef {
+        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         name: "ForeignCallbackState".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

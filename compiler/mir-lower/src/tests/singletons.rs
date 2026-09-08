@@ -30,6 +30,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     );
     assert_eq!(
         source.objects.alloc(hir::ObjectDecl {
+            link_stem: nominal_link_stem("Registry.object"),
             name: "Registry".to_string(),
             owner: None,
             access: hir::NominalAccess::public(),

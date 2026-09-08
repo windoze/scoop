@@ -14,6 +14,7 @@ impl Harness {
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
             owner: None,
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,

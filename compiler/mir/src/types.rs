@@ -203,6 +203,8 @@ pub struct FunctionType {
 
 #[derive(Debug)]
 pub struct ClosureClass {
+    /// Compiler-generated native-emission identity, separate from `name`.
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub function_type: FunctionTypeId,
     pub invoke: ClosureInvokeFunctionId,
@@ -242,9 +244,29 @@ pub struct DynamicClosureAdapter {
     pub target: FunctionTypeId,
 }
 
+/// Opaque request-local identity of one nominal declaration or one
+/// compiler-generated nominal role. It is an emission input, not a
+/// source-facing name and not the persistent identity frozen by M23-2.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NominalLinkStem(String);
+
+impl NominalLinkStem {
+    pub fn from_session_local_encoding(encoding: String) -> Self {
+        assert!(!encoding.is_empty(), "a nominal link stem cannot be empty");
+        Self(encoding)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug)]
 pub struct StructDef {
+    pub link_stem: NominalLinkStem,
     pub name: String,
+    /// Canonical arguments of this fully specialized application.
+    pub type_arguments: Vec<Type>,
     /// Fixed after all type parameters have been resolved and this MIR
     /// type entity has a complete concrete field list.
     pub gc_free: bool,
@@ -331,6 +353,7 @@ pub struct Field {
 /// types. `name` is the mangled instance name (e.g. `Option$I`).
 #[derive(Debug)]
 pub struct EnumDef {
+    pub link_stem: NominalLinkStem,
     pub name: String,
     /// Canonical concrete arguments of this monomorphized enum instance.
     /// Together with the arena id these recover its exact MIR `Type`.
@@ -531,7 +554,10 @@ pub enum ClassModifier {
 #[derive(Debug)]
 pub struct ClassDef {
     pub modifier: ClassModifier,
+    pub link_stem: NominalLinkStem,
     pub name: String,
+    /// Canonical arguments of this fully specialized application.
+    pub type_arguments: Vec<Type>,
     pub representation: ClassRepresentation,
     pub interfaces: Vec<InterfaceId>,
     /// Ordinary virtual methods in vtable order (overrides share the base
@@ -643,7 +669,10 @@ pub struct ItableRecord {
 
 #[derive(Debug)]
 pub struct InterfaceDef {
+    pub link_stem: NominalLinkStem,
     pub name: String,
+    /// Canonical arguments of this fully specialized application.
+    pub type_arguments: Vec<Type>,
     /// Signature-only method declarations in itable-slot order.
     pub methods: Vec<FunctionId>,
 }

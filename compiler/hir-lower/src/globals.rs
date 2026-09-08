@@ -18,7 +18,7 @@ mod static_initializers;
 
 pub(crate) use link_identity::{
     LocalCallableLinkRole, LocalCallableReceiver, LocalCallableScope, LocalLinkRole,
-    TopLevelCallableScope,
+    LocalNominalLinkRole, TopLevelCallableScope,
 };
 
 pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};

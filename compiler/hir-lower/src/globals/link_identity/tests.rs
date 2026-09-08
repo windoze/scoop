@@ -47,6 +47,21 @@ fn object(name: &str, private: bool) -> ast::ObjectDecl {
     }
 }
 
+fn class(name: &str, private: bool) -> ast::Decl {
+    let ast::Decl::Class(mut declaration) = class_decl(
+        ast::ClassModifier::Final,
+        name,
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+    ) else {
+        unreachable!("the class builder returns a class declaration")
+    };
+    declaration.visibility = visibility(private);
+    ast::Decl::Class(declaration)
+}
+
 fn property(name: &str, private: bool, runtime: bool) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
         annotations: Vec::new(),
@@ -152,6 +167,27 @@ fn callable_stems(output: &hir::Output, name: &str) -> Vec<String> {
     export.sort();
     local.sort();
     assert_eq!(export, local, "concretization preserves callable stems");
+    export
+}
+
+fn class_stems(output: &hir::Output, name: &str) -> Vec<String> {
+    let mut export = output
+        .export
+        .classes
+        .iter()
+        .filter(|(_, declaration)| declaration.name == name)
+        .map(|(_, declaration)| declaration.link_stem.as_str().to_string())
+        .collect::<Vec<_>>();
+    let mut local = output
+        .local
+        .classes
+        .iter()
+        .filter(|(_, definition)| definition.name == name)
+        .map(|(_, definition)| definition.link_stem.as_str().to_string())
+        .collect::<Vec<_>>();
+    export.sort();
+    local.sort();
+    assert_eq!(export, local, "concretization preserves nominal stems");
     export
 }
 
@@ -373,6 +409,95 @@ fn callable_stems_separate_packages_and_file_private_sources() {
         let stems = callable_stems(&output, name);
         assert_eq!(stems.len(), 2);
         assert_ne!(stems[0], stems[1]);
+    }
+}
+
+#[test]
+fn nominal_stems_separate_packages_and_file_private_sources() {
+    let sources = vec![
+        (1, package(file(vec![class("Same", false)]), &["a"])),
+        (2, package(file(vec![class("Same", false)]), &["b"])),
+        (17, package(file(vec![class("Secret", true)]), &["same"])),
+        (23, package(file(vec![class("Secret", true)]), &["same"])),
+        (91, file(vec![fun("main", Vec::new())])),
+    ];
+    let output = lower(&sources, "duplicate.scoop", 1);
+    for name in ["Same", "Secret"] {
+        let stems = class_stems(&output, name);
+        assert_eq!(stems.len(), 2);
+        assert_ne!(stems[0], stems[1]);
+    }
+}
+
+#[test]
+fn object_and_backing_class_have_distinct_final_nominal_stems() {
+    let sources = vec![(
+        1,
+        file(vec![
+            ast::Decl::Object(object("Registry", false)),
+            fun("main", Vec::new()),
+        ]),
+    )];
+    let output = lower(&sources, "objects.scoop", 1);
+    let (_, object) = output
+        .export
+        .objects
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Registry")
+        .expect("Registry object");
+    let backing = &output.export.classes[object.backing_class];
+    assert_ne!(object.link_stem, backing.link_stem);
+
+    let (_, concrete_object) = output
+        .local
+        .objects
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Registry")
+        .expect("concrete Registry object");
+    assert_eq!(concrete_object.link_stem, object.link_stem);
+    assert_eq!(
+        output.local.classes[concrete_object.backing_class].link_stem,
+        backing.link_stem
+    );
+}
+
+#[test]
+fn nested_nominal_stems_inherit_a_private_owners_source_identity() {
+    let host = || {
+        let ast::Decl::Class(mut host) = class("Host", true) else {
+            unreachable!("the class helper returns a class")
+        };
+        let ast::Decl::Class(inner) = class("Inner", false) else {
+            unreachable!("the class helper returns a class")
+        };
+        host.members.push(ast::ClassMember::Nested(Box::new(
+            ast::NestedNominalDecl::Class(Box::new(inner)),
+        )));
+        ast::Decl::Class(host)
+    };
+    let sources = vec![
+        (10, package(file(vec![host()]), &["same"])),
+        (20, package(file(vec![host()]), &["same"])),
+        (30, file(vec![fun("main", Vec::new())])),
+    ];
+    let output = lower(&sources, "same.scoop", 1);
+    let nested = output
+        .export
+        .classes
+        .iter()
+        .filter(|(_, declaration)| declaration.name == "Inner")
+        .collect::<Vec<_>>();
+    assert_eq!(nested.len(), 2);
+    assert_ne!(nested[0].1.link_stem, nested[1].1.link_stem);
+    for (source_id, declaration) in nested {
+        let concrete = output
+            .local
+            .classes
+            .iter()
+            .find(|(_, definition)| definition.origin.into_raw() == source_id.into_raw().into_u32())
+            .expect("each nested declaration is concretized")
+            .1;
+        assert_eq!(concrete.link_stem, declaration.link_stem);
     }
 }
 

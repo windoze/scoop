@@ -93,7 +93,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.ClassCastException.$c0 direct
+      call @scoop.init.C18_ClassCastExceptionX.$c0 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -135,10 +135,10 @@ Module mangling=compact-v2
         Type Option$D1_SX<S>
         Local $cast.4
       return
-  fun init.ClassCastException.$c0 @scoop.init.ClassCastException.$c0(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c0 @scoop.init.C18_ClassCastExceptionX.$c0(this: ClassCastException) -> Unit
     bb0 entry
       return
-  fun ctor.S.$c0 @scoop.ctor.S.$c0(x: Int) -> S <no-gc>
+  fun ctor.S.$c0 @scoop.ctor.D1_SX.$c0(x: Int) -> S <no-gc>
     bb0 entry
       return
         Type S

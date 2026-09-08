@@ -36,7 +36,7 @@ fn boxed_interfaces_come_from_the_declaration() {
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.Describable.describe"
+        "scoop.thunk.D1_SX.J11_DescribableX.describe"
     );
 }
 

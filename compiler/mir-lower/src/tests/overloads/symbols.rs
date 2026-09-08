@@ -107,6 +107,57 @@ fn extension_receiver_parameters_disambiguate_a_shared_extension_stem() {
 }
 
 #[test]
+fn constructor_symbols_use_nominal_stems_instead_of_display_names() {
+    let mut h = Harness::new();
+    let class_a = h.class("Same", hir::ClassModifier::Final, &[], None, &[]);
+    let class_b = h.class("Same", hir::ClassModifier::Final, &[], None, &[]);
+    h.classes[class_a].link_stem = nominal_link_stem("$pkg$a$class$Same");
+    h.classes[class_b].link_stem = nominal_link_stem("$pkg$b$class$Same");
+    let struct_a = h.strukt("Value", &[]);
+    let struct_b = h.strukt("Value", &[]);
+    h.structs[struct_a].link_stem = nominal_link_stem("$pkg$a$struct$Value");
+    h.structs[struct_b].link_stem = nominal_link_stem("$pkg$b$struct$Value");
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+
+    let class_symbols = module
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name.starts_with("init.Same.$c"))
+        .map(|(_, function)| function.symbol.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(class_symbols.len(), 2);
+    for (id, definition) in module.classes.iter().take(2) {
+        let owner = mir::encode_type(&module, &mir::Type::Class(id)).unwrap();
+        assert!(
+            class_symbols
+                .iter()
+                .any(|symbol| symbol.starts_with(&format!("scoop.init.{owner}.$c"))),
+            "missing constructor symbol for {}",
+            definition.link_stem.as_str()
+        );
+    }
+
+    let struct_symbols = module
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name.starts_with("ctor.Value.$c"))
+        .map(|(_, function)| function.symbol.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(struct_symbols.len(), 2);
+    for (id, definition) in module.structs.iter().take(2) {
+        let owner = mir::encode_type(&module, &mir::Type::Struct(id)).unwrap();
+        assert!(
+            struct_symbols
+                .iter()
+                .any(|symbol| symbol.starts_with(&format!("scoop.ctor.{owner}.$c"))),
+            "missing constructor symbol for {}",
+            definition.link_stem.as_str()
+        );
+    }
+}
+
+#[test]
 fn overloads_mangle_with_param_encoding() {
     let mut h = Harness::new();
     let (int, string) = (h.int, h.string);

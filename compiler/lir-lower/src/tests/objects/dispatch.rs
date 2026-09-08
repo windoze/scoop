@@ -56,7 +56,7 @@ Module
     call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
-  td td0 C @scoop_td_C type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
+  td td0 C @scoop_td_C1_CX type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -123,7 +123,7 @@ Module
     call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
-  td td0 Describable @scoop_td_Describable type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td0 Describable @scoop_td_J11_DescribableX type-id=2 size=0 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -189,7 +189,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let mut derived_vtable = empty_vtable();
     derived_vtable.push(mir::TableSlot::Function(derived_m));
     derived_vtable.push(mir::TableSlot::Function(derived_m2));
-    let _derived = b.class(
+    let derived = b.class(
         "Derived",
         Some(base),
         // mir-lower flattens the base prefix into the field list.
@@ -201,7 +201,20 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         }],
     );
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let source = b.finish(main);
+    let interface_symbol = format!(
+        "scoop_td_{}",
+        mir::encode_type(&source, &mir::Type::Interface(iface)).unwrap()
+    );
+    let base_symbol = format!(
+        "scoop_td_{}",
+        mir::encode_type(&source, &mir::Type::Class(base)).unwrap()
+    );
+    let derived_symbol = format!(
+        "scoop_td_{}",
+        mir::encode_type(&source, &mir::Type::Class(derived)).unwrap()
+    );
+    let module = lower(&source);
 
     // Interfaces first (itable keys), then classes
     // base-before-derived — references always name
@@ -221,12 +234,12 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let (base_ref, base_td) = descriptor_by_name("Base");
     let (_, derived_td) = descriptor_by_name("Derived");
     let (_, string_td) = descriptor_by_name("String");
-    assert_eq!(i_td.symbol, "scoop_td_I");
+    assert_eq!(i_td.symbol, interface_symbol);
     assert_eq!((i_td.size, i_td.align), (0, 0));
     assert!(i_td.parent.is_none());
 
     assert_eq!(base_td.name, "Base");
-    assert_eq!(base_td.symbol, "scoop_td_Base");
+    assert_eq!(base_td.symbol, base_symbol);
     // 16-byte header + Int @16 → size 24.
     assert_eq!((base_td.size, base_td.align), (24, 8));
     assert_eq!(*fixed_scan(base_td), lir::RefScan::None);
@@ -241,7 +254,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     assert_eq!(base_td.itables[0].interface, i_ref);
     assert_eq!(base_td.itables[0].slots, base_td.vtable);
 
-    assert_eq!(derived_td.symbol, "scoop_td_Derived");
+    assert_eq!(derived_td.symbol, derived_symbol);
     assert_eq!(derived_td.parent, Some(base_ref));
     // header 16 + Int @16 + String @24 → size 32; the String is
     // the one reference.

@@ -14,10 +14,11 @@ pub(crate) fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
     order
 }
 
-/// The global symbol of a type's TypeDescriptor (`scoop_td_<name>`,
-/// runtime spec 2.2).
-pub(crate) fn td_symbol(name: &str) -> String {
-    format!("scoop_td_{name}")
+/// The global symbol of a TypeDescriptor. Callers supply either a fixed
+/// runtime ABI name or an already encoded typed identity; source-facing
+/// nominal display names never enter this helper.
+pub(crate) fn td_symbol(identity: &str) -> String {
+    format!("scoop_td_{identity}")
 }
 
 #[derive(Default)]
@@ -94,9 +95,11 @@ pub(crate) fn type_descriptors(
     let mut refs = TypeDescriptorRefs::default();
     let mut next_type_id = FIRST_GENERATED_TD_TYPE_ID;
     for (interface, def) in module.interfaces.iter() {
+        let encoded = mir::encode_type(module, &mir::Type::Interface(interface))
+            .expect("MIR interface applications have source type encodings");
         let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(&def.name),
+            symbol: td_symbol(&encoded),
             runtime_type_id: next_type_id,
             size: 0,
             align: 0,
@@ -167,7 +170,7 @@ pub(crate) fn type_descriptors(
         let (_, size, align, scan) = closure_shape(context, module, enums, def);
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(&def.name),
+            symbol: td_symbol(def.link_stem.as_str()),
             runtime_type_id: next_type_id,
             size,
             align,
@@ -226,7 +229,9 @@ pub(crate) fn class_type_descriptor(
         ) {
             lir::STRING_TD_SYMBOL.to_string()
         } else {
-            td_symbol(&def.name)
+            let encoded = mir::encode_type(module, &mir::Type::Class(id))
+                .expect("MIR class applications have source type encodings");
+            td_symbol(&encoded)
         },
         runtime_type_id,
         size,

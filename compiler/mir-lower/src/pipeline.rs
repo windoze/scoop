@@ -22,6 +22,7 @@ impl Lowerer {
             &self.classes,
             &self.interfaces.defs,
         );
+        self.fill_nominal_type_arguments(module);
         self.lower_function_types(module);
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);

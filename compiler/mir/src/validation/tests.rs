@@ -5,6 +5,10 @@ mod constants;
 mod coroutines;
 mod metadata;
 
+fn nominal_link_stem() -> NominalLinkStem {
+    NominalLinkStem::from_session_local_encoding("$mir-validation-test$nominal".to_string())
+}
+
 fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
     VariantDef {
         name: name.to_string(),
@@ -23,6 +27,7 @@ fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
 fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -153,6 +158,8 @@ fn return_value_mut(module: &mut Module, block: BlockId) -> &mut Expr {
 fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
     let (mut module, _) = module_with_variants(Vec::new());
     let struct_id = module.structs.alloc(StructDef {
+        link_stem: nominal_link_stem(),
+        type_arguments: Vec::new(),
         name: "Record".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
@@ -412,6 +419,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     module.enums[enum_id].type_arguments.clear();
 
     let option_enum = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Option".to_string(),
         type_arguments: vec![payload_ty.clone()],
         gc_free: true,
@@ -442,6 +450,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     module.enums[option_enum].type_arguments[0] = payload_ty.clone();
 
     let foreign_enum = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Foreign".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -555,6 +564,7 @@ fn variant_construction_validation_checks_ref_result_arity_and_field_types() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -588,6 +598,7 @@ fn safe_expression_constructors_fix_results_and_reject_a_wrong_enum() {
         vec![Type::Integer(IntegerKind::SIGNED_32)],
     )]);
     let other = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -795,6 +806,7 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -860,6 +872,7 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
 fn validation_rejects_wrong_enum_and_test_result_type() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def("Only", Vec::new())]);
     let other = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

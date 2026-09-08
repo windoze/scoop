@@ -362,6 +362,7 @@ pub struct InitializationFailureRoot {
 
 #[derive(Debug)]
 pub struct ObjectDef {
+    pub link_stem: NominalLinkStem,
     pub name: String,
     pub object_type: ObjectTypeId,
     pub singleton_value: SingletonValueId,

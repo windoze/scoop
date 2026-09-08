@@ -34,6 +34,7 @@ impl Concretizer<'_> {
         };
         let id = self.structs.alloc(concrete::StructDef {
             origin: concrete::StructOriginId::from_raw(source_id.into_raw().into_u32()),
+            link_stem: source.link_stem.clone(),
             name,
             owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
@@ -221,6 +222,7 @@ impl Concretizer<'_> {
         let name = self.instance_name(&declaration_name, &arguments);
         let id = self.enums.alloc(concrete::EnumDef {
             origin: concrete::EnumOriginId::from_raw(source_id.into_raw().into_u32()),
+            link_stem: source.link_stem.clone(),
             name,
             owner: Self::lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
@@ -292,6 +294,7 @@ impl Concretizer<'_> {
         let name = self.instance_name(&declaration_name, &arguments);
         let id = self.interfaces.alloc(concrete::InterfaceDef {
             origin: concrete::InterfaceOriginId::from_raw(source_id.into_raw().into_u32()),
+            link_stem: source.link_stem.clone(),
             name,
             owner: Self::lower_nominal_owner(source.owner),
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),

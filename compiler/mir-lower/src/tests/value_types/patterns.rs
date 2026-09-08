@@ -1225,7 +1225,7 @@ Module mangling=compact-v2
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      call p: Point = @scoop.ctor.Point.$c0 direct
+      call p: Point = @scoop.ctor.D5_PointX.$c0 direct
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
         Type Int
@@ -1239,7 +1239,7 @@ Module mangling=compact-v2
           Type Point
           Local $bind.2
       return
-  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @scoop.ctor.D5_PointX.$c0(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point

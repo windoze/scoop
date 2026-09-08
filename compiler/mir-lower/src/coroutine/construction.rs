@@ -2,14 +2,18 @@ use super::*;
 
 pub(super) fn generated_class(
     lowerer: &mut Lowerer,
+    link_role: GeneratedNominalLinkRole<'_>,
     name: String,
     fields: Vec<mir::Field>,
     interfaces: Vec<mir::InterfaceId>,
     itables: Vec<mir::ItableRecord>,
 ) -> mir::ClassId {
+    let link_stem = generated_nominal_link_stem(&lowerer.shell, link_role);
     let class = lowerer.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
+        link_stem: link_stem.clone(),
         name: name.clone(),
+        type_arguments: Vec::new(),
         representation: mir::ClassRepresentation::Declared {
             fields,
             base_class: None,
@@ -20,7 +24,9 @@ pub(super) fn generated_class(
     });
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
+        link_stem,
         name,
+        type_arguments: Vec::new(),
         representation: mir::ClassRepresentation::Declared {
             fields: Vec::new(),
             base_class: None,

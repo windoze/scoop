@@ -117,11 +117,12 @@ impl Lowerer {
             &mut self.shell,
         );
         let name = format!("{}.{}", declaration.name, method.name);
-        let symbol = format!(
-            "scoop.$interface_signature.{}.{}",
-            interface.into_raw().into_u32(),
-            slot
-        );
+        let owner = mir::encode_type(
+            &self.shell,
+            &mir::Type::Interface(self.interfaces.mir_id(interface)),
+        )
+        .expect("interface signature owners have source type encodings");
+        let symbol = format!("scoop.$interface_signature.{owner}.{slot}");
         self.functions.alloc(mir::Function {
             gc_effect: lower_gc_effect(method.attributes.gc_effect),
             name,
@@ -187,9 +188,14 @@ impl Lowerer {
         let constructor = &module.class_constructors[constructor_id];
         let decl = &module.classes[constructor.class];
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
+        let owner = mir::encode_type(
+            &self.shell,
+            &mir::Type::Class(self.class_map[&constructor.class]),
+        )
+        .expect("constructor owners have source type encodings");
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
+            symbol: format!("scoop.init.{owner}.$c{}", constructor.source_discriminator),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -208,6 +214,11 @@ impl Lowerer {
         let constructor = &module.struct_constructors[constructor_id];
         let decl = &module.structs[constructor.structure];
         let name = format!("ctor.{}.$c{}", decl.name, constructor.source_discriminator);
+        let owner = mir::encode_type(
+            &self.shell,
+            &mir::Type::Struct(self.struct_map[&constructor.structure]),
+        )
+        .expect("struct constructor owners have source type encodings");
         let gc_effect = match &constructor.kind {
             // Primary struct construction only assembles an already-evaluated
             // value. Defaults and source arguments are evaluated by the
@@ -217,7 +228,7 @@ impl Lowerer {
         };
         let id = self.functions.alloc(mir::Function {
             gc_effect,
-            symbol: format!("scoop.{name}"),
+            symbol: format!("scoop.ctor.{owner}.$c{}", constructor.source_discriminator),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,

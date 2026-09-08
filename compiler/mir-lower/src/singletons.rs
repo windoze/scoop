@@ -13,6 +13,7 @@ impl Lowerer {
 
         for (source_id, source) in module.objects.iter() {
             let id = self.objects.alloc(mir::ObjectDef {
+                link_stem: lower_nominal_link_stem(&source.link_stem),
                 name: source.name.clone(),
                 object_type: mir::ObjectTypeId::from_raw(source.object_type.into_raw()),
                 singleton_value: mir::SingletonValueId::from_raw(source.singleton_value.into_raw()),

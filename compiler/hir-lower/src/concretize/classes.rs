@@ -33,6 +33,7 @@ impl Concretizer<'_> {
         let id = self.classes.alloc(concrete::ClassDef {
             origin: concrete::ClassOriginId::from_raw(source_id.into_raw().into_u32()),
             modifier: source.modifier,
+            link_stem: source.link_stem.clone(),
             name: self.instance_name(
                 &self.source_nominal_name(&source.name, source.owner),
                 &arguments,

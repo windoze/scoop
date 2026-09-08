@@ -9,8 +9,21 @@ pub(crate) enum LocalLinkRole {
     TopLevelInitialization,
     ExtensionInitialization(hir::TypeId),
     SingletonInitialization,
-    NominalType,
+    Nominal(LocalNominalLinkRole),
     Callable(LocalCallableLinkRole),
+}
+
+/// Closed source-nominal roles. An object's compiler-owned backing class is
+/// deliberately distinct from the object declaration with the same display
+/// name.
+#[derive(Clone, Copy)]
+pub(crate) enum LocalNominalLinkRole {
+    Struct,
+    Enum,
+    Class,
+    Interface,
+    Object,
+    ObjectBackingClass,
 }
 
 #[derive(Clone, Copy)]
@@ -92,11 +105,40 @@ impl Lowerer {
                 field(&mut key, 't', &self.local_link_type(receiver));
             }
             LocalLinkRole::SingletonInitialization => field(&mut key, 'r', "singleton"),
-            LocalLinkRole::NominalType => field(&mut key, 'r', "type"),
+            LocalLinkRole::Nominal(role) => self.append_nominal_link_role(&mut key, role),
             LocalLinkRole::Callable(role) => self.append_callable_link_role(&mut key, role),
         }
         field(&mut key, 'n', name);
         key
+    }
+
+    pub(crate) fn local_nominal_link_stem(
+        &self,
+        file: usize,
+        owner: Option<Owner>,
+        name: &str,
+        private: bool,
+        role: LocalNominalLinkRole,
+    ) -> hir::NominalLinkStem {
+        hir::NominalLinkStem::from_session_local_encoding(self.local_link_component(
+            file,
+            owner,
+            name,
+            private,
+            LocalLinkRole::Nominal(role),
+        ))
+    }
+
+    fn append_nominal_link_role(&self, key: &mut String, role: LocalNominalLinkRole) {
+        let role = match role {
+            LocalNominalLinkRole::Struct => "struct",
+            LocalNominalLinkRole::Enum => "enum",
+            LocalNominalLinkRole::Class => "class",
+            LocalNominalLinkRole::Interface => "interface",
+            LocalNominalLinkRole::Object => "object",
+            LocalNominalLinkRole::ObjectBackingClass => "object-backing-class",
+        };
+        field(key, 'r', role);
     }
 
     pub(crate) fn local_callable_link_stem(
@@ -242,10 +284,9 @@ impl Lowerer {
         field(key, tag, &edge);
     }
 
-    fn local_link_nominal(&self, owner: Owner, arguments: &[hir::TypeId]) -> String {
-        let (_, _, file, _, _) = self.link_owner_parts(owner);
-        let mut key =
-            self.local_link_component(file, Some(owner), "", false, LocalLinkRole::NominalType);
+    fn local_link_nominal(&self, stem: &hir::NominalLinkStem, arguments: &[hir::TypeId]) -> String {
+        let mut key = String::new();
+        field(&mut key, 'd', stem.as_str());
         for argument in arguments {
             field(&mut key, 'a', &self.local_link_type(*argument));
         }
@@ -263,28 +304,30 @@ impl Lowerer {
             hir::Type::Struct(id) => {
                 let application = &self.struct_applications[*id];
                 return self.local_link_nominal(
-                    Owner::Struct(application.template),
+                    &self.structs[application.template].link_stem,
                     &application.arguments,
                 );
             }
             hir::Type::Class(id) => {
                 let application = &self.class_applications[*id];
                 return self.local_link_nominal(
-                    Owner::Class(application.template),
+                    &self.classes[application.template].link_stem,
                     &application.arguments,
                 );
             }
             hir::Type::Interface(id) => {
                 let application = &self.interface_applications[*id];
                 return self.local_link_nominal(
-                    Owner::Interface(application.template),
+                    &self.interfaces[application.template].link_stem,
                     &application.arguments,
                 );
             }
             hir::Type::Enum(id) => {
                 let application = &self.enum_applications[*id];
-                return self
-                    .local_link_nominal(Owner::Enum(application.template), &application.arguments);
+                return self.local_link_nominal(
+                    &self.enums[application.template].link_stem,
+                    &application.arguments,
+                );
             }
             hir::Type::Tuple(elements) => {
                 let mut fields = String::new();

@@ -116,6 +116,10 @@ impl BodyLowerer<'_> {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
+            link_stem: generated_nominal_link_stem(
+                self.shell,
+                GeneratedNominalLinkRole::FunctionAdapterClosure { source, target },
+            ),
             name,
             function_type: target,
             invoke,
@@ -275,6 +279,10 @@ impl BodyLowerer<'_> {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
+            link_stem: generated_nominal_link_stem(
+                self.shell,
+                GeneratedNominalLinkRole::DynamicFunctionAdapterClosure { target },
+            ),
             name: format!("$Closure$dynamic_adapter${encoded}"),
             function_type: target,
             invoke,

@@ -333,6 +333,7 @@ impl<'a> Concretizer<'a> {
             assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
             let object = self.objects.alloc(concrete::ObjectDecl {
                 origin: concrete::ObjectOriginId::from_raw(source_id.into_raw().into_u32()),
+                link_stem: declaration.link_stem.clone(),
                 name: declaration.name.clone(),
                 owner: Self::lower_nominal_owner(declaration.owner),
                 object_type,

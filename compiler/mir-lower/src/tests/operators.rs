@@ -617,7 +617,7 @@ Module mangling=compact-v2
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c0 direct
+      call @scoop.init.C19_ArithmeticExceptionX.$c0 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -668,7 +668,7 @@ Module mangling=compact-v2
         Type Int
         Local $div.result.3
       return
-  fun init.ArithmeticException.$c0 @scoop.init.ArithmeticException.$c0(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c0 @scoop.init.C19_ArithmeticExceptionX.$c0(this: ArithmeticException) -> Unit
     bb0 entry
       return
   entry @scoop_main

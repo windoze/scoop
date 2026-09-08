@@ -14,7 +14,8 @@ pub use super::{
     IntegerDivRem, IntegerKind, IntegerOperation, IntegerOperationArity, IntegerSignedness,
     IntegerTypeCore, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId,
     IntrinsicTypeDeclaration, IntrinsicTypeKind, MethodModifier, NoGcIntegerOperation,
-    OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety, StructAttributes, UnOp,
+    NominalLinkStem, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety,
+    StructAttributes, UnOp,
 };
 
 mod types;

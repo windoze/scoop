@@ -106,7 +106,7 @@ Module
     br @try.end.7
   block rethrow.normal.3
     unreachable
-  td td0 MyError @scoop_td_MyError type-id=2 size=16 parent=none vtable=[] itables=[]
+  td td0 MyError @scoop_td_C7_MyErrorX type-id=2 size=16 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

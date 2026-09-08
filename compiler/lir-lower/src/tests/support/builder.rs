@@ -57,6 +57,7 @@ impl Builder {
             fields: Vec::new(),
         });
         let id = self.enums.alloc(mir::EnumDef {
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: vec![payload],
             gc_free: payload_gc_free,
@@ -145,7 +146,9 @@ impl Builder {
     ) -> mir::StructId {
         let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
         self.structs.alloc(mir::StructDef {
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
+            type_arguments: Vec::new(),
             gc_free,
             representation: mir::StructRepresentation::Declared {
                 c_layout: None,
@@ -171,7 +174,9 @@ impl Builder {
     ) -> mir::StructId {
         let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
         self.structs.alloc(mir::StructDef {
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
+            type_arguments: Vec::new(),
             gc_free,
             representation: mir::StructRepresentation::Declared {
                 c_layout: Some(mir::MirCLayoutContract { aligned, packed }),
@@ -202,7 +207,9 @@ impl Builder {
             })
             .collect();
         self.interfaces.alloc(mir::InterfaceDef {
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
+            type_arguments: Vec::new(),
             methods,
         })
     }
@@ -217,7 +224,9 @@ impl Builder {
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
+            type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {
                 fields: fields
                     .iter()
@@ -242,7 +251,9 @@ impl Builder {
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
+            link_stem: nominal_link_stem(name),
             name: name.to_string(),
+            type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(match kind {
                 mir::ArrayKind::Immutable => mir::IntrinsicTypeRepresentation::Array { element },
                 mir::ArrayKind::Mutable => {
@@ -378,14 +389,18 @@ impl Builder {
             .chain([("Boolean", mir::IntrinsicTypeRepresentation::Boolean)])
         {
             self.structs.alloc(mir::StructDef {
+                link_stem: nominal_link_stem(name),
                 name: name.to_string(),
+                type_arguments: Vec::new(),
                 gc_free: true,
                 representation: mir::StructRepresentation::Intrinsic(representation),
             });
         }
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
+            link_stem: nominal_link_stem("String"),
             name: "String".to_string(),
+            type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(
                 mir::IntrinsicTypeRepresentation::String,
             ),

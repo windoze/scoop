@@ -265,7 +265,7 @@ fn instance_symbols_encode_enum_and_tuple_arguments() {
         .collect();
     // An enum argument encodes the category, length-delimited
     // instance name, and complete argument list (`mir::encode_type`).
-    assert_eq!(symbols, ["scoop.f$E10_Option$I32AI32X", "scoop.f$TI32_SX"]);
+    assert_eq!(symbols, ["scoop.f$E6_OptionAI32X", "scoop.f$TI32_SX"]);
     // Substitution recurses into enum / tuple types.
     let option_instance = &module.functions[module.top_level[1]];
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
