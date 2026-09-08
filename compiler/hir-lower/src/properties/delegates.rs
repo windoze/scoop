@@ -417,24 +417,15 @@ impl Lowerer {
             }
         }
 
-        for extensions in self.extension_candidate_layers(name) {
-            let extensions = extensions
-                .into_iter()
-                .filter(|function| {
-                    self.signatures[function]
-                        .modifiers
-                        .property_delegate_operator
-                        == Some(role)
-                })
-                .collect::<Vec<_>>();
-            if extensions.is_empty() {
+        for layer in self.named_extension_delegate_operator_layers(role) {
+            if layer.candidates.is_empty() {
                 continue;
             }
             let mut state = self.clone();
             let mut sink = Vec::new();
             match state.resolve_extension_overload_lowered_outcome(
                 name,
-                &extensions,
+                &layer.candidates,
                 receiver.clone(),
                 lowered_call(args.clone(), span),
                 &mut sink,

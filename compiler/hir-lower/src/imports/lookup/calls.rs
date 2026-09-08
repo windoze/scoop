@@ -44,10 +44,7 @@ impl ImportLookupLayer {
 }
 
 impl Lowerer {
-    pub(crate) fn named_extension_operator_layers(
-        &self,
-        operator: hir::OperatorKind,
-    ) -> Vec<LookupLayer<hir::FunctionId>> {
+    fn named_extension_role_layers(&self) -> Vec<LookupLayer<hir::FunctionId>> {
         let core = LookupLayer {
             kind: ImportLookupLayer::CorePrelude,
             candidates: self
@@ -112,16 +109,48 @@ impl Lowerer {
         }
         layers.push(core);
         for layer in &mut layers {
-            layer.candidates.retain(|function| {
-                self.function_is_accessible(*function, None)
-                    && self.signatures[function].modifiers.operator == Some(operator)
-            });
+            layer
+                .candidates
+                .retain(|function| self.function_is_accessible(*function, None));
             layer
                 .candidates
                 .sort_by_key(|function| function.into_raw().into_u32());
             layer.candidates.dedup();
         }
         layers
+    }
+
+    pub(crate) fn named_extension_operator_layers(
+        &self,
+        operator: hir::OperatorKind,
+    ) -> Vec<LookupLayer<hir::FunctionId>> {
+        self.named_extension_role_layers()
+            .into_iter()
+            .map(|mut layer| {
+                layer.candidates.retain(|function| {
+                    self.signatures[function].modifiers.operator == Some(operator)
+                });
+                layer
+            })
+            .collect()
+    }
+
+    pub(crate) fn named_extension_delegate_operator_layers(
+        &self,
+        role: hir::PropertyDelegateOperatorKind,
+    ) -> Vec<LookupLayer<hir::FunctionId>> {
+        self.named_extension_role_layers()
+            .into_iter()
+            .map(|mut layer| {
+                layer.candidates.retain(|function| {
+                    self.signatures[function]
+                        .modifiers
+                        .property_delegate_operator
+                        == Some(role)
+                });
+                layer
+            })
+            .collect()
     }
 
     fn current_named_call_target(&self, binding: CurrentUnitBindingId) -> NamedCallTarget {

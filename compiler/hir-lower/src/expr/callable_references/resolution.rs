@@ -354,32 +354,6 @@ impl Lowerer {
         );
     }
 
-    pub(crate) fn extension_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
-        self.accessible_candidate_layers(
-            self.top_level_namespaces
-                .extension_layers(self.current_file, name)
-                .into_iter()
-                .map(|layer| layer.candidates)
-                .collect(),
-        )
-    }
-
-    fn accessible_candidate_layers(
-        &self,
-        layers: Vec<Vec<hir::FunctionId>>,
-    ) -> Vec<Vec<hir::FunctionId>> {
-        layers
-            .into_iter()
-            .map(|layer| {
-                layer
-                    .into_iter()
-                    .filter(|id| self.function_is_accessible(*id, None))
-                    .collect::<Vec<_>>()
-            })
-            .filter(|layer| !layer.is_empty())
-            .collect()
-    }
-
     pub(super) fn named_reference_candidate_layers(
         &self,
         name: &str,
