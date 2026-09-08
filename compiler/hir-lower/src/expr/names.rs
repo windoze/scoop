@@ -74,17 +74,6 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
-            if self.initialization_context.is_none()
-                && let Some(receiver) = self.lower_current_this(name.span)
-            {
-                match self.resolve_extension_property(receiver, name, sink, true) {
-                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
-                        return Some(property.read);
-                    }
-                    crate::properties::ExtensionPropertyResolution::Failed => return None,
-                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
-                }
-            }
             if let Some(object) =
                 self.lexical_nested_nominal_target(&name.text)
                     .and_then(|target| match target {
@@ -94,14 +83,48 @@ impl Lowerer {
             {
                 return self.lower_singleton_value(object, name.span);
             }
+            let mut implicit_failure = None;
+            let selected_value = if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                match self.resolve_implicit_value(receiver, name, sink, true) {
+                    crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
+                        return Some(property.read);
+                    }
+                    crate::properties::ImplicitValueResolution::Value { target, layer } => {
+                        Some((target, Some(layer)))
+                    }
+                    crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                        implicit_failure = Some(failure);
+                        None
+                    }
+                    crate::properties::ImplicitValueResolution::Failed => return None,
+                    crate::properties::ImplicitValueResolution::NoCandidate => self
+                        .resolve_value_name(name)
+                        .ok()?
+                        .map(|target| (target, None)),
+                }
+            } else {
+                self.resolve_value_name(name)
+                    .ok()?
+                    .map(|target| (target, None))
+            };
             let mut prelude_failure = None;
-            if let Some(target) = self.resolve_value_name(name).ok()? {
-                if matches!(
-                    self.lookup_value_origin(&name.text),
-                    crate::imports::lookup::LookupResult::Unique(
-                        crate::imports::lookup::values::ValueOrigin::Core(ValueTarget::Variant(_))
-                    )
-                ) {
+            if let Some((target, selected_layer)) = selected_value {
+                let core_variant = matches!(target, ValueTarget::Variant(_))
+                    && selected_layer.is_some_and(|layer| {
+                        layer == crate::imports::ImportLookupLayer::CorePrelude
+                    });
+                let legacy_core_variant = selected_layer.is_none()
+                    && matches!(
+                        self.lookup_value_origin(&name.text),
+                        crate::imports::lookup::LookupResult::Unique(
+                            crate::imports::lookup::values::ValueOrigin::Core(
+                                ValueTarget::Variant(_)
+                            )
+                        )
+                    );
+                if core_variant || legacy_core_variant {
                     match self.probe_expr_layer(|state, _| {
                         state.lower_named_value_target(name, target, expected)
                     }) {
@@ -134,6 +157,10 @@ impl Lowerer {
                         self.enums[enumeration].name, name.text
                     ),
                 );
+                return None;
+            }
+            if let Some(failure) = implicit_failure {
+                self.commit_layer_diagnostics(*failure);
                 return None;
             }
             if let Some(failure) = prelude_failure {

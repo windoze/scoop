@@ -97,6 +97,27 @@ impl Lowerer {
         ValueOrigin::NonValue { binding, target }
     }
 
+    pub(crate) fn named_call_value_origin(
+        &self,
+        binding: super::calls::NamedCallBinding,
+    ) -> ValueOrigin {
+        match binding.origin {
+            super::calls::NamedCallOrigin::CurrentUnit(id) => self.value_binding_origin(id),
+            super::calls::NamedCallOrigin::Core(target) => match target {
+                super::calls::NamedCallTarget::Function(id) => {
+                    ValueOrigin::CoreNonValue(NonValueTarget::Function(id))
+                }
+                super::calls::NamedCallTarget::Type(target) => {
+                    ValueOrigin::CoreNonValue(NonValueTarget::Type(target))
+                }
+                super::calls::NamedCallTarget::Value(value) => ValueOrigin::Core(value),
+                super::calls::NamedCallTarget::ExtensionProperty(id) => {
+                    ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id))
+                }
+            },
+        }
+    }
+
     fn core_value_candidates(&self, name: &str) -> Vec<ValueOrigin> {
         let mut result = self
             .top_level_namespaces
@@ -352,6 +373,52 @@ impl Lowerer {
                 candidates,
             ),
         };
+        self.push_value_origin_diagnostic(name, message, candidates.as_slice());
+        Err(())
+    }
+
+    pub(crate) fn diagnose_value_layer(
+        &mut self,
+        name: &ast::Ident,
+        layer: ImportLookupLayer,
+        candidates: &[ValueOrigin],
+    ) {
+        assert!(
+            !candidates.is_empty(),
+            "a failed value layer has candidates"
+        );
+        let message = if candidates.len() == 1 {
+            let target = Self::non_value_origin(candidates[0])
+                .expect("one selected value candidate is not an ambiguity");
+            Self::non_value_message(name, target)
+        } else if candidates.iter().all(|origin| {
+            matches!(
+                Self::non_value_origin(*origin),
+                Some(NonValueTarget::Function(_))
+            )
+        }) {
+            format!(
+                "function `{}` is not a value; use `::{}` to create a callable reference",
+                name.text, name.text
+            )
+        } else {
+            let layer = match layer {
+                ImportLookupLayer::Exact => "exact import",
+                ImportLookupLayer::CurrentPackage(_) => "current package",
+                ImportLookupLayer::Star => "star import",
+                ImportLookupLayer::CorePrelude => "core prelude",
+            };
+            format!("value `{}` is ambiguous in the {layer} layer", name.text)
+        };
+        self.push_value_origin_diagnostic(name, message, candidates);
+    }
+
+    fn push_value_origin_diagnostic(
+        &mut self,
+        name: &ast::Ident,
+        message: String,
+        candidates: &[ValueOrigin],
+    ) {
         let mut diagnostic = ast::Diagnostic::at_file(self.current_file, name.span, message);
         let mut locations = candidates
             .iter()
@@ -366,7 +433,6 @@ impl Lowerer {
             });
         }
         self.diagnostics.push(diagnostic);
-        Err(())
     }
 
     fn non_value_message(name: &ast::Ident, target: NonValueTarget) -> String {

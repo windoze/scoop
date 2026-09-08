@@ -73,6 +73,17 @@ pub(crate) enum ExtensionPropertyCandidateOutcome {
     Resolved(Box<ResolvedExtensionProperty>),
 }
 
+pub(crate) enum ImplicitValueResolution {
+    NoCandidate,
+    NoApplicable(Box<Lowerer>),
+    Failed,
+    Value {
+        target: crate::imports::lookup::values::ValueTarget,
+        layer: crate::imports::ImportLookupLayer,
+    },
+    ExtensionProperty(Box<ResolvedExtensionProperty>),
+}
+
 impl Lowerer {
     pub(crate) fn qualified_object_const_property(
         &self,
@@ -118,25 +129,42 @@ impl Lowerer {
             .iter()
             .any(|properties| !properties.is_empty());
         let mut first_failure = None;
-        for same_side in [true, false] {
+        for layer in self.named_extension_property_layers(&name.text) {
+            let properties = layer
+                .candidates
+                .into_iter()
+                .filter(|property| {
+                    self.access_domain_allows(
+                        &self.properties[*property].access.lookup.0,
+                        Some(receiver.ty),
+                    )
+                })
+                .collect::<Vec<_>>();
+            if properties.is_empty() {
+                continue;
+            }
             let mut state = self.clone();
             let mut layer_sink = Vec::new();
-            match state.resolve_extension_property_on_side(
+            match state.resolve_extension_property_candidates_outcome(
                 receiver.clone(),
                 name,
-                same_side,
+                &properties,
                 &mut layer_sink,
                 require_read,
             ) {
-                ExtensionPropertyResolution::Resolved(resolved) => {
+                ExtensionPropertyCandidateOutcome::Resolved(resolved) => {
                     *self = state;
                     sink.extend(layer_sink);
                     return ExtensionPropertyResolution::Resolved(resolved);
                 }
-                ExtensionPropertyResolution::Failed => {
+                ExtensionPropertyCandidateOutcome::NoApplicable => {
                     first_failure.get_or_insert(Box::new(state));
                 }
-                ExtensionPropertyResolution::NoCandidate => {}
+                ExtensionPropertyCandidateOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return ExtensionPropertyResolution::Failed;
+                }
+                ExtensionPropertyCandidateOutcome::NoCandidate => {}
             }
         }
         if let Some(failure) = first_failure {
@@ -153,51 +181,122 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn resolve_extension_property_on_side(
+    /// Resolve one bare-name layer at a time after lexical and real-member
+    /// lookup. Ordinary values and an extension property applicable to the
+    /// implicit receiver are non-overloadable peers within the same layer.
+    pub(crate) fn resolve_implicit_value(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
-        same_side: bool,
         sink: &mut Vec<hir::Statement>,
         require_read: bool,
-    ) -> ExtensionPropertyResolution {
-        let properties = self
-            .top_level_extension_property_candidates_on_side(&name.text, same_side)
-            .into_iter()
-            .filter(|property| {
-                self.access_domain_allows(
-                    &self.properties[*property].access.lookup.0,
-                    Some(receiver.ty),
-                )
-            })
-            .collect::<Vec<_>>();
-        self.resolve_extension_property_candidates(receiver, name, &properties, sink, require_read)
-    }
+    ) -> ImplicitValueResolution {
+        use crate::imports::lookup::calls::NamedCallTarget;
 
-    pub(crate) fn resolve_extension_property_candidates(
-        &mut self,
-        receiver: hir::Expr,
-        name: &ast::Ident,
-        properties: &[hir::PropertyId],
-        sink: &mut Vec<hir::Statement>,
-        require_read: bool,
-    ) -> ExtensionPropertyResolution {
-        match self.resolve_extension_property_candidates_outcome(
-            receiver,
-            name,
-            properties,
-            sink,
-            require_read,
-        ) {
-            ExtensionPropertyCandidateOutcome::NoCandidate => {
-                ExtensionPropertyResolution::NoCandidate
+        let mut first_failure = None;
+        for layer in self.named_call_layers(&name.text) {
+            let mut values = Vec::new();
+            let mut properties = Vec::new();
+            let mut blockers = Vec::new();
+            for binding in layer.candidates {
+                let origin = self.named_call_value_origin(binding);
+                match binding.target {
+                    NamedCallTarget::Value(value) => values.push((value, origin)),
+                    NamedCallTarget::ExtensionProperty(property)
+                        if self.access_domain_allows(
+                            &self.properties[property].access.lookup.0,
+                            Some(receiver.ty),
+                        ) =>
+                    {
+                        properties.push((property, origin));
+                    }
+                    NamedCallTarget::Function(_) | NamedCallTarget::Type(_) => {
+                        blockers.push(origin);
+                    }
+                    NamedCallTarget::ExtensionProperty(_) => {}
+                }
             }
-            ExtensionPropertyCandidateOutcome::NoApplicable
-            | ExtensionPropertyCandidateOutcome::Failed => ExtensionPropertyResolution::Failed,
-            ExtensionPropertyCandidateOutcome::Resolved(property) => {
-                ExtensionPropertyResolution::Resolved(property)
+
+            let extension = if properties.is_empty() {
+                ExtensionPropertyCandidateOutcome::NoCandidate
+            } else {
+                let property_ids = properties
+                    .iter()
+                    .map(|(property, _)| *property)
+                    .collect::<Vec<_>>();
+                let mut state = self.clone();
+                let mut layer_sink = Vec::new();
+                match state.resolve_extension_property_candidates_outcome(
+                    receiver.clone(),
+                    name,
+                    &property_ids,
+                    &mut layer_sink,
+                    require_read,
+                ) {
+                    ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        if !values.is_empty() {
+                            let mut origins =
+                                values.iter().map(|(_, origin)| *origin).collect::<Vec<_>>();
+                            origins.push(
+                                properties
+                                    .iter()
+                                    .find_map(|(candidate, origin)| {
+                                        (*candidate == property.property).then_some(*origin)
+                                    })
+                                    .expect("a resolved extension property came from this layer"),
+                            );
+                            self.diagnose_value_layer(name, layer.kind, &origins);
+                            return ImplicitValueResolution::Failed;
+                        }
+                        *self = state;
+                        sink.extend(layer_sink);
+                        return ImplicitValueResolution::ExtensionProperty(property);
+                    }
+                    ExtensionPropertyCandidateOutcome::NoApplicable => {
+                        first_failure.get_or_insert(Box::new(state));
+                        ExtensionPropertyCandidateOutcome::NoApplicable
+                    }
+                    ExtensionPropertyCandidateOutcome::Failed => {
+                        self.commit_layer_diagnostics(state);
+                        return ImplicitValueResolution::Failed;
+                    }
+                    ExtensionPropertyCandidateOutcome::NoCandidate => {
+                        ExtensionPropertyCandidateOutcome::NoCandidate
+                    }
+                }
+            };
+
+            match values.as_slice() {
+                [] => {}
+                [(target, _)] => {
+                    return ImplicitValueResolution::Value {
+                        target: *target,
+                        layer: layer.kind,
+                    };
+                }
+                _ => {
+                    let origins = values.iter().map(|(_, origin)| *origin).collect::<Vec<_>>();
+                    self.diagnose_value_layer(name, layer.kind, &origins);
+                    return ImplicitValueResolution::Failed;
+                }
+            }
+            match extension {
+                ExtensionPropertyCandidateOutcome::NoCandidate
+                | ExtensionPropertyCandidateOutcome::NoApplicable => {}
+                ExtensionPropertyCandidateOutcome::Failed
+                | ExtensionPropertyCandidateOutcome::Resolved(_) => {
+                    unreachable!("terminal extension outcomes return from their layer")
+                }
+            }
+            if !blockers.is_empty() {
+                self.diagnose_value_layer(name, layer.kind, &blockers);
+                return ImplicitValueResolution::Failed;
             }
         }
+        first_failure.map_or(
+            ImplicitValueResolution::NoCandidate,
+            ImplicitValueResolution::NoApplicable,
+        )
     }
 
     pub(crate) fn resolve_extension_property_candidates_outcome(

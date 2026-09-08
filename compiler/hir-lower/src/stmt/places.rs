@@ -396,11 +396,12 @@ impl Lowerer {
             };
             return Some(ResolvedPlacePlan { read, write, ty });
         }
+        let mut selected_value = None;
         if self.initialization_context.is_none()
             && let Some(receiver) = self.lower_current_this(name.span)
         {
-            match self.resolve_extension_property(receiver, name, sink, true) {
-                crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+            match self.resolve_implicit_value(receiver, name, sink, true) {
+                crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                     let ty = property.read.ty;
                     let write = if self.properties[property.property]
                         .capability
@@ -417,27 +418,50 @@ impl Lowerer {
                         ty,
                     });
                 }
-                crate::properties::ExtensionPropertyResolution::Failed => return None,
-                crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                crate::properties::ImplicitValueResolution::Value { target, .. } => {
+                    selected_value = Some(target);
+                }
+                crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+                crate::properties::ImplicitValueResolution::Failed => return None,
+                crate::properties::ImplicitValueResolution::NoCandidate => {}
             }
         }
-        if let Some(crate::imports::lookup::values::ValueTarget::Property(property)) =
-            self.resolve_value_name(name).ok()?
-        {
-            let ty = self.properties[property].ty;
-            let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
-            return Some(ResolvedPlacePlan {
-                read: self.lower_property_read(property, owner, receiver.clone(), ty, name.span)?,
-                write: if self.properties[property].capability.setter().is_some() {
-                    WriteCapability::Property {
+        let selected_value = match selected_value {
+            Some(value) => Some(value),
+            None => self.resolve_value_name(name).ok()?,
+        };
+        if let Some(value) = selected_value {
+            if let crate::imports::lookup::values::ValueTarget::Property(property) = value {
+                let ty = self.properties[property].ty;
+                let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
+                return Some(ResolvedPlacePlan {
+                    read: self.lower_property_read(
                         property,
                         owner,
-                        receiver,
-                    }
-                } else {
-                    WriteCapability::ReadOnly
-                },
-                ty,
+                        receiver.clone(),
+                        ty,
+                        name.span,
+                    )?,
+                    write: if self.properties[property].capability.setter().is_some() {
+                        WriteCapability::Property {
+                            property,
+                            owner,
+                            receiver,
+                        }
+                    } else {
+                        WriteCapability::ReadOnly
+                    },
+                    ty,
+                });
+            }
+            let read = self.lower_named_value_target(name, value, None)?;
+            return Some(ResolvedPlacePlan {
+                ty: read.ty,
+                read,
+                write: WriteCapability::ReadOnly,
             });
         }
         let read = self.lower_var(name, sink, None)?;

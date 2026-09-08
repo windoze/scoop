@@ -327,12 +327,13 @@ impl Lowerer {
                 }
                 _ => {}
             }
+            let mut selected_value = None;
             if self.initialization_context.is_none()
                 && let Some(receiver) = self.lower_current_this(name.span)
             {
                 let mut sink = Vec::new();
-                match self.resolve_extension_property(receiver, name, &mut sink, false) {
-                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                match self.resolve_implicit_value(receiver, name, &mut sink, false) {
+                    crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                         let expected = property.read.ty;
                         let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
                         if !self.is_subtype(value.ty, expected) {
@@ -353,11 +354,22 @@ impl Lowerer {
                         out.extend(sink);
                         return self.lower_extension_property_write(*property, value, name.span);
                     }
-                    crate::properties::ExtensionPropertyResolution::Failed => return None,
-                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
+                    crate::properties::ImplicitValueResolution::Value { target, .. } => {
+                        selected_value = Some(target);
+                    }
+                    crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        return None;
+                    }
+                    crate::properties::ImplicitValueResolution::Failed => return None,
+                    crate::properties::ImplicitValueResolution::NoCandidate => {}
                 }
             }
-            if let Some(target) = self.resolve_value_name(name).ok()? {
+            let target = match selected_value {
+                Some(value) => Some(value),
+                None => self.resolve_value_name(name).ok()?,
+            };
+            if let Some(target) = target {
                 let crate::imports::lookup::values::ValueTarget::Property(property) = target else {
                     self.error(
                         name.span,

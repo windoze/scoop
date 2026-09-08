@@ -45,6 +45,7 @@ mod m22_recursive_named_fields;
 mod m23_callable_references;
 mod m23_delegate_operator_layers;
 mod m23_explicit_receiver_calls;
+mod m23_extension_properties;
 mod m23_legacy_entry;
 mod m23_named_calls;
 mod m23_source_model;

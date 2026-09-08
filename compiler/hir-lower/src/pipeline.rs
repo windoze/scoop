@@ -276,18 +276,6 @@ impl Lowerer {
             .sources_share_namespace(left, right)
     }
 
-    pub(crate) fn top_level_extension_property_candidates_on_side(
-        &self,
-        name: &str,
-        same_side: bool,
-    ) -> Vec<hir::PropertyId> {
-        self.top_level_namespaces
-            .extension_property_layers(self.current_file, name)
-            .get(usize::from(!same_side))
-            .map(|layer| layer.candidates.clone())
-            .unwrap_or_default()
-    }
-
     pub(crate) fn has_top_level_function_candidate(&self, name: &str) -> bool {
         self.top_level_namespaces
             .function_layers(self.current_file, name)
