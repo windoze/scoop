@@ -7,6 +7,7 @@
 
 use scoop_ast::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 mod inputs;
 mod linking;
@@ -43,10 +44,8 @@ pub struct CompileOptions {
 /// One input file of the compilation unit: a display name (for
 /// diagnostics) plus the source text.
 pub struct SourceFileInput {
-    /// Display name used when rendering diagnostics. Core library files
-    /// are named relative to the sysroot (`scoop.core/src/option.scoop`)
-    /// and the user file relative to its Cone or compilation directory,
-    /// so diagnostics and private initialization identities stay portable.
+    /// Display name used when rendering diagnostics. M23-1 never derives a
+    /// package or visibility key from it.
     pub name: String,
     pub source: String,
 }
@@ -74,13 +73,14 @@ pub fn compile_file_with_options(
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
 
-    // The parser sees one file at a time and reports file 0; rewrite to
-    // the file's index in the compilation unit.
-    let mut files = Vec::with_capacity(inputs.len());
+    // M22 core remains on the compatibility input. The current unit is parsed
+    // through M23-1's atomic, typed source-set boundary even though this
+    // legacy driver currently supplies exactly one user source.
+    let mut core_files = Vec::with_capacity(user_index);
     let mut diagnostics = Vec::new();
-    for (index, input) in inputs.iter().enumerate() {
+    for (index, input) in inputs[..user_index].iter().enumerate() {
         match scoop_parser::parse(&input.source) {
-            Ok(file) => files.push(file),
+            Ok(file) => core_files.push(file),
             Err(mut parse_diagnostics) => {
                 for diagnostic in &mut parse_diagnostics {
                     diagnostic.reattribute_single_source(index);
@@ -89,17 +89,48 @@ pub fn compile_file_with_options(
             }
         }
     }
+    let request = next_stage1_request_id();
+    let user_handle = scoop_ast::Stage1SourceHandle::new(request, 0);
+    let user_sources = scoop_parser::parse_all(scoop_ast::NonEmptyVec::new(
+        scoop_parser::Stage1SourceInput::new(
+            user_handle,
+            &inputs[user_index].source,
+            &inputs[user_index].name,
+        ),
+        Vec::new(),
+    ));
+    let user_sources = match user_sources {
+        Ok(sources) => Some(sources),
+        Err(errors) => {
+            diagnostics.extend(errors.into_iter().map(|error| {
+                let mut diagnostic = error.into_diagnostic();
+                diagnostic.reattribute_single_source(user_index);
+                diagnostic
+            }));
+            None
+        }
+    };
     if !diagnostics.is_empty() {
         return Err(diagnostics);
     }
-    let ast_dump = files.iter().map(scoop_ast::dump).collect::<String>();
+    let user_sources = user_sources.expect("an absent parsed source always produced diagnostics");
+    let ast_dump = core_files
+        .iter()
+        .map(scoop_ast::dump)
+        .chain(
+            user_sources
+                .sources()
+                .iter()
+                .map(|source| scoop_ast::dump(source.ast())),
+        )
+        .collect::<String>();
 
-    // HIR lowering consumes the whole compilation unit at once; its
-    // diagnostics already carry the file index into `files`.
+    // HIR lowering consumes the whole compilation unit at once; diagnostics
+    // already carry the index into the core-then-user input order.
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
     let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
-    let hir_unit = scoop_hir_lower::CompilationUnit {
-        core: files[..user_index]
+    let hir_input = scoop_hir_lower::Stage1CompilationInput::new(
+        core_files
             .iter()
             .zip(&inputs[..user_index])
             .map(|(source, input)| scoop_hir_lower::ProviderSource {
@@ -109,15 +140,18 @@ pub fn compile_file_with_options(
                 source_text: &input.source,
             })
             .collect(),
-        user: scoop_hir_lower::ProviderSource {
-            source: &files[user_index],
-            provider: user_provider,
-            name: &inputs[user_index].name,
-            source_text: &inputs[user_index].source,
+        user_provider,
+        user_sources,
+        |handle| {
+            assert_eq!(handle, user_handle, "legacy driver owns one user source");
+            scoop_hir_lower::Stage1SourceDetails {
+                display_locator: &inputs[user_index].name,
+                source_text: &inputs[user_index].source,
+            }
         },
-    };
-    let hir = scoop_hir_lower::lower_compilation_unit(
-        &hir_unit,
+    );
+    let hir = scoop_hir_lower::lower_stage1_compilation_input(
+        &hir_input,
         options.intrinsic_declaration_policy.clone(),
     )?;
     let hir_dump = scoop_hir::dump(&hir.export);
@@ -217,6 +251,11 @@ pub fn compile_file_with_options(
             Err(diagnostics)
         }
     }
+}
+
+fn next_stage1_request_id() -> scoop_ast::Stage1RequestId {
+    static NEXT_REQUEST: AtomicU64 = AtomicU64::new(1);
+    scoop_ast::Stage1RequestId::from_raw(NEXT_REQUEST.fetch_add(1, Ordering::Relaxed))
 }
 
 /// A driver-level diagnostic without a source span, attributed to the
