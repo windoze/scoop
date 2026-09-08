@@ -438,9 +438,60 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
     lowerer.functions[function].return_ty.clone()
 }
 
-pub(super) fn sanitize(symbol: &str) -> String {
-    symbol
-        .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
-        .collect()
+/// Encode the exact UTF-8 bytes, preserving distinctions between punctuation,
+/// escape-looking source text and different Unicode spellings. The output
+/// alphabet excludes `$`, which separates generated roles and adapter states.
+pub(super) fn encode_symbol_component(symbol: &str) -> String {
+    use std::fmt::Write;
+    let mut component = String::from("x");
+    for byte in symbol.bytes() {
+        write!(&mut component, "{byte:02x}").expect("writing a String is infallible");
+    }
+    component
+}
+
+#[cfg(test)]
+mod symbol_tests {
+    use super::encode_symbol_component;
+
+    #[test]
+    fn punctuation_collisions_remain_distinct_in_frames_and_adapters() {
+        let underscore = encode_symbol_component("scoop.f_a");
+        let dot = encode_symbol_component("scoop.f.a");
+        assert_ne!(underscore, dot);
+        assert_ne!(
+            format!("CoroutineFrame${underscore}"),
+            format!("CoroutineFrame${dot}")
+        );
+        assert_ne!(
+            format!("CoroutineAdapter${underscore}$1"),
+            format!("CoroutineAdapter${dot}$1")
+        );
+    }
+
+    #[test]
+    fn symbol_components_round_trip_unicode_delimiters_and_empty_text() {
+        let symbols = [
+            "", "x", "_", ".", "$", "x24", "$1", "a:b", "é", "e\u{301}", "中文", "\0",
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for symbol in symbols {
+            let encoded = encode_symbol_component(symbol);
+            assert!(
+                seen.insert(encoded.clone()),
+                "distinct inputs remain distinct"
+            );
+            assert!(!encoded.contains('$'));
+            let bytes: Vec<_> = encoded.as_bytes()[1..]
+                .chunks_exact(2)
+                .map(|pair| {
+                    u8::from_str_radix(std::str::from_utf8(pair).expect("ASCII hex"), 16)
+                        .expect("hex byte")
+                })
+                .collect();
+            assert_eq!(String::from_utf8(bytes).expect("original UTF-8"), symbol);
+        }
+        assert_eq!(encode_symbol_component("é"), "xc3a9");
+        assert_eq!(encode_symbol_component("$"), "x24");
+    }
 }

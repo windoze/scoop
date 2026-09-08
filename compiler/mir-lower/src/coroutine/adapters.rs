@@ -34,7 +34,10 @@ pub(super) fn generate_adapter(
 ) -> GeneratedAdapter {
     let protocol = lowerer.coroutine_protocol(module, result);
     let continuation = lowerer.interfaces.mir_id(protocol.continuation);
-    let name = format!("CoroutineAdapter${}${state}", sanitize(source_symbol));
+    let name = format!(
+        "CoroutineAdapter${}${state}",
+        encode_symbol_component(source_symbol)
+    );
     let mut fields = vec![
         mir::Field {
             name: "frame".to_string(),

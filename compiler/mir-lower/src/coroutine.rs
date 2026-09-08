@@ -178,7 +178,7 @@ fn transform_function(
         name: "failure".to_string(),
         ty: failure_slot_ty,
     });
-    let frame_name = format!("CoroutineFrame${}", sanitize(&source_symbol));
+    let frame_name = format!("CoroutineFrame${}", encode_symbol_component(&source_symbol));
     let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
     let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
         .expect("the generated coroutine frame has a state field");
