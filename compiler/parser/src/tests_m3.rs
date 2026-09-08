@@ -31,7 +31,7 @@ fn function_with_params_and_return_type() {
     assert_eq!(return_ty.span, Span::new(25, 28));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun add(x: Int, y: Int): Int\n    return\n      Binary Add\n        Var x\n        Var y\n"
+        "SourceFile\n  RootPackage\n  fun add(x: Int, y: Int): Int\n    return\n      Binary Add\n        Var x\n        Var y\n"
     );
 }
 
@@ -49,7 +49,7 @@ fn generic_function_single_type_param() {
     assert!(matches!(**body, Expr::Var(ref ident) if ident.text == "x"));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun identity<T>(x: T): T\n    =\n      Var x\n"
+        "SourceFile\n  RootPackage\n  fun identity<T>(x: T): T\n    =\n      Var x\n"
     );
 }
 
@@ -65,7 +65,7 @@ fn generic_function_multiple_type_params() {
     assert_eq!(names, ["T", "U"]);
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun first<T, U>(a: T, b: U): T\n    =\n      Var a\n"
+        "SourceFile\n  RootPackage\n  fun first<T, U>(a: T, b: U): T\n    =\n      Var a\n"
     );
 }
 
@@ -194,7 +194,7 @@ fn nullable_struct_field() {
     assert!(matches!(decl.fields[0].ty.kind, TypeRefKind::Nullable(_)));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct S\n    field p: Int?\n"
+        "SourceFile\n  RootPackage\n  struct S\n    field p: Int?\n"
     );
 }
 

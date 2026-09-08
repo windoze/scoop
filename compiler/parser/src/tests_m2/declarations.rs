@@ -17,7 +17,7 @@ fn struct_decl() {
     assert_eq!(decl.fields[1].name.text, "y");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct Point\n    field x: Int\n    field y: Int\n"
+        "SourceFile\n  RootPackage\n  struct Point\n    field x: Int\n    field y: Int\n"
     );
 }
 

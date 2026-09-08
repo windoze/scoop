@@ -223,7 +223,7 @@ fn dumps_canonical_radix_and_suffix_without_separator_noise() {
     let file = ok("@A(value = 0XffUL) fun f() {}");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n    @A(value = 0xffuL)\n  fun f()\n"
+        "SourceFile\n  RootPackage\n    @A(value = 0xffuL)\n  fun f()\n"
     );
 }
 

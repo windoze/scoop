@@ -6,6 +6,7 @@
 mod declarations;
 mod dump;
 mod expressions;
+mod headers;
 mod integer;
 mod source;
 mod statements;
@@ -14,6 +15,7 @@ mod types;
 pub use declarations::*;
 pub use dump::{dump, dump_pattern};
 pub use expressions::*;
+pub use headers::*;
 pub use integer::*;
 pub use source::{Diagnostic, DiagnosticSeverity, Span};
 pub use statements::*;

@@ -4,6 +4,7 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  RootPackage
   public interface Continuation<T>
     fun resume
     fun resumeWithException
@@ -32,6 +33,7 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
+  RootPackage
     @Intrinsic("core_ptr")
   public struct Ptr<T : value> <representation omitted>
     public operator fun equals
@@ -55,6 +57,7 @@ SourceFile
     @Intrinsic("align_of")
   public fun alignOf<T : value>(): ULong
 SourceFile
+  RootPackage
   public enum ForeignCallbackMode
     Reusable
     OneShot
@@ -82,6 +85,7 @@ SourceFile
     @Intrinsic("foreign_callback_failure")
   public fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
 SourceFile
+  RootPackage
   public struct PinnedPtr<T : ref>
     field raw: ULong
   public struct GcHandle<T : ref>
@@ -127,6 +131,7 @@ SourceFile
     @Intrinsic("rt_gc_stats")
   public fun gcStats(): ULong
 SourceFile
+  RootPackage
     @Extern(name = "scoop_rt_write", abi = "scoop")
   public fun write(message: String)
   public fun print<T : ToString>(value: T)
@@ -141,6 +146,7 @@ SourceFile
     Call write
       StringLiteral "\n"
 SourceFile
+  RootPackage
   public interface Iterator<T>
     fun next
   public interface Iterable<T>
@@ -150,10 +156,12 @@ SourceFile
   internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
     public fun next
 SourceFile
+  RootPackage
   public enum Option<T>
     Some(T)
     None
 SourceFile
+  RootPackage
   public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
     public operator fun iterator
     public infix fun step
@@ -179,6 +187,7 @@ SourceFile
   internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
     public fun next
 SourceFile
+  RootPackage
   public struct SourceLocation
     field file: String
     field line: Long
@@ -188,6 +197,7 @@ SourceFile
     @Intrinsic("current_source_location")
   public fun getCurrentSourceLocation(): SourceLocation
 SourceFile
+  RootPackage
   public open class Throwable()
   public open class Exception(val message: String?) : Throwable(<0 args>)
   public class UnwrapException() : Exception(<1 args>)
@@ -197,6 +207,7 @@ SourceFile
   public class IllegalArgumentException(message: String? = <expr>) : Exception(<1 args>)
   public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
 SourceFile
+  RootPackage
   public interface ToString
     fun toString
   public interface Hash
@@ -520,6 +531,7 @@ SourceFile
     @Extern(name = "scoop_rt_string_hash", abi = "scoop")
   internal fun coreStringHash(value: String): Long
 SourceFile
+  RootPackage
   class Node(val text: String)
   class Gate(var waiter: Continuation<Int>?)
     fun complete

@@ -24,7 +24,7 @@ fn intrinsic_annotation_on_bodiless_function() {
     assert!(matches!(function.body, FunctionBody::None));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n    @Intrinsic(\"rt_print\")\n  fun print(message: String)\n"
+        "SourceFile\n  RootPackage\n    @Intrinsic(\"rt_print\")\n  fun print(message: String)\n"
     );
 }
 

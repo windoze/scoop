@@ -1,7 +1,12 @@
-use crate::{Block, CallArgument, Expr, Ident, IntegerLiteralSyntax, Span, TypeRef};
+use crate::{
+    Block, CallArgument, Expr, Ident, ImportSyntax, IntegerLiteralSyntax, PackageSyntax, Span,
+    TypeRef,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
+    pub package: PackageSyntax,
+    pub imports: Vec<ImportSyntax>,
     pub declarations: Vec<Decl>,
     pub span: Span,
 }

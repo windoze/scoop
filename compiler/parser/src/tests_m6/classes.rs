@@ -30,7 +30,7 @@ fn class_decl() {
     assert_eq!(decl.functions().count(), 0);
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  class Point(val x: Int, var y: Int)\n"
+        "SourceFile\n  RootPackage\n  class Point(val x: Int, var y: Int)\n"
     );
 }
 
@@ -57,7 +57,7 @@ fn class_with_base_and_interfaces() {
     );
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  class Point(val x: Int) : Shape(<1 args>), Describable\n"
+        "SourceFile\n  RootPackage\n  class Point(val x: Int) : Shape(<1 args>), Describable\n"
     );
 }
 

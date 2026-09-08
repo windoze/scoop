@@ -27,7 +27,7 @@ fn parses_required_default_and_vararg_parameters() {
     ));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun collect(first: Int, rest: Int = <expr>, vararg tail: Int = <expr>): Unit\n"
+        "SourceFile\n  RootPackage\n  fun collect(first: Int, rest: Int = <expr>, vararg tail: Int = <expr>): Unit\n"
     );
 }
 
@@ -93,7 +93,7 @@ fn parses_named_and_spread_arguments_in_source_order() {
     assert!(matches!(call.args[4].expression, Expr::Lambda { .. }));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Lambda 0 suspend=false\n        parameters omitted\n        IntLiteral 0\n"
+        "SourceFile\n  RootPackage\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Lambda 0 suspend=false\n        parameters omitted\n        IntLiteral 0\n"
     );
 }
 

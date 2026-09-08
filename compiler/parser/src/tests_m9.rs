@@ -29,7 +29,7 @@ fn generic_struct_single_type_param() {
     assert_eq!(decl.span, Span::new(0, 34));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct PinnedPtr<T>\n    field raw: UInt\n"
+        "SourceFile\n  RootPackage\n  struct PinnedPtr<T>\n    field raw: UInt\n"
     );
 }
 
@@ -46,7 +46,7 @@ fn generic_struct_field_references_type_param() {
     assert_eq!(ty.text, "T");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct Wrapper<T>\n    field value: T\n"
+        "SourceFile\n  RootPackage\n  struct Wrapper<T>\n    field value: T\n"
     );
 }
 
@@ -73,7 +73,7 @@ fn generic_struct_multiple_type_params() {
     assert_eq!(second.text, "U");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct Pair<T, U>\n    field first: T\n    field second: U\n"
+        "SourceFile\n  RootPackage\n  struct Pair<T, U>\n    field first: T\n    field second: U\n"
     );
 }
 

@@ -23,7 +23,7 @@ fn interface_decl() {
     assert!(method.return_ty.is_some());
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  interface Describable\n    fun describe\n"
+        "SourceFile\n  RootPackage\n  interface Describable\n    fun describe\n"
     );
 }
 

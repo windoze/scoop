@@ -10,7 +10,7 @@
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
-use scoop_ast::{Diagnostic, Ident, SourceFile, Span};
+use scoop_ast::{Diagnostic, Ident, PackageSyntax, SourceFile, Span};
 
 use crate::lexer::{Token, TokenKind, lex};
 
@@ -39,6 +39,8 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         }
     }
     let file = SourceFile {
+        package: PackageSyntax::RootPackage,
+        imports: Vec::new(),
         declarations,
         span: Span::new(0, source.len() as u32),
     };
