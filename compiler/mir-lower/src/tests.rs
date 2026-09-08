@@ -12,6 +12,7 @@ mod harness_core;
 mod harness_functions;
 mod harness_gc;
 mod harness_nominals;
+mod m23_wire;
 mod operators;
 mod overloads;
 mod reference_types;

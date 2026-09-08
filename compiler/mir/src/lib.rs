@@ -32,4 +32,5 @@ mod control_flow;
 pub use control_flow::*;
 
 mod dump;
+pub mod wire;
 pub use dump::{dump, type_name};

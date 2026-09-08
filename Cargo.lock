@@ -500,7 +500,9 @@ dependencies = [
  "scoop-hir",
  "scoop-hir-lower",
  "scoop-identity",
+ "scoop-manifest",
  "scoop-mir",
+ "scoop-slib",
 ]
 
 [[package]]

@@ -2734,13 +2734,12 @@ fn decode_wire_field<'a>(
         return Err(HirWireError::Malformed("field ref must lead with its tag"));
     }
     let tag = record.unsigned().map_err(map_wire_error)?;
-    let next =
-        |record: &mut scoop_identity::cbor::MapGuard<'_, '_>| -> Result<u64, HirWireError> {
-            record
-                .next_key()
-                .map_err(map_wire_error)?
-                .ok_or(HirWireError::Malformed("field ref truncated"))
-        };
+    let next = |record: &mut scoop_identity::cbor::MapGuard<'_, '_>| -> Result<u64, HirWireError> {
+        record
+            .next_key()
+            .map_err(map_wire_error)?
+            .ok_or(HirWireError::Malformed("field ref truncated"))
+    };
     match tag {
         1 => {
             if next(&mut record)? != 2 {
