@@ -14,7 +14,8 @@ pub use scoop_identity::GeneratedRole;
 pub use scoop_identity::persistent::{
     CallableArguments, ExactTypeKey, ManagedFunctionEffect, NativeCallingConvention,
     NoCallableArguments, NoOwnerApplication, OdrGroupId, OdrMemberId, OdrMemberRole,
-    OwnerApplication, PersistentExactTypeId, SpecializationKey,
+    OwnerApplication, PersistentExactTypeId, PersistentPropertyId, PersistentTypeAliasId,
+    SpecializationKey,
 };
 use scoop_identity::persistent::{
     PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId, PersistentTypeId,
@@ -22,9 +23,9 @@ use scoop_identity::persistent::{
 use scoop_identity::{CborWriter, ConeIdentity, DefinitionKey, OwnerKind, OwnerStep};
 
 use crate::{
-    ClassDecl, ClassId, DeclarationOrigin, EnumDecl, EnumId, Function, FunctionGenericity,
-    FunctionId, FunctionType, FunctionTypeId, IntegerKind, IntegerSignedness, InterfaceDecl,
-    InterfaceId, Module, StructDecl, StructId, Type, TypeId,
+    ClassDecl, ClassId, DeclarationOrigin, EnumDecl, EnumId, ExportTypeAliasId, Function,
+    FunctionGenericity, FunctionId, FunctionType, FunctionTypeId, IntegerKind, IntegerSignedness,
+    InterfaceDecl, InterfaceId, Module, ObjectId, PropertyId, StructDecl, StructId, Type, TypeId,
 };
 
 /// Maps the compilation's source providers to Cone identities. In the
@@ -77,6 +78,9 @@ pub struct PersistentIds<'a> {
     generic_enum_ids: BTreeMap<u32, PersistentGenericTypeId>,
     generic_class_ids: BTreeMap<u32, PersistentGenericTypeId>,
     generic_interface_ids: BTreeMap<u32, PersistentGenericTypeId>,
+    object_ids: BTreeMap<u32, PersistentTypeId>,
+    property_ids: BTreeMap<u32, PersistentPropertyId>,
+    alias_ids: BTreeMap<u32, PersistentTypeAliasId>,
 }
 
 /// One typed step of a nominal owner chain, using the owner's own
@@ -122,6 +126,9 @@ impl<'a> PersistentIds<'a> {
             generic_enum_ids: BTreeMap::new(),
             generic_class_ids: BTreeMap::new(),
             generic_interface_ids: BTreeMap::new(),
+            object_ids: BTreeMap::new(),
+            property_ids: BTreeMap::new(),
+            alias_ids: BTreeMap::new(),
         }
     }
 
@@ -575,6 +582,113 @@ impl<'a> PersistentIds<'a> {
     /// These have no source declaration; their identity is the reserved
     /// core Cone plus a fixed name/kind pair (see the open spec question
     /// recorded for the diagnostic printer).
+    /// Persistent id of one object (companion or standalone) nominal
+    /// declaration.
+    pub fn object_id(&mut self, id: ObjectId) -> Option<PersistentTypeId> {
+        let raw: u32 = u32::from(id.into_raw());
+        if let Some(cached) = self.object_ids.get(&raw) {
+            return Some(*cached);
+        }
+        let decl = &self.module.objects[id];
+        let cone = self
+            .world
+            .cone_of(self.module.classes[decl.backing_class].origin)?;
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner: Vec::new(),
+            name: decl.name.clone(),
+            signature: b"object".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeId::from_definition_key(cone, &key);
+        self.object_ids.insert(raw, persistent);
+        Some(persistent)
+    }
+
+    /// Persistent id of one declared property (top-level or member);
+    /// properties are not overloadable, so owner and name identify them.
+    pub fn property_id(&mut self, id: PropertyId) -> Option<PersistentPropertyId> {
+        let raw: u32 = u32::from(id.into_raw());
+        if let Some(cached) = self.property_ids.get(&raw) {
+            return Some(*cached);
+        }
+        let decl = &self.module.properties[id];
+        let origin_file = match decl.owner {
+            crate::PropertyOwner::TopLevel => self
+                .module
+                .globals
+                .iter()
+                .find(|(_, global)| global.property == id)
+                .map(|(_, global)| global.origin)?,
+            crate::PropertyOwner::Class(owner) => self.module.classes[owner].origin,
+            crate::PropertyOwner::Struct(owner) => self.module.structs[owner].origin,
+            crate::PropertyOwner::Enum(owner) => self.module.enums[owner].origin,
+            crate::PropertyOwner::Interface(owner) => self.module.interfaces[owner].origin,
+            crate::PropertyOwner::Object(owner) => {
+                self.module.classes[self.module.objects[owner].backing_class].origin
+            }
+            crate::PropertyOwner::Extension(_) => return None,
+        };
+        let cone = self.world.cone_of(origin_file)?;
+        let owner = match decl.owner {
+            crate::PropertyOwner::TopLevel | crate::PropertyOwner::Extension(_) => Vec::new(),
+            crate::PropertyOwner::Class(owner) => vec![OwnerStep {
+                kind: OwnerKind::Type,
+                id: *self.class_id(owner)?.as_bytes(),
+            }],
+            crate::PropertyOwner::Struct(owner) => vec![OwnerStep {
+                kind: OwnerKind::Type,
+                id: *self.struct_id(owner)?.as_bytes(),
+            }],
+            crate::PropertyOwner::Enum(owner) => vec![OwnerStep {
+                kind: OwnerKind::Type,
+                id: *self.enum_id(owner)?.as_bytes(),
+            }],
+            crate::PropertyOwner::Interface(owner) => vec![OwnerStep {
+                kind: OwnerKind::Type,
+                id: *self.interface_id(owner)?.as_bytes(),
+            }],
+            crate::PropertyOwner::Object(owner) => vec![OwnerStep {
+                kind: OwnerKind::Type,
+                id: *self.object_id(owner)?.as_bytes(),
+            }],
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner,
+            name: decl.name.clone(),
+            signature: b"property".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentPropertyId::from_definition_key(cone, &key);
+        self.property_ids.insert(raw, persistent);
+        Some(persistent)
+    }
+
+    /// Persistent id of one finalized non-generic typealias.
+    pub fn type_alias_id(&mut self, id: ExportTypeAliasId) -> Option<PersistentTypeAliasId> {
+        let raw: u32 = u32::from(id.into_raw());
+        if let Some(cached) = self.alias_ids.get(&raw) {
+            return Some(*cached);
+        }
+        let decl = &self.module.type_aliases[id];
+        let cone = if decl.origin.provider.into_raw() == 0 {
+            self.world.core_cone()
+        } else {
+            self.world.user_cone()
+        };
+        let key = DefinitionKey::Source {
+            package: String::new(),
+            owner: Vec::new(),
+            name: decl.name.clone(),
+            signature: b"typealias".to_vec(),
+        }
+        .canonical_cbor();
+        let persistent = PersistentTypeAliasId::from_definition_key(cone, &key);
+        self.alias_ids.insert(raw, persistent);
+        Some(persistent)
+    }
+
     pub fn builtin_type_id(&mut self, name: &str, kind: &'static str) -> Option<PersistentTypeId> {
         let cone = self.core_cone()?;
         let key = DefinitionKey::Source {

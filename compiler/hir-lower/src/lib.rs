@@ -128,6 +128,8 @@ mod tests_m23_imports;
 mod tests_m23_layers;
 #[cfg(test)]
 mod tests_m23_reexports;
+#[cfg(test)]
+mod tests_m23_wire;
 mod types;
 mod visibility;
 
