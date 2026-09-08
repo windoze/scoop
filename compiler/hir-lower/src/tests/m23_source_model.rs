@@ -81,6 +81,27 @@ fn with_package(mut source: ast::SourceFile, segments: &[&str]) -> ast::SourceFi
     source
 }
 
+fn exact_import(segments: &[&str]) -> ast::ImportSyntax {
+    let selector = ast::QualifiedNameSyntax {
+        first: ident(segments[0]),
+        rest: segments[1..]
+            .iter()
+            .map(|segment| ast::QualifiedNameTailSyntax {
+                dot_span: sp(),
+                identifier: ident(segment),
+            })
+            .collect(),
+        span: sp(),
+    };
+    ast::ImportSyntax::Exact {
+        exposure: ast::ImportExposureSyntax::Local,
+        selector,
+        alias: None,
+        import_keyword_span: sp(),
+        span: sp(),
+    }
+}
+
 fn qualified_type(path: &[&str]) -> ast::TypeRef {
     ast::TypeRef {
         kind: ast::TypeRefKind::Qualified {
@@ -225,6 +246,27 @@ fn same_qualified_package_shares_internal_declarations_across_sources() {
 
     lower_user_sources(&core, &first, &[(&second, "second.scoop")])
         .expect("files in one typed package share internal declarations");
+}
+
+#[test]
+fn same_package_cross_source_non_overloadable_declaration_is_duplicate() {
+    let core = core_file();
+    let first = with_package(
+        file(vec![struct_decl("Duplicate", Vec::new())]),
+        &["shared"],
+    );
+    let second = with_package(
+        file(vec![struct_decl("Duplicate", Vec::new())]),
+        &["shared"],
+    );
+
+    let errors = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect_err("a non-overloadable declaration is unique across its whole package");
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.file == 2 && error.message == "duplicate struct `Duplicate`" })
+    );
 }
 
 #[test]
@@ -376,6 +418,123 @@ fn validated_sources(
         ),
     )
     .expect("the test supplies distinct handles in one request")
+}
+
+fn lower_sparse_sources(
+    core: &ast::SourceFile,
+    request: ast::Stage1RequestId,
+    ordered: &[(u32, &ast::SourceFile)],
+) -> Result<hir::Output, Vec<ast::Diagnostic>> {
+    let (&first, remaining) = ordered.split_first().expect("test sources are nonempty");
+    let input = Stage1CompilationInput::new(
+        vec![source(
+            core,
+            hir::IntrinsicProviderId::from_raw(17),
+            "core.scoop",
+        )],
+        hir::IntrinsicProviderId::from_raw(29),
+        validated_sources(request, first, remaining),
+        |_| Stage1SourceDetails {
+            display_locator: "user.scoop",
+            source_text: "",
+        },
+    );
+    lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+}
+
+#[test]
+fn sparse_handle_source_permutation_preserves_the_import_winner() {
+    let core = core_file();
+    let imported = with_package(
+        file(vec![fun_expr(
+            "choose",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_named("String")),
+            str_lit("imported"),
+        )]),
+        &["api"],
+    );
+    let mut consumer = with_package(
+        file(vec![
+            fun_expr(
+                "choose",
+                Vec::new(),
+                Vec::new(),
+                Some(ty_named("Int")),
+                int_lit(1),
+            ),
+            fun("main", vec![val("selected", call("choose", Vec::new()))]),
+        ]),
+        &["app"],
+    );
+    consumer.imports.push(exact_import(&["api", "choose"]));
+    let request = ast::Stage1RequestId::from_raw(701);
+
+    for ordered in [
+        vec![(91, &imported), (4, &consumer)],
+        vec![(4, &consumer), (91, &imported)],
+    ] {
+        let output = lower_sparse_sources(&core, request, &ordered)
+            .expect("container order cannot change exact-import precedence");
+        assert!(hir::dump(&output.export).contains("Call choose : String"));
+    }
+}
+
+#[test]
+fn sparse_handle_source_permutation_preserves_ambiguity_origins() {
+    let core = core_file();
+    let left = with_package(
+        file(vec![struct_decl(
+            "Chosen",
+            vec![("leftMarker", ty_named("Unit"))],
+        )]),
+        &["left"],
+    );
+    let right = with_package(
+        file(vec![struct_decl(
+            "Chosen",
+            vec![("rightMarker", ty_named("Unit"))],
+        )]),
+        &["right"],
+    );
+    let mut consumer = file(vec![
+        fun_sig(
+            "consume",
+            Vec::new(),
+            vec![("value", ty_named("Chosen"))],
+            None,
+            Vec::new(),
+        ),
+        fun("main", Vec::new()),
+    ]);
+    consumer.imports = vec![
+        exact_import(&["left", "Chosen"]),
+        exact_import(&["right", "Chosen"]),
+    ];
+    let request = ast::Stage1RequestId::from_raw(702);
+    let mut observed = Vec::new();
+
+    for ordered in [
+        vec![(41, &left), (7, &right), (99, &consumer)],
+        vec![(99, &consumer), (7, &right), (41, &left)],
+    ] {
+        let errors = lower_sparse_sources(&core, request, &ordered)
+            .expect_err("the two exact type origins remain ambiguous");
+        let diagnostic = errors
+            .iter()
+            .find(|error| error.message.contains("type `Chosen` is ambiguous"))
+            .expect("type ambiguity diagnostic");
+        assert_eq!(ordered[diagnostic.file - 1].0, 99);
+        let mut origins = diagnostic
+            .notes
+            .iter()
+            .map(|note| ordered[note.file - 1].0)
+            .collect::<Vec<_>>();
+        origins.sort_unstable();
+        observed.push(origins);
+    }
+    assert_eq!(observed, [vec![7, 41], vec![7, 41]]);
 }
 
 #[test]

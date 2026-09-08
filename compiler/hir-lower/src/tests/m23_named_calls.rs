@@ -395,6 +395,26 @@ fn concrete_constructor_beats_generic_function_in_one_partition() {
 }
 
 #[test]
+fn star_imported_nominal_constructor_is_a_named_call_candidate() {
+    let library = package(
+        file(vec![struct_decl(
+            "ImportedBox",
+            vec![("value", ty_named("Boolean"))],
+        )]),
+        "api",
+    );
+    let mut user = consumer(call("ImportedBox", vec![bool_lit(true)]));
+    user.imports.push(star("api"));
+
+    let output = lower_sources(vec![library, user], core_file())
+        .expect("a nominal imported through a star is callable as its constructor");
+    assert!(matches!(
+        output.export.types[chosen(&output).ty],
+        hir::Type::Struct(_)
+    ));
+}
+
+#[test]
 fn fixed_typealias_application_is_not_a_generic_constructor_candidate() {
     let library = package(
         file(vec![
