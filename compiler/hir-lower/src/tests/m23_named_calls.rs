@@ -556,6 +556,57 @@ fn implicit_this_real_member_precedes_exact_import() {
 }
 
 #[test]
+fn initializing_receiver_callable_property_remains_a_real_member() {
+    let thunk = ast::PropertyDecl {
+        annotations: Vec::new(),
+        visibility: ast::VisibilitySyntax::Omitted,
+        modifier: ast::MethodModifier::Final,
+        is_override: false,
+        mutable: false,
+        receiver_ty: None,
+        type_params: Vec::new(),
+        where_clause: None,
+        name: ident("thunk"),
+        ty: ty_function(false, Vec::new(), ty_named("Int")),
+        body: ast::PropertyBodySyntax::Initializer {
+            expression: Box::new(Expr::Lambda {
+                id: ast::LambdaId(0),
+                is_suspend: false,
+                parameters: None,
+                body: block(vec![stmt(int_lit(7))]),
+                span: sp(),
+            }),
+            accessors: ast::AccessorSyntax::default(),
+        },
+        span: sp(),
+    };
+    let mut host_decl = class_decl(
+        ast::ClassModifier::Final,
+        "Host",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+    );
+    let Decl::Class(host) = &mut host_decl else {
+        panic!("class builder creates a class")
+    };
+    host.members.extend([
+        ast::ClassMember::StoredProperty(thunk),
+        ast::ClassMember::InitBlock(ast::InitBlockDecl {
+            body: block(vec![stmt(call("thunk", Vec::new()))]),
+            span: sp(),
+        }),
+    ]);
+
+    lower_sources(
+        vec![file(vec![host_decl, fun("main", Vec::new())])],
+        core_file(),
+    )
+    .expect("an initialized callable-valued property is invocable during initialization");
+}
+
+#[test]
 fn implicit_this_extension_participates_in_its_import_layer() {
     let mut core = core_file();
     core.declarations
