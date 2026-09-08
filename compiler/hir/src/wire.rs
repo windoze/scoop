@@ -260,12 +260,47 @@ pub enum WireExpr {
         arguments: Vec<WireExpr>,
     },
     /// Member call with an explicit receiver; the callee is a persistent
-    /// identity (generic callables use their template id).
+    /// identity (generic callables use their template id). Bound callees
+    /// carry their receiver type-parameter slot.
     MethodCall {
         receiver: Box<WireExpr>,
         callee: [u8; 32],
         callee_kind: u64,
+        receiver_parameter_slot: u32,
         arguments: Vec<WireExpr>,
+    },
+    /// Closed binary operator set: comparisons, reference identity,
+    /// boolean logic and the two string primitives.
+    Binary {
+        op: u64,
+        lhs: Box<WireExpr>,
+        rhs: Box<WireExpr>,
+    },
+    /// Closed unary operator set.
+    Unary {
+        op: u64,
+        operand: Box<WireExpr>,
+    },
+    /// Field projection through persistent template identities.
+    FieldAccess {
+        receiver: Box<WireExpr>,
+        field: WireFieldRef,
+    },
+}
+
+/// One wire field reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WireFieldRef {
+    StructField {
+        template: [u8; 32],
+        generic: bool,
+        semantic_index: u32,
+    },
+    TupleIndex(u32),
+    ClassField {
+        template: [u8; 32],
+        generic: bool,
+        field_index: u32,
     },
 }
 
@@ -1192,22 +1227,124 @@ fn encode_wire_expr(
                     .ok_or(HirWireError::Malformed("identity"))?
                     .as_bytes()
             };
+            let receiver_parameter_slot = match callee {
+                crate::MethodCallee::Bound(bound) => module.bound_callable_refs[*bound]
+                    .receiver_parameter
+                    .into_raw(),
+                _ => 0,
+            };
             WireExpr::MethodCall {
                 receiver: Box::new(encode_wire_expr(
                     module, ids, type_table, type_cache, receiver,
                 )?),
                 callee: callee_id,
                 callee_kind,
+                receiver_parameter_slot,
                 arguments: args
                     .iter()
                     .map(|argument| encode_wire_expr(module, ids, type_table, type_cache, argument))
                     .collect::<Result<Vec<_>, _>>()?,
             }
         }
+        crate::ExprKind::Binary { op, lhs, rhs } => WireExpr::Binary {
+            op: bin_op_tag(*op),
+            lhs: Box::new(encode_wire_expr(module, ids, type_table, type_cache, lhs)?),
+            rhs: Box::new(encode_wire_expr(module, ids, type_table, type_cache, rhs)?),
+        },
+        crate::ExprKind::Unary { op, operand } => WireExpr::Unary {
+            op: match op {
+                crate::UnOp::Not => 1,
+            },
+            operand: Box::new(encode_wire_expr(
+                module, ids, type_table, type_cache, operand,
+            )?),
+        },
+        crate::ExprKind::PrimitiveBinary { kind, lhs, rhs } => WireExpr::Binary {
+            op: primitive_binary_tag(*kind),
+            lhs: Box::new(encode_wire_expr(module, ids, type_table, type_cache, lhs)?),
+            rhs: Box::new(encode_wire_expr(module, ids, type_table, type_cache, rhs)?),
+        },
+        crate::ExprKind::PrimitiveUnary { kind, operand } => WireExpr::Unary {
+            op: match kind {
+                crate::PrimitiveUnaryKind::BooleanNot => 2,
+            },
+            operand: Box::new(encode_wire_expr(
+                module, ids, type_table, type_cache, operand,
+            )?),
+        },
+        crate::ExprKind::FieldAccess { receiver, field } => WireExpr::FieldAccess {
+            receiver: Box::new(encode_wire_expr(
+                module, ids, type_table, type_cache, receiver,
+            )?),
+            field: encode_wire_field(module, ids, *field)?,
+        },
         _ => {
             return Err(HirWireError::Malformed(
                 "body expression outside the wire kernel subset",
             ));
+        }
+    })
+}
+
+/// Closed binary operator tags (8 BinOps + 2 string primitives).
+fn bin_op_tag(op: crate::BinOp) -> u64 {
+    match op {
+        crate::BinOp::Lt => 1,
+        crate::BinOp::Le => 2,
+        crate::BinOp::Gt => 3,
+        crate::BinOp::Ge => 4,
+        crate::BinOp::RefEq => 5,
+        crate::BinOp::RefNe => 6,
+        crate::BinOp::And => 7,
+        crate::BinOp::Or => 8,
+    }
+}
+
+fn primitive_binary_tag(kind: crate::PrimitiveBinaryKind) -> u64 {
+    match kind {
+        crate::PrimitiveBinaryKind::StringConcat => 9,
+        crate::PrimitiveBinaryKind::StringCompareTo => 10,
+    }
+}
+
+fn encode_wire_field(
+    module: &Module,
+    ids: &mut PersistentIds<'_>,
+    field: crate::FieldRef,
+) -> Result<WireFieldRef, HirWireError> {
+    let failed = || HirWireError::Malformed("field without persistent identity");
+    Ok(match field {
+        crate::FieldRef::StructField(reference) => {
+            let application = &module.struct_applications[reference.application()];
+            let template = application.template;
+            let generic = !module.structs[template].type_params.is_empty();
+            let template_bytes = if generic {
+                *ids.generic_struct_id(template)
+                    .ok_or_else(failed)?
+                    .as_bytes()
+            } else {
+                *ids.struct_id(template).ok_or_else(failed)?.as_bytes()
+            };
+            WireFieldRef::StructField {
+                template: template_bytes,
+                generic,
+                semantic_index: reference.local_index(),
+            }
+        }
+        crate::FieldRef::TupleIndex(index) => WireFieldRef::TupleIndex(index),
+        crate::FieldRef::ClassField { application, field } => {
+            let owner = module.class_applications[application].template;
+            let generic = !module.classes[owner].type_params.is_empty();
+            let template_bytes = if generic {
+                *ids.generic_class_id(owner).ok_or_else(failed)?.as_bytes()
+            } else {
+                *ids.class_id(owner).ok_or_else(failed)?.as_bytes()
+            };
+            WireFieldRef::ClassField {
+                template: template_bytes,
+                generic,
+                field_index: u32::from(field.into_raw()),
+            }
         }
     })
 }
@@ -1329,16 +1466,74 @@ fn write_wire_expr(writer: &mut scoop_identity::CborWriter, expr: &WireExpr) {
             receiver,
             callee,
             callee_kind,
+            receiver_parameter_slot,
             arguments,
         } => {
-            writer.map(5);
+            writer.map(6);
             writer.field(1).unsigned(8);
             writer.field(2);
             write_wire_expr(writer, receiver);
             writer.field(3).bytes(callee);
             writer.field(4).unsigned(*callee_kind);
-            writer.field(5);
+            writer.field(5).unsigned(*receiver_parameter_slot as u64);
+            writer.field(6);
             write_wire_expr_list(writer, arguments);
+        }
+        WireExpr::Binary { op, lhs, rhs } => {
+            writer.map(4);
+            writer.field(1).unsigned(9);
+            writer.field(2).unsigned(*op);
+            writer.field(3);
+            write_wire_expr(writer, lhs);
+            writer.field(4);
+            write_wire_expr(writer, rhs);
+        }
+        WireExpr::Unary { op, operand } => {
+            writer.map(3);
+            writer.field(1).unsigned(10);
+            writer.field(2).unsigned(*op);
+            writer.field(3);
+            write_wire_expr(writer, operand);
+        }
+        WireExpr::FieldAccess { receiver, field } => {
+            writer.map(3);
+            writer.field(1).unsigned(11);
+            writer.field(2);
+            write_wire_expr(writer, receiver);
+            writer.field(3);
+            write_wire_field(writer, field);
+        }
+    }
+}
+
+fn write_wire_field(writer: &mut scoop_identity::CborWriter, field: &WireFieldRef) {
+    match field {
+        WireFieldRef::StructField {
+            template,
+            generic,
+            semantic_index,
+        } => {
+            writer.map(4);
+            writer.field(1).unsigned(1);
+            writer.field(2).bytes(template);
+            writer.field(3).unsigned(u64::from(*generic));
+            writer.field(4).unsigned(*semantic_index as u64);
+        }
+        WireFieldRef::TupleIndex(index) => {
+            writer.map(2);
+            writer.field(1).unsigned(2);
+            writer.field(2).unsigned(*index as u64);
+        }
+        WireFieldRef::ClassField {
+            template,
+            generic,
+            field_index,
+        } => {
+            writer.map(4);
+            writer.field(1).unsigned(3);
+            writer.field(2).bytes(template);
+            writer.field(3).unsigned(u64::from(*generic));
+            writer.field(4).unsigned(*field_index as u64);
         }
     }
 }
@@ -2469,6 +2664,10 @@ fn decode_wire_expr<'a>(
             if next(&mut inner)? != 5 {
                 return Err(HirWireError::Malformed("method call field order"));
             }
+            let receiver_parameter_slot = inner.unsigned().map_err(map_wire_error)? as u32;
+            if next(&mut inner)? != 6 {
+                return Err(HirWireError::Malformed("method call field order"));
+            }
             let arguments = {
                 let mut entries = inner.array().map_err(map_wire_error)?;
                 let mut values = Vec::new();
@@ -2481,12 +2680,122 @@ fn decode_wire_expr<'a>(
                 receiver,
                 callee,
                 callee_kind,
+                receiver_parameter_slot,
                 arguments,
             }
+        }
+        9 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("binary field order"));
+            }
+            let op = inner.unsigned().map_err(map_wire_error)?;
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("binary field order"));
+            }
+            let lhs = Box::new(decode_wire_expr(&mut inner)?);
+            if next(&mut inner)? != 4 {
+                return Err(HirWireError::Malformed("binary field order"));
+            }
+            let rhs = Box::new(decode_wire_expr(&mut inner)?);
+            WireExpr::Binary { op, lhs, rhs }
+        }
+        10 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("unary field order"));
+            }
+            let op = inner.unsigned().map_err(map_wire_error)?;
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("unary field order"));
+            }
+            let operand = Box::new(decode_wire_expr(&mut inner)?);
+            WireExpr::Unary { op, operand }
+        }
+        11 => {
+            if next(&mut inner)? != 2 {
+                return Err(HirWireError::Malformed("field access order"));
+            }
+            let receiver = Box::new(decode_wire_expr(&mut inner)?);
+            if next(&mut inner)? != 3 {
+                return Err(HirWireError::Malformed("field access order"));
+            }
+            let field = decode_wire_field(&mut inner)?;
+            WireExpr::FieldAccess { receiver, field }
         }
         _ => return Err(HirWireError::UnknownKind(tag)),
     };
     Ok(result)
+}
+
+fn decode_wire_field<'a>(
+    inner: &mut impl core::ops::DerefMut<Target = scoop_identity::CborReader<'a>>,
+) -> Result<WireFieldRef, HirWireError> {
+    let mut record = inner.map().map_err(map_wire_error)?;
+    if record.next_key().map_err(map_wire_error)? != Some(1) {
+        return Err(HirWireError::Malformed("field ref must lead with its tag"));
+    }
+    let tag = record.unsigned().map_err(map_wire_error)?;
+    let next =
+        |record: &mut scoop_identity::cbor::MapGuard<'_, '_>| -> Result<u64, HirWireError> {
+            record
+                .next_key()
+                .map_err(map_wire_error)?
+                .ok_or(HirWireError::Malformed("field ref truncated"))
+        };
+    match tag {
+        1 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("struct field order"));
+            }
+            let bytes = record.bytes().map_err(map_wire_error)?;
+            let template: [u8; 32] = bytes
+                .try_into()
+                .map_err(|_| HirWireError::Malformed("template id must be 32 bytes"))?;
+            if next(&mut record)? != 3 {
+                return Err(HirWireError::Malformed("struct field order"));
+            }
+            let generic = record.unsigned().map_err(map_wire_error)? != 0;
+            if next(&mut record)? != 4 {
+                return Err(HirWireError::Malformed("struct field order"));
+            }
+            let semantic_index = record.unsigned().map_err(map_wire_error)? as u32;
+            Ok(WireFieldRef::StructField {
+                template,
+                generic,
+                semantic_index,
+            })
+        }
+        2 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("tuple index order"));
+            }
+            Ok(WireFieldRef::TupleIndex(
+                record.unsigned().map_err(map_wire_error)? as u32,
+            ))
+        }
+        3 => {
+            if next(&mut record)? != 2 {
+                return Err(HirWireError::Malformed("class field order"));
+            }
+            let bytes = record.bytes().map_err(map_wire_error)?;
+            let template: [u8; 32] = bytes
+                .try_into()
+                .map_err(|_| HirWireError::Malformed("template id must be 32 bytes"))?;
+            if next(&mut record)? != 3 {
+                return Err(HirWireError::Malformed("class field order"));
+            }
+            let generic = record.unsigned().map_err(map_wire_error)? != 0;
+            if next(&mut record)? != 4 {
+                return Err(HirWireError::Malformed("class field order"));
+            }
+            let field_index = record.unsigned().map_err(map_wire_error)? as u32;
+            Ok(WireFieldRef::ClassField {
+                template,
+                generic,
+                field_index,
+            })
+        }
+        _ => Err(HirWireError::UnknownKind(tag)),
+    }
 }
 
 fn map_wire_error(error: scoop_identity::CborError) -> HirWireError {

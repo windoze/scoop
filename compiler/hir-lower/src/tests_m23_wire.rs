@@ -17,6 +17,17 @@ public fun <T> identity(value: T): T {
     return value
 }
 
+public fun <T> extract(box: Box<T>): T {
+    return box.item
+}
+
+public fun <T> pick(box: Box<T>, flag: Boolean): T {
+    if (!flag || flag) {
+        return box.item
+    }
+    return box.item
+}
+
 public fun visible(value: Int): Int {
     return value
 }
@@ -319,4 +330,69 @@ fn corrupt_body_is_rejected() {
         scoop_hir::wire::import_surface_wire(decoded),
         Err(scoop_hir::wire::HirWireError::RootIndex(u32::MAX))
     ));
+}
+
+#[test]
+fn widened_kernel_constructs_round_trip() {
+    let bytes = encoded_library();
+    let decoded = scoop_hir::wire::decode_surface_wire(&bytes).expect("decodes");
+    let imported = scoop_hir::wire::import_surface_wire(decoded).expect("imports");
+    // The widened constructs (field access, binary and unary operators)
+    // appear in the decoded template bodies.
+    fn walk(expr: &scoop_hir::wire::WireExpr, seen: &mut [bool; 3]) {
+        match expr {
+            scoop_hir::wire::WireExpr::FieldAccess { receiver, .. } => {
+                seen[0] = true;
+                walk(receiver, seen);
+            }
+            scoop_hir::wire::WireExpr::Binary { lhs, rhs, .. } => {
+                seen[1] = true;
+                walk(lhs, seen);
+                walk(rhs, seen);
+            }
+            scoop_hir::wire::WireExpr::Unary { operand, .. } => {
+                seen[2] = true;
+                walk(operand, seen);
+            }
+            scoop_hir::wire::WireExpr::TupleLiteral(elements) => {
+                for element in elements {
+                    walk(element, seen);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut seen = [false; 3];
+    for body in imported.bodies() {
+        fn walk_statements(statements: &[scoop_hir::wire::WireStatement], seen: &mut [bool; 3]) {
+            for statement in statements {
+                match statement {
+                    scoop_hir::wire::WireStatement::Expr(expr)
+                    | scoop_hir::wire::WireStatement::Return {
+                        value: Some(expr), ..
+                    }
+                    | scoop_hir::wire::WireStatement::ValDecl { init: expr, .. }
+                    | scoop_hir::wire::WireStatement::Assign { value: expr, .. } => {
+                        walk(expr, seen)
+                    }
+                    scoop_hir::wire::WireStatement::If {
+                        cond,
+                        then_body,
+                        else_body,
+                    } => {
+                        walk(cond, seen);
+                        walk_statements(then_body, seen);
+                        if let Some(statements) = else_body {
+                            walk_statements(statements, seen);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        walk_statements(&body.statements, &mut seen);
+    }
+    assert!(seen[0], "field access survives");
+    assert!(seen[1], "binary operators survive");
+    assert!(seen[2], "unary operators survive");
 }
