@@ -7,6 +7,8 @@ use crate::{
 };
 use scoop_ast as ast;
 
+pub(crate) mod values;
+
 #[derive(Debug, Clone)]
 pub(crate) struct LookupLayer<T> {
     pub(crate) kind: ImportLookupLayer,

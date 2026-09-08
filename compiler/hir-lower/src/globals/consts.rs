@@ -217,7 +217,21 @@ impl Lowerer {
                 let Some(target) =
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
-                    let message = if declarations.iter().any(|candidate| {
+                    if matches!(
+                        self.lookup_value_origin(&name.text),
+                        crate::imports::lookup::LookupResult::Ambiguous { .. }
+                    ) {
+                        self.resolve_value_origin(name).ok()?;
+                    }
+                    let message = if matches!(
+                        self.lookup_value_origin(&name.text),
+                        crate::imports::lookup::LookupResult::Unique(_)
+                    ) {
+                        format!(
+                            "const initializer may only reference const properties; `{}` is not const",
+                            name.text
+                        )
+                    } else if declarations.iter().any(|candidate| {
                         candidate.declaration.name.text == name.text
                             && (candidate.owner != hir::PropertyOwner::TopLevel
                                 || self
@@ -420,22 +434,43 @@ impl Lowerer {
     ) -> Option<usize> {
         let find = |wanted_owner| {
             if wanted_owner == hir::PropertyOwner::TopLevel {
-                return declarations
+                match self.lookup_value_origin(name) {
+                    crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::CurrentUnit(binding),
+                    ) => {
+                        let crate::imports::CurrentUnitTarget::SourceProperty(source) =
+                            self.imports.binding(binding).target
+                        else {
+                            return None;
+                        };
+                        return declarations.iter().position(|candidate| matches!(candidate.import_source, crate::imports::PropertyImportSource::CurrentUnit(id) if id == source));
+                    }
+                    crate::imports::lookup::LookupResult::Missing
+                    | crate::imports::lookup::LookupResult::Inaccessible(_)
+                    | crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::Core(
+                            crate::imports::lookup::values::ValueTarget::Property(_),
+                        ),
+                    ) => {}
+                    _ => return None,
+                }
+                // Core const declarations have no current-unit import ids and
+                // are evaluated before their ordinary prelude properties exist.
+                let candidates = declarations
                     .iter()
                     .enumerate()
                     .filter_map(|(index, candidate)| {
-                        let rank = self
-                            .top_level_namespaces
-                            .source_lookup_rank(file, candidate.file)?;
-                        (candidate.owner == wanted_owner
+                        (self.source_is_core(candidate.file)
+                            && candidate.owner == wanted_owner
                             && candidate.declaration.name.text == name
-                            && (candidate.access.declared != hir::DeclaredVisibility::Private
-                                || candidate.file == file
-                                || self.access_domain_allows(&candidate.access.lookup.0, None)))
-                        .then_some((rank, index))
+                            && self.access_domain_allows(&candidate.access.lookup.0, None))
+                        .then_some(index)
                     })
-                    .min_by_key(|(rank, index)| (*rank, *index))
-                    .map(|(_, index)| index);
+                    .collect::<Vec<_>>();
+                return match candidates.as_slice() {
+                    [one] => Some(*one),
+                    _ => None,
+                };
             }
             declarations
                 .iter()

@@ -148,6 +148,9 @@ impl Lowerer {
         };
         let id = SourcePropertyId(surface.source_property_count);
         surface.source_property_count += 1;
+        if declaration.receiver_ty.is_some() {
+            surface.source_extension_properties.insert(id);
+        }
         surface.insert(
             namespace,
             CurrentUnitBinding {

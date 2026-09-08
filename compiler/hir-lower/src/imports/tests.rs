@@ -1,5 +1,6 @@
 use super::*;
 mod type_lookup;
+mod value_lookup;
 use crate::tests::{file, ident, sp};
 use crate::{IntrinsicDeclarationPolicy, Lowerer, SourceKind, SourceProvider};
 

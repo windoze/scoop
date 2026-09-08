@@ -421,15 +421,18 @@ impl Lowerer {
                 crate::properties::ExtensionPropertyResolution::NoCandidate => {}
             }
         }
-        if let Some(property) = self.visible_property(&name.text, None) {
+        if let Some(crate::imports::lookup::values::ValueTarget::Property(property)) =
+            self.resolve_value_name(name).ok()?
+        {
             let ty = self.properties[property].ty;
+            let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
             return Some(ResolvedPlacePlan {
-                read: self.lower_property_read(property, None, None, ty, name.span)?,
+                read: self.lower_property_read(property, owner, receiver.clone(), ty, name.span)?,
                 write: if self.properties[property].capability.setter().is_some() {
                     WriteCapability::Property {
                         property,
-                        owner: None,
-                        receiver: None,
+                        owner,
+                        receiver,
                     }
                 } else {
                     WriteCapability::ReadOnly

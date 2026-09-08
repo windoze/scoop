@@ -357,9 +357,20 @@ impl Lowerer {
                     crate::properties::ExtensionPropertyResolution::NoCandidate => {}
                 }
             }
-            if let Some(property) = self.visible_property(&name.text, None) {
+            if let Some(target) = self.resolve_value_name(name).ok()? {
+                let crate::imports::lookup::values::ValueTarget::Property(property) = target else {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable value `{}`", name.text),
+                    );
+                    return None;
+                };
+                let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
                 let expected = self.properties[property].ty;
                 let mut sink = Vec::new();
+                let receiver = receiver.map(|receiver| {
+                    self.materialize_place_expr(receiver, "property_receiver", name.span, &mut sink)
+                });
                 let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
                 if !self.is_subtype(value.ty, expected) {
                     let message = self.with_nominal_invariance_detail(
@@ -376,8 +387,10 @@ impl Lowerer {
                     return None;
                 }
                 let value = self.adapt_to(value, expected);
+                let write =
+                    self.lower_property_write(property, owner, receiver, value, name.span)?;
                 out.extend(sink);
-                return self.lower_property_write(property, None, None, value, name.span);
+                return Some(write);
             }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;

@@ -141,6 +141,7 @@ pub(crate) struct CurrentUnitImports {
     namespaces: HashMap<ResolvedNamespace, BTreeMap<String, Vec<CurrentUnitBindingId>>>,
     static_targets: HashMap<CurrentUnitBindingId, StaticNamespace>,
     source_property_count: usize,
+    source_extension_properties: std::collections::HashSet<SourcePropertyId>,
     global_property_sources: Vec<PropertyImportSource>,
     object_property_sources: HashMap<(hir::ObjectId, usize), SourcePropertyId>,
     resolved_properties: HashMap<SourcePropertyId, hir::PropertyId>,

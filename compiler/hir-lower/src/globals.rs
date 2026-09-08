@@ -991,7 +991,6 @@ impl Lowerer {
         if self.scopes.lookup(&name.text).is_some()
             || self.available_capture(&name.text).is_some()
             || self.host_has_property(&name.text)
-            || self.visible_property(&name.text, None).is_some()
         {
             return None;
         }
@@ -999,18 +998,30 @@ impl Lowerer {
             return None;
         };
         let application_value = &self.enum_applications[application];
-        let prelude = self
-            .core_prelude_variant_refs(&name.text)
-            .iter()
-            .copied()
-            .filter(|target| target.enumeration() == application_value.template)
-            .filter(|target| self.resolved_variant_style(*target) == VariantStyle::Unit)
-            .collect::<Vec<_>>();
-        let target = match prelude.as_slice() {
-            [target] => Some(*target),
-            [] => self.contextual_variant_ref(&name.text, Some(expected)),
+        let target = match self.lookup_value_origin(&name.text) {
+            crate::imports::lookup::LookupResult::Unique(
+                crate::imports::lookup::values::ValueOrigin::Core(
+                    crate::imports::lookup::values::ValueTarget::Variant(target),
+                ),
+            ) if target.enumeration() != application_value.template
+                || self.resolved_variant_style(target) != VariantStyle::Unit =>
+            {
+                self.contextual_variant_ref(&name.text, Some(expected))
+            }
+            crate::imports::lookup::LookupResult::Unique(origin) => {
+                match self.materialized_value_target(origin)? {
+                    crate::imports::lookup::values::ValueTarget::Variant(target) => Some(target),
+                    _ => None,
+                }
+            }
+            crate::imports::lookup::LookupResult::Missing => {
+                self.contextual_variant_ref(&name.text, Some(expected))
+            }
             _ => None,
         }?;
+        if target.enumeration() != application_value.template {
+            return None;
+        }
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,

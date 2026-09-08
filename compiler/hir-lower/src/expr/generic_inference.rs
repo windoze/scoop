@@ -376,22 +376,25 @@ impl Lowerer {
             || self.available_capture(&name.text).is_some()
             || self.constructor_params_in_scope.contains_key(&name.text)
             || self.host_has_property(&name.text)
-            || self.visible_property(&name.text, None).is_some()
             || self
                 .lexical_nested_nominal_target(&name.text)
-                .or_else(|| self.top_level_nominal_target(&name.text))
                 .is_some_and(|target| matches!(target, crate::NominalTarget::Object(_)))
         {
             return false;
         }
-        let candidates = self.core_prelude_variant_refs(&name.text);
-        match candidates {
-            [target] if self.resolved_variant_style(*target) == VariantStyle::Unit => {
-                !self.enums[target.enumeration()].type_params.is_empty()
+        match self.lookup_value_origin(&name.text) {
+            crate::imports::lookup::LookupResult::Unique(origin) => {
+                match self.materialized_value_target(origin) {
+                    Some(crate::imports::lookup::values::ValueTarget::Variant(target)) => {
+                        self.resolved_variant_style(target) == VariantStyle::Unit
+                            && !self.enums[target.enumeration()].type_params.is_empty()
+                    }
+                    _ => false,
+                }
             }
-            [_] => false,
-            [] => true,
-            _ => true,
+            crate::imports::lookup::LookupResult::Missing => true,
+            crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Inaccessible(_) => false,
         }
     }
 

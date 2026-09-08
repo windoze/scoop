@@ -473,7 +473,9 @@ fn contextual_failures_report_exact_enum_shape_and_missing_targets() {
         .map(|error| error.message.as_str())
         .collect::<Vec<_>>();
     assert!(
-        messages.contains(&"enum `State` has no variant `Missing`"),
+        messages.contains(
+            &"function `Missing` is not a value; use `::Missing` to create a callable reference"
+        ),
         "{errors:?}"
     );
     assert!(

@@ -1,4 +1,5 @@
 use super::*;
+use crate::imports::lookup::values::ValueTarget;
 
 impl Lowerer {
     /// A bare identifier in expression position. Ordinary lexical/member/
@@ -84,52 +85,32 @@ impl Lowerer {
                     crate::properties::ExtensionPropertyResolution::NoCandidate => {}
                 }
             }
-            if let Some(property) = self.visible_property(&name.text, None) {
-                let ty = self.properties[property].ty;
-                return self.lower_property_read(property, None, None, ty, name.span);
-            }
-            if let Some(object) = self
-                .lexical_nested_nominal_target(&name.text)
-                .or_else(|| self.top_level_nominal_target(&name.text))
-                .and_then(|target| match target {
-                    crate::NominalTarget::Object(object) => Some(object),
-                    _ => None,
-                })
+            if let Some(object) =
+                self.lexical_nested_nominal_target(&name.text)
+                    .and_then(|target| match target {
+                        crate::NominalTarget::Object(object) => Some(object),
+                        _ => None,
+                    })
             {
                 return self.lower_singleton_value(object, name.span);
             }
-            let prelude = self.core_prelude_variant_refs(&name.text).to_vec();
-            let mut prelude_successes = Vec::new();
             let mut prelude_failure = None;
-            let mut payload_only_prelude = Vec::new();
-            for target in prelude {
-                if self.resolved_variant_style(target) != VariantStyle::Unit {
-                    payload_only_prelude.push(target);
-                    continue;
-                }
-                match self
-                    .probe_expr_layer(|state, _| state.lower_unit_variant(name, target, expected))
-                {
-                    Ok(layer) => prelude_successes.push((target, layer)),
-                    Err(failure) => {
-                        prelude_failure.get_or_insert(failure);
+            if let Some(target) = self.resolve_value_name(name).ok()? {
+                if matches!(
+                    self.lookup_value_origin(&name.text),
+                    crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::Core(ValueTarget::Variant(_))
+                    )
+                ) {
+                    match self.probe_expr_layer(|state, _| {
+                        state.lower_named_value_target(name, target, expected)
+                    }) {
+                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                        Err(failure) => prelude_failure = Some(failure),
                     }
+                } else {
+                    return self.lower_named_value_target(name, target, expected);
                 }
-            }
-            match prelude_successes.len() {
-                1 => {
-                    let (_, layer) = prelude_successes.pop().expect("one prelude winner");
-                    return Some(self.commit_expr_layer(layer, sink));
-                }
-                2.. => {
-                    let targets = prelude_successes
-                        .iter()
-                        .map(|(target, _)| *target)
-                        .collect::<Vec<_>>();
-                    self.ambiguous_prelude_variant(name, &targets);
-                    return None;
-                }
-                0 => {}
             }
             if let Some(target) = self.contextual_variant_ref(&name.text, expected) {
                 let enumeration = target.enumeration();
@@ -157,17 +138,6 @@ impl Lowerer {
             }
             if let Some(failure) = prelude_failure {
                 self.commit_layer_diagnostics(*failure);
-                return None;
-            }
-            if let Some(target) = payload_only_prelude.first() {
-                let enumeration = target.enumeration();
-                self.error(
-                    name.span,
-                    format!(
-                        "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
-                        name.text, self.enums[enumeration].name, name.text
-                    ),
-                );
                 return None;
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
@@ -257,6 +227,42 @@ impl Lowerer {
             span: name.span,
             origin: self.expression_origin(name.span),
         })
+    }
+
+    pub(crate) fn lower_named_value_target(
+        &mut self,
+        name: &ast::Ident,
+        target: ValueTarget,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            ValueTarget::Property(property) => {
+                let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
+                self.lower_property_read(
+                    property,
+                    owner,
+                    receiver,
+                    self.properties[property].ty,
+                    name.span,
+                )
+            }
+            ValueTarget::Object(object) => self.lower_singleton_value(object, name.span),
+            ValueTarget::Variant(target) => {
+                if self.resolved_variant_style(target) != VariantStyle::Unit {
+                    self.error(
+                        name.span,
+                        format!(
+                            "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
+                            name.text,
+                            self.enums[target.enumeration()].name,
+                            name.text
+                        ),
+                    );
+                    return None;
+                }
+                self.lower_unit_variant(name, target, expected)
+            }
+        }
     }
 
     pub(in crate::expr) fn ambiguous_prelude_variant(

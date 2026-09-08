@@ -67,7 +67,16 @@ impl Lowerer {
                 ty: self.string,
             }),
             ast::Expr::Var(name) => {
-                let property = self.visible_property(&name.text, None)?;
+                let crate::imports::lookup::LookupResult::Unique(origin) =
+                    self.lookup_value_origin(&name.text)
+                else {
+                    return None;
+                };
+                let crate::imports::lookup::values::ValueTarget::Property(property) =
+                    self.materialized_value_target(origin)?
+                else {
+                    return None;
+                };
                 let declaration = self.properties[property].clone();
                 let hir::PropertyRepresentation::Const { value } = declaration.representation
                 else {
