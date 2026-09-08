@@ -50,6 +50,7 @@ M23-1 不引入 Cone manifest、source discovery、persistent identity、`.slib`
 - `.slib` 读写、artifact、object、blob、link member 或成员数量约束；
 - direct/transitive dependency、cross-Cone `SemanticWorld` 或 split-package provider 合并；
 - 成功的 re-export、re-export snapshot、provenance witness 或 public surface 发布；
+- 自定义 `annotation class` 声明及其 import target；M12 的 compiler-known 注解不是源码 namespace binding，未来交付通用注解声明时再接入同一 typed import 机制；
 - `scoop` umbrella binary、`scoopc` single-Cone protocol、多 Cone DAG、cache 或 link stage；
 - 正式 single-file mode；
 - dependency-coordinate-qualified 源码名称；
@@ -207,7 +208,7 @@ AllParsedSources<Id> {
 }
 ```
 
-用户 source 的 `Id` 为 `Stage1SourceHandle`：它只是当次请求内唯一的 typed handle，不是 identity，不得序列化，也不得被解释为未来的 persistent source id。`AllParsedSources` 字段私有，只能由 `parse_all` 的成功构造器产生；构造器保证 non-empty、handle 两两不同、全部带同一 `Stage1RequestId`，任一重复 handle 或 parser error 都不会产生该类型。`display_locator` 只用于当次诊断，不进入 AST、package、entity identity、lookup 判等或 golden 的语义部分。M23-2 用 `(ConeIdentity, logical_path)` 的最终 source identity 替换外层 handle 时，`SourceFile` 本身不变。
+用户 source 的 `Id` 为 `Stage1SourceHandle`：它只是当次请求内唯一的 typed handle，不是 identity，不得序列化，也不得被解释为未来的 persistent source id。`AllParsedSources` 字段私有，并提供检查 non-empty、handle 两两不同且全部带同一 `Stage1RequestId` 的验证构造器。生产 source-text 路径只能把 `parse_all` 的成功结果交给 HIR；parser error 不产生该结果。由于 parser 与 AST/IR 位于不同 crate，Rust 没有 friend-crate 可见性，验证构造器也供 legacy adapter 与直接构造结构完备 AST 的 stage 单测使用；这不伪造 parser provenance：`SourceFile` 本身没有 recovery/error node，而生产编排仍必须以 `parse_all` 的 `Result` 为原子门。`display_locator` 只用于当次诊断，不进入 AST、package、entity identity、lookup 判等或 golden 的语义部分。M23-2 用 `(ConeIdentity, logical_path)` 的最终 source identity 替换外层 handle 时，`SourceFile` 本身不变。
 
 ### 3.3 AST 成功不变量
 
@@ -314,7 +315,7 @@ Stage1CompilationInput {
 
 这里的“当前编译单元”精确定义为 `user_sources` 中的全部用户 source。它没有 coordinate、manifest、dependency edge、source discovery 或 artifact identity，因此不能被命名为 Cone，也不能被写入缓存或 `.slib`。
 
-`Stage1CompilationInput` 也只能由验证构造器产生；它接收同一 request 的 `AllParsedSources`，因此 HIR 从类型上不会收到空集合、重复 source handle、不同请求拼接的 source 或 parser recovery tree。现有单文件 fixture 用一个元素构造 `user_sources`；多 package 测试可直接传入多个 source。这个接口只接收已经选定的 source，不负责从目录、相邻文件或 manifest 发现文件，因而不会与 M23-3/M23-11 的正式 build root 规则形成第二套 source discovery。
+`Stage1CompilationInput` 接收已经由验证构造器封闭的同一 request `AllParsedSources`，因此 HIR 从类型上不会收到空集合、重复 source handle、不同请求拼接的 source 或 parser recovery node。生产调用方还必须先通过 `parse_all` 的成功门；legacy/test adapter 可以直接提供结构完备 AST，但同样不能构造 error node。现有单文件 fixture 用一个元素构造 `user_sources`；多 package 测试可直接传入多个 source。这个接口只接收已经选定的 source，不负责从目录、相邻文件或 manifest 发现文件，因而不会与 M23-3/M23-11 的正式 build root 规则形成第二套 source discovery。
 
 ### 5.2 M22 core 兼容边界
 
@@ -369,7 +370,7 @@ namespace index 穷尽区分：
 
 - package namespace；
 - nominal/static owner namespace；
-- class、interface、struct、enum、annotation class、non-generic typealias 与 object binding；nominal binding携带其既有constructor surface，不把constructor另造为可独立import的名称；
+- class、interface、struct、enum、non-generic typealias 与 object binding；nominal binding携带其既有constructor surface，不把constructor另造为可独立import的名称；自定义 `annotation class` 尚无源码声明，因而不在 M23-1 target 集合中；
 - enum variant binding；
 - 当前 package/static namespace 中的 function binding；ordinary、operator 与 extension 角色继续由对应 function view携带；
 - 当前 package/static namespace 中的 property binding；ordinary/extension及read-only/read-write能力继续由对应 property view携带。
@@ -426,7 +427,6 @@ Stage1ImportedTarget =
   | Interface(CurrentInterfaceId)
   | Struct(CurrentStructId)
   | Enum(CurrentEnumId)
-  | AnnotationClass(CurrentAnnotationClassId)
   | TypeAlias(CurrentTypeAliasId)
   | Object(CurrentObjectId)
   | EnumVariant(CurrentEnumVariantId)
@@ -462,7 +462,6 @@ Stage1ResolvedNamespace =
   | InterfaceStatic(CurrentInterfaceId)
   | StructStatic(CurrentStructId)
   | EnumStatic(CurrentEnumId)
-  | AnnotationClassStatic(CurrentAnnotationClassId)
   | ObjectStatic(CurrentObjectId)
   | CompanionStatic(CurrentCompanionId)
 
