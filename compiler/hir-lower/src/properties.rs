@@ -106,9 +106,10 @@ impl Lowerer {
         require_read: bool,
     ) -> ExtensionPropertyResolution {
         let declared = self
-            .extension_properties_by_name
-            .get(&name.text)
-            .is_some_and(|properties| !properties.is_empty());
+            .top_level_namespaces
+            .extension_property_layers(self.current_file, &name.text)
+            .iter()
+            .any(|properties| !properties.is_empty());
         let mut first_failure = None;
         for same_side in [true, false] {
             let mut state = self.clone();
@@ -154,20 +155,13 @@ impl Lowerer {
         require_read: bool,
     ) -> ExtensionPropertyResolution {
         let properties = self
-            .extension_properties_by_name
-            .get(&name.text)
+            .top_level_extension_property_candidates_on_side(&name.text, same_side)
             .into_iter()
-            .flatten()
-            .copied()
             .filter(|property| {
                 self.access_domain_allows(
                     &self.properties[*property].access.lookup.0,
                     Some(receiver.ty),
                 )
-            })
-            .filter(|property| {
-                self.sources_are_on_same_side(self.current_file, self.property_files[property])
-                    == same_side
             })
             .collect::<Vec<_>>();
         if properties.is_empty() {

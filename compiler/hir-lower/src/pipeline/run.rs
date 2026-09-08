@@ -19,6 +19,10 @@ impl Lowerer {
         );
         let primary_user_file = self.primary_user_file();
         let core_diagnostic_file = self.core_diagnostic_file();
+        self.top_level_namespaces.initialize_sources(
+            self.intrinsic_sources.iter().map(|source| source.kind),
+            files,
+        );
 
         // Pass 1: declare aliases, nominals and functions across all files
         // (core first), so bodies and field types resolve regardless of
@@ -427,18 +431,19 @@ impl Lowerer {
         // (M7) several functions may be named `main`; the entry point
         // is the zero-parameter one.
         self.current_file = primary_user_file;
-        let zero_param_main = self.functions_by_name.get("main").and_then(|ids| {
-            ids.iter().copied().find(|&id| {
-                let file = self.function_files[&id];
-                !self.source_is_core(file)
-                    && self
-                        .signatures
-                        .get(&id)
-                        .is_some_and(|sig| sig.params.is_empty())
+        let zero_param_mains = self
+            .top_level_namespaces
+            .current_unit_functions_named("main")
+            .into_iter()
+            .filter(|id| {
+                self.signatures
+                    .get(id)
+                    .is_some_and(|signature| signature.params.is_empty())
             })
-        });
-        let entry = match zero_param_main {
-            Some(id) => {
+            .collect::<Vec<_>>();
+        let entry = match zero_param_mains.as_slice() {
+            [id] => {
+                let id = *id;
                 // The entry point is monomorphic: there is no caller to
                 // infer type arguments from.
                 if !self.functions[id].type_params().is_empty() {
@@ -461,12 +466,37 @@ impl Lowerer {
                 }
                 Some(id)
             }
-            None => {
+            [] => {
                 self.error(
                     files[primary_user_file].span,
                     "missing entry point: declare `fun main()`".to_string(),
                 );
                 None
+            }
+            candidates => {
+                let every_pair_is_an_existing_duplicate =
+                    candidates.iter().enumerate().all(|(index, id)| {
+                        candidates[..index].iter().all(|other| {
+                            let file = self.function_files[id];
+                            let other_file = self.function_files[other];
+                            self.top_level_namespaces
+                                .sources_share_namespace(file, other_file)
+                                && (self.functions[*id].access.declared
+                                    != hir::DeclaredVisibility::Private
+                                    || self.functions[*other].access.declared
+                                        != hir::DeclaredVisibility::Private
+                                    || file == other_file)
+                        })
+                    });
+                if every_pair_is_an_existing_duplicate {
+                    candidates.first().copied()
+                } else {
+                    self.error(
+                        files[primary_user_file].span,
+                        "multiple entry points: declare exactly one `fun main()`".to_string(),
+                    );
+                    None
+                }
             }
         };
 

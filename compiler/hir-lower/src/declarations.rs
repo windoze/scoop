@@ -12,20 +12,17 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<StructId> {
-        let candidate = self.structs_by_name.get(name).map(|(id, _)| *id);
-        if let Some(id) = candidate
-            && self
-                .struct_files
-                .get(&id)
-                .copied()
-                .is_some_and(|file| self.source_is_core(file))
-        {
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                NominalTarget::Struct(id) => Some(id),
+                _ => None,
+            });
+        if let Some(id) = candidate {
             return Some(id);
         }
         let core_diagnostic_file = self.core_diagnostic_file();
-        self.current_file = candidate
-            .and_then(|id| self.struct_files.get(&id).copied())
-            .unwrap_or(core_diagnostic_file);
+        self.current_file = core_diagnostic_file;
         self.error(
             files[core_diagnostic_file].span,
             format!("scoop.core must define exactly one `{name}` struct"),
@@ -40,6 +37,8 @@ impl Lowerer {
         &self,
         owner: Option<Owner>,
         name: &str,
+        file: usize,
+        file_private: bool,
     ) -> Option<&'static str> {
         if let Some(target) = owner.and_then(|owner| {
             self.nested_nominals_by_owner
@@ -58,20 +57,10 @@ impl Lowerer {
         }
         if matches!(name, "Unit" | "Any") {
             Some("a built-in type")
-        } else if self.source_type_aliases_by_name.contains_key(name) {
-            Some("a typealias")
-        } else if self.structs_by_name.contains_key(name) {
-            Some("a struct")
-        } else if self.enums_by_name.contains_key(name) {
-            Some("an enum")
-        } else if self.classes_by_name.contains_key(name) {
-            Some("a class")
-        } else if self.interfaces_by_name.contains_key(name) {
-            Some("an interface")
-        } else if self.objects_by_name.contains_key(name) {
-            Some("an object")
         } else {
-            None
+            self.top_level_namespaces
+                .type_conflict(file, name, file_private)
+                .map(crate::namespace::TopLevelTypeTarget::description)
         }
     }
 
@@ -91,7 +80,12 @@ impl Lowerer {
             );
             checked.intrinsic = None;
         }
-        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(
+            owner,
+            &decl.name.text,
+            file_index,
+            crate::namespace::is_file_private(decl.visibility),
+        ) {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
             } else {
@@ -186,8 +180,12 @@ impl Lowerer {
                     .insert((owner, decl.name.text.clone()), NominalTarget::Struct(id));
             }
             None => {
-                self.structs_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                self.top_level_namespaces.register_type(
+                    file_index,
+                    decl.name.text.clone(),
+                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)),
+                    self.structs[id].access.declared == hir::DeclaredVisibility::Private,
+                );
             }
         }
         self.struct_files.insert(id, file_index);
@@ -211,7 +209,12 @@ impl Lowerer {
         owner: Option<Owner>,
     ) -> Option<EnumId> {
         let no_gc = self.check_enum_annotations(decl);
-        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(
+            owner,
+            &decl.name.text,
+            file_index,
+            crate::namespace::is_file_private(decl.visibility),
+        ) {
             let what = if kind == "an enum" {
                 format!("duplicate enum `{}`", decl.name.text)
             } else {
@@ -274,7 +277,12 @@ impl Lowerer {
                     .insert((owner, decl.name.text.clone()), NominalTarget::Enum(id));
             }
             None => {
-                self.enums_by_name.insert(decl.name.text.clone(), id);
+                self.top_level_namespaces.register_type(
+                    file_index,
+                    decl.name.text.clone(),
+                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)),
+                    self.enums[id].access.declared == hir::DeclaredVisibility::Private,
+                );
             }
         }
         let parameter_ids = self.enums[id]
@@ -317,7 +325,12 @@ impl Lowerer {
             );
             checked.intrinsic = None;
         }
-        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(
+            owner,
+            &decl.name.text,
+            file_index,
+            crate::namespace::is_file_private(decl.visibility),
+        ) {
             let what = if kind == "a class" {
                 format!("duplicate class `{}`", decl.name.text)
             } else {
@@ -435,8 +448,12 @@ impl Lowerer {
                     .insert((owner, decl.name.text.clone()), NominalTarget::Class(id));
             }
             None => {
-                self.classes_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                self.top_level_namespaces.register_type(
+                    file_index,
+                    decl.name.text.clone(),
+                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Class(id)),
+                    self.classes[id].access.declared == hir::DeclaredVisibility::Private,
+                );
             }
         }
         self.class_files.insert(id, file_index);
@@ -474,7 +491,12 @@ impl Lowerer {
         owner: Option<Owner>,
     ) -> Option<InterfaceId> {
         self.reject_type_annotations("an interface", &decl.annotations);
-        if let Some(kind) = self.type_namespace_conflict(owner, &decl.name.text) {
+        if let Some(kind) = self.type_namespace_conflict(
+            owner,
+            &decl.name.text,
+            file_index,
+            crate::namespace::is_file_private(decl.visibility),
+        ) {
             let what = if kind == "an interface" {
                 format!("duplicate interface `{}`", decl.name.text)
             } else {
@@ -546,8 +568,12 @@ impl Lowerer {
                 );
             }
             None => {
-                self.interfaces_by_name
-                    .insert(decl.name.text.clone(), (id, ty));
+                self.top_level_namespaces.register_type(
+                    file_index,
+                    decl.name.text.clone(),
+                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)),
+                    self.interfaces[id].access.declared == hir::DeclaredVisibility::Private,
+                );
             }
         }
         self.interface_files.insert(id, file_index);

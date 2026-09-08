@@ -609,16 +609,13 @@ impl Lowerer {
         name: &str,
         same_side: bool,
     ) -> Vec<hir::FunctionId> {
-        self.extensions_by_name
-            .get(name)
+        self.top_level_namespaces
+            .extension_layers(self.current_file, name)
+            .get(usize::from(!same_side))
             .into_iter()
             .flatten()
             .copied()
             .filter(|function| self.function_is_accessible(*function, None))
-            .filter(|function| {
-                self.sources_are_on_same_side(self.current_file, self.function_files[function])
-                    == same_side
-            })
             .collect()
     }
 

@@ -88,11 +88,12 @@ impl Lowerer {
             });
             assert_eq!(property, expected);
             match declaration.owner {
-                hir::PropertyOwner::TopLevel => self
-                    .properties_by_name
-                    .entry(declaration.declaration.name.text.clone())
-                    .or_default()
-                    .push(property),
+                hir::PropertyOwner::TopLevel => self.top_level_namespaces.register_property(
+                    declaration.file,
+                    declaration.declaration.name.text.clone(),
+                    property,
+                    false,
+                ),
                 hir::PropertyOwner::Object(object) => {
                     let backing = self.objects[object].backing_class;
                     self.classes[backing].properties.push(property);
@@ -214,14 +215,21 @@ impl Lowerer {
                 let Some(target) =
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
-                    let message = if declarations
-                        .iter()
-                        .any(|candidate| candidate.declaration.name.text == name.text)
-                    {
+                    let message = if declarations.iter().any(|candidate| {
+                        candidate.declaration.name.text == name.text
+                            && (candidate.owner != hir::PropertyOwner::TopLevel
+                                || self
+                                    .top_level_namespaces
+                                    .source_lookup_rank(file, candidate.file)
+                                    .is_some())
+                    }) {
                         format!("const property `{}` is not accessible here", name.text)
-                    } else if self.properties_by_name.contains_key(&name.text)
+                    } else if self.has_top_level_property_candidate(&name.text)
                         || ordinary.iter().any(|candidate| {
-                            candidate.declaration.name.text == name.text
+                            self.top_level_namespaces
+                                .source_lookup_rank(file, candidate.file)
+                                .is_some()
+                                && candidate.declaration.name.text == name.text
                                 && (candidate.access.declared != hir::DeclaredVisibility::Private
                                     || candidate.file == file)
                         })
@@ -409,6 +417,24 @@ impl Lowerer {
         fallback_to_top_level: bool,
     ) -> Option<usize> {
         let find = |wanted_owner| {
+            if wanted_owner == hir::PropertyOwner::TopLevel {
+                return declarations
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| {
+                        let rank = self
+                            .top_level_namespaces
+                            .source_lookup_rank(file, candidate.file)?;
+                        (candidate.owner == wanted_owner
+                            && candidate.declaration.name.text == name
+                            && (candidate.access.declared != hir::DeclaredVisibility::Private
+                                || candidate.file == file
+                                || self.access_domain_allows(&candidate.access.lookup.0, None)))
+                        .then_some((rank, index))
+                    })
+                    .min_by_key(|(rank, index)| (*rank, *index))
+                    .map(|(_, index)| index);
+            }
             declarations
                 .iter()
                 .enumerate()

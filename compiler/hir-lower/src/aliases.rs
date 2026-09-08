@@ -29,9 +29,18 @@ enum TypeAliasResolution {
 }
 
 impl Lowerer {
+    pub(crate) fn source_type_alias_is_accessible(&self, id: SourceTypeAliasId) -> bool {
+        self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0, None)
+    }
+
     pub(crate) fn declare_type_alias(&mut self, declaration: &ast::TypeAliasDecl, file: usize) {
         let name = declaration.name.text.clone();
-        if let Some(kind) = self.type_namespace_conflict(None, &name) {
+        if let Some(kind) = self.type_namespace_conflict(
+            None,
+            &name,
+            file,
+            crate::namespace::is_file_private(declaration.visibility),
+        ) {
             let message = if kind == "a typealias" {
                 format!("duplicate typealias `{name}`")
             } else {
@@ -55,11 +64,19 @@ impl Lowerer {
             file,
             resolution: TypeAliasResolution::Unresolved,
         });
-        self.source_type_aliases_by_name.insert(name, id);
+        self.top_level_namespaces.register_type(
+            file,
+            name,
+            crate::namespace::TopLevelTypeTarget::Alias(id),
+            self.source_type_aliases[id].access.declared == hir::DeclaredVisibility::Private,
+        );
     }
 
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
-        self.source_type_aliases_by_name.get(name).copied()
+        match self.top_level_type_target_for_reference(name)? {
+            crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
+            crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
+        }
     }
 
     pub(crate) fn resolve_type_alias_reference(
@@ -68,6 +85,15 @@ impl Lowerer {
         supplied_type_arguments: bool,
     ) -> Option<hir::TypeId> {
         let id = self.source_type_alias_named(&name.text)?;
+        self.resolve_type_alias_id_reference(id, name, supplied_type_arguments)
+    }
+
+    pub(crate) fn resolve_type_alias_id_reference(
+        &mut self,
+        id: SourceTypeAliasId,
+        name: &ast::Ident,
+        supplied_type_arguments: bool,
+    ) -> Option<hir::TypeId> {
         if supplied_type_arguments {
             self.error(
                 name.span,
@@ -365,8 +391,7 @@ impl Lowerer {
     }
 
     pub(crate) fn type_alias_is_accessible(&self, name: &str) -> bool {
-        self.source_type_alias_named(name).is_some_and(|id| {
-            self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0, None)
-        })
+        self.source_type_alias_named(name)
+            .is_some_and(|id| self.source_type_alias_is_accessible(id))
     }
 }

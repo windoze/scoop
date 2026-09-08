@@ -582,12 +582,13 @@ impl Lowerer {
         name: &str,
         receiver: Option<hir::TypeId>,
     ) -> Option<hir::PropertyId> {
-        self.properties_by_name
-            .get(name)?
-            .iter()
-            .copied()
-            .find(|&property| {
-                self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
+        self.top_level_namespaces
+            .property_layers(self.current_file, name)
+            .into_iter()
+            .find_map(|layer| {
+                layer.into_iter().find(|&property| {
+                    self.access_domain_allows(&self.properties[property].access.lookup.0, receiver)
+                })
             })
     }
 

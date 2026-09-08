@@ -235,8 +235,13 @@ impl Lowerer {
             vec![name]
         };
         if let Some((conflict, kind)) = lookup_names.iter().find_map(|lookup_name| {
-            self.type_namespace_conflict(owner, lookup_name)
-                .map(|kind| (*lookup_name, kind))
+            self.type_namespace_conflict(
+                owner,
+                lookup_name,
+                file,
+                crate::namespace::is_file_private(source.visibility()),
+            )
+            .map(|kind| (*lookup_name, kind))
         }) {
             let message = if matches!(source, ObjectSource::Companion(_)) {
                 format!(
@@ -384,7 +389,12 @@ impl Lowerer {
                 }
             }
             None => {
-                self.objects_by_name.insert(name.to_string(), object);
+                self.top_level_namespaces.register_type(
+                    file,
+                    name.to_string(),
+                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Object(object)),
+                    self.objects[object].access.declared == hir::DeclaredVisibility::Private,
+                );
             }
         }
         self.object_by_backing_class.insert(backing_class, object);

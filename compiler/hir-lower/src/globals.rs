@@ -93,11 +93,9 @@ impl Lowerer {
                 continue;
             }
             let duplicate = self
-                .properties_by_name
-                .get(&decl.name.text)
+                .top_level_namespaces
+                .properties_in_declaration_scope(file_index, &decl.name.text)
                 .into_iter()
-                .flatten()
-                .copied()
                 .any(|other| {
                     access.declared != hir::DeclaredVisibility::Private
                         || self.properties[other].access.declared
@@ -105,13 +103,17 @@ impl Lowerer {
                         || self.property_files[&other] == file_index
                 })
                 || constants.iter().any(|other: &PendingConst<'_>| {
-                    other.declaration.name.text == decl.name.text
+                    self.top_level_namespaces
+                        .sources_share_namespace(file_index, other.file)
+                        && other.declaration.name.text == decl.name.text
                         && (access.declared != hir::DeclaredVisibility::Private
                             || other.access.declared != hir::DeclaredVisibility::Private
                             || other.file == file_index)
                 })
                 || ordinary.iter().any(|other: &PendingOrdinary<'_>| {
-                    other.declaration.name.text == decl.name.text
+                    self.top_level_namespaces
+                        .sources_share_namespace(file_index, other.file)
+                        && other.declaration.name.text == decl.name.text
                         && (access.declared != hir::DeclaredVisibility::Private
                             || other.access.declared != hir::DeclaredVisibility::Private
                             || other.file == file_index)
@@ -216,10 +218,12 @@ impl Lowerer {
                     span: decl.span,
                 });
                 assert_eq!(property, expected_property);
-                self.properties_by_name
-                    .entry(decl.name.text.clone())
-                    .or_default()
-                    .push(property);
+                self.top_level_namespaces.register_property(
+                    file_index,
+                    decl.name.text.clone(),
+                    property,
+                    false,
+                );
                 self.property_files.insert(property, file_index);
                 continue;
             }
@@ -361,10 +365,12 @@ impl Lowerer {
                 span: decl.span,
             });
             assert_eq!(property, expected_property);
-            self.properties_by_name
-                .entry(decl.name.text.clone())
-                .or_default()
-                .push(property);
+            self.top_level_namespaces.register_property(
+                file_index,
+                decl.name.text.clone(),
+                property,
+                false,
+            );
             self.property_files.insert(property, file_index);
             initializers.push((id, decl));
         }
@@ -586,10 +592,12 @@ impl Lowerer {
             span: declaration.declaration.span,
         });
         assert_eq!(property, expected_property);
-        self.properties_by_name
-            .entry(declaration.declaration.name.text.clone())
-            .or_default()
-            .push(property);
+        self.top_level_namespaces.register_property(
+            declaration.file,
+            declaration.declaration.name.text.clone(),
+            property,
+            false,
+        );
         self.property_files.insert(property, declaration.file);
     }
 
@@ -666,10 +674,12 @@ impl Lowerer {
             span: declaration.declaration.span,
         });
         assert_eq!(property, expected_property);
-        self.properties_by_name
-            .entry(declaration.declaration.name.text.clone())
-            .or_default()
-            .push(property);
+        self.top_level_namespaces.register_property(
+            declaration.file,
+            declaration.declaration.name.text.clone(),
+            property,
+            false,
+        );
         self.property_files.insert(property, declaration.file);
         self.pending_runtime_initializers
             .push(PendingRuntimeInitializer {
@@ -1106,10 +1116,12 @@ impl Lowerer {
                 assert_eq!(property, expected_property);
                 (property, capability)
             };
-        self.extension_properties_by_name
-            .entry(declaration.name.text.clone())
-            .or_default()
-            .push(property);
+        self.top_level_namespaces.register_property(
+            file_index,
+            declaration.name.text.clone(),
+            property,
+            true,
+        );
         self.property_files.insert(property, file_index);
         let getter = match self.property_getters[capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,
@@ -1128,11 +1140,7 @@ impl Lowerer {
     }
 
     pub(crate) fn check_extension_property_signatures(&mut self) {
-        let mut property_groups = self
-            .extension_properties_by_name
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
+        let mut property_groups = self.top_level_namespaces.all_extension_property_groups();
         property_groups.sort_by_key(|properties| {
             properties
                 .first()
@@ -1261,9 +1269,8 @@ impl Lowerer {
     }
 
     fn global_struct_callee(&self, call: &ast::CallExpr) -> Option<hir::StructId> {
-        self.structs_by_name
-            .get(&call.callee.text)
-            .map(|&(structure, _)| structure)
+        self.top_level_struct_named(&call.callee.text)
+            .map(|(structure, _)| structure)
     }
 
     fn global_nominal_constant(

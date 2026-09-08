@@ -245,21 +245,12 @@ impl Lowerer {
         // declarations on the call site's own side of the core/user
         // boundary come first, the other side is the implicitly
         // imported layer.
-        let top_level = self
-            .functions_by_name
-            .get(&name)
-            .cloned()
-            .unwrap_or_default();
         let mut found_top_level_candidate = false;
         for same_side in [true, false] {
-            let candidates = top_level
-                .iter()
-                .copied()
+            let candidates = self
+                .top_level_function_candidates_on_side(&name, same_side)
+                .into_iter()
                 .filter(|function| self.function_is_accessible(*function, None))
-                .filter(|function| {
-                    self.sources_are_on_same_side(self.current_file, self.function_files[function])
-                        == same_side
-                })
                 .collect::<Vec<_>>();
             if !candidates.is_empty() {
                 found_top_level_candidate = true;
@@ -280,17 +271,10 @@ impl Lowerer {
             }
 
             let property = self
-                .properties_by_name
-                .get(&name)
+                .top_level_property_candidates_on_side(&name, same_side)
                 .into_iter()
-                .flatten()
-                .copied()
                 .find(|property| {
                     self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
-                        && (self.sources_are_on_same_side(
-                            self.current_file,
-                            self.property_files[property],
-                        ) == same_side)
                 });
             let Some(property) = property else {
                 continue;
@@ -446,23 +430,16 @@ impl Lowerer {
             return None;
         }
         if !found_top_level_candidate {
-            let message = if self
-                .functions_by_name
-                .get(&name)
-                .is_some_and(|candidates| !candidates.is_empty())
-            {
+            let message = if self.has_top_level_function_candidate(&name) {
                 format!("function `{}` is not accessible here", call.callee.text)
             } else if self
-                .properties_by_name
-                .get(&name)
-                .is_some_and(|candidates| {
-                    !candidates.is_empty()
-                        && candidates.iter().all(|property| {
-                            !self.access_domain_allows(
-                                &self.properties[*property].access.lookup.0,
-                                None,
-                            )
-                        })
+                .top_level_namespaces
+                .property_layers(self.current_file, &name)
+                .iter()
+                .flatten()
+                .copied()
+                .any(|property| {
+                    !self.access_domain_allows(&self.properties[property].access.lookup.0, None)
                 })
             {
                 format!("property `{}` is not accessible here", call.callee.text)

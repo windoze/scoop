@@ -180,15 +180,12 @@ impl Lowerer {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }
         self.top_level.push(id);
-        let namespace = if decl.receiver_ty.is_some() {
-            &mut self.extensions_by_name
-        } else {
-            &mut self.functions_by_name
-        };
-        namespace
-            .entry(decl.name.text.clone())
-            .or_default()
-            .push(id);
+        self.top_level_namespaces.register_function(
+            file_index,
+            decl.name.text.clone(),
+            id,
+            decl.receiver_ty.is_some(),
+        );
         self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
     }
@@ -204,7 +201,9 @@ impl Lowerer {
             let duplicate = pending_functions[..index]
                 .iter()
                 .any(|&(other, _, other_file)| {
-                    self.functions[other].name == decl.name.text
+                    self.top_level_namespaces
+                        .sources_share_namespace(file_index, other_file)
+                        && self.functions[other].name == decl.name.text
                         && self.same_parameter_signature(id, other)
                         && (self.functions[id].access.declared != hir::DeclaredVisibility::Private
                             || self.functions[other].access.declared

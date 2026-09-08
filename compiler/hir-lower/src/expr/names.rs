@@ -171,8 +171,8 @@ impl Lowerer {
                 return None;
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
-                || self.functions_by_name.contains_key(&name.text)
-                || self.extensions_by_name.contains_key(&name.text)
+                || self.has_top_level_function_candidate(&name.text)
+                || self.has_top_level_extension_candidate(&name.text)
             {
                 self.error(
                     name.span,

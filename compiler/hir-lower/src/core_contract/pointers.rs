@@ -6,14 +6,13 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<EnumId> {
-        let candidate = self.enums_by_name.get(name).copied();
-        if let Some(id) = candidate
-            && self
-                .enum_files
-                .get(&id)
-                .copied()
-                .is_some_and(|file| self.source_is_core(file))
-        {
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Enum(id) => Some(id),
+                _ => None,
+            });
+        if let Some(id) = candidate {
             return Some(id);
         }
         let core_diagnostic_file = self.core_diagnostic_file();

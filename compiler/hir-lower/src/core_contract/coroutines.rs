@@ -85,10 +85,11 @@ impl Lowerer {
         files: &[ast::SourceFile],
     ) -> Option<InterfaceId> {
         let candidate = self
-            .interfaces_by_name
-            .get(name)
-            .map(|(id, _)| *id)
-            .filter(|id| self.source_is_core(self.interface_files[id]));
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Interface(id) => Some(id),
+                _ => None,
+            });
         if candidate.is_none() {
             let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = core_diagnostic_file;

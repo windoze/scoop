@@ -42,6 +42,50 @@ fn set_private(declaration: &mut ast::Decl) {
     };
 }
 
+fn with_package(mut source: ast::SourceFile, segments: &[&str]) -> ast::SourceFile {
+    let Some((first, rest)) = segments.split_first() else {
+        source.package = ast::PackageSyntax::RootPackage;
+        return source;
+    };
+    source.package = ast::PackageSyntax::QualifiedPackage {
+        package_keyword_span: sp(),
+        path: ast::QualifiedNameSyntax {
+            first: ident(first),
+            rest: rest
+                .iter()
+                .map(|segment| ast::QualifiedNameTailSyntax {
+                    dot_span: sp(),
+                    identifier: ident(segment),
+                })
+                .collect(),
+            span: sp(),
+        },
+        span: sp(),
+    };
+    source
+}
+
+fn qualified_type(path: &[&str]) -> ast::TypeRef {
+    ast::TypeRef {
+        kind: ast::TypeRefKind::Qualified {
+            path: path.iter().map(|segment| ident(segment)).collect(),
+            arguments: Vec::new(),
+        },
+        span: sp(),
+    }
+}
+
+fn private_struct(name: &str) -> ast::Decl {
+    let ast::Decl::Struct(mut declaration) = struct_decl(name, Vec::new()) else {
+        panic!("the struct builder returns a struct")
+    };
+    declaration.visibility = ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Private,
+        span: sp(),
+    };
+    ast::Decl::Struct(declaration)
+}
+
 #[test]
 fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() {
     let core = core_file();
@@ -149,4 +193,150 @@ fn stage1_input_rejects_mixed_user_providers() {
     assert_eq!(error.source_index, 1);
     assert_eq!(error.expected_provider, expected);
     assert_eq!(error.actual_provider, actual);
+}
+
+#[test]
+fn same_qualified_package_shares_internal_declarations_across_sources() {
+    let core = core_file();
+    let first = with_package(file(vec![fun("shared", Vec::new())]), &["dev", "app"]);
+    let second = with_package(
+        file(vec![fun("main", vec![stmt(call("shared", Vec::new()))])]),
+        &["dev", "app"],
+    );
+
+    lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect("files in one typed package share internal declarations");
+}
+
+#[test]
+fn different_packages_do_not_share_short_names() {
+    let core = core_file();
+    let first = with_package(file(vec![fun("hidden", Vec::new())]), &["first"]);
+    let second = with_package(
+        file(vec![fun("main", vec![stmt(call("hidden", Vec::new()))])]),
+        &["second"],
+    );
+
+    let errors = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect_err("a short name cannot cross a package boundary");
+    assert!(errors.iter().any(|error| {
+        error.file == 2 && error.message.starts_with("unknown function `hidden`")
+    }));
+}
+
+#[test]
+fn different_packages_may_declare_the_same_short_name() {
+    let core = core_file();
+    let first = with_package(file(vec![fun("helper", Vec::new())]), &["first"]);
+    let second = with_package(
+        file(vec![
+            fun("helper", Vec::new()),
+            fun("main", vec![stmt(call("helper", Vec::new()))]),
+        ]),
+        &["second"],
+    );
+
+    lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect("same-spelled declarations in distinct packages have distinct arena identities");
+}
+
+#[test]
+fn qualified_type_path_uses_the_longest_typed_package_prefix() {
+    let core = core_file();
+    let declaration = with_package(file(vec![struct_decl("Value", Vec::new())]), &["a", "b"]);
+    let consumer = file(vec![
+        fun_sig(
+            "consume",
+            Vec::new(),
+            vec![("value", qualified_type(&["a", "b", "Value"]))],
+            None,
+            Vec::new(),
+        ),
+        fun("main", Vec::new()),
+    ]);
+
+    lower_user_sources(&core, &declaration, &[(&consumer, "root.scoop")])
+        .expect("a qualified type path resolves through typed package nodes");
+}
+
+#[test]
+fn private_same_name_types_are_isolated_by_source_inside_one_package() {
+    let core = core_file();
+    let mut first_use = fun_sig(
+        "firstUse",
+        Vec::new(),
+        vec![("value", ty_named("Secret"))],
+        None,
+        Vec::new(),
+    );
+    set_private(&mut first_use);
+    let first = with_package(file(vec![private_struct("Secret"), first_use]), &["shared"]);
+    let mut second_use = fun_sig(
+        "secondUse",
+        Vec::new(),
+        vec![("value", ty_named("Secret"))],
+        None,
+        Vec::new(),
+    );
+    set_private(&mut second_use);
+    let second = with_package(
+        file(vec![
+            private_struct("Secret"),
+            second_use,
+            fun("main", Vec::new()),
+        ]),
+        &["shared"],
+    );
+
+    lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect("each file-private type owns a source-local binding");
+}
+
+#[test]
+fn core_bodies_cannot_see_current_package_declarations() {
+    let mut core = core_file();
+    core.declarations
+        .push(fun("coreProbe", vec![stmt(call("userOnly", Vec::new()))]));
+    let user = file(vec![fun("userOnly", Vec::new()), fun("main", Vec::new())]);
+
+    let errors = lower_user_sources(&core, &user, &[])
+        .expect_err("the current package must not leak into core lookup");
+    assert!(errors.iter().any(|error| {
+        error.file == 0 && error.message.starts_with("unknown function `userOnly`")
+    }));
+}
+
+#[test]
+fn source_permutation_does_not_change_the_current_package_winner() {
+    let core = core_file();
+    let first = with_package(
+        file(vec![fun_expr(
+            "choose",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_named("Int")),
+            int_lit(1),
+        )]),
+        &["first"],
+    );
+    let second = with_package(
+        file(vec![
+            fun_expr(
+                "choose",
+                Vec::new(),
+                Vec::new(),
+                Some(ty_named("String")),
+                str_lit("second"),
+            ),
+            fun("main", vec![val("selected", call("choose", Vec::new()))]),
+        ]),
+        &["second"],
+    );
+
+    let forward = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect("forward source order lowers");
+    let reverse = lower_user_sources(&core, &second, &[(&first, "first.scoop")])
+        .expect("reverse source order lowers");
+    assert!(hir::dump(&forward.export).contains("Call choose : String"));
+    assert!(hir::dump(&reverse.export).contains("Call choose : String"));
 }

@@ -27,10 +27,12 @@ impl Lowerer {
             property_ty: declaration.ty,
             stable_key,
         });
-        self.properties_by_name
-            .entry(declaration.declaration.name.text.clone())
-            .or_default()
-            .push(property);
+        self.top_level_namespaces.register_property(
+            declaration.file,
+            declaration.declaration.name.text.clone(),
+            property,
+            false,
+        );
         self.property_files.insert(property, declaration.file);
     }
 

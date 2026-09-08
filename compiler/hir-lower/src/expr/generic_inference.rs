@@ -523,7 +523,7 @@ impl Lowerer {
         {
             return false;
         }
-        if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
+        if let Some((class, _)) = self.top_level_class_named(&name.text)
             && self.array_class_kind(class).is_some()
         {
             let [source] = args else {
@@ -581,7 +581,7 @@ impl Lowerer {
     /// does not denote a constructor.
     pub(super) fn constructor_inference_shape(&self, name: &str) -> Option<(usize, Vec<TypeId>)> {
         let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
-            let enum_id = self.enums_by_name.get(enum_name).copied()?;
+            let enum_id = self.top_level_enum_named(enum_name)?;
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
@@ -600,12 +600,11 @@ impl Lowerer {
                     .collect(),
             ));
         }
-        self.structs_by_name
-            .get(name)
+        self.top_level_struct_named(name)
             .map(|(struct_id, _)| {
                 (
-                    self.structs[*struct_id].type_params.len(),
-                    self.structs[*struct_id]
+                    self.structs[struct_id].type_params.len(),
+                    self.structs[struct_id]
                         .semantic_fields()
                         .iter()
                         .map(|field| field.ty)
@@ -613,10 +612,10 @@ impl Lowerer {
                 )
             })
             .or_else(|| {
-                self.classes_by_name.get(name).map(|(class_id, _)| {
-                    let constructor = self.classes[*class_id].constructors.first().copied();
+                self.top_level_class_named(name).map(|(class_id, _)| {
+                    let constructor = self.classes[class_id].constructors.first().copied();
                     (
-                        self.classes[*class_id].type_params.len(),
+                        self.classes[class_id].type_params.len(),
                         constructor
                             .map(|constructor| {
                                 self.class_constructors[constructor]
@@ -698,7 +697,7 @@ impl Lowerer {
         {
             return None;
         }
-        let enum_id = self.enums_by_name.get(&enum_name.text).copied()?;
+        let enum_id = self.top_level_enum_named(&enum_name.text)?;
         let ast::FieldSelector::Name(variant_name) = &access.selector else {
             return None;
         };

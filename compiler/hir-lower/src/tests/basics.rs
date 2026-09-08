@@ -141,9 +141,9 @@ fn duplicate_function_is_an_error() {
 }
 
 #[test]
-fn redeclaring_a_core_function_is_an_error() {
-    // The user file duplicates core's generic declaration exactly (overloads
-    // with different signatures would be legal).
+fn current_package_may_shadow_a_core_prelude_function() {
+    // The current package and the core prelude are distinct lookup layers, so
+    // an otherwise identical declaration in the current package is legal.
     let mut duplicate = fun_expr(
         "print",
         vec!["T"],
@@ -156,12 +156,7 @@ fn redeclaring_a_core_function_is_an_error() {
     };
     function.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
     let file = file(vec![fun("main", vec![]), duplicate]);
-    let errors = lower_user(file).expect_err("redeclaring `print` must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "function `print` is already declared with the same signature"
-    );
+    lower_user(file).expect("the current package may shadow the core prelude");
 }
 
 #[test]

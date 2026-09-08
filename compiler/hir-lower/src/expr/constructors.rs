@@ -70,7 +70,7 @@ impl Lowerer {
                     }),
                 )
             } else {
-                let Some(&enum_id) = self.enums_by_name.get(enum_name) else {
+                let Some(enum_id) = self.top_level_enum_named(enum_name) else {
                     self.error(name.span, format!("unknown enum `{enum_name}`"));
                     return None;
                 };
@@ -133,7 +133,7 @@ impl Lowerer {
                 | None => Constructor::Unmatched,
             });
         }
-        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
+        if let Some((struct_id, ty)) = self.top_level_struct_named(&name.text) {
             if !self.nominal_is_accessible(ty) {
                 self.error(
                     name.span,
@@ -147,7 +147,7 @@ impl Lowerer {
                 alias: None,
             });
         }
-        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
+        if let Some((class_id, ty)) = self.top_level_class_named(&name.text) {
             if !self.nominal_is_accessible(ty) {
                 self.error(
                     name.span,

@@ -133,8 +133,13 @@ impl Lowerer {
         files: &[ast::SourceFile],
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
-        let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
-        let id = candidate.filter(|id| self.source_is_core(self.class_files[id]));
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Class(id) => Some(id),
+                _ => None,
+            });
+        let id = candidate;
         let Some(id) = id else {
             let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = candidate

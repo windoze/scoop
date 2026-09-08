@@ -109,6 +109,7 @@ mod generic_entities;
 mod globals;
 mod lowering_context;
 mod model;
+mod namespace;
 mod overload;
 mod patterns;
 mod pipeline;
@@ -435,7 +436,7 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
-    pub(crate) source_type_aliases_by_name: HashMap<String, aliases::SourceTypeAliasId>,
+    pub(crate) top_level_namespaces: namespace::TopLevelNamespaces,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -468,14 +469,6 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// Function namespace: name → overload candidates in declaration
-    /// order (M7). Struct and enum names live in separate namespaces:
-    /// a struct and a function may share a name.
-    pub(crate) functions_by_name: HashMap<String, Vec<FunctionId>>,
-    /// Top-level extension namespace. Extension declarations do not enter the
-    /// ordinary function layer: they are considered only with an explicit or
-    /// lexical receiver, except for `::name` callable references.
-    pub(crate) extensions_by_name: HashMap<String, Vec<FunctionId>>,
     /// Resolved extension receiver type for each extension function. The HIR
     /// body represents it structurally as the first immutable `this` param.
     pub(crate) extension_receivers: HashMap<FunctionId, TypeId>,
@@ -483,12 +476,6 @@ pub(crate) struct Lowerer {
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
     pub(crate) function_files: HashMap<FunctionId, usize>,
-    /// Property namespace in declaration order. Multiple entries are needed
-    /// because file-private top-level properties in different source files
-    /// own distinct namespaces.
-    pub(crate) properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
-    /// Extension properties form their own receiver-applicable namespace.
-    pub(crate) extension_properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
     /// Direct typed relation used after getter overload resolution; accessor
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
@@ -498,15 +485,6 @@ pub(crate) struct Lowerer {
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
     pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
     pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
-    /// Struct namespace: name → (declaration, value type of the struct).
-    pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
-    /// Enum namespace.
-    pub(crate) enums_by_name: HashMap<String, EnumId>,
-    /// Class namespace: name → (declaration, reference type of the class).
-    pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
-    /// Interface namespace: name → (declaration, interface type).
-    pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
-    pub(crate) objects_by_name: HashMap<String, ObjectId>,
     /// Physical class representation -> semantic singleton declaration.
     /// The relation is typed and established when the object is declared;
     /// constructor/body lowering never recovers it from a generated name.

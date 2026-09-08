@@ -150,7 +150,7 @@ impl Lowerer {
                     };
                     (self.enum_applications[application].template, Some(target))
                 } else {
-                    let Some(&enum_id) = self.enums_by_name.get(&enum_name.text) else {
+                    let Some(enum_id) = self.top_level_enum_named(&enum_name.text) else {
                         self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
                         return None;
                     };

@@ -34,11 +34,7 @@ enum ReferenceFailureKind {
 impl Lowerer {
     pub(super) fn is_declared_type_name(&self, name: &str) -> bool {
         self.lexical_nested_nominal_target(name).is_some()
-            || self.classes_by_name.contains_key(name)
-            || self.interfaces_by_name.contains_key(name)
-            || self.structs_by_name.contains_key(name)
-            || self.enums_by_name.contains_key(name)
-            || (self.source_type_alias_named(name).is_some() && self.type_alias_is_accessible(name))
+            || self.top_level_type_target(name).is_some()
     }
 
     pub(super) fn expected_function_signature(
@@ -324,80 +320,66 @@ impl Lowerer {
     }
 
     pub(crate) fn extension_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
-        self.candidate_layers(self.extensions_by_name.get(name))
+        self.accessible_candidate_layers(
+            self.top_level_namespaces
+                .extension_layers(self.current_file, name)
+                .into_iter()
+                .map(|layer| layer.candidates)
+                .collect(),
+        )
     }
 
     pub(in crate::expr) fn extension_operator_candidate_layers(
         &self,
         operator: hir::OperatorKind,
     ) -> Vec<Vec<hir::FunctionId>> {
-        let mut ids = self
-            .extensions_by_name
-            .values()
-            .flatten()
-            .copied()
-            .filter(|function| self.signatures[function].modifiers.operator == Some(operator))
-            .collect::<Vec<_>>();
-        ids.sort_by_key(|id| id.into_raw().into_u32());
-        self.candidate_layers(Some(&ids))
+        self.accessible_candidate_layers(
+            self.top_level_namespaces
+                .all_extension_layers(self.current_file)
+                .into_iter()
+                .map(|layer| {
+                    let mut layer = layer
+                        .into_iter()
+                        .filter(|function| {
+                            self.signatures[function].modifiers.operator == Some(operator)
+                        })
+                        .collect::<Vec<_>>();
+                    layer.sort_by_key(|id| id.into_raw().into_u32());
+                    layer
+                })
+                .collect(),
+        )
     }
 
-    fn candidate_layers(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<Vec<hir::FunctionId>> {
-        let Some(ids) = ids else {
-            return Vec::new();
-        };
-        let same_side: Vec<_> = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| self.sources_are_on_same_side(self.current_file, self.function_files[id]))
-            .collect();
-        let imported = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| !self.sources_are_on_same_side(self.current_file, self.function_files[id]))
-            .collect::<Vec<_>>();
-        [same_side, imported]
+    fn accessible_candidate_layers(
+        &self,
+        layers: Vec<Vec<hir::FunctionId>>,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        layers
             .into_iter()
+            .map(|layer| {
+                layer
+                    .into_iter()
+                    .filter(|id| self.function_is_accessible(*id, None))
+                    .collect::<Vec<_>>()
+            })
             .filter(|layer| !layer.is_empty())
             .collect()
     }
 
     pub(super) fn named_reference_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
-        let mut ids = Vec::new();
-        ids.extend(
-            self.functions_by_name
-                .get(name)
+        self.accessible_candidate_layers(
+            self.top_level_namespaces
+                .named_callable_layers(self.current_file, name)
                 .into_iter()
-                .flatten()
-                .copied(),
-        );
-        ids.extend(
-            self.extensions_by_name
-                .get(name)
-                .into_iter()
-                .flatten()
-                .copied(),
-        );
-        let same_side: Vec<_> = ids
-            .iter()
-            .copied()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| self.sources_are_on_same_side(self.current_file, self.function_files[id]))
-            .collect();
-        let imported = ids
-            .into_iter()
-            .filter(|id| self.function_is_accessible(*id, None))
-            .filter(|id| !self.sources_are_on_same_side(self.current_file, self.function_files[id]))
-            .collect::<Vec<_>>();
-        [same_side, imported]
-            .into_iter()
-            .filter(|layer| !layer.is_empty())
-            .map(|mut layer| {
-                layer.sort_by_key(|id| id.into_raw().into_u32());
-                layer
-            })
-            .collect()
+                .map(|layer| layer.candidates)
+                .collect(),
+        )
+        .into_iter()
+        .map(|mut layer| {
+            layer.sort_by_key(|id| id.into_raw().into_u32());
+            layer
+        })
+        .collect()
     }
 }
