@@ -113,6 +113,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     assert_eq!(published_root.value, object.singleton_value);
     assert_eq!(published_root.ty, object_type.canonical_type);
     assert_eq!(unit.schedule, hir::InitializationSchedule::LazyAccess);
+    assert_eq!(unit.display_name, "object:Registry");
     assert!(matches!(
         unit.kind,
         hir::InitializationUnitKind::LazySingleton {
@@ -210,6 +211,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
         .expect("concrete Registry object");
     let local_singleton = local.singleton_values[local_object.singleton_value];
     let local_unit = &local.initialization_units[local_singleton.initialization];
+    assert_eq!(local_unit.display_name, "object:Registry");
     assert!(matches!(
         local_unit.kind,
         hir::concrete::InitializationUnitKind::LazySingleton {

@@ -31,6 +31,7 @@ pub(super) fn emit<'ctx>(
             ptr.into(),
             ptr.into(),
             ptr.into(),
+            ptr.into(),
         ],
         false,
     );
@@ -55,6 +56,15 @@ pub(super) fn emit<'ctx>(
         key_global.set_linkage(Linkage::Private);
         key_global.set_constant(true);
         key_global.set_initializer(&context.const_string(key_bytes, true));
+        let display_bytes = unit.display_name.as_bytes();
+        let display_global = llvm.add_global(
+            context.i8_type().array_type(display_bytes.len() as u32 + 1),
+            None,
+            &format!("scoop.init.display.{raw}"),
+        );
+        display_global.set_linkage(Linkage::Private);
+        display_global.set_constant(true);
+        display_global.set_initializer(&context.const_string(display_bytes, true));
 
         let cell = llvm.add_global(cell_ty, None, &format!("scoop.init.cell.{raw}"));
         cell.set_linkage(Linkage::Private);
@@ -72,6 +82,7 @@ pub(super) fn emit<'ctx>(
             &[
                 i64_ty.const_int(schedule, false).into(),
                 key_global.as_pointer_value().into(),
+                display_global.as_pointer_value().into(),
                 cell.as_pointer_value().into(),
                 storage.as_pointer_value().into(),
                 failure.as_pointer_value().into(),

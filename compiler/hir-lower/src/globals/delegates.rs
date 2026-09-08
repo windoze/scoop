@@ -86,8 +86,11 @@ impl Lowerer {
                 });
         let (initializer, ensure) =
             self.allocate_initialization_functions(expected_unit, declaration.span, file);
+        let display_name =
+            self.initialization_property_display_name(file, owner, &access, &declaration.name.text);
         let unit = self.initialization_units.alloc(hir::InitializationUnit {
             stable_key: stable_key.clone(),
+            display_name,
             schedule: hir::InitializationSchedule::EagerStartup,
             kind: hir::InitializationUnitKind::EagerTopLevel {
                 property: expected_property,

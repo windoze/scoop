@@ -1,11 +1,13 @@
 use super::*;
 
 /// One compiler-managed exactly-once initialization action. The stable key is
-/// independent from arena order and link symbols; dependencies contain only
-/// direct source initializer reads validated by HIR lowering.
+/// an opaque identity used for emission, deterministic ordering, and links;
+/// the display name is reserved for source-facing diagnostics. Dependencies
+/// contain only direct source initializer reads validated by HIR lowering.
 #[derive(Debug, Clone)]
 pub struct InitializationUnit {
     pub stable_key: String,
+    pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,

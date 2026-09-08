@@ -64,6 +64,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     assert_eq!(
         source.initialization_units.alloc(hir::InitializationUnit {
             stable_key: "singleton:Registry".to_string(),
+            display_name: "object:Registry".to_string(),
             schedule: hir::InitializationSchedule::LazyAccess,
             kind: hir::InitializationUnitKind::LazySingleton {
                 value,
@@ -83,6 +84,10 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];
     let singleton = &module.singleton_values[mir::SingletonValueId::from_raw(0_u32.into())];
     let root = &module.singleton_published_roots[singleton.published_root];
+    assert_eq!(
+        module.initialization_units[singleton.initialization].display_name,
+        "object:Registry"
+    );
     assert_eq!(declaration.name, "Registry");
     assert_eq!(declaration.object_type, singleton.object_type);
     assert_eq!(

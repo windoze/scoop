@@ -2,6 +2,7 @@
 
 use scoop_ast as ast;
 use scoop_hir as hir;
+use std::path::{Component, Path};
 
 use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
@@ -640,8 +641,15 @@ impl Lowerer {
             declaration.file,
         );
         let stable_key = self.top_level_initialization_key(declaration);
+        let display_name = self.initialization_property_display_name(
+            declaration.file,
+            hir::PropertyOwner::TopLevel,
+            &declaration.access,
+            &declaration.declaration.name.text,
+        );
         let unit = self.initialization_units.alloc(hir::InitializationUnit {
             stable_key,
+            display_name,
             schedule: hir::InitializationSchedule::EagerStartup,
             kind: hir::InitializationUnitKind::EagerTopLevel {
                 property: expected_property,
@@ -896,6 +904,78 @@ impl Lowerer {
         }
     }
 
+    fn initialization_source_display(&self, file: usize) -> String {
+        let path = Path::new(&self.intrinsic_sources[file].name);
+        let mut components = Vec::new();
+        for component in path.components() {
+            match component {
+                Component::Normal(value) => components.push(value.to_string_lossy().into_owned()),
+                Component::ParentDir => components.push("__parent__".to_string()),
+                Component::CurDir | Component::RootDir | Component::Prefix(_) => {}
+            }
+        }
+        if path.is_absolute() {
+            components.pop().unwrap_or_else(|| "<user>".to_string())
+        } else if components.is_empty() {
+            "<user>".to_string()
+        } else {
+            components.join("/")
+        }
+    }
+
+    pub(crate) fn initialization_property_display_name(
+        &self,
+        file: usize,
+        owner: hir::PropertyOwner,
+        access: &hir::DeclarationAccess,
+        name: &str,
+    ) -> String {
+        let private = access.declared == hir::DeclaredVisibility::Private;
+        match owner {
+            hir::PropertyOwner::TopLevel if private => format!(
+                "top-level-private:{}:{name}",
+                self.initialization_source_display(file)
+            ),
+            hir::PropertyOwner::TopLevel => format!("top-level:{name}"),
+            hir::PropertyOwner::Extension(extension) => {
+                let receiver = self.type_name(self.extension_properties[extension].receiver_ty);
+                if private {
+                    format!(
+                        "extension-private:{}:{receiver}:{name}",
+                        self.initialization_source_display(file)
+                    )
+                } else {
+                    format!("extension:{receiver}:{name}")
+                }
+            }
+            hir::PropertyOwner::Class(_)
+            | hir::PropertyOwner::Struct(_)
+            | hir::PropertyOwner::Enum(_)
+            | hir::PropertyOwner::Interface(_)
+            | hir::PropertyOwner::Object(_) => {
+                unreachable!("only top-level and extension properties own initialization units")
+            }
+        }
+    }
+
+    pub(crate) fn singleton_initialization_display_name(&self, object: hir::ObjectId) -> String {
+        let declaration = &self.objects[object];
+        let qualified_name = crate::Owner::Object(object).describe_name(self);
+        match declaration.kind {
+            hir::ObjectKind::Companion(_) => format!("companion:{qualified_name}"),
+            hir::ObjectKind::Standalone
+                if declaration.access.declared == hir::DeclaredVisibility::Private
+                    && declaration.owner.is_none() =>
+            {
+                format!(
+                    "object-private:{}:{qualified_name}",
+                    self.initialization_source_display(self.object_files[&object])
+                )
+            }
+            hir::ObjectKind::Standalone => format!("object:{qualified_name}"),
+        }
+    }
+
     fn visit_initialization_unit(
         &mut self,
         unit: hir::InitializationUnitId,
@@ -919,11 +999,11 @@ impl Lowerer {
                     .expect("an active dependency is present in the DFS stack");
                 let mut path = stack[start..]
                     .iter()
-                    .map(|candidate| self.initialization_units[*candidate].stable_key.clone())
+                    .map(|candidate| self.initialization_units[*candidate].display_name.clone())
                     .collect::<Vec<_>>();
                 path.push(
                     self.initialization_units[dependency.unit]
-                        .stable_key
+                        .display_name
                         .clone(),
                 );
                 self.current_file = match self.initialization_units[unit].kind {

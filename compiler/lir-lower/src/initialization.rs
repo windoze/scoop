@@ -25,6 +25,7 @@ pub(super) fn lower_initialization_units(
         let failure = module.initialization_failure_roots[source.failure_root].global;
         let id = units.alloc(lir::InitializationUnit {
             stable_key: source.stable_key.clone(),
+            display_name: source.display_name.clone(),
             schedule: match source.schedule {
                 mir::InitializationSchedule::EagerStartup => {
                     lir::InitializationSchedule::EagerStartup

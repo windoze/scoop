@@ -48,7 +48,8 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
-            stable_key: "top-level:zed".to_string(),
+            stable_key: "$local$opaque-z".to_string(),
+            display_name: "top-level:alpha".to_string(),
             schedule: scoop_lir::InitializationSchedule::EagerStartup,
             kind: scoop_lir::InitializationUnitKind::EagerTopLevel { storage },
             failure_root: failure,
@@ -59,7 +60,8 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
-            stable_key: "top-level:alpha".to_string(),
+            stable_key: "$local$opaque-a".to_string(),
+            display_name: "top-level:zed".to_string(),
             schedule: scoop_lir::InitializationSchedule::LazyAccess,
             kind: scoop_lir::InitializationUnitKind::EagerTopLevel {
                 storage: second_storage,
@@ -73,15 +75,26 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     let ir = ir_of(&module);
     assert!(ir.contains("@scoop.init.cell.0 = private global { i64, ptr } zeroinitializer"));
     assert!(ir.contains("@scoop.init.descriptor.1 = private constant"));
-    assert!(ir.contains("{ i64 0, ptr @scoop.init.key.0"));
-    assert!(ir.contains("{ i64 1, ptr @scoop.init.key.1"));
+    assert!(ir.contains("@scoop.init.display.0 = private constant"));
+    assert!(ir.contains("@scoop.init.display.1 = private constant"));
+    assert!(ir.contains("c\"top-level:alpha\\00\""));
+    assert!(ir.contains("c\"top-level:zed\\00\""));
+    assert!(ir.contains("{ i64 0, ptr @scoop.init.key.0, ptr @scoop.init.display.0"));
+    assert!(ir.contains("{ i64 1, ptr @scoop.init.key.1, ptr @scoop.init.display.1"));
     let table = ir
         .lines()
         .find(|line| line.starts_with("@scoop_image_initialization_units ="))
         .expect("initialization descriptor table");
-    let alpha = table.find("@scoop.init.key.1").expect("alpha key in table");
-    let zed = table.find("@scoop.init.key.0").expect("zed key in table");
-    assert!(alpha < zed, "descriptor table must be sorted by stable key");
+    let opaque_a = table
+        .find("@scoop.init.key.1")
+        .expect("opaque a key in table");
+    let opaque_z = table
+        .find("@scoop.init.key.0")
+        .expect("opaque z key in table");
+    assert!(
+        opaque_a < opaque_z,
+        "descriptor table must be sorted by stable key, not display name"
+    );
     assert!(ir.contains("@scoop_image_initialization_unit_count = constant i64 2"));
 }
 

@@ -25,6 +25,60 @@ fn selected_target_profile_is_embedded_in_lir_meta() {
 }
 
 #[test]
+fn initialization_display_name_survives_lir_lowering() {
+    let mut builder = Builder::new();
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    let storage = source.globals.alloc(mir::Global {
+        name: "value".to_string(),
+        symbol: "scoop.init.storage".to_string(),
+        ty: mir::Type::Unit,
+        mutable: false,
+        storage: mir::GlobalStorage::Managed {
+            initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
+        },
+    });
+    let failure_global = source.globals.alloc(mir::Global {
+        name: "$init.failure".to_string(),
+        symbol: "scoop.init.failure".to_string(),
+        ty: mir::Type::String,
+        mutable: true,
+        storage: mir::GlobalStorage::Managed {
+            initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
+        },
+    });
+    let unit_id = mir::InitializationUnitId::from_raw(0_u32.into());
+    let failure_root = source
+        .initialization_failure_roots
+        .alloc(mir::InitializationFailureRoot {
+            global: failure_global,
+        });
+    let unit = source.initialization_units.alloc(mir::InitializationUnit {
+        stable_key: "$local$opaque-value".to_string(),
+        display_name: "top-level:value".to_string(),
+        schedule: mir::InitializationSchedule::EagerStartup,
+        kind: mir::InitializationUnitKind::EagerTopLevel { storage },
+        initializer: main,
+        ensure: main,
+        failure_root,
+        dependencies: Vec::new(),
+        cycle_exception: mir::MessageClassConstructor {
+            class: mir::ClassId::from_raw(0_u32.into()),
+            initializer: main,
+            message_type: mir::Type::String,
+        },
+    });
+    assert_eq!(unit, unit_id);
+
+    let module = lower(&source);
+    assert_eq!(
+        module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())]
+            .display_name,
+        "top-level:value"
+    );
+}
+
+#[test]
 fn nominal_descriptor_symbols_use_typed_application_identity() {
     let mut builder = Builder::new();
     let class_a = builder.class("Same", None, &[], Vec::new(), Vec::new());

@@ -310,6 +310,13 @@ fn top_level_and_extension_delegates_own_eager_managed_storage() {
             "$local$u0:p0:r9:top-leveln6:number"
         ]
     );
+    let mut display_names = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| unit.display_name.as_str())
+        .collect::<Vec<_>>();
+    display_names.sort_unstable();
+    assert_eq!(display_names, ["extension:Int:shared", "top-level:number"]);
     for (storage_id, storage) in module.delegate_storages.iter() {
         let hir::DelegateStorageLocation::ManagedGlobal(global) = storage.location else {
             panic!("global delegates own managed-global storage")

@@ -655,6 +655,7 @@ fn non_static_top_level_initializer_is_kept_out_of_image_storage() {
     };
     assert_eq!(unit.schedule, hir::InitializationSchedule::EagerStartup);
     assert_eq!(unit.stable_key, "$local$u0:p0:r9:top-leveln5:value");
+    assert_eq!(unit.display_name, "top-level:value");
     assert!(unit.dependencies.is_empty());
     assert!(matches!(
         module.globals[storage].storage,
@@ -770,6 +771,34 @@ fn direct_top_level_dependency_cycle_is_a_stable_hir_error() {
     let errors = lower_user(source).expect_err("direct dependency cycle must be rejected");
     assert!(errors.iter().any(|diagnostic| {
         diagnostic.message
-            == "initialization cycle: $local$u0:p0:r9:top-leveln4:left -> $local$u0:p0:r9:top-leveln5:right -> $local$u0:p0:r9:top-leveln4:left"
+            == "initialization cycle: top-level:left -> top-level:right -> top-level:left"
+    }));
+}
+
+#[test]
+fn private_top_level_dependency_cycle_uses_a_source_display_name() {
+    let private = |name, expression| {
+        let mut property = top_level_property(
+            name,
+            false,
+            ty_named("Int"),
+            initializer(expression, ast::AccessorSyntax::default()),
+        );
+        property.visibility = ast::VisibilitySyntax::Explicit {
+            visibility: ast::DeclaredVisibility::Private,
+            span: sp(),
+        };
+        Decl::Global(property)
+    };
+    let source = file(vec![
+        private("left", var("right")),
+        private("right", var("left")),
+        fun("main", Vec::new()),
+    ]);
+
+    let errors = lower_user(source).expect_err("a private dependency cycle must be rejected");
+    assert!(errors.iter().any(|diagnostic| {
+        diagnostic.message
+            == "initialization cycle: top-level-private:<user>:left -> top-level-private:<user>:right -> top-level-private:<user>:left"
     }));
 }

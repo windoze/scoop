@@ -351,6 +351,7 @@ impl Lowerer {
         }
 
         self.object_files.insert(object, file);
+        let display_name = self.singleton_initialization_display_name(object);
         let stable_key = self.local_link_component(
             file,
             Some(Owner::Object(object)),
@@ -382,6 +383,7 @@ impl Lowerer {
         assert_eq!(value, singleton_value_id);
         let initialization = self.initialization_units.alloc(hir::InitializationUnit {
             stable_key,
+            display_name,
             schedule: hir::InitializationSchedule::LazyAccess,
             kind: hir::InitializationUnitKind::LazySingleton {
                 value,

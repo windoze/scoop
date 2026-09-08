@@ -33,6 +33,7 @@ static _Noreturn void initialization_fatal(const char *message) {
 static void require_unit(const ScoopInitializationUnitDescriptor *unit) {
     if (unit == NULL || unit->schedule > SCOOP_INIT_LAZY_ACCESS ||
         unit->stable_key == NULL || unit->stable_key[0] == '\0' ||
+        unit->display_name == NULL || unit->display_name[0] == '\0' ||
         unit->cell == NULL || unit->storage == NULL || unit->failure_root == NULL ||
         unit->initializer_entry == NULL || unit->ensure_entry == NULL) {
         initialization_fatal("initialization unit descriptor is incomplete");
@@ -103,7 +104,7 @@ static void set_cycle_path(
         if (index != 0) {
             append_path(&path, &length, &capacity, " -> ");
         }
-        append_path(&path, &length, &capacity, units[index]->stable_key);
+        append_path(&path, &length, &capacity, units[index]->display_name);
     }
     free(thread->initialization_cycle_path);
     thread->initialization_cycle_path = path;

@@ -33,7 +33,8 @@ typedef struct TestUnit {
     ScoopInitializationUnitDescriptor descriptor;
 } TestUnit;
 
-static void initialize_test_unit(TestUnit *unit, const char *key) {
+static void initialize_test_unit(TestUnit *unit, const char *key,
+                                 const char *display_name) {
     *unit = (TestUnit){
         .cell = {0},
         .storage = 0,
@@ -42,6 +43,7 @@ static void initialize_test_unit(TestUnit *unit, const char *key) {
     unit->descriptor = (ScoopInitializationUnitDescriptor){
         .schedule = SCOOP_INIT_LAZY_ACCESS,
         .stable_key = key,
+        .display_name = display_name,
         .cell = &unit->cell,
         .storage = &unit->storage,
         .failure_root = &unit->failure,
@@ -58,6 +60,7 @@ static void test_startup_schedule(void) {
         {
             .schedule = SCOOP_INIT_LAZY_ACCESS,
             .stable_key = "a-lazy",
+            .display_name = "top-level:lazy",
             .cell = &cells[0],
             .storage = &storage[0],
             .failure_root = &failures[0],
@@ -67,6 +70,7 @@ static void test_startup_schedule(void) {
         {
             .schedule = SCOOP_INIT_EAGER_STARTUP,
             .stable_key = "b-eager",
+            .display_name = "top-level:eager",
             .cell = &cells[1],
             .storage = &storage[1],
             .failure_root = &failures[1],
@@ -156,14 +160,14 @@ static void wait_for_edge(WorkerPlan *plan, TestUnit *unit) {
 
 static void test_ready_and_failure(void) {
     TestUnit ready;
-    initialize_test_unit(&ready, "ready");
+    initialize_test_unit(&ready, "opaque-ready", "top-level:ready");
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_succeed(&ready.descriptor);
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_READY);
 
     static uint64_t failure_object;
     TestUnit failed;
-    initialize_test_unit(&failed, "failed");
+    initialize_test_unit(&failed, "opaque-failed", "top-level:failed");
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_fail(&failed.descriptor, &failure_object);
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RESULT_FAILED);
@@ -174,20 +178,21 @@ static void test_same_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit outer;
     TestUnit inner;
-    initialize_test_unit(&outer, "outer");
-    initialize_test_unit(&inner, "inner");
+    initialize_test_unit(&outer, "opaque-outer", "object:Outer");
+    initialize_test_unit(&inner, "opaque-inner", "object:Inner");
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&inner.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_CYCLE);
     assert(strcmp(scoop_thread_current_required()->initialization_cycle_path,
-                  "initialization cycle: outer -> inner -> outer") == 0);
+                  "initialization cycle: object:Outer -> object:Inner -> "
+                  "object:Outer") == 0);
     init_fail(&inner.descriptor, &failure_object);
     init_fail(&outer.descriptor, &failure_object);
 }
 
 static void test_wait_participates_in_collection(void) {
     TestUnit unit;
-    initialize_test_unit(&unit, "waited");
+    initialize_test_unit(&unit, "opaque-waited", "top-level:waited");
     assert(managed_enter(&unit.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = NULL,
@@ -211,8 +216,8 @@ static void test_cross_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit left;
     TestUnit right;
-    initialize_test_unit(&left, "left");
-    initialize_test_unit(&right, "right");
+    initialize_test_unit(&left, "opaque-left", "top-level:left");
+    initialize_test_unit(&right, "opaque-right", "top-level:right");
     assert(managed_enter(&left.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = &right,
@@ -225,7 +230,8 @@ static void test_cross_thread_cycle(void) {
     wait_for_edge(&plan, &left);
     assert(managed_enter(&right.descriptor) == SCOOP_INIT_CYCLE);
     assert(strcmp(scoop_thread_current_required()->initialization_cycle_path,
-                  "initialization cycle: left -> right -> left") == 0);
+                  "initialization cycle: top-level:left -> top-level:right -> "
+                  "top-level:left") == 0);
     init_fail(&left.descriptor, &failure_object);
     assert(pthread_join(worker, NULL) == 0);
     assert(atomic_load_explicit(&plan.result, memory_order_acquire) ==

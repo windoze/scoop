@@ -322,6 +322,7 @@ pub struct Global {
 #[derive(Debug)]
 pub struct InitializationUnit {
     pub stable_key: String,
+    pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,
