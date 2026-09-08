@@ -57,13 +57,27 @@ fn exposure(public: bool) -> ast::ImportExposureSyntax {
 }
 
 fn star(segments: &[&str], public: bool) -> ast::ImportSyntax {
+    let namespace = path(segments);
+    let terminal_dot_span = ast::Span::new(namespace.span.end, namespace.span.end + 1);
+    let star_span = ast::Span::new(terminal_dot_span.end, terminal_dot_span.end + 1);
     ast::ImportSyntax::Star {
         exposure: exposure(public),
-        namespace: path(segments),
+        namespace,
         import_keyword_span: sp(),
-        terminal_dot_span: sp(),
-        star_span: sp(),
+        terminal_dot_span,
+        star_span,
         span: ast::Span::new(0, 90),
+    }
+}
+
+fn selector_span(import: &ast::ImportSyntax) -> ast::Span {
+    match import {
+        ast::ImportSyntax::Exact { selector, .. } => selector.span,
+        ast::ImportSyntax::Star {
+            namespace,
+            star_span,
+            ..
+        } => ast::Span::new(namespace.span.start, star_span.end),
     }
 }
 
@@ -82,9 +96,10 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         file(Vec::new()),
         package(file(Vec::new()), &["api"]),
         package(file(Vec::new()), &["api", "child"]),
+        package(file(Vec::new()), &["api", "empty"]),
     ];
     let mut lowerer = Lowerer::new().with_intrinsic_sources(
-        (0..3)
+        (0..4)
             .map(|index| SourceProvider {
                 provider: hir::IntrinsicProviderId::from_raw(1),
                 kind: SourceKind::CurrentUnit,
@@ -99,7 +114,7 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
     );
     lowerer
         .top_level_namespaces
-        .initialize_sources([SourceKind::CurrentUnit; 3], &files);
+        .initialize_sources([SourceKind::CurrentUnit; 4], &files);
     let (api, _) = lowerer
         .top_level_namespaces
         .longest_package_prefix(&[ident("api")]);
@@ -118,18 +133,35 @@ fn function(
     index: u32,
     private: bool,
 ) -> CurrentUnitBindingId {
-    let source = match lowerer.visibility_file(file).source {
-        hir::VisibilitySource::CurrentUnit(handle) => handle,
-        _ => unreachable!(),
-    };
-    let domain = lowerer.top_level_domain(
+    function_with_visibility(
+        surface,
+        lowerer,
+        namespace,
+        name,
+        file,
+        index,
         if private {
             hir::DeclaredVisibility::Private
         } else {
             hir::DeclaredVisibility::Internal
         },
-        file,
-    );
+    )
+}
+
+fn function_with_visibility(
+    surface: &mut CurrentUnitImports,
+    lowerer: &Lowerer,
+    namespace: ResolvedNamespace,
+    name: &str,
+    file: usize,
+    index: u32,
+    visibility: hir::DeclaredVisibility,
+) -> CurrentUnitBindingId {
+    let source = match lowerer.visibility_file(file).source {
+        hir::VisibilitySource::CurrentUnit(handle) => handle,
+        _ => unreachable!(),
+    };
+    let domain = lowerer.top_level_domain(visibility, file);
     surface.insert(
         namespace,
         CurrentUnitBinding {
@@ -247,7 +279,7 @@ fn exact_private_failure_has_a_declaration_note_and_commits_nothing() {
 
 #[test]
 fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
-    let (mut lowerer, api, _) = lowerer();
+    let (mut lowerer, api, child) = lowerer();
     let mut surface = CurrentUnitImports::default();
     function(
         &mut surface,
@@ -258,12 +290,32 @@ fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
         1,
         true,
     );
-    for import in [
-        exact(&["api", "secret"], None, true),
-        exact(&["api", "secret"], Some("alias"), true),
-        star(&["api"], true),
-        star(&["api", "child"], true),
+    function_with_visibility(
+        &mut surface,
+        &lowerer,
+        ResolvedNamespace::Package(child),
+        "published",
+        2,
+        2,
+        hir::DeclaredVisibility::Public,
+    );
+
+    let mut local_star = file(Vec::new());
+    local_star.imports.push(star(&["api", "child"], false));
+    let locally_resolved = surface.resolve_file(&mut lowerer, &local_star);
+    assert_eq!(locally_resolved.stars[0].snapshot["published"].len(), 1);
+    assert!(lowerer.diagnostics.is_empty());
+
+    for (current_file, import) in [
+        (0, exact(&["api", "secret"], None, true)),
+        (0, exact(&["api", "secret"], Some("alias"), true)),
+        (1, exact(&["api", "secret"], None, true)),
+        (0, exact(&["api", "child", "published"], None, true)),
+        (0, star(&["api"], true)),
+        (0, star(&["api", "child"], true)),
+        (0, star(&["api", "empty"], true)),
     ] {
+        lowerer.current_file = current_file;
         lowerer.diagnostics.clear();
         let mut syntax = file(Vec::new());
         syntax.imports.push(import);
@@ -288,7 +340,9 @@ fn unknown_and_external_public_selectors_keep_unavailable_diagnostics() {
             exact(&["scoop", "core", "Int"], None, public),
             star(&["scoop", "core"], public),
             exact(&["unknown", "Thing"], None, public),
+            star(&["unknown", "space"], public),
         ] {
+            let expected_span = selector_span(&import);
             lowerer.diagnostics.clear();
             let mut syntax = file(Vec::new());
             syntax.imports.push(import);
@@ -299,7 +353,7 @@ fn unknown_and_external_public_selectors_keep_unavailable_diagnostics() {
                 lowerer.diagnostics[0].message,
                 "import target is not available in the current compilation unit"
             );
-            assert_eq!(lowerer.diagnostics[0].span.unwrap().start, 20);
+            assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
         }
     }
 }
@@ -383,6 +437,51 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
     );
 }
 
+#[test]
+fn ambiguous_star_namespace_diagnostic_covers_the_complete_selector() {
+    let (mut lowerer, api, _) = lowerer();
+    let mut surface = CurrentUnitImports::default();
+    let first = function(
+        &mut surface,
+        &lowerer,
+        ResolvedNamespace::Package(api),
+        "Host",
+        1,
+        1,
+        false,
+    );
+    let second = function(
+        &mut surface,
+        &lowerer,
+        ResolvedNamespace::Package(api),
+        "Host",
+        2,
+        2,
+        false,
+    );
+    surface.static_targets.insert(
+        first,
+        StaticNamespace::Class(hir::ClassId::from_raw(1.into())),
+    );
+    surface.static_targets.insert(
+        second,
+        StaticNamespace::Class(hir::ClassId::from_raw(2.into())),
+    );
+    let import = star(&["api", "Host"], false);
+    let expected_span = selector_span(&import);
+    let mut syntax = file(Vec::new());
+    syntax.imports.push(import);
+
+    let resolved = surface.resolve_file(&mut lowerer, &syntax);
+    assert!(resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import namespace is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
 fn lower_sources(sources: Vec<ast::SourceFile>) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     lower_sources_with_core(sources, crate::tests::core_file())
 }
@@ -445,6 +544,24 @@ fn method(name: &str) -> ast::FunctionDecl {
         unreachable!()
     };
     function
+}
+
+fn declared_function(name: &str, visibility: ast::DeclaredVisibility) -> ast::Decl {
+    let mut declaration = crate::tests::fun(name, Vec::new());
+    let ast::Decl::Function(function) = &mut declaration else {
+        unreachable!("the function builder returns a function")
+    };
+    function.visibility = ast::VisibilitySyntax::Explicit {
+        visibility,
+        span: sp(),
+    };
+    declaration
+}
+
+fn with_import(import: ast::ImportSyntax) -> ast::SourceFile {
+    let mut source = file(Vec::new());
+    source.imports.push(import);
+    source
 }
 
 #[test]
@@ -567,6 +684,144 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
         errors[0].message,
         "import target is not available in the current compilation unit"
     );
+}
+
+#[test]
+fn cross_file_ordinary_imports_accept_public_bindings() {
+    use crate::tests::{call, fun, stmt};
+
+    let declarations = package(
+        file(vec![declared_function(
+            "published",
+            ast::DeclaredVisibility::Public,
+        )]),
+        &["api"],
+    );
+    for import in [
+        exact(&["api", "published"], None, false),
+        star(&["api"], false),
+    ] {
+        let mut consumer = file(vec![fun(
+            "usePublished",
+            vec![stmt(call("published", Vec::new()))],
+        )]);
+        consumer.imports.push(import);
+        lower_sources(vec![declarations.clone(), consumer])
+            .expect("ordinary exact and star imports may cross files to a public binding");
+    }
+}
+
+#[test]
+fn stage1_import_failure_classes_return_no_hir_output() {
+    let public_api = package(
+        file(vec![declared_function(
+            "published",
+            ast::DeclaredVisibility::Public,
+        )]),
+        &["api"],
+    );
+    let private_api = package(
+        file(vec![declared_function(
+            "secret",
+            ast::DeclaredVisibility::Private,
+        )]),
+        &["privateApi"],
+    );
+    let empty_api = package(file(Vec::new()), &["emptyApi"]);
+    let mut own_private = file(vec![declared_function(
+        "ownSecret",
+        ast::DeclaredVisibility::Private,
+    )]);
+    own_private.imports.push(exact(&["ownSecret"], None, true));
+
+    let cases = vec![
+        (
+            "public exact of a public current-unit target",
+            vec![
+                public_api.clone(),
+                with_import(exact(&["api", "published"], None, true)),
+            ],
+            "public import requires a direct dependency target",
+            0,
+        ),
+        (
+            "public star of an accessible nonempty current-unit namespace",
+            vec![public_api, with_import(star(&["api"], true))],
+            "public import requires a direct dependency target",
+            0,
+        ),
+        (
+            "public star of an empty current-unit namespace",
+            vec![empty_api, with_import(star(&["emptyApi"], true))],
+            "public import requires a direct dependency target",
+            0,
+        ),
+        (
+            "public exact of a same-file private target",
+            vec![own_private],
+            "public import requires a direct dependency target",
+            0,
+        ),
+        (
+            "ordinary exact of a cross-file private target",
+            vec![
+                private_api,
+                with_import(exact(&["privateApi", "secret"], None, false)),
+            ],
+            "import target is not accessible from this source location",
+            1,
+        ),
+        (
+            "ordinary star of an unavailable namespace",
+            vec![with_import(star(&["unknown", "space"], false))],
+            "import target is not available in the current compilation unit",
+            0,
+        ),
+        (
+            "public star of an unavailable namespace",
+            vec![with_import(star(&["unknown", "space"], true))],
+            "import target is not available in the current compilation unit",
+            0,
+        ),
+        (
+            "public star of the explicit core namespace",
+            vec![with_import(star(&["scoop", "core"], true))],
+            "import target is not available in the current compilation unit",
+            0,
+        ),
+    ];
+
+    for (case, sources, expected_message, expected_notes) in cases {
+        let errors = lower_sources(sources).expect_err(case);
+        assert_eq!(errors.len(), 1, "{case}: {errors:#?}");
+        assert_eq!(errors[0].message, expected_message, "{case}");
+        assert_eq!(errors[0].notes.len(), expected_notes, "{case}");
+    }
+}
+
+#[test]
+fn non_prelude_core_variant_is_not_a_bare_name() {
+    use crate::tests::{enum_decl, fun, val, var, variant_unit};
+
+    let mut core = crate::tests::core_file();
+    core.declarations.push(enum_decl(
+        "CoreOnlyState",
+        Vec::new(),
+        vec![variant_unit("CoreOnlyReady")],
+    ));
+    crate::tests::make_core_public(&mut core);
+    let user = file(vec![fun(
+        "probe",
+        vec![val("chosen", var("CoreOnlyReady"))],
+    )]);
+
+    let errors = lower_sources_with_core(vec![user], core)
+        .expect_err("only typed core-prelude variants may be used as bare names");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .starts_with("unknown variable `CoreOnlyReady`")
+    }));
 }
 
 #[test]

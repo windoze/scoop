@@ -168,16 +168,18 @@ impl CurrentUnitImports {
                 ast::ImportSyntax::Star {
                     exposure,
                     namespace,
+                    star_span,
                     span,
                     ..
                 } => {
+                    let selector_span = ast::Span::new(namespace.span.start, star_span.end);
                     let namespaces = match self.selector(lowerer, namespace, true) {
                         Ok(SelectorResult::Namespaces(namespaces)) => namespaces,
                         Ok(SelectorResult::Targets(_)) => {
                             unreachable!("star selectors end in namespaces")
                         }
                         Err(message) => {
-                            lowerer.error(namespace.span, message.to_string());
+                            lowerer.error(selector_span, message.to_string());
                             continue;
                         }
                     };
@@ -193,7 +195,7 @@ impl CurrentUnitImports {
                         ([namespace], _) | ([], [namespace]) => *namespace,
                         _ => {
                             lowerer.error(
-                                namespace.span,
+                                selector_span,
                                 "import namespace is ambiguous in the current compilation unit"
                                     .to_string(),
                             );
