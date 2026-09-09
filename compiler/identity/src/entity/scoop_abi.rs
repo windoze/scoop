@@ -6,6 +6,13 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{ExactCallableSignature, GcEffect};
 use crate::PersistentExactTypeId;
 
+mod decode;
+
+pub use decode::{
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopStorage,
+    DecodedScoopAbiArgument, DecodedScoopAbiReturn, ScoopAbiResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ScoopAbiValueShape {
     Scalar,

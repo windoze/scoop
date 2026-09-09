@@ -126,8 +126,10 @@ pub use entity::{
     NativeLinkSymbolError, NativeLinkValidationError, SourceNativeSymbol, SourceNativeSymbolError,
 };
 pub use entity::{
-    CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
-    ScoopAbiReturn, ScoopAbiValueShape,
+    CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage,
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopStorage,
+    DecodedScoopAbiArgument, DecodedScoopAbiReturn, ScoopAbiArgument, ScoopAbiError,
+    ScoopAbiResolutionError, ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use entity::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,

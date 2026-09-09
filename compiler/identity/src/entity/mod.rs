@@ -144,8 +144,10 @@ pub use odr::{
     OdrMemberRole, SpecializationKey,
 };
 pub use scoop_abi::{
-    CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
-    ScoopAbiReturn, ScoopAbiValueShape,
+    CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage,
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopStorage,
+    DecodedScoopAbiArgument, DecodedScoopAbiReturn, ScoopAbiArgument, ScoopAbiError,
+    ScoopAbiResolutionError, ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use signature::{
     CallingConvention, DecodedDuplicateSignatureKey, DecodedOptionalSignatureType,
