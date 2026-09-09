@@ -842,14 +842,6 @@ mod tests {
             MirAnnotationValue::Integer(zero),
             MirAnnotationValue::Integer(MirIntegerConstant::Signed16(0))
         );
-        assert_eq!(
-            MirMeta::default().mangling_schema,
-            ManglingSchemaIdentity::CompactV2
-        );
-        assert_eq!(
-            ManglingSchemaIdentity::CompactV2.canonical_name(),
-            "compact-v2"
-        );
     }
 
     #[test]

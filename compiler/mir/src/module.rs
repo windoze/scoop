@@ -455,8 +455,6 @@ pub enum MirAnnotationValue {
 /// Per-Cone MIR metadata (impl spec 2.3).
 #[derive(Debug, Default)]
 pub struct MirMeta {
-    /// Exact schema used by every symbol in this module and exported MIR meta.
-    pub mangling_schema: ManglingSchemaIdentity,
     pub dispatch_tables: Vec<DispatchTable>,
     /// Typed source identities are separate from their display names and from
     /// concrete instances. The three id families cannot be interchanged.

@@ -596,7 +596,7 @@ fn division_by_zero_throws_arithmetic_exception() {
     let module = lower(&h.finish(main));
 
     let expected = "\
-Module mangling=compact-v2
+Module
   class ArithmeticException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry

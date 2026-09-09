@@ -2,10 +2,7 @@ use super::super::*;
 use super::{block_number, dump_statements, dump_terminator, type_name};
 
 pub fn dump(module: &Module) -> String {
-    let mut out = format!(
-        "Module mangling={}\n",
-        module.meta.mangling_schema.canonical_name()
-    );
+    let mut out = String::from("Module\n");
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
             GlobalStorage::Managed { initial_state } => format!(

@@ -92,7 +92,7 @@ fn when_lowers_to_a_decision_sequence() {
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
     let expected = "\
-Module mangling=compact-v2
+Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
   enum Option$I32
@@ -741,7 +741,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
     let expected = "\
-Module mangling=compact-v2
+Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
   enum Option$I32
@@ -1204,7 +1204,7 @@ fn destructuring_val_declarations_extract_bindings() {
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
     let expected = "\
-Module mangling=compact-v2
+Module
   struct Point (x: Int, y: Int)
   fun main @scoop_main() -> Unit
     bb0 entry

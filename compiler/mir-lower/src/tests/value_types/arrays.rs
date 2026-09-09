@@ -71,7 +71,7 @@ fn array_nodes_translate_one_to_one() {
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
     let expected = "\
-Module mangling=compact-v2
+Module
   class IndexOutOfBoundsException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry

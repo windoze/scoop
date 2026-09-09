@@ -137,9 +137,6 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     module
         .validate()
         .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
-    match module.meta.mangling_schema {
-        mir::ManglingSchemaIdentity::CompactV2 => {}
-    }
     let context = LoweringContext::new(target_profile);
     // Every MIR string constant becomes a global with the same symbol.
     let mut globals = Arena::new();

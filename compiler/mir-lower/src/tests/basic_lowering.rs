@@ -40,7 +40,7 @@ fn lowers_hello_world() {
 
     // Golden dump locks the output structure.
     let expected = "\
-Module mangling=compact-v2
+Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   fun print @scoop.print(message: String) -> Unit
     bb0 entry

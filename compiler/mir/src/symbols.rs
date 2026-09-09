@@ -37,25 +37,6 @@ pub type CoroutineResumePointId = Idx<CoroutineResumePoint>;
 pub type CoroutineSavedValueId = Idx<CoroutineSavedValue>;
 pub type CoroutineFailureValueId = Idx<CoroutineFailureValue>;
 
-/// Symbol-schema identity carried by MIR artifacts.
-///
-/// M22 emits only `compact-v2`. Keeping the identity as a closed semantic
-/// value (rather than an integer version) makes a later persistent schema a
-/// new, explicitly incompatible variant.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ManglingSchemaIdentity {
-    #[default]
-    CompactV2,
-}
-
-impl ManglingSchemaIdentity {
-    pub const fn canonical_name(self) -> &'static str {
-        match self {
-            Self::CompactV2 => "compact-v2",
-        }
-    }
-}
-
 /// Mangled symbol of the program entry point (called by the C runtime).
 pub const ENTRY_SYMBOL: &str = "scoop_main";
 
@@ -394,7 +375,7 @@ mod tests {
             .as_deref(),
             Ok("scoop.mix.I8_V64")
         );
-        assert!(crate::dump(&module).starts_with("Module mangling=compact-v2\n"));
+        assert!(crate::dump(&module).starts_with("Module\n"));
     }
 
     #[test]
@@ -470,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn dump_exposes_exact_integer_global_and_schema() {
+    fn dump_exposes_exact_integer_global() {
         let mut module = module();
         module.globals.alloc(Global {
             name: "maximum".to_string(),
@@ -486,7 +467,7 @@ mod tests {
         });
 
         let dump = crate::dump(&module);
-        assert!(dump.starts_with("Module mangling=compact-v2\n"), "{dump}");
+        assert!(dump.starts_with("Module\n"), "{dump}");
         assert!(
             dump.contains(
                 "@scoop.global.maximum maximum: ULong global initial=encoded(ULong:0xffffffffffffffff)"
