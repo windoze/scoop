@@ -8,3 +8,6 @@ pub use member::*;
 
 mod archive;
 pub use archive::*;
+
+mod profile;
+pub use profile::*;
