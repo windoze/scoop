@@ -9,6 +9,13 @@ use super::{
 use crate::ids::derive_persistent_id;
 use crate::{PersistentFunctionId, PersistentPropertyId, PersistentSourceNativeExternalContractId};
 
+mod decode;
+
+pub use decode::{
+    DecodedSourceCAbiFunctionSignature, DecodedSourceCAbiReturn, DecodedSourceExternFunctionAbi,
+    DecodedSourceNativeLibraryBinding, DecodedSourceScoopAbiFunctionSignature,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SourceNativeExternalOwner {
     Function(PersistentFunctionId),

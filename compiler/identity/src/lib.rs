@@ -97,10 +97,13 @@ pub use entity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 pub use entity::{
-    CallbackMode, GcEffect, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
-    SourceExternFunctionAbi, SourceNativeContractError, SourceNativeExternalContract,
-    SourceNativeExternalContractKey, SourceNativeExternalContractRecord, SourceNativeExternalOwner,
-    SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature,
+    CallbackMode, DecodedSourceCAbiFunctionSignature, DecodedSourceCAbiReturn,
+    DecodedSourceExternFunctionAbi, DecodedSourceNativeLibraryBinding,
+    DecodedSourceScoopAbiFunctionSignature, GcEffect, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceCallingConvention, SourceExternFunctionAbi, SourceNativeContractError,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeExternalOwner, SourceNativeLibraryBinding,
+    SourceScoopAbiFunctionSignature,
 };
 pub use entity::{
     CanonicalNativeGroupName, CanonicalNativeLibraryName, CanonicalNativeNameError,
