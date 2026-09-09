@@ -81,8 +81,8 @@ pub use safepoint::{
 };
 
 pub use exact_type::{
-    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraph,
-    ExactTypeKey,
+    CanonicalExactTypeDiagnosticName, DecodedExactTypeKey, ExactTypeDiagnosticError,
+    ExactTypeDiagnosticGraph, ExactTypeKey, ExactTypeResolutionError,
 };
 pub use generated_callable::{
     ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,

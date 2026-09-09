@@ -12,6 +12,10 @@ use crate::{
     ConeCoordinate, ConeIdentity, PersistentExactTypeId, PersistentGenericTypeId, PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{DecodedExactTypeKey, ExactTypeResolutionError};
+
 const MAX_DIAGNOSTIC_NAME_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIAGNOSTIC_RECURSION: usize = 1_024;
 
