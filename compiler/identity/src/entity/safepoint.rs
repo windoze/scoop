@@ -9,6 +9,10 @@ use scoop_wire::{
 use crate::ids::derive_persistent_id;
 use crate::{PersistentCallableBodyId, PersistentExactTypeId, PersistentSafepointSiteId};
 
+mod decode;
+
+pub use decode::DecodedSafepointSiteKey;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SafepointSiteRole {
     ManagedPoll,

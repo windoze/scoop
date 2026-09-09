@@ -95,7 +95,8 @@ pub use runtime_identity::{
     RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
 };
 pub use safepoint::{
-    DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole,
+    DecodedSafepointSiteKey, DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey,
+    SafepointSiteRole,
 };
 
 pub use exact_type::{

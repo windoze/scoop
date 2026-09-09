@@ -144,6 +144,10 @@ pub use entity::{
     LocalValueSelector, SyntheticLocalRole,
 };
 pub use entity::{
+    DecodedSafepointSiteKey, DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey,
+    SafepointSiteRole,
+};
+pub use entity::{
     DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
     ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
     ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
@@ -153,7 +157,6 @@ pub use entity::{
     DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
     RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
 };
-pub use entity::{DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole};
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,
     GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,
