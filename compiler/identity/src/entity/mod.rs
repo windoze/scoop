@@ -65,7 +65,10 @@ pub use enum_variant::{
     EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityError,
     EnumVariantIdentityKey, GeneratedEnumVariantRole,
 };
-pub use exact_signature::{ExactCallableSignature, OptionalExactOwner};
+pub use exact_signature::{
+    DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignature,
+    ExactCallableSignatureResolutionError, OptionalExactOwner,
+};
 pub use field::{FieldIdentityError, FieldIdentityKey, GeneratedFieldKey, SourceFieldKey};
 pub use owners::{
     CallableOwner, DecodedCallableOwner, DecodedDispatchDeclarationOwner,

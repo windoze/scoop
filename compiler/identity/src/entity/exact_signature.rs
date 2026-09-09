@@ -3,6 +3,12 @@ use scoop_wire::{Encoder, WireEncode};
 use super::Effect;
 use crate::PersistentExactTypeId;
 
+mod decode;
+
+pub use decode::{
+    DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignatureResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum OptionalExactOwner {
     Absent,
