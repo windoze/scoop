@@ -1,5 +1,8 @@
 mod callable;
+mod exact_signature;
 mod exact_type;
+mod generated_callable;
+mod generated_nominal;
 mod materialization;
 mod owners;
 mod signature;
@@ -12,6 +15,7 @@ pub use callable::{
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
     CallableTemplateOwnerV1, PropertyAccessorKeyV1,
 };
+pub use exact_signature::{ExactCallableSignatureV1, OptionalExactOwnerV1};
 pub use owners::{
     CallableOwnerV1, DispatchDeclarationOwnerV1, NominalDeclarationOwnerV1, NominalOwnerV1,
     PropertyOwnerV1,
@@ -20,6 +24,15 @@ pub use owners::{
 pub use exact_type::{
     CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraphV1,
     ExactTypeKeyV1,
+};
+pub use generated_callable::{
+    ContinuationShellRoleV1, CoroutineAdapterRoleV1, GeneratedCallableIdentityError,
+    GeneratedCallableKeyV1, InitializationCallableRoleV1, LexicalCallableParentV1,
+    LexicalCallableRoleV1, LexicalParentError,
+};
+pub use generated_nominal::{
+    CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, GeneratedNominalIdentityError,
+    GeneratedNominalKeyV1,
 };
 pub use materialization::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,

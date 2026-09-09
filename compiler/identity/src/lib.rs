@@ -28,6 +28,13 @@ pub use entity::{
     CallableTemplateOwnerV1, PropertyAccessorKeyV1,
 };
 pub use entity::{
+    CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, ContinuationShellRoleV1,
+    CoroutineAdapterRoleV1, ExactCallableSignatureV1, GeneratedCallableIdentityError,
+    GeneratedCallableKeyV1, GeneratedNominalIdentityError, GeneratedNominalKeyV1,
+    InitializationCallableRoleV1, LexicalCallableParentV1, LexicalCallableRoleV1,
+    LexicalParentError, OptionalExactOwnerV1,
+};
+pub use entity::{
     CallableOwnerV1, CallingConventionV1, CanonicalExactTypeDiagnosticName,
     ConcreteExpressionOriginV1, DeclarationNameV1, DeclarationScopeV1, DefinitionOriginRecordV1,
     DefinitionOriginSubjectV1, DefinitionOriginV1, DefinitionOwnerAtomV1, DefinitionOwnerChainV1,
