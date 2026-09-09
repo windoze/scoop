@@ -155,10 +155,12 @@ pub use source_declaration::{
 };
 pub use source_origin::{
     ConcreteExpressionOrigin, DecodedConcreteExpressionOrigin, DecodedDefinitionOrigin,
-    DecodedEvaluationOrigin, DecodedExpressionOrigin, DecodedSourceContextKey, DecodedSourceSpan,
-    DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject, EvaluationOrigin,
-    ExpressionOrigin, SourceContextKey, SourceContextResolutionError, SourceContextResolver,
-    SourceOriginError, SourceOriginResolutionError, SourceSpan, SourceSpanError,
+    DecodedDefinitionOriginRecord, DecodedDefinitionOriginSubject, DecodedEvaluationOrigin,
+    DecodedExpressionOrigin, DecodedSourceContextKey, DecodedSourceSpan, DefinitionOrigin,
+    DefinitionOriginRecord, DefinitionOriginRecordResolutionError, DefinitionOriginSubject,
+    DefinitionOriginSubjectResolver, EvaluationOrigin, ExpressionOrigin, SourceContextKey,
+    SourceContextResolutionError, SourceContextResolver, SourceOriginError,
+    SourceOriginResolutionError, SourceSpan, SourceSpanError,
 };
 pub use structural::{
     DeclarationName, DeclarationScope, DecodedDeclarationName, DecodedDeclarationScope,

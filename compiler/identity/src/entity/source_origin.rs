@@ -17,9 +17,11 @@ use crate::{
 mod decode;
 
 pub use decode::{
-    DecodedConcreteExpressionOrigin, DecodedDefinitionOrigin, DecodedEvaluationOrigin,
-    DecodedExpressionOrigin, DecodedSourceContextKey, DecodedSourceSpan,
-    SourceContextResolutionError, SourceContextResolver, SourceOriginResolutionError,
+    DecodedConcreteExpressionOrigin, DecodedDefinitionOrigin, DecodedDefinitionOriginRecord,
+    DecodedDefinitionOriginSubject, DecodedEvaluationOrigin, DecodedExpressionOrigin,
+    DecodedSourceContextKey, DecodedSourceSpan, DefinitionOriginRecordResolutionError,
+    DefinitionOriginSubjectResolver, SourceContextResolutionError, SourceContextResolver,
+    SourceOriginResolutionError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

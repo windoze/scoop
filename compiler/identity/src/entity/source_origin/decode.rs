@@ -16,6 +16,13 @@ use crate::{
     PersistentTypeId, SourceIdentityResolutionError,
 };
 
+mod subject;
+
+pub use subject::{
+    DecodedDefinitionOriginRecord, DecodedDefinitionOriginSubject,
+    DefinitionOriginRecordResolutionError, DefinitionOriginSubjectResolver,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedSourceContextKey {
     File {
