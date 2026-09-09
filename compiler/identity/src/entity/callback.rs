@@ -10,6 +10,13 @@ use super::{
 use crate::ids::derive_persistent_id;
 use crate::{PersistentCallbackApplicationId, PersistentCallbackRegistrationId};
 
+mod decode;
+
+pub use decode::{
+    CallbackIdentityResolutionError, DecodedCallbackApplicationKey, DecodedCallbackRegistrationKey,
+    DecodedSignatureCallableShape,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CallbackParameterIndex(u32);
 

@@ -56,8 +56,9 @@ pub use callable_body::{
     DecodedStrongCallableDefinitionOwner, MainCallableBodyId, StrongCallableDefinitionOwner,
 };
 pub use callback::{
-    CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
-    CallbackRegistrationKey, SignatureCallableShape,
+    CallbackApplicationIdentityError, CallbackApplicationKey, CallbackIdentityResolutionError,
+    CallbackParameterIndex, CallbackRegistrationKey, DecodedCallbackApplicationKey,
+    DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
 pub use dispatch::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
