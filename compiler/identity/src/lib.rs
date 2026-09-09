@@ -1,0 +1,48 @@
+//! Persistent semantic identities shared across compiler stages and `.slib`.
+//!
+//! The public identity types are intentionally distinct even though every one
+//! has the same 32-byte wire representation. Raw decoded bytes remain inside
+//! [`DecodedPersistentIdV1`] until a validator compares them with an identity
+//! recomputed from the corresponding canonical key.
+//!
+//! ```compile_fail
+//! use scoop_identity::{ConeCoordinate, PersistentTypeId};
+//!
+//! let cone = ConeCoordinate::reserved_core().identity().unwrap();
+//! let _: PersistentTypeId = cone;
+//! ```
+
+mod cone;
+mod ids;
+mod source;
+mod syntax;
+
+pub use cone::{
+    ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
+    ConeIdentity, DecodedConeCoordinateV1,
+};
+pub use ids::{
+    DecodedPersistentIdV1, GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId,
+    ObjectDefinitionAtomId, ObjectDefinitionPlanId, OdrGroupId, OdrMemberId,
+    PersistentCallableApplicationId, PersistentCallableBodyId, PersistentCallbackApplicationId,
+    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentDispatchSlotId,
+    PersistentDispatchTableId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentExportBindingId, PersistentExtensionPropertyId,
+    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdMismatch, PersistentIdV1,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentLayoutId,
+    PersistentLocalBindingId, PersistentLocalValueId, PersistentNativeExternalSymbolId,
+    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
+    PersistentSourceNativeExternalContractId, PersistentStaticStorageId, PersistentTypeAliasId,
+    PersistentTypeId,
+};
+pub use source::{
+    DecodedNormalizedSourcePathV1, DecodedSourceIdentityV1, NormalizedSourcePath,
+    NormalizedSourcePathError, SemanticSourceNameError, SourceIdentity, SourceIdentityDecodeError,
+    SourceIdentityError,
+};
+pub use syntax::{
+    CanonicalIdentifier, CanonicalIdentifierError, DecodedCanonicalIdentifierV1,
+    DecodedPackagePathV1, PackagePath,
+};

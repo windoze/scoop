@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "compiler/wire",
+    "compiler/identity",
     "compiler/ast",
     "compiler/parser",
     "compiler/hir",
@@ -32,8 +33,10 @@ cc = { version = "1" }
 toml = { version = "0.8" }
 minicbor = { version = "2.3", features = ["std"] }
 sha2 = { version = "0.11" }
+semver = { version = "1" }
 
 scoop-wire = { path = "compiler/wire" }
+scoop-identity = { path = "compiler/identity" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }

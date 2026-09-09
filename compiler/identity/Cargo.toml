@@ -1,0 +1,8 @@
+[package]
+name = "scoop-identity"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+semver.workspace = true
+scoop-wire.workspace = true

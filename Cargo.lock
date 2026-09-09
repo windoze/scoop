@@ -445,6 +445,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-identity"
+version = "0.0.0"
+dependencies = [
+ "scoop-wire",
+ "semver",
+]
+
+[[package]]
 name = "scoop-lir"
 version = "0.0.0"
 dependencies = [
