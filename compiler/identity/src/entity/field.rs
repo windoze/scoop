@@ -12,6 +12,13 @@ use crate::{
     PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey,
+    FieldIdentityResolutionError,
+};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SourceFieldKey(SourceFieldKeyKind);
 

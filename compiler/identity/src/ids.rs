@@ -34,6 +34,19 @@ pub trait PersistentIdResolver<I: PersistentId> {
     fn resolve(&mut self, id: DecodedPersistentId<I>) -> Result<I, Self::Error>;
 }
 
+/// Resolves an untrusted persistent reference to its already validated
+/// canonical key.
+///
+/// This is used when the legality of a dependent identity is determined by
+/// the referenced key, rather than by the referenced id kind alone. An
+/// implementation must reject an id unless `K` is the canonical key from
+/// which that exact `I` was derived.
+pub trait PersistentKeyResolver<I: PersistentId, K> {
+    type Error;
+
+    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<K, Self::Error>;
+}
+
 pub(crate) trait PersistentIdConstruction: PersistentId {
     fn from_digest(digest: Digest256) -> Self;
 }

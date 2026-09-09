@@ -69,7 +69,10 @@ pub use exact_signature::{
     DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignature,
     ExactCallableSignatureResolutionError, OptionalExactOwner,
 };
-pub use field::{FieldIdentityError, FieldIdentityKey, GeneratedFieldKey, SourceFieldKey};
+pub use field::{
+    DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey, FieldIdentityError,
+    FieldIdentityKey, FieldIdentityResolutionError, GeneratedFieldKey, SourceFieldKey,
+};
 pub use owners::{
     CallableOwner, DecodedCallableOwner, DecodedDispatchDeclarationOwner,
     DecodedNominalDeclarationOwner, DecodedNominalOwner, DecodedPropertyOwner,
