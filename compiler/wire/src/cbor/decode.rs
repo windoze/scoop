@@ -55,6 +55,19 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
     }
 
     pub fn bytes(&mut self) -> Result<&'input [u8], WireError> {
+        self.decode_bytes(true)
+    }
+
+    /// Decode bytes carried by an envelope whose own schema defines a larger
+    /// resource limit than the semantic-leaf limit.
+    ///
+    /// The occurrence still consumes node and work budget. Callers that copy
+    /// the returned slice must additionally charge owned bytes.
+    pub fn carrier_bytes(&mut self) -> Result<&'input [u8], WireError> {
+        self.decode_bytes(false)
+    }
+
+    fn decode_bytes(&mut self, check_semantic_leaf: bool) -> Result<&'input [u8], WireError> {
         self.observe_item()?;
         let start = self.inner.position();
         if self.input.get(start) == Some(&0x5f) {
@@ -71,7 +84,9 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
             .map_err(|_| self.type_error(WireType::Bytes))?;
         let length =
             u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        self.meter.check_semantic_leaf(length, &self.path)?;
+        if check_semantic_leaf {
+            self.meter.check_semantic_leaf(length, &self.path)?;
+        }
         self.require_canonical_head(start, 2, length)?;
         Ok(value)
     }
@@ -100,6 +115,15 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
 
     pub fn owned_bytes(&mut self) -> Result<Vec<u8>, WireError> {
         let value = self.bytes()?;
+        self.copy_bytes(value)
+    }
+
+    pub fn owned_carrier_bytes(&mut self) -> Result<Vec<u8>, WireError> {
+        let value = self.carrier_bytes()?;
+        self.copy_bytes(value)
+    }
+
+    fn copy_bytes(&mut self, value: &[u8]) -> Result<Vec<u8>, WireError> {
         let length =
             u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
         self.meter.charge_owned_bytes(length, &self.path)?;
@@ -381,6 +405,9 @@ mod tests {
     #[derive(Debug, Eq, PartialEq)]
     struct UnsignedValue(u64);
 
+    #[derive(Debug, Eq, PartialEq)]
+    struct Carrier(Vec<u8>);
+
     impl WireEncode for UnsignedValue {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
             encoder.unsigned(self.0)
@@ -390,6 +417,18 @@ mod tests {
     impl WireDecode for UnsignedValue {
         fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
             Ok(Self(decoder.unsigned()?))
+        }
+    }
+
+    impl WireEncode for Carrier {
+        fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+            encoder.bytes(&self.0)
+        }
+    }
+
+    impl WireDecode for Carrier {
+        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
+            decoder.owned_carrier_bytes().map(Self)
         }
     }
 
@@ -526,5 +565,29 @@ mod tests {
         };
         let error = decode_canonical::<Pair>(bytes, limits).unwrap_err();
         assert!(matches!(error.kind(), WireErrorKind::LimitExceeded { .. }));
+    }
+
+    #[test]
+    fn carrier_bytes_bypass_only_the_semantic_leaf_limit() {
+        let encoded = encode(&Carrier(vec![1, 2, 3, 4])).unwrap();
+        let limits = DecodeLimits {
+            semantic_leaf_bytes: 3,
+            ..DecodeLimits::default()
+        };
+
+        assert_eq!(
+            decode_canonical::<Carrier>(&encoded, limits).unwrap(),
+            Carrier(vec![1, 2, 3, 4])
+        );
+        let mut meter = crate::BudgetMeter::new(limits);
+        let mut decoder = Decoder::new(&encoded, &mut meter).unwrap();
+        assert!(matches!(
+            decoder.bytes().unwrap_err().kind(),
+            WireErrorKind::LimitExceeded {
+                resource: crate::ResourceKind::SemanticLeafBytes,
+                limit: 3,
+                observed: 4,
+            }
+        ));
     }
 }
