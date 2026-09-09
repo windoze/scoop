@@ -1,3 +1,4 @@
+mod exact_type;
 mod owners;
 mod signature;
 mod source_declaration;
@@ -9,6 +10,10 @@ pub use owners::{
     PropertyOwnerV1,
 };
 
+pub use exact_type::{
+    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraphV1,
+    ExactTypeKeyV1,
+};
 pub use signature::{
     CallingConventionV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
     OptionalSignatureTypeV1, SignatureTypeKeyV1,

@@ -23,10 +23,11 @@ pub use cone::{
     ConeIdentity, DecodedConeCoordinateV1,
 };
 pub use entity::{
-    CallableOwnerV1, CallingConventionV1, ConcreteExpressionOriginV1, DeclarationNameV1,
-    DeclarationScopeV1, DefinitionOriginRecordV1, DefinitionOriginSubjectV1, DefinitionOriginV1,
-    DefinitionOwnerAtomV1, DefinitionOwnerChainV1, DispatchDeclarationOwnerV1,
-    DuplicateSignatureKeyV1, EffectV1, EvaluationOriginV1, ExpressionOriginV1,
+    CallableOwnerV1, CallingConventionV1, CanonicalExactTypeDiagnosticName,
+    ConcreteExpressionOriginV1, DeclarationNameV1, DeclarationScopeV1, DefinitionOriginRecordV1,
+    DefinitionOriginSubjectV1, DefinitionOriginV1, DefinitionOwnerAtomV1, DefinitionOwnerChainV1,
+    DispatchDeclarationOwnerV1, DuplicateSignatureKeyV1, EffectV1, EvaluationOriginV1,
+    ExactTypeDiagnosticError, ExactTypeDiagnosticGraphV1, ExactTypeKeyV1, ExpressionOriginV1,
     NominalDeclarationOwnerV1, NominalOwnerV1, NonEmptyVec, NonEmptyVecError,
     OptionalSignatureTypeV1, PropertyOwnerV1, SignatureTypeKeyV1, SourceContextKeyV1,
     SourceDeclarationIdentityError, SourceDeclarationKeyError, SourceDeclarationKeyV1,
