@@ -509,8 +509,10 @@ name = "scoop-slib"
 version = "0.0.0"
 dependencies = [
  "scoop-hir",
+ "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-wire",
 ]
 
 [[package]]
