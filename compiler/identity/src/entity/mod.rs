@@ -40,9 +40,14 @@ pub use bridge::{
 pub use c_abi::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayout, CanonicalCAbiLayoutField,
-    CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiParameter, CanonicalCAbiReturn,
-    CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, IntegerBitWidth, Signedness,
-    TargetCallingConvention,
+    CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiParameter, CanonicalCAbiResolutionError,
+    CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType,
+    DecodedCDataPointee, DecodedCLayoutOverride, DecodedCPointerStorage,
+    DecodedCanonicalCAbiFunctionSignature, DecodedCanonicalCAbiLayout,
+    DecodedCanonicalCAbiLayoutField, DecodedCanonicalCAbiLayoutFingerprintRecord,
+    DecodedCanonicalCAbiParameter, DecodedCanonicalCAbiReturn,
+    DecodedCanonicalCAbiSignatureFingerprintRecord, DecodedCanonicalCStorageType, IntegerBitWidth,
+    Signedness, TargetCallingConvention,
 };
 pub use callable::{
     AccessorRole, CallableApplicationKey, CallableApplicationResolutionError, CallableArguments,

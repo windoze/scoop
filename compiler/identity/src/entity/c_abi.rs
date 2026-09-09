@@ -9,6 +9,16 @@ use crate::{
     PersistentFieldId,
 };
 
+mod decode;
+
+pub use decode::{
+    CanonicalCAbiResolutionError, DecodedCDataPointee, DecodedCLayoutOverride,
+    DecodedCPointerStorage, DecodedCanonicalCAbiFunctionSignature, DecodedCanonicalCAbiLayout,
+    DecodedCanonicalCAbiLayoutField, DecodedCanonicalCAbiLayoutFingerprintRecord,
+    DecodedCanonicalCAbiParameter, DecodedCanonicalCAbiReturn,
+    DecodedCanonicalCAbiSignatureFingerprintRecord, DecodedCanonicalCStorageType,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Signedness {
     Signed,
