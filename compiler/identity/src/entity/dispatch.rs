@@ -7,6 +7,13 @@ use crate::{
     PersistentFunctionId, PersistentPropertyAccessorId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
+    DispatchIdentityResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DispatchRole {
     VirtualMethod,

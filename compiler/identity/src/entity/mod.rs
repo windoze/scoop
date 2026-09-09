@@ -59,7 +59,9 @@ pub use callback::{
     CallbackRegistrationKey, SignatureCallableShape,
 };
 pub use dispatch::{
-    DispatchRole, DispatchSlotKey, DispatchTableKey, DispatchTableRole, OptionalExactInterface,
+    DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
+    DispatchIdentityResolutionError, DispatchRole, DispatchSlotKey, DispatchTableKey,
+    DispatchTableRole, OptionalExactInterface,
 };
 pub use enum_variant::{
     DecodedEnumVariantFieldKey, DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey,
