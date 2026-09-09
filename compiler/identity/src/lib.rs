@@ -23,6 +23,11 @@ pub use cone::{
     ConeIdentity, DecodedConeCoordinateV1,
 };
 pub use entity::{
+    AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
+    CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
+    CallableTemplateOwnerV1, PropertyAccessorKeyV1,
+};
+pub use entity::{
     CallableOwnerV1, CallingConventionV1, CanonicalExactTypeDiagnosticName,
     ConcreteExpressionOriginV1, DeclarationNameV1, DeclarationScopeV1, DefinitionOriginRecordV1,
     DefinitionOriginSubjectV1, DefinitionOriginV1, DefinitionOwnerAtomV1, DefinitionOwnerChainV1,

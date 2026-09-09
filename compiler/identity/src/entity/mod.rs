@@ -1,3 +1,4 @@
+mod callable;
 mod exact_type;
 mod owners;
 mod signature;
@@ -5,6 +6,11 @@ mod source_declaration;
 mod source_origin;
 mod structural;
 
+pub use callable::{
+    AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
+    CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
+    CallableTemplateOwnerV1, PropertyAccessorKeyV1,
+};
 pub use owners::{
     CallableOwnerV1, DispatchDeclarationOwnerV1, NominalDeclarationOwnerV1, NominalOwnerV1,
     PropertyOwnerV1,
