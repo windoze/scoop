@@ -86,6 +86,10 @@ pub use entity::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
     ScoopAbiReturn, ScoopAbiValueShape,
 };
+pub use entity::{
+    DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
+    RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
+};
 pub use entity::{DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole};
 pub use entity::{InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole};
 pub use ids::{

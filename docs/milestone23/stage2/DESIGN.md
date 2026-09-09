@@ -507,7 +507,7 @@ non-generic type/function constructor要求`type_parameter_count=0`，generic ty
 | `PersistentScanId` | `scoop-scan-id-v1` | `{1=layout id, 2=scan role}` |
 | `PersistentDispatchTableId` | `scoop-dispatch-table-id-v1` | `{1=exact type, 2=table role, 3=optional interface exact type}` |
 | `PersistentStaticStorageId` | `scoop-static-storage-id-v1` | `{1=typed owner, 2=storage role}` |
-| `PersistentImmortalObjectId` | `scoop-immortal-object-id-v1` | `{1=ImmortalObjectOwnerV1, 2=object role, 3=structural path}` |
+| `PersistentImmortalObjectId` | `scoop-immortal-object-id-v1` | `{1=ImmortalObjectOwner, 2=object role, 3=structural path}` |
 | `OdrGroupId` | `scoop-odr-v1` | `SpecializationKey` |
 | `OdrMemberId` | `scoop-odr-member-v1` | `OdrMemberKey` |
 | `GeneratedBridgeUnitId` | `scoop-generated-bridge-unit-v1` | `GeneratedBridgeUnitKeyV1` |
@@ -640,7 +640,7 @@ PersistentCallbackRegistrationId =
 
 static storage的owner/role矩阵精确为：
 
-| storage role | 唯一允许的`DefinitionOwnerV1` |
+| storage role | 唯一允许的`DefinitionOwner` |
 | --- | --- |
 | `PropertyBacking` | `Property`；或只对`GenericDelegatedExtensionApplication`使用其`InitializationUnit` |
 | `PropertyDelegate` | `Property`且该source property为delegated；或只对`GenericDelegatedExtensionApplication`使用其`InitializationUnit` |
@@ -678,7 +678,7 @@ DispatchDeclarationOwner =
     Function { id: PersistentFunctionId }                 // tag 1
   | Accessor { id: PersistentPropertyAccessorId }         // tag 2
 
-DefinitionOwnerV1 =
+DefinitionOwner =
     Nominal { owner: NominalOwner }                     // tag 1, field 1
   | Callable { owner: CallableOwner }                   // tag 2, field 1
   | Property { owner: PropertyOwner }                   // tag 3, field 1
@@ -688,13 +688,13 @@ DefinitionOwnerV1 =
   | RootEntry { root_cone: ConeIdentity,
                 main: MainCallableBodyId }                 // tag 7, fields 1/2
 
-ImmortalObjectOwnerV1 =
+ImmortalObjectOwner =
     Callable { owner: CallableMaterialization }           // tag 1, field 1
   | Property { owner: PropertyOwner }                     // tag 2, field 1
   | InitializationUnit { id: PersistentInitializationUnitId } // tag 3, field 1
 ```
 
-sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKey::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwner`，generic callable declaration、constructor、application和generated callable不能另造声明slot。trusted HIR constructor还检查：VirtualMethod owner是virtual family root、InterfaceMethod owner是direct interface member、getter/setter role匹配对应family-root accessor，所有override复用同一slot id。上述virtual/interface/family关系不在identity key中，M23-2 foundation wire只能验证owner typed kind与“generic callable不得成为slot”这类key内事实；`ValidatedCompileArtifact<IdentityFoundationProfile>`不暴露“dispatch合法”API。M23-5必须用新的required HIR dispatch-declaration provenance section重放其余检查，production profile取得该proof后才可导出slot/实现relation。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwnerV1`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
+sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKey::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwner`，generic callable declaration、constructor、application和generated callable不能另造声明slot。trusted HIR constructor还检查：VirtualMethod owner是virtual family root、InterfaceMethod owner是direct interface member、getter/setter role匹配对应family-root accessor，所有override复用同一slot id。上述virtual/interface/family关系不在identity key中，M23-2 foundation wire只能验证owner typed kind与“generic callable不得成为slot”这类key内事实；`ValidatedCompileArtifact<IdentityFoundationProfile>`不暴露“dispatch合法”API。M23-5必须用新的required HIR dispatch-declaration provenance section重放其余检查，production profile取得该proof后才可导出slot/实现relation。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwner`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
 
 第5.2节各个shorthand key的CBOR field也由此精确化：
 
@@ -709,10 +709,10 @@ sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropert
 | layout | `1=PersistentExactTypeId, 2=TargetProfileWireId, 3=RepresentationRole` |
 | scan | `1=PersistentLayoutId, 2=ScanRole` |
 | dispatch table | `1=PersistentExactTypeId, 2=DispatchTableRole, 3=OptionalExactInterface` |
-| static storage | `1=DefinitionOwnerV1, 2=StorageRole` |
-| immortal object | `1=ImmortalObjectOwnerV1, 2=ImmortalObjectRole, 3=StructuralDefinitionPath` |
+| static storage | `1=DefinitionOwner, 2=StorageRole` |
+| immortal object | `1=ImmortalObjectOwner, 2=ImmortalObjectRole, 3=StructuralDefinitionPath` |
 
-M23的StringConstant owner矩阵同样封闭：ordinary function/method/accessor、lambda/anonymous/generated callable body中的literal必须使用完整`CallableMaterialization`；const/property declaration级literal使用`Property`；initializer/ensure及generic delegated initializer使用`InitializationUnit`。nested generic lambda因此同时保留generated template与外层application，不得退回裸`GeneratedCallableId`或只用outer application再猜一段跳层path。每个path都从该精确owner的直接StringConstant child开始；其他`DefinitionOwnerV1` variant不能构造immortal object。
+M23的StringConstant owner矩阵同样封闭：ordinary function/method/accessor、lambda/anonymous/generated callable body中的literal必须使用完整`CallableMaterialization`；const/property declaration级literal使用`Property`；initializer/ensure及generic delegated initializer使用`InitializationUnit`。nested generic lambda因此同时保留generated template与外层application，不得退回裸`GeneratedCallableId`或只用outer application再猜一段跳层path。每个path都从该精确owner的直接StringConstant child开始；其他`DefinitionOwner` variant不能构造immortal object。
 
 source field与compiler-generated physical field不能共用display name判等：
 
