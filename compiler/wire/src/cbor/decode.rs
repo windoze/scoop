@@ -326,6 +326,13 @@ pub trait WireDecode: WireEncode + Sized {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError>;
 }
 
+/// Strict decoding for documents that retain borrowed carrier byte strings.
+/// Every implementation still uses [`Decoder`]'s canonical primitives, so it
+/// does not need to copy the complete document for a re-encode check.
+pub trait BorrowedWireDecode<'input>: Sized {
+    fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, WireError>;
+}
+
 pub fn decode_canonical<T: WireDecode>(input: &[u8], limits: DecodeLimits) -> Result<T, WireError> {
     let mut meter = BudgetMeter::new(limits);
     decode_canonical_with_meter(input, &mut meter)
@@ -367,6 +374,24 @@ pub fn decode_canonical_with_meter<T: WireDecode>(
     }
 }
 
+pub fn decode_canonical_borrowed<'input, T: BorrowedWireDecode<'input>>(
+    input: &'input [u8],
+    limits: DecodeLimits,
+) -> Result<T, WireError> {
+    let mut meter = BudgetMeter::new(limits);
+    decode_canonical_borrowed_with_meter(input, &mut meter)
+}
+
+pub fn decode_canonical_borrowed_with_meter<'input, T: BorrowedWireDecode<'input>>(
+    input: &'input [u8],
+    meter: &mut BudgetMeter,
+) -> Result<T, WireError> {
+    let mut decoder = Decoder::new(input, meter)?;
+    let value = T::decode(&mut decoder)?;
+    decoder.finish()?;
+    Ok(value)
+}
+
 fn encode_head(output: &mut [u8; 9], major: u8, argument: u64) -> usize {
     let major = major << 5;
     match argument {
@@ -402,7 +427,8 @@ mod tests {
     use crate::{DecodeLimits, Encoder, WireErrorKind, encode};
 
     use super::{
-        Decoder, EncodeError, WireDecode, WireEncode, decode_canonical, decode_canonical_with_meter,
+        BorrowedWireDecode, Decoder, EncodeError, WireDecode, WireEncode, decode_canonical,
+        decode_canonical_borrowed_with_meter, decode_canonical_with_meter,
     };
 
     #[derive(Debug, Eq, PartialEq)]
@@ -416,6 +442,9 @@ mod tests {
 
     #[derive(Debug, Eq, PartialEq)]
     struct Carrier(Vec<u8>);
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct BorrowedCarrier<'input>(&'input [u8]);
 
     impl WireEncode for UnsignedValue {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -438,6 +467,12 @@ mod tests {
     impl WireDecode for Carrier {
         fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
             decoder.owned_carrier_bytes().map(Self)
+        }
+    }
+
+    impl<'input> BorrowedWireDecode<'input> for BorrowedCarrier<'input> {
+        fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, crate::WireError> {
+            decoder.carrier_bytes().map(Self)
         }
     }
 
@@ -623,5 +658,28 @@ mod tests {
                 observed: 2,
             }
         ));
+    }
+
+    #[test]
+    fn borrowed_document_keeps_carrier_bytes_zero_copy() {
+        let encoded = encode(&Carrier(vec![1, 2, 3, 4])).unwrap();
+        let mut meter = crate::BudgetMeter::new(DecodeLimits::default());
+
+        assert_eq!(
+            decode_canonical_borrowed_with_meter::<BorrowedCarrier<'_>>(&encoded, &mut meter),
+            Ok(BorrowedCarrier(&encoded[1..]))
+        );
+        assert_eq!(meter.usage().owned_bytes, 0);
+
+        let non_minimal = [0x58, 0x01, 0x01];
+        assert_eq!(
+            decode_canonical_borrowed_with_meter::<BorrowedCarrier<'_>>(
+                &non_minimal,
+                &mut crate::BudgetMeter::new(DecodeLimits::default()),
+            )
+            .unwrap_err()
+            .kind(),
+            &WireErrorKind::NonCanonicalCbor
+        );
     }
 }
