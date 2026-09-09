@@ -62,8 +62,10 @@ pub use dispatch::{
     DispatchRole, DispatchSlotKey, DispatchTableKey, DispatchTableRole, OptionalExactInterface,
 };
 pub use enum_variant::{
-    EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityError,
-    EnumVariantIdentityKey, GeneratedEnumVariantRole,
+    DecodedEnumVariantFieldKey, DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey,
+    EnumVariantFieldKey, EnumVariantFieldResolutionError, EnumVariantFieldSelector,
+    EnumVariantIdentityError, EnumVariantIdentityKey, EnumVariantResolutionError,
+    GeneratedEnumVariantRole,
 };
 pub use exact_signature::{
     DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignature,

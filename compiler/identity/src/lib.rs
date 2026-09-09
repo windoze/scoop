@@ -52,15 +52,17 @@ pub use entity::{
 };
 pub use entity::{
     CallableAdapterEnvironmentKey, ClosureEnvironmentRole, ContinuationShellRole,
-    CoroutineAdapterRole, DecodedCallableAdapterEnvironmentKey, DecodedExactCallableSignature,
+    CoroutineAdapterRole, DecodedCallableAdapterEnvironmentKey, DecodedEnumVariantFieldKey,
+    DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey, DecodedExactCallableSignature,
     DecodedGeneratedNominalKey, DecodedOptionalExactOwner, EnumVariantFieldKey,
-    EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
-    ExactCallableSignature, ExactCallableSignatureResolutionError, FieldIdentityError,
-    FieldIdentityKey, FieldIdentityResolutionError, GeneratedCallableIdentityError,
-    GeneratedCallableKey, GeneratedEnumVariantRole, GeneratedFieldKey,
-    GeneratedNominalIdentityError, GeneratedNominalKey, GeneratedNominalResolutionError,
-    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
-    OptionalExactOwner, SourceFieldKey,
+    EnumVariantFieldResolutionError, EnumVariantFieldSelector, EnumVariantIdentityError,
+    EnumVariantIdentityKey, EnumVariantResolutionError, ExactCallableSignature,
+    ExactCallableSignatureResolutionError, FieldIdentityError, FieldIdentityKey,
+    FieldIdentityResolutionError, GeneratedCallableIdentityError, GeneratedCallableKey,
+    GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
+    GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
+    SourceFieldKey,
 };
 pub use entity::{
     CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,

@@ -11,6 +11,13 @@ use crate::{
     CanonicalIdentifier, PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedEnumVariantFieldKey, DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey,
+    EnumVariantFieldResolutionError, EnumVariantResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum GeneratedEnumVariantRole {
     CoroutineStepCompleted,
