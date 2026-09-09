@@ -2,6 +2,10 @@ use std::fmt;
 
 use scoop_wire::{Encoder, WireEncode};
 
+mod decode;
+
+pub use decode::{DecodedCanonicalNativeLibraryName, DecodedSourceNativeSymbol};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CanonicalNativeLibraryName(String);
 
@@ -81,6 +85,7 @@ impl std::error::Error for CanonicalNativeNameError {}
 pub enum SourceNativeSymbolError {
     Empty,
     TooLong,
+    InvalidUtf8,
     Nul,
 }
 
@@ -89,6 +94,7 @@ impl fmt::Display for SourceNativeSymbolError {
         formatter.write_str(match self {
             Self::Empty => "source native symbol must not be empty",
             Self::TooLong => "source native symbol exceeds 4095 UTF-8 bytes",
+            Self::InvalidUtf8 => "source native symbol must be valid UTF-8",
             Self::Nul => "source native symbol must not contain NUL",
         })
     }

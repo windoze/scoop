@@ -120,8 +120,8 @@ pub use native_link::{
     NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol, NativeLinkSymbolError,
 };
 pub use native_name::{
-    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol,
-    SourceNativeSymbolError,
+    CanonicalNativeLibraryName, CanonicalNativeNameError, DecodedCanonicalNativeLibraryName,
+    DecodedSourceNativeSymbol, SourceNativeSymbol, SourceNativeSymbolError,
 };
 pub use object_definition::{
     DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,

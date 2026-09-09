@@ -104,10 +104,11 @@ pub use entity::{
 };
 pub use entity::{
     CanonicalNativeGroupName, CanonicalNativeLibraryName, CanonicalNativeNameError,
-    NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
-    NativeExternalContractRecord, NativeExternalSymbolKey, NativeLibraryBinding,
-    NativeLibraryGrouping, NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol,
-    NativeLinkSymbolError, SourceNativeSymbol, SourceNativeSymbolError,
+    DecodedCanonicalNativeLibraryName, DecodedSourceNativeSymbol, NativeExternAbi,
+    NativeExternalContract, NativeExternalContractFingerprintInput, NativeExternalContractRecord,
+    NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping, NativeLibraryKind,
+    NativeLinkRequirementKey, NativeLinkSymbol, NativeLinkSymbolError, SourceNativeSymbol,
+    SourceNativeSymbolError,
 };
 pub use entity::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
