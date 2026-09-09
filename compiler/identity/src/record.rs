@@ -84,6 +84,31 @@ impl<I: PersistentId, K> DecodedCborIdentityRecord<I, K> {
     pub const fn key(&self) -> &K {
         &self.key
     }
+
+    /// Resolves an untrusted wire key into its canonical typed key before
+    /// recomputing and validating the record identity.
+    ///
+    /// The resolver is responsible for checking every persistent identity
+    /// reference embedded in the decoded key. A concrete [`PersistentId`]
+    /// cannot escape through this path unless the rebuilt key derives the
+    /// identity carried by the record.
+    pub fn resolve<V, E>(
+        self,
+        resolve_key: impl FnOnce(K) -> Result<V, E>,
+    ) -> Result<CborIdentityRecord<I, V>, IdentityRecordResolutionError<E, V::Error, I>>
+    where
+        V: CborIdentityKey<I>,
+    {
+        let key = resolve_key(self.key).map_err(IdentityRecordResolutionError::Reference)?;
+        let expected = key
+            .derive_identity()
+            .map_err(IdentityRecordResolutionError::Key)?;
+        let id = self
+            .id
+            .verify(expected)
+            .map_err(IdentityRecordResolutionError::Id)?;
+        Ok(CborIdentityRecord { id, key })
+    }
 }
 
 impl<I: PersistentId, K: CborIdentityKey<I>> DecodedCborIdentityRecord<I, K> {
@@ -251,6 +276,33 @@ impl RuntimeIdentityKey<PersistentCallableBodyId> for DecodedCallableBodyKey {
 pub enum IdentityRecordValidationError<E, I: PersistentId> {
     Key(E),
     Id(PersistentIdMismatch<I>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum IdentityRecordResolutionError<R, E, I: PersistentId> {
+    Reference(R),
+    Key(E),
+    Id(PersistentIdMismatch<I>),
+}
+
+impl<R: fmt::Display, E: fmt::Display, I: PersistentId> fmt::Display
+    for IdentityRecordResolutionError<R, E, I>
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reference(error) => error.fmt(formatter),
+            Self::Key(error) => error.fmt(formatter),
+            Self::Id(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<R, E, I> std::error::Error for IdentityRecordResolutionError<R, E, I>
+where
+    R: std::error::Error + 'static,
+    E: std::error::Error + 'static,
+    I: PersistentId,
+{
 }
 
 impl<E: fmt::Display, I: PersistentId> fmt::Display for IdentityRecordValidationError<E, I> {
@@ -422,8 +474,8 @@ mod tests {
 
     use super::{
         CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord,
-        DecodedRuntimeIdentityRecord, IdentityRecordValidationError, RuntimeIdentityRecord,
-        RuntimeIdentityRecordValidationError, StableIdentityOrderError,
+        DecodedRuntimeIdentityRecord, IdentityRecordResolutionError, IdentityRecordValidationError,
+        RuntimeIdentityRecord, RuntimeIdentityRecordValidationError, StableIdentityOrderError,
         stable_topological_identity_order,
     };
     use crate::ids::derive_persistent_id;
@@ -435,6 +487,15 @@ mod tests {
     #[derive(Clone, Debug, Eq, PartialEq)]
     struct TestKey(u64);
 
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct DecodedTestKey(u64);
+
+    impl WireEncode for DecodedTestKey {
+        fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+            encoder.unsigned(self.0)
+        }
+    }
+
     impl WireEncode for TestKey {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
             encoder.unsigned(self.0)
@@ -442,6 +503,12 @@ mod tests {
     }
 
     impl WireDecode for TestKey {
+        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+            decoder.unsigned().map(Self)
+        }
+    }
+
+    impl WireDecode for DecodedTestKey {
         fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
             decoder.unsigned().map(Self)
         }
@@ -485,6 +552,50 @@ mod tests {
             Err(IdentityRecordValidationError::Id(_))
         ));
     }
+
+    #[test]
+    fn cbor_record_resolves_references_before_recomputing_its_identity() {
+        let record = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(TestKey(7)).unwrap();
+        let encoded = encode(&record).unwrap();
+        let decoded = decode_canonical::<
+            DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
+        >(&encoded, DecodeLimits::default())
+        .unwrap();
+
+        let resolved = decoded
+            .resolve(|key| Ok::<_, TestReferenceError>(TestKey(key.0)))
+            .unwrap();
+        assert_eq!(resolved, record);
+
+        let decoded = decode_canonical::<
+            DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
+        >(&encoded, DecodeLimits::default())
+        .unwrap();
+        assert!(matches!(
+            decoded.resolve(|_| Ok::<_, TestReferenceError>(TestKey(8))),
+            Err(IdentityRecordResolutionError::Id(_))
+        ));
+
+        let decoded = decode_canonical::<
+            DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
+        >(&encoded, DecodeLimits::default())
+        .unwrap();
+        assert_eq!(
+            decoded.resolve::<TestKey, _>(|_| Err(TestReferenceError)),
+            Err(IdentityRecordResolutionError::Reference(TestReferenceError))
+        );
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    struct TestReferenceError;
+
+    impl std::fmt::Display for TestReferenceError {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("test reference was not resolved")
+        }
+    }
+
+    impl std::error::Error for TestReferenceError {}
 
     #[test]
     fn cbor_record_registry_uses_the_real_key_derivation() {

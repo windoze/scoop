@@ -130,8 +130,8 @@ pub use mangling::{
 };
 pub use record::{
     CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedRuntimeIdentityRecord,
-    IdentityRecordValidationError, RuntimeIdentityKey, RuntimeIdentityRecord,
-    RuntimeIdentityRecordBuildError, RuntimeIdentityRecordValidationError,
+    IdentityRecordResolutionError, IdentityRecordValidationError, RuntimeIdentityKey,
+    RuntimeIdentityRecord, RuntimeIdentityRecordBuildError, RuntimeIdentityRecordValidationError,
     StableIdentityOrderError, stable_topological_identity_order,
 };
 pub use source::{
