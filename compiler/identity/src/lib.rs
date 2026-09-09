@@ -23,7 +23,8 @@ mod syntax;
 
 pub use capability::{
     ArtifactCapabilityProfileId, BackendProfileWireId, CapabilityId, CapabilityIdError,
-    CapabilityLabelError, ObjectFormatId, TargetProfileWireId,
+    CapabilityLabelError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
+    TargetProfileWireId,
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, WireEncode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CapabilityId {
@@ -56,6 +56,45 @@ impl WireEncode for CapabilityId {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedCapabilityId {
+    namespace: String,
+    name: String,
+    major_version: u32,
+}
+
+impl DecodedCapabilityId {
+    pub fn validate(self) -> Result<CapabilityId, CapabilityIdError> {
+        CapabilityId::new(&self.namespace, &self.name, self.major_version)
+    }
+}
+
+impl WireEncode for DecodedCapabilityId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        encoder.text(&self.namespace)?;
+        encoder.field(2)?;
+        encoder.text(&self.name)?;
+        encoder.field(3)?;
+        encoder.unsigned(u64::from(self.major_version))
+    }
+}
+
+impl WireDecode for DecodedCapabilityId {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        let namespace = decoder.field(1, Decoder::owned_text)?;
+        let name = decoder.field(2, Decoder::owned_text)?;
+        let major_version = decoder.field(3, Decoder::u32)?;
+        Ok(Self {
+            namespace,
+            name,
+            major_version,
+        })
+    }
+}
+
 macro_rules! capability_refinement {
     ($name:ident, $constructor:ident, $namespace:literal, $value:literal) => {
         #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -68,6 +107,18 @@ macro_rules! capability_refinement {
 
             pub fn capability(&self) -> &CapabilityId {
                 &self.0
+            }
+
+            pub fn refine(capability: CapabilityId) -> Result<Self, CapabilityRefinementError> {
+                let expected = CapabilityId::known($namespace, $value);
+                if capability == expected {
+                    Ok(Self(capability))
+                } else {
+                    Err(CapabilityRefinementError {
+                        expected,
+                        actual: capability,
+                    })
+                }
             }
         }
 
@@ -85,6 +136,39 @@ capability_refinement!(
     "org.scoop-lang.target-profile",
     "darwin-aarch64"
 );
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapabilityRefinementError {
+    expected: CapabilityId,
+    actual: CapabilityId,
+}
+
+impl CapabilityRefinementError {
+    pub const fn expected(&self) -> &CapabilityId {
+        &self.expected
+    }
+
+    pub const fn actual(&self) -> &CapabilityId {
+        &self.actual
+    }
+}
+
+impl fmt::Display for CapabilityRefinementError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "expected capability {}/{}/{}, found {}/{}/{}",
+            self.expected.namespace(),
+            self.expected.name(),
+            self.expected.major_version(),
+            self.actual.namespace(),
+            self.actual.name(),
+            self.actual.major_version(),
+        )
+    }
+}
+
+impl std::error::Error for CapabilityRefinementError {}
 capability_refinement!(
     BackendProfileWireId,
     llvm_22_1,
@@ -190,9 +274,9 @@ fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLa
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::encode;
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-    use super::{CapabilityId, TargetProfileWireId};
+    use super::{CapabilityId, DecodedCapabilityId, TargetProfileWireId};
 
     #[test]
     fn capability_grammar_and_numeric_major_are_canonical() {
@@ -213,6 +297,34 @@ mod tests {
         assert_eq!(
             hex(&encode(&TargetProfileWireId::darwin_aarch64()).unwrap()),
             "a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301"
+        );
+    }
+
+    #[test]
+    fn capability_decode_validates_grammar_before_refinement() {
+        let target = TargetProfileWireId::darwin_aarch64();
+        let decoded = decode_canonical::<DecodedCapabilityId>(
+            &encode(target.capability()).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            TargetProfileWireId::refine(decoded.validate().unwrap()),
+            Ok(target)
+        );
+
+        let malformed = b"\xa3\x01\x63Org\x02\x64name\x03\x01";
+        assert!(
+            decode_canonical::<DecodedCapabilityId>(malformed, DecodeLimits::default())
+                .unwrap()
+                .validate()
+                .is_err()
+        );
+        assert!(
+            TargetProfileWireId::refine(
+                CapabilityId::new("org.scoop-lang.target-profile", "other", 1).unwrap()
+            )
+            .is_err()
         );
     }
 
