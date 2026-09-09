@@ -1,6 +1,9 @@
 use std::fmt;
+use std::ops::Range;
 
-use crate::{SlibMember, SlibMemberId};
+use scoop_wire::sha256;
+
+use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
 const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
 const HEADER_LENGTH: u64 = 60;
@@ -41,13 +44,18 @@ impl CanonicalSlibArchive {
         let mut archive_length =
             u64::try_from(GLOBAL_MAGIC.len()).map_err(|_| ArchiveWriteError::LengthOverflow)?;
         archive_length = archive_length
-            .checked_add(encoded_member_length(manifest_length)?)
+            .checked_add(
+                encoded_member_length(manifest_length).ok_or(ArchiveWriteError::LengthOverflow)?,
+            )
             .ok_or(ArchiveWriteError::LengthOverflow)?;
         for member in &members {
             let payload_length = u64::try_from(member.payload().len())
                 .map_err(|_| ArchiveWriteError::LengthOverflow)?;
             archive_length = archive_length
-                .checked_add(encoded_member_length(payload_length)?)
+                .checked_add(
+                    encoded_member_length(payload_length)
+                        .ok_or(ArchiveWriteError::LengthOverflow)?,
+                )
                 .ok_or(ArchiveWriteError::LengthOverflow)?;
         }
         if archive_length > MAX_ARCHIVE_BYTES {
@@ -65,7 +73,11 @@ impl CanonicalSlibArchive {
         output.extend_from_slice(GLOBAL_MAGIC);
         write_member(&mut output, "manifest.cbor", manifest)?;
         for (ordinal, member) in members.into_iter().enumerate() {
-            let name = member_name(ordinal)?;
+            let name = member_name(ordinal).ok_or(ArchiveWriteError::TooManyMembers {
+                actual: ordinal
+                    .checked_add(1)
+                    .ok_or(ArchiveWriteError::LengthOverflow)?,
+            })?;
             write_member(&mut output, &name, member.payload())?;
         }
         debug_assert_eq!(output.len(), capacity);
@@ -121,20 +133,365 @@ impl fmt::Display for ArchiveWriteError {
 
 impl std::error::Error for ArchiveWriteError {}
 
-fn encoded_member_length(payload_length: u64) -> Result<u64, ArchiveWriteError> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArchiveMemberOrdinal {
+    Manifest,
+    Directory(u32),
+}
+
+impl fmt::Display for ArchiveMemberOrdinal {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Manifest => formatter.write_str("manifest"),
+            Self::Directory(ordinal) => write!(formatter, "directory member {ordinal}"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ArchiveReadError {
+    ArchiveTooLarge {
+        actual: u64,
+    },
+    BadMagic,
+    TruncatedHeader {
+        member: ArchiveMemberOrdinal,
+    },
+    NonCanonicalHeader {
+        member: ArchiveMemberOrdinal,
+    },
+    InvalidSize {
+        member: ArchiveMemberOrdinal,
+    },
+    ManifestTooLarge {
+        actual: u64,
+    },
+    TruncatedPayload {
+        member: ArchiveMemberOrdinal,
+    },
+    InvalidPadding {
+        member: ArchiveMemberOrdinal,
+    },
+    TooManyMembers {
+        actual: usize,
+    },
+    NonIncreasingDirectory {
+        first_index: usize,
+        second_index: usize,
+    },
+    PredictedLengthMismatch {
+        predicted: u64,
+        actual: u64,
+    },
+    MemberLengthMismatch {
+        member: ArchiveMemberOrdinal,
+        declared: u64,
+        actual: u64,
+    },
+    MemberDigestMismatch {
+        id: SlibMemberId,
+    },
+    LengthOverflow,
+    Allocation,
+}
+
+impl fmt::Display for ArchiveReadError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ArchiveTooLarge { actual } => write!(
+                formatter,
+                "archive exceeds 2147483648 bytes: found {actual}"
+            ),
+            Self::BadMagic => formatter.write_str("archive global magic is not canonical"),
+            Self::TruncatedHeader { member } => {
+                write!(formatter, "{member} has a truncated archive header")
+            }
+            Self::NonCanonicalHeader { member } => {
+                write!(formatter, "{member} archive header is not canonical")
+            }
+            Self::InvalidSize { member } => {
+                write!(formatter, "{member} archive size field is invalid")
+            }
+            Self::ManifestTooLarge { actual } => write!(
+                formatter,
+                "manifest payload exceeds 67108864 bytes: found {actual}"
+            ),
+            Self::TruncatedPayload { member } => {
+                write!(formatter, "{member} payload is truncated")
+            }
+            Self::InvalidPadding { member } => {
+                write!(formatter, "{member} archive padding is not canonical")
+            }
+            Self::TooManyMembers { actual } => {
+                write!(
+                    formatter,
+                    "archive exceeds 65536 non-manifest members: found {actual}"
+                )
+            }
+            Self::NonIncreasingDirectory {
+                first_index,
+                second_index,
+            } => write!(
+                formatter,
+                "directory member ids {first_index} and {second_index} are not strictly increasing"
+            ),
+            Self::PredictedLengthMismatch { predicted, actual } => write!(
+                formatter,
+                "directory predicts archive length {predicted}, found {actual}"
+            ),
+            Self::MemberLengthMismatch {
+                member,
+                declared,
+                actual,
+            } => write!(
+                formatter,
+                "{member} header length {actual} does not match directory length {declared}"
+            ),
+            Self::MemberDigestMismatch { id } => {
+                write!(
+                    formatter,
+                    "archive member {id} payload digest does not match its directory record"
+                )
+            }
+            Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
+            Self::Allocation => formatter.write_str("failed to allocate archive member ranges"),
+        }
+    }
+}
+
+impl std::error::Error for ArchiveReadError {}
+
+/// Canonical physical archive whose first member has been proven to be the
+/// unique `manifest.cbor` member. No manifest semantics are trusted yet.
+#[derive(Debug, Eq, PartialEq)]
+pub struct ManifestArchive<'input> {
+    input: &'input [u8],
+    manifest: Range<usize>,
+    next_header: usize,
+}
+
+impl<'input> ManifestArchive<'input> {
+    pub fn open(input: &'input [u8]) -> Result<Self, ArchiveReadError> {
+        let input_length =
+            u64::try_from(input.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        if input_length > MAX_ARCHIVE_BYTES {
+            return Err(ArchiveReadError::ArchiveTooLarge {
+                actual: input_length,
+            });
+        }
+        if input.get(..GLOBAL_MAGIC.len()) != Some(GLOBAL_MAGIC) {
+            return Err(ArchiveReadError::BadMagic);
+        }
+        let ordinal = ArchiveMemberOrdinal::Manifest;
+        let (manifest, next_header) =
+            read_member(input, GLOBAL_MAGIC.len(), "manifest.cbor", ordinal)?;
+        let manifest_length =
+            u64::try_from(manifest.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        if manifest_length > MAX_MANIFEST_BYTES {
+            return Err(ArchiveReadError::ManifestTooLarge {
+                actual: manifest_length,
+            });
+        }
+        Ok(Self {
+            input,
+            manifest,
+            next_header,
+        })
+    }
+
+    pub fn manifest(&self) -> &'input [u8] {
+        &self.input[self.manifest.clone()]
+    }
+
+    pub fn validate_directory(
+        self,
+        records: &[SlibMemberRecord],
+    ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
+        if records.len() > MAX_MEMBERS {
+            return Err(ArchiveReadError::TooManyMembers {
+                actual: records.len(),
+            });
+        }
+        for (index, pair) in records.windows(2).enumerate() {
+            if pair[0].id() >= pair[1].id() {
+                return Err(ArchiveReadError::NonIncreasingDirectory {
+                    first_index: index,
+                    second_index: index + 1,
+                });
+            }
+        }
+
+        let mut predicted_length =
+            u64::try_from(self.next_header).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        for record in records {
+            predicted_length = predicted_length
+                .checked_add(
+                    encoded_member_length(record.byte_length())
+                        .ok_or(ArchiveReadError::LengthOverflow)?,
+                )
+                .ok_or(ArchiveReadError::LengthOverflow)?;
+        }
+        let actual_length =
+            u64::try_from(self.input.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        if predicted_length != actual_length {
+            return Err(ArchiveReadError::PredictedLengthMismatch {
+                predicted: predicted_length,
+                actual: actual_length,
+            });
+        }
+
+        let mut ranges = Vec::new();
+        ranges
+            .try_reserve_exact(records.len())
+            .map_err(|_| ArchiveReadError::Allocation)?;
+        let mut cursor = self.next_header;
+        for (index, record) in records.iter().enumerate() {
+            let ordinal = u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?;
+            let member = ArchiveMemberOrdinal::Directory(ordinal);
+            let name = member_name(index).ok_or(ArchiveReadError::TooManyMembers {
+                actual: index
+                    .checked_add(1)
+                    .ok_or(ArchiveReadError::LengthOverflow)?,
+            })?;
+            let (range, next_header) = read_member(self.input, cursor, &name, member)?;
+            let actual =
+                u64::try_from(range.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
+            if actual != record.byte_length() {
+                return Err(ArchiveReadError::MemberLengthMismatch {
+                    member,
+                    declared: record.byte_length(),
+                    actual,
+                });
+            }
+            if sha256(&self.input[range.clone()]) != record.sha256() {
+                return Err(ArchiveReadError::MemberDigestMismatch { id: record.id() });
+            }
+            ranges.push((record.id(), range));
+            cursor = next_header;
+        }
+        debug_assert_eq!(cursor, self.input.len());
+        Ok(DecodedArchive {
+            input: self.input,
+            manifest: self.manifest,
+            members: ranges,
+        })
+    }
+}
+
+/// Canonical physical archive whose member headers, ranges, padding, lengths,
+/// and content digests match a typed directory. It intentionally exposes no
+/// member payload extraction API or semantic view.
+#[derive(Debug, Eq, PartialEq)]
+pub struct DecodedArchive<'input> {
+    input: &'input [u8],
+    manifest: Range<usize>,
+    members: Vec<(SlibMemberId, Range<usize>)>,
+}
+
+impl<'input> DecodedArchive<'input> {
+    pub fn manifest(&self) -> &'input [u8] {
+        &self.input[self.manifest.clone()]
+    }
+
+    pub fn member_ids(&self) -> impl ExactSizeIterator<Item = SlibMemberId> + '_ {
+        self.members.iter().map(|(id, _)| *id)
+    }
+}
+
+fn read_member(
+    input: &[u8],
+    header_start: usize,
+    expected_name: &str,
+    member: ArchiveMemberOrdinal,
+) -> Result<(Range<usize>, usize), ArchiveReadError> {
+    let header_length =
+        usize::try_from(HEADER_LENGTH).map_err(|_| ArchiveReadError::LengthOverflow)?;
+    let header_end = header_start
+        .checked_add(header_length)
+        .ok_or(ArchiveReadError::LengthOverflow)?;
+    let header = input
+        .get(header_start..header_end)
+        .ok_or(ArchiveReadError::TruncatedHeader { member })?;
+
+    let mut canonical_name = String::new();
+    let name_length = expected_name
+        .len()
+        .checked_add(1)
+        .ok_or(ArchiveReadError::LengthOverflow)?;
+    canonical_name
+        .try_reserve_exact(name_length)
+        .map_err(|_| ArchiveReadError::Allocation)?;
+    canonical_name.push_str(expected_name);
+    canonical_name.push('/');
+    if !is_canonical_field(&header[0..16], canonical_name.as_bytes())
+        || !is_canonical_field(&header[16..28], b"0")
+        || !is_canonical_field(&header[28..34], b"0")
+        || !is_canonical_field(&header[34..40], b"0")
+        || !is_canonical_field(&header[40..48], b"100644")
+        || &header[58..60] != b"`\n"
+    {
+        return Err(ArchiveReadError::NonCanonicalHeader { member });
+    }
+    let payload_length =
+        parse_size(&header[48..58]).ok_or(ArchiveReadError::InvalidSize { member })?;
+    let payload_length_usize =
+        usize::try_from(payload_length).map_err(|_| ArchiveReadError::LengthOverflow)?;
+    let payload_end = header_end
+        .checked_add(payload_length_usize)
+        .ok_or(ArchiveReadError::LengthOverflow)?;
+    if input.get(header_end..payload_end).is_none() {
+        return Err(ArchiveReadError::TruncatedPayload { member });
+    }
+    let next_header = if payload_length & 1 == 1 {
+        let padding_end = payload_end
+            .checked_add(1)
+            .ok_or(ArchiveReadError::LengthOverflow)?;
+        if input.get(payload_end..padding_end) != Some(b"\n") {
+            return Err(ArchiveReadError::InvalidPadding { member });
+        }
+        padding_end
+    } else {
+        payload_end
+    };
+    Ok((header_end..payload_end, next_header))
+}
+
+fn is_canonical_field(field: &[u8], value: &[u8]) -> bool {
+    field.get(..value.len()) == Some(value)
+        && field
+            .get(value.len()..)
+            .is_some_and(|padding| padding.iter().all(|byte| *byte == b' '))
+}
+
+fn parse_size(field: &[u8]) -> Option<u64> {
+    let value_length = field
+        .iter()
+        .position(|byte| *byte == b' ')
+        .unwrap_or(field.len());
+    let (value, padding) = field.split_at(value_length);
+    if value.is_empty()
+        || !padding.iter().all(|byte| *byte == b' ')
+        || (value.len() > 1 && value[0] == b'0')
+        || !value.iter().all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    value.iter().try_fold(0u64, |number, byte| {
+        number.checked_mul(10)?.checked_add(u64::from(*byte - b'0'))
+    })
+}
+
+fn encoded_member_length(payload_length: u64) -> Option<u64> {
     HEADER_LENGTH
         .checked_add(payload_length)
         .and_then(|length| length.checked_add(payload_length & 1))
-        .ok_or(ArchiveWriteError::LengthOverflow)
 }
 
-fn member_name(ordinal: usize) -> Result<String, ArchiveWriteError> {
+fn member_name(ordinal: usize) -> Option<String> {
     if ordinal >= MAX_MEMBERS {
-        return Err(ArchiveWriteError::TooManyMembers {
-            actual: ordinal.saturating_add(1),
-        });
+        return None;
     }
-    Ok(format!("m{ordinal:08}"))
+    Some(format!("m{ordinal:08}"))
 }
 
 fn write_member(output: &mut Vec<u8>, name: &str, payload: &[u8]) -> Result<(), ArchiveWriteError> {
