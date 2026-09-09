@@ -10,6 +10,13 @@ use crate::{
     PersistentSourceNativeExternalContractId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
+    NativeExternalContractResolutionError,
+};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum NativeExternAbi {
     C(CanonicalCAbiFunctionSignature),

@@ -119,8 +119,9 @@ pub use materialization::{
     LocalValueSelector, SyntheticLocalRole,
 };
 pub use native_contract::{
+    DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
     NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
-    NativeExternalContractRecord,
+    NativeExternalContractRecord, NativeExternalContractResolutionError,
 };
 pub use native_link::{
     CanonicalNativeGroupName, DecodedCanonicalNativeGroupName, DecodedNativeExternalSymbolKey,
