@@ -148,6 +148,25 @@ impl WireEncodeV1 for SignatureTypeKeyV1 {
     }
 }
 
+impl SignatureTypeKeyV1 {
+    pub fn contains_binder(&self) -> bool {
+        match self {
+            Self::Nominal(_) => false,
+            Self::NominalApplication { arguments, .. } | Self::Tuple(arguments) => {
+                arguments.as_slice().iter().any(Self::contains_binder)
+            }
+            Self::Function {
+                parameters, result, ..
+            }
+            | Self::NativeFunctionPointer {
+                parameters, result, ..
+            } => parameters.iter().any(Self::contains_binder) || result.contains_binder(),
+            Self::RawPointer(pointee) => pointee.contains_binder(),
+            Self::Binder { .. } => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum OptionalSignatureTypeV1 {
     Absent,

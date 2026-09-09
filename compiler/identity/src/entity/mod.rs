@@ -8,8 +8,10 @@ mod field;
 mod generated_callable;
 mod generated_nominal;
 mod materialization;
+mod native_name;
 mod owners;
 mod signature;
+mod source_abi;
 mod source_declaration;
 mod source_origin;
 mod structural;
@@ -54,9 +56,20 @@ pub use generated_nominal::{
 pub use materialization::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
 };
+pub use native_name::{
+    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
+    SourceNativeSymbolV1,
+};
 pub use signature::{
     CallingConventionV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
     OptionalSignatureTypeV1, SignatureTypeKeyV1,
+};
+pub use source_abi::{
+    CallbackModeV1, GcEffectV1, SourceCAbiFunctionSignatureV1, SourceCAbiReturnV1,
+    SourceCallingConventionV1, SourceExternFunctionAbiV1, SourceNativeContractError,
+    SourceNativeExternalContractKeyV1, SourceNativeExternalContractRecordV1,
+    SourceNativeExternalContractV1, SourceNativeExternalOwnerV1, SourceNativeLibraryBindingV1,
+    SourceScoopAbiFunctionSignatureV1,
 };
 pub use source_declaration::{
     SourceDeclarationIdentityError, SourceDeclarationKeyError, SourceDeclarationKeyV1,

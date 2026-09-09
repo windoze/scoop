@@ -53,6 +53,17 @@ pub use entity::{
     StructuralDefinitionSiteRoleV1, StructuralPathSegmentV1,
 };
 pub use entity::{
+    CallbackModeV1, GcEffectV1, SourceCAbiFunctionSignatureV1, SourceCAbiReturnV1,
+    SourceCallingConventionV1, SourceExternFunctionAbiV1, SourceNativeContractError,
+    SourceNativeExternalContractKeyV1, SourceNativeExternalContractRecordV1,
+    SourceNativeExternalContractV1, SourceNativeExternalOwnerV1, SourceNativeLibraryBindingV1,
+    SourceScoopAbiFunctionSignatureV1,
+};
+pub use entity::{
+    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
+    SourceNativeSymbolV1,
+};
+pub use entity::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
 };
 pub use ids::{
