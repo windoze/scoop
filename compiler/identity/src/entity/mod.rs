@@ -129,8 +129,9 @@ pub use source_abi::{
     SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature,
 };
 pub use source_declaration::{
-    SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKeyError,
-    SourceDeclarationKind, SourceDeclarationSite, SourceNominalKind,
+    DecodedSourceDeclarationKey, SourceDeclarationIdentityError, SourceDeclarationKey,
+    SourceDeclarationKeyError, SourceDeclarationKind, SourceDeclarationResolutionError,
+    SourceDeclarationSite, SourceNominalKind,
 };
 pub use source_origin::{
     ConcreteExpressionOrigin, DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject,

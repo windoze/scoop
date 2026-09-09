@@ -13,6 +13,10 @@ use crate::{
     PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{DecodedSourceDeclarationKey, SourceDeclarationResolutionError};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SourceNominalKind {
     Class,
