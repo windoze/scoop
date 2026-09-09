@@ -1,5 +1,6 @@
 mod binding;
 mod callable;
+mod callback;
 mod dispatch;
 mod enum_variant;
 mod exact_signature;
@@ -24,6 +25,10 @@ pub use callable::{
     AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
     CallableTemplateOwnerV1, PropertyAccessorKeyV1,
+};
+pub use callback::{
+    CallbackApplicationIdentityError, CallbackApplicationKeyV1, CallbackParameterIndex,
+    CallbackRegistrationKeyV1, SignatureCallableShapeV1,
 };
 pub use dispatch::{
     DispatchRoleV1, DispatchSlotKeyV1, DispatchTableKeyV1, DispatchTableRoleV1,

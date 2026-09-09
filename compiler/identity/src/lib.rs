@@ -26,8 +26,9 @@ pub use entity::{
     AccessorRoleV1, BindableEntityV1, BindingNamespaceV1, BindingRoleV1, BindingTargetError,
     BindingTargetV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
-    CallableTemplateOwnerV1, ExportBindingKeyV1, LocalBindingKeyV1, LocalBindingRoleV1,
-    PropertyAccessorKeyV1,
+    CallableTemplateOwnerV1, CallbackApplicationIdentityError, CallbackApplicationKeyV1,
+    CallbackParameterIndex, CallbackRegistrationKeyV1, ExportBindingKeyV1, LocalBindingKeyV1,
+    LocalBindingRoleV1, PropertyAccessorKeyV1, SignatureCallableShapeV1,
 };
 pub use entity::{
     CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, ContinuationShellRoleV1,
