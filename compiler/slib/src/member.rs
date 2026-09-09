@@ -494,3 +494,6 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 
 #[cfg(test)]
 mod tests;
+
+mod decode;
+pub use decode::*;
