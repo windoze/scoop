@@ -7,6 +7,38 @@ use crate::{ConeCoordinate, ConeIdentity, DecodedPersistentId, PersistentIdMisma
 
 const SINGLE_FILE_LOGICAL_PATH: &str = "main.scoop";
 
+/// SHA-256 of the raw UTF-8 bytes of one source file.
+///
+/// This remains a distinct type from semantic identities and other digests so
+/// callers cannot accidentally substitute a content hash for an entity id.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SourceContentDigest([u8; 32]);
+
+impl SourceContentDigest {
+    pub fn from_utf8(source: &str) -> Self {
+        Self(*scoop_wire::sha256(source.as_bytes()).as_array())
+    }
+
+    pub const fn as_array(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl WireEncode for SourceContentDigest {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.bytes(&self.0)
+    }
+}
+
+impl fmt::Display for SourceContentDigest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in self.0 {
+            write!(formatter, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NormalizedSourcePath(String);
 
@@ -323,7 +355,8 @@ mod tests {
     use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
     use super::{
-        NormalizedSourcePath, NormalizedSourcePathError, SourceIdentity, SourceIdentityError,
+        NormalizedSourcePath, NormalizedSourcePathError, SourceContentDigest, SourceIdentity,
+        SourceIdentityError,
     };
     use crate::{ConeCoordinate, ConeIdentity, DecodedSourceIdentity};
 
@@ -402,6 +435,20 @@ mod tests {
                 .canonical_semantic_name(&ConeCoordinate::reserved_single_file())
                 .unwrap(),
             "scoop:single-file:0.0.0/main.scoop"
+        );
+    }
+
+    #[test]
+    fn source_content_digest_hashes_raw_utf8_bytes() {
+        let digest = SourceContentDigest::from_utf8("line 1\n雪\r\n");
+
+        assert_eq!(
+            digest.to_string(),
+            "81c8d5cf14fd9585446d1985aaf5b73bd2dd5cb17466ac6c1c9965cd38fb6acc"
+        );
+        assert_eq!(
+            encode(&digest).unwrap(),
+            [vec![0x58, 0x20], digest.as_array().to_vec(),].concat()
         );
     }
 

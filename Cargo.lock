@@ -437,6 +437,7 @@ dependencies = [
  "la-arena",
  "scoop-ast",
  "scoop-identity",
+ "scoop-wire",
 ]
 
 [[package]]

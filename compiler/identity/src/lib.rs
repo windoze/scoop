@@ -135,8 +135,8 @@ pub use record::{
 };
 pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceIdentity, NormalizedSourcePath,
-    NormalizedSourcePathError, SemanticSourceNameError, SourceIdentity, SourceIdentityDecodeError,
-    SourceIdentityError,
+    NormalizedSourcePathError, SemanticSourceNameError, SourceContentDigest, SourceIdentity,
+    SourceIdentityDecodeError, SourceIdentityError,
 };
 pub use syntax::{
     CanonicalIdentifier, CanonicalIdentifierError, DecodedCanonicalIdentifier, DecodedPackagePath,
