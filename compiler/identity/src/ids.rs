@@ -22,6 +22,18 @@ pub trait PersistentId: private::Sealed + Copy + fmt::Debug + Eq + Ord + std::ha
     fn as_array(&self) -> &[u8; 32];
 }
 
+/// Resolves one kind of untrusted persistent identity reference against an
+/// already validated identity table.
+///
+/// Implementations are deliberately kind-specific: a resolver for type ids
+/// cannot be used for generic-type ids even though both have the same wire
+/// width.
+pub trait PersistentIdResolver<I: PersistentId> {
+    type Error;
+
+    fn resolve(&mut self, id: DecodedPersistentId<I>) -> Result<I, Self::Error>;
+}
+
 pub(crate) trait PersistentIdConstruction: PersistentId {
     fn from_digest(digest: Digest256) -> Self;
 }

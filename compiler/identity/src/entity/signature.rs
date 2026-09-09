@@ -4,6 +4,12 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{PersistentGenericTypeId, PersistentTypeId};
 
+mod decode;
+
+pub use decode::{
+    DecodedDuplicateSignatureKey, DecodedOptionalSignatureType, DecodedSignatureTypeKey,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NonEmptyVecError;
 

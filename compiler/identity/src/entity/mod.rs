@@ -118,7 +118,8 @@ pub use scoop_abi::{
     ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use signature::{
-    CallingConvention, DuplicateSignatureKey, Effect, NonEmptyVec, NonEmptyVecError,
+    CallingConvention, DecodedDuplicateSignatureKey, DecodedOptionalSignatureType,
+    DecodedSignatureTypeKey, DuplicateSignatureKey, Effect, NonEmptyVec, NonEmptyVecError,
     OptionalSignatureType, SignatureTypeKey,
 };
 pub use source_abi::{
