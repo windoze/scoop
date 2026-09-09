@@ -8,6 +8,15 @@ use crate::{
     PersistentInitializationUnitId, PersistentPropertyAccessorId,
 };
 
+mod decode;
+
+pub use decode::{
+    CallableApplicationResolutionError, DecodedCallableApplicationKey, DecodedCallableArguments,
+    DecodedCallableInstantiationOwner, DecodedCallableMaterialization,
+    DecodedCallableMaterializationContext, DecodedCallableTemplateOrigin,
+    DecodedCallableTemplateOwner, DecodedPropertyAccessorKey,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AccessorRole {
     Getter,

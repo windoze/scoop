@@ -32,13 +32,16 @@ pub use cone::{
 };
 pub use entity::{
     AccessorRole, BindableEntity, BindingNamespace, BindingRole, BindingTarget, BindingTargetError,
-    CallableApplicationKey, CallableArguments, CallableBodyKey, CallableBodyKeyKind,
-    CallableInstantiationOwner, CallableMaterialization, CallableMaterializationContext,
-    CallableTemplateOrigin, CallableTemplateOwner, CallbackApplicationIdentityError,
-    CallbackApplicationKey, CallbackParameterIndex, CallbackRegistrationKey,
-    DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner,
-    ExportBindingKey, LocalBindingKey, LocalBindingRole, MainCallableBodyId, PropertyAccessorKey,
-    SignatureCallableShape, StrongCallableDefinitionOwner,
+    CallableApplicationKey, CallableApplicationResolutionError, CallableArguments, CallableBodyKey,
+    CallableBodyKeyKind, CallableInstantiationOwner, CallableMaterialization,
+    CallableMaterializationContext, CallableTemplateOrigin, CallableTemplateOwner,
+    CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
+    CallbackRegistrationKey, DecodedCallableApplicationKey, DecodedCallableArguments,
+    DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DecodedCallableInstantiationOwner,
+    DecodedCallableMaterialization, DecodedCallableMaterializationContext,
+    DecodedCallableTemplateOrigin, DecodedCallableTemplateOwner, DecodedPropertyAccessorKey,
+    DecodedStrongCallableDefinitionOwner, ExportBindingKey, LocalBindingKey, LocalBindingRole,
+    MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
 };
 pub use entity::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,

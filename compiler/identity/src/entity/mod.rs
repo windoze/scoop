@@ -43,9 +43,12 @@ pub use c_abi::{
     TargetCallingConvention,
 };
 pub use callable::{
-    AccessorRole, CallableApplicationKey, CallableArguments, CallableInstantiationOwner,
-    CallableMaterialization, CallableMaterializationContext, CallableTemplateOrigin,
-    CallableTemplateOwner, PropertyAccessorKey,
+    AccessorRole, CallableApplicationKey, CallableApplicationResolutionError, CallableArguments,
+    CallableInstantiationOwner, CallableMaterialization, CallableMaterializationContext,
+    CallableTemplateOrigin, CallableTemplateOwner, DecodedCallableApplicationKey,
+    DecodedCallableArguments, DecodedCallableInstantiationOwner, DecodedCallableMaterialization,
+    DecodedCallableMaterializationContext, DecodedCallableTemplateOrigin,
+    DecodedCallableTemplateOwner, DecodedPropertyAccessorKey, PropertyAccessorKey,
 };
 pub use callable_body::{
     CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
