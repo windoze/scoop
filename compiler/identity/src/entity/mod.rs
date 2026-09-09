@@ -13,6 +13,7 @@ mod materialization;
 mod native_link;
 mod native_name;
 mod owners;
+mod scoop_abi;
 mod signature;
 mod source_abi;
 mod source_declaration;
@@ -78,6 +79,10 @@ pub use native_link::{
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
     SourceNativeSymbolV1,
+};
+pub use scoop_abi::{
+    CanonicalScoopAbiFunctionSignatureV1, CanonicalScoopStorageV1, ScoopAbiArgumentV1,
+    ScoopAbiError, ScoopAbiReturnV1, ScoopAbiValueShapeV1,
 };
 pub use signature::{
     CallingConventionV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,

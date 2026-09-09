@@ -79,6 +79,10 @@ pub use entity::{
     SourceNativeSymbolError, SourceNativeSymbolV1,
 };
 pub use entity::{
+    CanonicalScoopAbiFunctionSignatureV1, CanonicalScoopStorageV1, ScoopAbiArgumentV1,
+    ScoopAbiError, ScoopAbiReturnV1, ScoopAbiValueShapeV1,
+};
+pub use entity::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
 };
 pub use ids::{
