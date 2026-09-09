@@ -12,12 +12,17 @@
 //! let _: PersistentTypeId = cone;
 //! ```
 
+mod capability;
 mod cone;
 mod entity;
 mod ids;
 mod source;
 mod syntax;
 
+pub use capability::{
+    ArtifactCapabilityProfileId, BackendProfileWireId, CapabilityId, CapabilityIdError,
+    CapabilityLabelError, ObjectFormatId, TargetProfileWireId,
+};
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
     ConeIdentity, DecodedConeCoordinateV1,
@@ -61,8 +66,10 @@ pub use entity::{
     SourceScoopAbiFunctionSignatureV1,
 };
 pub use entity::{
-    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
-    SourceNativeSymbolV1,
+    CanonicalNativeGroupName, CanonicalNativeLibraryName, CanonicalNativeNameError,
+    NativeExternalSymbolKeyV1, NativeLibraryBindingV1, NativeLibraryGroupingV1,
+    NativeLibraryKindV1, NativeLinkRequirementKeyV1, NativeLinkSymbolError, NativeLinkSymbolV1,
+    SourceNativeSymbolError, SourceNativeSymbolV1,
 };
 pub use entity::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,

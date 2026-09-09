@@ -9,6 +9,7 @@ mod field;
 mod generated_callable;
 mod generated_nominal;
 mod materialization;
+mod native_link;
 mod native_name;
 mod owners;
 mod signature;
@@ -60,6 +61,11 @@ pub use generated_nominal::{
 };
 pub use materialization::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
+};
+pub use native_link::{
+    CanonicalNativeGroupName, NativeExternalSymbolKeyV1, NativeLibraryBindingV1,
+    NativeLibraryGroupingV1, NativeLibraryKindV1, NativeLinkRequirementKeyV1,
+    NativeLinkSymbolError, NativeLinkSymbolV1,
 };
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
