@@ -1454,7 +1454,7 @@ LIR foundation的field 1…22精确为：
 | 6 | `PersistentImmortalObjectId` |
 | 7 | LIR `OdrGroupId` |
 | 8 | LIR `OdrMemberId` |
-| 9 | `PersistentCallableBodyId`，使用`RuntimeIdentityRecordV1` |
+| 9 | `PersistentCallableBodyId`，使用`RuntimeIdentityRecord` |
 | 10 | `PersistentSafepointSiteId` |
 | 11 | `RuntimeTypeMappingRecordV1` |
 | 12 | `SafepointMappingRecordV1` |
@@ -1469,7 +1469,7 @@ LIR foundation的field 1…22精确为：
 | 21 | `ObjectDefinitionPlanId` |
 | 22 | `ObjectDefinitionAtomId` |
 
-除callable body外，identity table使用`CborIdentityRecordV1 {1=typed id, 2=nested Wire-CBOR key}`；body独占`RuntimeIdentityRecordV1 {1=body id, 2=RuntimeEncode(key) bytes}`，不得提供CBOR mirror。LIR callback record恰为`{1=application, 2=canonical C signature fingerprint, 3=bridge unit}`；三层validator逐项证明MIR application、正规化后signature和`CallbackTrampoline(signature, context_index)` unit一致。field 15/16还必须携带canonical preimage供reader以对应domain重算，不能信任bare digest。
+除callable body外，identity table使用`CborIdentityRecord {1=typed id, 2=nested Wire-CBOR key}`；body独占`RuntimeIdentityRecord {1=body id, 2=RuntimeEncode(key) bytes}`，不得提供CBOR mirror。LIR callback record恰为`{1=application, 2=canonical C signature fingerprint, 3=bridge unit}`；三层validator逐项证明MIR application、正规化后signature和`CallbackTrampoline(signature, context_index)` unit一致。field 15/16还必须携带canonical preimage供reader以对应domain重算，不能信任bare digest。
 
 foundation中的layout/scan/dispatch table只有identity key，不是通用ABI证明；它也不包含public lookup、template body、dispatch implementation、ODR definition/member闭包、object range或runtime image record。M23-6必须增加独立、required的完整layout/ABI/scan section并在`ValidatedArtifactClosure<Compile>`上取得跨Cone witness后，Compile API才可暴露这些能力；不得悄悄扩写foundation `/1` payload或把native-boundary最小witness冒充通用layout。
 

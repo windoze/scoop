@@ -979,18 +979,18 @@ M23-2对当前callable application生成`SpecializationKey::Callable`、对应`C
 每个kind有独立table：
 
 ```text
-CborIdentityRecordV1<K> {
+CborIdentityRecord<K> {
     id: PersistentKId,       // field 1, 32-byte byte string
     key: CanonicalKeyK,      // field 2, nested canonical CBOR item
 }
 
-RuntimeIdentityRecordV1<K> {
+RuntimeIdentityRecord<K> {
     id: PersistentKId,       // field 1, 32-byte byte string
     key_bytes: bytes,        // field 2, canonical runtime-encoder bytes
 }
 ```
 
-除callable body外，本阶段所有identity table都使用`CborIdentityRecordV1`，field 2是内嵌CBOR item，不是再包一层byte string。callable body table独占`RuntimeIdentityRecordV1<PersistentCallableBodyId>`，field 2是第6.2节可由typed runtime decoder完整消费并重编码相同的bytes；它不包含padding、host struct或CBOR mirror。两种record均严格只允许field 1/2。
+除callable body外，本阶段所有identity table都使用`CborIdentityRecord`，field 2是内嵌CBOR item，不是再包一层byte string。callable body table独占`RuntimeIdentityRecord<PersistentCallableBodyId>`，field 2是第6.2节可由typed runtime decoder完整消费并重编码相同的bytes；它不包含padding、host struct或CBOR mirror。两种record均严格只允许field 1/2。
 
 每张table以该table内key的typed dependency边做stable Kahn topological order，ready set按raw id bytes排序；没有table-internal edge时等价于raw id严格递增。跨kind/table引用由整个foundation graph验证，不用field顺序假装依赖顺序。reader对每条record重算id，检查key中所有typed owner、source、binder和kind，再检查全表唯一性。不同kind使用不同table/decoder；相同32 bytes在不同kind中出现不会自动合并。
 

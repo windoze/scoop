@@ -17,6 +17,7 @@ mod cone;
 mod entity;
 mod ids;
 mod mangling;
+mod record;
 mod source;
 mod syntax;
 
@@ -125,6 +126,12 @@ pub use mangling::{
     LinkageClass, MangledSymbol, ManglingSchemaIdentity, PersistentSymbolError,
     PersistentSymbolKey, PersistentSymbolKind, PersistentSymbolRequest,
     PersistentSymbolRequestTable,
+};
+pub use record::{
+    CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedRuntimeIdentityRecord,
+    IdentityRecordValidationError, RuntimeIdentityKey, RuntimeIdentityRecord,
+    RuntimeIdentityRecordBuildError, RuntimeIdentityRecordValidationError,
+    StableIdentityOrderError, stable_topological_identity_order,
 };
 pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceIdentity, NormalizedSourcePath,
