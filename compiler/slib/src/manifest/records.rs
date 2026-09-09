@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{CapabilityId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{CapabilityId, CapabilityIdError, ConeCoordinate, ConeIdentity};
 use scoop_wire::{Encoder, HashError, WireEncode, byte_span, encode, sha256};
 
 use super::{
@@ -281,6 +281,12 @@ impl ManifestSection {
         required_for: MemberPurposeSet,
         payload: Vec<u8>,
     ) -> Result<Self, ManifestSectionError> {
+        if capability == crate::hir_identity_foundation_capability()
+            || capability == crate::mir_identity_foundation_capability()
+            || capability == crate::lir_identity_foundation_capability()
+        {
+            return Err(ManifestSectionError::KnownCapabilityWrongLocation { capability });
+        }
         if !matches!(required_for.bits(), 0 | 2 | 4 | 6) {
             return Err(ManifestSectionError::InvalidPurpose {
                 bits: required_for.bits(),
@@ -318,9 +324,11 @@ impl WireEncode for ManifestSection {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ManifestSectionError {
     InvalidPurpose { bits: u32 },
+    Capability(CapabilityIdError),
+    KnownCapabilityWrongLocation { capability: CapabilityId },
 }
 
 impl fmt::Display for ManifestSectionError {
@@ -329,6 +337,14 @@ impl fmt::Display for ManifestSectionError {
             Self::InvalidPurpose { bits } => write!(
                 formatter,
                 "manifest section required_for must be 0, Compile, Link, or Compile|Link; found {bits:#x}"
+            ),
+            Self::Capability(error) => error.fmt(formatter),
+            Self::KnownCapabilityWrongLocation { capability } => write!(
+                formatter,
+                "capability {}/{}/{} belongs in its metadata envelope, not the manifest",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version(),
             ),
         }
     }
@@ -359,41 +375,58 @@ impl BootstrapManifest {
         mut sections: Vec<ManifestSection>,
     ) -> Result<Self, BootstrapManifestError> {
         direct_dependencies.sort_unstable_by_key(DependencyRecord::identity);
-        reject_duplicate_dependencies(&direct_dependencies)?;
-
-        if members.len() > MAX_MEMBERS {
-            return Err(BootstrapManifestError::TooManyMembers {
-                actual: members.len(),
-            });
-        }
         let mut member_records = members
             .iter()
             .map(|member| member.record().clone())
             .collect::<Vec<_>>();
         member_records.sort_unstable_by_key(SlibMemberRecord::id);
-        reject_duplicate_members(&member_records)?;
-        require_foundation_metadata(&member_records)?;
-
         sections.sort_unstable_by(|left, right| left.capability.cmp(&right.capability));
-        reject_duplicate_sections(&sections)?;
+        Self::from_validated_records(
+            producer,
+            compatibility,
+            cone,
+            direct_dependencies,
+            member_records,
+            semantic_fingerprints,
+            sections,
+        )
+    }
 
+    pub(super) fn from_validated_records(
+        producer: ProducerRecord,
+        compatibility: CompatibilityRecord,
+        cone: ConeRecord,
+        direct_dependencies: Vec<DependencyRecord>,
+        members: Vec<SlibMemberRecord>,
+        semantic_fingerprints: SemanticFingerprintRecord,
+        sections: Vec<ManifestSection>,
+    ) -> Result<Self, BootstrapManifestError> {
+        if members.len() > MAX_MEMBERS {
+            return Err(BootstrapManifestError::TooManyMembers {
+                actual: members.len(),
+            });
+        }
+        reject_duplicate_dependencies(&direct_dependencies)?;
+        reject_duplicate_members(&members)?;
+        require_foundation_metadata(&members)?;
+        reject_duplicate_sections(&sections)?;
         let input = ArtifactManifestInput {
             producer: &producer,
             compatibility: &compatibility,
             cone: &cone,
             direct_dependencies: &direct_dependencies,
-            members: &member_records,
+            members: &members,
             semantic_fingerprints: &semantic_fingerprints,
             sections: &sections,
         };
-        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &member_records)
+        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &members)
             .map_err(BootstrapManifestError::Hash)?;
         Ok(Self {
             producer,
             compatibility,
             cone,
             direct_dependencies,
-            members: member_records,
+            members,
             semantic_fingerprints,
             sections,
             artifact_fingerprint,

@@ -224,4 +224,12 @@ fn producer_cone_and_section_boundaries_are_closed() {
         ManifestSection::new(capability, MemberPurposeSet::DIAGNOSTICS, Vec::new(),),
         Err(ManifestSectionError::InvalidPurpose { bits: 8 })
     );
+    assert!(matches!(
+        ManifestSection::new(
+            crate::hir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            Vec::new(),
+        ),
+        Err(ManifestSectionError::KnownCapabilityWrongLocation { .. })
+    ));
 }

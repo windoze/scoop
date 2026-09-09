@@ -141,6 +141,10 @@ impl MemberPurposeSet {
     pub const fn contains(self, purpose: Self) -> bool {
         self.0 & purpose.0 == purpose.0
     }
+
+    pub(crate) const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
 }
 
 impl WireEncode for MemberPurposeSet {

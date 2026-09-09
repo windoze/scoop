@@ -179,8 +179,20 @@ impl CompatibilityRecord {
         self.runtime_abi
     }
 
+    pub const fn mangling_schema(&self) -> ManglingSchemaIdentity {
+        self.mangling_schema
+    }
+
+    pub const fn target_profile(&self) -> &TargetProfileWireId {
+        &self.target_profile
+    }
+
     pub const fn target_fingerprint(&self) -> TargetProfileFingerprint {
         self.target_fingerprint
+    }
+
+    pub const fn backend_profile(&self) -> &BackendProfileWireId {
+        &self.backend_profile
     }
 
     pub const fn backend_fingerprint(&self) -> BackendProfileFingerprint {
@@ -189,6 +201,10 @@ impl CompatibilityRecord {
 
     pub const fn composite_identity_abi(&self) -> CompositeIdentityAbiFingerprint {
         self.composite_identity_abi
+    }
+
+    pub const fn artifact_profile(&self) -> &ArtifactCapabilityProfileId {
+        &self.artifact_profile
     }
 
     pub const fn artifact_profile_fingerprint(&self) -> ArtifactCapabilityProfileFingerprint {
