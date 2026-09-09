@@ -1220,7 +1220,7 @@ CFG fold、prune与loop analysis完成后才插poll。每个非NoGC function的e
 ordinal是上述canonical traversal中**同role**之前site数量，u32 checked。runtime registration的`site_role`必须逐tag等于该identity role，不再从instruction spelling二次推导。
 
 ```text
-SafepointSiteKeyV1 { owner: PersistentCallableBodyId, role, ordinal }
+SafepointSiteKey { owner: PersistentCallableBodyId, role, ordinal }
 PersistentSafepointSiteId =
     DomainSeparatedCborHash("scoop-safepoint-site-v1", key)
 ```

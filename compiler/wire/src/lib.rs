@@ -14,8 +14,8 @@ pub mod runtime;
 pub use budget::{BudgetMeter, DecodeLimits, DecodeUsage, ResourceKind};
 pub use cbor::{Decoder, Encoder, WireDecode, WireEncode, decode_canonical, encode};
 pub use digest::{
-    Digest256, HashError, byte_span, domain_separated_cbor_hash, domain_separated_runtime_hash,
-    sha256,
+    Digest256, HashError, byte_span, domain_separated_cbor_hash, domain_separated_raw_hash,
+    domain_separated_runtime_hash, sha256,
 };
 pub use error::{WireError, WireErrorKind, WireType};
 pub use path::{PathSegment, WirePath};

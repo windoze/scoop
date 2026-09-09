@@ -100,6 +100,18 @@ pub fn domain_separated_runtime_hash(
     Ok(Digest256(hasher.finalize().into()))
 }
 
+pub fn domain_separated_raw_hash(domain: &str, raw: &[u8; 32]) -> Result<Digest256, HashError> {
+    if !domain.is_ascii() || domain.as_bytes().contains(&0) {
+        return Err(HashError::InvalidDomain);
+    }
+    let length = u64::try_from(domain.len()).map_err(|_| HashError::LengthOverflow)?;
+    let mut hasher = Sha256::new();
+    hasher.update(length.to_le_bytes());
+    hasher.update(domain.as_bytes());
+    hasher.update(raw);
+    Ok(Digest256(hasher.finalize().into()))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cbor::{Encoder, WireEncode};

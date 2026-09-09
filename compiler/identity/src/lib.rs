@@ -86,6 +86,7 @@ pub use entity::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
     ScoopAbiReturn, ScoopAbiValueShape,
 };
+pub use entity::{DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole};
 pub use entity::{InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole};
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,

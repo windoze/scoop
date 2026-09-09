@@ -16,6 +16,7 @@ mod native_link;
 mod native_name;
 mod odr;
 mod owners;
+mod safepoint;
 mod scoop_abi;
 mod signature;
 mod source_abi;
@@ -57,6 +58,9 @@ pub use exact_signature::{ExactCallableSignature, OptionalExactOwner};
 pub use field::{FieldIdentityError, FieldIdentityKey, GeneratedFieldKey, SourceFieldKey};
 pub use owners::{
     CallableOwner, DispatchDeclarationOwner, NominalDeclarationOwner, NominalOwner, PropertyOwner,
+};
+pub use safepoint::{
+    DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole,
 };
 
 pub use exact_type::{
