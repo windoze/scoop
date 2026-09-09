@@ -6,6 +6,14 @@ use super::{CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSy
 use crate::ids::derive_persistent_id;
 use crate::{NativeLinkRequirementId, PersistentNativeExternalSymbolId, TargetProfileWireId};
 
+mod decode;
+
+pub use decode::{
+    DecodedCanonicalNativeGroupName, DecodedNativeExternalSymbolKey, DecodedNativeLibraryBinding,
+    DecodedNativeLibraryGrouping, DecodedNativeLinkRequirementKey, DecodedNativeLinkSymbol,
+    NativeLinkValidationError,
+};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NativeLinkSymbol(Vec<u8>);
 

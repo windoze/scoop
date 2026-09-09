@@ -123,8 +123,11 @@ pub use native_contract::{
     NativeExternalContractRecord,
 };
 pub use native_link::{
-    CanonicalNativeGroupName, NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping,
+    CanonicalNativeGroupName, DecodedCanonicalNativeGroupName, DecodedNativeExternalSymbolKey,
+    DecodedNativeLibraryBinding, DecodedNativeLibraryGrouping, DecodedNativeLinkRequirementKey,
+    DecodedNativeLinkSymbol, NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping,
     NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol, NativeLinkSymbolError,
+    NativeLinkValidationError,
 };
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, DecodedCanonicalNativeLibraryName,
