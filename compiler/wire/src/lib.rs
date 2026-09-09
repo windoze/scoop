@@ -19,4 +19,7 @@ pub use digest::{
 };
 pub use error::{WireError, WireErrorKind, WireType};
 pub use path::{PathSegment, WirePath};
-pub use runtime::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, encode_runtime};
+pub use runtime::{
+    RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder, RuntimeEncode,
+    RuntimeEncodeError, RuntimeEncoder, decode_runtime, encode_runtime,
+};
