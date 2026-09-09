@@ -2,8 +2,9 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use crate::cbor::{WireEncode, encode};
+use crate::cbor::{Decoder, Encoder, WireDecode, WireEncode, encode};
 use crate::runtime::{RuntimeEncode, encode_runtime};
+use crate::{WireError, WireErrorKind};
 
 /// A content digest. Semantic identities use distinct newtypes in
 /// `scoop-identity` and cannot be converted from this type through safe APIs.
@@ -17,6 +18,29 @@ impl Digest256 {
 
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
+    }
+}
+
+impl WireEncode for Digest256 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), crate::cbor::EncodeError> {
+        encoder.bytes(&self.0)
+    }
+}
+
+impl WireDecode for Digest256 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        let value = decoder.bytes()?;
+        let bytes = <&[u8; 32]>::try_from(value).map_err(|_| {
+            WireError::new(
+                WireErrorKind::InvalidLength {
+                    expected: 32,
+                    actual: value.len() as u64,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            )
+        })?;
+        Ok(Self(*bytes))
     }
 }
 
@@ -114,9 +138,10 @@ pub fn domain_separated_raw_hash(domain: &str, raw: &[u8; 32]) -> Result<Digest2
 
 #[cfg(test)]
 mod tests {
-    use crate::cbor::{Encoder, WireEncode};
+    use crate::cbor::{Encoder, WireEncode, decode_canonical, encode};
+    use crate::{DecodeLimits, WireErrorKind, WireType};
 
-    use super::{byte_span, domain_separated_cbor_hash, sha256};
+    use super::{Digest256, byte_span, domain_separated_cbor_hash, sha256};
 
     struct One;
 
@@ -146,6 +171,38 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "9a7155a4014f2071f951555acd3e72e44dc4b3f1107033e52c56011fd886ebcd"
+        );
+    }
+
+    #[test]
+    fn digest_has_fixed_wire_width() {
+        let digest = sha256(b"abc");
+        let encoded = encode(&digest).unwrap();
+
+        assert_eq!(
+            encoded,
+            [vec![0x58, 0x20], digest.as_array().to_vec()].concat()
+        );
+        assert_eq!(
+            decode_canonical::<Digest256>(&encoded, DecodeLimits::default()).unwrap(),
+            digest
+        );
+        assert_eq!(
+            decode_canonical::<Digest256>(b"\x43bad", DecodeLimits::default())
+                .unwrap_err()
+                .kind(),
+            &WireErrorKind::InvalidLength {
+                expected: 32,
+                actual: 3,
+            }
+        );
+        assert_eq!(
+            decode_canonical::<Digest256>(b"cabc", DecodeLimits::default())
+                .unwrap_err()
+                .kind(),
+            &WireErrorKind::WrongType {
+                expected: WireType::Bytes,
+            }
         );
     }
 }
