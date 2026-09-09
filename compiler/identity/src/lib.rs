@@ -134,9 +134,9 @@ pub use record::{
     StableIdentityOrderError, stable_topological_identity_order,
 };
 pub use source::{
-    DecodedNormalizedSourcePath, DecodedSourceIdentity, NormalizedSourcePath,
-    NormalizedSourcePathError, SemanticSourceNameError, SourceContentDigest, SourceIdentity,
-    SourceIdentityDecodeError, SourceIdentityError,
+    DecodedNormalizedSourcePath, DecodedSourceContentDigest, DecodedSourceIdentity,
+    NormalizedSourcePath, NormalizedSourcePathError, SemanticSourceNameError, SourceContentDigest,
+    SourceContentDigestError, SourceIdentity, SourceIdentityDecodeError, SourceIdentityError,
 };
 pub use syntax::{
     CanonicalIdentifier, CanonicalIdentifierError, DecodedCanonicalIdentifier, DecodedPackagePath,

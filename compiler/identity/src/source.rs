@@ -24,6 +24,50 @@ impl SourceContentDigest {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedSourceContentDigest(Vec<u8>);
+
+impl DecodedSourceContentDigest {
+    pub fn validate(self) -> Result<SourceContentDigest, SourceContentDigestError> {
+        let actual = self.0.len();
+        let bytes: [u8; 32] = self
+            .0
+            .try_into()
+            .map_err(|_| SourceContentDigestError::InvalidLength { actual })?;
+        Ok(SourceContentDigest(bytes))
+    }
+}
+
+impl WireEncode for DecodedSourceContentDigest {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.bytes(&self.0)
+    }
+}
+
+impl WireDecode for DecodedSourceContentDigest {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.owned_bytes().map(Self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceContentDigestError {
+    InvalidLength { actual: usize },
+}
+
+impl fmt::Display for SourceContentDigestError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidLength { actual } => write!(
+                formatter,
+                "source content digest must contain 32 bytes, found {actual}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SourceContentDigestError {}
+
 impl WireEncode for SourceContentDigest {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.0)
@@ -355,8 +399,8 @@ mod tests {
     use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
     use super::{
-        NormalizedSourcePath, NormalizedSourcePathError, SourceContentDigest, SourceIdentity,
-        SourceIdentityError,
+        DecodedSourceContentDigest, NormalizedSourcePath, NormalizedSourcePathError,
+        SourceContentDigest, SourceContentDigestError, SourceIdentity, SourceIdentityError,
     };
     use crate::{ConeCoordinate, ConeIdentity, DecodedSourceIdentity};
 
@@ -449,6 +493,22 @@ mod tests {
         assert_eq!(
             encode(&digest).unwrap(),
             [vec![0x58, 0x20], digest.as_array().to_vec(),].concat()
+        );
+        assert_eq!(
+            decode_canonical::<DecodedSourceContentDigest>(
+                &encode(&digest).unwrap(),
+                DecodeLimits::default()
+            )
+            .unwrap()
+            .validate()
+            .unwrap(),
+            digest
+        );
+        assert_eq!(
+            decode_canonical::<DecodedSourceContentDigest>(b"\x43bad", DecodeLimits::default())
+                .unwrap()
+                .validate(),
+            Err(SourceContentDigestError::InvalidLength { actual: 3 })
         );
     }
 
