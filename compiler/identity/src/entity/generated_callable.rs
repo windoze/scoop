@@ -11,6 +11,12 @@ use crate::{
     PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedGeneratedCallableKey, DecodedLexicalCallableParent, GeneratedCallableResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum LexicalCallableRole {
     LambdaBody,

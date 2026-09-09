@@ -93,9 +93,10 @@ pub use exact_type::{
     ExactTypeDiagnosticGraph, ExactTypeKey, ExactTypeResolutionError,
 };
 pub use generated_callable::{
-    ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
-    GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
-    LexicalParentError,
+    ContinuationShellRole, CoroutineAdapterRole, DecodedGeneratedCallableKey,
+    DecodedLexicalCallableParent, GeneratedCallableIdentityError, GeneratedCallableKey,
+    GeneratedCallableResolutionError, InitializationCallableRole, LexicalCallableParent,
+    LexicalCallableRole, LexicalParentError,
 };
 pub use generated_nominal::{
     CallableAdapterEnvironmentKey, ClosureEnvironmentRole, DecodedCallableAdapterEnvironmentKey,
