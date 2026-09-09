@@ -14,3 +14,6 @@ pub use profile::*;
 
 mod compatibility;
 pub use compatibility::*;
+
+mod manifest;
+pub use manifest::*;
