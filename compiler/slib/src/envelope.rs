@@ -86,6 +86,7 @@ impl std::error::Error for SlibWriteError {}
 pub struct DecodedSlibEnvelope<'input> {
     archive: DecodedArchive<'input>,
     manifest: BootstrapManifest,
+    target_selection: ValidatedLirTargetSelection,
     decode_usage: DecodeUsage,
 }
 
@@ -109,12 +110,21 @@ impl<'input> DecodedSlibEnvelope<'input> {
         Ok(Self {
             archive,
             manifest,
+            target_selection: selection,
             decode_usage: meter.usage(),
         })
     }
 
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.decode_usage
+    }
+
+    pub(crate) const fn manifest(&self) -> &BootstrapManifest {
+        &self.manifest
+    }
+
+    pub(crate) const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target_selection
     }
 }
 

@@ -201,6 +201,22 @@ impl DependencyRecord {
     pub const fn identity(&self) -> ConeIdentity {
         self.identity
     }
+
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        &self.coordinate
+    }
+
+    pub const fn hir_fingerprint(&self) -> HirFingerprint {
+        self.hir_fingerprint
+    }
+
+    pub const fn mir_fingerprint(&self) -> MirFingerprint {
+        self.mir_fingerprint
+    }
+
+    pub const fn lir_fingerprint(&self) -> LirFingerprint {
+        self.lir_fingerprint
+    }
 }
 
 impl WireEncode for DependencyRecord {
