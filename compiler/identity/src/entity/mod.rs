@@ -1,4 +1,5 @@
 mod callable;
+mod dispatch;
 mod enum_variant;
 mod exact_signature;
 mod exact_type;
@@ -16,6 +17,10 @@ pub use callable::{
     AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
     CallableTemplateOwnerV1, PropertyAccessorKeyV1,
+};
+pub use dispatch::{
+    DispatchRoleV1, DispatchSlotKeyV1, DispatchTableKeyV1, DispatchTableRoleV1,
+    OptionalExactInterfaceV1,
 };
 pub use enum_variant::{
     EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1, EnumVariantIdentityError,
