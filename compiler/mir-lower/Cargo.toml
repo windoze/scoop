@@ -11,3 +11,4 @@ scoop-mir.workspace = true
 
 [dev-dependencies]
 scoop-hir-lower.workspace = true
+scoop-identity.workspace = true

@@ -7085,7 +7085,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun $derived.equals.0 @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(this: (Int, String), other: (Int, String)) -> Boolean
+  fun $derived.equals.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(this: (Int, String), other: (Int, String)) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7136,7 +7136,7 @@ Module mangling=compact-v2
         Type Boolean
         Local $call.1
     bb1 logic.rhs.1
-      call $call.3: Boolean = @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
+      call $call.3: Boolean = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
         Type (Int, String)
         FieldAccess 1
           Type Tagged
@@ -11093,7 +11093,7 @@ Module
     call native-borrowed-void-target1 sp135 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
   block entry

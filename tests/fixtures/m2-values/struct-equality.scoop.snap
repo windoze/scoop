@@ -7213,7 +7213,7 @@ Module mangling=compact-v2
           IntegerLiteral Int value=1 bits=0x00000001
           Type String
           StringConst @scoop.str.4
-      call $argument.0: Boolean = @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
+      call $argument.0: Boolean = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
         Type (Int, String)
         Local t1
         Type (Int, String)
@@ -7228,7 +7228,7 @@ Module mangling=compact-v2
       call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$B direct
         Type Boolean
         Local $parameter.value
-      call $argument.0: Boolean = @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
+      call $argument.0: Boolean = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals direct
         Type (Int, String)
         Local t1
         Type (Int, String)
@@ -7409,7 +7409,7 @@ Module mangling=compact-v2
       return
         Type Boolean
         Local $logic.2
-  fun $derived.equals.2 @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(this: (Int, String), other: (Int, String)) -> Boolean
+  fun $derived.equals.2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(this: (Int, String), other: (Int, String)) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -11557,7 +11557,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop.$local$u0:p0:f1:0r27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr27:structural-derived-equalityt25:T21:e6:v3:Inte9:v6:Stringn6:equals(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
   block entry

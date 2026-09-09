@@ -62,7 +62,9 @@ mod tests_m8;
 mod tests_m9;
 mod ty;
 
-pub use source_input::{ParseAllDiagnostic, Stage1SourceInput, parse_all};
+pub use source_input::{
+    IdentifiedSourceInput, ParseAllDiagnostic, ParserDiagnosticContext, parse_all,
+};
 
 /// Parses a whole source file into an AST.
 ///

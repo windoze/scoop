@@ -5,13 +5,9 @@ use crate::{
 };
 
 impl Lowerer {
-    fn import_source(&self, file: usize) -> ast::Stage1SourceHandle {
-        match self.visibility_file(file).source {
-            hir::VisibilitySource::CurrentUnit(handle) => handle,
-            hir::VisibilitySource::ExistingM22Core { .. } => {
-                unreachable!("core has no current-unit import surface")
-            }
-        }
+    fn import_source(&self, file: usize) -> scoop_identity::SourceIdentity {
+        debug_assert_eq!(self.intrinsic_sources[file].kind, SourceKind::CurrentUnit);
+        self.visibility_file(file).source
     }
 
     fn import_package(&self, file: usize) -> PackageId {

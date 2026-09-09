@@ -1670,7 +1670,7 @@ Module mangling=compact-v2
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=1
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
@@ -8538,7 +8538,7 @@ Module mangling=compact-v2
       goto bb24
     bb24 scope.24
       goto bb19
-  fun $lambda.0 @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0($closure: ((Signal, Long)) -> (Int, Long), $arg.0: (Signal, Long)) -> (Int, Long)
+  fun $lambda.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0($closure: ((Signal, Long)) -> (Int, Long), $arg.0: (Signal, Long)) -> (Int, Long)
     bb0 entry
       val $binding.projection.2: Signal
         Type Signal
@@ -13136,7 +13136,7 @@ Module
     t90 = aggregate () : {}
     store integer<Long>(0x00000000000003e8) -> local133
     call managed-direct-target2 sp164 live=[] t91 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td28, machine<byte-size>(ByteSize(32)))
-    t92 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 : ptr
+    t92 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t91 +16 t92
     heap_store t91 +24 local133
     store t91 -> local134
@@ -13233,7 +13233,7 @@ Module
     t102 = aggregate () : {}
     end_catch
     br @scope.24
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0(ptr<managed>, indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<{i32, i64} size=16 align=8 scan=none>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0(ptr<managed>, indirect<{enum0, i64} size=24 align=8 scan=none>) -> sret<{i32, i64} size=16 align=8 scan=none>
     local %0 $binding.projection.2: enum0
     local %1 signal: enum0
     local %2 $binding.projection.3: i64
@@ -13551,7 +13551,7 @@ Module
   td td25 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=26 size=24 parent=td21 vtable=[] itables=[]
   td td26 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=27 size=24 parent=td21 vtable=[] itables=[]
   td td27 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=28 size=24 parent=td21 vtable=[] itables=[]
-  td td28 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 type-id=29 size=32 parent=td10 vtable=[] itables=[]
+  td td28 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 type-id=29 size=32 parent=td10 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

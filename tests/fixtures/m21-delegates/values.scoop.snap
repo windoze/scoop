@@ -7117,7 +7117,7 @@ Module mangling=compact-v2
       call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n8:captured direct
+      call $argument.0: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n8:captured direct
         Type LocalDelegate
         Local $delegate.0
       val $parameter.value: Int
@@ -7263,7 +7263,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $local.0.captured @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n8:captured($capture.local: LocalDelegate) -> Int
+  fun $local.0.captured @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n8:captured($capture.local: LocalDelegate) -> Int
     bb0 entry
       call $call.1: Int = @scoop.$local$u0:p0:C17:n13:LocalDelegater8:functionq8:ordinaryn8:getValue direct
         Type LocalDelegate
@@ -11323,7 +11323,7 @@ Module
     call managed-void-target15 sp158 live=[] sig=void15 (i32) local-fn81(local31)
     t41 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n8:captured(ptr<managed>) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n8:captured(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp253 live=[param0:ptr<managed>@0]

@@ -104,22 +104,18 @@ fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
     ]);
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
-    let unit = CompilationUnit {
-        core: vec![ProviderSource {
+    let output = lower_test_sources(
+        vec![ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: core_provider,
             name: "core.scoop",
             source_text: "",
         }],
-        user: ProviderSource {
-            source: &user,
-            provider: test_provider,
-            name: "user.scoop",
-            source_text: "",
-        },
-    };
-    let output = lower_compilation_unit(
-        &unit,
+        &user,
+        test_provider,
+        "user.scoop",
+        "",
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([test_provider]),
         },
@@ -164,22 +160,18 @@ fn a_typed_intrinsic_kind_has_one_defining_provider() {
     ]);
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
-    let unit = CompilationUnit {
-        core: vec![ProviderSource {
+    let errors = lower_test_sources(
+        vec![ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: core_provider,
             name: "core.scoop",
             source_text: "",
         }],
-        user: ProviderSource {
-            source: &user,
-            provider: test_provider,
-            name: "user.scoop",
-            source_text: "",
-        },
-    };
-    let errors = lower_compilation_unit(
-        &unit,
+        &user,
+        test_provider,
+        "user.scoop",
+        "",
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([test_provider]),
         },

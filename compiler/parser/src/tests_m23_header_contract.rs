@@ -1,6 +1,18 @@
-use scoop_ast::{ImportSyntax, NonEmptyVec, Span, Stage1RequestId, Stage1SourceHandle};
+use scoop_ast::{ImportSyntax, NonEmptyVec, Span};
+use scoop_identity::{ConeCoordinate, NormalizedSourcePath, SourceIdentity};
 
-use crate::{Stage1SourceInput, parse, parse_all};
+use crate::{IdentifiedSourceInput, ParserDiagnosticContext, parse, parse_all};
+
+fn source_identity(path: &str) -> SourceIdentity {
+    SourceIdentity::new(
+        ConeCoordinate::new("test", "parser-contract", "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap(),
+        NormalizedSourcePath::new(path).unwrap(),
+    )
+    .unwrap()
+}
 
 fn span_of(source: &str, token: &str) -> Span {
     let start = source.find(token).expect("token exists") as u32;
@@ -144,19 +156,12 @@ fn duplicate_package_priority_survives_imports_and_declaration_recovery() {
 
 #[test]
 fn duplicate_package_note_tracks_the_first_valid_header_and_multi_source_index() {
-    let request = Stage1RequestId::from_raw(74);
+    let first = source_identity("src/first.scoop");
+    let second = source_identity("src/second.scoop");
     let text = "/* 中文 */ package .broken\npackage valid\nimport lib.Item\npackage duplicate";
     let errors = parse_all(NonEmptyVec::new(
-        Stage1SourceInput::new(
-            Stage1SourceHandle::new(request, 10),
-            "package other",
-            "first.scoop",
-        ),
-        vec![Stage1SourceInput::new(
-            Stage1SourceHandle::new(request, 20),
-            text,
-            "second.scoop",
-        )],
+        IdentifiedSourceInput::new(&first, "package other"),
+        vec![IdentifiedSourceInput::new(&second, text)],
     ))
     .expect_err("no AST set escapes malformed or duplicate headers");
     assert_eq!(errors.len(), 2);
@@ -178,11 +183,15 @@ fn duplicate_package_note_tracks_the_first_valid_header_and_multi_source_index()
             "first `package` header is here",
         )]
     );
+    assert_eq!(errors[1].identity(), &second);
+    let context = ParserDiagnosticContext::new([
+        (first, "first.scoop".to_string()),
+        (second.clone(), "second.scoop".to_string()),
+    ]);
     assert_eq!(
-        errors[1].source_handle(),
-        Stage1SourceHandle::new(request, 20)
+        context.display_locator(errors[1].identity()),
+        Some("second.scoop")
     );
-    assert_eq!(errors[1].display_locator(), "second.scoop");
 }
 
 #[test]
@@ -212,7 +221,6 @@ fn unsupported_import_modifiers_remain_header_errors_after_declarations() {
 
 #[test]
 fn parse_all_is_atomic_with_valid_sources_on_both_sides_of_errors() {
-    let request = Stage1RequestId::from_raw(71);
     let texts = [
         "package first",
         "import .bad",
@@ -220,59 +228,63 @@ fn parse_all_is_atomic_with_valid_sources_on_both_sides_of_errors() {
         "import a.* as alias",
         "package last",
     ];
+    let identities: Vec<_> = (0..texts.len())
+        .map(|index| source_identity(&format!("src/source-{index}.scoop")))
+        .collect();
     let inputs: Vec<_> = texts
         .iter()
         .enumerate()
-        .map(|(index, text)| {
-            Stage1SourceInput::new(
-                Stage1SourceHandle::new(request, index as u32),
-                text,
-                "same-display.scoop",
-            )
-        })
+        .map(|(index, text)| IdentifiedSourceInput::new(&identities[index], text))
         .collect();
     let errors = parse_all(NonEmptyVec::new(inputs[0], inputs[1..].to_vec()))
         .expect_err("valid subsets must not escape when another source fails");
     assert_eq!(errors.len(), 2);
-    assert_eq!(errors[0].source_handle().local_index(), 1);
+    assert_eq!(errors[0].identity(), &identities[1]);
     assert_eq!(errors[0].diagnostic().file, 1);
     assert_eq!(errors[0].diagnostic().span, Some(Span::new(7, 8)));
-    assert_eq!(errors[1].source_handle().local_index(), 3);
+    assert_eq!(errors[1].identity(), &identities[3]);
     assert_eq!(errors[1].diagnostic().file, 3);
     assert_eq!(errors[1].diagnostic().span, Some(Span::new(11, 13)));
 }
 
 #[test]
-fn duplicate_handle_diagnostic_uses_original_input_index_after_earlier_duplicates() {
-    let request = Stage1RequestId::from_raw(72);
-    let first = Stage1SourceInput::new(Stage1SourceHandle::new(request, 10), "", "first.scoop");
-    let second = Stage1SourceInput::new(Stage1SourceHandle::new(request, 20), "", "second.scoop");
+fn duplicate_identity_diagnostic_uses_original_input_index_after_earlier_duplicates() {
+    let first_identity = source_identity("src/first.scoop");
+    let second_identity = source_identity("src/second.scoop");
+    let first = IdentifiedSourceInput::new(&first_identity, "");
+    let second = IdentifiedSourceInput::new(&second_identity, "");
     let errors = parse_all(NonEmptyVec::new(first, vec![first, second, second]))
         .expect_err("each duplicate is rejected");
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].diagnostic().file, 1);
     assert_eq!(
         errors[0].diagnostic().message,
-        "duplicate stage-1 source handle 10 (first used by source 0)"
+        format!(
+            "duplicate source identity {}/src/first.scoop (first used by source 0)",
+            first_identity.cone()
+        )
     );
     assert_eq!(errors[1].diagnostic().file, 3);
     assert_eq!(
         errors[1].diagnostic().message,
-        "duplicate stage-1 source handle 20 (first used by source 2)"
+        format!(
+            "duplicate source identity {}/src/second.scoop (first used by source 2)",
+            second_identity.cone()
+        )
     );
 }
 
 #[test]
-fn parse_all_uses_only_explicit_text_and_ignores_display_locator_for_semantics() {
-    let handle = Stage1SourceHandle::new(Stage1RequestId::from_raw(73), 90);
-    let parse_at = |locator| {
+fn parse_all_uses_only_explicit_text_and_has_no_display_locator_semantics() {
+    let identity = source_identity("src/main.scoop");
+    let parse_at = || {
         parse_all(NonEmptyVec::new(
-            Stage1SourceInput::new(handle, "fun main() {}", locator),
+            IdentifiedSourceInput::new(&identity, "fun main() {}"),
             Vec::new(),
         ))
         .expect("the locator need not exist or agree with the supplied text")
     };
-    let first = parse_at("/nonexistent/package/name.scoop");
+    let first = parse_at();
     let fixture_directory = concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m21-const"
@@ -283,7 +295,7 @@ fn parse_all_uses_only_explicit_text_and_ignores_display_locator_for_semantics()
             .exists()
     );
     // A neighboring source must never be discovered through the display label.
-    let second = parse_at(&format!("{fixture_directory}/values.scoop"));
+    let second = parse_at();
     assert_eq!(first, second);
     assert_eq!(first.sources().len(), 1);
     assert_eq!(

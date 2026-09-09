@@ -220,22 +220,18 @@ fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
     let user = file(vec![int, fun("main", vec![])]);
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
-    let unit = CompilationUnit {
-        core: vec![ProviderSource {
+    let output = lower_test_sources(
+        vec![ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: core_provider,
             name: "core.scoop",
             source_text: "",
         }],
-        user: ProviderSource {
-            source: &user,
-            provider: test_provider,
-            name: "user.scoop",
-            source_text: "",
-        },
-    };
-    let output = lower_compilation_unit(
-        &unit,
+        &user,
+        test_provider,
+        "user.scoop",
+        "",
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([test_provider]),
         },

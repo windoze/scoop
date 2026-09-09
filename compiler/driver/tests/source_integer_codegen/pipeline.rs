@@ -48,26 +48,39 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
 
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
     let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
-    let unit = scoop_hir_lower::CompilationUnit {
-        core: files[..user_index]
+    let user_sources = scoop_ast::AllParsedSources::try_new(scoop_ast::NonEmptyVec::new(
+        scoop_ast::IdentifiedParsedSource::new(
+            inputs[user_index].identity.clone(),
+            files[user_index].clone(),
+        ),
+        Vec::new(),
+    ))
+    .expect("the integer test has one identified user source");
+    let input = scoop_hir_lower::LegacyCombinedSources::try_new(
+        files[..user_index]
             .iter()
             .zip(&inputs[..user_index])
             .map(|(source, input)| scoop_hir_lower::ProviderSource {
                 source,
+                identity: input.identity.clone(),
                 provider: core_provider,
                 name: &input.name,
                 source_text: &input.source,
             })
             .collect(),
-        user: scoop_hir_lower::ProviderSource {
-            source: &files[user_index],
-            provider: user_provider,
-            name: &inputs[user_index].name,
-            source_text: &inputs[user_index].source,
+        user_provider,
+        user_sources,
+        |identity| {
+            assert_eq!(identity, &inputs[user_index].identity);
+            scoop_hir_lower::CurrentSourceDetails {
+                display_locator: &inputs[user_index].name,
+                source_text: &inputs[user_index].source,
+            }
         },
-    };
-    let hir = scoop_hir_lower::lower_compilation_unit(
-        &unit,
+    )
+    .expect("the integer test has unique source identities");
+    let hir = scoop_hir_lower::lower_legacy_combined_executable(
+        &input,
         scoop_hir_lower::IntrinsicDeclarationPolicy::default(),
     )
     .unwrap_or_else(|errors| {

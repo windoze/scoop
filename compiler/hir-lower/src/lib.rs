@@ -140,172 +140,104 @@ use hir::{
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
 
-/// Legacy adapter for positional core sources followed by one user source.
-///
-/// `files[..len - 1]` are the `scoop.core` library sources and the
-/// last file is the user compilation unit (the driver's sysroot
-/// convention, milestone4 DESIGN.md 1.2). Core declarations remain available
-/// through the existing prelude; only the user source enters the current-unit
-/// package namespace. Diagnostics carry the input file index (`Diagnostic::file`).
-///
-/// All semantic errors of the M5 subset are diagnosed here with spans;
-/// downstream stages (MIR, LIR) never fail.
-pub fn lower(files: &[ast::SourceFile]) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
-    if files.is_empty() {
-        return Lowerer::new()
-            .run_legacy_executable(files)
-            .map(|(export, warnings)| hir::LegacyExecutableOutput {
-                local: concretize::lower_legacy_executable(&export),
-                export,
-                warnings,
-            });
-    }
-    let core_provider = hir::IntrinsicProviderId::from_raw(0);
-    let user_provider = hir::IntrinsicProviderId::from_raw(1);
-    let unit = CompilationUnit {
-        core: files[..files.len() - 1]
-            .iter()
-            .map(|source| ProviderSource {
-                source,
-                provider: core_provider,
-                name: "<core>",
-                source_text: "",
-            })
-            .collect(),
-        user: ProviderSource {
-            source: &files[files.len() - 1],
-            provider: user_provider,
-            name: "<user>",
-            source_text: "",
-        },
-    };
-    lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
-}
-
-/// One legacy parsed source and its existing provider authority.
-#[derive(Clone, Copy)]
+/// One existing core source and its provider authority.
+#[derive(Clone)]
 pub struct ProviderSource<'a> {
     pub source: &'a ast::SourceFile,
+    pub identity: scoop_identity::SourceIdentity,
     pub provider: hir::IntrinsicProviderId,
     pub name: &'a str,
     pub source_text: &'a str,
 }
 
-/// Legacy single-user-source input. Core and user sources cannot be confused
-/// by file position inside HIR lowering; this is not a Cone or artifact input.
-pub struct CompilationUnit<'a> {
-    pub core: Vec<ProviderSource<'a>>,
-    pub user: ProviderSource<'a>,
-}
-
-/// Structurally complete M23-1 lowering input. Parsed user sources have already
-/// passed request membership and uniqueness validation in the AST boundary.
-pub struct Stage1CompilationInput<'a> {
+/// Temporary combined entry for existing core sources and current sources.
+/// This type cannot be used as a single-Cone foundation serialization input.
+pub struct LegacyCombinedSources<'a> {
     core: Vec<ProviderSource<'a>>,
     user_provider: hir::IntrinsicProviderId,
     user_sources: ast::AllParsedSources,
-    source_details: Vec<Stage1SourceDetails<'a>>,
+    source_details: Vec<CurrentSourceDetails<'a>>,
 }
 
-/// Diagnostic and source-location data supplied separately from source handles.
+/// Transient diagnostic and source-text data supplied separately from identity.
 #[derive(Clone, Copy)]
-pub struct Stage1SourceDetails<'a> {
+pub struct CurrentSourceDetails<'a> {
     pub display_locator: &'a str,
     pub source_text: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// A provider mismatch rejected by the legacy input adapter.
-pub struct Stage1CompilationInputError {
-    pub source_index: usize,
-    pub expected_provider: hir::IntrinsicProviderId,
-    pub actual_provider: hir::IntrinsicProviderId,
+pub enum LegacyCombinedSourcesError {
+    DuplicateSourceIdentity {
+        first_index: usize,
+        duplicate_index: usize,
+        identity: scoop_identity::SourceIdentity,
+    },
 }
 
-impl std::fmt::Display for Stage1CompilationInputError {
+impl std::fmt::Display for LegacyCombinedSourcesError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "user source {} has provider {:?}, expected {:?}",
-            self.source_index, self.actual_provider, self.expected_provider
-        )
+        match self {
+            Self::DuplicateSourceIdentity {
+                first_index,
+                duplicate_index,
+                identity,
+            } => write!(
+                formatter,
+                "source {duplicate_index} duplicates source {first_index} identity {}/{}",
+                identity.cone(),
+                identity.logical_path()
+            ),
+        }
     }
 }
 
-impl std::error::Error for Stage1CompilationInputError {}
+impl std::error::Error for LegacyCombinedSourcesError {}
 
-impl<'a> Stage1CompilationInput<'a> {
-    /// Consume a validated parsed set. Details are requested by typed handle,
+impl<'a> LegacyCombinedSources<'a> {
+    /// Consume a validated parsed set. Details are requested by source identity,
     /// never matched by display locator or source container position.
-    pub fn new(
+    pub fn try_new(
         core: Vec<ProviderSource<'a>>,
         user_provider: hir::IntrinsicProviderId,
         user_sources: ast::AllParsedSources,
-        mut source_details: impl FnMut(ast::Stage1SourceHandle) -> Stage1SourceDetails<'a>,
-    ) -> Self {
+        mut source_details: impl FnMut(&scoop_identity::SourceIdentity) -> CurrentSourceDetails<'a>,
+    ) -> Result<Self, LegacyCombinedSourcesError> {
+        let mut seen = Vec::with_capacity(core.len() + user_sources.sources().len());
+        for (index, identity) in core
+            .iter()
+            .map(|source| &source.identity)
+            .chain(
+                user_sources
+                    .sources()
+                    .iter()
+                    .map(|source| source.identity()),
+            )
+            .enumerate()
+        {
+            if let Some(first_index) = seen
+                .iter()
+                .position(|seen: &&scoop_identity::SourceIdentity| *seen == identity)
+            {
+                return Err(LegacyCombinedSourcesError::DuplicateSourceIdentity {
+                    first_index,
+                    duplicate_index: index,
+                    identity: identity.clone(),
+                });
+            }
+            seen.push(identity);
+        }
         let source_details = user_sources
             .sources()
             .iter()
-            .map(|source| source_details(source.source_handle()))
+            .map(|source| source_details(source.identity()))
             .collect();
-        Self {
+        Ok(Self {
             core,
             user_provider,
             user_sources,
             source_details,
-        }
-    }
-
-    /// Adapt legacy callers which provide parsed ASTs without request handles.
-    /// Fresh local handles follow this adapter's explicit input order only.
-    pub fn from_legacy_sources(
-        core: Vec<ProviderSource<'a>>,
-        first_user: ProviderSource<'a>,
-        remaining_users: Vec<ProviderSource<'a>>,
-    ) -> Result<Self, Stage1CompilationInputError> {
-        let user_provider = first_user.provider;
-        for (offset, source) in remaining_users.iter().enumerate() {
-            if source.provider != user_provider {
-                return Err(Stage1CompilationInputError {
-                    source_index: offset + 1,
-                    expected_provider: user_provider,
-                    actual_provider: source.provider,
-                });
-            }
-        }
-        let request = ast::Stage1RequestId::from_raw(0);
-        let parsed_source = |index, source: ProviderSource<'a>| {
-            ast::ParsedSource::new(
-                ast::Stage1SourceHandle::new(request, index),
-                source.source.clone(),
-            )
-        };
-        let sources = ast::NonEmptyVec::new(
-            parsed_source(0, first_user),
-            remaining_users
-                .iter()
-                .enumerate()
-                .map(|(offset, source)| {
-                    parsed_source(
-                        u32::try_from(offset + 1).expect("source handle space exhausted"),
-                        *source,
-                    )
-                })
-                .collect(),
-        );
-        let parsed = ast::AllParsedSources::try_new(request, sources)
-            .expect("legacy adapter allocates unique handles in one request");
-        Ok(Self::new(core, user_provider, parsed, |handle| {
-            let source = if handle.local_index() == 0 {
-                first_user
-            } else {
-                remaining_users[handle.local_index() as usize - 1]
-            };
-            Stage1SourceDetails {
-                display_locator: source.name,
-                source_text: source.source_text,
-            }
-        }))
+        })
     }
 
     pub fn user_provider(&self) -> hir::IntrinsicProviderId {
@@ -326,26 +258,13 @@ pub enum IntrinsicDeclarationPolicy {
     },
 }
 
-/// Lower a legacy provider-typed compilation unit. The testing policy only grants
-/// source authority; registry target, signature, shape, uniqueness, and effect
-/// checks remain unchanged.
-pub fn lower_compilation_unit(
-    unit: &CompilationUnit<'_>,
-    policy: IntrinsicDeclarationPolicy,
-) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
-    let input =
-        Stage1CompilationInput::from_legacy_sources(unit.core.clone(), unit.user, Vec::new())
-            .expect("one legacy user source always has one provider");
-    lower_stage1_legacy_executable(&input, policy)
-}
-
 /// Lower an explicitly provided non-empty set of user sources together with
 /// the existing M22 core source/backing input.
-pub fn lower_stage1_compilation_input(
-    input: &Stage1CompilationInput<'_>,
+pub fn lower_legacy_combined_sources(
+    input: &LegacyCombinedSources<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let (files, sources) = materialize_stage1_sources(input);
+    let (files, sources) = materialize_combined_sources(input);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
@@ -357,14 +276,14 @@ pub fn lower_stage1_compilation_input(
     })
 }
 
-/// Lower a Stage 1 source set for the temporary M22 executable pipeline.
+/// Lower the combined source set for the temporary M22 executable pipeline.
 /// Unlike the base frontend entry point, this adapter requires exactly one
 /// strict legacy `main` and retains its typed identity in both HIR products.
-pub fn lower_stage1_legacy_executable(
-    input: &Stage1CompilationInput<'_>,
+pub fn lower_legacy_combined_executable(
+    input: &LegacyCombinedSources<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
-    let (files, sources) = materialize_stage1_sources(input);
+    let (files, sources) = materialize_combined_sources(input);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run_legacy_executable(&files)?;
@@ -376,20 +295,18 @@ pub fn lower_stage1_legacy_executable(
     })
 }
 
-fn materialize_stage1_sources(
-    input: &Stage1CompilationInput<'_>,
+fn materialize_combined_sources(
+    input: &LegacyCombinedSources<'_>,
 ) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
     let source_count = input.core.len() + input.user_sources.sources().len();
     let mut files = Vec::with_capacity(source_count);
     let mut sources = Vec::with_capacity(source_count);
-    for (index, source) in input.core.iter().enumerate() {
+    for source in &input.core {
         files.push(source.source.clone());
         sources.push(SourceProvider {
             provider: source.provider,
             kind: SourceKind::ExistingM22Core,
-            visibility_source: hir::VisibilitySource::ExistingM22Core {
-                index: u32::try_from(index).expect("core source index exceeds u32"),
-            },
+            identity: source.identity.clone(),
             name: source.name.to_string(),
             source: source.source_text.to_string(),
         });
@@ -404,7 +321,7 @@ fn materialize_stage1_sources(
         sources.push(SourceProvider {
             provider: input.user_provider,
             kind: SourceKind::CurrentUnit,
-            visibility_source: hir::VisibilitySource::CurrentUnit(source.source_handle()),
+            identity: source.identity().clone(),
             name: details.display_locator.to_string(),
             source: details.source_text.to_string(),
         });
@@ -422,7 +339,7 @@ pub(crate) enum SourceKind {
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
     kind: SourceKind,
-    visibility_source: hir::VisibilitySource,
+    identity: scoop_identity::SourceIdentity,
     name: String,
     source: String,
 }

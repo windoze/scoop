@@ -1,6 +1,25 @@
 use super::*;
 
-const REQUEST: ast::Stage1RequestId = ast::Stage1RequestId::from_raw(23);
+fn source_identity(source_key: u32) -> scoop_identity::SourceIdentity {
+    let path = match source_key {
+        0 => "src/000-zero.scoop",
+        1 => "src/001-one.scoop",
+        3 => "src/003-three.scoop",
+        5 => "src/005-five.scoop",
+        9 => "src/009-nine.scoop",
+        10 => "src/010-ten.scoop",
+        20 => "src/020-twenty.scoop",
+        25 => "src/025-twenty-five.scoop",
+        30 => "src/030-thirty.scoop",
+        40 => "src/040-forty.scoop",
+        50 => "src/050-fifty.scoop",
+        60 => "src/060-sixty.scoop",
+        70 => "src/070-seventy.scoop",
+        90 => "src/090-ninety.scoop",
+        _ => panic!("test source key {source_key} needs an explicit logical path"),
+    };
+    test_source_identity(path)
+}
 
 fn in_package(mut source: ast::SourceFile, package: &str) -> ast::SourceFile {
     source.package = ast::PackageSyntax::QualifiedPackage {
@@ -50,58 +69,56 @@ fn extern_main() -> ast::Decl {
 
 fn parsed_sources(sources: Vec<(u32, ast::SourceFile)>) -> ast::AllParsedSources {
     let mut sources = sources.into_iter();
-    let (first_handle, first_source) = sources.next().expect("entry tests supply user sources");
-    let parsed = |handle, source| {
-        ast::ParsedSource::new(ast::Stage1SourceHandle::new(REQUEST, handle), source)
-    };
-    ast::AllParsedSources::try_new(
-        REQUEST,
-        ast::NonEmptyVec::new(
-            parsed(first_handle, first_source),
-            sources
-                .map(|(handle, source)| parsed(handle, source))
-                .collect(),
-        ),
-    )
-    .expect("entry tests use unique handles in one request")
+    let (first_key, first_source) = sources.next().expect("entry tests supply user sources");
+    let parsed =
+        |source_key, source| ast::IdentifiedParsedSource::new(source_identity(source_key), source);
+    ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        parsed(first_key, first_source),
+        sources
+            .map(|(source_key, source)| parsed(source_key, source))
+            .collect(),
+    ))
+    .expect("entry tests use unique source identities")
 }
 
-fn stage1_input<'a>(
+fn combined_input<'a>(
     core: &'a ast::SourceFile,
     user_sources: ast::AllParsedSources,
-) -> Stage1CompilationInput<'a> {
-    Stage1CompilationInput::new(
+) -> LegacyCombinedSources<'a> {
+    LegacyCombinedSources::try_new(
         vec![ProviderSource {
             source: core,
+            identity: core_source_identity("src/core.scoop"),
             provider: hir::IntrinsicProviderId::from_raw(17),
             name: "core.scoop",
             source_text: "",
         }],
         hir::IntrinsicProviderId::from_raw(29),
         user_sources,
-        |_| Stage1SourceDetails {
+        |_| CurrentSourceDetails {
             display_locator: "user.scoop",
             source_text: "",
         },
     )
+    .expect("explicit entry-test source identities are valid")
 }
 
 fn lower_sources(
     core: &ast::SourceFile,
     user_sources: Vec<(u32, ast::SourceFile)>,
 ) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
-    let input = stage1_input(core, parsed_sources(user_sources));
-    lower_stage1_legacy_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    let input = combined_input(core, parsed_sources(user_sources));
+    lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
 #[test]
 fn frontend_lowering_does_not_require_main() {
     let core = core_file();
-    let input = stage1_input(
+    let input = combined_input(
         &core,
         parsed_sources(vec![(0, file(vec![fun("libraryFunction", Vec::new())]))]),
     );
-    let output = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    let output = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
         .expect("frontend HIR accepts a current unit without an executable entry");
     assert!(
         output
@@ -185,7 +202,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
         "extension",
     );
 
-    let input = stage1_input(
+    let input = combined_input(
         &core,
         parsed_sources(vec![
             (70, generic),
@@ -198,7 +215,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
             (10, valid),
         ]),
     );
-    let output = lower_stage1_legacy_executable(
+    let output = lower_legacy_combined_executable(
         &input,
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([hir::IntrinsicProviderId::from_raw(29)]),
@@ -270,9 +287,9 @@ fn entry_error_owner(
     core: &ast::SourceFile,
     user_sources: Vec<(u32, ast::SourceFile)>,
     expected_message: &str,
-) -> (ast::Stage1SourceHandle, Option<Span>) {
-    let input = stage1_input(core, parsed_sources(user_sources));
-    let errors = lower_stage1_legacy_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+) -> (scoop_identity::SourceIdentity, Option<Span>) {
+    let input = combined_input(core, parsed_sources(user_sources));
+    let errors = lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
         .expect_err("the test input has no unique legacy entry");
     let diagnostic = errors
         .iter()
@@ -282,20 +299,21 @@ fn entry_error_owner(
         .file
         .checked_sub(1)
         .expect("legacy entry diagnostics belong to a user source");
-    let handle = input
+    let identity = input
         .user_sources()
         .sources()
         .iter()
         .nth(user_index)
         .expect("diagnostic file maps to a parsed user source")
-        .source_handle();
-    (handle, diagnostic.span)
+        .identity()
+        .clone();
+    (identity, diagnostic.span)
 }
 
 #[test]
-fn legacy_entry_anchor_uses_the_smallest_handle_across_container_permutations() {
+fn legacy_entry_anchor_uses_the_smallest_source_identity_across_container_permutations() {
     let core = core_file();
-    let low_handle = ast::Stage1SourceHandle::new(REQUEST, 3);
+    let low_identity = source_identity(3);
     let low_span = Span::new(30, 39);
     let high_span = Span::new(80, 99);
 
@@ -321,7 +339,7 @@ fn legacy_entry_anchor_uses_the_smallest_handle_across_container_permutations() 
             vec![(3, low_source.clone()), (90, high_source.clone())],
         ] {
             let (owner, span) = entry_error_owner(&core, sources, message);
-            assert_eq!(owner, low_handle);
+            assert_eq!(owner, low_identity);
             assert_eq!(span, Some(low_span));
         }
     }

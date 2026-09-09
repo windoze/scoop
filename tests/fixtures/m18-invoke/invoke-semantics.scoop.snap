@@ -1271,9 +1271,9 @@ Module mangling=compact-v2
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 captures=1
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 captures=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 captures=0
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 captures=0
   fun GlobalHandler.invoke @scoop.$local$u0:p0:S17:n13:GlobalHandlerr8:functionq8:ordinaryn6:invoke(this: GlobalHandler, value: Int) -> Int
     bb0 entry
       val $receiver: Int
@@ -7729,7 +7729,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $lambda.0 @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0($closure: () -> String) -> String
+  fun $lambda.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0($closure: () -> String) -> String
     bb0 entry
       val $receiver: Handler
         Type Handler
@@ -7755,7 +7755,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun $lambda.1 @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1($closure: (Int) -> String, value: Int) -> String
+  fun $lambda.1 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1($closure: (Int) -> String, value: Int) -> String
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7766,7 +7766,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun $lambda.2 @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -12400,7 +12400,7 @@ Module
     call managed-void-target7 sp147 live=[local2:struct11@0] sig=void7 (i32) local-fn82(local46)
     t17 = aggregate () : {}
     call managed-direct-target8 sp148 live=[local2:struct11@0] t18 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td36, machine<byte-size>(ByteSize(32)))
-    t19 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 : ptr
+    t19 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t18 +16 t19
     heap_store t18 +24 local2
     store t18 -> local47
@@ -12435,7 +12435,7 @@ Module
     store local62 -> local63
     store integer<Int>(0x00000029) -> local64
     call managed-direct-target12 sp155 live=[] t28 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td37, machine<byte-size>(ByteSize(24)))
-    t29 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 : ptr
+    t29 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 : ptr
     heap_store t28 +16 t29
     store t28 -> local65
     store local64 -> local66
@@ -12462,7 +12462,7 @@ Module
     call managed-void-target12 sp161 live=[] sig=void12 (i64) local-fn83(local79)
     t36 = aggregate () : {}
     call managed-direct-target15 sp162 live=[] t37 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td38, machine<byte-size>(ByteSize(24)))
-    t38 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 : ptr
+    t38 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 : ptr
     heap_store t37 +16 t38
     store t37 -> local80
     call managed-direct-target16 sp163 live=[local80:ptr<managed>@0] t39 = sig=direct16 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local80(local80, integer<Int>(0x00000029))
@@ -12476,7 +12476,7 @@ Module
     call managed-void-target14 sp166 live=[] sig=void14 (i32) local-fn82(local84)
     t42 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0(ptr<managed>) -> ptr<managed>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0(ptr<managed>) -> ptr<managed>
     local %0 $receiver: struct11
     local %1 $argument.0: i32
     local %2 $parameter.value: i32
@@ -12494,7 +12494,7 @@ Module
     call managed-direct-target0 sp167 live=[local3:ptr<managed>@0, local5:struct11@0] t1 = sig=direct0 (indirect<struct11 size=8 align=8 scan=refs[0]>, i32, ptr<managed>) -> ptr<managed> local-fn52(indirect local5, local2, local3)
     store t1 -> local4
     ret local4
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1(ptr<managed>, i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $call.1: ptr<managed>
   block entry
@@ -12503,7 +12503,7 @@ Module
     call managed-direct-target0 sp168 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn17(local0)
     store t0 -> local1
     ret local1
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -13024,9 +13024,9 @@ Module
   td td33 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=34 size=24 parent=td29 vtable=[] itables=[]
   td td34 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=35 size=24 parent=td29 vtable=[] itables=[]
   td td35 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=36 size=24 parent=td29 vtable=[] itables=[]
-  td td36 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 type-id=37 size=32 parent=td10 vtable=[] itables=[]
-  td td37 $Closure$lambda1 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 type-id=38 size=24 parent=td11 vtable=[] itables=[]
-  td td38 $Closure$lambda2 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 type-id=39 size=24 parent=td12 vtable=[] itables=[]
+  td td36 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 type-id=37 size=32 parent=td10 vtable=[] itables=[]
+  td td37 $Closure$lambda1 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 type-id=38 size=24 parent=td11 vtable=[] itables=[]
+  td td38 $Closure$lambda2 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 type-id=39 size=24 parent=td12 vtable=[] itables=[]
   array-type array0 Array$I32 kind=immutable element=i32 size=4 align=4 scan=none td=td25
   array-type array1 MutableArray$I32 kind=mutable element=i32 size=4 align=4 scan=none td=td26
   layout String size=24 align=8 refs=[]

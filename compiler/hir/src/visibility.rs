@@ -1,4 +1,5 @@
 use crate::{ClassId, EnumId, FunctionId, InterfaceId, IntrinsicProviderId, StructId, TypeId};
+use scoop_identity::SourceIdentity;
 
 /// Source visibility after AST omission has been normalized. There is no
 /// `Omitted` state in HIR: every declaration has made the language default
@@ -11,20 +12,12 @@ pub enum DeclaredVisibility {
     Protected,
 }
 
-/// The source key used by the M22 compatibility path and M23-1 visibility.
-/// Current-unit handles are request-local, not persistent source identities.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VisibilitySource {
-    ExistingM22Core { index: u32 },
-    CurrentUnit(scoop_ast::Stage1SourceHandle),
-}
-
 /// Provider authority and typed source key; diagnostic file indices are kept
 /// separately and never participate in current-unit private access equality.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VisibilityFile {
     pub provider: IntrinsicProviderId,
-    pub source: VisibilitySource,
+    pub source: SourceIdentity,
 }
 
 /// Nominal lexical owner used by member-private access. Kinds remain distinct
@@ -41,7 +34,7 @@ pub enum VisibilityOwner {
 /// One conjunct of an access set. Domains are normalized conjunctions rather
 /// than visibility ranks: file, lexical-owner and inheritance regions are
 /// incomparable and may be intersected with a Cone restriction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccessConstraint {
     Cone(IntrinsicProviderId),
     File(VisibilityFile),
@@ -88,7 +81,7 @@ impl AccessDomain {
         if !self.inhabited || !other.inhabited {
             return Self::empty();
         }
-        Self::from_constraints(self.constraints.iter().chain(&other.constraints).copied())
+        Self::from_constraints(self.constraints.iter().chain(&other.constraints).cloned())
     }
 
     pub fn constraints(&self) -> &[AccessConstraint] {
@@ -130,29 +123,22 @@ pub struct PublicSemanticSurface {
     pub type_aliases: Vec<crate::ExportTypeAliasId>,
 }
 
-fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u8, u64, u32) {
-    match *constraint {
-        AccessConstraint::Cone(provider) => (0, provider.into_raw(), 0, 0, 0),
-        AccessConstraint::File(file) => match file.source {
-            VisibilitySource::ExistingM22Core { index } => {
-                (1, file.provider.into_raw(), 0, 0, index)
-            }
-            VisibilitySource::CurrentUnit(handle) => (
-                1,
-                file.provider.into_raw(),
-                1,
-                handle.request().into_raw(),
-                handle.local_index(),
-            ),
-        },
+fn access_constraint_sort_key(
+    constraint: &AccessConstraint,
+) -> (u8, u32, Option<SourceIdentity>, u8, u32) {
+    match constraint {
+        AccessConstraint::Cone(provider) => (0, provider.into_raw(), None, 0, 0),
+        AccessConstraint::File(file) => {
+            (1, file.provider.into_raw(), Some(file.source.clone()), 0, 0)
+        }
         AccessConstraint::LexicalOwner(owner) => match owner {
-            VisibilityOwner::Class(id) => (2, 0, 0, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Interface(id) => (2, 1, 0, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Struct(id) => (2, 2, 0, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Enum(id) => (2, 3, 0, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Object(id) => (2, 4, 0, 0, id.into_raw().into_u32()),
+            VisibilityOwner::Class(id) => (2, 0, None, 0, id.into_raw().into_u32()),
+            VisibilityOwner::Interface(id) => (2, 0, None, 1, id.into_raw().into_u32()),
+            VisibilityOwner::Struct(id) => (2, 0, None, 2, id.into_raw().into_u32()),
+            VisibilityOwner::Enum(id) => (2, 0, None, 3, id.into_raw().into_u32()),
+            VisibilityOwner::Object(id) => (2, 0, None, 4, id.into_raw().into_u32()),
         },
-        AccessConstraint::SubclassesOf(id) => (3, id.into_raw().into_u32(), 0, 0, 0),
+        AccessConstraint::SubclassesOf(id) => (3, id.into_raw().into_u32(), None, 0, 0),
     }
 }
 
@@ -256,32 +242,37 @@ pub struct SignatureExposureWitness {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoop_ast::{Stage1RequestId, Stage1SourceHandle};
+    use scoop_identity::{ConeCoordinate, NormalizedSourcePath};
+
+    fn source(cone: &str, path: &str) -> SourceIdentity {
+        let cone = ConeCoordinate::new("test", cone, "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap();
+        SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    }
 
     #[test]
-    fn visibility_distinguishes_request_membership_and_core_source_kind() {
+    fn visibility_distinguishes_semantic_source_identities() {
         let provider = IntrinsicProviderId::from_raw(1);
-        let current = |request| VisibilityFile {
+        let current = |path| VisibilityFile {
             provider,
-            source: VisibilitySource::CurrentUnit(Stage1SourceHandle::new(
-                Stage1RequestId::from_raw(request),
-                7,
-            )),
+            source: source("current", path),
         };
-        let first = current(10);
-        let second = current(11);
+        let first = current("src/first.scoop");
+        let second = current("src/second.scoop");
         let core = VisibilityFile {
             provider,
-            source: VisibilitySource::ExistingM22Core { index: 7 },
+            source: source("core", "src/first.scoop"),
         };
         assert_ne!(first, second);
         assert_ne!(first, core);
         let constraints = [
-            AccessConstraint::File(second),
-            AccessConstraint::File(core),
-            AccessConstraint::File(first),
+            AccessConstraint::File(second.clone()),
+            AccessConstraint::File(core.clone()),
+            AccessConstraint::File(first.clone()),
         ];
-        let forward = AccessDomain::from_constraints(constraints);
+        let forward = AccessDomain::from_constraints(constraints.clone());
         let reverse = AccessDomain::from_constraints(constraints.into_iter().rev());
         assert_eq!(forward, reverse);
         assert_eq!(forward.constraints().len(), 3);

@@ -930,7 +930,7 @@ Module
 Module mangling=compact-v2
   global0 @scoop.global.$local$u0:p0:r6:globaln18:EXTENSION_FALLBACK $local$u0:p0:r6:globaln18:EXTENSION_FALLBACK: Int8 managed initial=zeroed-for-runtime-unit
   global1 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
-  init0 $local$u0:p0:r9:top-leveln18:EXTENSION_FALLBACK eager global0 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 failure=1 deps=[]
+  init0 $local$u0:p0:r9:top-leveln18:EXTENSION_FALLBACK eager global0 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 failure=1 deps=[]
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -7003,7 +7003,7 @@ Module mangling=compact-v2
         Type Int8
         Local $parameter.value
       return
-  fun $init$body$0 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> Unit
+  fun $init$body$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> Unit
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -7023,7 +7023,7 @@ Module mangling=compact-v2
         Type Int8
         Local $call.1
       return
-  fun $init$ensure$0 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> Unit
+  fun $init$ensure$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7072,7 +7072,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 $local$u0:p0:r9:top-leveln18:EXTENSION_FALLBACK
@@ -7138,7 +7138,7 @@ Module mangling=compact-v2
       unreachable
   fun $get$EXTENSION_FALLBACK @scoop.$local$u0:p0:r6:getterq8:ordinaryn23:$get$EXTENSION_FALLBACK() -> Int8
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 direct
       return
         Type Int8
         GlobalRead $local$u0:p0:r6:globaln18:EXTENSION_FALLBACK
@@ -7669,7 +7669,7 @@ Module
   global @scoop.str.11 = "illegal state"
   global @scoop.global.$local$u0:p0:r6:globaln18:EXTENSION_FALLBACK : i8 scan=none
   global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:top-leveln18:EXTENSION_FALLBACK storage=@scoop.global.$local$u0:p0:r6:globaln18:EXTENSION_FALLBACK failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 deps=[]
+  init0 $local$u0:p0:r9:top-leveln18:EXTENSION_FALLBACK storage=@scoop.global.$local$u0:p0:r6:globaln18:EXTENSION_FALLBACK failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
@@ -11078,7 +11078,7 @@ Module
     call managed-void-target8 sp135 live=[] sig=void8 (i8) local-fn77(local17)
     t9 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> void
     local %0 $receiver: i8
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -11092,7 +11092,7 @@ Module
     store t0 -> local3
     global_store global12, local3
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>

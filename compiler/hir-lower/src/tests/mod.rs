@@ -70,6 +70,117 @@ use ast::{
 pub(crate) use builders::*;
 pub(crate) use core::*;
 
+fn lower(files: &[ast::SourceFile]) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
+    const CORE_PATHS: [&str; 4] = [
+        "src/core.scoop",
+        "src/core-extra.scoop",
+        "src/core-third.scoop",
+        "src/core-fourth.scoop",
+    ];
+    let (user, core) = files
+        .split_last()
+        .expect("HIR lowering tests always supply a user source");
+    assert!(
+        core.len() <= CORE_PATHS.len(),
+        "add an explicit core test path"
+    );
+    let core = core
+        .iter()
+        .zip(CORE_PATHS)
+        .map(|(source, path)| ProviderSource {
+            source,
+            identity: core_source_identity(path),
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            name: "<core>",
+            source_text: "",
+        })
+        .collect();
+    let parsed = ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        ast::IdentifiedParsedSource::new(
+            scoop_identity::SourceIdentity::single_file(),
+            user.clone(),
+        ),
+        Vec::new(),
+    ))
+    .expect("the single-file test input has one source identity");
+    let input =
+        LegacyCombinedSources::try_new(core, hir::IntrinsicProviderId::from_raw(1), parsed, |_| {
+            CurrentSourceDetails {
+                display_locator: "<user>",
+                source_text: "",
+            }
+        })
+        .expect("explicit test source identities are valid");
+    lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+}
+
+pub(crate) fn test_source_identity(path: &str) -> scoop_identity::SourceIdentity {
+    scoop_identity::SourceIdentity::new(
+        scoop_identity::ConeCoordinate::new("test", "scoop-hir-lower", "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap(),
+        scoop_identity::NormalizedSourcePath::new(path).unwrap(),
+    )
+    .unwrap()
+}
+
+pub(crate) fn core_source_identity(path: &str) -> scoop_identity::SourceIdentity {
+    scoop_identity::SourceIdentity::new(
+        scoop_identity::ConeIdentity::CORE,
+        scoop_identity::NormalizedSourcePath::new(path).unwrap(),
+    )
+    .unwrap()
+}
+
+pub(crate) fn identified_test_sources(sources: Vec<ast::SourceFile>) -> ast::AllParsedSources {
+    const PATHS: [&str; 8] = [
+        "src/first.scoop",
+        "src/second.scoop",
+        "src/third.scoop",
+        "src/fourth.scoop",
+        "src/fifth.scoop",
+        "src/sixth.scoop",
+        "src/seventh.scoop",
+        "src/eighth.scoop",
+    ];
+    assert!(
+        sources.len() <= PATHS.len(),
+        "add explicit test source paths"
+    );
+    let mut sources = sources
+        .into_iter()
+        .zip(PATHS)
+        .map(|(source, path)| ast::IdentifiedParsedSource::new(test_source_identity(path), source));
+    ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        sources.next().expect("test source list is nonempty"),
+        sources.collect(),
+    ))
+    .expect("explicit test source identities are unique")
+}
+
+pub(crate) fn lower_test_sources(
+    core: Vec<ProviderSource<'_>>,
+    user: &ast::SourceFile,
+    user_provider: hir::IntrinsicProviderId,
+    user_display_locator: &str,
+    user_source_text: &str,
+    policy: IntrinsicDeclarationPolicy,
+) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
+    let parsed = ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        ast::IdentifiedParsedSource::new(test_source_identity("src/user.scoop"), user.clone()),
+        Vec::new(),
+    ))
+    .expect("the test supplies one explicit user source identity");
+    let input =
+        LegacyCombinedSources::try_new(core, user_provider, parsed, |_| CurrentSourceDetails {
+            display_locator: user_display_locator,
+            source_text: user_source_text,
+        })
+        .expect("explicit test source identities are valid");
+    lower_legacy_combined_executable(&input, policy)
+}
+
 fn integer_syntax(magnitude: u64) -> ast::IntegerLiteralSyntax {
     ast::IntegerLiteralSyntax {
         magnitude,

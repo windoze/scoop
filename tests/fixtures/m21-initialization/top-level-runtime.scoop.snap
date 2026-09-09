@@ -989,11 +989,11 @@ Module mangling=compact-v2
   global7 @scoop.init.failure.2 $init$failure$2: Throwable managed initial=zeroed-for-runtime-unit
   global8 @scoop.init.failure.3 $init$failure$3: Throwable managed initial=zeroed-for-runtime-unit
   global9 @scoop.init.failure.4 $init$failure$4: Throwable managed initial=zeroed-for-runtime-unit
-  init0 $local$u0:p0:r9:top-leveln9:zuluOrder eager global0 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 failure=5 deps=[]
-  init1 $local$u0:p0:r9:top-leveln5:alpha eager global1 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:1 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:1 failure=6 deps=[3]
-  init2 $local$u0:p0:r9:top-leveln4:text eager global2 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:2 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:2 failure=7 deps=[]
-  init3 $local$u0:p0:r9:top-leveln3:zed eager global3 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:3 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:3 failure=8 deps=[]
-  init4 $local$u0:p0:r9:top-leveln9:betaOrder eager global4 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:4 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:4 failure=9 deps=[]
+  init0 $local$u0:p0:r9:top-leveln9:zuluOrder eager global0 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 failure=5 deps=[]
+  init1 $local$u0:p0:r9:top-leveln5:alpha eager global1 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 failure=6 deps=[3]
+  init2 $local$u0:p0:r9:top-leveln4:text eager global2 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 failure=7 deps=[]
+  init3 $local$u0:p0:r9:top-leveln3:zed eager global3 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 failure=8 deps=[]
+  init4 $local$u0:p0:r9:top-leveln9:betaOrder eager global4 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 failure=9 deps=[]
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -7040,7 +7040,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $init$body$0 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> Unit
+  fun $init$body$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7063,7 +7063,7 @@ Module mangling=compact-v2
         Type Int
         Local $call.1
       return
-  fun $init$ensure$0 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> Unit
+  fun $init$ensure$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7112,7 +7112,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 $local$u0:p0:r9:top-leveln9:zuluOrder
@@ -7178,11 +7178,11 @@ Module mangling=compact-v2
       unreachable
   fun $get$zuluOrder @scoop.$local$u0:p0:r6:getterq8:ordinaryn14:$get$zuluOrder() -> Int
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 direct
       return
         Type Int
         GlobalRead $local$u0:p0:r6:globaln9:zuluOrder
-  fun $init$body$1 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:1() -> Unit
+  fun $init$body$1 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1() -> Unit
     bb0 entry
       call $receiver: Int = @scoop.$local$u0:p0:r6:getterq8:ordinaryn8:$get$zed direct
       val $argument.0: String
@@ -7213,7 +7213,7 @@ Module mangling=compact-v2
           Type Int
           Local $parameter.other
       return
-  fun $init$ensure$1 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:1() -> Unit
+  fun $init$ensure$1 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7262,7 +7262,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:1 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln5:alpha
@@ -7328,18 +7328,18 @@ Module mangling=compact-v2
       unreachable
   fun $get$alpha @scoop.$local$u0:p0:r6:getterq8:ordinaryn10:$get$alpha() -> Int
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:1 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 direct
       return
         Type Int
         GlobalRead $local$u0:p0:r6:globaln5:alpha
-  fun $init$body$2 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:2() -> Unit
+  fun $init$body$2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2() -> Unit
     bb0 entry
       call $call.1: String = @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:movingText direct
       global_assign $local$u0:p0:r6:globaln4:text
         Type String
         Local $call.1
       return
-  fun $init$ensure$2 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:2() -> Unit
+  fun $init$ensure$2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7388,7 +7388,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:2 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln4:text
@@ -7454,11 +7454,11 @@ Module mangling=compact-v2
       unreachable
   fun $get$text @scoop.$local$u0:p0:r6:getterq8:ordinaryn9:$get$text() -> String
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:2 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 direct
       return
         Type String
         GlobalRead $local$u0:p0:r6:globaln4:text
-  fun $init$body$3 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:3() -> Unit
+  fun $init$body$3 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7481,7 +7481,7 @@ Module mangling=compact-v2
         Type Int
         Local $call.1
       return
-  fun $init$ensure$3 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:3() -> Unit
+  fun $init$ensure$3 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7530,7 +7530,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:3 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 $local$u0:p0:r9:top-leveln3:zed
@@ -7596,11 +7596,11 @@ Module mangling=compact-v2
       unreachable
   fun $get$zed @scoop.$local$u0:p0:r6:getterq8:ordinaryn8:$get$zed() -> Int
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:3 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 direct
       return
         Type Int
         GlobalRead $local$u0:p0:r6:globaln3:zed
-  fun $init$body$4 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:4() -> Unit
+  fun $init$body$4 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -7623,7 +7623,7 @@ Module mangling=compact-v2
         Type Int
         Local $call.1
       return
-  fun $init$ensure$4 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:4() -> Unit
+  fun $init$ensure$4 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -7672,7 +7672,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:4 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 $local$u0:p0:r9:top-leveln9:betaOrder
@@ -7738,7 +7738,7 @@ Module mangling=compact-v2
       unreachable
   fun $get$betaOrder @scoop.$local$u0:p0:r6:getterq8:ordinaryn14:$get$betaOrder() -> Int
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:4 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 direct
       return
         Type Int
         GlobalRead $local$u0:p0:r6:globaln9:betaOrder
@@ -8260,11 +8260,11 @@ Module
   global @scoop.init.failure.2 : ptr<managed> scan=refs[0]
   global @scoop.init.failure.3 : ptr<managed> scan=refs[0]
   global @scoop.init.failure.4 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:top-leveln9:zuluOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:zuluOrder failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 deps=[]
-  init1 $local$u0:p0:r9:top-leveln5:alpha storage=@scoop.global.$local$u0:p0:r6:globaln5:alpha failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:1 deps=[3]
-  init2 $local$u0:p0:r9:top-leveln4:text storage=@scoop.global.$local$u0:p0:r6:globaln4:text failure=@scoop.init.failure.2 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:2 deps=[]
-  init3 $local$u0:p0:r9:top-leveln3:zed storage=@scoop.global.$local$u0:p0:r6:globaln3:zed failure=@scoop.init.failure.3 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:3 deps=[]
-  init4 $local$u0:p0:r9:top-leveln9:betaOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:betaOrder failure=@scoop.init.failure.4 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:4 deps=[]
+  init0 $local$u0:p0:r9:top-leveln9:zuluOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:zuluOrder failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  init1 $local$u0:p0:r9:top-leveln5:alpha storage=@scoop.global.$local$u0:p0:r6:globaln5:alpha failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[3]
+  init2 $local$u0:p0:r9:top-leveln4:text storage=@scoop.global.$local$u0:p0:r6:globaln4:text failure=@scoop.init.failure.2 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 deps=[]
+  init3 $local$u0:p0:r9:top-leveln3:zed storage=@scoop.global.$local$u0:p0:r6:globaln3:zed failure=@scoop.init.failure.3 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 deps=[]
+  init4 $local$u0:p0:r9:top-leveln9:betaOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:betaOrder failure=@scoop.init.failure.4 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
@@ -11667,7 +11667,7 @@ Module
     call managed-void-target4 sp137 live=[] sig=void4 (i32) local-fn89(local9)
     t9 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -11683,7 +11683,7 @@ Module
     store t0 -> local4
     global_store global16, local4
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
@@ -11788,7 +11788,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global16 : i32
     ret t1
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:1() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -11810,7 +11810,7 @@ Module
     t2 = integer_Add<Int> local4, local6 : i32
     global_store global17, t2
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:1() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
@@ -11915,7 +11915,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global17 : i32
     ret t1
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:2() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2() -> void
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp287 live=[]
@@ -11923,7 +11923,7 @@ Module
     store t0 -> local0
     global_store global18, local0
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:2() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
@@ -12028,7 +12028,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global18 : ptr<managed>
     ret t1
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:3() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -12044,7 +12044,7 @@ Module
     store t0 -> local4
     global_store global19, local4
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:3() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>
@@ -12149,7 +12149,7 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global19 : i32
     ret t1
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:4() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -12165,7 +12165,7 @@ Module
     store t0 -> local4
     global_store global20, local4
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:4() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>

@@ -3354,7 +3354,7 @@ Module mangling=compact-v2
         Local $call.1
   fun LocalSnapshot.readThroughLocal @scoop.$local$u0:p0:S17:n13:LocalSnapshotr8:functionq8:ordinaryn16:readThroughLocal(this: LocalSnapshot) -> Int
     bb0 entry
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni2:11n4:read direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:11n4:read direct
         Type LocalSnapshot
         Local this
       return
@@ -7175,7 +7175,7 @@ Module mangling=compact-v2
       val $parameter.n: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:factorial direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:factorial direct
         Type Int
         Local $parameter.n
       return
@@ -7189,7 +7189,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:1n3:add direct
+      call $argument.0: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:1n3:add direct
         Type Int
         Local base
         Type Int
@@ -7213,7 +7213,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:2n6:choose direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:2n6:choose direct
         Type Int
         Local $parameter.value
       return
@@ -7227,7 +7227,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:4n8:identity$I32 direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:4n8:identity$I32 direct
         Type Int
         Local $parameter.value
       return
@@ -7246,7 +7246,7 @@ Module mangling=compact-v2
       val $parameter.n: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:7n11:finishAfter direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:7n11:finishAfter direct
         Type Int
         Local base
         Type Int
@@ -7269,7 +7269,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:9n5:outer direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:9n5:outer direct
         Type Int
         Local base
         Type Int
@@ -7455,7 +7455,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $local.0.factorial @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:factorial(n: Int) -> Int
+  fun $local.0.factorial @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:factorial(n: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7505,7 +7505,7 @@ Module mangling=compact-v2
       val $parameter.n: Int
         Type Int
         Local $argument.0
-      call $argument.0: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:factorial direct
+      call $argument.0: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:factorial direct
         Type Int
         Local $parameter.n
       val $parameter.other: Int
@@ -7523,7 +7523,7 @@ Module mangling=compact-v2
       return
         Type Int
         Local $result.0
-  fun $local.1.add @scoop.$local$u0:p0:f1:0r14:local-functioni1:1n3:add($capture.base: Int, value: Int) -> Int
+  fun $local.1.add @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:1n3:add($capture.base: Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7541,7 +7541,7 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $local.2.choose @scoop.$local$u0:p0:f1:0r14:local-functioni1:2n6:choose(value: Int) -> Int
+  fun $local.2.choose @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:2n6:choose(value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7559,12 +7559,12 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $local.3.choose @scoop.$local$u0:p0:f1:0r14:local-functioni1:3n6:choose(value: String) -> Int
+  fun $local.3.choose @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:3n6:choose(value: String) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-  fun $local.7.finishAfter @scoop.$local$u0:p0:f1:0r14:local-functioni1:7n11:finishAfter($capture.base: Int, n: Int) -> Int
+  fun $local.7.finishAfter @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:7n11:finishAfter($capture.base: Int, n: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7606,7 +7606,7 @@ Module mangling=compact-v2
       val $parameter.n: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:7n11:finishAfter direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:7n11:finishAfter direct
         Type Int
         Local $capture.base
         Type Int
@@ -7618,14 +7618,14 @@ Module mangling=compact-v2
       return
         Type Int
         Local $capture.base
-  fun $local.8.read @scoop.$local$u0:p0:f1:0r14:local-functioni1:8n4:read($capture.label: LocalLabel) -> String
+  fun $local.8.read @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:8n4:read($capture.label: LocalLabel) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type LocalLabel
           Local $capture.label
-  fun $local.9.outer @scoop.$local$u0:p0:f1:0r14:local-functioni1:9n5:outer($capture.base: Int, value: Int) -> Int
+  fun $local.9.outer @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:9n5:outer($capture.base: Int, value: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -7633,7 +7633,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni2:10n5:inner direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:10n5:inner direct
         Type Int
         Local $capture.base
         Type Int
@@ -7641,7 +7641,7 @@ Module mangling=compact-v2
       return
         Type Int
         Local $call.1
-  fun $local.10.inner @scoop.$local$u0:p0:f1:0r14:local-functioni2:10n5:inner($capture.base: Int, value: Int) -> Int
+  fun $local.10.inner @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:10n5:inner($capture.base: Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7659,7 +7659,7 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $local.11.read @scoop.$local$u0:p0:f1:0r14:local-functioni2:11n4:read($capture.this: LocalSnapshot) -> Int
+  fun $local.11.read @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:11n4:read($capture.this: LocalSnapshot) -> Int
     bb0 entry
       return
         Type Int
@@ -7690,12 +7690,12 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun $local.4.identity @scoop.$local$u0:p0:f1:0r14:local-functioni1:4n8:identity$I32(value: Int) -> Int
+  fun $local.4.identity @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:4n8:identity$I32(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun $local.5.identity @scoop.$local$u0:p0:f1:0r14:local-functioni1:5n8:identity$I32(value: Int) -> Int
+  fun $local.5.identity @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:5n8:identity$I32(value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -7708,7 +7708,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:6n5:local$I32 direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:6n5:local$I32 direct
         Type Int
         Local $parameter.value
       return
@@ -7738,14 +7738,14 @@ Module mangling=compact-v2
         Type String
         Local $parameter.message
       return
-  fun $local.6.local @scoop.$local$u0:p0:f1:0r14:local-functioni1:6n5:local$I32(value: Int) -> Int
+  fun $local.6.local @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:6n5:local$I32(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
   fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:1n3:add direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:1n3:add direct
         Type Int
         ClosureCapture cc0 0
           Type (Int) -> Int
@@ -7757,7 +7757,7 @@ Module mangling=compact-v2
         Local $call.1
   fun $reference.1 @scoop.$reference.1($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:5n8:identity$I32 direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:5n8:identity$I32 direct
         Type Int
         Local arg0
       return
@@ -7765,7 +7765,7 @@ Module mangling=compact-v2
         Local $call.1
   fun $reference.2 @scoop.$reference.2($closure: () -> String) -> String
     bb0 entry
-      call $call.1: String = @scoop.$local$u0:p0:f1:0r14:local-functioni1:8n4:read direct
+      call $call.1: String = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:8n4:read direct
         Type LocalLabel
         ClosureCapture cc2 0
           Type () -> String
@@ -8210,11 +8210,11 @@ Module mangling=compact-v2
           Type Int
           Local value
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println
-  instance @scoop.$local$u0:p0:f1:0r14:local-functioni1:4n8:identity$I32 <- $local.4.identity
-  instance @scoop.$local$u0:p0:f1:0r14:local-functioni1:5n8:identity$I32 <- $local.5.identity
+  instance @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:4n8:identity$I32 <- $local.4.identity
+  instance @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:5n8:identity$I32 <- $local.5.identity
   instance @scoop.$local$u0:p0:r8:functionq8:ordinaryn19:throughOuterGeneric$I32 <- throughOuterGeneric
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
-  instance @scoop.$local$u0:p0:f1:0r14:local-functioni1:6n5:local$I32 <- $local.6.local
+  instance @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:6n5:local$I32 <- $local.6.local
   str @scoop.str.0 "illegal argument"
   str @scoop.str.1 "illegal argument"
   str @scoop.str.2 "illegal argument"
@@ -11831,7 +11831,7 @@ Module
     call managed-void-target11 sp161 live=[] sig=void11 (i32) local-fn89(local43)
     t25 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:factorial(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:factorial(i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11871,7 +11871,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local11
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:1n3:add(i32, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:1n3:add(i32, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11882,7 +11882,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:2n6:choose(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:2n6:choose(i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11893,11 +11893,11 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:3n6:choose(ptr<managed>) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:3n6:choose(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp266 live=[]
     ret integer<Int>(0x00000000)
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:7n11:finishAfter(i32, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:7n11:finishAfter(i32, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11927,12 +11927,12 @@ Module
     ret local8
   block if.merge.2
     ret param0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:8n4:read(indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:8n4:read(indirect<struct10 size=8 align=8 scan=refs[0]>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp268 live=[param0:struct10@0]
     t0 = extract param0, 0 : ptr<managed>
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:9n5:outer(i32, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:9n5:outer(i32, i32) -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -11943,7 +11943,7 @@ Module
     call managed-direct-target0 sp164 live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn87(param0, local1)
     store t0 -> local2
     ret local2
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni2:10n5:inner(i32, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:10n5:inner(i32, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11954,7 +11954,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni2:11n4:read(indirect<struct11 size=4 align=4 scan=none>) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni2:11n4:read(indirect<struct11 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp271 live=[]
     t0 = extract param0, 0 : i32
@@ -11978,11 +11978,11 @@ Module
     call native-borrowed-void-target1 sp167 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:4n8:identity$I32(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:4n8:identity$I32(i32) -> i32
   block entry
     poll managed-void-target0 sp273 live=[]
     ret param0
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:5n8:identity$I32(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:5n8:identity$I32(i32) -> i32
   block entry
     poll managed-void-target0 sp274 live=[]
     ret param0
@@ -12016,7 +12016,7 @@ Module
     call native-borrowed-void-target1 sp171 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:6n5:local$I32(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:6n5:local$I32(i32) -> i32
   block entry
     poll managed-void-target0 sp277 live=[]
     ret param0

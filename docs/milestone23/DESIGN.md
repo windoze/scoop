@@ -1536,8 +1536,8 @@ M23 v1的默认`SlibDecodeLimits`固定为：archive总长不超过2 GiB、boots
 以下是M23完成后的稳定输入形状。AST `SourceFile`新增完整header；文件的跨stage来源由外层typed input承载，不把host path塞进语法节点：
 
 ```text
-SourceInput { source_identity: SourceIdentity, text: SourceText }
-ParsedSource { source_identity: SourceIdentity, ast: SourceFile }
+IdentifiedSourceInput { identity: SourceIdentity, text: SourceText }
+IdentifiedParsedSource { identity: SourceIdentity, ast: SourceFile }
 
 SourceFile {
     package: PackageSyntax,
@@ -1573,7 +1573,7 @@ ImportSyntax = Exact { exposure: Local | PublicReexport, path, alias }
 ```text
 slib-read:  ExplicitSlibPaths + ArtifactPurpose<P> + DiagnosticsPolicy
             -> ValidatedArtifactClosure<P>
-parser:    SourceInput -> ParsedSource
+parser:    IdentifiedSourceInput -> IdentifiedParsedSource
 hir-lower: CurrentConeParsedSources + ImportedHirSet -> ExportHir + LocalConcreteHir + CrossConeUseSet
 mir-lower: LocalConcreteHir + SelectedImportedMir -> Mir + MirMeta
 driver:     TargetSelectionRequest -> ResolvedTargetProfileV1

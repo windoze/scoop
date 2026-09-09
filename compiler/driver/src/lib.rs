@@ -7,7 +7,6 @@
 
 use scoop_ast::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 mod inputs;
 mod linking;
@@ -44,10 +43,11 @@ pub struct CompileOptions {
 /// One input file of the compilation unit: a display name (for
 /// diagnostics) plus the source text.
 pub struct SourceFileInput {
-    /// Display name used when rendering diagnostics. M23-1 never derives a
+    /// Display name used when rendering diagnostics. The compiler never derives a
     /// package or visibility key from it.
     pub name: String,
     pub source: String,
+    pub identity: scoop_identity::SourceIdentity,
 }
 
 /// Compile one source file through the full pipeline: locate the sysroot,
@@ -73,9 +73,9 @@ pub fn compile_file_with_options(
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
 
-    // M22 core remains on the compatibility input. The current unit is parsed
-    // through M23-1's atomic, typed source-set boundary even though this
-    // legacy driver currently supplies exactly one user source.
+    // M22 core and the current unit still enter one lowering request. The
+    // current unit crosses the atomic, identity-typed source-set boundary even
+    // though this driver currently supplies exactly one user source.
     let mut core_files = Vec::with_capacity(user_index);
     let mut diagnostics = Vec::new();
     for (index, input) in inputs[..user_index].iter().enumerate() {
@@ -89,13 +89,10 @@ pub fn compile_file_with_options(
             }
         }
     }
-    let request = next_stage1_request_id();
-    let user_handle = scoop_ast::Stage1SourceHandle::new(request, 0);
     let user_sources = scoop_parser::parse_all(scoop_ast::NonEmptyVec::new(
-        scoop_parser::Stage1SourceInput::new(
-            user_handle,
+        scoop_parser::IdentifiedSourceInput::new(
+            &inputs[user_index].identity,
             &inputs[user_index].source,
-            &inputs[user_index].name,
         ),
         Vec::new(),
     ));
@@ -129,12 +126,13 @@ pub fn compile_file_with_options(
     // already carry the index into the core-then-user input order.
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
     let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
-    let hir_input = scoop_hir_lower::Stage1CompilationInput::new(
+    let hir_input = scoop_hir_lower::LegacyCombinedSources::try_new(
         core_files
             .iter()
             .zip(&inputs[..user_index])
             .map(|(source, input)| scoop_hir_lower::ProviderSource {
                 source,
+                identity: input.identity.clone(),
                 provider: core_provider,
                 name: &input.name,
                 source_text: &input.source,
@@ -142,15 +140,21 @@ pub fn compile_file_with_options(
             .collect(),
         user_provider,
         user_sources,
-        |handle| {
-            assert_eq!(handle, user_handle, "legacy driver owns one user source");
-            scoop_hir_lower::Stage1SourceDetails {
+        |identity| {
+            assert_eq!(identity, &inputs[user_index].identity);
+            scoop_hir_lower::CurrentSourceDetails {
                 display_locator: &inputs[user_index].name,
                 source_text: &inputs[user_index].source,
             }
         },
-    );
-    let hir = scoop_hir_lower::lower_stage1_legacy_executable(
+    )
+    .map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("invalid combined source input: {error}"),
+        )]
+    })?;
+    let hir = scoop_hir_lower::lower_legacy_combined_executable(
         &hir_input,
         options.intrinsic_declaration_policy.clone(),
     )?;
@@ -251,11 +255,6 @@ pub fn compile_file_with_options(
             Err(diagnostics)
         }
     }
-}
-
-fn next_stage1_request_id() -> scoop_ast::Stage1RequestId {
-    static NEXT_REQUEST: AtomicU64 = AtomicU64::new(1);
-    scoop_ast::Stage1RequestId::from_raw(NEXT_REQUEST.fetch_add(1, Ordering::Relaxed))
 }
 
 /// A driver-level diagnostic without a source span, attributed to the

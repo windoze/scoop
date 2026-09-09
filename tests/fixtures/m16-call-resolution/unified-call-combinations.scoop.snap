@@ -987,7 +987,7 @@ Module mangling=compact-v2
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 captures=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=0
   closure cc1 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
@@ -7106,7 +7106,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $lambda.0 @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -11353,7 +11353,7 @@ Module
   block entry
     poll managed-void-target3 sp233 live=[]
     call managed-direct-target0 sp128 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td33, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 : ptr
+    t1 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     store local0 -> local1
@@ -11432,7 +11432,7 @@ Module
     call managed-void-target2 sp140 live=[] sig=void2 (i32) local-fn75(local22)
     t22 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11879,7 +11879,7 @@ Module
   td td30 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=31 size=24 parent=td26 vtable=[] itables=[]
   td td31 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=32 size=24 parent=td26 vtable=[] itables=[]
   td td32 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=33 size=24 parent=td26 vtable=[] itables=[]
-  td td33 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 type-id=34 size=24 parent=td10 vtable=[] itables=[]
+  td td33 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 type-id=34 size=24 parent=td10 vtable=[] itables=[]
   td td34 $Closure$reference0 @scoop_td_$generated$r26:callable-reference-closurei1:0 type-id=35 size=24 parent=td10 vtable=[] itables=[]
   array-type array0 MutableArray$I32 kind=mutable element=i32 size=4 align=4 scan=none td=td22
   array-type array1 Array$I32 kind=immutable element=i32 size=4 align=4 scan=none td=td23

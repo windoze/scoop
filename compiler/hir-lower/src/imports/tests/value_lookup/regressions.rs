@@ -291,9 +291,7 @@ fn failed_named_property_write_does_not_commit_rhs_sink() {
     else {
         unreachable!()
     };
-    let hir::VisibilitySource::CurrentUnit(source) = state.visibility_file(0).source else {
-        unreachable!()
-    };
+    let source = state.visibility_file(0).source;
     state.imports.insert(
         ResolvedNamespace::Package(package),
         CurrentUnitBinding {

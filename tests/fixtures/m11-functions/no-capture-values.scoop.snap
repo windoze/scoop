@@ -1055,13 +1055,13 @@ Module mangling=compact-v2
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 captures=0
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 captures=0
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 captures=0
-  closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:3n9:$lambda.3 captures=0
-  closure cc4 $Closure$lambda4 type=function_type2 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:4n9:$lambda.4 captures=0
-  closure cc5 $Closure$lambda5 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:5n9:$lambda.5 captures=0
-  closure cc6 $Closure$lambda6 type=function_type0 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:6n9:$lambda.6 captures=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=0
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 captures=0
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 captures=0
+  closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3 captures=0
+  closure cc4 $Closure$lambda4 type=function_type2 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4 captures=0
+  closure cc5 $Closure$lambda5 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:5n9:$lambda.5 captures=0
+  closure cc6 $Closure$lambda6 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:6n9:$lambda.6 captures=0
   closure cc7 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
   closure cc8 $Closure$reference1 type=function_type0 invoke=@scoop.$reference.1 captures=0
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
@@ -7164,7 +7164,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       return
-  fun $lambda.0 @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7182,7 +7182,7 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $lambda.1 @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.1 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7200,7 +7200,7 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $lambda.2 @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2($closure: (Int) -> Int, it: Int) -> Int
+  fun $lambda.2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2($closure: (Int) -> Int, it: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7218,12 +7218,12 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $lambda.3 @scoop.$local$u0:p0:f1:0r6:lambdai1:3n9:$lambda.3($closure: () -> Int) -> Int
+  fun $lambda.3 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-  fun $lambda.4 @scoop.$local$u0:p0:f1:0r6:lambdai1:4n9:$lambda.4($closure: (Int) -> Unit, value: Int) -> Unit
+  fun $lambda.4 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4($closure: (Int) -> Unit, value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7241,7 +7241,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.other
       return
-  fun $lambda.5 @scoop.$local$u0:p0:f1:0r6:lambdai1:5n9:$lambda.5($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.5 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:5n9:$lambda.5($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7259,7 +7259,7 @@ Module mangling=compact-v2
           Local $receiver
           Type Int
           Local $parameter.other
-  fun $lambda.6 @scoop.$local$u0:p0:f1:0r6:lambdai1:6n9:$lambda.6($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.6 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:6n9:$lambda.6($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $receiver: Int
         Type Int
@@ -11216,7 +11216,7 @@ Module
   block entry
     poll managed-void-target11 sp245 live=[]
     call managed-direct-target0 sp127 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td30, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 : ptr
+    t1 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     call managed-direct-target1 sp128 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td37, machine<byte-size>(ByteSize(24)))
@@ -11228,19 +11228,19 @@ Module
     heap_store t4 +16 t5
     store t4 -> local2
     call managed-direct-target3 sp130 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td31, machine<byte-size>(ByteSize(24)))
-    t7 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 : ptr
+    t7 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 : ptr
     heap_store t6 +16 t7
     store t6 -> local3
     call managed-direct-target4 sp131 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td32, machine<byte-size>(ByteSize(24)))
-    t9 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 : ptr
+    t9 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 : ptr
     heap_store t8 +16 t9
     store t8 -> local4
     call managed-direct-target5 sp132 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td33, machine<byte-size>(ByteSize(24)))
-    t11 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:3n9:$lambda.3 : ptr
+    t11 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3 : ptr
     heap_store t10 +16 t11
     store t10 -> local5
     call managed-direct-target6 sp133 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t12 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td34, machine<byte-size>(ByteSize(24)))
-    t13 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:4n9:$lambda.4 : ptr
+    t13 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4 : ptr
     heap_store t12 +16 t13
     store t12 -> local6
     call managed-void-target0 sp134 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
@@ -11257,7 +11257,7 @@ Module
     t18 = aggregate () : {}
     store integer<Int>(0x00000028) -> local11
     call managed-direct-target9 sp139 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t19 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td35, machine<byte-size>(ByteSize(24)))
-    t20 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:5n9:$lambda.5 : ptr
+    t20 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:5n9:$lambda.5 : ptr
     heap_store t19 +16 t20
     store t19 -> local12
     store local11 -> local13
@@ -11283,7 +11283,7 @@ Module
     call managed-void-target6 sp147 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0] sig=void6 (i32) local-fn80(local22)
     t28 = aggregate () : {}
     call managed-direct-target14 sp148 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0] t29 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td36, machine<byte-size>(ByteSize(24)))
-    t30 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:6n9:$lambda.6 : ptr
+    t30 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:6n9:$lambda.6 : ptr
     heap_store t29 +16 t30
     call managed-direct-target15 sp149 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0, t29:ptr<managed>@0] t31 = sig=direct15 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t29(t29, integer<Int>(0x00000028))
     store t31 -> local23
@@ -11302,7 +11302,7 @@ Module
     call managed-void-target10 sp153 live=[local28:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn82(local28)
     t36 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11313,7 +11313,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11324,7 +11324,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11335,11 +11335,11 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:3n9:$lambda.3(ptr<managed>) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp249 live=[]
     ret integer<Int>(0x0000002a)
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:4n9:$lambda.4(ptr<managed>, i32) -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4(ptr<managed>, i32) -> void
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11350,7 +11350,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:5n9:$lambda.5(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:5n9:$lambda.5(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11361,7 +11361,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:6n9:$lambda.6(ptr<managed>, i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:6n9:$lambda.6(ptr<managed>, i32) -> i32
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -11656,13 +11656,13 @@ Module
   td td27 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=28 size=24 parent=td23 vtable=[] itables=[]
   td td28 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=29 size=24 parent=td23 vtable=[] itables=[]
   td td29 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=30 size=24 parent=td23 vtable=[] itables=[]
-  td td30 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 type-id=31 size=24 parent=td10 vtable=[] itables=[]
-  td td31 $Closure$lambda1 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:1n9:$lambda.1 type-id=32 size=24 parent=td10 vtable=[] itables=[]
-  td td32 $Closure$lambda2 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:2n9:$lambda.2 type-id=33 size=24 parent=td10 vtable=[] itables=[]
-  td td33 $Closure$lambda3 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:3n9:$lambda.3 type-id=34 size=24 parent=td11 vtable=[] itables=[]
-  td td34 $Closure$lambda4 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:4n9:$lambda.4 type-id=35 size=24 parent=td12 vtable=[] itables=[]
-  td td35 $Closure$lambda5 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:5n9:$lambda.5 type-id=36 size=24 parent=td10 vtable=[] itables=[]
-  td td36 $Closure$lambda6 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:6n9:$lambda.6 type-id=37 size=24 parent=td10 vtable=[] itables=[]
+  td td30 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 type-id=31 size=24 parent=td10 vtable=[] itables=[]
+  td td31 $Closure$lambda1 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 type-id=32 size=24 parent=td10 vtable=[] itables=[]
+  td td32 $Closure$lambda2 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 type-id=33 size=24 parent=td10 vtable=[] itables=[]
+  td td33 $Closure$lambda3 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3 type-id=34 size=24 parent=td11 vtable=[] itables=[]
+  td td34 $Closure$lambda4 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4 type-id=35 size=24 parent=td12 vtable=[] itables=[]
+  td td35 $Closure$lambda5 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:5n9:$lambda.5 type-id=36 size=24 parent=td10 vtable=[] itables=[]
+  td td36 $Closure$lambda6 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:6n9:$lambda.6 type-id=37 size=24 parent=td10 vtable=[] itables=[]
   td td37 $Closure$reference0 @scoop_td_$generated$r26:callable-reference-closurei1:0 type-id=38 size=24 parent=td10 vtable=[] itables=[]
   td td38 $Closure$reference1 @scoop_td_$generated$r26:callable-reference-closurei1:1 type-id=39 size=24 parent=td10 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]

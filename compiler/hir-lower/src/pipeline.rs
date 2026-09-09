@@ -302,15 +302,9 @@ impl Lowerer {
         self.intrinsic_sources
             .iter()
             .enumerate()
-            .filter_map(|(file, source)| match source.visibility_source {
-                hir::VisibilitySource::CurrentUnit(handle)
-                    if source.kind == SourceKind::CurrentUnit =>
-                {
-                    Some((handle, file))
-                }
-                _ => None,
-            })
-            .min_by_key(|(handle, _)| *handle)
+            .filter(|(_, source)| source.kind == SourceKind::CurrentUnit)
+            .map(|(file, source)| (&source.identity, file))
+            .min_by_key(|(identity, _)| *identity)
             .map(|(_, file)| file)
             .expect("a lowering input always contains a current-unit source")
     }

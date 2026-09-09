@@ -1,6 +1,7 @@
 use super::*;
 use crate::tests::{
-    block, call, class_decl, core_file, file, fun, fun_expr, ident, int_lit, sp, ty_named,
+    block, call, class_decl, core_file, core_source_identity, file, fun, fun_expr, ident, int_lit,
+    sp, test_source_identity, ty_named,
 };
 use scoop_ast as ast;
 
@@ -191,38 +192,49 @@ fn class_stems(output: &hir::Output, name: &str) -> Vec<String> {
     export
 }
 
-fn lower(sources: &[(u32, ast::SourceFile)], locator: &str, request: u64) -> hir::Output {
+fn source_identity(source_key: u32) -> scoop_identity::SourceIdentity {
+    let path = match source_key {
+        1 => "src/001-one.scoop",
+        2 => "src/002-two.scoop",
+        3 => "src/003-three.scoop",
+        10 => "src/010-ten.scoop",
+        17 => "src/017-seventeen.scoop",
+        20 => "src/020-twenty.scoop",
+        23 => "src/023-twenty-three.scoop",
+        30 => "src/030-thirty.scoop",
+        91 => "src/091-ninety-one.scoop",
+        _ => panic!("test source key {source_key} needs an explicit logical path"),
+    };
+    test_source_identity(path)
+}
+
+fn lower(sources: &[(u32, ast::SourceFile)], locator: &str) -> hir::Output {
     let core = core_file();
-    let request = ast::Stage1RequestId::from_raw(request);
-    let mut parsed = sources.iter().map(|(handle, source)| {
-        ast::ParsedSource::new(
-            ast::Stage1SourceHandle::new(request, *handle),
-            source.clone(),
-        )
+    let mut parsed = sources.iter().map(|(source_key, source)| {
+        ast::IdentifiedParsedSource::new(source_identity(*source_key), source.clone())
     });
-    let parsed = ast::AllParsedSources::try_new(
-        request,
-        ast::NonEmptyVec::new(
-            parsed.next().expect("nonempty test request"),
-            parsed.collect(),
-        ),
-    )
-    .expect("unique test handles");
-    let input = crate::Stage1CompilationInput::new(
+    let parsed = ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        parsed.next().expect("nonempty test source set"),
+        parsed.collect(),
+    ))
+    .expect("unique explicit test source identities");
+    let input = crate::LegacyCombinedSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "core",
             source_text: "",
         }],
         hir::IntrinsicProviderId::from_raw(1),
         parsed,
-        |_| crate::Stage1SourceDetails {
+        |_| crate::CurrentSourceDetails {
             display_locator: locator,
             source_text: "",
         },
-    );
-    crate::lower_stage1_compilation_input(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
+    )
+    .expect("explicit test source identities are valid");
+    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
         .expect("test current unit lowers")
 }
 
@@ -297,15 +309,12 @@ fn package_globals_and_singletons_are_distinct_and_locator_independent() {
         (23, declarations(&["b"], false)),
         (91, file(vec![fun("main", Vec::new())])),
     ];
-    let first = keys(&lower(&sources, "/old/duplicate.scoop", 1));
+    let first = keys(&lower(&sources, "/old/duplicate.scoop"));
     assert_eq!(first.0.len(), 4);
     assert_eq!(first.1.len(), 4);
     assert_eq!(first.2.len(), 2);
     sources.reverse();
-    assert_eq!(
-        first,
-        keys(&lower(&sources, "/different/duplicate.scoop", 99))
-    );
+    assert_eq!(first, keys(&lower(&sources, "/different/duplicate.scoop")));
 }
 
 #[test]
@@ -315,11 +324,11 @@ fn private_sources_with_identical_locators_keep_distinct_storage_and_roots() {
         (23, declarations(&["same"], true)),
         (91, file(vec![fun("main", Vec::new())])),
     ];
-    let first = keys(&lower(&sources, "same.scoop", 1));
+    let first = keys(&lower(&sources, "same.scoop"));
     assert_eq!(first.0.len(), 4);
     assert_eq!(first.2.len(), 2);
     sources.swap(0, 1);
-    assert_eq!(first, keys(&lower(&sources, "other.scoop", 2)));
+    assert_eq!(first, keys(&lower(&sources, "other.scoop")));
 }
 
 #[test]
@@ -348,7 +357,7 @@ fn package_edges_and_nominal_edges_cannot_share_a_singleton_key() {
         (2, package(file(vec![ast::Decl::Class(host)]), &["a"])),
         (3, file(vec![fun("main", Vec::new())])),
     ];
-    let (_, units, roots) = keys(&lower(&sources, "same.scoop", 1));
+    let (_, units, roots) = keys(&lower(&sources, "same.scoop"));
     assert_eq!(roots.len(), 2);
     assert_eq!(units.len(), 2);
     assert!(roots.iter().any(|key| key.contains("p8:s1:as1:b")));
@@ -377,10 +386,10 @@ fn nested_singletons_in_private_hosts_inherit_the_host_source_key() {
         (20, source),
         (30, file(vec![fun("main", Vec::new())])),
     ];
-    let (_, _, roots) = keys(&lower(&sources, "same.scoop", 1));
+    let (_, _, roots) = keys(&lower(&sources, "same.scoop"));
     assert_eq!(roots.len(), 2);
-    assert!(roots[0].contains("f2:10"));
-    assert!(roots[1].contains("f2:20"));
+    assert!(roots[0].contains("f17:src/010-ten.scoop"));
+    assert!(roots[1].contains("f20:src/020-twenty.scoop"));
 }
 
 #[test]
@@ -404,7 +413,7 @@ fn callable_stems_separate_packages_and_file_private_sources() {
         ),
         (91, file(vec![fun("main", Vec::new())])),
     ];
-    let output = lower(&sources, "duplicate.scoop", 1);
+    let output = lower(&sources, "duplicate.scoop");
     for name in ["clash", "secret"] {
         let stems = callable_stems(&output, name);
         assert_eq!(stems.len(), 2);
@@ -421,7 +430,7 @@ fn nominal_stems_separate_packages_and_file_private_sources() {
         (23, package(file(vec![class("Secret", true)]), &["same"])),
         (91, file(vec![fun("main", Vec::new())])),
     ];
-    let output = lower(&sources, "duplicate.scoop", 1);
+    let output = lower(&sources, "duplicate.scoop");
     for name in ["Same", "Secret"] {
         let stems = class_stems(&output, name);
         assert_eq!(stems.len(), 2);
@@ -438,7 +447,7 @@ fn object_and_backing_class_have_distinct_final_nominal_stems() {
             fun("main", Vec::new()),
         ]),
     )];
-    let output = lower(&sources, "objects.scoop", 1);
+    let output = lower(&sources, "objects.scoop");
     let (_, object) = output
         .export
         .objects
@@ -480,7 +489,7 @@ fn nested_nominal_stems_inherit_a_private_owners_source_identity() {
         (20, package(file(vec![host()]), &["same"])),
         (30, file(vec![fun("main", Vec::new())])),
     ];
-    let output = lower(&sources, "same.scoop", 1);
+    let output = lower(&sources, "same.scoop");
     let nested = output
         .export
         .classes
@@ -512,7 +521,7 @@ fn callable_roles_separate_ordinary_extensions_and_receiver_types() {
             fun("main", Vec::new()),
         ]),
     )];
-    let output = lower(&sources, "roles.scoop", 1);
+    let output = lower(&sources, "roles.scoop");
     let stems = callable_stems(&output, "mix");
     assert_eq!(stems.len(), 3);
     let ordinary = stems
@@ -538,7 +547,7 @@ fn accessor_stems_encode_getter_setter_and_extension_roles() {
             fun("main", Vec::new()),
         ]),
     )];
-    let output = lower(&sources, "accessors.scoop", 1);
+    let output = lower(&sources, "accessors.scoop");
     let getters = callable_stems(&output, "$get$value");
     let setters = callable_stems(&output, "$set$value");
     assert_eq!(getters.len(), 2);

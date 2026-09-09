@@ -6874,7 +6874,7 @@ Module mangling=compact-v2
       return
         Type Int
         Local $call.1
-  fun localValue @scoop.$local$u0:p0:f1:0r8:functionq8:ordinaryn10:localValue() -> Int
+  fun localValue @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr8:functionq8:ordinaryn10:localValue() -> Int
     bb0 entry
       return
         Type Int
@@ -6920,7 +6920,7 @@ Module mangling=compact-v2
       call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Int = @scoop.$local$u0:p0:f1:0r8:functionq8:ordinaryn10:localValue direct
+      call $argument.0: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr8:functionq8:ordinaryn10:localValue direct
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -10775,7 +10775,7 @@ Module
     call managed-direct-target0 sp126 live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn71(local0)
     store t0 -> local1
     ret local1
-  fun @scoop.$local$u0:p0:f1:0r8:functionq8:ordinaryn10:localValue() -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr8:functionq8:ordinaryn10:localValue() -> i32
   block entry
     poll managed-void-target0 sp222 live=[]
     ret integer<Int>(0x0000000b)

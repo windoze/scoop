@@ -2,11 +2,13 @@ use super::*;
 
 fn source<'a>(
     source: &'a ast::SourceFile,
+    identity: scoop_identity::SourceIdentity,
     provider: hir::IntrinsicProviderId,
     name: &'a str,
 ) -> ProviderSource<'a> {
     ProviderSource {
         source,
+        identity,
         provider,
         name,
         source_text: "",
@@ -20,32 +22,27 @@ fn lower_user_sources(
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let core_provider = hir::IntrinsicProviderId::from_raw(17);
     let user_provider = hir::IntrinsicProviderId::from_raw(29);
-    let request = ast::Stage1RequestId::from_raw(0);
-    let parsed = validated_sources(
-        request,
-        (0, first),
-        &remaining
-            .iter()
-            .enumerate()
-            .map(|(index, &(source, _))| {
-                (u32::try_from(index + 1).expect("test source index"), source)
-            })
-            .collect::<Vec<_>>(),
+    let parsed = identified_test_sources(
+        std::iter::once(first.clone())
+            .chain(remaining.iter().map(|(source, _)| (*source).clone()))
+            .collect(),
     );
-    let input = Stage1CompilationInput::new(
-        vec![source(core, core_provider, "core.scoop")],
+    let input = LegacyCombinedSources::try_new(
+        vec![source(
+            core,
+            core_source_identity("src/core.scoop"),
+            core_provider,
+            "core.scoop",
+        )],
         user_provider,
         parsed,
-        |handle| Stage1SourceDetails {
-            display_locator: if handle.local_index() == 0 {
-                "first.scoop"
-            } else {
-                remaining[handle.local_index() as usize - 1].1
-            },
+        |_| CurrentSourceDetails {
+            display_locator: "user.scoop",
             source_text: "",
         },
-    );
-    lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    )
+    .expect("explicit test source identities are valid");
+    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
 fn set_private(declaration: &mut ast::Decl) {
@@ -165,10 +162,7 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
             hir::AccessConstraint::Cone(user_provider),
             hir::AccessConstraint::File(hir::VisibilityFile {
                 provider: user_provider,
-                source: hir::VisibilitySource::CurrentUnit(ast::Stage1SourceHandle::new(
-                    ast::Stage1RequestId::from_raw(0),
-                    0,
-                )),
+                source: test_source_identity("src/first.scoop"),
             }),
         ]
     );
@@ -217,22 +211,43 @@ fn a_later_user_source_does_not_gain_core_intrinsic_authority() {
 }
 
 #[test]
-fn legacy_stage1_adapter_rejects_mixed_user_providers() {
-    let first = file(Vec::new());
-    let second = file(vec![fun("main", Vec::new())]);
-    let expected = hir::IntrinsicProviderId::from_raw(29);
-    let actual = hir::IntrinsicProviderId::from_raw(31);
-
-    let error = Stage1CompilationInput::from_legacy_sources(
-        Vec::new(),
-        source(&first, expected, "first.scoop"),
-        vec![source(&second, actual, "second.scoop")],
+fn combined_source_input_rejects_duplicate_semantic_identities() {
+    let core = file(Vec::new());
+    let duplicate = core_source_identity("src/duplicate.scoop");
+    let parsed = identified_test_sources(vec![file(vec![fun("main", Vec::new())])]);
+    let error = LegacyCombinedSources::try_new(
+        vec![
+            source(
+                &core,
+                duplicate.clone(),
+                hir::IntrinsicProviderId::from_raw(17),
+                "first-core.scoop",
+            ),
+            source(
+                &core,
+                duplicate.clone(),
+                hir::IntrinsicProviderId::from_raw(17),
+                "second-core.scoop",
+            ),
+        ],
+        hir::IntrinsicProviderId::from_raw(29),
+        parsed,
+        |_| CurrentSourceDetails {
+            display_locator: "user.scoop",
+            source_text: "",
+        },
     )
     .err()
-    .expect("mixed user providers cannot form a stage-1 input");
-    assert_eq!(error.source_index, 1);
-    assert_eq!(error.expected_provider, expected);
-    assert_eq!(error.actual_provider, actual);
+    .expect("duplicate identities cannot enter HIR lowering");
+
+    assert_eq!(
+        error,
+        LegacyCombinedSourcesError::DuplicateSourceIdentity {
+            first_index: 0,
+            duplicate_index: 1,
+            identity: duplicate,
+        }
+    );
 }
 
 #[test]
@@ -402,48 +417,60 @@ fn source_permutation_does_not_change_the_current_package_winner() {
     assert!(hir::dump(&reverse.export).contains("Call choose : String"));
 }
 
+fn sparse_source_identity(source_key: u32) -> scoop_identity::SourceIdentity {
+    let path = match source_key {
+        4 => "src/004-four.scoop",
+        7 => "src/007-seven.scoop",
+        12 => "src/012-twelve.scoop",
+        33 => "src/033-thirty-three.scoop",
+        41 => "src/041-forty-one.scoop",
+        91 => "src/091-ninety-one.scoop",
+        97 => "src/097-ninety-seven.scoop",
+        99 => "src/099-ninety-nine.scoop",
+        _ => panic!("test source key {source_key} needs an explicit logical path"),
+    };
+    test_source_identity(path)
+}
+
 fn validated_sources(
-    request: ast::Stage1RequestId,
     first: (u32, &ast::SourceFile),
     remaining: &[(u32, &ast::SourceFile)],
 ) -> ast::AllParsedSources {
     let parsed = |(index, source): (u32, &ast::SourceFile)| {
-        ast::ParsedSource::new(ast::Stage1SourceHandle::new(request, index), source.clone())
+        ast::IdentifiedParsedSource::new(sparse_source_identity(index), source.clone())
     };
-    ast::AllParsedSources::try_new(
-        request,
-        ast::NonEmptyVec::new(
-            parsed(first),
-            remaining.iter().copied().map(parsed).collect(),
-        ),
-    )
-    .expect("the test supplies distinct handles in one request")
+    ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+        parsed(first),
+        remaining.iter().copied().map(parsed).collect(),
+    ))
+    .expect("the test supplies distinct source identities")
 }
 
 fn lower_sparse_sources(
     core: &ast::SourceFile,
-    request: ast::Stage1RequestId,
     ordered: &[(u32, &ast::SourceFile)],
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let (&first, remaining) = ordered.split_first().expect("test sources are nonempty");
-    let input = Stage1CompilationInput::new(
+    let input = LegacyCombinedSources::try_new(
         vec![source(
             core,
+            core_source_identity("src/core.scoop"),
             hir::IntrinsicProviderId::from_raw(17),
             "core.scoop",
         )],
         hir::IntrinsicProviderId::from_raw(29),
-        validated_sources(request, first, remaining),
-        |_| Stage1SourceDetails {
+        validated_sources(first, remaining),
+        |_| CurrentSourceDetails {
             display_locator: "user.scoop",
             source_text: "",
         },
-    );
-    lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    )
+    .expect("explicit test source identities are valid");
+    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
 #[test]
-fn sparse_handle_source_permutation_preserves_the_import_winner() {
+fn source_identity_permutation_preserves_the_import_winner() {
     let core = core_file();
     let imported = with_package(
         file(vec![fun_expr(
@@ -469,20 +496,18 @@ fn sparse_handle_source_permutation_preserves_the_import_winner() {
         &["app"],
     );
     consumer.imports.push(exact_import(&["api", "choose"]));
-    let request = ast::Stage1RequestId::from_raw(701);
-
     for ordered in [
         vec![(91, &imported), (4, &consumer)],
         vec![(4, &consumer), (91, &imported)],
     ] {
-        let output = lower_sparse_sources(&core, request, &ordered)
+        let output = lower_sparse_sources(&core, &ordered)
             .expect("container order cannot change exact-import precedence");
         assert!(hir::dump(&output.export).contains("Call choose : String"));
     }
 }
 
 #[test]
-fn sparse_handle_source_permutation_preserves_ambiguity_origins() {
+fn source_identity_permutation_preserves_ambiguity_origins() {
     let core = core_file();
     let left = with_package(
         file(vec![struct_decl(
@@ -512,14 +537,13 @@ fn sparse_handle_source_permutation_preserves_ambiguity_origins() {
         exact_import(&["left", "Chosen"]),
         exact_import(&["right", "Chosen"]),
     ];
-    let request = ast::Stage1RequestId::from_raw(702);
     let mut observed = Vec::new();
 
     for ordered in [
         vec![(41, &left), (7, &right), (99, &consumer)],
         vec![(99, &consumer), (7, &right), (41, &left)],
     ] {
-        let errors = lower_sparse_sources(&core, request, &ordered)
+        let errors = lower_sparse_sources(&core, &ordered)
             .expect_err("the two exact type origins remain ambiguous");
         let diagnostic = errors
             .iter()
@@ -538,7 +562,7 @@ fn sparse_handle_source_permutation_preserves_ambiguity_origins() {
 }
 
 #[test]
-fn sparse_handle_source_permutation_preserves_duplicate_signature_origin() {
+fn source_identity_permutation_preserves_duplicate_signature_origin() {
     let core = core_file();
     let earlier = with_package(
         file(vec![fun_expr(
@@ -563,14 +587,13 @@ fn sparse_handle_source_permutation_preserves_duplicate_signature_origin() {
         ]),
         &["shared"],
     );
-    let request = ast::Stage1RequestId::from_raw(703);
     let mut origins = Vec::new();
 
     for ordered in [
         vec![(4, &earlier), (97, &later)],
         vec![(97, &later), (4, &earlier)],
     ] {
-        let errors = lower_sparse_sources(&core, request, &ordered)
+        let errors = lower_sparse_sources(&core, &ordered)
             .expect_err("same-package normalized signatures are duplicate");
         let duplicate = errors
             .iter()
@@ -585,7 +608,7 @@ fn sparse_handle_source_permutation_preserves_duplicate_signature_origin() {
 }
 
 #[test]
-fn validated_input_retains_sparse_handles_independently_of_dense_file_indices() {
+fn validated_input_retains_source_identities_independently_of_dense_file_indices() {
     let core = core_file();
     let mut private = fun("privateHelper", Vec::new());
     set_private(&mut private);
@@ -597,44 +620,43 @@ fn validated_input_retains_sparse_handles_independently_of_dense_file_indices() 
         &["shared"],
     );
     let second = with_package(file(vec![fun("main", Vec::new())]), &["shared"]);
-    let request = ast::Stage1RequestId::from_raw(413);
     let user_provider = hir::IntrinsicProviderId::from_raw(29);
-    let expected_source =
-        hir::VisibilitySource::CurrentUnit(ast::Stage1SourceHandle::new(request, 97));
+    let expected_source = sparse_source_identity(97);
     let mut private_domains = Vec::new();
 
     for (parsed, dense_file, locator) in [
         (
-            validated_sources(request, (97, &first), &[(4, &second)]),
+            validated_sources((97, &first), &[(4, &second)]),
             1,
             "/one/unrelated.scoop",
         ),
         (
-            validated_sources(request, (4, &second), &[(97, &first)]),
+            validated_sources((4, &second), &[(97, &first)]),
             2,
             "/elsewhere/unrelated.scoop",
         ),
     ] {
-        let input = Stage1CompilationInput::new(
+        let input = LegacyCombinedSources::try_new(
             vec![source(
                 &core,
+                core_source_identity("src/core.scoop"),
                 hir::IntrinsicProviderId::from_raw(17),
                 "core.scoop",
             )],
             user_provider,
             parsed,
-            |_| Stage1SourceDetails {
+            |_| CurrentSourceDetails {
                 display_locator: locator,
                 source_text: "",
             },
-        );
-        assert_eq!(input.user_sources().request(), request);
-        let output = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+        )
+        .expect("explicit test source identities are valid");
+        let output = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
             .expect("source order and display locator do not affect private lookup");
         let module = output.export;
         assert_eq!(
-            module.source_files[dense_file].visibility_source,
-            expected_source
+            module.source_files[dense_file].identity,
+            expected_source.clone()
         );
         assert_eq!(module.source_files[dense_file].name, locator);
         let consumer = module
@@ -663,7 +685,7 @@ fn validated_input_retains_sparse_handles_independently_of_dense_file_indices() 
                 .constraints()
                 .contains(&hir::AccessConstraint::File(hir::VisibilityFile {
                     provider: user_provider,
-                    source: expected_source
+                    source: expected_source.clone()
                 },))
         );
     }
@@ -680,22 +702,23 @@ fn shared_display_locator_does_not_merge_distinct_private_sources() {
         "main",
         vec![stmt(call("privateHelper", Vec::new()))],
     )]);
-    let request = ast::Stage1RequestId::from_raw(99);
-    let input = Stage1CompilationInput::new(
+    let input = LegacyCombinedSources::try_new(
         vec![source(
             &core,
+            core_source_identity("src/core.scoop"),
             hir::IntrinsicProviderId::from_raw(17),
             "same.scoop",
         )],
         hir::IntrinsicProviderId::from_raw(29),
-        validated_sources(request, (12, &first), &[(33, &second)]),
-        |_| Stage1SourceDetails {
+        validated_sources((12, &first), &[(33, &second)]),
+        |_| CurrentSourceDetails {
             display_locator: "same.scoop",
             source_text: "",
         },
-    );
+    )
+    .expect("explicit test source identities are valid");
 
-    let errors = lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    let errors = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
         .expect_err("equal diagnostic labels cannot grant file-private access");
     assert!(errors.iter().any(|error| error.file == 2
         && error.message == "function `privateHelper` is not accessible here"));

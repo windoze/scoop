@@ -284,26 +284,16 @@ impl Lowerer {
         self.declaration_surface.freeze(rejected);
     }
 
-    /// Stable only within this lowering request. Current-unit source handles,
-    /// not their dense container positions or display paths, define cross-file
-    /// declaration order. Core retains its explicit provider-input order.
-    fn callable_declaration_order(&self, function: FunctionId) -> (u8, u64, u32, u32, u32, u32) {
+    /// Persistent source identity, followed by source span, defines declaration
+    /// order independently from dense container positions and display paths.
+    fn callable_declaration_order(
+        &self,
+        function: FunctionId,
+    ) -> (scoop_identity::SourceIdentity, u32, u32, u32) {
         let file = self.function_files[&function];
-        let (kind, request, source) = match self.visibility_file(file).source {
-            hir::VisibilitySource::ExistingM22Core { index } => (0, 0, index),
-            hir::VisibilitySource::CurrentUnit(handle) => {
-                (1, handle.request().into_raw(), handle.local_index())
-            }
-        };
+        let source = self.visibility_file(file).source;
         let span = self.functions[function].span;
-        (
-            kind,
-            request,
-            source,
-            span.start,
-            span.end,
-            function.into_raw().into_u32(),
-        )
+        (source, span.start, span.end, function.into_raw().into_u32())
     }
 
     /// Compare parameter signatures under the exact alpha-renaming relation

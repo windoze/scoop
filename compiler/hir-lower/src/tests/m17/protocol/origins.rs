@@ -212,21 +212,18 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
     let core = core_file();
     let core_provider = hir::IntrinsicProviderId::from_raw(0);
     let user_provider = hir::IntrinsicProviderId::from_raw(1);
-    let output = lower_compilation_unit(
-        &CompilationUnit {
-            core: vec![ProviderSource {
-                source: &core,
-                provider: core_provider,
-                name: "scoop.core",
-                source_text: "",
-            }],
-            user: ProviderSource {
-                source: &user,
-                provider: user_provider,
-                name: "app.scoop",
-                source_text: source,
-            },
-        },
+    let output = lower_test_sources(
+        vec![ProviderSource {
+            source: &core,
+            identity: core_source_identity("src/core.scoop"),
+            provider: core_provider,
+            name: "scoop.core",
+            source_text: "",
+        }],
+        &user,
+        user_provider,
+        "app.scoop",
+        source,
         IntrinsicDeclarationPolicy::CoreOnly,
     )
     .expect("source locations should fold during ordinary concretization");

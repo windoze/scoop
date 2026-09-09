@@ -1390,7 +1390,7 @@ Module mangling=compact-v2
   interface Iterator$V64
   interface Iterable$S
   interface Iterator$S
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 captures=0
+  closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=0
   closure cc1 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0 captures=0
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
@@ -7350,7 +7350,7 @@ Module mangling=compact-v2
       val $parameter.second: String
         Type String
         Local $argument.1
-      call result: Pair$I32_S = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:localPair$I32_S direct
+      call result: Pair$I32_S = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:localPair$I32_S direct
         Type Int
         Local $parameter.first
         Type String
@@ -7792,7 +7792,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       return
-  fun $lambda.0 @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0($closure: (Int) -> String, value: Int) -> String
+  fun $lambda.0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0($closure: (Int) -> String, value: Int) -> String
     bb0 entry
       val $receiver: Int
         Type Int
@@ -7803,7 +7803,7 @@ Module mangling=compact-v2
       return
         Type String
         Local $call.1
-  fun $local.0.localPair @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:localPair$I32_S(first: Int, second: String) -> Pair$I32_S
+  fun $local.0.localPair @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:localPair$I32_S(first: Int, second: String) -> Pair$I32_S
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -8744,7 +8744,7 @@ Module mangling=compact-v2
           Local first
           Type String
           Local second
-  instance @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:localPair$I32_S <- $local.0.localPair
+  instance @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:localPair$I32_S <- $local.0.localPair
   instance @scoop.$local$u0:p0:r8:functionq8:ordinaryn4:pair$I32_S <- pair
   instance @scoop.$local$u0:p0:r8:functionq9:extensionn6:attach$I32_S <- $extension.attach
   instance @scoop.$local$u0:p0:r8:functionq8:ordinaryn5:apply$I32_S <- apply
@@ -12344,7 +12344,7 @@ Module
     store local109 -> local29
     store integer<Int>(0x00000007) -> local30
     call managed-direct-target2 sp135 live=[local4:struct10@8, local9:struct10@8, local14:ptr<managed>@0, local19:enum5@16, local25:struct10@8, local29:struct10@8] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td37, machine<byte-size>(ByteSize(24)))
-    t6 = function_address @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 : ptr
+    t6 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t5 +16 t6
     store t5 -> local31
     store local30 -> local32
@@ -12476,7 +12476,7 @@ Module
     call managed-void-target15 sp160 live=[local101:ptr<managed>@0] sig=void15 (ptr<managed>) local-fn82(local101)
     t39 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0(ptr<managed>, i32) -> ptr<managed>
     local %0 $receiver: i32
     local %1 $call.1: ptr<managed>
   block entry
@@ -12485,7 +12485,7 @@ Module
     call managed-direct-target0 sp161 live=[] t0 = sig=direct0 (i32) -> ptr<managed> local-fn16(local0)
     store t0 -> local1
     ret local1
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n9:localPair$I32_S(i32, ptr<managed>) -> sret<struct10 size=16 align=8 scan=refs[8]>
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n9:localPair$I32_S(i32, ptr<managed>) -> sret<struct10 size=16 align=8 scan=refs[8]>
     local %0 $argument.0: i32
     local %1 $argument.1: ptr<managed>
     local %2 $parameter.first: i32
@@ -13024,7 +13024,7 @@ Module
   td td34 IndexOutOfBoundsException @scoop_td_C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX type-id=35 size=24 parent=td30 vtable=[] itables=[]
   td td35 IllegalArgumentException @scoop_td_C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX type-id=36 size=24 parent=td30 vtable=[] itables=[]
   td td36 IllegalStateException @scoop_td_C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX type-id=37 size=24 parent=td30 vtable=[] itables=[]
-  td td37 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec48:scoop.$local$u0:p0:f1:0r6:lambdai1:0n9:$lambda.0 type-id=38 size=24 parent=td13 vtable=[] itables=[]
+  td td37 $Closure$lambda0 @scoop_td_$generated$r14:lambda-closurec126:scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 type-id=38 size=24 parent=td13 vtable=[] itables=[]
   td td38 $Closure$reference0 @scoop_td_$generated$r26:callable-reference-closurei1:0 type-id=39 size=24 parent=td13 vtable=[] itables=[]
   array-type array0 Array$S kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td26
   array-type array1 MutableArray$S kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td27

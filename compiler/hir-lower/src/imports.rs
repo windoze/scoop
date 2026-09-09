@@ -3,6 +3,7 @@
 use crate::{aliases::SourceTypeAliasId, namespace::PackageId};
 use scoop_ast as ast;
 use scoop_hir as hir;
+use scoop_identity::SourceIdentity;
 use std::collections::{BTreeMap, HashMap};
 
 mod collect;
@@ -55,7 +56,7 @@ pub(crate) enum ResolvedNamespace {
 #[derive(Debug, Clone)]
 pub(crate) struct CurrentUnitBinding {
     pub(crate) target: CurrentUnitTarget,
-    pub(crate) source: ast::Stage1SourceHandle,
+    pub(crate) source: SourceIdentity,
     pub(crate) file: usize,
     pub(crate) span: ast::Span,
     pub(crate) access: hir::EffectiveLookupDomain,
@@ -79,7 +80,7 @@ pub(crate) struct ImportedBinding {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ImportSyntaxOrigin {
-    pub(crate) source: ast::Stage1SourceHandle,
+    pub(crate) source: SourceIdentity,
     pub(crate) span: ast::Span,
 }
 
@@ -281,7 +282,12 @@ impl CurrentUnitImports {
         let mut bindings = bindings.into_iter().collect::<Vec<_>>();
         bindings.sort_by_key(|id| {
             let binding = self.binding(*id);
-            (binding.source, binding.span.start, binding.span.end, id.0)
+            (
+                binding.source.clone(),
+                binding.span.start,
+                binding.span.end,
+                id.0,
+            )
         });
         bindings.dedup();
         bindings

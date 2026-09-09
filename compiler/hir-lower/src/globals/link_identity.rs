@@ -210,15 +210,9 @@ impl Lowerer {
     }
 
     fn append_link_source(&self, key: &mut String, file: usize) {
-        match self.visibility_file(file).source {
-            hir::VisibilitySource::CurrentUnit(handle) => {
-                // Request ids distinguish live requests, not their emitted names.
-                field(key, 'f', &handle.local_index().to_string());
-            }
-            hir::VisibilitySource::ExistingM22Core { index } => {
-                field(key, 'k', &index.to_string());
-            }
-        }
+        let source = self.visibility_file(file).source;
+        field(key, 'c', &source.cone().to_string());
+        field(key, 'f', source.logical_path().as_str());
     }
 
     fn link_owner_parts(

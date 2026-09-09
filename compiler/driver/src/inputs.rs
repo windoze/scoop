@@ -14,6 +14,7 @@ pub fn load_inputs(user_path: &Path) -> Result<Vec<SourceFileInput>, Vec<Diagnos
     inputs.push(SourceFileInput {
         name: stable_user_source_name(user_path),
         source,
+        identity: scoop_identity::SourceIdentity::single_file(),
     });
     Ok(inputs)
 }
@@ -108,10 +109,16 @@ mod diagnostic_tests {
             SourceFileInput {
                 name: "consumer.scoop".to_string(),
                 source: "package app\nfun use()".to_string(),
+                identity: scoop_identity::SourceIdentity::single_file(),
             },
             SourceFileInput {
                 name: "library.scoop".to_string(),
                 source: "package lib\n\nprivate fun hidden()".to_string(),
+                identity: scoop_identity::SourceIdentity::new(
+                    scoop_identity::ConeIdentity::CORE,
+                    scoop_identity::NormalizedSourcePath::new("src/library.scoop").unwrap(),
+                )
+                .unwrap(),
             },
         ];
         let mut diagnostic = Diagnostic::at(Span::new(16, 19), "`hidden` is private");
@@ -189,6 +196,12 @@ fn load_core_sources() -> Result<Vec<SourceFileInput>, Vec<Diagnostic>> {
         inputs.push(SourceFileInput {
             name: format!("scoop.core/src/{file_name}"),
             source,
+            identity: scoop_identity::SourceIdentity::new(
+                scoop_identity::ConeIdentity::CORE,
+                scoop_identity::NormalizedSourcePath::new(&format!("src/{file_name}"))
+                    .expect("a discovered core file name forms a canonical source path"),
+            )
+            .expect("the core Cone accepts a canonical source path"),
         });
     }
     Ok(inputs)

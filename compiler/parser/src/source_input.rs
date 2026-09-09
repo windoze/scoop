@@ -1,60 +1,65 @@
-use scoop_ast::{AllParsedSources, Diagnostic, NonEmptyVec, ParsedSource, Stage1SourceHandle};
+use std::collections::BTreeMap;
+
+use scoop_ast::{AllParsedSources, Diagnostic, IdentifiedParsedSource, NonEmptyVec};
+use scoop_identity::SourceIdentity;
 
 use crate::parser::parse_file;
 
-/// One source selected by the caller for a non-empty M23-1 parse request.
-/// The display locator is diagnostic-only and is not copied into successful
-/// AST output.
+/// One source selected by the caller with an already validated semantic
+/// identity. Display paths are deliberately absent from this stable input.
 #[derive(Debug, Clone, Copy)]
-pub struct Stage1SourceInput<'a> {
-    source_handle: Stage1SourceHandle,
+pub struct IdentifiedSourceInput<'a> {
+    identity: &'a SourceIdentity,
     text: &'a str,
-    display_locator: &'a str,
 }
 
-impl<'a> Stage1SourceInput<'a> {
-    pub const fn new(
-        source_handle: Stage1SourceHandle,
-        text: &'a str,
-        display_locator: &'a str,
-    ) -> Self {
-        Self {
-            source_handle,
-            text,
-            display_locator,
-        }
+impl<'a> IdentifiedSourceInput<'a> {
+    pub const fn new(identity: &'a SourceIdentity, text: &'a str) -> Self {
+        Self { identity, text }
     }
 
-    pub const fn source_handle(&self) -> Stage1SourceHandle {
-        self.source_handle
+    pub const fn identity(&self) -> &'a SourceIdentity {
+        self.identity
     }
 
     pub const fn text(&self) -> &'a str {
         self.text
     }
+}
 
-    pub const fn display_locator(&self) -> &'a str {
-        self.display_locator
+/// Request-local diagnostic decoration keyed by semantic source identity.
+///
+/// This sidecar is never copied into successful AST output or any persistent
+/// key. Two identities may intentionally share the same display locator.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ParserDiagnosticContext {
+    display_locators: BTreeMap<SourceIdentity, String>,
+}
+
+impl ParserDiagnosticContext {
+    pub fn new(display_locators: impl IntoIterator<Item = (SourceIdentity, String)>) -> Self {
+        Self {
+            display_locators: display_locators.into_iter().collect(),
+        }
+    }
+
+    pub fn display_locator(&self, identity: &SourceIdentity) -> Option<&str> {
+        self.display_locators.get(identity).map(String::as_str)
     }
 }
 
-/// A parser or input-validation diagnostic decorated with transient display
-/// information. Neither the locator nor this wrapper enters successful AST
-/// data.
+/// A parser or input-validation diagnostic attributed by semantic source
+/// identity. A caller may obtain its transient display path from a
+/// [`ParserDiagnosticContext`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseAllDiagnostic {
-    source_handle: Stage1SourceHandle,
-    display_locator: String,
+    identity: SourceIdentity,
     diagnostic: Diagnostic,
 }
 
 impl ParseAllDiagnostic {
-    pub const fn source_handle(&self) -> Stage1SourceHandle {
-        self.source_handle
-    }
-
-    pub fn display_locator(&self) -> &str {
-        &self.display_locator
+    pub const fn identity(&self) -> &SourceIdentity {
+        &self.identity
     }
 
     pub const fn diagnostic(&self) -> &Diagnostic {
@@ -67,50 +72,41 @@ impl ParseAllDiagnostic {
 }
 
 /// Parse every explicitly supplied source. All sources are visited even when
-/// one fails; a successful non-empty AST set is returned only when input
-/// handles and every source are valid.
+/// one fails; a successful non-empty AST set is returned only when identities
+/// are unique and every source parses successfully.
 pub fn parse_all(
-    inputs: NonEmptyVec<Stage1SourceInput<'_>>,
+    inputs: NonEmptyVec<IdentifiedSourceInput<'_>>,
 ) -> Result<AllParsedSources, Vec<ParseAllDiagnostic>> {
-    let request = inputs.first().source_handle().request();
-    let mut seen_handles = Vec::with_capacity(inputs.len());
+    let mut seen_identities = Vec::with_capacity(inputs.len());
     let mut parsed = Vec::with_capacity(inputs.len());
     let mut diagnostics = Vec::new();
 
     for (source_index, input) in inputs.iter().enumerate() {
-        let handle = input.source_handle();
-        if handle.request() != request {
+        let identity = input.identity();
+        if let Some((_, first_index)) = seen_identities
+            .iter()
+            .find(|(seen, _): &&(SourceIdentity, usize)| seen == identity)
+        {
             diagnostics.push(input_error(
-                input,
+                identity,
                 source_index,
                 format!(
-                    "source handle belongs to stage-1 request {}, expected request {}",
-                    handle.request().into_raw(),
-                    request.into_raw()
-                ),
-            ));
-        }
-        if let Some((_, first_index)) = seen_handles.iter().find(|(seen, _)| *seen == handle) {
-            diagnostics.push(input_error(
-                input,
-                source_index,
-                format!(
-                    "duplicate stage-1 source handle {} (first used by source {first_index})",
-                    handle.local_index()
+                    "duplicate source identity {}/{} (first used by source {first_index})",
+                    identity.cone(),
+                    identity.logical_path()
                 ),
             ));
         } else {
-            seen_handles.push((handle, source_index));
+            seen_identities.push((identity.clone(), source_index));
         }
 
         match parse_file(input.text()) {
-            Ok(ast) => parsed.push(ParsedSource::new(handle, ast)),
+            Ok(ast) => parsed.push(IdentifiedParsedSource::new(identity.clone(), ast)),
             Err(source_diagnostics) => {
                 diagnostics.extend(source_diagnostics.into_iter().map(|mut diagnostic| {
                     diagnostic.reattribute_single_source(source_index);
                     ParseAllDiagnostic {
-                        source_handle: handle,
-                        display_locator: input.display_locator().to_string(),
+                        identity: identity.clone(),
                         diagnostic,
                     }
                 }));
@@ -127,18 +123,17 @@ pub fn parse_all(
         .next()
         .expect("a non-empty successful input produces a first parsed source");
     let sources = NonEmptyVec::new(first, parsed.collect());
-    Ok(AllParsedSources::try_new(request, sources)
-        .expect("parse-all validates request membership and unique handles before construction"))
+    Ok(AllParsedSources::try_new(sources)
+        .expect("parse-all validates unique identities before construction"))
 }
 
 fn input_error(
-    input: &Stage1SourceInput<'_>,
+    identity: &SourceIdentity,
     source_index: usize,
     message: String,
 ) -> ParseAllDiagnostic {
     ParseAllDiagnostic {
-        source_handle: input.source_handle(),
-        display_locator: input.display_locator().to_string(),
+        identity: identity.clone(),
         diagnostic: Diagnostic::without_span(
             scoop_ast::DiagnosticSeverity::Error,
             source_index,

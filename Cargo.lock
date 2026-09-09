@@ -416,6 +416,9 @@ dependencies = [
 [[package]]
 name = "scoop-ast"
 version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+]
 
 [[package]]
 name = "scoop-codegen"
@@ -433,6 +436,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-ast",
+ "scoop-identity",
 ]
 
 [[package]]
@@ -442,6 +446,7 @@ dependencies = [
  "la-arena",
  "scoop-ast",
  "scoop-hir",
+ "scoop-identity",
 ]
 
 [[package]]
@@ -486,6 +491,7 @@ dependencies = [
  "scoop-ast",
  "scoop-hir",
  "scoop-hir-lower",
+ "scoop-identity",
  "scoop-mir",
 ]
 
@@ -494,6 +500,7 @@ name = "scoop-parser"
 version = "0.0.0"
 dependencies = [
  "scoop-ast",
+ "scoop-identity",
 ]
 
 [[package]]
@@ -524,6 +531,7 @@ dependencies = [
  "scoop-codegen",
  "scoop-hir",
  "scoop-hir-lower",
+ "scoop-identity",
  "scoop-lir",
  "scoop-lir-lower",
  "scoop-mir",

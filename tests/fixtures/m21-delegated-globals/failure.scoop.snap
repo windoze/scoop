@@ -837,7 +837,7 @@ Module
 Module mangling=compact-v2
   global0 @scoop.global.$delegate$$local$u0:p0:r9:top-leveln6:failed $delegate$$local$u0:p0:r9:top-leveln6:failed: ExplodingDelegate managed initial=zeroed-for-runtime-unit
   global1 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
-  init0 $local$u0:p0:r9:top-leveln6:failed eager global0 initializer=scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 failure=1 deps=[]
+  init0 $local$u0:p0:r9:top-leveln6:failed eager global0 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 failure=1 deps=[]
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -6852,7 +6852,7 @@ Module mangling=compact-v2
         Type String
         Local $parameter.value
       return
-  fun $init$body$0 @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> Unit
+  fun $init$body$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> Unit
     bb0 entry
       assign $new.1
         Type ExplodingDelegate
@@ -6867,7 +6867,7 @@ Module mangling=compact-v2
         Type ExplodingDelegate
         Local $call.2
       return
-  fun $init$ensure$0 @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> Unit
+  fun $init$ensure$0 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -6916,7 +6916,7 @@ Module mangling=compact-v2
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 $local$u0:p0:r9:top-leveln6:failed
@@ -6982,7 +6982,7 @@ Module mangling=compact-v2
       unreachable
   fun $get$failed @scoop.$local$u0:p0:r6:getterq8:ordinaryn11:$get$failed() -> Int
     bb0 entry
-      call @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 direct
+      call @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 direct
       call $call.1: Int = @scoop.$local$u0:p0:C21:n17:ExplodingDelegater8:functionq8:ordinaryn8:getValue direct
         Type ExplodingDelegate
         GlobalRead $delegate$$local$u0:p0:r9:top-leveln6:failed
@@ -7469,7 +7469,7 @@ Module
   global @scoop.str.10 = "illegal state"
   global @scoop.global.$delegate$$local$u0:p0:r9:top-leveln6:failed : ptr<managed> scan=refs[0]
   global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:top-leveln6:failed storage=@scoop.global.$delegate$$local$u0:p0:r9:top-leveln6:failed failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:f1:0r9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:f1:0r11:init-ensuren1:0 deps=[]
+  init0 $local$u0:p0:r9:top-leveln6:failed storage=@scoop.global.$delegate$$local$u0:p0:r9:top-leveln6:failed failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
@@ -10839,7 +10839,7 @@ Module
     call managed-void-target0 sp128 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn76(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r9:init-bodyn1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0() -> void
     local %0 $new.1: ptr<managed>
     local %1 $call.2: ptr<managed>
   block entry
@@ -10852,7 +10852,7 @@ Module
     store t2 -> local1
     global_store global11, local1
     ret
-  fun @scoop.$local$u0:p0:f1:0r11:init-ensuren1:0() -> void
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.materialized: ptr<managed>

@@ -2,8 +2,8 @@ use super::*;
 mod type_lookup;
 mod value_lookup;
 use crate::tests::{
-    call, enum_decl, field, file, fun, ident, sp, stmt, str_lit, ty_named, val, var,
-    variant_positional, variant_unit,
+    call, core_source_identity, enum_decl, field, file, fun, ident, identified_test_sources, sp,
+    stmt, str_lit, test_source_identity, ty_named, val, var, variant_positional, variant_unit,
 };
 use crate::{IntrinsicDeclarationPolicy, Lowerer, SourceKind, SourceProvider};
 
@@ -94,7 +94,6 @@ fn package(mut source: ast::SourceFile, segments: &[&str]) -> ast::SourceFile {
 }
 
 fn lowerer() -> (Lowerer, PackageId, PackageId) {
-    let request = ast::Stage1RequestId::from_raw(19);
     let files = [
         file(Vec::new()),
         package(file(Vec::new()), &["api"]),
@@ -102,17 +101,21 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         package(file(Vec::new()), &["api", "empty"]),
     ];
     let mut lowerer = Lowerer::new().with_intrinsic_sources(
-        (0..4)
-            .map(|index| SourceProvider {
-                provider: hir::IntrinsicProviderId::from_raw(1),
-                kind: SourceKind::CurrentUnit,
-                visibility_source: hir::VisibilitySource::CurrentUnit(
-                    ast::Stage1SourceHandle::new(request, index),
-                ),
-                name: "same.scoop".to_string(),
-                source: String::new(),
-            })
-            .collect(),
+        [
+            "src/00-root.scoop",
+            "src/01-api.scoop",
+            "src/02-api-child.scoop",
+            "src/03-api-empty.scoop",
+        ]
+        .into_iter()
+        .map(|path| SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(1),
+            kind: SourceKind::CurrentUnit,
+            identity: test_source_identity(path),
+            name: "same.scoop".to_string(),
+            source: String::new(),
+        })
+        .collect(),
         IntrinsicDeclarationPolicy::CoreOnly,
     );
     lowerer
@@ -160,10 +163,7 @@ fn function_with_visibility(
     index: u32,
     visibility: hir::DeclaredVisibility,
 ) -> CurrentUnitBindingId {
-    let source = match lowerer.visibility_file(file).source {
-        hir::VisibilitySource::CurrentUnit(handle) => handle,
-        _ => unreachable!(),
-    };
+    let source = lowerer.visibility_file(file).source;
     let domain = lowerer.top_level_domain(visibility, file);
     surface.insert(
         namespace,
@@ -493,36 +493,24 @@ fn lower_sources_with_core(
     sources: Vec<ast::SourceFile>,
     core: ast::SourceFile,
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    let request = ast::Stage1RequestId::from_raw(100);
-    let mut parsed = sources.into_iter().enumerate().map(|(index, source)| {
-        ast::ParsedSource::new(
-            ast::Stage1SourceHandle::new(request, u32::try_from(index).expect("test source index")),
-            source,
-        )
-    });
-    let parsed = ast::AllParsedSources::try_new(
-        request,
-        ast::NonEmptyVec::new(
-            parsed.next().expect("test sources nonempty"),
-            parsed.collect(),
-        ),
-    )
-    .expect("test sources belong to one request");
-    let input = crate::Stage1CompilationInput::new(
+    let parsed = identified_test_sources(sources);
+    let input = crate::LegacyCombinedSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "core",
             source_text: "",
         }],
         hir::IntrinsicProviderId::from_raw(1),
         parsed,
-        |_| crate::Stage1SourceDetails {
+        |_| crate::CurrentSourceDetails {
             display_locator: "same.scoop",
             source_text: "",
         },
-    );
-    crate::lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    )
+    .expect("explicit test source identities are valid");
+    crate::lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
 fn invalid_raw_string_property(name: &str) -> ast::Decl {
@@ -812,7 +800,7 @@ fn cross_file_ordinary_imports_accept_public_bindings() {
 }
 
 #[test]
-fn stage1_import_failure_classes_return_no_hir_output() {
+fn import_failure_classes_return_no_hir_output() {
     let public_api = package(
         file(vec![declared_function(
             "published",

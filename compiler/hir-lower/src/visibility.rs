@@ -178,7 +178,7 @@ impl Lowerer {
     pub(crate) fn visibility_file(&self, file: usize) -> hir::VisibilityFile {
         hir::VisibilityFile {
             provider: self.intrinsic_sources[file].provider,
-            source: self.intrinsic_sources[file].visibility_source,
+            source: self.intrinsic_sources[file].identity.clone(),
         }
     }
 
@@ -463,17 +463,17 @@ impl Lowerer {
         domain
             .constraints()
             .iter()
-            .all(|constraint| match *constraint {
-                hir::AccessConstraint::Cone(provider) => site.provider == provider,
-                hir::AccessConstraint::File(file) => site == file,
+            .all(|constraint| match constraint {
+                hir::AccessConstraint::Cone(provider) => site.provider == *provider,
+                hir::AccessConstraint::File(file) => site == *file,
                 hir::AccessConstraint::LexicalOwner(owner) => self
                     .current_owner
-                    .is_some_and(|current| self.lexical_owner_contains(current, owner)),
+                    .is_some_and(|current| self.lexical_owner_contains(current, *owner)),
                 hir::AccessConstraint::SubclassesOf(base) => {
                     let Some(Owner::Class(current)) = self.current_owner else {
                         return false;
                     };
-                    if !self.class_is_same_or_subclass_of(current, base) {
+                    if !self.class_is_same_or_subclass_of(current, *base) {
                         return false;
                     }
                     explicit_receiver.is_none_or(|receiver| {
@@ -498,30 +498,30 @@ impl Lowerer {
 
     fn constraint_implies(
         &self,
-        narrower: hir::AccessConstraint,
-        wider: hir::AccessConstraint,
+        narrower: &hir::AccessConstraint,
+        wider: &hir::AccessConstraint,
     ) -> bool {
         if narrower == wider {
             return true;
         }
         match (narrower, wider) {
             (hir::AccessConstraint::File(file), hir::AccessConstraint::Cone(provider)) => {
-                file.provider == provider
+                file.provider == *provider
             }
             (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::Cone(provider)) => {
-                self.owner_definition_file(owner).provider == provider
+                self.owner_definition_file(*owner).provider == *provider
             }
             (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::File(file)) => {
-                self.owner_definition_file(owner) == file
+                self.owner_definition_file(*owner) == *file
             }
             (
                 hir::AccessConstraint::LexicalOwner(current),
                 hir::AccessConstraint::LexicalOwner(required),
-            ) => self.visibility_owner_is_within(current, required),
+            ) => self.visibility_owner_is_within(*current, *required),
             (
                 hir::AccessConstraint::SubclassesOf(derived),
                 hir::AccessConstraint::SubclassesOf(base),
-            ) => self.class_is_same_or_subclass_of(derived, base),
+            ) => self.class_is_same_or_subclass_of(*derived, *base),
             _ => false,
         }
     }
@@ -542,7 +542,7 @@ impl Lowerer {
         }
         wider.constraints().iter().all(|wider_constraint| {
             narrower.constraints().iter().any(|narrower_constraint| {
-                self.constraint_implies(*narrower_constraint, *wider_constraint)
+                self.constraint_implies(narrower_constraint, wider_constraint)
             })
         })
     }

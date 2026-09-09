@@ -554,9 +554,7 @@ impl Harness {
         let module = hir::Module {
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
-                visibility_source: hir::VisibilitySource::CurrentUnit(
-                    scoop_ast::Stage1SourceHandle::new(scoop_ast::Stage1RequestId::from_raw(0), 0),
-                ),
+                identity: scoop_identity::SourceIdentity::single_file(),
                 provider: hir::IntrinsicProviderId::from_raw(0),
                 name: "<test>".to_string(),
                 source: String::new(),

@@ -55,39 +55,24 @@ fn lower_sources(
     sources: Vec<ast::SourceFile>,
     core: ast::SourceFile,
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    let request = ast::Stage1RequestId::from_raw(902);
-    let mut parsed = sources.into_iter().enumerate().map(|(index, source)| {
-        ast::ParsedSource::new(
-            ast::Stage1SourceHandle::new(
-                request,
-                u32::try_from(index).expect("test source index fits u32"),
-            ),
-            source,
-        )
-    });
-    let parsed = ast::AllParsedSources::try_new(
-        request,
-        ast::NonEmptyVec::new(
-            parsed.next().expect("test source list is nonempty"),
-            parsed.collect(),
-        ),
-    )
-    .expect("all test sources belong to one request");
-    let input = Stage1CompilationInput::new(
+    let parsed = identified_test_sources(sources);
+    let input = LegacyCombinedSources::try_new(
         vec![ProviderSource {
             source: &core,
+            identity: core_source_identity("src/core.scoop"),
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "core.scoop",
             source_text: "",
         }],
         hir::IntrinsicProviderId::from_raw(1),
         parsed,
-        |_| Stage1SourceDetails {
+        |_| CurrentSourceDetails {
             display_locator: "user.scoop",
             source_text: "",
         },
-    );
-    lower_stage1_compilation_input(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    )
+    .expect("explicit test source identities are valid");
+    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
 fn receiver_struct(name: &str, marker: i64) -> Decl {

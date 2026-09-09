@@ -7366,7 +7366,7 @@ Module mangling=compact-v2
       val $parameter.value: Int
         Type Int
         Local seed
-      call $call.1: Int = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n4:read direct
+      call $call.1: Int = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n4:read direct
         Type Int
         Local $parameter.value
       return
@@ -7896,7 +7896,7 @@ Module mangling=compact-v2
       goto bb18
     bb18 scope.18
       goto bb13
-  fun $local.0.read @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n4:read(value: Int) -> Int
+  fun $local.0.read @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n4:read(value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -12628,7 +12628,7 @@ Module
     t66 = aggregate () : {}
     end_catch
     br @scope.18
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n4:read(i32) -> i32
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n4:read(i32) -> i32
   block entry
     poll managed-void-target0 sp284 live=[]
     ret param0

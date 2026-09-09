@@ -7784,7 +7784,7 @@ Module mangling=compact-v2
           Element
             Type Int
             Local $argument.2
-      call $call.1: Long = @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n5:count direct
+      call $call.1: Long = @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n5:count direct
         Type Array<Int>
         Local $parameter.values
       return
@@ -8765,7 +8765,7 @@ Module mangling=compact-v2
         Type Int
         Local $parameter.value
       return
-  fun $local.0.count @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n5:count(values: Array<Int>) -> Long
+  fun $local.0.count @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n5:count(values: Array<Int>) -> Long
     bb0 entry
       return
         Type Long
@@ -14417,7 +14417,7 @@ Module
     call managed-void-target30 sp218 live=[] sig=void30 (i32) local-fn88(local139)
     t110 = aggregate () : {}
     ret
-  fun @scoop.$local$u0:p0:f1:0r14:local-functioni1:0n5:count(ptr<managed>) -> i64
+  fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr14:local-functioni1:0n5:count(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp348 live=[param0:ptr<managed>@0]
     t0 = array_len array0 param0 : i64

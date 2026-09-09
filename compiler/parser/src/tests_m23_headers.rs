@@ -1,9 +1,21 @@
 use scoop_ast::{
     Decl, DeclaredVisibility, ImportExposureSyntax, ImportSyntax, NonEmptyVec, PackageSyntax, Span,
-    Stage1RequestId, Stage1SourceHandle, VisibilitySyntax,
+    VisibilitySyntax,
 };
+use scoop_identity::{ConeCoordinate, NormalizedSourcePath, SourceIdentity};
 
-use crate::{Stage1SourceInput, parse, parse_all};
+use crate::{IdentifiedSourceInput, ParserDiagnosticContext, parse, parse_all};
+
+fn source_identity(path: &str) -> SourceIdentity {
+    SourceIdentity::new(
+        ConeCoordinate::new("test", "parser-headers", "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap(),
+        NormalizedSourcePath::new(path).unwrap(),
+    )
+    .unwrap()
+}
 
 fn ok(source: &str) -> scoop_ast::SourceFile {
     parse(source).unwrap_or_else(|diagnostics| panic!("should parse: {diagnostics:?}"))
@@ -391,30 +403,20 @@ fn lexical_and_syntax_diagnostics_are_merged_in_source_order() {
 
 #[test]
 fn parse_all_returns_only_a_validated_non_empty_semantic_source_set() {
-    let request = Stage1RequestId::from_raw(41);
-    let first_handle = Stage1SourceHandle::new(request, 7);
-    let second_handle = Stage1SourceHandle::new(request, 9);
+    let first_identity = source_identity("src/one.scoop");
+    let second_identity = source_identity("src/two.scoop");
     let parsed = parse_all(NonEmptyVec::new(
-        Stage1SourceInput::new(
-            first_handle,
-            "package one\nfun helper() {}",
-            "/tmp/one.scoop",
-        ),
-        vec![Stage1SourceInput::new(
-            second_handle,
+        IdentifiedSourceInput::new(&first_identity, "package one\nfun helper() {}"),
+        vec![IdentifiedSourceInput::new(
+            &second_identity,
             "package two\nfun main() {}",
-            "/different/host/two.scoop",
         )],
     ))
     .expect("both explicitly selected sources parse");
 
-    assert_eq!(parsed.request(), request);
     assert_eq!(parsed.sources().len(), 2);
-    assert_eq!(parsed.sources().as_slice()[0].source_handle(), first_handle);
-    assert_eq!(
-        parsed.sources().as_slice()[1].source_handle(),
-        second_handle
-    );
+    assert_eq!(parsed.sources().as_slice()[0].identity(), &first_identity);
+    assert_eq!(parsed.sources().as_slice()[1].identity(), &second_identity);
     let PackageSyntax::QualifiedPackage { path, .. } =
         &parsed.sources().as_slice()[1].ast().package
     else {
@@ -424,19 +426,14 @@ fn parse_all_returns_only_a_validated_non_empty_semantic_source_set() {
 }
 
 #[test]
-fn parse_all_rejects_duplicate_and_cross_request_handles_but_parses_every_source() {
-    let request = Stage1RequestId::from_raw(41);
-    let other_request = Stage1RequestId::from_raw(43);
-    let first_handle = Stage1SourceHandle::new(request, 7);
+fn parse_all_rejects_duplicate_identities_but_parses_every_source() {
+    let first_identity = source_identity("src/first.scoop");
+    let other_identity = source_identity("src/other.scoop");
     let errors = parse_all(NonEmptyVec::new(
-        Stage1SourceInput::new(first_handle, "package .bad", "first.scoop"),
+        IdentifiedSourceInput::new(&first_identity, "package .bad"),
         vec![
-            Stage1SourceInput::new(first_handle, "fun duplicate(: Int) {}", "duplicate.scoop"),
-            Stage1SourceInput::new(
-                Stage1SourceHandle::new(other_request, 9),
-                "$\nfun other(: Int) {}",
-                "other.scoop",
-            ),
+            IdentifiedSourceInput::new(&first_identity, "fun duplicate(: Int) {}"),
+            IdentifiedSourceInput::new(&other_identity, "$\nfun other(: Int) {}"),
         ],
     ))
     .expect_err("no partial AST set may escape input or parser errors");
@@ -449,9 +446,11 @@ fn parse_all_rejects_duplicate_and_cross_request_handles_but_parses_every_source
         messages,
         [
             "expected package name, found `.`",
-            "duplicate stage-1 source handle 7 (first used by source 0)",
+            &format!(
+                "duplicate source identity {}/src/first.scoop (first used by source 0)",
+                first_identity.cone()
+            ),
             "expected parameter name, found `:`",
-            "source handle belongs to stage-1 request 43, expected request 41",
             "unexpected character `$`",
             "expected parameter name, found `:`",
         ]
@@ -461,8 +460,18 @@ fn parse_all_rejects_duplicate_and_cross_request_handles_but_parses_every_source
             .iter()
             .map(|error| error.diagnostic().file)
             .collect::<Vec<_>>(),
-        [0, 1, 1, 2, 2, 2]
+        [0, 1, 1, 2, 2]
     );
-    assert_eq!(errors[1].display_locator(), "duplicate.scoop");
-    assert_eq!(errors[3].display_locator(), "other.scoop");
+    let context = ParserDiagnosticContext::new([
+        (first_identity, "duplicate.scoop".to_string()),
+        (other_identity, "other.scoop".to_string()),
+    ]);
+    assert_eq!(
+        context.display_locator(errors[1].identity()),
+        Some("duplicate.scoop")
+    );
+    assert_eq!(
+        context.display_locator(errors[3].identity()),
+        Some("other.scoop")
+    );
 }

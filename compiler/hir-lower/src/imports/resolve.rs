@@ -1,4 +1,5 @@
 use super::*;
+use crate::SourceKind;
 use crate::{Lowerer, namespace::TopLevelLookupLayer};
 
 enum SelectorResult {
@@ -97,12 +98,11 @@ impl CurrentUnitImports {
         source: &ast::SourceFile,
     ) -> FrozenFileImports {
         let mut frozen = FrozenFileImports::default();
-        let source_handle = match lowerer.visibility_file(lowerer.current_file).source {
-            hir::VisibilitySource::CurrentUnit(source) => source,
-            hir::VisibilitySource::ExistingM22Core { .. } => {
-                unreachable!("core never enters import resolution")
-            }
-        };
+        debug_assert_eq!(
+            lowerer.intrinsic_sources[lowerer.current_file].kind,
+            SourceKind::CurrentUnit
+        );
+        let source_identity = lowerer.visibility_file(lowerer.current_file).source;
         for import in &source.imports {
             match import {
                 ast::ImportSyntax::Exact {
@@ -160,7 +160,7 @@ impl CurrentUnitImports {
                             }),
                         targets: ast::NonEmptyVec::new(first, accessible.collect()),
                         origin: ImportSyntaxOrigin {
-                            source: source_handle,
+                            source: source_identity.clone(),
                             span: *span,
                         },
                     });
@@ -223,7 +223,7 @@ impl CurrentUnitImports {
                         namespace: selected,
                         snapshot,
                         origin: ImportSyntaxOrigin {
-                            source: source_handle,
+                            source: source_identity.clone(),
                             span: *span,
                         },
                     });
@@ -292,10 +292,7 @@ impl CurrentUnitImports {
                 }
             };
             for import in &imports.exact {
-                assert_eq!(
-                    site.source,
-                    hir::VisibilitySource::CurrentUnit(import.origin.source)
-                );
+                assert_eq!(site.source, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
                 for target in import.targets.iter() {
                     check_target(target);
@@ -305,10 +302,7 @@ impl CurrentUnitImports {
                 assert!(!layers[0].bindings.is_empty());
             }
             for import in &imports.stars {
-                assert_eq!(
-                    site.source,
-                    hir::VisibilitySource::CurrentUnit(import.origin.source)
-                );
+                assert_eq!(site.source, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
                 let namespace = self.namespaces.get(&import.namespace);
                 for (name, targets) in &import.snapshot {
