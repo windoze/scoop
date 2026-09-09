@@ -23,12 +23,16 @@ pub use cone::{
     ConeIdentity, DecodedConeCoordinateV1,
 };
 pub use entity::{
-    CallingConventionV1, DeclarationNameV1, DeclarationScopeV1, DefinitionOwnerAtomV1,
-    DefinitionOwnerChainV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
-    OptionalSignatureTypeV1, SignatureTypeKeyV1, SourceDeclarationIdentityError,
-    SourceDeclarationKeyError, SourceDeclarationKeyV1, SourceDeclarationKindV1,
-    SourceDeclarationSiteV1, SourceNominalKindV1, StructuralDefinitionPathV1,
-    StructuralDefinitionSiteRoleV1, StructuralPathSegmentV1,
+    CallableOwnerV1, CallingConventionV1, ConcreteExpressionOriginV1, DeclarationNameV1,
+    DeclarationScopeV1, DefinitionOriginRecordV1, DefinitionOriginSubjectV1, DefinitionOriginV1,
+    DefinitionOwnerAtomV1, DefinitionOwnerChainV1, DispatchDeclarationOwnerV1,
+    DuplicateSignatureKeyV1, EffectV1, EvaluationOriginV1, ExpressionOriginV1,
+    NominalDeclarationOwnerV1, NominalOwnerV1, NonEmptyVec, NonEmptyVecError,
+    OptionalSignatureTypeV1, PropertyOwnerV1, SignatureTypeKeyV1, SourceContextKeyV1,
+    SourceDeclarationIdentityError, SourceDeclarationKeyError, SourceDeclarationKeyV1,
+    SourceDeclarationKindV1, SourceDeclarationSiteV1, SourceNominalKindV1, SourceOriginError,
+    SourceSpanError, SourceSpanV1, StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1,
+    StructuralPathSegmentV1,
 };
 pub use ids::{
     DecodedPersistentIdV1, GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId,
