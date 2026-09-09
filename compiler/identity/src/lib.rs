@@ -87,6 +87,12 @@ pub use entity::{
     ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use entity::{
+    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
+    ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
+};
+pub use entity::{
     DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
     RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
 };

@@ -15,6 +15,7 @@ mod materialization;
 mod native_contract;
 mod native_link;
 mod native_name;
+mod object_definition;
 mod odr;
 mod owners;
 mod runtime_identity;
@@ -100,6 +101,12 @@ pub use native_link::{
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol,
     SourceNativeSymbolError,
+};
+pub use object_definition::{
+    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
+    ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
 pub use odr::{
     CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,

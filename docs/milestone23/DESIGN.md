@@ -517,7 +517,7 @@ OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKey)
 - 每个producer在`.slib` manifest记录`OdrRecord { group, members, abi_fingerprint, definition_fingerprint }`。`OdrAbiFingerprint = DomainSeparatedCborHash("scoop-odr-abi-v1", {1=member_abi_shapes_sorted_by_member_id})`；每个受检definition同时由LIR meta保存`CanonicalLirDefinition { owner, canonical payload }`，reader以`LirDefinitionFingerprint = DomainSeparatedCborHash("scoop-lir-definition-v1", CanonicalLirDefinition)`重算。最终ODR digest本身不进入该payload或LIR semantic own-layer，避免反向自引用。`OdrDefinitionFingerprint = DomainSeparatedCborHash("scoop-odr-definition-v1", {1=group, 2=按OdrMemberId排序的{role, LirDefinitionFingerprint, 按DigestNodeId排序的{ObjectDefinition node id, fingerprint}, 按PersistentSafepointSiteId排序的{site id, StackmapRecordFingerprint}}})`；没有对应leaf的列表使用typed empty variant，不能靠遗漏字段表示。`SlibMemberId`与range/offset只负责在当前artifact中定位和验证这些leaf，绝不进入跨Cone ODR内容或排序；否则同一specialization仅因producer Cone或物理分片不同就无法coalesce。ABI fingerprint只用于接口诊断；link前必须比较完整member set与definition fingerprint，只有ABI相同而body、initializer、constant、scan/vtable、stackmap或relocation不同仍必须失败；
 - actual-object范围不能只覆盖ODR，也不能默认全部definition位于同一个object，否则strong root/init gateway、param-free TypeDescriptor和strong registration会退回“相信LIR”。`CurrentConeLir`非可选地携带member-independent `ObjectDefinitionPlan`；plan覆盖每个参与派生fingerprint的strong definition和每个ODR member，却不决定物理object分片。codegen/native producer另输出`MemberMaterialization { plan_id, member: SlibMemberId, emitted boundary symbols }`，把每个plan恰好绑定到一个`LinkObject`；这个relation属于object verification projection而非LIR semantic projection。Mach-O `nlist`没有可靠symbol size，因此producer为每个primary atom及address-taken constant/registration发射plan指定的stable start/end boundary symbol，设置`MH_SUBSECTIONS_VIA_SYMBOLS`，形成不重叠named subsection atom。object verifier逐个解析真实symbol/section/relocation table并产生`VerifiedObjectDefinitionIndex { member, DefinitionAtomRange, associated records, ObjectDefinitionFingerprint... }`；manifest保存materialization relation及按member分区的全部definition range，`OdrRecord`只引用其中owner为该组ODR member的精确子集，artifact reader再从对应object独立重算。range不能跨object member；每个member内要求边界同section、严格有序、padding按规范全零且归属于前一atom，并拒绝未被任何range归属的受检relocation；
 - LIR另输出member-independent `DigestFinalizationPlan { nodes }`，每个`DigestNode { typed node id, DigestKind, canonical direct inputs, patch intents }`。`DigestKind`封闭为`SourceSignature`、`Layout`、`Scan`、`LirDefinition`、`ObjectSupport`、`ObjectDefinition`、`StackmapRecord`、`OdrDefinition`、`StrongRegistration`、`RuntimeImage`；前四类从canonical LIR metadata产生语义leaf，允许没有object落槽，其余leaf来自声明的object range或canonical runtime record。`DigestInputRef`也是封闭sum，只能引用上述typed node id，不能把裸digest、object offset或“当前已算出的值”当依赖。`DigestPatchIntent`非可选指明typed intent id、target definition owner/atom role、固定width 32与唯一source node，不含member或offset；producer的materialization relation再产生`MaterializedPatchSite { intent_id, member: SlibMemberId, checked_offset }`。即使digest源atom与落槽descriptor属于不同owner，也通过这两层typed relation关联而不靠裸offset；
-- patch intent的identity精确为`DigestPatchIntentKeyV1 {1=source: DigestNodeId, 2=target_owner: ObjectDefinitionPlanOwnerV1, 3=atom_role: DefinitionAtomRoleV1, 4=semantic_field_role: DigestSemanticFieldRoleV1}`与`DigestPatchIntentId = DomainSeparatedCborHash("scoop-digest-patch-intent-id-v1", DigestPatchIntentKeyV1)`。plan/intent/atom的role都是封闭tag，且每个owner/field组合唯一；boundary symbol只由plan id与start/end/associated role派生。以上identity均不含`SlibMemberId`、object ordinal、section number或offset，所以重新分片只改变materialization relation与code/artifact验证面；重复/缺失plan或intent、一个intent对应多个site、一个physical site被多个intent认领都在finalization前拒绝；
+- patch intent的identity精确为`DigestPatchIntentKeyV1 {1=source: DigestNodeId, 2=target_owner: ObjectDefinitionPlanOwner, 3=atom_role: DefinitionAtomRole, 4=semantic_field_role: DigestSemanticFieldRoleV1}`与`DigestPatchIntentId = DomainSeparatedCborHash("scoop-digest-patch-intent-id-v1", DigestPatchIntentKeyV1)`。plan/intent/atom的role都是封闭tag，且每个owner/field组合唯一；boundary symbol只由plan id与start/end/associated role派生。以上identity均不含`SlibMemberId`、object ordinal、section number或offset，所以重新分片只改变materialization relation与code/artifact验证面；重复/缺失plan或intent、一个intent对应多个site、一个physical site被多个intent认领都在finalization前拒绝；
 - 允许边按kind封闭：四种semantic leaf与object support无依赖；stackmap可依赖owner的source signature与object support；object definition可依赖其semantic leaf、associated stackmap及object support；ODR definition依赖完整member set的LIR definition、object definition与stackmap leaf；strong registration依赖自己的LIR/layout/scan/source、object definition及适用的stackmap leaf；runtime image必须显式依赖其每个canonical record key中出现的definition/layout/scan/descriptor/gateway/stackmap digest。交叉record仍只引用对方typed registration identity，除非其digest确实作为本record字段出现。peer、descendant、反向边或kind不允许的shortcut一律非法；
 - digest node自身也有可重算的persistent identity：`DigestKind`按上段顺序冻结为`1..10`，key精确为`DigestNodeKeyV1 {1=kind: DigestKind, 2=owner_and_role: DigestOwnerAndRoleKeyV1}`，`DigestNodeId = DomainSeparatedCborHash("scoop-digest-node-id-v1", DigestNodeKeyV1)`。owner-and-role key使用LIR wire的persistent typed owner与封闭role，不含arena id、patch offset或任何digest值。一个node的direct input sequence按`(DigestKind tag, DigestNodeId bytes)`严格递增且无重复，每项编码`{ u32 kind, DigestNodeId[32], digest[32] }`并带`u64 count`；plan缺少必需input、增加kind不允许的input或同id对应不同owner key均拒绝；
 - strong registration的算法固定为`StrongRegistrationFingerprint = SHA-256(ByteSpan("scoop-strong-registration-v1") || RuntimeEncode(StrongRegistrationFingerprintInputV1))`，其中`StrongRegistrationFingerprintInputV1 { record: CanonicalStrongRecordSansOwnDefinition, direct_inputs: Sequence<StrongRegistrationDirectInputV1> }`按声明序编码，sequence带小端`u64` count，每项恰为`{ kind: u32, node_id: DigestNodeId[32], digest: Digest256[32] }`并按`(kind,node_id)`严格递增。`CanonicalStrongRecordSansOwnDefinition`恰为6.1完整`RuntimeImageRecordKey` sum：最外层sum tag作为record kind只写一次，variant payload中的registration不再重复kind；linkage必须为Strong、ODR group/member全零、当前registration的`definition_fingerprint`写32个零字节。其他source/layout/scan/descriptor/gateway/callable/stackmap digest字段保留已完成的直接依赖值，pointer按typed role/identity替换。它不读取`MaterializedPatchSite`、RuntimeImage或最终object地址。finalizer与reader从record、LIR plan和verified object index独立重建该输入；不得在完整variant bytes前再写第二份kind，只能把own definition slot归零，不能按遍历时机再归零已经声明的上游digest；
@@ -531,7 +531,7 @@ OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKey)
 `ObjectDefinitionPlan`的identity schema不能用“kind-specific id + role”自然语言代替，v1精确为：
 
 ```text
-StrongDefinitionEntityV1 =
+StrongDefinitionEntity =
     CallableBody(PersistentCallableBodyId)             // tag 1
   | StaticStorage(PersistentStaticStorageId)           // tag 2
   | ImmortalObject(PersistentImmortalObjectId)         // tag 3
@@ -545,7 +545,7 @@ StrongDefinitionEntityV1 =
   | ConeImage(ConeIdentity)                            // tag 11
   | GeneratedBridgeAtom(GeneratedBridgeAtomId)         // tag 12
 
-StrongDefinitionRoleV1 =
+StrongDefinitionRole =
     CallableBody=1 | StaticStorage=2 | ImmortalObject=3
   | TypeDescriptor=4 | Layout=5 | ScanProgram=6
   | DispatchTable=7 | DispatchSlot=8 | InitializationCell=9
@@ -555,35 +555,35 @@ StrongDefinitionRoleV1 =
   | CallableRegistration=16 | ImageDescriptor=17
   | GeneratedBridge=18
 
-ObjectDefinitionPlanOwnerV1 =
+ObjectDefinitionPlanOwner =
     Strong { producer: ConeIdentity,
-             entity: StrongDefinitionEntityV1 }       // tag 1, fields 1..2
+             entity: StrongDefinitionEntity }       // tag 1, fields 1..2
   | Odr { member: OdrMemberId }                        // tag 2, field 1
 
-ObjectDefinitionPlanRoleV1 =
-    Strong { role: StrongDefinitionRoleV1 }            // tag 1, field 1
+ObjectDefinitionPlanRole =
+    Strong { role: StrongDefinitionRole }            // tag 1, field 1
   | OdrMemberPrimary                                   // tag 2
 
-ObjectDefinitionPlanKeyV1 = {
-    owner: ObjectDefinitionPlanOwnerV1,                // field 1
-    definition_role: ObjectDefinitionPlanRoleV1,       // field 2
+ObjectDefinitionPlanKey = {
+    owner: ObjectDefinitionPlanOwner,                // field 1
+    definition_role: ObjectDefinitionPlanRole,       // field 2
 }
 
 ObjectDefinitionPlanId =
     DomainSeparatedCborHash("scoop-object-definition-plan-v1",
-                            ObjectDefinitionPlanKeyV1)
+                            ObjectDefinitionPlanKey)
 
-ObjectDefinitionAtomKeyV1 = {
+ObjectDefinitionAtomKey = {
     plan: ObjectDefinitionPlanId,          // field 1
-    role: DefinitionAtomRoleV1,            // field 2
-    subkey: DefinitionAtomSubkeyV1,        // field 3
+    role: DefinitionAtomRole,            // field 2
+    subkey: DefinitionAtomSubkey,        // field 3
 }
 
-DefinitionAtomRoleV1 =
+DefinitionAtomRole =
     Primary=1 | Lsda=2 | EhFrame=3 | CompactUnwind=4
   | Stackmap=5 | RuntimeRecord=6 | AddressTakenConstant=7
 
-DefinitionAtomSubkeyV1 =
+DefinitionAtomSubkey =
     Singleton                                            // tag 1
   | CallableBody(PersistentCallableBodyId)              // tag 2
   | StaticStorage(PersistentStaticStorageId)            // tag 3
@@ -595,7 +595,7 @@ DefinitionAtomSubkeyV1 =
 
 ObjectDefinitionAtomId =
     DomainSeparatedCborHash("scoop-object-definition-atom-v1",
-                            ObjectDefinitionAtomKeyV1)
+                            ObjectDefinitionAtomKey)
 ```
 
 合法矩阵为：CallableBody entity只接role 1/16，StaticStorage接2/11，ImmortalObject接3/12，ExactType接4/14，Layout/Scan/DispatchTable/DispatchSlot接5…8，InitializationUnit接9/10/13，SafepointSite接15，ConeImage接17，GeneratedBridgeAtom接18；后者只接受`PrimaryEntry`、`SignatureDescriptor`或`ContextDescriptor`，`StaticAssertSupport`没有物理plan。Strong owner只能配Strong role，ODR owner只能配`OdrMemberPrimary`。每个ODR member恰有一个primary，选择按kind固定：CallableBody/DispatchAdapter/ReleaseHook用`cb`，Layout用`ly`，ScanProgram用`sp`，TypeDescriptor用`td`，DispatchTable用`dt`，StaticStorage用`ss`，ImmortalObject用`io`，InitializationCell/Descriptor用`ic`/`id`，RegistrationRecord按discriminator唯一使用`rr/ir/nr/tr/sr/cr`。`od`只给GeneratedNominal及没有专用primary的DiagnosticBytes、AddressTakenConstant、ObjectSupport；同member不得再发`od` alias，避免native linker对两个名字分别选不同producer。
