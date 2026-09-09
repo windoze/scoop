@@ -12,8 +12,8 @@ use inkwell::targets::{
     CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
 use inkwell::{AddressSpace, OptimizationLevel};
-use scoop_lir::LirTargetProfile;
 pub use scoop_lir::TargetProfileId;
+use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
 
 use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
@@ -193,6 +193,7 @@ impl ManagedAddressSpace {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TargetProfile {
     lir_target_profile: LirTargetProfile,
+    backend_profile: BackendProfile,
     canonical_triple: &'static str,
     cpu: &'static str,
     features: &'static str,
@@ -216,6 +217,7 @@ pub struct TargetProfile {
 impl TargetProfile {
     const DARWIN_AARCH64: Self = Self {
         lir_target_profile: LirTargetProfile::DARWIN_AARCH64,
+        backend_profile: BackendProfile::LLVM_22_1,
         canonical_triple: "aarch64-apple-darwin",
         cpu: "generic",
         features: "",
@@ -311,6 +313,14 @@ impl TargetProfile {
     /// later requires the finished module to carry the same value.
     pub const fn lir_target_profile(self) -> LirTargetProfile {
         self.lir_target_profile
+    }
+
+    pub const fn lir_target_selection(self) -> ValidatedLirTargetSelection {
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    }
+
+    pub const fn backend_profile(self) -> BackendProfile {
+        self.backend_profile
     }
 
     pub fn canonical_triple(self) -> &'static str {

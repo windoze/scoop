@@ -14,6 +14,12 @@ pub use types::*;
 mod target;
 pub use target::*;
 
+mod backend;
+pub use backend::*;
+
+mod target_selection;
+pub use target_selection::*;
+
 mod abi;
 pub use abi::*;
 

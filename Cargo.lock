@@ -463,6 +463,8 @@ name = "scoop-lir"
 version = "0.0.0"
 dependencies = [
  "la-arena",
+ "scoop-identity",
+ "scoop-wire",
 ]
 
 [[package]]

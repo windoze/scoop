@@ -1037,3 +1037,24 @@ fn exact_c_types_totally_determine_their_lir_storage() {
     }
     assert_eq!(CReturnType::Void.storage_type(), LirType::Void);
 }
+
+#[test]
+fn target_contract_and_fingerprint_match_the_fixed_vectors() {
+    let profile = LirTargetProfile::DARWIN_AARCH64;
+    assert_eq!(
+        hex(&scoop_wire::encode(&profile.contract()).unwrap()),
+        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e010f01"
+    );
+    assert_eq!(
+        profile.fingerprint().unwrap().to_string(),
+        "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+    );
+    assert_eq!(
+        super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),
+        profile
+    );
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}

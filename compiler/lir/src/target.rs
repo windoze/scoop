@@ -8,6 +8,12 @@
 
 use crate::{IntegerKind, PointerKind};
 
+mod contract;
+pub use contract::{
+    ByteOrder, CAbiLoweringProfile, NativeSymbolNormalization, ScoopAbiClassifier,
+    TargetProfileContract, TargetProfileFingerprint,
+};
+
 /// Stable identity of one complete executable target profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TargetProfileId {
@@ -186,6 +192,20 @@ impl LirTargetProfile {
 
     pub const fn id(self) -> TargetProfileId {
         self.id
+    }
+
+    pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {
+        match self.id {
+            TargetProfileId::DarwinAarch64 => scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        }
+    }
+
+    pub const fn contract(self) -> TargetProfileContract {
+        TargetProfileContract::new(self)
+    }
+
+    pub fn fingerprint(self) -> Result<TargetProfileFingerprint, scoop_wire::HashError> {
+        TargetProfileFingerprint::from_profile(self)
     }
 
     pub const fn canonical_llvm_data_layout(self) -> &'static str {

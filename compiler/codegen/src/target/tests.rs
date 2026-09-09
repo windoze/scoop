@@ -35,6 +35,14 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
             profile.lir_target_profile(),
             scoop_lir::LirTargetProfile::DARWIN_AARCH64
         );
+        assert_eq!(
+            profile.lir_target_selection(),
+            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+        );
+        assert_eq!(
+            profile.backend_profile(),
+            scoop_lir::BackendProfile::LLVM_22_1
+        );
         profile
             .validate_lir_target_profile(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             .expect("the selected codegen and LIR profiles agree");
