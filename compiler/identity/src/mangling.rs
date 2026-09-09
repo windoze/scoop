@@ -12,16 +12,14 @@ use crate::{
 const MANGLED_SYMBOL_PREFIX: &str = "scoop$1$";
 const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 
+const MANGLING_SCHEMA_NAME: &str = "persistent-v1";
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ManglingSchemaIdentity {
-    PersistentV1,
-}
+pub struct ManglingSchemaIdentity;
 
 impl ManglingSchemaIdentity {
     pub const fn canonical_name(self) -> &'static str {
-        match self {
-            Self::PersistentV1 => "persistent-v1",
-        }
+        MANGLING_SCHEMA_NAME
     }
 }
 
@@ -438,7 +436,7 @@ mod tests {
         assert_eq!(request.linkage(), LinkageClass::ConeStrong);
         assert_eq!(request.symbol(), MangledSymbol::from_key(&key));
         assert_eq!(
-            hex(&encode(&ManglingSchemaIdentity::PersistentV1).unwrap()),
+            hex(&encode(&ManglingSchemaIdentity).unwrap()),
             "6d70657273697374656e742d7631"
         );
     }
