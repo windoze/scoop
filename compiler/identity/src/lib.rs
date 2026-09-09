@@ -123,6 +123,11 @@ pub use entity::{
     ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use entity::{
+    DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
+    DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
+    GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
+};
+pub use entity::{
     DecodedInitializationUnitKey, DecodedLocalValueKey, InitializationUnitKey,
     InitializationUnitResolutionError, LocalValueKey, LocalValueResolutionError,
     LocalValueSelector, SyntheticLocalRole,
@@ -138,10 +143,6 @@ pub use entity::{
     RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
 };
 pub use entity::{DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole};
-pub use entity::{
-    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget,
-    GeneratedBridgeUnitKey,
-};
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,
     GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,

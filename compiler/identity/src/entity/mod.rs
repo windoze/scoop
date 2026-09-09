@@ -33,8 +33,9 @@ pub use binding::{
     DecodedLocalBindingKey, ExportBindingKey, LocalBindingKey, LocalBindingRole,
 };
 pub use bridge::{
-    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget,
-    GeneratedBridgeUnitKey,
+    DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
+    DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
+    GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
 };
 pub use c_abi::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,

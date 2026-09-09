@@ -7,6 +7,13 @@ use crate::{
     GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
+    DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum GeneratedBridgeUnitKey {
     OutboundFunction(NativeExternalContractFingerprint),
