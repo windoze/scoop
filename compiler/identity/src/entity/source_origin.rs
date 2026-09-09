@@ -16,7 +16,11 @@ use crate::{
 
 mod decode;
 
-pub use decode::{DecodedSourceContextKey, SourceContextResolutionError, SourceContextResolver};
+pub use decode::{
+    DecodedConcreteExpressionOrigin, DecodedDefinitionOrigin, DecodedEvaluationOrigin,
+    DecodedExpressionOrigin, DecodedSourceContextKey, DecodedSourceSpan,
+    SourceContextResolutionError, SourceContextResolver, SourceOriginResolutionError,
+};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SourceSpan {

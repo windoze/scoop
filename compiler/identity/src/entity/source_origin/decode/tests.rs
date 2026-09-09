@@ -1,14 +1,19 @@
 use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
-use super::{DecodedSourceContextKey, SourceContextResolutionError};
+use super::{
+    DecodedExpressionOrigin, DecodedSourceContextKey, DecodedSourceSpan,
+    SourceContextResolutionError, SourceOriginResolutionError,
+};
 use crate::{
-    CallableOwner, CborIdentityRecord, ConeIdentity, DecodedCborIdentityRecord,
-    DecodedPersistentId, NominalDeclarationOwner, NormalizedSourcePath,
+    CallableOwner, CborIdentityRecord, ConcreteExpressionOrigin, ConeIdentity,
+    DecodedCborIdentityRecord, DecodedPersistentId, DefinitionOrigin, EvaluationOrigin,
+    ExpressionOrigin, NominalDeclarationOwner, NormalizedSourcePath,
     PersistentCallableApplicationId, PersistentConstructorId, PersistentExtensionPropertyId,
     PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
     PersistentGenericTypeId, PersistentIdMismatch, PersistentIdResolver,
-    PersistentInitializationUnitId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentSourceContextId, PersistentTypeId, PropertyOwner, SourceContextKey, SourceIdentity,
+    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
+    PersistentPropertyId, PersistentSourceContextId, PersistentTypeId, PropertyOwner,
+    SourceContextKey, SourceIdentity, SourceOriginError, SourceSpan, SourceSpanError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -33,6 +38,26 @@ impl PersistentIdResolver<ConeIdentity> for Resolver {
     ) -> Result<ConeIdentity, Self::Error> {
         id.verify(ConeIdentity::CORE)
             .map_err(|_: PersistentIdMismatch<ConeIdentity>| ResolutionError)
+    }
+}
+
+impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve_key(
+        &mut self,
+        id: DecodedPersistentId<PersistentSourceContextId>,
+    ) -> Result<SourceContextKey, Self::Error> {
+        for key in context_keys() {
+            let expected = PersistentSourceContextId::from_key(&key).unwrap();
+            if expected.as_array() == id.as_array() {
+                return id
+                    .verify(expected)
+                    .map(|_| key)
+                    .map_err(|_| ResolutionError);
+            }
+        }
+        Err(ResolutionError)
     }
 }
 
@@ -149,10 +174,98 @@ fn source_context_decoder_rejects_unknown_and_incomplete_variants() {
     );
 }
 
+#[test]
+fn expression_origins_round_trip_and_resolve_context_keys() {
+    let definition_context = context_keys().remove(0);
+    let evaluation_context = context_keys().remove(1);
+    let definition = DefinitionOrigin::new(
+        definition_context.source().clone(),
+        SourceSpan::new(3, 7).unwrap(),
+        &definition_context,
+    )
+    .unwrap();
+    let evaluation = EvaluationOrigin::new(
+        evaluation_context.source().clone(),
+        SourceSpan::new(11, 19).unwrap(),
+        &evaluation_context,
+    )
+    .unwrap();
+    let origins = [
+        ExpressionOrigin::Definition(definition.clone()),
+        ExpressionOrigin::Concrete(ConcreteExpressionOrigin::new(definition, evaluation)),
+    ];
+
+    for origin in origins {
+        let decoded = decode_canonical::<DecodedExpressionOrigin>(
+            &encode(&origin).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        assert_eq!(decoded.resolve(&mut Resolver).unwrap(), origin);
+    }
+}
+
+#[test]
+fn source_origin_resolution_rejects_invalid_spans_and_context_source_mismatches() {
+    let span =
+        decode_canonical::<DecodedSourceSpan>(b"\xa2\x01\x05\x02\x04", DecodeLimits::default())
+            .unwrap();
+    assert_eq!(span.validate(), Err(SourceSpanError));
+
+    let definition_context = context_keys().remove(0);
+    let evaluation_context = context_keys().remove(1);
+    let evaluation = EvaluationOrigin::new(
+        evaluation_context.source().clone(),
+        SourceSpan::new(11, 19).unwrap(),
+        &evaluation_context,
+    )
+    .unwrap();
+    let mut bytes = encode(&evaluation).unwrap();
+    let wrong_context = PersistentSourceContextId::from_key(&definition_context).unwrap();
+    let context_start = bytes.len() - wrong_context.as_array().len();
+    bytes[context_start..].copy_from_slice(wrong_context.as_array());
+    let decoded =
+        decode_canonical::<super::DecodedEvaluationOrigin>(&bytes, DecodeLimits::default())
+            .unwrap();
+    assert_eq!(
+        decoded.resolve(&mut Resolver),
+        Err(SourceOriginResolutionError::Origin(
+            SourceOriginError::ContextSourceMismatch
+        ))
+    );
+}
+
+#[test]
+fn expression_origin_decoder_rejects_unknown_variants() {
+    let error = decode_canonical::<DecodedExpressionOrigin>(
+        b"\xa2\x00\x03\x01\x80",
+        DecodeLimits::default(),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
+}
+
 fn source() -> SourceIdentity {
     SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/context.scoop").unwrap(),
     )
     .unwrap()
+}
+
+fn evaluation_source() -> SourceIdentity {
+    SourceIdentity::new(
+        ConeIdentity::CORE,
+        NormalizedSourcePath::new("src/evaluation.scoop").unwrap(),
+    )
+    .unwrap()
+}
+
+fn context_keys() -> Vec<SourceContextKey> {
+    vec![
+        SourceContextKey::File { source: source() },
+        SourceContextKey::File {
+            source: evaluation_source(),
+        },
+    ]
 }

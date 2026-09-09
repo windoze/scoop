@@ -2,13 +2,17 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::SourceContextKey;
+use super::{
+    ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin, ExpressionOrigin,
+    SourceContextKey, SourceOriginError, SourceSpan, SourceSpanError,
+};
 use crate::{
-    ConeIdentity, DecodedCallableOwner, DecodedNominalDeclarationOwner, DecodedPropertyOwner,
-    DecodedSourceIdentity, PersistentCallableApplicationId, PersistentConstructorId,
-    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentInitializationUnitId, PersistentPropertyAccessorId, PersistentPropertyId,
+    ConeIdentity, DecodedCallableOwner, DecodedNominalDeclarationOwner, DecodedPersistentId,
+    DecodedPropertyOwner, DecodedSourceIdentity, PersistentCallableApplicationId,
+    PersistentConstructorId, PersistentExtensionPropertyId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentSourceContextId,
     PersistentTypeId, SourceIdentityResolutionError,
 };
 
@@ -31,7 +35,7 @@ pub enum DecodedSourceContextKey {
     },
     Initialization {
         source: DecodedSourceIdentity,
-        unit: crate::DecodedPersistentId<PersistentInitializationUnitId>,
+        unit: DecodedPersistentId<PersistentInitializationUnitId>,
     },
 }
 
@@ -127,13 +131,239 @@ impl WireDecode for DecodedSourceContextKey {
                 expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::Initialization {
                     source: decoder.field(1, DecodedSourceIdentity::decode)?,
-                    unit: decoder.field(2, crate::DecodedPersistentId::decode)?,
+                    unit: decoder.field(2, DecodedPersistentId::decode)?,
                 })
             }
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct DecodedSourceSpan {
+    start_byte: u64,
+    end_byte: u64,
+}
+
+impl DecodedSourceSpan {
+    pub fn validate(self) -> Result<SourceSpan, SourceSpanError> {
+        SourceSpan::new(self.start_byte, self.end_byte)
+    }
+}
+
+impl WireEncode for DecodedSourceSpan {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        encoder.unsigned(self.start_byte)?;
+        encoder.field(2)?;
+        encoder.unsigned(self.end_byte)
+    }
+}
+
+impl WireDecode for DecodedSourceSpan {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            start_byte: decoder.field(1, Decoder::unsigned)?,
+            end_byte: decoder.field(2, Decoder::unsigned)?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedDefinitionOrigin {
+    source: DecodedSourceIdentity,
+    span: DecodedSourceSpan,
+    context: DecodedPersistentId<PersistentSourceContextId>,
+}
+
+impl DecodedDefinitionOrigin {
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<DefinitionOrigin, SourceOriginResolutionError<E>>
+    where
+        R: PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+    {
+        let (source, span, context) =
+            resolve_origin_fields(self.source, self.span, self.context, resolver)?;
+        DefinitionOrigin::new(source, span, &context).map_err(SourceOriginResolutionError::Origin)
+    }
+}
+
+impl WireEncode for DecodedDefinitionOrigin {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_origin(encoder, &self.source, self.span, self.context)
+    }
+}
+
+impl WireDecode for DecodedDefinitionOrigin {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            source: decoder.field(1, DecodedSourceIdentity::decode)?,
+            span: decoder.field(2, DecodedSourceSpan::decode)?,
+            context: decoder.field(3, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedEvaluationOrigin {
+    source: DecodedSourceIdentity,
+    span: DecodedSourceSpan,
+    context: DecodedPersistentId<PersistentSourceContextId>,
+}
+
+impl DecodedEvaluationOrigin {
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<EvaluationOrigin, SourceOriginResolutionError<E>>
+    where
+        R: PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+    {
+        let (source, span, context) =
+            resolve_origin_fields(self.source, self.span, self.context, resolver)?;
+        EvaluationOrigin::new(source, span, &context).map_err(SourceOriginResolutionError::Origin)
+    }
+}
+
+impl WireEncode for DecodedEvaluationOrigin {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_origin(encoder, &self.source, self.span, self.context)
+    }
+}
+
+impl WireDecode for DecodedEvaluationOrigin {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            source: decoder.field(1, DecodedSourceIdentity::decode)?,
+            span: decoder.field(2, DecodedSourceSpan::decode)?,
+            context: decoder.field(3, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedConcreteExpressionOrigin {
+    definition: DecodedDefinitionOrigin,
+    evaluation: DecodedEvaluationOrigin,
+}
+
+impl DecodedConcreteExpressionOrigin {
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<ConcreteExpressionOrigin, SourceOriginResolutionError<E>>
+    where
+        R: PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+    {
+        let definition = self.definition.resolve(resolver)?;
+        let evaluation = self.evaluation.resolve(resolver)?;
+        Ok(ConcreteExpressionOrigin::new(definition, evaluation))
+    }
+}
+
+impl WireEncode for DecodedConcreteExpressionOrigin {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.definition.encode(encoder)?;
+        encoder.field(2)?;
+        self.evaluation.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedConcreteExpressionOrigin {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            definition: decoder.field(1, DecodedDefinitionOrigin::decode)?,
+            evaluation: decoder.field(2, DecodedEvaluationOrigin::decode)?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DecodedExpressionOrigin {
+    Definition(DecodedDefinitionOrigin),
+    Concrete(DecodedConcreteExpressionOrigin),
+}
+
+impl DecodedExpressionOrigin {
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<ExpressionOrigin, SourceOriginResolutionError<E>>
+    where
+        R: PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+    {
+        match self {
+            Self::Definition(origin) => origin.resolve(resolver).map(ExpressionOrigin::Definition),
+            Self::Concrete(origin) => origin.resolve(resolver).map(ExpressionOrigin::Concrete),
+        }
+    }
+}
+
+impl WireEncode for DecodedExpressionOrigin {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(0)?;
+        encoder.unsigned(match self {
+            Self::Definition(_) => 1,
+            Self::Concrete(_) => 2,
+        })?;
+        encoder.field(1)?;
+        match self {
+            Self::Definition(origin) => origin.encode(encoder),
+            Self::Concrete(origin) => origin.encode(encoder),
+        }
+    }
+}
+
+impl WireDecode for DecodedExpressionOrigin {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => decoder
+                .field(1, DecodedDefinitionOrigin::decode)
+                .map(Self::Definition),
+            2 => decoder
+                .field(1, DecodedConcreteExpressionOrigin::decode)
+                .map(Self::Concrete),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceOriginResolutionError<E> {
+    Source(SourceIdentityResolutionError<E>),
+    Span(SourceSpanError),
+    Context(E),
+    Origin(SourceOriginError),
+}
+
+impl<E: fmt::Display> fmt::Display for SourceOriginResolutionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Source(error) => error.fmt(formatter),
+            Self::Span(error) => error.fmt(formatter),
+            Self::Context(error) => error.fmt(formatter),
+            Self::Origin(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for SourceOriginResolutionError<E> {}
 
 pub trait SourceContextResolver<E>:
     PersistentIdResolver<ConeIdentity, Error = E>
@@ -194,6 +424,41 @@ where
     source
         .resolve(resolver)
         .map_err(SourceContextResolutionError::Source)
+}
+
+fn resolve_origin_fields<R, E>(
+    source: DecodedSourceIdentity,
+    span: DecodedSourceSpan,
+    context: DecodedPersistentId<PersistentSourceContextId>,
+    resolver: &mut R,
+) -> Result<(crate::SourceIdentity, SourceSpan, SourceContextKey), SourceOriginResolutionError<E>>
+where
+    R: PersistentIdResolver<ConeIdentity, Error = E>
+        + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+{
+    let source = source
+        .resolve(resolver)
+        .map_err(SourceOriginResolutionError::Source)?;
+    let span = span.validate().map_err(SourceOriginResolutionError::Span)?;
+    let context = resolver
+        .resolve_key(context)
+        .map_err(SourceOriginResolutionError::Context)?;
+    Ok((source, span, context))
+}
+
+fn encode_origin(
+    encoder: &mut Encoder,
+    source: &DecodedSourceIdentity,
+    span: DecodedSourceSpan,
+    context: DecodedPersistentId<PersistentSourceContextId>,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(3)?;
+    encoder.field(1)?;
+    source.encode(encoder)?;
+    encoder.field(2)?;
+    span.encode(encoder)?;
+    encoder.field(3)?;
+    context.encode(encoder)
 }
 
 fn expect_sum_length(
