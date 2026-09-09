@@ -63,7 +63,7 @@ pub(crate) enum UnwindModel {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PersonalityAbi {
-    ScoopLsdaSubsetV1,
+    ScoopLsdaSubset,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,7 +86,7 @@ pub(crate) enum EhArtifactInspection {
 impl EhProfile {
     const DARWIN_AARCH64: Self = Self {
         unwind_model: UnwindModel::ItaniumDwarf,
-        personality_abi: PersonalityAbi::ScoopLsdaSubsetV1,
+        personality_abi: PersonalityAbi::ScoopLsdaSubset,
         exception_data_registers: 2,
         encodings: LsdaEncodingProfile {
             lp_start: 0xff,

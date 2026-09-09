@@ -54,7 +54,7 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
             profile.eh_profile(),
             EhProfile {
                 unwind_model: UnwindModel::ItaniumDwarf,
-                personality_abi: PersonalityAbi::ScoopLsdaSubsetV1,
+                personality_abi: PersonalityAbi::ScoopLsdaSubset,
                 exception_data_registers: 2,
                 encodings: LsdaEncodingProfile {
                     lp_start: 0xff,
