@@ -1,3 +1,4 @@
+mod binding;
 mod callable;
 mod dispatch;
 mod enum_variant;
@@ -13,6 +14,10 @@ mod source_declaration;
 mod source_origin;
 mod structural;
 
+pub use binding::{
+    BindableEntityV1, BindingNamespaceV1, BindingRoleV1, BindingTargetError, BindingTargetV1,
+    ExportBindingKeyV1, LocalBindingKeyV1, LocalBindingRoleV1,
+};
 pub use callable::{
     AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
