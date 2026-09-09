@@ -13,6 +13,7 @@
 //! ```
 
 mod cone;
+mod entity;
 mod ids;
 mod source;
 mod syntax;
@@ -20,6 +21,14 @@ mod syntax;
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
     ConeIdentity, DecodedConeCoordinateV1,
+};
+pub use entity::{
+    CallingConventionV1, DeclarationNameV1, DeclarationScopeV1, DefinitionOwnerAtomV1,
+    DefinitionOwnerChainV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
+    OptionalSignatureTypeV1, SignatureTypeKeyV1, SourceDeclarationIdentityError,
+    SourceDeclarationKeyError, SourceDeclarationKeyV1, SourceDeclarationKindV1,
+    SourceDeclarationSiteV1, SourceNominalKindV1, StructuralDefinitionPathV1,
+    StructuralDefinitionSiteRoleV1, StructuralPathSegmentV1,
 };
 pub use ids::{
     DecodedPersistentIdV1, GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId,
