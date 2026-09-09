@@ -36,6 +36,13 @@ pub use entity::{
     LocalBindingRoleV1, PropertyAccessorKeyV1, SignatureCallableShapeV1,
 };
 pub use entity::{
+    CDataPointeeV1, CLayoutByteAlignmentV1, CLayoutOverrideV1, CPointerStorageV1,
+    CanonicalCAbiError, CanonicalCAbiFunctionSignatureV1, CanonicalCAbiLayoutFieldV1,
+    CanonicalCAbiLayoutFingerprintRecordV1, CanonicalCAbiLayoutV1, CanonicalCAbiParameterV1,
+    CanonicalCAbiReturnV1, CanonicalCAbiSignatureFingerprintRecordV1, CanonicalCStorageTypeV1,
+    IntegerBitWidthV1, SignednessV1, TargetCallingConventionV1,
+};
+pub use entity::{
     CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, ContinuationShellRoleV1,
     CoroutineAdapterRoleV1, EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1,
     EnumVariantIdentityError, EnumVariantIdentityKeyV1, ExactCallableSignatureV1,
@@ -75,20 +82,20 @@ pub use entity::{
     InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
 };
 pub use ids::{
-    DecodedPersistentIdV1, GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId,
-    ObjectDefinitionAtomId, ObjectDefinitionPlanId, OdrGroupId, OdrMemberId,
-    PersistentCallableApplicationId, PersistentCallableBodyId, PersistentCallbackApplicationId,
-    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentDispatchSlotId,
-    PersistentDispatchTableId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentExportBindingId, PersistentExtensionPropertyId,
-    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdMismatch, PersistentIdV1,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentLayoutId,
-    PersistentLocalBindingId, PersistentLocalValueId, PersistentNativeExternalSymbolId,
-    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
-    PersistentSourceNativeExternalContractId, PersistentStaticStorageId, PersistentTypeAliasId,
-    PersistentTypeId,
+    CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentIdV1,
+    GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, OdrGroupId, OdrMemberId, PersistentCallableApplicationId,
+    PersistentCallableBodyId, PersistentCallbackApplicationId, PersistentCallbackRegistrationId,
+    PersistentConstructorId, PersistentDispatchSlotId, PersistentDispatchTableId,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentExtensionPropertyId, PersistentFieldId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentIdMismatch, PersistentIdV1, PersistentImmortalObjectId,
+    PersistentInitializationUnitId, PersistentLayoutId, PersistentLocalBindingId,
+    PersistentLocalValueId, PersistentNativeExternalSymbolId, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentSafepointSiteId,
+    PersistentScanId, PersistentSourceContextId, PersistentSourceNativeExternalContractId,
+    PersistentStaticStorageId, PersistentTypeAliasId, PersistentTypeId,
 };
 pub use source::{
     DecodedNormalizedSourcePathV1, DecodedSourceIdentityV1, NormalizedSourcePath,

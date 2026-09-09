@@ -114,6 +114,14 @@ persistent_id!(ObjectDefinitionAtomId, "object definition atom");
 persistent_id!(PersistentExactTypeId, "exact type");
 persistent_id!(PersistentCallableBodyId, "callable body");
 persistent_id!(PersistentSafepointSiteId, "safepoint site");
+persistent_id!(
+    CanonicalCAbiSignatureFingerprint,
+    "canonical C ABI signature fingerprint"
+);
+persistent_id!(
+    CanonicalCAbiLayoutFingerprint,
+    "canonical C ABI layout fingerprint"
+);
 
 /// Typed but not yet semantically trusted bytes read from Wire CBOR v1.
 ///

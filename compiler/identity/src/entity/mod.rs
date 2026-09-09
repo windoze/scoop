@@ -1,4 +1,5 @@
 mod binding;
+mod c_abi;
 mod callable;
 mod callback;
 mod dispatch;
@@ -21,6 +22,13 @@ mod structural;
 pub use binding::{
     BindableEntityV1, BindingNamespaceV1, BindingRoleV1, BindingTargetError, BindingTargetV1,
     ExportBindingKeyV1, LocalBindingKeyV1, LocalBindingRoleV1,
+};
+pub use c_abi::{
+    CDataPointeeV1, CLayoutByteAlignmentV1, CLayoutOverrideV1, CPointerStorageV1,
+    CanonicalCAbiError, CanonicalCAbiFunctionSignatureV1, CanonicalCAbiLayoutFieldV1,
+    CanonicalCAbiLayoutFingerprintRecordV1, CanonicalCAbiLayoutV1, CanonicalCAbiParameterV1,
+    CanonicalCAbiReturnV1, CanonicalCAbiSignatureFingerprintRecordV1, CanonicalCStorageTypeV1,
+    IntegerBitWidthV1, SignednessV1, TargetCallingConventionV1,
 };
 pub use callable::{
     AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
