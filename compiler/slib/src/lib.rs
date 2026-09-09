@@ -11,3 +11,6 @@ pub use archive::*;
 
 mod profile;
 pub use profile::*;
+
+mod compatibility;
+pub use compatibility::*;
