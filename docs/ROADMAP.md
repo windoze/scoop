@@ -71,7 +71,7 @@ M11 同时补齐 M7 预留的局部函数候选层，并把 managed 函数值与
 
 ### M12 FFI 注解族 ✅（2026-08-31 完成，设计见 `docs/milestone12/DESIGN.md`）
 
-已完成 `@Extern` / `@NoGC` / `@Unsafe` / `@Safe` / `@CLayout` / `@CallingConvention` / `@Global` / `@ThreadLocal` / `@InteriorMutable`、`value` / `ref` kind bound、显式调用类型实参以及 `Ptr` / `FunPtr` 的全链路实现（spec 第 13、14 章）。C ABI 通过编译器生成且带静态布局断言的 C bridge 交给 host C compiler分类；Scoop ABI 保持普通Scoop typed signature与direct ref，不经过C storage bridge（M15在不改变该ABI的前提下把caller实现修订为typed native-borrowed transition）。extern function/global/TLS、GC-free本地存储、CLayout struct双向传值、raw pointer操作、同线程同步静态 `@NoGC` callback、native root frame和 core GC/output boundary迁移均已有独立 IR golden与端到端 fixture。
+已完成 `@Extern` / `@NoGC` / `@Unsafe` / `@Safe` / `@CLayout` / `@CallingConvention` / `@Global` / `@ThreadLocal` / `@InteriorMutable`、`value` / `ref` kind bound、显式调用类型实参以及 `Ptr` / `FunPtr` 的全链路实现（spec 第 13、14 章）。C ABI 通过编译器生成且带静态布局断言的canonical C bridge交给已验证system C compiler profile分类；Scoop ABI保持普通Scoop typed signature与direct ref，不经过C storage bridge（M15在不改变该ABI的前提下把caller实现修订为typed native-borrowed transition）。extern function/global/TLS、GC-free本地存储、CLayout struct双向传值、raw pointer操作、同线程同步静态 `@NoGC` callback、native root frame和core GC/output boundary迁移均已有独立IR golden与端到端fixture。
 
 M12 只实现普通、非挂起的 FFI：`@Extern` 与 `suspend` 互斥，挂起函数也不能在 `FunPtr` 上下文中解析为原生地址。两种情况都由 HIR 直接诊断；不生成 wrapper，也不向外暴露 M10 hidden continuation ABI。`FunPtr<F>` 复用 M11 的正式函数类型与中性 `::name` 语法，但通过期望类型选择独立的 native ABI resolution。C ABI 只接受 GC-free C-FFI-safe值并经过 C bridge；Scoop ABI复用 typed managed ABI直接传 ref，跨 safepoint由 native root slot保活与更新。M12 callback只支持同步同线程的静态 `@NoGC` target；managed closure保活、异步调用和foreign-thread入口明确延后到M13。
 
@@ -105,7 +105,7 @@ M13 已将 M9 的单 mutator runtime升级为**多 mutator、stop-the-world、co
 
 M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只会mark、地址永远不变”推进为**单代、STW、单线程collector的moving Immix**。本里程碑首先是正确性门：所有managed ref都必须来自可枚举、可更新的root/field slot，不能继续依赖“旧地址碰巧还能用”。分代、parallel/concurrent collection不与moving一起引入。
 
-- M15首个且唯一强制target为macOS/AArch64（Apple Silicon、Mach-O、LLVM stack map v3）；其他target在codegen前明确拒绝，不允许退回非移动/保守模式。opaque typed target profile从完备capability选择runtime platform bundle；Mach-O image、Darwin thread/VM及AArch64 frame/anchor分为可组合组件，通用stackmap parser、root visitor与collector不得包含平台分支。新增平台复用已有维度，只登记profile并补缺失组件；
+- M15首个且唯一强制target为macOS/AArch64（Apple Silicon、Mach-O、LLVM stack map v3）；其他target在codegen前明确拒绝，不允许退回非移动/保守模式。请求级opaque typed target selection从完备capability选择runtime platform bundle；M23-2进一步把其中LIR-target、backend、C-bridge、runtime-build与final-link证明拆为五个不可互相推导的projection。Mach-O image、Darwin thread/VM及AArch64 frame/anchor分为可组合组件，通用stackmap parser、root visitor与collector不得包含平台分支。新增平台复用已有维度，只登记profile并补缺失组件；
 - 编译器后端固定为与当前stable Rust一致的LLVM 22.1，本路线不包含LLVM升级。DarwinAArch64 profile固定使用22.1标准SelectionDAG/TargetMachine pipeline：GC pointer不进入vreg，post-RA `FixupStatepointCallerSaved`禁止callee-saved register root，`DeoptLiveIn`与透传原始LLVM backend option均禁止；因此managed GC root的产出契约是可写`Indirect [SP/FP + offset]`，object检查只是验证该后端不变量的防御性断言，不负责从任意LLVM产物中猜测能力；
 - runtime从dyld已fixup的进程内`__LLVM_STACKMAPS,__llvm_stackmaps`精确解析并登记record，以每个parked线程的return address和受检stack location定位root；moving collection不允许回退到保守栈扫描。全局根、immortal/stable external object、native/compiler root slot、`GcHandle`、对象字段、数组/enum/tuple/closure/coroutine frame中的引用都必须通过统一的可改写slot visitor更新；
 - runtime入口按类型隔离为generated managed薄入口、Scoop ABI native-borrowed入口、runtime internal实现及foreign callback gateway：只有managed薄入口捕获直接caller的PC/SP/FP；native-borrowed入口只扫描冻结caller roots和callee登记slot，不能把C frame冒充managed frame；
@@ -188,13 +188,17 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-2 persistent identity与`.slib` wire基础
 
-- 冻结Cone及kind-specific persistent identity、exact/source/unit/runtime/safepoint id、`PersistentV1` mangler、session remap，以及`.slib`的deterministic container、三层metadata envelope、typed member directory、资源上限、基础Graph/Compile reader与schema演进规则。
+总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage2/DESIGN.md`。
+
+- 冻结Cone及kind-specific persistent identity、exact/source/unit/callable application/body/runtime/safepoint id、当前generic body所需的最小ODR group/member identity、`PersistentV1` mangler与session remap。callback source site使用允许binder的`PersistentCallbackRegistrationId`，fully concrete materialization使用`{ registration, CallableMaterializationContextV1 }`的`PersistentCallbackApplicationId`；generic delegated initializer/ensure的local generic owner使用`EnclosingInitializationApplication { unit }`。Initialization generated template只引用声明级unit，application unit只进入materialization context并决定实际body root。box/coroutine step/slot/shell/start统一按`ExactOwnerRoot`归属，param-free source nominal的定义Cone必须预物化并导出有限shape-support closure，consumer不得替它发Strong定义。
+- 统一冻结`ByteSpan`、`DomainSeparatedCborHash`与仅供callable body使用的`RuntimeEncodeV1`；`.slib`冻结deterministic container、三层schema-1 metadata envelope、typed member directory、资源上限、基础Graph/Compile reader与schema演进规则。三条`identity-foundation/1`保存可重算的exact canonical payload；native witness只覆盖extern/callback边界的source nominal闭包，Scoop extern的`GcEffectV1::{Managed, NoGc}`与ordinary/suspend effect分离，不把foundation冒充通用layout服务。
+- M23-2只持久化`ValidatedLirTargetSelectionV1 { lir_target, backend }`；请求级registry原子解析`ResolvedTargetProfileV1`的`lir_target/backend/c_bridge_toolchain/runtime_build/final_link`五个projection。canonical C signature只描述generated-C source storage，不持久化完整target C classifier；LLVM candidate绑定`ValidatedBackendProfileV1`，generated-C candidate绑定`ValidatedCBridgeToolchainProfileV1`。bridge recipe使用producer-independent `GeneratedBridgeUnitId`，实际定义使用producer-specific `GeneratedBridgeAtomId`，LIR/ODR relocation引用unit并由object verifier从atom规范化回unit。
 - member envelope从本阶段起允许任意数量、任意已登记producer的`LinkObject`以及opaque/required blob；成员用途不依赖文件名、扩展名、顺序或object数量。后续语义payload按独立section/capability version加入，不在尚无verifier时宣称最终Link view完成。
 
 ### M23-3 single-Cone artifact与core分离
 
 - 引入`Cone.toml`、source discovery、library/executable entry sum及manifest/protocol边界；`scoopc`每次只消费显式上游`.slib`闭包并产生当前Cone `.slib`，不搜索、递归、构建runtime或最终链接。
-- `scoop.core`成为trusted独立library artifact；先闭环core-only编译，其他Cone dependency稳定拒绝到M23-5。实现compiler侧per-Cone image producer、strong-only六类registration/image digest、member-aware definition/undefined requirement、当前Scoop/generated `LinkObject` verifier与基础Link view，使本阶段成功artifact已通过Compile/Link双view。single-file synthetic request固定为一个source、executable、core-only Cone dependency，其`.slib`只能作为local executable root artifact。
+- `scoop.core`成为trusted独立library artifact；先闭环core-only编译，其他Cone dependency稳定拒绝到M23-5。实现compiler侧per-Cone image producer、strong-only六类registration/image digest、member-aware definition/undefined requirement、当前Scoop/generated `LinkObject` verifier与基础Link view，使本阶段成功artifact已通过Compile/Link双view；core中可跨Cone引用的param-free source nominal同时验证并物化M23-2冻结的有限shape-support closure。production profile必须拒绝任意ODR group/member/body/symbol，直到M23-7具备完整证明。single-file synthetic request固定为一个source、executable、core-only Cone dependency，其`.slib`只能作为local executable root artifact。
 
 ### M23-4 resolved build graph与调度
 
@@ -203,17 +207,17 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-5 多Cone名称语义
 
-- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；暂需新layout/dispatch bridge、receiver-dependent protected access或generic能力的形态稳定拒绝，不产生残缺IR。
+- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；本阶段记录M23-2冻结的shape-support owner/identity，凡需尚未具备的跨Cone layout/dispatch或物化证明的使用稳定拒绝到M23-6，不由consumer临时发Strong定义。receiver-dependent protected access或generic能力同样稳定拒绝，不产生残缺IR。
 - 完成direct/transitive可见性、split package、链式re-export、negative lookup observation及semantic cache失效矩阵；每个成功用例仍产生双view有效artifact。
 
 ### M23-6 跨Cone layout、typed ABI与ZST
 
-- 实现并冻结`ValueStorageLayout`、Scoop ABI zero-payload elision、C ABI零尺寸拒绝、boxing/address/static token、`Array`/`MutableArray<ZST>`、param-free跨Cone layout/scan/TypeDescriptor以及inheritance/slot/dispatch与protected access bridge。
+- 以新required MIR/LIR section首次实现并冻结通用、可跨Cone复用的`ValueStorageLayout`、Scoop typed ABI与scan/TypeDescriptor proof，包括zero-payload elision、C ABI零尺寸拒绝、boxing/address/static token、`Array`/`MutableArray<ZST>`、param-free inheritance/slot/dispatch与protected access bridge。每个定义Cone同时为可跨Cone引用的param-free source nominal预物化并导出`BoxedValue`、`CoroutineStep`、`CoroutineSlot`、`ContinuationShell`与`CoroutineStart`的有限`ExactOwnerRoot` shape-support closure，下游只引用external typed definition。M23-2 foundation中的layout/scan/dispatch只含identity key，`NativeBoundaryTypeDefinitionRecordV1`只服务extern/callback source witness；本阶段不得改写已冻结的exact identity、witness或extern/callback contract bytes。
 - 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension
 
-- 完成consumer-side concretization、generic hidden support closure、完整ODR group/member与digest DAG、collection-based object materialization，以及exact receiver application唯一的lazy delegated storage。
+- 消费M23-2已冻结的group/member key，完成consumer-side concretization、generic hidden support closure、完整ODR member closure、ABI/definition digest DAG、root provenance与跨Cone member-set/definition一致性验证、collection-based object materialization，以及exact receiver application唯一的lazy delegated storage。
 - sibling Cone的相同specialization必须产生相同member/fingerprint，冲突由artifact/object合并验证器拒绝；真正地址coalesce与全程序exactly-once留给真实link/runtime阶段。
 
 ### M23-8 runtime multi-image registry与启动
@@ -223,7 +227,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-9 基础artifact-only program-link
 
-- `compiler/linker`与`compiler/runtime-build`只消费`ValidatedArtifactClosure<Link>`、`ValidatedRuntimeArtifact`及typed target/profile，生成并验证program object和无用户native requirement的真实多Cone binary；target profile必须显式闭合runtime/startup/support/default system provider及target-synthetic输入，基础plan/evidence不得依赖linker隐式default。源码、locator、cache和额外raw object不进入stage。
+- `compiler/runtime-build`只消费`lir_target + c_bridge_toolchain + runtime_build`并产出`ValidatedRuntimeArtifact`；`compiler/linker`只消费`ValidatedArtifactClosure<Link>`、该runtime artifact、`lir_target + final_link`及其他已验证产物，生成并验证program object和无用户native requirement的真实多Cone binary。`final_link`必须显式闭合startup/support/default system provider及target-synthetic输入，基础plan/evidence不得依赖linker隐式default；backend/C-bridge/runtime-build信息只通过已验证producer产物进入link plan。源码、locator、cache和额外raw object不进入stage。
 - 完成真实ODR coalesce、multi-object stackmap、初始化、moving GC与exception gateway；带尚未处理native requirement的程序稳定拒绝。
 
 ### M23-10 general native requirement闭包与link evidence hardening
@@ -244,6 +248,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - collector只在逻辑死亡对象真正reclaim前同步claim并调用hook；不复制payload、不建立执行队列。moving只转移ready状态，from-space旧副本绝不触发；
 - best effort不保证GC时机、对象间顺序、执行线程或shutdown调用；但正常collection一旦决定回收ready对象，就必须在poison、复用或unmap其存储前尝试一次；
 - 显式`close`/`release`仍是主路径，并应先把owner字段置为inert state以避免后续hook重复释放。M24不新增公开arm/disarm API、full finalizer、对象复活、ByteBuffer或external-memory accounting。
+- `.slib` container仍为v1，但HIR/MIR/LIR outer schema必须同步升为2，foundation capability分别改为`org.scoop-lang.hir/identity-foundation/2`、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/2`，artifact profile改为`org.scoop-lang.slib-profile/identity-foundation/2`；callable body改用v2 key/domain但继续使用runtime metadata encoder ABI `RuntimeEncodeV1`，旧v1 artifact整体重建，不能以outer schema升级代替capability/profile major升级。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 
