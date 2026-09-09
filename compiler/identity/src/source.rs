@@ -3,7 +3,9 @@ use std::path::{Component, Path};
 
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
-use crate::{ConeCoordinate, ConeIdentity, DecodedPersistentId, PersistentIdMismatch};
+use crate::{
+    ConeCoordinate, ConeIdentity, DecodedPersistentId, PersistentIdMismatch, PersistentIdResolver,
+};
 
 const SINGLE_FILE_LOGICAL_PATH: &str = "main.scoop";
 
@@ -316,6 +318,23 @@ impl DecodedSourceIdentity {
             .map_err(SourceIdentityDecodeError::Path)?;
         SourceIdentity::new(cone, path).map_err(SourceIdentityDecodeError::Identity)
     }
+
+    pub fn resolve<R>(
+        self,
+        resolver: &mut R,
+    ) -> Result<SourceIdentity, SourceIdentityResolutionError<R::Error>>
+    where
+        R: PersistentIdResolver<ConeIdentity>,
+    {
+        let cone = resolver
+            .resolve(self.cone)
+            .map_err(SourceIdentityResolutionError::Cone)?;
+        let path = self
+            .logical_path
+            .validate()
+            .map_err(SourceIdentityResolutionError::Path)?;
+        SourceIdentity::new(cone, path).map_err(SourceIdentityResolutionError::Identity)
+    }
 }
 
 impl WireEncode for DecodedSourceIdentity {
@@ -392,6 +411,25 @@ impl fmt::Display for SourceIdentityDecodeError {
 
 impl std::error::Error for SourceIdentityDecodeError {}
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceIdentityResolutionError<E> {
+    Cone(E),
+    Path(NormalizedSourcePathError),
+    Identity(SourceIdentityError),
+}
+
+impl<E: fmt::Display> fmt::Display for SourceIdentityResolutionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Cone(error) => error.fmt(formatter),
+            Self::Path(error) => error.fmt(formatter),
+            Self::Identity(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for SourceIdentityResolutionError<E> {}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -402,7 +440,10 @@ mod tests {
         DecodedSourceContentDigest, NormalizedSourcePath, NormalizedSourcePathError,
         SourceContentDigest, SourceContentDigestError, SourceIdentity, SourceIdentityError,
     };
-    use crate::{ConeCoordinate, ConeIdentity, DecodedSourceIdentity};
+    use crate::{
+        ConeCoordinate, ConeIdentity, DecodedPersistentId, DecodedSourceIdentity,
+        PersistentIdMismatch, PersistentIdResolver, SourceIdentityResolutionError,
+    };
 
     #[test]
     fn source_paths_accept_only_canonical_relative_form() {
@@ -526,5 +567,51 @@ mod tests {
                 .unwrap(),
             source
         );
+    }
+
+    #[test]
+    fn source_resolution_uses_the_typed_cone_table_before_trusting_the_path() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        struct ConeResolutionError;
+
+        impl std::fmt::Display for ConeResolutionError {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("Cone identity is absent from the graph")
+            }
+        }
+
+        impl std::error::Error for ConeResolutionError {}
+
+        struct Resolver(ConeIdentity);
+
+        impl PersistentIdResolver<ConeIdentity> for Resolver {
+            type Error = ConeResolutionError;
+
+            fn resolve(
+                &mut self,
+                id: DecodedPersistentId<ConeIdentity>,
+            ) -> Result<ConeIdentity, Self::Error> {
+                id.verify(self.0)
+                    .map_err(|_: PersistentIdMismatch<ConeIdentity>| ConeResolutionError)
+            }
+        }
+
+        let source = SourceIdentity::single_file();
+        let bytes = encode(&source).unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceIdentity>(&bytes, DecodeLimits::default()).unwrap();
+        assert_eq!(
+            decoded
+                .resolve(&mut Resolver(ConeIdentity::SINGLE_FILE))
+                .unwrap(),
+            source
+        );
+
+        let decoded =
+            decode_canonical::<DecodedSourceIdentity>(&bytes, DecodeLimits::default()).unwrap();
+        assert!(matches!(
+            decoded.resolve(&mut Resolver(ConeIdentity::CORE)),
+            Err(SourceIdentityResolutionError::Cone(ConeResolutionError))
+        ));
     }
 }
