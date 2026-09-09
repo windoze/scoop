@@ -1138,23 +1138,23 @@ field offset/alignment/size均checked，field identity/owner/order必须与sourc
 
 Scoop ABI contract不复用C pass mode。`CanonicalScoopStorage`是map `1=PersistentExactTypeId, 2=byte_size:u64, 3=alignment:NonZeroU64, 4=ScoopAbiValueShape`，shape为`Scalar=1, Aggregate=2`；ZST必须`byte_size=0`，non-ZST必须大于0，shape、size和alignment都由当前target profile重算。`CanonicalScoopAbiFunctionSignature`是map `1=ExactCallableSignature, 2=array<ScoopAbiArgument>, 3=ScoopAbiReturn, 4=GcEffect`；argument为`ElidedZst=1 {1=CanonicalScoopStorage}`、`Direct=2 {1=storage}`或`Indirect=3 {1=storage}`，return为`UnitVoid=1`、`ElidedZst=2 {1=storage}`、`Direct=3 {1=storage}`或`Indirect=4 {1=storage}`。Elided只接受size 0，Direct/Indirect只接受nonzero size并符合profile的scalar/aggregate passing规则；signature中的exact type必须逐位置等于storage exact type。field 4必须逐项等于source `SourceExternFunctionAbi::Scoop`的Managed/NoGc effect；它与`ExactCallableSignature.effect`的Ordinary/Suspend轴正交，不能因两者都是“effect”而互相推导。这样同symbol与同物理value shape的Managed/NoGc extern仍产生不同contract fingerprint与typed callee-effect proof；两者都保持M15的`NativeBorrowed` transition与caller-root publication，`NoGc`不能偷降为普通`NoGc` callsite。M23-6会以新required ABI/layout section提供可跨Cone复用的完整layout/scan证明，但不改变这里已经冻结的extern physical signature bytes。
 
-`NativeExternalContractV1`的tag和field固定为：`Function=1 {1=NativeLibraryBinding, 2=NativeExternAbiV1, 3=TargetCallingConvention}`、`ReadOnlyData=2`、`MutableData=3`、`ReadOnlyTls=4`、`MutableTls=5`，后四者均为`{1=library, 2=CanonicalCStorageType}`。`NativeExternAbiV1`为`C=1 {1=CanonicalCAbiFunctionSignature}`或`Scoop=2 {1=CanonicalScoopAbiFunctionSignature}`。data/TLS只用C storage；C function的field 3必须逐tag等于其C signature field 1，Scoop function则只在外层field 3保存由source contract正规化出的calling convention，内层Scoop signature不复制第二份。当前二者唯一合法值均为`Cdecl=1`，但validator仍按上述分支检查，不能读取不存在的Scoop内层字段或默认补值。
+`NativeExternalContract`的tag和field固定为：`Function=1 {1=NativeLibraryBinding, 2=NativeExternAbi, 3=TargetCallingConvention}`、`ReadOnlyData=2`、`MutableData=3`、`ReadOnlyTls=4`、`MutableTls=5`，后四者均为`{1=library, 2=CanonicalCStorageType}`。`NativeExternAbi`为`C=1 {1=CanonicalCAbiFunctionSignature}`或`Scoop=2 {1=CanonicalScoopAbiFunctionSignature}`。data/TLS只用C storage；C function的field 3必须逐tag等于其C signature field 1，Scoop function则只在外层field 3保存由source contract正规化出的calling convention，内层Scoop signature不复制第二份。当前二者唯一合法值均为`Cdecl=1`，但validator仍按上述分支检查，不能读取不存在的Scoop内层字段或默认补值。
 
 ```text
-NativeExternalContractFingerprintInputV1 {
+NativeExternalContractFingerprintInput {
     symbol_id: PersistentNativeExternalSymbolId, // field 1
-    contract: NativeExternalContractV1,          // field 2
+    contract: NativeExternalContract,            // field 2
 }
 
 NativeExternalContractFingerprint =
     DomainSeparatedCborHash("scoop-native-external-contract-v1", input)
 
-NativeExternalContractRecordV1 {
+NativeExternalContractRecord {
     source: PersistentSourceNativeExternalContractId, // field 1
     symbol_id: PersistentNativeExternalSymbolId,      // field 2
     symbol_key: NativeExternalSymbolKey,             // field 3
     fingerprint: NativeExternalContractFingerprint,    // field 4
-    contract: NativeExternalContractV1,                // field 5
+    contract: NativeExternalContract,                  // field 5
 }
 ```
 
@@ -1718,7 +1718,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 11 | `RuntimeTypeMappingRecordV1` records |
 | 12 | `SafepointMappingRecordV1` records |
 | 13 | `PersistentSymbolRequestV1` records |
-| 14 | `NativeExternalContractRecordV1` records |
+| 14 | `NativeExternalContractRecord` records |
 | 15 | `CanonicalCAbiSignatureFingerprintRecord` records |
 | 16 | `CanonicalCAbiLayoutFingerprintRecord` records |
 | 17 | `GeneratedBridgeUnitId` records |
@@ -1730,7 +1730,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 
 `RuntimeTypeMappingRecordV1`恰为`1=PersistentExactTypeId, 2=RuntimeTypeId(nonzero u64)`；`SafepointMappingRecordV1`恰为`1=PersistentSafepointSiteId, 2=SafepointId(nonzero u64)`，分别按field 1 raw id排序并全双射。symbol request按第7.1节唯一规则`(numeric key tag, owner raw id)`排序；linkage不进sort key，同key的不同linkage在排序前就是冲突。
 
-field 15/16的两个fingerprint record都是`{1=typed fingerprint, 2=canonical preimage}`，preimage分别为第5.4节的`CanonicalCAbiFunctionSignature`与`CanonicalCAbiLayout`；reader以`scoop-c-abi-signature-v1`、`scoop-c-abi-layout-v1` domain重算。field 14保存完整`NativeExternalContractRecordV1`并按该节同时重算symbol id与contract fingerprint。不能把bare digest当可信leaf；bridge unit/atom key引用的每个contract/signature/layout必须能在这些已验证表中定位。
+field 15/16的两个fingerprint record都是`{1=typed fingerprint, 2=canonical preimage}`，preimage分别为第5.4节的`CanonicalCAbiFunctionSignature`与`CanonicalCAbiLayout`；reader以`scoop-c-abi-signature-v1`、`scoop-c-abi-layout-v1` domain重算。field 14保存完整`NativeExternalContractRecord`并按该节同时重算symbol id与contract fingerprint。不能把bare digest当可信leaf；bridge unit/atom key引用的每个contract/signature/layout必须能在这些已验证表中定位。
 
 `LirCallbackBridgeRecordV1`是map `1=PersistentCallbackApplicationId, 2=CanonicalCAbiSignatureFingerprint, 3=GeneratedBridgeUnitId`，按callback application id排序。field 2的preimage必须是由该application替换后的source C signature经当前target profile唯一正规化得到的canonical C signature；field 3必须逐字段等于`CallbackTrampoline { field 2, context_parameter }`的unit key。MIR application、LIR signature与unit三方缺失或mode/context不一致使Compile proof失败；不同application得到相同signature/index时必须引用同一个unit，不得复制trampoline identity。
 

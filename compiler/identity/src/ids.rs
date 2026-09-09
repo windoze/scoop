@@ -97,6 +97,10 @@ persistent_id!(
     "source native external contract"
 );
 persistent_id!(PersistentNativeExternalSymbolId, "native external symbol");
+persistent_id!(
+    NativeExternalContractFingerprint,
+    "native external contract fingerprint"
+);
 persistent_id!(NativeLinkRequirementId, "native link requirement");
 persistent_id!(PersistentExportBindingId, "export binding");
 persistent_id!(PersistentInitializationUnitId, "initialization unit");

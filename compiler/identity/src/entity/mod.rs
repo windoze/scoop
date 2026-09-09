@@ -10,6 +10,7 @@ mod field;
 mod generated_callable;
 mod generated_nominal;
 mod materialization;
+mod native_contract;
 mod native_link;
 mod native_name;
 mod owners;
@@ -68,6 +69,10 @@ pub use generated_nominal::{
 };
 pub use materialization::{
     InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole,
+};
+pub use native_contract::{
+    NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
+    NativeExternalContractRecord,
 };
 pub use native_link::{
     CanonicalNativeGroupName, NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping,
