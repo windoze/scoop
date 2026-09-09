@@ -13,6 +13,13 @@ use crate::{
     PersistentScanId, PersistentStaticStorageId, PersistentTypeId, TargetProfileWireId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,
+    LayoutKeyResolutionError, StaticStorageResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum RepresentationRole {
     ManagedValue,

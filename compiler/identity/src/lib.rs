@@ -139,6 +139,12 @@ pub use entity::{
     GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
 };
 pub use entity::{
+    DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,
+    DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
+    LayoutKeyResolutionError, RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole,
+    StaticStorageKey, StaticStorageResolutionError, StorageRole,
+};
+pub use entity::{
     DecodedInitializationUnitKey, DecodedLocalValueKey, InitializationUnitKey,
     InitializationUnitResolutionError, LocalValueKey, LocalValueResolutionError,
     LocalValueSelector, SyntheticLocalRole,
@@ -152,10 +158,6 @@ pub use entity::{
     ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
     ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
     StrongDefinitionRole,
-};
-pub use entity::{
-    DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
-    RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
 };
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,

@@ -91,8 +91,10 @@ pub use owners::{
     DispatchDeclarationOwner, NominalDeclarationOwner, NominalOwner, PropertyOwner,
 };
 pub use runtime_identity::{
+    DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,
     DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
-    RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey, StorageRole,
+    LayoutKeyResolutionError, RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole,
+    StaticStorageKey, StaticStorageResolutionError, StorageRole,
 };
 pub use safepoint::{
     DecodedSafepointSiteKey, DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey,

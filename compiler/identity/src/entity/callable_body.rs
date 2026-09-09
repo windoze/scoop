@@ -171,6 +171,10 @@ impl RuntimeEncode for DecodedCallableBodyKey {
 pub struct MainCallableBodyId(PersistentCallableBodyId);
 
 impl MainCallableBodyId {
+    pub(crate) const fn from_body(body: PersistentCallableBodyId) -> Self {
+        Self(body)
+    }
+
     pub const fn body(self) -> PersistentCallableBodyId {
         self.0
     }
