@@ -11,6 +11,14 @@ use crate::{
     PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey,
+    DecodedObjectDefinitionPlanOwner, DecodedStrongDefinitionEntity, DefinitionAtomResolver,
+    ObjectDefinitionResolutionError, StrongDefinitionResolver,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum StrongDefinitionEntityKind {
     CallableBody(PersistentCallableBodyId),
@@ -357,6 +365,7 @@ impl ObjectDefinitionAtomId {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectDefinitionIdentityError {
     StrongRoleEntityMismatch,
+    PlanOwnerRoleMismatch,
     NonMaterializableBridgeAtom,
     Hash(HashError),
 }
@@ -366,6 +375,9 @@ impl fmt::Display for ObjectDefinitionIdentityError {
         match self {
             Self::StrongRoleEntityMismatch => {
                 formatter.write_str("strong definition role does not accept this entity kind")
+            }
+            Self::PlanOwnerRoleMismatch => {
+                formatter.write_str("object definition plan owner does not accept this role")
             }
             Self::NonMaterializableBridgeAtom => {
                 formatter.write_str("static-assert bridge support has no materialized object atom")

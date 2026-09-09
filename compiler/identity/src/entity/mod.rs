@@ -138,10 +138,12 @@ pub use native_name::{
     DecodedSourceNativeSymbol, SourceNativeSymbol, SourceNativeSymbolError,
 };
 pub use object_definition::{
+    DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey,
+    DecodedObjectDefinitionPlanOwner, DecodedStrongDefinitionEntity, DefinitionAtomResolver,
     DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
     ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
-    StrongDefinitionRole,
+    ObjectDefinitionPlanRole, ObjectDefinitionResolutionError, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionResolver, StrongDefinitionRole,
 };
 pub use odr::{
     CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,

@@ -136,6 +136,14 @@ pub use entity::{
     ScoopAbiResolutionError, ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use entity::{
+    DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey,
+    DecodedObjectDefinitionPlanOwner, DecodedStrongDefinitionEntity, DefinitionAtomResolver,
+    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
+    ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, ObjectDefinitionResolutionError, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionResolver, StrongDefinitionRole,
+};
+pub use entity::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
     DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
     GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
@@ -154,12 +162,6 @@ pub use entity::{
 pub use entity::{
     DecodedSafepointSiteKey, DerivedIdError, RuntimeTypeId, SafepointId, SafepointSiteKey,
     SafepointSiteRole,
-};
-pub use entity::{
-    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionEntityKind,
-    StrongDefinitionRole,
 };
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,
